@@ -94,7 +94,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   };
 
   const handleThumbnailClick = (image: any, index: number) => {
-    console.log('[MediaSelector] Thumbnail clicked - entering preview mode:', index, image);
+    console.log('[MediaSelector] Entering handleThumbnailClick for image:', image);
+    console.log('[MediaSelector] Current isPreviewing state BEFORE update:', isPreviewing);
     
     const imageMetadata = {
       source: 'unsplash',
@@ -106,12 +107,15 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       download_location: image.download_location
     };
     
+    // Set preview state
+    setIsPreviewing(true);
     setPreviewImage({
       url: image.url,
       metadata: imageMetadata
     });
-    setIsPreviewing(true);
-    console.log('[MediaSelector] Preview state set to true');
+
+    console.log('[MediaSelector] Preview state set to true, previewImage set to:', image.id);
+    console.log('[MediaSelector] isPreviewing state AFTER update:', isPreviewing);
   };
 
   const handleDownload = async (image: any, event?: React.MouseEvent) => {
@@ -191,13 +195,15 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     onBackClick?.();
   };
 
-  // Debug logging
+  // Debugging render flow
+  console.log('[MediaSelector] Component re-rendered. isPreviewing:', isPreviewing);
   console.log('[MediaSelector] Current state:', {
     searchResultsCount: searchResults.length,
     hasPreviewImage: !!previewImage,
     previewImageUrl: previewImage?.url,
     showingSuggestions,
-    unsplashLoading
+    unsplashLoading,
+    isPreviewing: isPreviewing
   });
 
   if (compact) {
@@ -320,6 +326,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
   // Preview Mode UI
   if (isPreviewing && previewImage) {
+    console.log('[MediaSelector] Rendering preview mode.', previewImage);
     return (
       <div className={cn("w-full", className)}>
         <div className="flex items-center gap-3 mb-4">
@@ -370,6 +377,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   }
 
   // Browse Mode UI
+  console.log('[MediaSelector] Rendering thumbnail grid (not in preview mode).');
   return (
     <div className={cn("w-full space-y-6", className)}>
 
