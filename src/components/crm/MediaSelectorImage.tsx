@@ -27,6 +27,13 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
     setIsOpen(false);
   };
 
+  const handleModalClose = (open: boolean) => {
+    // Only allow closing the modal if explicitly requested (not from thumbnail clicks)
+    if (!open) {
+      setIsOpen(false);
+    }
+  };
+
   return (
     <>
       <div className={`relative group w-full h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer ${className}`}>
@@ -52,17 +59,26 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
         </button>
       </div>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="media-selector-desc">
+      <Dialog open={isOpen} onOpenChange={handleModalClose}>
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] overflow-y-auto" 
+          aria-describedby="media-selector-desc"
+          onPointerDownOutside={(e) => {
+            // Prevent closing when clicking inside the dialog content
+            e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Select Image</DialogTitle>
           </DialogHeader>
           <p id="media-selector-desc" className="sr-only">Browse and select an image from our collection or search for specific content to add to your campaign.</p>
-          <MediaSelector
-            onImageSelect={handleImageSelect}
-            selectedImageUrl={src}
-            contentContext={contentContext}
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <MediaSelector
+              onImageSelect={handleImageSelect}
+              selectedImageUrl={src}
+              contentContext={contentContext}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </>
