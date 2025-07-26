@@ -188,28 +188,19 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   };
 
   const AddBlockButton: React.FC<{ afterIndex?: number }> = ({ afterIndex }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    
     const handleAddBlock = (type: ContentBlock['type']) => {
       console.log('Adding block:', type, 'after index:', afterIndex);
       addBlock(type, afterIndex);
-      setIsOpen(false);
     };
 
     return (
       <div className="flex justify-center py-4">
-        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
               variant="outline" 
               size="sm" 
               className="gap-2 bg-background hover:bg-accent"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('Add Block trigger clicked, opening:', !isOpen);
-                setIsOpen(!isOpen);
-              }}
             >
               <Plus className="h-4 w-4" />
               Add Block
@@ -217,86 +208,54 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
           </DropdownMenuTrigger>
           <DropdownMenuContent 
             className="z-[9999] bg-background border shadow-lg min-w-[160px]" 
-            style={{ pointerEvents: 'auto' }}
             align="center"
             side="bottom"
+            sideOffset={4}
           >
             <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddBlock('header');
-              }}
+              onClick={() => handleAddBlock('header')}
               className="cursor-pointer"
             >
               📄 Header
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddBlock('text');
-              }}
+              onClick={() => handleAddBlock('text')}
               className="cursor-pointer"
             >
               📝 Text
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddBlock('image');
-              }}
+              onClick={() => handleAddBlock('image')}
               className="cursor-pointer"
             >
               🖼️ Image
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddBlock('image-text');
-              }}
+              onClick={() => handleAddBlock('image-text')}
               className="cursor-pointer"
             >
               📄 Image + Text
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddBlock('button');
-              }}
+              onClick={() => handleAddBlock('button')}
               className="cursor-pointer"
             >
               🔘 Button
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddBlock('divider');
-              }}
+              onClick={() => handleAddBlock('divider')}
               className="cursor-pointer"
             >
               ➖ Divider
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddBlock('social-follow');
-              }}
+              onClick={() => handleAddBlock('social-follow')}
               className="cursor-pointer"
             >
               📱 Social Follow
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddBlock('footer');
-              }}
+              onClick={() => handleAddBlock('footer')}
               className="cursor-pointer"
             >
               📋 Footer
