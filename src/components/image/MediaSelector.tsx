@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Upload, Search, Image as ImageIcon, Loader2, Download, Edit3, Camera } from 'lucide-react';
 import { useUnsplash } from '@/hooks/useUnsplash';
 import { useContentAssets } from '@/hooks/useContentAssets';
@@ -28,6 +26,13 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   className,
   compact = false
 }) => {
+  console.log('[MediaSelector] Component rendering with props:', {
+    hasSelectedImage: !!selectedImageUrl,
+    selectedImageUrl,
+    contentContext,
+    compact
+  });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showingSuggestions, setShowingSuggestions] = useState(false);
@@ -41,15 +46,19 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   useEffect(() => {
     const loadDefaultSuggestions = async () => {
       if (searchResults.length === 0 && !showingSuggestions) {
+        console.log('[MediaSelector] Loading default suggestions...');
         setShowingSuggestions(true);
         const rawQuery = contentContext ? extractImageSummary(contentContext) : 'garden center';
         const defaultQuery = validateImageQuery(rawQuery);
-        console.log('[MediaSelector] Loading suggestions with validated query:', defaultQuery, 'from context:', rawQuery);
-        const results = await searchImages(defaultQuery);
-        console.log('[MediaSelector] Search results received:', results?.length || 0, 'results');
-        console.log('[MediaSelector] First result sample:', results?.[0]);
-        setSearchResults(results.slice(0, 6));
-        console.log('[MediaSelector] Updated searchResults state to:', results.slice(0, 6).length, 'items');
+        console.log('[MediaSelector] Using validated query:', defaultQuery, 'from context:', rawQuery);
+        
+        try {
+          const results = await searchImages(defaultQuery);
+          console.log('[MediaSelector] Search results received:', results?.length || 0, 'results');
+          setSearchResults(results.slice(0, 6));
+        } catch (error) {
+          console.error('[MediaSelector] Error loading suggestions:', error);
+        }
       }
     };
     
@@ -59,24 +68,54 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
+    console.log('[MediaSelector] Searching for:', searchQuery);
     const cleanQuery = validateImageQuery(searchQuery);
-    console.log('[MediaSelector] Searching with validated query:', cleanQuery, 'from input:', searchQuery);
+    console.log('[MediaSelector] Using validated query:', cleanQuery);
     
     setShowingSuggestions(false);
-    const results = await searchImages(cleanQuery);
-    setSearchResults(results);
+    try {
+      const results = await searchImages(cleanQuery);
+      console.log('[MediaSelector] Search completed, found:', results?.length || 0, 'results');
+      setSearchResults(results);
+    } catch (error) {
+      console.error('[MediaSelector] Search error:', error);
+    }
   };
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
-    console.log('[MediaSelector] handleImageSelect called with:', imageUrl, metadata);
+    console.log('[MediaSelector] Image selected:', imageUrl, metadata);
     setSelectedImageMetadata(metadata);
-    console.log('[MediaSelector] About to call onImageSelect prop');
+    setPreviewImage(null); // Clear preview when selecting
     onImageSelect(imageUrl, metadata);
-    console.log('[MediaSelector] onImageSelect prop called successfully');
+    console.log('[MediaSelector] onImageSelect callback completed');
+  };
+
+  const handleThumbnailClick = (image: any, index: number) => {
+    console.log('[MediaSelector] Thumbnail clicked:', index, image);
+    const imageMetadata = {
+      source: 'unsplash',
+      alt_text: image.alt,
+      photographer: image.photographer,
+      photographer_url: image.photographer_url,
+      unsplash_id: image.id,
+      thumb: image.thumb,
+      download_location: image.download_location
+    };
+    
+    console.log('[MediaSelector] Setting preview image:', {
+      url: image.url,
+      metadata: imageMetadata
+    });
+    
+    setPreviewImage({
+      url: image.url,
+      metadata: imageMetadata
+    });
   };
 
   const handleDownload = async (image: any, event?: React.MouseEvent) => {
     event?.stopPropagation();
+    console.log('[MediaSelector] Download requested for:', image);
     
     if (!image.photographer || !image.id) {
       toast.error('Unable to download: Missing image information');
@@ -95,7 +134,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       if (result.success) {
         toast.success(`Downloaded: ${result.filename}`);
         
-        // Copy attribution to clipboard
         const copied = await copyAttributionToClipboard(
           image.photographer,
           image.photographer_url,
@@ -109,7 +147,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         toast.error(`Download failed: ${result.error}`);
       }
     } catch (error) {
-      console.error('Download error:', error);
+      console.error('[MediaSelector] Download error:', error);
       toast.error('Download failed');
     }
   };
@@ -118,9 +156,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    console.log('[MediaSelector] File upload started:', file.name);
     try {
       const asset = await uploadAsset(file, []);
       if (asset?.url) {
+        console.log('[MediaSelector] File uploaded successfully:', asset.url);
         handleImageSelect(asset.url, {
           source: 'upload',
           alt_text: `Uploaded image: ${file.name}`,
@@ -128,21 +168,30 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         });
       }
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error('[MediaSelector] Upload failed:', error);
       toast.error('Upload failed');
     }
   };
 
+  const handleSelectPreview = () => {
+    if (previewImage) {
+      console.log('[MediaSelector] Selecting preview image:', previewImage);
+      handleImageSelect(previewImage.url, previewImage.metadata);
+    }
+  };
+
+  const handleClearPreview = () => {
+    console.log('[MediaSelector] Clearing preview');
+    setPreviewImage(null);
+  };
+
   // Debug logging
-  console.log('[MediaSelector] Props:', {
-    selectedImageUrl,
-    hasSelectedImage: !!selectedImageUrl,
-    compact,
-    contentContext
-  });
-  console.log('[MediaSelector] Internal state:', {
-    previewImage: previewImage ? { url: previewImage.url, hasMetadata: !!previewImage.metadata } : null,
-    searchResultsCount: searchResults.length
+  console.log('[MediaSelector] Current state:', {
+    searchResultsCount: searchResults.length,
+    hasPreviewImage: !!previewImage,
+    previewImageUrl: previewImage?.url,
+    showingSuggestions,
+    unsplashLoading
   });
 
   if (compact) {
@@ -157,16 +206,13 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 alt={selectedImageMetadata?.alt_text || "Featured image"}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  console.error('[MediaSelector] Image failed to load:', selectedImageUrl);
-                  console.error('[MediaSelector] Current src:', e.currentTarget.src);
+                  console.error('[MediaSelector] Compact image failed to load:', selectedImageUrl);
                   const currentSrc = e.currentTarget.src;
                   const fallbackPath = '/images/newsletter-fallback.jpg';
                   
-                  // Prevent infinite loop - only set fallback if not already using it
                   if (!currentSrc.includes('newsletter-fallback.jpg')) {
                     e.currentTarget.src = fallbackPath;
                   } else {
-                    // If fallback also fails, use a data URI placeholder
                     e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+';
                   }
                 }}
@@ -248,10 +294,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                   key={index}
                   className="relative group cursor-pointer aspect-square rounded overflow-hidden border-2 border-slate-200 hover:border-primary transition-all"
                   onClick={(e) => {
-                    console.log('[MediaSelector] Compact image clicked:', index, image);
                     e.preventDefault();
                     e.stopPropagation();
-                    // In compact mode, still use immediate selection for better UX
+                    console.log('[MediaSelector] Compact thumbnail clicked:', index, image);
                     handleImageSelect(image.url, {
                       source: 'unsplash',
                       alt_text: image.alt,
@@ -293,15 +338,13 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               alt={previewImage?.metadata?.alt_text || selectedImageMetadata?.alt_text || "Featured image"}
               className="w-full h-full object-cover"
               onError={(e) => {
-                console.error('[MediaSelector] Full view image failed to load:', previewImage?.url || selectedImageUrl);
+                console.error('[MediaSelector] Featured image failed to load:', previewImage?.url || selectedImageUrl);
                 const currentSrc = e.currentTarget.src;
                 const fallbackPath = '/images/newsletter-fallback.jpg';
                 
-                // Prevent infinite loop - only set fallback if not already using it
                 if (!currentSrc.includes('newsletter-fallback.jpg')) {
                   e.currentTarget.src = fallbackPath;
                 } else {
-                  // If fallback also fails, use a data URI placeholder
                   e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+';
                 }
               }}
@@ -312,18 +355,23 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                 <div className="text-center space-y-3">
                   <Button 
-                    onClick={() => {
-                      console.log('[MediaSelector] Select button clicked, calling onImageSelect');
-                      handleImageSelect(previewImage.url, previewImage.metadata);
-                      setPreviewImage(null);
-                    }}
+                    onClick={handleSelectPreview}
                     className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
                   >
                     Select This Image
                   </Button>
-                  <p className="text-white text-sm">
-                    Photo by {previewImage.metadata?.photographer}
-                  </p>
+                  <Button 
+                    onClick={handleClearPreview}
+                    variant="outline" 
+                    className="bg-white/90 hover:bg-white text-gray-700 px-4 py-1 text-sm"
+                  >
+                    Cancel
+                  </Button>
+                  {previewImage.metadata?.photographer && (
+                    <p className="text-white text-sm">
+                      Photo by {previewImage.metadata.photographer}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -398,55 +446,37 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           <h4 className="text-sm font-medium text-slate-700">
             {showingSuggestions ? 'Suggested Images' : 'Search Results'}
           </h4>
-          <div className="text-xs text-gray-500">
-            Debug: Found {searchResults.length} results
-          </div>
           
           <div className="grid grid-cols-3 gap-4">
-            {searchResults.slice(0, 3).map((image, index) => {
-              console.log('[MediaSelector] Rendering thumbnail:', index, 'with image:', image.id);
-              return (
-                <Card 
-                  key={index} 
-                  className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
-                  onClick={(e) => {
-                    console.log('[MediaSelector] THUMBNAIL CLICKED - Full view image clicked:', index, image);
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setPreviewImage({
-                      url: image.url,
-                      metadata: {
-                        source: 'unsplash',
-                        alt_text: image.alt,
-                        photographer: image.photographer,
-                        photographer_url: image.photographer_url,
-                        unsplash_id: image.id,
-                        thumb: image.thumb,
-                        download_location: image.download_location
-                      }
-                    });
-                  }}
-                >
-                  <CardContent className="p-0">
-                    <div className="relative aspect-square">
-                      <img 
-                        src={image.thumb} 
-                        alt={image.alt}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
-                        <Camera className="h-6 w-6 text-white" />
-                      </div>
-                      {image.photographer && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 rounded-b-lg">
-                          Photo by {image.photographer}
-                        </div>
-                      )}
+            {searchResults.slice(0, 3).map((image, index) => (
+              <Card 
+                key={`${image.id}-${index}`}
+                className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleThumbnailClick(image, index);
+                }}
+              >
+                <CardContent className="p-0">
+                  <div className="relative aspect-square">
+                    <img 
+                      src={image.thumb} 
+                      alt={image.alt}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                      <Camera className="h-6 w-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    {image.photographer && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 rounded-b-lg">
+                        Photo by {image.photographer}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
           
           {searchResults.length > 3 && (
