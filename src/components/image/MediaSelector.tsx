@@ -208,7 +208,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
   if (compact) {
     return (
-      <div className={cn("bg-white border border-gray-200 rounded-lg p-6 space-y-6", className)}>
+      <div className={cn("w-full space-y-6", className)}>
         {/* Compact Featured Image */}
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-gray-700">Featured Image</h4>
@@ -531,9 +531,19 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 <CardContent className="p-0">
                   <div className="relative aspect-square">
                     <img 
-                      src={image.thumb} 
+                     src={image.thumb || image.thumb_url || image.url} 
                       alt={image.alt}
                       className="w-full h-full object-cover rounded-lg"
+                      onError={(e) => {
+                        console.error('[MediaSelector] Thumbnail failed to load:', image.thumb || image.thumb_url);
+                        // Fallback chain: thumb -> thumb_url -> url -> placeholder
+                        const currentSrc = e.currentTarget.src;
+                        if (currentSrc !== image.url && image.url) {
+                          e.currentTarget.src = image.url;
+                        } else {
+                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgRmFpbGVkPC90ZXh0Pjwvc3ZnPg==';
+                        }
+                      }}
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
                       <Camera className="h-6 w-6 text-white" />

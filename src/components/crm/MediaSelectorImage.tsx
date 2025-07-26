@@ -37,7 +37,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   if (isSelecting) {
     return (
       <div className={`w-full space-y-4 mb-8 ${className}`}>
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
             <h4 className="text-sm font-medium text-gray-900">Select Image</h4>
             <Button variant="outline" size="sm" onClick={handleCancel}>
@@ -45,7 +45,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
               Cancel
             </Button>
           </div>
-          <div className="w-full">
+          <div className="w-full min-h-[500px]">
             <MediaSelector
               onImageSelect={handleImageSelect}
               selectedImageUrl={src}
