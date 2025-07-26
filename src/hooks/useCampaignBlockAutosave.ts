@@ -17,17 +17,24 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
     try {
       options.onSaveStart?.();
       
-      // Update the block in campaign_blocks
-      const { error: updateError } = await supabase
+      // Use upsert to either insert or update the block
+      const { error: upsertError } = await supabase
         .from('campaign_blocks')
-        .update({
+        .upsert({
+          id: block.id,
+          campaign_id: campaignId,
+          order_index: block.order_index || 0,
           content: block.content,
           block_type: block.block_type,
+          image_url: block.image_url || null,
+          cta_url: block.cta_url || null,
+          cta_text: block.cta_text || null,
           updated_at: new Date().toISOString()
-        })
-        .eq('id', block.id);
+        }, {
+          onConflict: 'id'
+        });
 
-      if (updateError) throw updateError;
+      if (upsertError) throw upsertError;
 
       // Check if we should create a version snapshot (every 5 minutes)
       const now = Date.now();
