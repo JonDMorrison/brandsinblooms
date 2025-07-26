@@ -205,7 +205,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
             Add Block
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="z-[500] bg-background border shadow-lg">
+        <DropdownMenuContent className="z-[9999] bg-background border shadow-lg" style={{ pointerEvents: 'auto' }}>
           <DropdownMenuItem 
             onClick={(e) => {
               e.preventDefault();
