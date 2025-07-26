@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Upload, Search, Image as ImageIcon, Loader2, Download, Edit3, Camera } from 'lucide-react';
+import { DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Upload, Search, Image as ImageIcon, Loader2, Download, Edit3, Camera, ArrowLeft } from 'lucide-react';
 import { useUnsplash } from '@/hooks/useUnsplash';
 import { useContentAssets } from '@/hooks/useContentAssets';
 import { downloadUnsplashImage, copyAttributionToClipboard } from '@/services/unsplashDownloadService';
@@ -38,6 +39,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const [showingSuggestions, setShowingSuggestions] = useState(false);
   const [selectedImageMetadata, setSelectedImageMetadata] = useState<any>(null);
   const [previewImage, setPreviewImage] = useState<{url: string, metadata: any} | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   
   const { searchImages, loading: unsplashLoading } = useUnsplash();
   const { uploadAsset } = useContentAssets();
@@ -90,8 +92,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     console.log('[MediaSelector] onImageSelect callback completed');
   };
 
-  const handleThumbnailClick = (image: any, index: number) => {
-    console.log('[MediaSelector] Full modal thumbnail clicked (NOT closing modal):', index, image);
+  const handleThumbnailClick = (image: any, index: number) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[MediaSelector] Thumbnail clicked - entering preview mode:', index, image);
+    
     const imageMetadata = {
       source: 'unsplash',
       alt_text: image.alt,
@@ -102,15 +107,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       download_location: image.download_location
     };
     
-    console.log('[MediaSelector] Setting preview image for full modal:', {
-      url: image.url,
-      metadata: imageMetadata
-    });
-    
     setPreviewImage({
       url: image.url,
       metadata: imageMetadata
     });
+    setIsPreviewing(true);
   };
 
   const handleDownload = async (image: any, event?: React.MouseEvent) => {
@@ -173,16 +174,19 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     }
   };
 
-  const handleSelectPreview = () => {
+  const handleConfirmSelection = () => {
     if (previewImage) {
-      console.log('[MediaSelector] "Choose This Image" button clicked - selecting preview image:', previewImage);
+      console.log('[MediaSelector] "Choose This Image" button clicked - confirming selection:', previewImage);
       handleImageSelect(previewImage.url, previewImage.metadata);
+      setPreviewImage(null);
+      setIsPreviewing(false);
     }
   };
 
-  const handleClearPreview = () => {
-    console.log('[MediaSelector] Clearing preview');
+  const handleBackToBrowse = () => {
+    console.log('[MediaSelector] Back to browse mode');
     setPreviewImage(null);
+    setIsPreviewing(false);
   };
 
   // Debug logging
@@ -293,25 +297,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 <div
                   key={index}
                   className="relative group cursor-pointer aspect-square rounded overflow-hidden border-2 border-slate-200 hover:border-primary transition-all"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('[MediaSelector] Compact thumbnail clicked - setting preview:', index, image);
-                    const imageMetadata = {
-                      source: 'unsplash',
-                      alt_text: image.alt,
-                      photographer: image.photographer,
-                      photographer_url: image.photographer_url,
-                      unsplash_id: image.id,
-                      thumb: image.thumb,
-                      download_location: image.download_location
-                    };
-                    
-                    setPreviewImage({
-                      url: image.url,
-                      metadata: imageMetadata
-                    });
-                  }}
+                  onClick={handleThumbnailClick(image, index)}
                 >
                   <img 
                     src={image.thumb} 
@@ -330,20 +316,78 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     );
   }
 
+  // Preview Mode UI
+  if (isPreviewing && previewImage) {
+    return (
+      <div className={cn("w-full", className)}>
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBackToBrowse}
+              className="p-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <DialogTitle>Preview Image</DialogTitle>
+              {previewImage.metadata?.photographer && (
+                <p className="text-sm text-muted-foreground">
+                  Photo by {previewImage.metadata.photographer}
+                </p>
+              )}
+            </div>
+          </div>
+        </DialogHeader>
+        
+        <div className="mt-4 mb-6">
+          <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
+            <img 
+              src={previewImage.url} 
+              alt={previewImage.metadata?.alt_text || "Preview image"}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+        
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={handleBackToBrowse}
+          >
+            Back to Browse
+          </Button>
+          <Button
+            onClick={handleConfirmSelection}
+            className="bg-primary hover:bg-primary/90"
+          >
+            Choose This Image
+          </Button>
+        </DialogFooter>
+      </div>
+    );
+  }
+
+  // Browse Mode UI
   return (
     <div className={cn("w-full space-y-6", className)}>
+      <DialogHeader>
+        <DialogTitle>Select Image</DialogTitle>
+      </DialogHeader>
+
       {/* Featured Image Section */}
       <div className="space-y-4">
         <h3 className="text-sm font-medium text-slate-700">Featured Image</h3>
         
-        {selectedImageUrl || previewImage ? (
+        {selectedImageUrl ? (
           <div className="relative group aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
             <img 
-              src={previewImage?.url || selectedImageUrl} 
-              alt={previewImage?.metadata?.alt_text || selectedImageMetadata?.alt_text || "Featured image"}
+              src={selectedImageUrl} 
+              alt={selectedImageMetadata?.alt_text || "Featured image"}
               className="w-full h-full object-cover"
               onError={(e) => {
-                console.error('[MediaSelector] Featured image failed to load:', previewImage?.url || selectedImageUrl);
+                console.error('[MediaSelector] Featured image failed to load:', selectedImageUrl);
                 const currentSrc = e.currentTarget.src;
                 const fallbackPath = '/images/newsletter-fallback.jpg';
                 
@@ -355,56 +399,24 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               }}
             />
             
-            {/* Show "Select This Image" button when previewing */}
-            {previewImage && (
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                <div className="text-center space-y-3">
-                  <Button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log('[MediaSelector] "Choose This Image" button clicked');
-                      handleSelectPreview();
-                    }}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
-                  >
-                    Choose This Image
-                  </Button>
-                  <Button 
-                    onClick={handleClearPreview}
-                    variant="outline" 
-                    className="bg-white/90 hover:bg-white text-gray-700 px-4 py-1 text-sm"
-                  >
-                    Cancel
-                  </Button>
-                  {previewImage.metadata?.photographer && (
-                    <p className="text-white text-sm">
-                      Photo by {previewImage.metadata.photographer}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-            
             {/* Show edit controls for selected images */}
-            {selectedImageUrl && !previewImage && (
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
-                <div className="text-center">
-                  <Edit3 className="h-6 w-6 text-white mx-auto mb-2" />
-                  <p className="text-white font-medium">Change Image</p>
-                </div>
-                {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={(e) => handleDownload(selectedImageMetadata, e)}
-                    className="bg-white/90 hover:bg-white"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                )}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+              <div className="text-center">
+                <Edit3 className="h-6 w-6 text-white mx-auto mb-2" />
+                <p className="text-white font-medium">Change Image</p>
               </div>
-            )}
+              {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={(e) => handleDownload(selectedImageMetadata, e)}
+                  className="bg-white/90 hover:bg-white"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="aspect-video rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center hover:border-gray-400 hover:bg-gray-100 transition-colors">
@@ -461,11 +473,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               <Card 
                 key={`${image.id}-${index}`}
                 className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleThumbnailClick(image, index);
-                }}
+                onClick={handleThumbnailClick(image, index)}
               >
                 <CardContent className="p-0">
                   <div className="relative aspect-square">
