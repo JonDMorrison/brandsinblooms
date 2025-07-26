@@ -214,7 +214,8 @@ export const PersonaSelectorModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto" aria-describedby="persona-selector-desc">
+        <p id="persona-selector-desc" className="sr-only">Select target customer personas based on gardening experience levels to define your campaign audience.</p>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users2 className="h-5 w-5 text-purple-600" />

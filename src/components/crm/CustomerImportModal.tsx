@@ -641,7 +641,8 @@ export const CustomerImportModal = () => {
           Import Customers
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="customer-import-desc">
+        <p id="customer-import-desc" className="sr-only">Import customers from a CSV file with mapping options for fields like name, email, phone, and gardening experience level.</p>
         <DialogHeader>
           <DialogTitle>Import Customer List</DialogTitle>
         </DialogHeader>

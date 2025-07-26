@@ -258,7 +258,8 @@ export const TemplateGalleryModal: React.FC<TemplateGalleryModalProps> = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-6xl max-h-[90vh] p-0">
+        <DialogContent className="max-w-6xl max-h-[90vh] p-0" aria-describedby="template-gallery-desc">
+          <p id="template-gallery-desc" className="sr-only">Browse the template gallery to view and select from available email and SMS campaign templates.</p>
           <DialogHeader className="p-6 pb-4 border-b">
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2">

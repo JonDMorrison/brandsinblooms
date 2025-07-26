@@ -146,7 +146,8 @@ export const CampaignTemplatesModal: React.FC<CampaignTemplatesModalProps> = ({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden" aria-describedby="campaign-templates-desc">
+        <p id="campaign-templates-desc" className="sr-only">Browse and select from available campaign templates to quickly create marketing campaigns for your garden center.</p>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Bookmark className="h-5 w-5" />

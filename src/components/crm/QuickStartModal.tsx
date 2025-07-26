@@ -248,7 +248,8 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
   if (showSuccess) {
     return (
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby="setup-success-desc">
+          <p id="setup-success-desc" className="sr-only">Setup completed successfully. Your CRM is ready to use.</p>
           <div className="text-center py-6">
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
@@ -285,7 +286,8 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
   if (isAddingCustomer) {
     return (
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby="add-customer-desc">
+          <p id="add-customer-desc" className="sr-only">Form to add your first customer to the CRM system.</p>
           <DialogHeader>
             <DialogTitle>Add Your First Customer</DialogTitle>
           </DialogHeader>
@@ -369,7 +371,8 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
   if (currentStep === -1) {
     return (
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" aria-describedby="welcome-desc">
+          <p id="welcome-desc" className="sr-only">Welcome screen for BloomSuite CRM with overview of features and setup guide.</p>
           <div className="text-center py-6">
             <div className="flex justify-center mb-4">
               <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
@@ -421,7 +424,8 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
   // Main stepper modal
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" aria-describedby="setup-guide-desc">
+        <p id="setup-guide-desc" className="sr-only">Step-by-step setup guide for configuring your CRM system with customer data, segments, and campaigns.</p>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             🌱 Let's Get You Set Up!

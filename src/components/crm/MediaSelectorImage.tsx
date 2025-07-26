@@ -53,10 +53,11 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
       </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="media-selector-desc">
           <DialogHeader>
             <DialogTitle>Select Image</DialogTitle>
           </DialogHeader>
+          <p id="media-selector-desc" className="sr-only">Browse and select an image from our collection or search for specific content to add to your campaign.</p>
           <MediaSelector
             onImageSelect={handleImageSelect}
             selectedImageUrl={src}

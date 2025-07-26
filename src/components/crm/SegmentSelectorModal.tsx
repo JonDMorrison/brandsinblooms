@@ -199,7 +199,8 @@ export const SegmentSelectorModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" aria-describedby="segment-selector-desc">
+        <p id="segment-selector-desc" className="sr-only">Select customer segments to target for your campaign based on demographics, behavior, and gardening preferences.</p>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-brand-teal" />
