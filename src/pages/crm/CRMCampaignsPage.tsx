@@ -16,9 +16,13 @@ export const CRMCampaignsPage: React.FC = () => {
     }
   }, [user, fetchCampaigns]);
 
-  const activeCampaigns = campaigns.filter(c => c.status === 'active' || c.status === 'sent').length;
-  const scheduledCampaigns = campaigns.filter(c => c.status === 'scheduled').length;
-  const draftCampaigns = campaigns.filter(c => c.status === 'draft' || !c.status).length;
+  // Separate user campaigns from templates
+  const userCampaigns = campaigns.filter(c => c.source === 'quick_action' || c.prompt);
+  const templateCampaigns = campaigns.filter(c => c.source !== 'quick_action' && !c.prompt);
+
+  const activeCampaigns = userCampaigns.filter(c => c.status === 'active' || c.status === 'sent').length;
+  const scheduledCampaigns = userCampaigns.filter(c => c.status === 'scheduled').length;
+  const draftCampaigns = userCampaigns.filter(c => c.status === 'draft' || !c.status).length;
 
   return (
     <div className="p-6 space-y-6">
@@ -81,7 +85,7 @@ export const CRMCampaignsPage: React.FC = () => {
         </Card>
       ) : (
         <>
-          {campaigns.length > 0 && (
+          {userCampaigns.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -91,20 +95,18 @@ export const CRMCampaignsPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {campaigns.map((campaign) => (
+                  {userCampaigns.map((campaign) => (
                     <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <h3 className="font-semibold">{campaign.title}</h3>
-                        <p className="text-sm text-muted-foreground">{campaign.description || campaign.theme}</p>
-                        {campaign.start_date && (
-                          <p className="text-xs text-muted-foreground">
-                            Start date: {new Date(campaign.start_date).toLocaleDateString()}
-                          </p>
-                        )}
+                        <p className="text-sm text-muted-foreground">{campaign.description || campaign.prompt}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Created: {new Date(campaign.created_at).toLocaleDateString()}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs px-2 py-1 rounded bg-secondary">
-                          Week {campaign.week_number}
+                        <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">
+                          Your Campaign
                         </span>
                         <Button variant="outline" size="sm" asChild>
                           <NavLink to={`/crm/campaigns/${campaign.id}`}>
@@ -119,27 +121,71 @@ export const CRMCampaignsPage: React.FC = () => {
               </CardContent>
             </Card>
           )}
+
+          {templateCampaigns.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Seasonal Templates
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Pre-built seasonal campaign templates to inspire your marketing
+                  </p>
+                  {templateCampaigns.map((template) => (
+                    <div key={template.id} className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                      <div>
+                        <h3 className="font-semibold">{template.title}</h3>
+                        <p className="text-sm text-muted-foreground">{template.theme}</p>
+                        {template.start_date && (
+                          <p className="text-xs text-muted-foreground">
+                            Start date: {new Date(template.start_date).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs px-2 py-1 rounded bg-secondary">
+                          Week {template.week_number}
+                        </span>
+                        <Button variant="outline" size="sm" asChild>
+                          <NavLink to={`/crm/campaigns/${template.id}`}>
+                            <Eye className="h-4 w-4 mr-1" />
+                            Preview
+                          </NavLink>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Campaign Management
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-muted-foreground">
-                  Create, manage, and track your email marketing campaigns. Build engaging newsletters, promotional emails, and automated sequences.
-                </p>
-                <Button asChild variant="outline">
-                  <NavLink to="/crm/campaigns/new">
-                    Get Started with Your First Campaign
-                  </NavLink>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {userCampaigns.length === 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Campaign Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-muted-foreground">
+                    Create, manage, and track your email marketing campaigns. Build engaging newsletters, promotional emails, and automated sequences.
+                  </p>
+                  <Button asChild variant="outline">
+                    <NavLink to="/crm/campaigns/new">
+                      Get Started with Your First Campaign
+                    </NavLink>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
