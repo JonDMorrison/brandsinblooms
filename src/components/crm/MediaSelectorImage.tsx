@@ -18,26 +18,11 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   className = ''
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
-    console.log('[MediaSelectorImage] Image selected before calling onChange:', imageUrl, metadata);
+    console.log('[MediaSelectorImage] Image selected:', imageUrl, metadata);
     onChange?.(imageUrl, metadata);
-    console.log('[MediaSelectorImage] onChange called successfully');
-    // Modal will close only after successful selection from MediaSelector
-    setIsOpen(false);
-  };
-
-  const handleModalClose = (nextOpen: boolean) => {
-    // Only allow closing when not in preview mode
-    if (!isPreviewing) {
-      setIsOpen(nextOpen);
-    }
-  };
-
-  const handlePreviewStateChange = (previewing: boolean) => {
-    console.log('[MediaSelectorImage] Preview state changed:', previewing);
-    setIsPreviewing(previewing);
+    setIsOpen(false); // Close modal after selection
   };
 
   return (
@@ -65,35 +50,16 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
         </button>
       </div>
 
-      <Dialog open={isOpen} onOpenChange={handleModalClose}>
-        <DialogContent 
-          className="max-w-4xl max-h-[90vh] overflow-y-auto"
-          onPointerDownOutside={(e) => {
-            if (isPreviewing) {
-              e.preventDefault();
-            }
-          }}
-          onEscapeKeyDown={(e) => {
-            if (isPreviewing) {
-              e.preventDefault();
-            }
-          }}
-          onInteractOutside={(e) => {
-            if (isPreviewing) {
-              e.preventDefault();
-            }
-          }}
-        >
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="space-y-4">
             <DialogHeader>
               <DialogTitle>Select Image</DialogTitle>
             </DialogHeader>
-            <p id="media-selector-desc" className="sr-only">Browse and select an image from our collection or search for specific content to add to your campaign.</p>
             <MediaSelector
               onImageSelect={handleImageSelect}
               selectedImageUrl={src}
               contentContext={contentContext}
-              onPreviewStateChange={handlePreviewStateChange}
             />
           </div>
         </DialogContent>

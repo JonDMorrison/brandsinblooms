@@ -26,7 +26,6 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showSelector, setShowSelector] = useState(false);
-  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     onImageSelect(imageUrl, metadata);
@@ -35,18 +34,6 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
     } else {
       setShowSelector(false);
     }
-  };
-
-  const handleModalClose = (nextOpen: boolean) => {
-    // Only allow closing when not in preview mode
-    if (!isPreviewing) {
-      setIsOpen(nextOpen);
-    }
-  };
-
-  const handlePreviewStateChange = (previewing: boolean) => {
-    console.log('[ImageSelectButton] Preview state changed:', previewing);
-    setIsPreviewing(previewing);
   };
 
   // Inline mode - render MediaSelector directly
@@ -82,7 +69,6 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
             contentContext={contentContext}
             className="w-full"
             compact={compact}
-            onPreviewStateChange={handlePreviewStateChange}
           />
         )}
       </div>
@@ -91,7 +77,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
 
   // Modal mode (default)
   return (
-    <Dialog open={isOpen} onOpenChange={handleModalClose}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <div className={className}>
           {selectedImageUrl ? (
@@ -125,24 +111,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
           )}
         </div>
       </DialogTrigger>
-      <DialogContent 
-        className="max-w-4xl max-h-[90vh] overflow-y-auto"
-        onPointerDownOutside={(e) => {
-          if (isPreviewing) {
-            e.preventDefault();
-          }
-        }}
-        onEscapeKeyDown={(e) => {
-          if (isPreviewing) {
-            e.preventDefault();
-          }
-        }}
-        onInteractOutside={(e) => {
-          if (isPreviewing) {
-            e.preventDefault();
-          }
-        }}
-      >
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="space-y-4">
           <DialogHeader>
             <DialogTitle>Select Image</DialogTitle>
@@ -151,7 +120,6 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
             onImageSelect={handleImageSelect}
             selectedImageUrl={selectedImageUrl}
             contentContext={contentContext}
-            onPreviewStateChange={handlePreviewStateChange}
           />
         </div>
       </DialogContent>

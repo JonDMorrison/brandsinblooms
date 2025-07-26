@@ -17,7 +17,6 @@ interface MediaSelectorProps {
   contentContext?: string;
   className?: string;
   compact?: boolean;
-  onPreviewStateChange?: (isPreviewing: boolean) => void;
   onBackClick?: () => void;
 }
 
@@ -27,7 +26,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   contentContext,
   className,
   compact = false,
-  onPreviewStateChange,
   onBackClick
 }) => {
   console.log('[MediaSelector] Component rendering with props:', {
@@ -113,7 +111,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       metadata: imageMetadata
     });
     setIsPreviewing(true);
-    onPreviewStateChange?.(true);
   };
 
   const handleDownload = async (image: any, event?: React.MouseEvent) => {
@@ -182,7 +179,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       handleImageSelect(previewImage.url, previewImage.metadata);
       setPreviewImage(null);
       setIsPreviewing(false);
-      onPreviewStateChange?.(false);
     }
   };
 
@@ -190,7 +186,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     console.log('[MediaSelector] Back to browse mode');
     setPreviewImage(null);
     setIsPreviewing(false);
-    onPreviewStateChange?.(false);
     onBackClick?.();
   };
 

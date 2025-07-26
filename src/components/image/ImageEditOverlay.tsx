@@ -18,23 +18,10 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
   className
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const handleImageSelect = (newImageUrl: string, metadata?: any) => {
     onImageSelect(newImageUrl, metadata);
-    setIsOpen(false);
-  };
-
-  const handleModalClose = (nextOpen: boolean) => {
-    // Only allow closing when not in preview mode  
-    if (!isPreviewing) {
-      setIsOpen(nextOpen);
-    }
-  };
-
-  const handlePreviewStateChange = (previewing: boolean) => {
-    console.log('[ImageEditOverlay] Preview state changed:', previewing);
-    setIsPreviewing(previewing);
+    setIsOpen(false); // Close modal after selection
   };
 
   return (
@@ -45,7 +32,7 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
         className="w-full h-full object-cover rounded-lg"
       />
       
-      <Dialog open={isOpen} onOpenChange={handleModalClose}>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -63,24 +50,7 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
           </Tooltip>
         </TooltipProvider>
         
-        <DialogContent 
-          className="max-w-4xl max-h-[90vh] overflow-y-auto"
-          onPointerDownOutside={(e) => {
-            if (isPreviewing) {
-              e.preventDefault();
-            }
-          }}
-          onEscapeKeyDown={(e) => {
-            if (isPreviewing) {
-              e.preventDefault();
-            }
-          }}
-          onInteractOutside={(e) => {
-            if (isPreviewing) {
-              e.preventDefault();
-            }
-          }}
-        >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="space-y-4">
             <DialogHeader>
               <DialogTitle>Select Image</DialogTitle>
@@ -89,7 +59,6 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
               onImageSelect={handleImageSelect}
               selectedImageUrl={imageUrl}
               contentContext={contentContext}
-              onPreviewStateChange={handlePreviewStateChange}
             />
           </div>
         </DialogContent>
