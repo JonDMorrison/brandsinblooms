@@ -74,7 +74,8 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   };
 
   return (
-    <div className="group relative">
+    <div className="group relative"
+    style={{ position: 'relative' }}>
       {/* Drag Handle - appears on hover */}
       <div className="absolute -left-8 top-4 opacity-0 group-hover:opacity-100 transition-opacity">
         <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">

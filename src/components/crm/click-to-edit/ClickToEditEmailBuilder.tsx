@@ -193,7 +193,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
 
       {/* Render all blocks */}
       {blocks.map((block, index) => (
-        <React.Fragment key={block.id}>
+        <div key={block.id}>
           <ClickToEditBlock
             block={block}
             index={index}
@@ -212,7 +212,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
           
           {/* Add block button between blocks */}
           <AddBlockButton afterIndex={index} />
-        </React.Fragment>
+        </div>
       ))}
 
       {/* Empty state */}
