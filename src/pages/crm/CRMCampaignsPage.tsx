@@ -17,8 +17,8 @@ export const CRMCampaignsPage: React.FC = () => {
   }, [user, fetchCampaigns]);
 
   // Separate user campaigns from templates
-  const userCampaigns = campaigns.filter(c => c.source === 'quick_action' || c.prompt);
-  const templateCampaigns = campaigns.filter(c => c.source !== 'quick_action' && !c.prompt);
+  const userCampaigns = campaigns.filter(c => c.source === 'quick_action');
+  const templateCampaigns = campaigns.filter(c => c.source !== 'quick_action');
 
   const activeCampaigns = userCampaigns.filter(c => c.status === 'active' || c.status === 'sent').length;
   const scheduledCampaigns = userCampaigns.filter(c => c.status === 'scheduled').length;
