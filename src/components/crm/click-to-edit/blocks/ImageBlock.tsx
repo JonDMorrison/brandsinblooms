@@ -44,7 +44,7 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({ block, onUpdate, isPrevi
     <div className="space-y-6 pb-4">
       <div className="space-y-2">
         <Label>Image</Label>
-        <div className="min-h-[200px]">
+        <div className="w-full">
           <MediaSelectorImage
             src={block.imageUrl}
             onChange={(imageUrl) => onUpdate({ imageUrl })}
