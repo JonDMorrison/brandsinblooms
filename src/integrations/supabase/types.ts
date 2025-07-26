@@ -729,6 +729,8 @@ export type Database = {
           segment_id: string | null
           send_reasoning: string | null
           sender_display_name: string | null
+          sender_email: string | null
+          sender_name: string | null
           sent_at: string | null
           status: string | null
           subject_line: string | null
@@ -759,6 +761,8 @@ export type Database = {
           segment_id?: string | null
           send_reasoning?: string | null
           sender_display_name?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
           sent_at?: string | null
           status?: string | null
           subject_line?: string | null
@@ -789,6 +793,8 @@ export type Database = {
           segment_id?: string | null
           send_reasoning?: string | null
           sender_display_name?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
           sent_at?: string | null
           status?: string | null
           subject_line?: string | null
