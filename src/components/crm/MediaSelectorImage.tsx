@@ -89,14 +89,12 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
             <DialogTitle>Select Image</DialogTitle>
           </DialogHeader>
           <p id="media-selector-desc" className="sr-only">Browse and select an image from our collection or search for specific content to add to your campaign.</p>
-          <div onClick={(e) => e.stopPropagation()}>
-            <MediaSelector
-              onImageSelect={handleImageSelect}
-              selectedImageUrl={src}
-              contentContext={contentContext}
-              onPreviewStateChange={handlePreviewStateChange}
-            />
-          </div>
+          <MediaSelector
+            onImageSelect={handleImageSelect}
+            selectedImageUrl={src}
+            contentContext={contentContext}
+            onPreviewStateChange={handlePreviewStateChange}
+          />
         </DialogContent>
       </Dialog>
     </>

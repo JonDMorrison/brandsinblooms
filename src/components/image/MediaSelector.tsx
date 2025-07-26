@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Upload, Search, Image as ImageIcon, Loader2, Download, Edit3, Camera, ArrowLeft } from 'lucide-react';
 import { useUnsplash } from '@/hooks/useUnsplash';
 import { useContentAssets } from '@/hooks/useContentAssets';
@@ -19,6 +18,7 @@ interface MediaSelectorProps {
   className?: string;
   compact?: boolean;
   onPreviewStateChange?: (isPreviewing: boolean) => void;
+  onBackClick?: () => void;
 }
 
 export const MediaSelector: React.FC<MediaSelectorProps> = ({
@@ -27,7 +27,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   contentContext,
   className,
   compact = false,
-  onPreviewStateChange
+  onPreviewStateChange,
+  onBackClick
 }) => {
   console.log('[MediaSelector] Component rendering with props:', {
     hasSelectedImage: !!selectedImageUrl,
@@ -95,8 +96,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   };
 
   const handleThumbnailClick = (image: any, index: number) => (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
     console.log('[MediaSelector] Thumbnail clicked - entering preview mode:', index, image);
     
     const imageMetadata = {
@@ -192,6 +191,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     setPreviewImage(null);
     setIsPreviewing(false);
     onPreviewStateChange?.(false);
+    onBackClick?.();
   };
 
   // Debug logging
@@ -325,28 +325,26 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   if (isPreviewing && previewImage) {
     return (
       <div className={cn("w-full", className)}>
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBackToBrowse}
-              className="p-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <DialogTitle>Preview Image</DialogTitle>
-              {previewImage.metadata?.photographer && (
-                <p className="text-sm text-muted-foreground">
-                  Photo by {previewImage.metadata.photographer}
-                </p>
-              )}
-            </div>
+        <div className="flex items-center gap-3 mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToBrowse}
+            className="p-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h3 className="text-lg font-semibold">Preview Image</h3>
+            {previewImage.metadata?.photographer && (
+              <p className="text-sm text-muted-foreground">
+                Photo by {previewImage.metadata.photographer}
+              </p>
+            )}
           </div>
-        </DialogHeader>
+        </div>
         
-        <div className="mt-4 mb-6">
+        <div className="mb-6">
           <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
             <img 
               src={previewImage.url} 
@@ -356,7 +354,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           </div>
         </div>
         
-        <DialogFooter>
+        <div className="flex gap-3 justify-end">
           <Button
             variant="outline"
             onClick={handleBackToBrowse}
@@ -369,7 +367,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           >
             Choose This Image
           </Button>
-        </DialogFooter>
+        </div>
       </div>
     );
   }
@@ -377,9 +375,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   // Browse Mode UI
   return (
     <div className={cn("w-full space-y-6", className)}>
-      <DialogHeader>
-        <DialogTitle>Select Image</DialogTitle>
-      </DialogHeader>
 
       {/* Featured Image Section */}
       <div className="space-y-4">

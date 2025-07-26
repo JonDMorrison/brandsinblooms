@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MediaSelector } from './MediaSelector';
 import { Edit2 } from 'lucide-react';
@@ -81,14 +81,15 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
             }
           }}
         >
-          <div onClick={(e) => e.stopPropagation()}>
-            <MediaSelector
-              onImageSelect={handleImageSelect}
-              selectedImageUrl={imageUrl}
-              contentContext={contentContext}
-              onPreviewStateChange={handlePreviewStateChange}
-            />
-          </div>
+          <DialogHeader>
+            <DialogTitle>Select Image</DialogTitle>
+          </DialogHeader>
+          <MediaSelector
+            onImageSelect={handleImageSelect}
+            selectedImageUrl={imageUrl}
+            contentContext={contentContext}
+            onPreviewStateChange={handlePreviewStateChange}
+          />
         </DialogContent>
       </Dialog>
     </div>

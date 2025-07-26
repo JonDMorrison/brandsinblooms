@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MediaSelector } from './MediaSelector';
 import { Image as ImageIcon, Edit3 } from 'lucide-react';
 
@@ -144,12 +144,15 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
         }}
       >
         <div onClick={(e) => e.stopPropagation()}>
-          <MediaSelector
-            onImageSelect={handleImageSelect}
-            selectedImageUrl={selectedImageUrl}
-            contentContext={contentContext}
-            onPreviewStateChange={handlePreviewStateChange}
-          />
+            <DialogHeader>
+              <DialogTitle>Select Image</DialogTitle>
+            </DialogHeader>
+            <MediaSelector
+              onImageSelect={handleImageSelect}
+              selectedImageUrl={selectedImageUrl}
+              contentContext={contentContext}
+              onPreviewStateChange={handlePreviewStateChange}
+            />
         </div>
       </DialogContent>
     </Dialog>
