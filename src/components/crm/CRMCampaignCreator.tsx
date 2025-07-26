@@ -376,8 +376,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         name: campaignName,
         subject: subjectLine,
         preheader: preheaderText,
-        blocks: blocks.length
+        blocks: blocks.length,
+        blocksData: blocks
       });
+      
+      console.log('📧 Generated HTML preview:', generateEmailHTML().substring(0, 500) + '...');
       
       toast({
         title: "Campaign Saved!",
