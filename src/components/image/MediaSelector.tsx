@@ -140,6 +140,10 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     compact,
     contentContext
   });
+  console.log('[MediaSelector] Internal state:', {
+    previewImage: previewImage ? { url: previewImage.url, hasMetadata: !!previewImage.metadata } : null,
+    searchResultsCount: searchResults.length
+  });
 
   if (compact) {
     return (
