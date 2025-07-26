@@ -403,47 +403,50 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           </div>
           
           <div className="grid grid-cols-3 gap-4">
-            {searchResults.slice(0, 3).map((image, index) => (
-              <Card 
-                key={index} 
-                className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
-                onClick={(e) => {
-                  console.log('[MediaSelector] Full view image clicked:', index, image);
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setPreviewImage({
-                    url: image.url,
-                    metadata: {
-                      source: 'unsplash',
-                      alt_text: image.alt,
-                      photographer: image.photographer,
-                      photographer_url: image.photographer_url,
-                      unsplash_id: image.id,
-                      thumb: image.thumb,
-                      download_location: image.download_location
-                    }
-                  });
-                }}
-              >
-                <CardContent className="p-0">
-                  <div className="relative aspect-square">
-                    <img 
-                      src={image.thumb} 
-                      alt={image.alt}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
-                      <Camera className="h-6 w-6 text-white" />
-                    </div>
-                    {image.photographer && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 rounded-b-lg">
-                        Photo by {image.photographer}
+            {searchResults.slice(0, 3).map((image, index) => {
+              console.log('[MediaSelector] Rendering thumbnail:', index, 'with image:', image.id);
+              return (
+                <Card 
+                  key={index} 
+                  className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
+                  onClick={(e) => {
+                    console.log('[MediaSelector] THUMBNAIL CLICKED - Full view image clicked:', index, image);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPreviewImage({
+                      url: image.url,
+                      metadata: {
+                        source: 'unsplash',
+                        alt_text: image.alt,
+                        photographer: image.photographer,
+                        photographer_url: image.photographer_url,
+                        unsplash_id: image.id,
+                        thumb: image.thumb,
+                        download_location: image.download_location
+                      }
+                    });
+                  }}
+                >
+                  <CardContent className="p-0">
+                    <div className="relative aspect-square">
+                      <img 
+                        src={image.thumb} 
+                        alt={image.alt}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                        <Camera className="h-6 w-6 text-white" />
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      {image.photographer && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 rounded-b-lg">
+                          Photo by {image.photographer}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
           
           {searchResults.length > 3 && (
