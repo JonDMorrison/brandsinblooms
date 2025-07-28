@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, ChevronLeft, ChevronRight, Calendar, CalendarDays } from 'lucide-react';
+import { CheckCircle, XCircle, ChevronLeft, ChevronRight, Calendar, CalendarDays, Plus, Megaphone } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface CalendarHeaderProps {
@@ -116,8 +116,23 @@ export const CalendarHeader = ({
           </div>
         </div>
         
-        {/* Bulk Actions */}
+        {/* Action Buttons */}
         <div className="flex gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 px-4 text-blue-700 hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200"
+          >
+            <Megaphone className="w-4 h-4 mr-2" />
+            Promote Event
+          </Button>
+          <Button
+            size="sm"
+            className="h-9 px-4 transition-colors duration-200"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Campaign
+          </Button>
           {selectedTasksCount > 0 && (
             <>
               <Button
