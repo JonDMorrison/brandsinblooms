@@ -9,7 +9,7 @@ interface LayoutOptionProps {
   title: string;
   description: string;
   category: string;
-  icon: string;
+  icon: React.ReactNode;
   preview: React.ReactNode;
   isPopular?: boolean;
   isNew?: boolean;
@@ -41,7 +41,7 @@ export const LayoutOption: React.FC<LayoutOptionProps> = ({
           {/* Header with icon, title and badges */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <span className="text-2xl flex-shrink-0">{icon}</span>
+              <div className="flex-shrink-0">{icon}</div>
               <div className="min-w-0">
                 <h4 className="font-semibold text-sm text-foreground truncate">{title}</h4>
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{description}</p>
@@ -49,12 +49,12 @@ export const LayoutOption: React.FC<LayoutOptionProps> = ({
             </div>
             <div className="flex flex-col gap-1 ml-2">
               {isPopular && (
-                <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs px-2 py-0.5">
+                <Badge variant="outline" className="text-muted-foreground text-xs px-2 py-0.5">
                   Popular
                 </Badge>
               )}
               {isNew && (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5">
+                <Badge variant="outline" className="text-muted-foreground text-xs px-2 py-0.5">
                   New
                 </Badge>
               )}

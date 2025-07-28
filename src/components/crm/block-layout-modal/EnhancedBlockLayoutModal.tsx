@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Sparkles, Clock, Grid } from 'lucide-react';
+import { Plus, Star, Clock, Grid, Mail, MessageSquare, Target, FileText, Image, Square, ArrowLeft, ArrowRight, Quote, MousePointer } from 'lucide-react';
 import { LayoutType } from '../BlockLayoutModal';
 import { LayoutOption } from './LayoutOption';
 import { LayoutPreview } from './LayoutPreview';
@@ -22,7 +22,7 @@ const layoutOptions = [
     title: 'Newsletter Header',
     description: 'Professional newsletter header with title, issue number, and date',
     category: 'Newsletter',
-    icon: '📧',
+    icon: <Mail className="h-4 w-4 text-muted-foreground" />,
     isPopular: true,
     isNew: true,
     previewType: 'newsletter-header' as const
@@ -32,7 +32,7 @@ const layoutOptions = [
     title: 'Featured Quote',
     description: 'Elegant quote block with author attribution',
     category: 'Newsletter',
-    icon: '💬',
+    icon: <Quote className="h-4 w-4 text-muted-foreground" />,
     isNew: true,
     previewType: 'quote-featured' as const
   },
@@ -41,7 +41,7 @@ const layoutOptions = [
     title: 'Enhanced CTA',
     description: 'Advanced call-to-action with customizable styling',
     category: 'Newsletter',
-    icon: '🎯',
+    icon: <Target className="h-4 w-4 text-muted-foreground" />,
     isPopular: true,
     isNew: true,
     previewType: 'cta-primary' as const
@@ -53,7 +53,7 @@ const layoutOptions = [
     title: 'Feature Banner',
     description: 'Eye-catching hero section with background image and overlay text',
     category: 'Header',
-    icon: '🎯',
+    icon: <Square className="h-4 w-4 text-muted-foreground" />,
     isPopular: true,
     previewType: 'header-hero' as const
   },
@@ -62,7 +62,7 @@ const layoutOptions = [
     title: 'Text Only Header',
     description: 'Clean full-width text section with title and subtitle',
     category: 'Header',
-    icon: '📄',
+    icon: <FileText className="h-4 w-4 text-muted-foreground" />,
     previewType: 'header-simple' as const
   },
   
@@ -72,7 +72,7 @@ const layoutOptions = [
     title: 'Full-Width Image',
     description: 'Responsive image that spans the full email width with optional caption',
     category: 'Image',
-    icon: '🖼️',
+    icon: <Image className="h-4 w-4 text-muted-foreground" />,
     isPopular: true,
     previewType: 'image-full' as const
   },
@@ -81,7 +81,7 @@ const layoutOptions = [
     title: 'Image Focus (60/40)',
     description: 'Image-dominant layout with 60% image, 40% text',
     category: 'Image',
-    icon: '📸',
+    icon: <Image className="h-4 w-4 text-muted-foreground" />,
     isNew: true,
     previewType: 'image-60-40' as const
   },
@@ -90,7 +90,7 @@ const layoutOptions = [
     title: 'Image Dominant (70/30)',
     description: 'Strong visual impact with 70% image, 30% text',
     category: 'Image',
-    icon: '🖼️',
+    icon: <Image className="h-4 w-4 text-muted-foreground" />,
     isNew: true,
     previewType: 'image-70-30' as const
   },
@@ -99,7 +99,7 @@ const layoutOptions = [
     title: 'Text Overlay',
     description: 'Text overlaid on background image for dramatic effect',
     category: 'Image',
-    icon: '🌅',
+    icon: <Image className="h-4 w-4 text-muted-foreground" />,
     isNew: true,
     previewType: 'image-overlay' as const
   },
@@ -108,7 +108,7 @@ const layoutOptions = [
     title: 'Background Image',
     description: 'Content with subtle background image',
     category: 'Image',
-    icon: '🎨',
+    icon: <Image className="h-4 w-4 text-muted-foreground" />,
     isNew: true,
     previewType: 'image-background' as const
   },
@@ -117,7 +117,7 @@ const layoutOptions = [
     title: 'Image Left, Text Right',
     description: 'Visual content on left side with descriptive text on right',
     category: 'Image',
-    icon: '⬅️',
+    icon: <ArrowLeft className="h-4 w-4 text-muted-foreground" />,
     previewType: 'image-left' as const
   },
   {
@@ -125,7 +125,7 @@ const layoutOptions = [
     title: 'Image Right, Text Left',
     description: 'Descriptive text on left with supporting visual on right',
     category: 'Image',
-    icon: '➡️',
+    icon: <ArrowRight className="h-4 w-4 text-muted-foreground" />,
     previewType: 'image-right' as const
   },
   
@@ -135,7 +135,7 @@ const layoutOptions = [
     title: 'Call to Action (CTA)',
     description: 'Center-aligned action button with supporting text above',
     category: 'Button',
-    icon: '🔘',
+    icon: <MousePointer className="h-4 w-4 text-muted-foreground" />,
     isPopular: true,
     previewType: 'button-centered' as const
   },
@@ -144,7 +144,7 @@ const layoutOptions = [
     title: 'Left Aligned Button',
     description: 'Left-aligned button with text',
     category: 'Button',
-    icon: '⬅️',
+    icon: <ArrowLeft className="h-4 w-4 text-muted-foreground" />,
     previewType: 'button-left' as const
   },
   {
@@ -152,7 +152,7 @@ const layoutOptions = [
     title: 'Right Aligned Button',
     description: 'Right-aligned button with text',
     category: 'Button',
-    icon: '➡️',
+    icon: <ArrowRight className="h-4 w-4 text-muted-foreground" />,
     previewType: 'button-right' as const
   },
   
@@ -162,7 +162,7 @@ const layoutOptions = [
     title: 'Two Columns',
     description: 'Text split into two columns for better readability',
     category: 'Text',
-    icon: '📝',
+    icon: <FileText className="h-4 w-4 text-muted-foreground" />,
     previewType: 'text-double' as const
   },
   {
@@ -170,7 +170,7 @@ const layoutOptions = [
     title: 'Three Columns',
     description: 'Text split into three columns for compact presentation',
     category: 'Text',
-    icon: '📋',
+    icon: <FileText className="h-4 w-4 text-muted-foreground" />,
     isNew: true,
     previewType: 'text-triple' as const
   }
@@ -263,16 +263,16 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="popular" className="flex items-center gap-2 text-xs sm:text-sm">
-                <Sparkles className="h-4 w-4" />
+                <Star className="h-4 w-4 text-muted-foreground" />
                 Popular
-                <Badge variant="secondary" className="ml-1 text-xs">
+                <Badge variant="outline" className="ml-1 text-xs text-muted-foreground">
                   {popularCount}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="recent" className="flex items-center gap-2 text-xs sm:text-sm">
-                <Clock className="h-4 w-4" />
+                <Clock className="h-4 w-4 text-muted-foreground" />
                 New
-                <Badge variant="secondary" className="ml-1 text-xs">
+                <Badge variant="outline" className="ml-1 text-xs text-muted-foreground">
                   {recentCount}
                 </Badge>
               </TabsTrigger>
@@ -321,9 +321,9 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
 
             <TabsContent value="popular" className="mt-0 space-y-6">
               <div className="flex items-center gap-2 mb-4">
-                <Sparkles className="h-5 w-5 text-yellow-500" />
+                <Star className="h-5 w-5 text-muted-foreground" />
                 <h3 className="text-lg font-semibold">Popular Layouts</h3>
-                <Badge variant="secondary">Most used by teams</Badge>
+                <Badge variant="outline" className="text-muted-foreground">Most used by teams</Badge>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
@@ -345,9 +345,9 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
 
             <TabsContent value="recent" className="mt-0 space-y-6">
               <div className="flex items-center gap-2 mb-4">
-                <Clock className="h-5 w-5 text-blue-500" />
+                <Clock className="h-5 w-5 text-muted-foreground" />
                 <h3 className="text-lg font-semibold">New Layouts</h3>
-                <Badge variant="secondary">Recently added</Badge>
+                <Badge variant="outline" className="text-muted-foreground">Recently added</Badge>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
@@ -372,7 +372,7 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
                 <div key={category}>
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     {category} Blocks
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
                       {layoutOptions.filter(opt => opt.category === category).length}
                     </Badge>
                   </h3>

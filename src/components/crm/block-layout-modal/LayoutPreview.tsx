@@ -10,11 +10,11 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
     switch (type) {
       case 'header-hero':
         return (
-          <div className="h-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-md flex flex-col items-center justify-center text-white relative overflow-hidden">
-            <div className="absolute inset-0 bg-black/20 rounded-md"></div>
+          <div className="h-full bg-gradient-to-br from-slate-300 to-slate-400 rounded-md flex flex-col items-center justify-center text-slate-700 relative overflow-hidden">
+            <div className="absolute inset-0 bg-white/10 rounded-md"></div>
             <div className="relative text-center">
               <div className="text-sm font-bold mb-1">Hero Title</div>
-              <div className="text-xs opacity-90">Compelling subtitle text</div>
+              <div className="text-xs opacity-80">Compelling subtitle text</div>
             </div>
           </div>
         );
@@ -30,17 +30,17 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
       
       case 'image-full':
         return (
-          <div className="h-full bg-gradient-to-br from-green-200 to-green-300 rounded-md flex items-center justify-center relative">
-            <div className="absolute inset-2 bg-white/20 rounded border-2 border-white/40 border-dashed"></div>
-            <div className="text-xs font-medium text-green-800">Full Width Image</div>
+          <div className="h-full bg-gradient-to-br from-slate-200 to-slate-300 rounded-md flex items-center justify-center relative">
+            <div className="absolute inset-2 bg-white/30 rounded border-2 border-slate-300/60 border-dashed"></div>
+            <div className="text-xs font-medium text-slate-600">Full Width Image</div>
           </div>
         );
       
       case 'image-left':
         return (
           <div className="h-full flex gap-1 rounded-md overflow-hidden">
-            <div className="w-1/2 bg-gradient-to-br from-blue-200 to-blue-300 flex items-center justify-center">
-              <div className="text-xs font-medium text-blue-800">Image</div>
+            <div className="w-1/2 bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
+              <div className="text-xs font-medium text-slate-600">Image</div>
             </div>
             <div className="w-1/2 bg-white border flex flex-col justify-center px-2">
               <div className="w-full h-1 bg-gray-300 rounded mb-1"></div>
@@ -58,8 +58,8 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
               <div className="w-3/4 h-1 bg-gray-200 rounded mb-1"></div>
               <div className="w-1/2 h-1 bg-gray-200 rounded"></div>
             </div>
-            <div className="w-1/2 bg-gradient-to-br from-purple-200 to-purple-300 flex items-center justify-center">
-              <div className="text-xs font-medium text-purple-800">Image</div>
+            <div className="w-1/2 bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
+              <div className="text-xs font-medium text-slate-600">Image</div>
             </div>
           </div>
         );
@@ -128,8 +128,8 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
 
       case 'newsletter-header':
         return (
-          <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-md flex flex-col items-center justify-center text-white relative">
-            <div className="text-xs font-bold mb-1">📧 Newsletter</div>
+          <div className="h-full bg-gradient-to-r from-slate-400 to-slate-500 rounded-md flex flex-col items-center justify-center text-white relative">
+            <div className="text-xs font-bold mb-1">Newsletter</div>
             <div className="text-xs opacity-90 mb-1">Issue #001</div>
             <div className="text-xs opacity-75">Jan 2024</div>
           </div>
@@ -137,18 +137,18 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
 
       case 'quote-featured':
         return (
-          <div className="h-full bg-gradient-to-br from-amber-50 to-orange-100 rounded-md flex flex-col items-center justify-center border-l-4 border-orange-400">
-            <div className="text-xs font-medium text-orange-800 mb-1">"Quote text"</div>
-            <div className="text-xs text-orange-600">— Author</div>
+          <div className="h-full bg-gradient-to-br from-slate-50 to-slate-100 rounded-md flex flex-col items-center justify-center border-l-4 border-slate-400">
+            <div className="text-xs font-medium text-slate-700 mb-1">"Quote text"</div>
+            <div className="text-xs text-slate-600">— Author</div>
           </div>
         );
 
       case 'cta-primary':
         return (
-          <div className="h-full bg-gradient-to-b from-green-50 to-green-100 rounded-md flex flex-col items-center justify-center gap-1 border">
-            <div className="text-xs font-bold text-green-800">Enhanced CTA</div>
-            <div className="w-3/4 h-1 bg-green-200 rounded"></div>
-            <div className="bg-green-600 text-white px-3 py-1 rounded text-xs font-medium">
+          <div className="h-full bg-gradient-to-b from-slate-50 to-slate-100 rounded-md flex flex-col items-center justify-center gap-1 border">
+            <div className="text-xs font-bold text-slate-700">Enhanced CTA</div>
+            <div className="w-3/4 h-1 bg-slate-200 rounded"></div>
+            <div className="bg-slate-600 text-white px-3 py-1 rounded text-xs font-medium">
               Take Action
             </div>
           </div>
@@ -157,8 +157,8 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
       case 'image-60-40':
         return (
           <div className="h-full flex gap-1 rounded-md overflow-hidden">
-            <div className="w-3/5 bg-gradient-to-br from-teal-200 to-teal-300 flex items-center justify-center">
-              <div className="text-xs font-medium text-teal-800">60%</div>
+            <div className="w-3/5 bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
+              <div className="text-xs font-medium text-slate-600">60%</div>
             </div>
             <div className="w-2/5 bg-white border flex flex-col justify-center px-1">
               <div className="w-full h-1 bg-gray-300 rounded mb-1"></div>
@@ -170,8 +170,8 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
       case 'image-70-30':
         return (
           <div className="h-full flex gap-1 rounded-md overflow-hidden">
-            <div className="w-7/10 bg-gradient-to-br from-violet-200 to-violet-300 flex items-center justify-center">
-              <div className="text-xs font-medium text-violet-800">70%</div>
+            <div className="w-7/10 bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
+              <div className="text-xs font-medium text-slate-600">70%</div>
             </div>
             <div className="w-3/10 bg-white border flex flex-col justify-center px-1">
               <div className="w-full h-1 bg-gray-300 rounded mb-1"></div>
@@ -192,10 +192,10 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
 
       case 'image-background':
         return (
-          <div className="h-full bg-gradient-to-br from-emerald-100 via-emerald-200 to-emerald-300 rounded-md flex items-center justify-center relative">
+          <div className="h-full bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 rounded-md flex items-center justify-center relative">
             <div className="absolute inset-0 bg-white/40 rounded-md"></div>
             <div className="relative text-center">
-              <div className="text-xs font-medium text-emerald-800">Background</div>
+              <div className="text-xs font-medium text-slate-600">Background</div>
             </div>
           </div>
         );
