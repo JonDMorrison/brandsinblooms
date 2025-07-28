@@ -43,7 +43,7 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
     currentDate: new Date().toISOString(),
     showNewsletters: true,
     newsletterFilters: []
-  });
+  }, { disableScrollTracking: true });
 
   // Initialize state from saved route state
   const savedState = getState();

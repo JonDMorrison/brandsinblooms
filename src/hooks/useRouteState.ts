@@ -14,14 +14,15 @@ interface RouteStateData {
  * Hook for persisting and restoring route-specific state
  * Automatically saves/restores scroll position and other state when navigating
  */
-export const useRouteState = (defaultState: RouteStateData = {}) => {
+export const useRouteState = (defaultState: RouteStateData = {}, options: { disableScrollTracking?: boolean } = {}) => {
   const location = useLocation();
   const { saveRouteState, getRouteState } = useGlobalData();
   
   const currentRoute = location.pathname;
 
-  // Save scroll position automatically
+  // Save scroll position automatically (unless disabled)
   useEffect(() => {
+    if (options.disableScrollTracking) return;
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
       saveRouteState(currentRoute, { scrollPosition });
@@ -41,10 +42,11 @@ export const useRouteState = (defaultState: RouteStateData = {}) => {
 
     window.addEventListener('scroll', throttledHandleScroll);
     return () => window.removeEventListener('scroll', throttledHandleScroll);
-  }, [currentRoute, saveRouteState]);
+  }, [currentRoute, saveRouteState, options.disableScrollTracking]);
 
-  // Restore scroll position when route loads
+  // Restore scroll position when route loads (unless disabled)
   useEffect(() => {
+    if (options.disableScrollTracking) return;
     const savedState = getRouteState(currentRoute);
     if (savedState?.scrollPosition !== undefined) {
       // Delay scroll restoration to ensure content is rendered
@@ -55,7 +57,7 @@ export const useRouteState = (defaultState: RouteStateData = {}) => {
         });
       }, 100);
     }
-  }, [currentRoute, getRouteState]);
+  }, [currentRoute, getRouteState, options.disableScrollTracking]);
 
   // Save state to route
   const saveState = useCallback((state: RouteStateData) => {
