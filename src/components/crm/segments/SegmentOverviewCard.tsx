@@ -33,6 +33,7 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
   onViewDetails,
 }) => {
   const IconComponent = iconMap[icon];
+  const loading = estimatedCount === undefined;
 
   return (
     <Card className="h-full hover:shadow-md transition-shadow">
@@ -61,7 +62,7 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {estimatedCount !== undefined ? `${estimatedCount.toLocaleString()} customers` : 'Loading...'}
+              {loading ? 'Loading...' : `${estimatedCount || 0} customers`}
             </span>
           </div>
           

@@ -5,6 +5,8 @@ import { Target, ArrowRight } from 'lucide-react';
 import { SegmentOverviewCard } from './SegmentOverviewCard';
 import { useNavigate } from 'react-router-dom';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
+import { usePOSConnection } from '@/hooks/usePOSConnection';
+import { NoPOSNotice } from './NoPOSNotice';
 
 // Predefined segments configuration
 const predefinedSegments = [
@@ -49,6 +51,7 @@ const predefinedSegments = [
 export const CustomerSegmentsSection: React.FC = () => {
   const navigate = useNavigate();
   const { counts, loading } = useSegmentCounts();
+  const { hasPOSConnection, loading: posLoading } = usePOSConnection();
 
   const handleViewAllSegments = () => {
     navigate('/crm/segments');
@@ -64,19 +67,22 @@ export const CustomerSegmentsSection: React.FC = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Customer Segments
-          </CardTitle>
-          <Button variant="outline" onClick={handleViewAllSegments}>
-            View All
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        </div>
-      </CardHeader>
+    <div className="space-y-4">
+      {!posLoading && !hasPOSConnection && <NoPOSNotice />}
+      
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Customer Segments
+            </CardTitle>
+            <Button variant="outline" onClick={handleViewAllSegments}>
+              View All
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+        </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {predefinedSegments.map((segment) => (
@@ -92,7 +98,8 @@ export const CustomerSegmentsSection: React.FC = () => {
             />
           ))}
         </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
