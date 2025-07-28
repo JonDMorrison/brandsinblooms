@@ -21,10 +21,10 @@ export const CalendarDayHeader = ({
       <div className="flex items-center gap-2">
         <span
           className={cn(
-            "text-sm font-semibold flex items-center justify-center w-7 h-7 rounded-full transition-all duration-200",
-            isToday && "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200/50 ring-2 ring-blue-100",
-            !isToday && isCurrentMonth && "text-gray-700 hover:bg-green-100/50 hover:text-green-700",
-            !isCurrentMonth && "text-gray-400"
+            "text-sm font-semibold flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200",
+            isToday && "bg-blue-500 text-white",
+            !isToday && isCurrentMonth && "text-slate-700 hover:bg-green-100 hover:text-green-700",
+            !isCurrentMonth && "text-slate-400"
           )}
         >
           {dayNumber}
@@ -32,7 +32,7 @@ export const CalendarDayHeader = ({
         {isToday && (
           <Badge 
             variant="secondary" 
-            className="text-xs px-2 py-0.5 bg-gradient-to-r from-blue-100 to-green-100 text-blue-700 border-blue-200/50 shadow-sm"
+            className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 border-blue-200"
           >
             Today
           </Badge>

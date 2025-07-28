@@ -117,22 +117,19 @@ export const CalendarDayCell = React.memo(({
     >
       <div
         className={cn(
-          "min-h-[140px] p-3 transition-all duration-300 relative group cursor-pointer",
-          // Base styling with improved shadows and borders
-          "border-r border-b border-green-100/60 shadow-sm",
-          // Current month styling with subtle gradients
-          isCurrentMonth && "bg-gradient-to-br from-white via-green-50/30 to-blue-50/20 hover:from-green-50/40 hover:to-blue-50/30 hover:shadow-md",
+          "min-h-[140px] p-3 relative cursor-pointer border-r border-b border-slate-200",
+          // Current month styling
+          isCurrentMonth && "bg-white hover:bg-slate-50 transition-colors duration-200",
           // Other month styling
-          !isCurrentMonth && "bg-gradient-to-br from-gray-50/70 to-gray-100/50 text-gray-500",
-          // Today styling with enhanced visual prominence
-          isToday && "bg-gradient-to-br from-blue-50/80 to-green-50/60 ring-2 ring-blue-200/60 shadow-md",
+          !isCurrentMonth && "bg-slate-50 text-slate-500",
+          // Today styling
+          isToday && "bg-blue-50 ring-2 ring-blue-200",
           // Weekend styling
-          isWeekend && isCurrentMonth && "bg-gradient-to-br from-green-50/50 to-emerald-50/30",
+          isWeekend && isCurrentMonth && "bg-green-50/50",
           // Past date styling
-          isPastDate && isCurrentMonth && "bg-gradient-to-br from-orange-50/30 to-yellow-50/20",
-          // Enhanced hover effects
-          isCurrentMonth && "hover:shadow-lg hover:shadow-green-100/30 hover:scale-[1.02] hover:z-10"
+          isPastDate && isCurrentMonth && "bg-orange-50/50"
         )}
+        style={{ willChange: 'background-color' }}
         onClick={handleDateClick}
       >
         {/* Today corner accent */}

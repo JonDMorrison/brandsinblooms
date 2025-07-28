@@ -133,15 +133,11 @@ export const CalendarGrid = React.memo(({
   const dayHeight = viewMode === 'week' ? 'h-full' : 'min-h-[120px]';
 
   return (
-    <div className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
-      {/* Gradient Background Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
-      <div className="absolute inset-0 bg-black/5"></div>
-      
-      <div className={`relative z-10 grid ${gridCols} ${dayHeight}`}>
+    <div className="relative bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden" style={{ contain: 'layout style paint' }}>
+      <div className={`relative grid ${gridCols} ${dayHeight}`}>
         {/* Clean Day headers */}
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
-          <div key={day} className="bg-gradient-to-br from-slate-100/80 to-slate-200/60 backdrop-blur-sm p-3 text-sm font-bold text-slate-700 h-12 flex items-center justify-center border-b border-white/30">
+          <div key={day} className="bg-slate-100 p-3 text-sm font-bold text-slate-700 h-12 flex items-center justify-center border-b border-slate-200">
             <span className="tracking-wide">{day}</span>
           </div>
         ))}
