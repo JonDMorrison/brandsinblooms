@@ -6,6 +6,7 @@ import { QuickStartStepper } from '@/components/crm/QuickStartStepper';
 import { EmptyStateSection } from '@/components/crm/EmptyStateSection';
 import { FeatureHighlightsCard } from '@/components/crm/FeatureHighlightsCard';
 import { OnboardingTips } from '@/components/crm/OnboardingTips';
+import { CustomerSegmentsSection } from '@/components/crm/segments/CustomerSegmentsSection';
 
 const CRMDashboard: React.FC = () => {
   // Mock data - in real app this would come from API/state management
@@ -70,6 +71,11 @@ const CRMDashboard: React.FC = () => {
           campaignStats={campaignStats}
           segmentCount={segmentCount}
         />
+      </div>
+
+      {/* Customer Segments Section */}
+      <div className="mb-8">
+        <CustomerSegmentsSection />
       </div>
 
       {/* Main Content Grid */}
