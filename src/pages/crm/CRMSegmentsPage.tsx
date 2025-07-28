@@ -4,59 +4,55 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Target, Plus, Search, RefreshCw } from 'lucide-react';
 import { useCRMSegments } from '@/hooks/useCRMSegments';
+import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { SegmentCard } from '@/components/crm/segments/SegmentCard';
 import { CustomSegmentModal } from '@/components/crm/segments/CustomSegmentModal';
 import { SegmentOverviewCard } from '@/components/crm/segments/SegmentOverviewCard';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// Predefined segments data
+// Predefined segments data (without hardcoded counts)
 const predefinedSegments = [
   {
     id: 'loyalty-members',
     name: 'Loyalty Members',
     description: 'Customers enrolled in your loyalty program with active engagement',
-    estimatedCount: 245,
     icon: 'crown' as const,
   },
   {
     id: 'high-value',
     name: 'High-Value Customers',
     description: 'Top spending customers who drive significant revenue',
-    estimatedCount: 89,
     icon: 'trending' as const,
   },
   {
     id: 'new-customers',
     name: 'New Customers',
     description: 'Recent customers who made their first purchase within 30 days',
-    estimatedCount: 156,
     icon: 'users' as const,
   },
   {
     id: 'lapsed-customers',
     name: 'Lapsed Customers',
     description: 'Previously active customers who haven\'t purchased in 90+ days',
-    estimatedCount: 312,
     icon: 'mail' as const,
   },
   {
     id: 'seasonal-shoppers',
     name: 'Seasonal Shoppers',
     description: 'Customers who typically purchase during specific seasons or holidays',
-    estimatedCount: 178,
     icon: 'gift' as const,
   },
   {
     id: 'frequent-buyers',
     name: 'Frequent Buyers',
     description: 'Customers with 3+ purchases in the last 6 months',
-    estimatedCount: 134,
     icon: 'shopping' as const,
   },
 ];
 
 export const CRMSegmentsPage: React.FC = () => {
   const { segments, loading, searchTerm, setSearchTerm, fetchSegments, createSegment, deleteSegment } = useCRMSegments();
+  const { counts, loading: countsLoading } = useSegmentCounts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const isMobile = useIsMobile();
@@ -142,13 +138,13 @@ export const CRMSegmentsPage: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
-              <div className={`${isMobile ? 'mobile-grid-1' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-4`}>
+              <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
                 {filteredPredefinedSegments.map((segment) => (
                   <SegmentOverviewCard
                     key={segment.id}
                     name={segment.name}
                     description={segment.description}
-                    estimatedCount={segment.estimatedCount}
+                    estimatedCount={counts[segment.id as keyof typeof counts] || 0}
                     icon={segment.icon}
                     isSystem={true}
                     onCreateCampaign={() => handleCreateCampaign(segment.id)}
@@ -169,7 +165,7 @@ export const CRMSegmentsPage: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
-            {loading ? (
+            {loading || countsLoading ? (
               <div className="text-center py-8">
                 <div className={`animate-spin rounded-full ${isMobile ? 'mobile-icon-lg' : 'h-8 w-8'} border-b-2 border-primary mx-auto`}></div>
                 <p className={`${isMobile ? 'mobile-text-body' : 'text-muted-foreground'} mt-2`}>
@@ -196,7 +192,7 @@ export const CRMSegmentsPage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className={`${isMobile ? 'mobile-grid-1' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-4`}>
+              <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
                 {segments.map((segment) => (
                   <SegmentCard
                     key={segment.id}
