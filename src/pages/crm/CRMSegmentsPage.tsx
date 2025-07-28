@@ -8,7 +8,7 @@ import { SegmentCard } from '@/components/crm/segments/SegmentCard';
 import { CustomSegmentModal } from '@/components/crm/segments/CustomSegmentModal';
 
 export const CRMSegmentsPage: React.FC = () => {
-  const { segments, loading, searchTerm, setSearchTerm, fetchSegments, deleteSegment } = useCRMSegments();
+  const { segments, loading, searchTerm, setSearchTerm, fetchSegments, createSegment, deleteSegment } = useCRMSegments();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
 
@@ -17,8 +17,10 @@ export const CRMSegmentsPage: React.FC = () => {
   };
 
   const handleSaveCustomSegment = async (segmentData: any) => {
-    setShowCustomBuilder(false);
-    fetchSegments(); // Refresh the list
+    const success = await createSegment(segmentData);
+    if (success) {
+      setShowCustomBuilder(false);
+    }
   };
 
   return (
