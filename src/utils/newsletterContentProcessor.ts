@@ -338,57 +338,33 @@ const isPlaceholderContent = (content: string): boolean => {
   return placeholderIndicators.some(indicator => lowerContent.includes(indicator)) || content.trim().length < 100;
 };
 
-// Clean newsletter content for display - removes all HTML and markdown
+// Clean newsletter content for display - preserve most content with light cleaning
 export const cleanNewsletterContent = (content: string): string => {
   if (!content) return '';
   
   // First try to parse as JSON newsletter
   const parsedNewsletter = parseNewsletterJson(content);
   if (parsedNewsletter) {
-    // Clean both subject and content
-    const cleanSubject = stripAllFormatting(parsedNewsletter.subject);
-    const cleanContent = stripAllFormatting(parsedNewsletter.content);
+    const cleanSubject = lightCleanFormatting(parsedNewsletter.subject);
+    const cleanContent = lightCleanFormatting(parsedNewsletter.content);
     return cleanSubject ? `${cleanSubject}\n\n${cleanContent}` : cleanContent;
   }
   
-  // Clean regular newsletter content
-  return stripAllFormatting(content);
+  // Light cleaning for newsletter content to preserve formatting
+  return lightCleanFormatting(content);
 };
 
-// Strip ALL formatting including HTML, markdown, and technical symbols
-const stripAllFormatting = (text: string): string => {
+// Light cleaning to preserve most content while removing dangerous elements
+const lightCleanFormatting = (text: string): string => {
   if (!text) return '';
   
   return text
-    // Remove HTML tags completely
-    .replace(/<[^>]*>/g, '')
-    // Remove HTML entities
-    .replace(/&[a-zA-Z0-9#]+;/g, '')
-    // Remove markdown headers
-    .replace(/^#{1,6}\s+/gm, '')
-    // Remove markdown bold and italic
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/__([^_]+)__/g, '$1')
-    .replace(/_([^_]+)_/g, '$1')
-    // Remove code blocks and inline code
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`([^`]+)`/g, '$1')
-    // Remove links but keep text
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Remove images
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
-    // Remove list markers
-    .replace(/^\s*[-*+]\s+/gm, '')
-    .replace(/^\s*\d+\.\s+/gm, '')
-    // Remove blockquotes
-    .replace(/^\s*>\s+/gm, '')
-    // Remove any remaining brackets or technical formatting
-    .replace(/\[.*?\]/g, '')
-    .replace(/\{.*?\}/g, '')
-    // Clean up whitespace
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/\s+/g, ' ')
+    // Only remove dangerous HTML tags but preserve content structure
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    // Preserve most content, just clean up excessive whitespace
+    .replace(/\n{4,}/g, '\n\n\n')
+    .replace(/[ \t]{3,}/g, '  ')
     .trim();
 };
 

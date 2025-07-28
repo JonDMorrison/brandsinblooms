@@ -41,70 +41,32 @@ export const MagazineContentDisplay = ({
     );
   }
 
-  // Process content based on type with enhanced pipeline and debugging
+  // Minimal content processing - avoid over-cleaning
   let processedContent = content;
-  const originalLength = content.length;
   
   try {
-    // Special handling for video content
+    // Special handling for video content only
     if (postType === 'video') {
-      console.log('🎬 Processing video content for display:', {
-        hasSceneInfo: isVideoScriptContent(content),
+      console.log('🎬 Processing video content for display');
+      processedContent = cleanVideoContent(content);
+    } else {
+      // For other content types, use minimal processing to preserve content
+      console.log('📝 Preserving content with minimal processing:', {
+        postType,
         originalLength: content.length
       });
-      
-      // Clean video content to remove all scene information
-      processedContent = cleanVideoContent(content);
-      
-      console.log('🎬 Video content processed:', {
-        cleanedLength: processedContent.length,
-        removedChars: content.length - processedContent.length
-      });
-    } else {
-      // For non-video content, use enhanced cleaning with fallback
-      try {
-        processedContent = cleanContentForDisplay(content, postType);
-        console.log('📝 Content cleaned:', {
-          originalLength,
-          cleanedLength: processedContent.length,
-          postType
-        });
-      } catch (error) {
-        console.warn('⚠️ Content cleaning failed, using original:', error);
-        processedContent = content; // Fallback to original content
-      }
-    }
-    
-    // Only strip emojis if we still have substantial content
-    if (processedContent.trim().length > 10) {
-      const beforeEmojis = processedContent.length;
-      processedContent = stripEmojis(processedContent);
-      console.log('🚫 Emojis stripped:', {
-        before: beforeEmojis,
-        after: processedContent.length
-      });
-    }
-    
-    // Validate and repair formatted content only if needed
-    const validation = validateFormattedContent(processedContent, postType);
-    if (!validation.isValid && processedContent.trim().length > 0) {
-      console.log('🔧 Content validation issues detected:', validation.issues);
-      const repairedContent = repairFormattedContent(processedContent);
-      // Only use repaired content if it's not empty
-      if (repairedContent.trim().length > 0) {
-        processedContent = repairedContent;
-      }
+      processedContent = content; // Use original content to prevent over-processing
     }
 
-    // Final safety check - if content is empty after processing, use original
+    // Final safety check - always ensure we have content
     if (!processedContent.trim()) {
-      console.warn('⚠️ Content became empty after processing, reverting to original');
+      console.warn('⚠️ Content became empty, reverting to original');
       processedContent = content;
     }
 
   } catch (error) {
-    console.error('❌ Content processing failed completely:', error);
-    processedContent = content; // Always fallback to original content
+    console.error('❌ Content processing failed, using original:', error);
+    processedContent = content;
   }
 
   console.log('✅ Final processed content:', {
