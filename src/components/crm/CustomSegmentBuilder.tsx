@@ -251,8 +251,6 @@ export const CustomSegmentBuilder = ({ onSave, onCancel }: CustomSegmentBuilderP
   };
 
   return (
-    <div>
-      <p className="text-muted-foreground">This component has been moved to a modal interface.</p>
-    </div>
+    null
   );
 };
