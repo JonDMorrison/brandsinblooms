@@ -2,14 +2,14 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown } from 'lucide-react';
+import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown, Leaf, Heart, Apple, Recycle, Home, Flower, Eye, Hammer, Sun } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PersonaOverviewCardProps {
   name: string;
   description: string;
   customerCount?: number;
-  icon: 'users' | 'mail' | 'shopping' | 'gift' | 'trending' | 'crown';
+  icon: 'users' | 'mail' | 'shopping' | 'gift' | 'trending' | 'crown' | 'leaf' | 'heart' | 'apple' | 'recycle' | 'home' | 'flower' | 'eye' | 'hammer' | 'sun';
   isSystem?: boolean;
   onCreateCampaign?: () => void;
   onViewDetails?: () => void;
@@ -22,6 +22,15 @@ const iconMap = {
   gift: Gift,
   trending: TrendingUp,
   crown: Crown,
+  leaf: Leaf,
+  heart: Heart,
+  apple: Apple,
+  recycle: Recycle,
+  home: Home,
+  flower: Flower,
+  eye: Eye,
+  hammer: Hammer,
+  sun: Sun,
 };
 
 export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({

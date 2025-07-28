@@ -8,49 +8,69 @@ import { PersonaCard } from '@/components/crm/personas/PersonaCard';
 import { CustomPersonaModal } from '@/components/crm/personas/CustomPersonaModal';
 import { PersonaOverviewCard } from '@/components/crm/personas/PersonaOverviewCard';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePersonaCustomerCounts } from '@/hooks/usePersonaCustomerCounts';
 
-// Predefined personas data (without hardcoded counts)
+// Predefined personas data for garden center customers
 const predefinedPersonas = [
   {
-    id: 'tech-enthusiast',
-    name: 'Tech Enthusiast',
-    description: 'Early adopters who love cutting-edge technology and digital solutions',
-    icon: 'trending' as const,
+    id: 'plant-killer-pam',
+    name: 'Plant-Killer Pam',
+    description: 'Customers who struggle with keeping plants alive and need low-maintenance options',
+    icon: 'leaf' as const,
   },
   {
-    id: 'budget-shopper',
-    name: 'Budget Shopper',
-    description: 'Price-conscious customers who seek value and deals',
-    icon: 'shopping' as const,
+    id: 'pet-friendly-hannah',
+    name: 'Pet-Friendly Hannah',
+    description: 'Pet owners looking for safe, non-toxic plants and garden solutions',
+    icon: 'heart' as const,
   },
   {
-    id: 'luxury-seeker',
-    name: 'Luxury Seeker',
-    description: 'Premium customers who prioritize quality and exclusivity',
-    icon: 'crown' as const,
+    id: 'vegetable-garden-veronica',
+    name: 'Vegetable Garden Veronica',
+    description: 'Customers focused on growing their own food and organic gardening',
+    icon: 'apple' as const,
   },
   {
-    id: 'family-focused',
-    name: 'Family-Focused',
-    description: 'Parents and families making household purchasing decisions',
-    icon: 'users' as const,
+    id: 'sustainable-susie',
+    name: 'Sustainable Susie',
+    description: 'Environmentally conscious gardeners seeking eco-friendly solutions',
+    icon: 'recycle' as const,
   },
   {
-    id: 'eco-conscious',
-    name: 'Eco-Conscious',
-    description: 'Environmentally aware customers who prefer sustainable options',
-    icon: 'gift' as const,
+    id: 'patio-gardener-gail',
+    name: 'Patio Gardener Gail',
+    description: 'Urban gardeners with limited space focusing on container gardening',
+    icon: 'home' as const,
   },
   {
-    id: 'business-professional',
-    name: 'Business Professional',
-    description: 'Working professionals with specific business needs',
-    icon: 'mail' as const,
+    id: 'pollinator-paula',
+    name: 'Pollinator Paula',
+    description: 'Customers interested in attracting bees, butterflies, and beneficial insects',
+    icon: 'flower' as const,
+  },
+  {
+    id: 'curb-appeal-ashley',
+    name: 'Curb Appeal Ashley',
+    description: 'Homeowners focused on front yard landscaping and property aesthetics',
+    icon: 'eye' as const,
+  },
+  {
+    id: 'diy-dana',
+    name: 'DIY Dana',
+    description: 'Hands-on gardeners who love projects and building garden features',
+    icon: 'hammer' as const,
+  },
+  {
+    id: 'wellness-whitney',
+    name: 'Wellness Whitney',
+    description: 'Customers interested in therapeutic gardening and mental health benefits',
+    icon: 'sun' as const,
   },
 ];
 
 export const CRMPersonasPage: React.FC = () => {
   const { personas, loading, searchTerm, setSearchTerm, fetchPersonas, createPersona, deletePersona } = useCRMPersonas();
+  const { counts: personaCounts, loading: countsLoading } = usePersonaCustomerCounts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const isMobile = useIsMobile();
@@ -143,7 +163,7 @@ export const CRMPersonasPage: React.FC = () => {
                     key={persona.id}
                     name={persona.name}
                     description={persona.description}
-                    customerCount={0} // Will be updated with real counts later
+                    customerCount={personaCounts[persona.name] || 0}
                     icon={persona.icon}
                     isSystem={true}
                     onCreateCampaign={() => handleCreateCampaign(persona.id)}
