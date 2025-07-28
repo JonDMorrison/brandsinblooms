@@ -23,6 +23,7 @@ export const SocialConnectionManager = () => {
   const [connections, setConnections] = useState<SocialConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [showSuccessView, setShowSuccessView] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -203,8 +204,8 @@ export const SocialConnectionManager = () => {
   const instagramConnection = connections.find(c => c.platform === 'instagram' && c.is_active);
   const bothMetaConnected = facebookConnection && instagramConnection;
 
-  // Show success section if both Meta platforms are connected
-  if (bothMetaConnected) {
+  // Show success section if both Meta platforms are connected and showSuccessView is true
+  if (bothMetaConnected && showSuccessView) {
     return (
       <div className="space-y-6">
         <MetaConnectionSuccess
@@ -212,9 +213,7 @@ export const SocialConnectionManager = () => {
           instagramConnection={instagramConnection}
           onSyncAnalytics={syncAnalytics}
           onManageConnections={() => {
-            // This will be handled by toggling back to the regular view
-            // For now, just refresh connections to show the regular interface
-            fetchConnections();
+            setShowSuccessView(false);
           }}
         />
       </div>
@@ -231,17 +230,28 @@ export const SocialConnectionManager = () => {
           </CardDescription>
         </div>
         
-        {connections.length > 0 && (
-          <Button 
-            onClick={syncAnalytics}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Sync Data
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {bothMetaConnected && (
+            <Button 
+              onClick={() => setShowSuccessView(true)}
+              variant="default"
+              size="sm"
+            >
+              Back to Overview
+            </Button>
+          )}
+          {connections.length > 0 && (
+            <Button 
+              onClick={syncAnalytics}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Sync Data
+            </Button>
+          )}
+        </div>
       </CardHeader>
       
       <CardContent className="space-y-4">
