@@ -251,6 +251,76 @@ export const CustomSegmentBuilder = ({ onSave, onCancel }: CustomSegmentBuilderP
   };
 
   return (
-    null
+    <div className="space-y-6">
+      <div>
+        <label htmlFor="segmentName" className="block text-sm font-medium text-foreground mb-2">
+          Segment Name
+        </label>
+        <input
+          id="segmentName"
+          type="text"
+          value={segmentName}
+          onChange={(e) => setSegmentName(e.target.value)}
+          className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          placeholder="Enter segment name..."
+        />
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-foreground">Filters</h3>
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                addFilter(e.target.value);
+                e.target.value = '';
+              }
+            }}
+            className="px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">Add Filter</option>
+            <option value="lastPurchase">Last Purchase</option>
+            <option value="purchaseCount">Purchase Count</option>
+            <option value="totalSpent">Total Spent</option>
+            <option value="tags">Tags</option>
+            <option value="productCategory">Product Category</option>
+            <option value="emailEngagement">Email Engagement</option>
+          </select>
+        </div>
+
+        <div className="space-y-4">
+          {filters.map((filter, index) => (
+            <div key={index} className="border border-border rounded-lg p-4 bg-card">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-foreground">{getFilterLabel(filter.type)}</h4>
+                <button
+                  onClick={() => removeFilter(index)}
+                  className="text-destructive hover:text-destructive/80 text-sm"
+                >
+                  Remove
+                </button>
+              </div>
+              {renderFilterConfig(filter, index)}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4 border-t border-border">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 text-muted-foreground hover:text-foreground border border-border rounded-md hover:bg-accent"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={!segmentName.trim()}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Save Segment
+        </button>
+      </div>
+    </div>
   );
 };
