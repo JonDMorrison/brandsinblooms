@@ -6,6 +6,13 @@ import { CompleteLandingPage } from '@/components/landing/CompleteLandingPage';
 import OnboardingPage from '@/pages/OnboardingPage';
 import CalendarPage from '@/pages/CalendarPage';
 import PublishPage from '@/pages/PublishPage';
+import ProfilePage from '@/pages/ProfilePage';
+import SocialMediaPage from '@/pages/SocialMediaPage';
+import SuccessPage from '@/pages/SuccessPage';
+import IntegrationsPage from '@/pages/IntegrationsPage';
+import AutomationPage from '@/pages/AutomationPage';
+import AccountPage from '@/pages/AccountPage';
+import BillingPage from '@/pages/BillingPage';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import { CRMDashboardPage } from '@/pages/crm/CRMDashboardPage';
@@ -112,6 +119,55 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <CRMCampaignCreatorPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <ProfilePage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/social-accounts" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <SocialMediaPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/success" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <SuccessPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/integrations" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <IntegrationsPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/automation" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <AutomationPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/account" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <AccountPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/billing" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <BillingPage />
             </SidebarLayout>
           </ProtectedRoute>
         } />
