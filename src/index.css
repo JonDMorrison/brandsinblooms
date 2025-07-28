@@ -18,9 +18,10 @@
 }
 
 @layer base {
-  html {
-    @apply antialiased;
-  }
+html {
+  @apply antialiased;
+  scroll-behavior: auto !important;
+}
 }
 
 :root {
