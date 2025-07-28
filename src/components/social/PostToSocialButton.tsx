@@ -3,9 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Facebook, Instagram, Send, Loader2, CheckCircle, ExternalLink } from 'lucide-react';
+import { Facebook, Instagram, Send, Loader2, CheckCircle, ExternalLink, Mail } from 'lucide-react';
 // Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { generateCampaignSlug } from '@/utils/campaignSlugUtils';
+import { useToast } from '@/hooks/use-toast';
 
 interface PostToSocialButtonProps {
   task: any;
@@ -34,11 +37,16 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
   variant = 'default',
   size = 'default'
 }) => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [connections, setConnections] = useState<SocialConnection[]>([]);
   const [posting, setPosting] = useState<Record<string, boolean>>({});
   const [posted, setPosted] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
+
+  // Check if this is a newsletter
+  const isNewsletter = task.post_type === 'newsletter';
 
   // Fetch social connections
   useEffect(() => {
@@ -64,7 +72,10 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
         setConnections(validConnections);
       } catch (error) {
         console.error('Error fetching social connections:', error);
-        toast.error('Failed to load social media connections');
+        toast({
+          variant: "destructive",
+          description: "Failed to load social media connections"
+        });
       } finally {
         setLoading(false);
       }
@@ -117,13 +128,19 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
       // Get session for authentication
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session) {
-        toast.error('Authentication session expired. Please refresh the page and try again.');
+        toast({
+          variant: "destructive",
+          description: "Authentication session expired. Please refresh the page and try again."
+        });
         return;
       }
 
       const token = sessionData.session.access_token;
       if (!token) {
-        toast.error('No authentication token found. Please refresh the page and try again.');
+        toast({
+          variant: "destructive",
+          description: "No authentication token found. Please refresh the page and try again."
+        });
         return;
       }
 
@@ -159,7 +176,9 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
         const result = responseData.results?.[0];
         if (result?.success) {
           setPosted(prev => ({ ...prev, [platform]: true }));
-          toast.success(`Successfully posted to ${platform === 'facebook' ? 'Facebook' : 'Instagram'}!`);
+          toast({
+            description: `Successfully posted to ${platform === 'facebook' ? 'Facebook' : 'Instagram'}!`
+          });
           
           if (onSuccess) {
             onSuccess();
@@ -172,7 +191,10 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
       }
     } catch (error: any) {
       console.error(`Error posting to ${platform}:`, error);
-      toast.error(error.message || `Failed to post to ${platform}`);
+      toast({
+        variant: "destructive",
+        description: error.message || `Failed to post to ${platform}`
+      });
     } finally {
       setPosting(prev => ({ ...prev, [platform]: false }));
     }
@@ -186,14 +208,45 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
 
   const canPost = task.ai_output && task.status === 'approved';
 
+  const handleCRMRedirect = () => {
+    if (!canPost) return;
+
+    // Extract newsletter content and create campaign title
+    const content = task.ai_output?.replace(/<[^>]*>/g, '').trim() || '';
+    const campaignTitle = `Newsletter Campaign - ${new Date().toLocaleDateString()}`;
+    
+    // Generate unique campaign slug for newsletter
+    const campaignSlug = generateCampaignSlug(campaignTitle, task.id);
+    
+    // Navigate to unique CRM campaign creation with pre-filled data
+    const params = new URLSearchParams({
+      contentTaskId: task.id,
+      title: campaignTitle,
+      content: content,
+      type: 'newsletter'
+    });
+    
+    navigate(`/crm/campaigns/new/${campaignSlug}?${params.toString()}`);
+    toast({
+      title: "Success",
+      description: "Redirecting to CRM campaign creation..."
+    });
+  };
+
   const getTooltipMessage = () => {
     if (!task.ai_output) {
-      return 'Content must be generated first before posting to social media';
+      return isNewsletter 
+        ? 'Content must be generated first before creating a CRM campaign'
+        : 'Content must be generated first before posting to social media';
     }
     if (task.status !== 'approved') {
-      return 'Content must be approved before posting to social media';
+      return isNewsletter
+        ? 'Content must be approved before creating a CRM campaign'
+        : 'Content must be approved before posting to social media';
     }
-    return 'Connect your social media accounts in Settings to post content directly';
+    return isNewsletter
+      ? 'Create an email campaign in CRM using this newsletter content'
+      : 'Connect your social media accounts in Settings to post content directly';
   };
 
   if (!canPost) {
@@ -207,8 +260,17 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
               size={size}
               className={`${className} opacity-50`}
             >
-              <Send className="w-4 h-4 mr-2" />
-              Post to Social
+              {isNewsletter ? (
+                <>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send to CRM
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Post to Social
+                </>
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
@@ -216,6 +278,22 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
+    );
+  }
+
+  // If it's a newsletter, show CRM button instead
+  if (isNewsletter) {
+    return (
+      <Button
+        onClick={handleCRMRedirect}
+        variant={variant}
+        size={size}
+        className={`${className} bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white`}
+      >
+        <Mail className="w-4 h-4 mr-2" />
+        Send to CRM
+        <ExternalLink className="w-3 h-3 ml-1" />
+      </Button>
     );
   }
 
