@@ -77,11 +77,14 @@ export const EnhancedCalendarTaskItem = ({
     }
   };
 
-  const longPressProps = useLongPress({
+  const longPressResult = useLongPress({
     onLongPress: handleLongPressStart,
     onClick: handleClick,
     longPressThreshold: 300
   });
+
+  // Destructure event handlers and state separately
+  const { onMouseDown, onMouseUp, onMouseLeave, onTouchStart, onTouchEnd, isPressed, isLongPressActive } = longPressResult;
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', task.id);
@@ -118,7 +121,11 @@ export const EnhancedCalendarTaskItem = ({
 
   return (
     <div
-      {...longPressProps}
+      onMouseDown={onMouseDown}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
       draggable={isDragReady}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
@@ -129,11 +136,11 @@ export const EnhancedCalendarTaskItem = ({
         isDragReady && "cursor-move bg-blue-50 border-blue-300 shadow-lg scale-105 z-50",
         isSelected && "ring-2 ring-blue-500 bg-blue-50 border-blue-300",
         isPastDate && "opacity-75",
-        longPressProps.isPressed && "scale-95 bg-blue-100"
+        isPressed && "scale-95 bg-blue-100"
       )}
     >
       {/* Long press visual feedback */}
-      {longPressProps.isPressed && (
+      {isPressed && (
         <div className="absolute inset-0 bg-blue-400 opacity-20 rounded-lg animate-pulse pointer-events-none" />
       )}
 
