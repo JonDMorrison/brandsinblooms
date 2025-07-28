@@ -3,8 +3,9 @@ import React from 'react';
 import { ProtectedPageWrapper } from '@/components/ProtectedPageWrapper';
 import { PostPerformanceTracker } from '@/components/analytics/PostPerformanceTracker';
 import { AutoScheduler } from '@/components/scheduling/AutoScheduler';
+import { SocialConnectionManager } from '@/components/analytics/SocialConnectionManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Calendar, TrendingUp, Zap } from 'lucide-react';
+import { BarChart3, Calendar, TrendingUp, Zap, Link } from 'lucide-react';
 
 const SocialMediaPage = () => {
   return (
@@ -22,8 +23,12 @@ const SocialMediaPage = () => {
         </div>
 
         {/* Main Content */}
-        <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="connections" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="connections" className="flex items-center gap-2">
+              <Link className="w-4 h-4" />
+              Connections
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Analytics
@@ -33,6 +38,10 @@ const SocialMediaPage = () => {
               Auto-Scheduling
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="connections">
+            <SocialConnectionManager />
+          </TabsContent>
 
           <TabsContent value="analytics">
             <PostPerformanceTracker />
