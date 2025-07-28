@@ -112,7 +112,7 @@ const CalendarPage = () => {
           </div>
           
           {/* Header Content */}
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-3 mb-2">
                 <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
