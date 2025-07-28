@@ -75,17 +75,9 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
           </p>
           
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                {segment.customer_count} customers
-              </Badge>
-              <Badge 
-                variant={segment.type === 'predefined' ? 'default' : 'outline'}
-                className="text-xs"
-              >
-                {segment.type === 'predefined' ? 'System' : 'Custom'}
-              </Badge>
-            </div>
+            <Badge variant="secondary" className="text-xs">
+              {segment.customer_count} customers
+            </Badge>
             
             {segment.created_at && segment.type === 'custom' && (
               <span className="text-xs text-muted-foreground">
