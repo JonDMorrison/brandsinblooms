@@ -19,6 +19,7 @@ interface FilterCriteria {
 interface CustomSegmentBuilderProps {
   onSave: (segmentData: { name: string; filters: FilterCriteria[] }) => void;
   onCancel: () => void;
+  open?: boolean;
 }
 
 const PRODUCT_CATEGORIES = [
