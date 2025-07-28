@@ -84,19 +84,19 @@ export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({
           </div>
           
           {/* Action buttons */}
-          <div className={`flex ${isMobile ? 'flex-col gap-2 w-full' : 'gap-2'}`}>
+          <div className={`flex ${isMobile ? 'flex-col gap-2 w-full' : 'flex-col sm:flex-row gap-2'}`}>
             <Button 
               variant="outline" 
               size={isMobile ? "default" : "sm"} 
               onClick={onViewDetails}
-              className={`${isMobile ? 'w-full min-h-[44px]' : ''}`}
+              className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
             >
               View Details
             </Button>
             <Button 
               size={isMobile ? "default" : "sm"} 
               onClick={onCreateCampaign}
-              className={`${isMobile ? 'w-full min-h-[44px]' : ''}`}
+              className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
             >
               Create Campaign
             </Button>
