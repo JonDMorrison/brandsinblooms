@@ -72,7 +72,7 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
               className={`${className} opacity-50`}
             >
               <Mail className="w-4 h-4 mr-2" />
-              Create CRM Campaign
+              Send to CRM
             </Button>
           </TooltipTrigger>
           <TooltipContent>
@@ -91,7 +91,7 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
       className={`${className} bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white`}
     >
       <Mail className="w-4 h-4 mr-2" />
-      Create CRM Campaign
+      Send to CRM
       <ExternalLink className="w-3 h-3 ml-1" />
     </Button>
   );
