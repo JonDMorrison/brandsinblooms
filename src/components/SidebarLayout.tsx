@@ -26,7 +26,17 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         </div>
         
         <AppSidebar />
-        <main className="flex-1 w-full h-full overflow-x-hidden flex flex-col">
+        <main 
+          className="flex-1 w-full h-full overflow-x-hidden flex flex-col"
+          style={{
+            scrollBehavior: 'auto',
+            contain: 'layout style paint',
+            willChange: 'transform',
+            transform: 'translateZ(0)',
+            backfaceVisibility: 'hidden',
+            perspective: '1000px'
+          }}
+        >
           {/* Trial Banner - constrained to main content width */}
           <TrialBanner />
           <div className="flex-1 w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

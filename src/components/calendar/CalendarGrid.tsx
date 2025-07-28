@@ -133,7 +133,15 @@ export const CalendarGrid = React.memo(({
   const dayHeight = viewMode === 'week' ? 'h-full' : 'min-h-[120px]';
 
   return (
-    <div className="relative bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden" style={{ contain: 'layout style paint' }}>
+    <div 
+      className="relative bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden" 
+      style={{ 
+        contain: 'layout style paint',
+        willChange: 'transform',
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden'
+      }}
+    >
       <div className={`relative grid ${gridCols} ${dayHeight}`}>
         {/* Clean Day headers */}
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (

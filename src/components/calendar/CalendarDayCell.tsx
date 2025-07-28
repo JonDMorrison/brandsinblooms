@@ -119,7 +119,7 @@ export const CalendarDayCell = React.memo(({
         className={cn(
           "min-h-[140px] p-3 relative cursor-pointer border-r border-b border-slate-200",
           // Current month styling
-          isCurrentMonth && "bg-white hover:bg-slate-50 transition-colors duration-200",
+          isCurrentMonth && "bg-white hover:bg-slate-50",
           // Other month styling
           !isCurrentMonth && "bg-slate-50 text-slate-500",
           // Today styling
@@ -129,7 +129,10 @@ export const CalendarDayCell = React.memo(({
           // Past date styling
           isPastDate && isCurrentMonth && "bg-orange-50/50"
         )}
-        style={{ willChange: 'background-color' }}
+        style={{ 
+          willChange: 'background-color',
+          transition: 'background-color 0.15s ease-out'
+        }}
         onClick={handleDateClick}
       >
         {/* Today corner accent */}
