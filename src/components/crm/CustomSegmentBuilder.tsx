@@ -251,72 +251,8 @@ export const CustomSegmentBuilder = ({ onSave, onCancel }: CustomSegmentBuilderP
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Label htmlFor="segmentName">Segment Name</Label>
-        <Input
-          id="segmentName"
-          value={segmentName}
-          onChange={(e) => setSegmentName(e.target.value)}
-          placeholder="e.g., High-Value Spring Shoppers"
-          className="mt-1"
-        />
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Label>Filter Criteria</Label>
-          <Select onValueChange={addFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Add filter..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="lastPurchase">📆 Last Purchase Date</SelectItem>
-              <SelectItem value="purchaseCount">🛒 Number of Purchases</SelectItem>
-              <SelectItem value="totalSpend">💰 Total Spend</SelectItem>
-              <SelectItem value="tags">🏷️ Tags</SelectItem>
-              <SelectItem value="productCategory">🪴 Product Category</SelectItem>
-              <SelectItem value="emailEngagement">💌 Email Engagement</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {filters.map((filter, index) => (
-          <Card key={index}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center justify-between">
-                {getFilterLabel(filter.type)}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeFilter(index)}
-                  className="h-6 w-6 p-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderFilterConfig(filter, index)}
-            </CardContent>
-          </Card>
-        ))}
-
-        {filters.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            Add filter criteria to define your custom segment
-          </div>
-        )}
-      </div>
-
-      <div className="flex gap-3 pt-4">
-        <Button onClick={handleSave} disabled={!segmentName.trim() || filters.length === 0}>
-          Save Segment
-        </Button>
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
+    <div>
+      <p className="text-muted-foreground">This component has been moved to a modal interface.</p>
     </div>
   );
 };
