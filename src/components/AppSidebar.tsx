@@ -150,11 +150,6 @@ const AppSidebar: React.FC = () => {
       url: "/account",
       icon: Users,
     },
-    {
-      title: "Billing",
-      url: "/billing",
-      icon: CreditCard,
-    },
   ];
 
   const isActive = (path: string) => currentPath === path;

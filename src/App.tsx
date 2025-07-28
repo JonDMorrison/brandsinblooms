@@ -12,7 +12,6 @@ import SuccessPage from '@/pages/SuccessPage';
 import IntegrationsPage from '@/pages/IntegrationsPage';
 import AutomationPage from '@/pages/AutomationPage';
 import AccountPage from '@/pages/AccountPage';
-import BillingPage from '@/pages/BillingPage';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import { CRMDashboardPage } from '@/pages/crm/CRMDashboardPage';
@@ -161,13 +160,6 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <AccountPage />
-            </SidebarLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/billing" element={
-          <ProtectedRoute>
-            <SidebarLayout>
-              <BillingPage />
             </SidebarLayout>
           </ProtectedRoute>
         } />
