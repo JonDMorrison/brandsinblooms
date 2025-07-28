@@ -59,11 +59,6 @@ export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({
               <h3 className={`font-semibold ${isMobile ? 'mobile-text-subheading' : 'text-base'} mobile-prevent-overflow`}>
                 {name}
               </h3>
-              {isSystem && (
-                <Badge variant="secondary" className="text-xs mt-1">
-                  System
-                </Badge>
-              )}
             </div>
           </div>
         </div>
