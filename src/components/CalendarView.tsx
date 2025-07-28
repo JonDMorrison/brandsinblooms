@@ -251,39 +251,6 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
 
   return (
     <div className="h-full flex flex-col space-y-4">
-      {/* Newsletter Controls */}
-      <div className="flex items-center justify-between p-4 bg-white rounded-lg border shadow-sm">
-        <div className="flex items-center gap-4">
-          <h3 className="font-semibold text-lg">Calendar View</h3>
-          <div className="flex items-center gap-2">
-            <Button
-              variant={showNewsletters ? "default" : "outline"}
-              size="sm"
-              onClick={toggleNewsletterVisibility}
-              className="flex items-center gap-2"
-            >
-              <Mail className="w-4 h-4" />
-              Newsletters
-              {showNewsletters && (
-                <Badge variant="secondary" className="ml-1">
-                  {newsletters.length}
-                </Badge>
-              )}
-            </Button>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={handleCreateNewsletter}
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            New Newsletter
-          </Button>
-        </div>
-      </div>
 
       <CalendarHeader
         viewMode={viewMode}
