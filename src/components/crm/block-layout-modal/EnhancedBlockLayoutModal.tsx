@@ -244,166 +244,160 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent className="max-w-6xl max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="pb-4 border-b border-border/10">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Plus className="h-5 w-5 text-primary" />
             Choose Block Layout
           </DialogTitle>
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="flex-shrink-0 grid w-full grid-cols-4">
-            <TabsTrigger value="all" className="flex items-center gap-2">
-              <Grid className="h-4 w-4" />
-              All Layouts
-              <Badge variant="secondary" className="ml-1">
-                {layoutOptions.length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="popular" className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              Popular
-              <Badge variant="secondary" className="ml-1">
-                {popularCount}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="recent" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              New
-              <Badge variant="secondary" className="ml-1">
-                {recentCount}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="categories">
-              Categories
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="pt-4">
+          <div className="sticky top-0 bg-background/95 backdrop-blur-sm pb-4 border-b border-border/10 mb-4">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="all" className="flex items-center gap-2 text-xs sm:text-sm">
+                <Grid className="h-4 w-4" />
+                All Layouts
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {layoutOptions.length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="popular" className="flex items-center gap-2 text-xs sm:text-sm">
+                <Sparkles className="h-4 w-4" />
+                Popular
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {popularCount}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="recent" className="flex items-center gap-2 text-xs sm:text-sm">
+                <Clock className="h-4 w-4" />
+                New
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {recentCount}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="categories" className="text-xs sm:text-sm">
+                Categories
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <div className="flex-1 overflow-hidden">
-            <TabsContent value="all" className="h-full overflow-y-auto">
-              <div className="space-y-6 p-1">
-                <SearchAndFilters
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  selectedCategories={selectedCategories}
-                  onCategoryToggle={handleCategoryToggle}
-                  availableCategories={categories}
-                  onClearFilters={handleClearFilters}
-                />
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredOptions.map((option) => (
-                    <LayoutOption
-                      key={option.id}
-                      id={option.id}
-                      title={option.title}
-                      description={option.description}
-                      category={option.category}
-                      icon={option.icon}
-                      isPopular={option.isPopular}
-                      isNew={option.isNew}
-                      preview={<LayoutPreview type={option.previewType} />}
-                      onClick={() => handleSelect(option.id)}
-                    />
-                  ))}
-                </div>
-
-                {filteredOptions.length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Grid className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                    <p className="text-lg font-medium mb-2">No layouts found</p>
-                    <p className="text-sm">Try adjusting your search or filters</p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="popular" className="h-full overflow-y-auto">
-              <div className="space-y-6 p-1">
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="h-5 w-5 text-yellow-500" />
-                  <h3 className="text-lg font-semibold">Popular Layouts</h3>
-                  <Badge variant="secondary">Most used by teams</Badge>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {layoutOptions.filter(opt => opt.isPopular).map((option) => (
-                    <LayoutOption
-                      key={option.id}
-                      id={option.id}
-                      title={option.title}
-                      description={option.description}
-                      category={option.category}
-                      icon={option.icon}
-                      isPopular={option.isPopular}
-                      preview={<LayoutPreview type={option.previewType} />}
-                      onClick={() => handleSelect(option.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="recent" className="h-full overflow-y-auto">
-              <div className="space-y-6 p-1">
-                <div className="flex items-center gap-2 mb-4">
-                  <Clock className="h-5 w-5 text-blue-500" />
-                  <h3 className="text-lg font-semibold">New Layouts</h3>
-                  <Badge variant="secondary">Recently added</Badge>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {layoutOptions.filter(opt => opt.isNew).map((option) => (
-                    <LayoutOption
-                      key={option.id}
-                      id={option.id}
-                      title={option.title}
-                      description={option.description}
-                      category={option.category}
-                      icon={option.icon}
-                      isNew={option.isNew}
-                      preview={<LayoutPreview type={option.previewType} />}
-                      onClick={() => handleSelect(option.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="categories" className="h-full overflow-y-auto">
-              <div className="space-y-8 p-1">
-                {categories.map(category => (
-                  <div key={category}>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      {category} Blocks
-                      <Badge variant="secondary" className="text-xs">
-                        {layoutOptions.filter(opt => opt.category === category).length}
-                      </Badge>
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {layoutOptions
-                        .filter(option => option.category === category)
-                        .map((option) => (
-                          <LayoutOption
-                            key={option.id}
-                            id={option.id}
-                            title={option.title}
-                            description={option.description}
-                            category={option.category}
-                            icon={option.icon}
-                            isPopular={option.isPopular}
-                            isNew={option.isNew}
-                            preview={<LayoutPreview type={option.previewType} />}
-                            onClick={() => handleSelect(option.id)}
-                          />
-                        ))
-                      }
-                    </div>
-                  </div>
+          <div className="min-h-0">
+            <TabsContent value="all" className="mt-0 space-y-6">
+              <SearchAndFilters
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                selectedCategories={selectedCategories}
+                onCategoryToggle={handleCategoryToggle}
+                availableCategories={categories}
+                onClearFilters={handleClearFilters}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+                {filteredOptions.map((option) => (
+                  <LayoutOption
+                    key={option.id}
+                    id={option.id}
+                    title={option.title}
+                    description={option.description}
+                    category={option.category}
+                    icon={option.icon}
+                    isPopular={option.isPopular}
+                    isNew={option.isNew}
+                    preview={<LayoutPreview type={option.previewType} />}
+                    onClick={() => handleSelect(option.id)}
+                  />
                 ))}
               </div>
+
+              {filteredOptions.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Grid className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <p className="text-lg font-medium mb-2">No layouts found</p>
+                  <p className="text-sm">Try adjusting your search or filters</p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="popular" className="mt-0 space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-5 w-5 text-yellow-500" />
+                <h3 className="text-lg font-semibold">Popular Layouts</h3>
+                <Badge variant="secondary">Most used by teams</Badge>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+                {layoutOptions.filter(opt => opt.isPopular).map((option) => (
+                  <LayoutOption
+                    key={option.id}
+                    id={option.id}
+                    title={option.title}
+                    description={option.description}
+                    category={option.category}
+                    icon={option.icon}
+                    isPopular={option.isPopular}
+                    preview={<LayoutPreview type={option.previewType} />}
+                    onClick={() => handleSelect(option.id)}
+                  />
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="recent" className="mt-0 space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="h-5 w-5 text-blue-500" />
+                <h3 className="text-lg font-semibold">New Layouts</h3>
+                <Badge variant="secondary">Recently added</Badge>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+                {layoutOptions.filter(opt => opt.isNew).map((option) => (
+                  <LayoutOption
+                    key={option.id}
+                    id={option.id}
+                    title={option.title}
+                    description={option.description}
+                    category={option.category}
+                    icon={option.icon}
+                    isNew={option.isNew}
+                    preview={<LayoutPreview type={option.previewType} />}
+                    onClick={() => handleSelect(option.id)}
+                  />
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="categories" className="mt-0 space-y-8 pb-4">
+              {categories.map(category => (
+                <div key={category}>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    {category} Blocks
+                    <Badge variant="secondary" className="text-xs">
+                      {layoutOptions.filter(opt => opt.category === category).length}
+                    </Badge>
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {layoutOptions
+                      .filter(option => option.category === category)
+                      .map((option) => (
+                        <LayoutOption
+                          key={option.id}
+                          id={option.id}
+                          title={option.title}
+                          description={option.description}
+                          category={option.category}
+                          icon={option.icon}
+                          isPopular={option.isPopular}
+                          isNew={option.isNew}
+                          preview={<LayoutPreview type={option.previewType} />}
+                          onClick={() => handleSelect(option.id)}
+                        />
+                      ))
+                    }
+                  </div>
+                </div>
+              ))}
             </TabsContent>
           </div>
         </Tabs>
