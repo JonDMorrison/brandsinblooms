@@ -65,7 +65,7 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
         </p>
         
         {/* Footer with customer count and buttons */}
-        <div className={`${isMobile ? 'mobile-space-tight' : 'flex items-center justify-between'}`}>
+        <div className={`${isMobile ? 'space-y-3 w-full' : 'flex items-center justify-between'}`}>
           {/* Customer count */}
           <div className="flex items-center gap-2 mb-3 md:mb-0">
             <Users className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} text-muted-foreground`} />
@@ -75,19 +75,19 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
           </div>
           
           {/* Action buttons */}
-          <div className={`flex ${isMobile ? 'flex-col gap-2' : 'gap-2'}`}>
+          <div className={`flex ${isMobile ? 'flex-col gap-2 w-full' : 'gap-2'}`}>
             <Button 
               variant="outline" 
               size={isMobile ? "default" : "sm"} 
               onClick={onViewDetails}
-              className={`${isMobile ? 'mobile-btn-secondary mobile-touch-feedback w-full' : ''} mobile-focus-ring`}
+              className={`${isMobile ? 'w-full min-h-[44px]' : ''}`}
             >
               View Details
             </Button>
             <Button 
               size={isMobile ? "default" : "sm"} 
               onClick={onCreateCampaign}
-              className={`${isMobile ? 'mobile-btn-primary mobile-touch-feedback w-full' : ''} mobile-focus-ring`}
+              className={`${isMobile ? 'w-full min-h-[44px]' : ''}`}
             >
               Create Campaign
             </Button>
