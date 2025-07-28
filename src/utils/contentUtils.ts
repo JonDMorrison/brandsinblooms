@@ -204,93 +204,160 @@ export const formatBlogContent = (text: string): string => {
   return formatted;
 };
 
-// Enhanced cleaning function that handles newsletters with aggressive cleaning
+// Enhanced cleaning function with better content preservation
 export const cleanContentForDisplay = (content: string, postType: string = ''): string => {
-  if (!content) return '';
+  if (!content || content.trim().length === 0) return '';
   
-  // For newsletters, use aggressive cleaning to remove all HTML and markdown
-  if (postType === 'newsletter') {
-    return cleanNewsletterForDisplay(content);
-  }
+  console.log('🧼 cleanContentForDisplay:', { postType, contentLength: content.length });
   
-  // For blog posts, preserve more structure
-  if (postType === 'blog') {
-    return formatBlogContent(content);
-  }
+  // Store original for fallback
+  const originalContent = content;
   
-  // For other post types, use the existing cleaning logic
-  let cleaned = stripMarkdown(content);
-  
-  // Remove any remaining technical artifacts
-  cleaned = cleaned
-    // Remove code blocks that might have been missed
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`[^`]+`/g, '')
-    // Remove HTML entities
-    .replace(/&[a-zA-Z0-9#]+;/g, '')
-    // Remove excessive whitespace and normalize line breaks
-    .replace(/\n\s*\n\s*\n/g, '\n\n')
-    .replace(/\s+/g, ' ')
-    // Remove any leftover brackets or technical formatting
-    .replace(/\[.*?\]/g, '')
-    .replace(/\{.*?\}/g, '')
-    .trim();
+  try {
+    // For newsletters, use more conservative cleaning
+    if (postType === 'newsletter') {
+      const cleaned = cleanNewsletterForDisplay(content);
+      // Safety check - ensure we didn't lose too much content
+      if (cleaned.length < content.length * 0.2) {
+        console.warn('⚠️ Newsletter cleaning too aggressive, using simple cleanup');
+        return content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+      }
+      return cleaned;
+    }
     
-  return cleaned;
+    // For blog posts, preserve structure
+    if (postType === 'blog') {
+      return formatBlogContent(content);
+    }
+    
+    // For other post types, use conservative cleaning
+    let cleaned = stripMarkdown(content);
+    
+    // Only apply additional cleaning if content is still substantial
+    if (cleaned.length > content.length * 0.5) {
+      cleaned = cleaned
+        // Remove remaining technical artifacts carefully
+        .replace(/```[\s\S]*?```/g, ' ') // Replace with space
+        .replace(/`[^`]+`/g, ' ') // Replace with space
+        .replace(/&[a-zA-Z0-9#]+;/g, ' ') // Replace with space
+        // Clean up whitespace more conservatively
+        .replace(/\n\s*\n\s*\n/g, '\n\n')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    
+    // Final safety check
+    if (!cleaned || cleaned.length < 10) {
+      console.warn('⚠️ Content cleaning resulted in too little content, using original');
+      return originalContent;
+    }
+    
+    return cleaned;
+    
+  } catch (error) {
+    console.error('❌ Error in cleanContentForDisplay:', error);
+    return originalContent; // Always fallback to original
+  }
 };
 
-// Clean newsletter content with aggressive formatting removal
+// Clean newsletter content with better content preservation
 const cleanNewsletterForDisplay = (content: string): string => {
-  if (!content) return '';
+  if (!content || content.trim().length === 0) return '';
+  
+  console.log('📰 Cleaning newsletter content:', content.substring(0, 100) + '...');
   
   // First try to parse as JSON newsletter
   const parsedNewsletter = parseNewsletterJson(content);
   if (parsedNewsletter) {
-    // Clean both subject and content, removing all formatting
-    const cleanSubject = stripAllNewsletterFormatting(parsedNewsletter.subject);
-    const cleanContent = stripAllNewsletterFormatting(parsedNewsletter.content);
+    console.log('📰 Found JSON newsletter structure');
+    // Clean both subject and content with safety checks
+    const cleanSubject = parsedNewsletter.subject ? stripAllNewsletterFormatting(parsedNewsletter.subject) : '';
+    const cleanContent = parsedNewsletter.content ? stripAllNewsletterFormatting(parsedNewsletter.content) : '';
+    
+    // Ensure we have some content
+    if (!cleanSubject && !cleanContent) {
+      console.warn('⚠️ Newsletter JSON parsing resulted in empty content, using original');
+      return stripAllNewsletterFormatting(content);
+    }
+    
     return cleanSubject ? `${cleanSubject}\n\n${cleanContent}` : cleanContent;
   }
   
-  // Clean regular newsletter content
-  return stripAllNewsletterFormatting(content);
+  // Clean regular newsletter content with fallback
+  const cleaned = stripAllNewsletterFormatting(content);
+  if (!cleaned || cleaned.length < 10) {
+    console.warn('⚠️ Newsletter cleaning too aggressive, using minimal cleaning');
+    return content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  }
+  
+  return cleaned;
 };
 
-// Strip ALL formatting from newsletter content
+// Strip formatting from newsletter content while preserving content structure
 const stripAllNewsletterFormatting = (text: string): string => {
-  if (!text) return '';
+  if (!text || text.trim().length === 0) return '';
   
-  return text
-    // Remove HTML tags completely
-    .replace(/<[^>]*>/g, '')
+  console.log('🧹 Stripping newsletter formatting from:', text.substring(0, 100) + '...');
+  
+  // Store original length for safety check
+  const originalLength = text.length;
+  
+  let cleaned = text
+    // First preserve line breaks around key content patterns
+    .replace(/(\w)(<[^>]*>)(\w)/g, '$1 $2 $3') // Add space around HTML tags
+    .replace(/(\w)(\*\*[^*]+\*\*)(\w)/g, '$1 $2 $3') // Space around bold markdown
+    
+    // Remove HTML tags but preserve spacing
+    .replace(/<[^>]*>/g, ' ')
     // Remove HTML entities
-    .replace(/&[a-zA-Z0-9#]+;/g, '')
-    // Remove markdown headers but preserve their text
-    .replace(/^#{1,6}\s+(.+)$/gm, '$1')
-    // Remove markdown bold and italic but preserve text
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/&[a-zA-Z0-9#]+;/g, ' ')
+    
+    // Handle markdown formatting more carefully
+    .replace(/^#{1,6}\s+(.+)$/gm, '\n$1\n') // Convert headers to paragraph breaks
+    .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove bold but keep text
+    .replace(/\*([^*]+)\*/g, '$1') // Remove italic but keep text
     .replace(/__([^_]+)__/g, '$1')
     .replace(/_([^_]+)_/g, '$1')
-    // Remove code blocks and inline code
-    .replace(/```[\s\S]*?```/g, '')
+    
+    // Handle code blocks carefully
+    .replace(/```[\s\S]*?```/g, ' ') // Replace with space, not empty
     .replace(/`([^`]+)`/g, '$1')
-    // Remove links but keep text
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Remove images
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
-    // Remove list markers but preserve content
-    .replace(/^\s*[-*+]\s+/gm, '• ')
-    .replace(/^\s*\d+\.\s+/gm, '')
-    // Remove blockquotes but preserve content
-    .replace(/^\s*>\s+/gm, '')
-    // Remove any remaining brackets or technical formatting
-    .replace(/\[.*?\]/g, '')
-    .replace(/\{.*?\}/g, '')
-    // Clean up whitespace while preserving paragraph structure
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]+/g, ' ')
+    
+    // Handle links and images
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Keep link text
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '') // Remove images
+    
+    // Handle lists more carefully
+    .replace(/^\s*[-*+]\s+(.+)$/gm, '• $1') // Convert to bullet points
+    .replace(/^\s*\d+\.\s+(.+)$/gm, '$1') // Remove numbered list markers
+    
+    // Handle blockquotes
+    .replace(/^\s*>\s+(.+)$/gm, '$1')
+    
+    // Clean up excessive whitespace but preserve paragraph structure
+    .replace(/\s+/g, ' ') // Collapse multiple spaces
+    .replace(/\n\s*\n\s*\n/g, '\n\n') // Max 2 consecutive newlines
     .trim();
+  
+  // Safety check - if we removed too much content, fall back to simpler cleaning
+  if (cleaned.length < originalLength * 0.3) {
+    console.warn('⚠️ Newsletter formatting stripped too much content, falling back to simple cleaning');
+    cleaned = text
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/#{1,6}\s+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  
+  console.log('🧹 Newsletter formatting cleaned:', {
+    originalLength,
+    cleanedLength: cleaned.length,
+    reductionRatio: ((originalLength - cleaned.length) / originalLength * 100).toFixed(1) + '%'
+  });
+  
+  return cleaned;
 };
 
 // Enhanced blog metadata extraction that ignores H1 tags in content
