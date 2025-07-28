@@ -25,7 +25,8 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
 
   const handleCopyContent = (event: React.MouseEvent) => {
     event.stopPropagation();
-    const cleanContent = stripHtmlAndFormat(task.ai_output);
+    const isNewsletter = task.post_type === 'newsletter';
+    const cleanContent = stripHtmlAndFormat(task.ai_output, isNewsletter);
     navigator.clipboard.writeText(cleanContent);
     toast.success(`${task.post_type} content copied to clipboard`);
   };
@@ -115,7 +116,7 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
           {/* Content Preview */}
           <div className={`${isMobile ? 'responsive-text-sm' : 'text-sm'}`}>
             <BodySmall className="text-text-secondary leading-relaxed line-clamp-2">
-              {stripHtmlAndFormat(task.ai_output)}
+              {stripHtmlAndFormat(task.ai_output, task.post_type === 'newsletter')}
             </BodySmall>
           </div>
 

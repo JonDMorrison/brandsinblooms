@@ -13,7 +13,8 @@ interface ContentPreviewProps {
 
 export const ContentPreview = ({ content, postType, className = "" }: ContentPreviewProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const cleanContent = stripHtmlAndFormat(content);
+  const isNewsletter = postType === 'newsletter';
+  const cleanContent = stripHtmlAndFormat(content, isNewsletter);
   const wordCount = cleanContent.split(' ').length;
   const charCount = cleanContent.length;
   

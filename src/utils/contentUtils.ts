@@ -204,22 +204,17 @@ export const formatBlogContent = (text: string): string => {
   return formatted;
 };
 
-// Enhanced cleaning function that preserves structure for blog posts and newsletters
+// Enhanced cleaning function that handles newsletters with aggressive cleaning
 export const cleanContentForDisplay = (content: string, postType: string = ''): string => {
   if (!content) return '';
   
-  // For newsletters, try to parse JSON first
+  // For newsletters, use aggressive cleaning to remove all HTML and markdown
   if (postType === 'newsletter') {
-    const parsedNewsletter = parseNewsletterJson(content);
-    if (parsedNewsletter) {
-      // Return formatted newsletter content with subject as title
-      const formattedContent = formatBlogContent(parsedNewsletter.content);
-      return `<h1 class="text-4xl font-bold text-slate-900 mb-6">${parsedNewsletter.subject}</h1>${formattedContent}`;
-    }
+    return cleanNewsletterForDisplay(content);
   }
   
-  // For blog posts and newsletters, preserve more structure
-  if (postType === 'blog' || postType === 'newsletter') {
+  // For blog posts, preserve more structure
+  if (postType === 'blog') {
     return formatBlogContent(content);
   }
   
@@ -242,6 +237,60 @@ export const cleanContentForDisplay = (content: string, postType: string = ''): 
     .trim();
     
   return cleaned;
+};
+
+// Clean newsletter content with aggressive formatting removal
+const cleanNewsletterForDisplay = (content: string): string => {
+  if (!content) return '';
+  
+  // First try to parse as JSON newsletter
+  const parsedNewsletter = parseNewsletterJson(content);
+  if (parsedNewsletter) {
+    // Clean both subject and content, removing all formatting
+    const cleanSubject = stripAllNewsletterFormatting(parsedNewsletter.subject);
+    const cleanContent = stripAllNewsletterFormatting(parsedNewsletter.content);
+    return cleanSubject ? `${cleanSubject}\n\n${cleanContent}` : cleanContent;
+  }
+  
+  // Clean regular newsletter content
+  return stripAllNewsletterFormatting(content);
+};
+
+// Strip ALL formatting from newsletter content
+const stripAllNewsletterFormatting = (text: string): string => {
+  if (!text) return '';
+  
+  return text
+    // Remove HTML tags completely
+    .replace(/<[^>]*>/g, '')
+    // Remove HTML entities
+    .replace(/&[a-zA-Z0-9#]+;/g, '')
+    // Remove markdown headers but preserve their text
+    .replace(/^#{1,6}\s+(.+)$/gm, '$1')
+    // Remove markdown bold and italic but preserve text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    // Remove code blocks and inline code
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove links but keep text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove images
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+    // Remove list markers but preserve content
+    .replace(/^\s*[-*+]\s+/gm, '• ')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    // Remove blockquotes but preserve content
+    .replace(/^\s*>\s+/gm, '')
+    // Remove any remaining brackets or technical formatting
+    .replace(/\[.*?\]/g, '')
+    .replace(/\{.*?\}/g, '')
+    // Clean up whitespace while preserving paragraph structure
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
 };
 
 // Enhanced blog metadata extraction that ignores H1 tags in content

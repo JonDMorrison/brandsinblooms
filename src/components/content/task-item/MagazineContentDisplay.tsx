@@ -79,13 +79,22 @@ export const MagazineContentDisplay = ({
               {processedContent}
             </div>
           </div>
-        ) : postType === 'blog' || postType === 'newsletter' ? (
-          // Blog and newsletter content use SafeHtml for rich formatting
+        ) : postType === 'blog' ? (
+          // Blog content uses SafeHtml for rich formatting
           <div className="prose prose-lg max-w-none">
             <SafeHtml 
               content={processedContent} 
               className="text-sm"
               type="newsletter"
+            />
+          </div>
+        ) : postType === 'newsletter' ? (
+          // Newsletter content uses clean display without HTML/markdown
+          <div className="prose prose-lg max-w-none">
+            <SafeHtml 
+              content={processedContent} 
+              className="text-sm text-gray-700 leading-relaxed"
+              type="newsletter-clean"
             />
           </div>
         ) : (

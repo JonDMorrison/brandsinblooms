@@ -338,6 +338,91 @@ const isPlaceholderContent = (content: string): boolean => {
   return placeholderIndicators.some(indicator => lowerContent.includes(indicator)) || content.trim().length < 100;
 };
 
+// Clean newsletter content for display - removes all HTML and markdown
+export const cleanNewsletterContent = (content: string): string => {
+  if (!content) return '';
+  
+  // First try to parse as JSON newsletter
+  const parsedNewsletter = parseNewsletterJson(content);
+  if (parsedNewsletter) {
+    // Clean both subject and content
+    const cleanSubject = stripAllFormatting(parsedNewsletter.subject);
+    const cleanContent = stripAllFormatting(parsedNewsletter.content);
+    return cleanSubject ? `${cleanSubject}\n\n${cleanContent}` : cleanContent;
+  }
+  
+  // Clean regular newsletter content
+  return stripAllFormatting(content);
+};
+
+// Strip ALL formatting including HTML, markdown, and technical symbols
+const stripAllFormatting = (text: string): string => {
+  if (!text) return '';
+  
+  return text
+    // Remove HTML tags completely
+    .replace(/<[^>]*>/g, '')
+    // Remove HTML entities
+    .replace(/&[a-zA-Z0-9#]+;/g, '')
+    // Remove markdown headers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove markdown bold and italic
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    // Remove code blocks and inline code
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove links but keep text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove images
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+    // Remove list markers
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    // Remove blockquotes
+    .replace(/^\s*>\s+/gm, '')
+    // Remove any remaining brackets or technical formatting
+    .replace(/\[.*?\]/g, '')
+    .replace(/\{.*?\}/g, '')
+    // Clean up whitespace
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// Parse newsletter JSON content helper
+const parseNewsletterJson = (content: string): { subject: string; content: string } | null => {
+  try {
+    // Check if content starts with ```json
+    if (content.includes('```json')) {
+      const jsonMatch = content.match(/```json\s*\n([\s\S]*?)\n```/) || content.match(/```json\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        const jsonContent = jsonMatch[1].trim();
+        const parsed = JSON.parse(jsonContent);
+        return {
+          subject: parsed.subject || '',
+          content: parsed.content || ''
+        };
+      }
+    }
+    
+    // Try parsing as direct JSON
+    const parsed = JSON.parse(content);
+    if (parsed.subject && parsed.content) {
+      return {
+        subject: parsed.subject,
+        content: parsed.content
+      };
+    }
+  } catch (error) {
+    // Not JSON, return null
+  }
+  
+  return null;
+};
+
 // Convert newsletter markdown to HTML with proper formatting
 export const convertNewsletterMarkdownToHtml = (markdown: string): string => {
   if (!markdown) return '';

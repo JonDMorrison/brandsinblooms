@@ -16,7 +16,8 @@ export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps)
   const { toast } = useToast();
   
   const handleCopyContent = (content: string, postType: string) => {
-    const cleanContent = stripHtmlAndFormat(content);
+    const isNewsletter = postType === 'newsletter';
+    const cleanContent = stripHtmlAndFormat(content, isNewsletter);
     navigator.clipboard.writeText(cleanContent);
     toast({
       title: "Success",
@@ -99,7 +100,7 @@ export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps)
         <div className="md:col-span-2 space-y-2">
           {task.ai_output && (
             <p className="text-sm text-gray-700 line-clamp-2">
-              {stripHtmlAndFormat(task.ai_output)}
+              {stripHtmlAndFormat(task.ai_output, task.post_type === 'newsletter')}
             </p>
           )}
           

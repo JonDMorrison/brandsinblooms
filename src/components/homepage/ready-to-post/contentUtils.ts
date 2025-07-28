@@ -1,6 +1,11 @@
 
-export const stripHtmlAndFormat = (content: string) => {
+export const stripHtmlAndFormat = (content: string, isNewsletter: boolean = false) => {
   if (!content) return content;
+  
+  // For newsletters, use aggressive cleaning to remove all formatting
+  if (isNewsletter) {
+    return stripAllNewsletterFormatting(content);
+  }
   
   // Check if content is HTML (contains HTML tags)
   if (content.includes('<html>') || content.includes('<!DOCTYPE')) {
@@ -38,4 +43,76 @@ export const stripHtmlAndFormat = (content: string) => {
   }
   
   return content;
+};
+
+// Strip ALL formatting from newsletter content
+const stripAllNewsletterFormatting = (text: string): string => {
+  if (!text) return '';
+  
+  // First try to parse as JSON newsletter
+  const parsedNewsletter = parseNewsletterJson(text);
+  if (parsedNewsletter) {
+    const cleanSubject = cleanText(parsedNewsletter.subject);
+    const cleanContent = cleanText(parsedNewsletter.content);
+    return cleanSubject ? `${cleanSubject}\n\n${cleanContent}` : cleanContent;
+  }
+  
+  return cleanText(text);
+};
+
+// Helper to parse newsletter JSON
+const parseNewsletterJson = (content: string): { subject: string; content: string } | null => {
+  try {
+    if (content.includes('```json')) {
+      const jsonMatch = content.match(/```json\s*\n([\s\S]*?)\n```/) || content.match(/```json\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[1].trim());
+        return { subject: parsed.subject || '', content: parsed.content || '' };
+      }
+    }
+    const parsed = JSON.parse(content);
+    if (parsed.subject && parsed.content) {
+      return { subject: parsed.subject, content: parsed.content };
+    }
+  } catch (error) {
+    // Not JSON
+  }
+  return null;
+};
+
+// Clean all formatting from text
+const cleanText = (text: string): string => {
+  if (!text) return '';
+  
+  return text
+    // Remove HTML tags completely
+    .replace(/<[^>]*>/g, '')
+    // Remove HTML entities
+    .replace(/&[a-zA-Z0-9#]+;/g, '')
+    // Remove markdown headers but preserve text
+    .replace(/^#{1,6}\s+(.+)$/gm, '$1')
+    // Remove markdown bold and italic but preserve text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    // Remove code blocks and inline code
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove links but keep text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove images
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+    // Remove list markers but preserve content with bullets
+    .replace(/^\s*[-*+]\s+/gm, '• ')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    // Remove blockquotes but preserve content
+    .replace(/^\s*>\s+/gm, '')
+    // Remove technical formatting
+    .replace(/\[.*?\]/g, '')
+    .replace(/\{.*?\}/g, '')
+    // Clean up whitespace
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
 };
