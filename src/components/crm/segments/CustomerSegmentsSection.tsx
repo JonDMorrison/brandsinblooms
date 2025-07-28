@@ -4,55 +4,51 @@ import { Button } from '@/components/ui/button';
 import { Target, ArrowRight } from 'lucide-react';
 import { SegmentOverviewCard } from './SegmentOverviewCard';
 import { useNavigate } from 'react-router-dom';
+import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 
-// Predefined segments with estimated counts
+// Predefined segments configuration
 const predefinedSegments = [
   {
-    id: 'loyalty-members',
+    id: 'loyalty-members' as const,
     name: 'Loyalty Members',
     description: 'Customers enrolled in your loyalty program with active engagement',
-    estimatedCount: 245,
     icon: 'crown' as const,
   },
   {
-    id: 'high-value',
+    id: 'high-value' as const,
     name: 'High-Value Customers',
     description: 'Top spending customers who drive significant revenue',
-    estimatedCount: 89,
     icon: 'trending' as const,
   },
   {
-    id: 'new-customers',
+    id: 'new-customers' as const,
     name: 'New Customers',
     description: 'Recent customers who made their first purchase within 30 days',
-    estimatedCount: 156,
     icon: 'users' as const,
   },
   {
-    id: 'lapsed-customers',
+    id: 'lapsed-customers' as const,
     name: 'Lapsed Customers',
     description: 'Previously active customers who haven\'t purchased in 90+ days',
-    estimatedCount: 312,
     icon: 'mail' as const,
   },
   {
-    id: 'seasonal-shoppers',
+    id: 'seasonal-shoppers' as const,
     name: 'Seasonal Shoppers',
     description: 'Customers who typically purchase during specific seasons or holidays',
-    estimatedCount: 178,
     icon: 'gift' as const,
   },
   {
-    id: 'frequent-buyers',
+    id: 'frequent-buyers' as const,
     name: 'Frequent Buyers',
     description: 'Customers with 3+ purchases in the last 6 months',
-    estimatedCount: 134,
     icon: 'shopping' as const,
   },
 ];
 
 export const CustomerSegmentsSection: React.FC = () => {
   const navigate = useNavigate();
+  const { counts, loading } = useSegmentCounts();
 
   const handleViewAllSegments = () => {
     navigate('/crm/segments');
@@ -88,7 +84,7 @@ export const CustomerSegmentsSection: React.FC = () => {
               key={segment.id}
               name={segment.name}
               description={segment.description}
-              estimatedCount={segment.estimatedCount}
+              estimatedCount={loading ? undefined : counts[segment.id]}
               icon={segment.icon}
               isSystem={true}
               onCreateCampaign={() => handleCreateCampaign(segment.id)}

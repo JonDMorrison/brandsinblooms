@@ -7,7 +7,7 @@ import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown } from 'lucide-react'
 interface SegmentOverviewCardProps {
   name: string;
   description: string;
-  estimatedCount: number;
+  estimatedCount?: number;
   icon: 'users' | 'mail' | 'shopping' | 'gift' | 'trending' | 'crown';
   isSystem?: boolean;
   onCreateCampaign?: () => void;
@@ -61,7 +61,7 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {estimatedCount.toLocaleString()} customers
+              {estimatedCount !== undefined ? `${estimatedCount.toLocaleString()} customers` : 'Loading...'}
             </span>
           </div>
           
