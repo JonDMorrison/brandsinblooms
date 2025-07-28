@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SegmentOverviewCardProps {
   name: string;
@@ -34,17 +35,21 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
 }) => {
   const IconComponent = iconMap[icon];
   const loading = estimatedCount === undefined;
+  const isMobile = useIsMobile();
 
   return (
-    <Card className="h-full hover:shadow-md transition-shadow">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-4">
+    <Card className="h-full mobile-hover-lift mobile-card">
+      <CardContent className={`${isMobile ? 'p-4' : 'p-6'} mobile-space-normal`}>
+        {/* Header section with icon and title */}
+        <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-start justify-between'} mb-4`}>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <IconComponent className="h-5 w-5 text-primary" />
+            <div className="p-2 bg-primary/10 rounded-lg mobile-touch-target">
+              <IconComponent className={`${isMobile ? 'mobile-icon-md' : 'h-5 w-5'} text-primary`} />
             </div>
-            <div>
-              <h3 className="font-semibold text-base">{name}</h3>
+            <div className="flex-1 min-w-0">
+              <h3 className={`font-semibold ${isMobile ? 'mobile-text-subheading' : 'text-base'} mobile-prevent-overflow`}>
+                {name}
+              </h3>
               {isSystem && (
                 <Badge variant="secondary" className="text-xs mt-1">
                   System
@@ -54,24 +59,37 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
           </div>
         </div>
         
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+        {/* Description */}
+        <p className={`${isMobile ? 'mobile-text-body' : 'text-sm'} text-muted-foreground mb-4 line-clamp-2 mobile-text-balance`}>
           {description}
         </p>
         
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
+        {/* Footer with customer count and buttons */}
+        <div className={`${isMobile ? 'mobile-space-tight' : 'flex items-center justify-between'}`}>
+          {/* Customer count */}
+          <div className="flex items-center gap-2 mb-3 md:mb-0">
+            <Users className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} text-muted-foreground`} />
+            <span className={`${isMobile ? 'mobile-text-caption' : 'text-sm'} font-medium`}>
               {loading ? 'Loading...' : `${estimatedCount || 0} customers`}
             </span>
           </div>
           
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onViewDetails}>
-              View
+          {/* Action buttons */}
+          <div className={`flex ${isMobile ? 'flex-col gap-2' : 'gap-2'}`}>
+            <Button 
+              variant="outline" 
+              size={isMobile ? "default" : "sm"} 
+              onClick={onViewDetails}
+              className={`${isMobile ? 'mobile-btn-secondary mobile-touch-feedback w-full' : ''} mobile-focus-ring`}
+            >
+              View Details
             </Button>
-            <Button size="sm" onClick={onCreateCampaign}>
-              Campaign
+            <Button 
+              size={isMobile ? "default" : "sm"} 
+              onClick={onCreateCampaign}
+              className={`${isMobile ? 'mobile-btn-primary mobile-touch-feedback w-full' : ''} mobile-focus-ring`}
+            >
+              Create Campaign
             </Button>
           </div>
         </div>

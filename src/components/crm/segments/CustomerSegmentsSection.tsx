@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { usePOSConnection } from '@/hooks/usePOSConnection';
 import { NoPOSNotice } from './NoPOSNotice';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Predefined segments configuration
 const predefinedSegments = [
@@ -52,6 +53,7 @@ export const CustomerSegmentsSection: React.FC = () => {
   const navigate = useNavigate();
   const { counts, loading } = useSegmentCounts();
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
+  const isMobile = useIsMobile();
 
   const handleViewAllSegments = () => {
     navigate('/crm/segments');
@@ -67,37 +69,42 @@ export const CustomerSegmentsSection: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className={`${isMobile ? 'mobile-space-normal' : 'space-y-4'} mobile-container`}>
       {!posLoading && !hasPOSConnection && <NoPOSNotice />}
       
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
+      <Card className="mobile-card-elevated">
+        <CardHeader className={isMobile ? 'p-4 pb-2' : ''}>
+          <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center justify-between'}`}>
+            <CardTitle className={`flex items-center gap-2 ${isMobile ? 'mobile-text-heading' : ''}`}>
+              <Target className={`${isMobile ? 'mobile-icon-md' : 'h-5 w-5'}`} />
               Customer Segments
             </CardTitle>
-            <Button variant="outline" onClick={handleViewAllSegments}>
-              View All
-              <ArrowRight className="h-4 w-4 ml-2" />
+            <Button 
+              variant="outline" 
+              onClick={handleViewAllSegments}
+              className={`${isMobile ? 'mobile-btn-secondary mobile-touch-feedback w-full' : ''} mobile-focus-ring`}
+              size={isMobile ? "default" : "sm"}
+            >
+              View All Segments
+              <ArrowRight className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} ml-2`} />
             </Button>
           </div>
         </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {predefinedSegments.map((segment) => (
-            <SegmentOverviewCard
-              key={segment.id}
-              name={segment.name}
-              description={segment.description}
-              estimatedCount={loading ? undefined : counts[segment.id]}
-              icon={segment.icon}
-              isSystem={true}
-              onCreateCampaign={() => handleCreateCampaign(segment.id)}
-              onViewDetails={() => handleViewSegmentDetails(segment.id)}
-            />
-          ))}
-        </div>
+        <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
+          <div className={`${isMobile ? 'mobile-grid-1' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} ${isMobile ? 'gap-4' : 'gap-4'}`}>
+            {predefinedSegments.map((segment) => (
+              <SegmentOverviewCard
+                key={segment.id}
+                name={segment.name}
+                description={segment.description}
+                estimatedCount={loading ? undefined : counts[segment.id]}
+                icon={segment.icon}
+                isSystem={true}
+                onCreateCampaign={() => handleCreateCampaign(segment.id)}
+                onViewDetails={() => handleViewSegmentDetails(segment.id)}
+              />
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>
