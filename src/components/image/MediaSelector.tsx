@@ -29,6 +29,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   onBackClick
 }) => {
   console.log('[MediaSelector] Component rendering with props:', {
+    hasOnImageSelect: !!onImageSelect,
     hasSelectedImage: !!selectedImageUrl,
     selectedImageUrl,
     contentContext,
@@ -86,14 +87,21 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   };
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
-    console.log('[MediaSelector] Image selected:', imageUrl, metadata);
+    console.log('[MediaSelector] handleImageSelect called with:', imageUrl, metadata);
+    console.log('[MediaSelector] onImageSelect prop exists:', !!onImageSelect);
     setSelectedImageMetadata(metadata);
-    onImageSelect(imageUrl, metadata);
-    console.log('[MediaSelector] onImageSelect callback completed');
+    
+    if (onImageSelect) {
+      onImageSelect(imageUrl, metadata);
+      console.log('[MediaSelector] onImageSelect callback completed successfully');
+    } else {
+      console.error('[MediaSelector] onImageSelect prop is missing!');
+    }
   };
 
   const handleThumbnailClick = (image: any, index: number) => {
-    console.log('[MediaSelector] Thumbnail clicked - directly selecting image:', image);
+    console.log('[MediaSelector] Thumbnail clicked - index:', index, 'image:', image);
+    console.log('[MediaSelector] Image URL to select:', image.url);
     
     const imageMetadata = {
       source: 'unsplash',
@@ -105,6 +113,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       download_location: image.download_location
     };
     
+    console.log('[MediaSelector] Calling handleImageSelect with:', image.url, imageMetadata);
     // Directly call handleImageSelect instead of going to preview mode
     handleImageSelect(image.url, imageMetadata);
   };

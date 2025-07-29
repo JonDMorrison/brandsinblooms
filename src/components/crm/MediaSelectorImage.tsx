@@ -18,13 +18,22 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   contentContext = '',
   className = ''
 }) => {
+  console.log('[MediaSelectorImage] Component props:', { src, hasOnChange: !!onChange, contentContext });
+  
   const [isSelecting, setIsSelecting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     console.log('[MediaSelectorImage] Image selected:', imageUrl, metadata);
+    console.log('[MediaSelectorImage] onChange prop exists:', !!onChange);
     setIsLoading(true);
-    onChange?.(imageUrl, metadata);
+    
+    if (onChange) {
+      onChange(imageUrl, metadata);
+      console.log('[MediaSelectorImage] onChange called successfully');
+    } else {
+      console.error('[MediaSelectorImage] onChange prop is missing!');
+    }
     
     // Add small delay to show feedback before closing
     setTimeout(() => {
@@ -94,28 +103,13 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: 'rgba(255, 0, 0, 0.8)', // RED DEBUG COLOR
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
           backdropFilter: 'blur(4px)',
           padding: '16px',
           pointerEvents: 'auto'
         }}
         onClick={handleBackdropClick}
       >
-        {/* DEBUG: Visible indicator */}
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          left: '10px',
-          background: 'yellow',
-          color: 'black',
-          padding: '10px',
-          zIndex: 1000000,
-          fontSize: '14px',
-          fontWeight: 'bold'
-        }}>
-          MODAL IS VISIBLE - DEBUG MODE
-        </div>
-        
         {/* Modal Content */}
         <div 
           style={{ 
@@ -129,8 +123,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
             minHeight: '700px',
             maxHeight: '90vh',
             overflow: 'hidden',
-            zIndex: 1000002,
-            border: '5px solid #00ff00' // GREEN DEBUG BORDER
+            zIndex: 1000002
           }}
           onClick={(e) => e.stopPropagation()}
         >

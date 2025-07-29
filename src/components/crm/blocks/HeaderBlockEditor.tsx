@@ -28,7 +28,10 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const updateField = (field: string, value: any) => {
+    console.log('[HeaderBlockEditor] updateField called:', field, value);
+    console.log('[HeaderBlockEditor] Current block before update:', block);
     onUpdate({ [field]: value });
+    console.log('[HeaderBlockEditor] onUpdate called with:', { [field]: value });
   };
 
   if (!isExpanded) {
@@ -155,7 +158,10 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
             <Label>Background Image</Label>
             <MediaSelectorImage
               src={block.backgroundImageUrl}
-              onChange={(imageUrl) => updateField('backgroundImageUrl', imageUrl)}
+              onChange={(imageUrl, metadata) => {
+                console.log('[HeaderBlockEditor] MediaSelectorImage onChange called:', imageUrl, metadata);
+                updateField('backgroundImageUrl', imageUrl);
+              }}
               contentContext="header background"
               className="mt-2"
             />
