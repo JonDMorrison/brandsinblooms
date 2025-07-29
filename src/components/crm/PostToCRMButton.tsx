@@ -60,8 +60,8 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
 
     try {
       if (isAlreadyLinked && linkedCampaignId) {
-        // Open existing CRM campaign
-        navigate(`/crm/campaigns/${linkedCampaignId}`);
+        // Open existing CRM campaign in builder
+        navigate(`/crm/campaigns/builder/${linkedCampaignId}`);
         toast({
           title: "Opening CRM Campaign",
           description: "Continuing where you left off..."
