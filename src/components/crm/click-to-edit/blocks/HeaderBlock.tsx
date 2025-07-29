@@ -6,15 +6,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { Edit, Copy, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HeaderBlockProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
   isPreview: boolean;
 }
 
-export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, isPreview }) => {
+export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, onDuplicate, onDelete, isPreview }) => {
   // Live preview component that can be reused
   const PreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg">
@@ -42,12 +45,38 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, isPre
       
       {/* Content - top layer */}
       <div className={cn(
-        "relative z-10 p-12 text-white",
+        "relative z-10 p-12 text-white group",
         // Add dark background only if no background image or color
         !block.backgroundImageUrl && !block.backgroundColor && "bg-slate-800/80",
         block.textAlign === 'center' && "text-center",
         block.textAlign === 'right' && "text-right"
       )}>
+        {/* Action Buttons */}
+        {!isPreview && (
+          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-md transition-colors"
+              title="Edit"
+            >
+              <Edit size={16} />
+            </button>
+            <button
+              onClick={onDuplicate}
+              className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-md transition-colors"
+              title="Duplicate"
+            >
+              <Copy size={16} />
+            </button>
+            <button
+              onClick={onDelete}
+              className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-md transition-colors"
+              title="Delete"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        )}
+        
         <h1 className="text-4xl font-bold mb-4">
           {block.headline || 'Your Headline Here'}
         </h1>
