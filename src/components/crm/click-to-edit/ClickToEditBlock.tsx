@@ -3,13 +3,8 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GripVertical, MoreHorizontal } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { GripVertical } from 'lucide-react';
+import { BlockInlineToolbar } from '@/components/crm/BlockInlineToolbar';
 
 interface ClickToEditBlockProps {
   block: ContentBlock;
@@ -132,6 +127,15 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         </div>
       </div>
 
+      {/* Block Actions Toolbar - appears on hover when not editing */}
+      {!isEditing && (
+        <BlockInlineToolbar
+          onEdit={() => setIsEditing(true)}
+          onDuplicate={() => onDuplicate(block)}
+          onDelete={() => onRemove(block.id)}
+          className="opacity-0 group-hover:opacity-100"
+        />
+      )}
 
       <Card
         ref={blockRef}
