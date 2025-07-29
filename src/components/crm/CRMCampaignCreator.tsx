@@ -353,6 +353,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         const blockContent = typeof block.content === 'object' && block.content !== null ? block.content : {};
         const contentObj = blockContent as Record<string, any>;
         
+        console.log('🔍 Transforming block:', {
+          blockId: block.id,
+          blockType: block.block_type,
+          rawContent: block.content,
+          contentObj,
+          extractedContent: contentObj.content || contentObj.body || '',
+          extractedTitle: contentObj.title || contentObj.headline || ''
+        });
+        
         return {
           id: block.id,
           type: block.block_type as ContentBlock['type'],
