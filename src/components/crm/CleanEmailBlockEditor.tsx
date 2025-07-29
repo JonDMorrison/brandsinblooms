@@ -266,29 +266,73 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
+  const [hydrationComplete, setHydrationComplete] = useState(false);
 
   console.log('📧 CleanEmailBlockEditor received blocks:', {
     count: blocks.length,
     internalCount: internalBlocks.length,
+    hydrationComplete,
     blocks: blocks.map(b => ({
       id: b.id,
       type: b.type,
       title: b.title || b.headline,
       hasContent: !!(b.content || b.body),
+      imageUrl: b.imageUrl,
       visible: b.visible,
       source: b.source
     }))
   });
 
-  // Sync internal state with parent blocks prop only if they're different
+  // Enhanced hydration logic with proper state management
   useEffect(() => {
-    // Only sync if blocks actually changed to prevent unnecessary re-renders
-    if (JSON.stringify(blocks) !== JSON.stringify(internalBlocks)) {
-      console.log("🔄 Syncing blocks - parent has:", blocks.length, "internal has:", internalBlocks.length);
-      setInternalBlocks(blocks);
-      console.log("✅ Synced blocks into internal state:", blocks.length, "blocks");
+    // Skip if no blocks provided yet
+    if (blocks.length === 0) {
+      if (internalBlocks.length > 0) {
+        setInternalBlocks([]);
+        setHydrationComplete(true);
+      }
+      return;
     }
-  }, [blocks, internalBlocks]);
+
+    // Check if blocks actually changed (comparing IDs instead of full JSON)
+    const currentIds = internalBlocks.map(b => b.id).sort().join(',');
+    const newIds = blocks.map(b => b.id).sort().join(',');
+    
+    if (currentIds !== newIds || !hydrationComplete) {
+      console.log("🔄 Syncing blocks - parent has:", blocks.length, "internal has:", internalBlocks.length);
+      
+      // Create deep copy to prevent reference issues
+      const hydratedBlocks = blocks.map(block => ({
+        ...block,
+        // Ensure all required fields are present with fallbacks
+        title: block.title || block.headline || 'Untitled',
+        content: block.content || block.body || '',
+        imageUrl: block.imageUrl || '',
+        altText: block.altText || '',
+        buttonText: block.buttonText || block.ctaText || '',
+        buttonUrl: block.buttonUrl || block.ctaUrl || '',
+        visible: block.visible !== false,
+        collapsed: block.collapsed || false
+      }));
+      
+      setInternalBlocks(hydratedBlocks);
+      setHydrationComplete(true);
+      console.log("✅ Synced blocks into internal state:", hydratedBlocks.length, "blocks");
+      
+      // Debug log each hydrated block
+      hydratedBlocks.forEach((block, index) => {
+        console.log(`🧱 Hydrated block ${index}:`, {
+          id: block.id,
+          type: block.type,
+          title: block.title,
+          hasContent: !!(block.content || block.body),
+          imageUrl: block.imageUrl,
+          buttonText: block.buttonText,
+          buttonUrl: block.buttonUrl
+        });
+      });
+    }
+  }, [blocks, internalBlocks, hydrationComplete]);
 
   const addBlockWithLayout = async (layoutType: LayoutType, index?: number) => {
     console.log('🔧 Adding block with layout:', layoutType, 'at index:', index);
@@ -387,10 +431,23 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   };
 
   const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
-    console.log('Updating block:', id, 'with updates:', updates);
-    const newBlocks = internalBlocks.map(block => 
-      block.id === id ? { ...block, ...updates } : block
-    );
+    console.log('🔧 Updating block:', id, 'with updates:', updates);
+    const newBlocks = internalBlocks.map(block => {
+      if (block.id === id) {
+        const updatedBlock = { ...block, ...updates };
+        console.log('🧱 Block after update:', {
+          id: updatedBlock.id,
+          type: updatedBlock.type,
+          title: updatedBlock.title,
+          content: updatedBlock.content,
+          imageUrl: updatedBlock.imageUrl,
+          buttonText: updatedBlock.buttonText,
+          buttonUrl: updatedBlock.buttonUrl
+        });
+        return updatedBlock;
+      }
+      return block;
+    });
     setInternalBlocks(newBlocks);
     onBlocksChange(newBlocks);
   };
@@ -432,16 +489,16 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     onBlocksChange(newBlocks);
   };
 
-  // Show loading only during initial mount when blocks are expected but not loaded
-  const isInitialLoading = blocks.length > 0 && internalBlocks.length === 0;
+  // Show loading only when blocks are being loaded but hydration isn't complete
+  const isInitialLoading = (blocks.length > 0 && !hydrationComplete) || (blocks.length > 0 && internalBlocks.length === 0);
   if (isInitialLoading) {
-    console.log("🔄 Showing loading state - parent blocks:", blocks.length, "internal:", internalBlocks.length);
+    console.log("🔄 Showing loading state - parent blocks:", blocks.length, "internal:", internalBlocks.length, "hydration:", hydrationComplete);
     return (
       <div className="space-y-4">
         <Card>
           <CardContent className="py-8 text-center">
             <div className="animate-spin h-8 w-8 mx-auto mb-4 border-2 border-primary border-t-transparent rounded-full"></div>
-            <p className="text-muted-foreground">Loading content blocks...</p>
+            <p className="text-muted-foreground">Hydrating content blocks...</p>
           </CardContent>
         </Card>
       </div>
