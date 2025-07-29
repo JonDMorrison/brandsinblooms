@@ -33,19 +33,26 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
     setIsSelecting(false);
   };
 
-  // If in selection mode, show the MediaSelector inline
+  // If in selection mode, show the MediaSelector as a modal overlay
   if (isSelecting) {
     return (
-      <div className={`w-full relative z-20 ${className}`}>
-        <div className="bg-white border-2 border-primary/20 rounded-lg shadow-lg p-6 space-y-6 min-h-[700px]">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-4 sticky top-0 bg-white z-30">
+      <div className={`fixed inset-0 z-50 flex items-center justify-center ${className}`}>
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          onClick={handleCancel}
+        />
+        
+        {/* Modal Content */}
+        <div className="relative bg-white border-2 border-primary/20 rounded-lg shadow-xl p-6 space-y-6 min-h-[700px] max-h-[90vh] overflow-hidden w-[90vw] max-w-6xl">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-4 sticky top-0 bg-white z-[60]">
             <h4 className="text-lg font-semibold text-gray-900">Select Image</h4>
             <Button variant="outline" size="sm" onClick={handleCancel}>
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
           </div>
-          <div className="w-full relative z-10">
+          <div className="w-full relative z-10 overflow-y-auto max-h-[calc(90vh-120px)]">
             <MediaSelector
               onImageSelect={handleImageSelect}
               selectedImageUrl={src}
@@ -54,8 +61,6 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
             />
           </div>
         </div>
-        {/* Spacer to push content below */}
-        <div className="h-8"></div>
       </div>
     );
   }
