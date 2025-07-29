@@ -144,11 +144,6 @@ export const ContentViewerDialog = ({
                   </Tabs>
                 ) : (
                   <div className="space-y-4">
-                    {availableContentTypes.length === 1 && (
-                      <h3 className="text-lg font-semibold text-foreground">
-                        {contentTypeMap[availableContentTypes[0]]?.label || availableContentTypes[0]} Content
-                      </h3>
-                    )}
                     <div className="grid gap-4">
                       {tasks.map((task) => (
                         <ContentTaskItem 
