@@ -215,6 +215,26 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Check for existing campaign and load session data
   useEffect(() => {
     const checkExistingCampaign = async () => {
+      // Handle direct campaign slug (when editing existing campaign)
+      if (campaignSlug && !finalContentTaskId) {
+        console.log('🔄 Loading existing campaign by slug:', campaignSlug);
+        setLoadingExistingCampaign(true);
+        try {
+          await loadExistingCampaign(campaignSlug);
+          setExistingCampaignId(campaignSlug);
+        } catch (error) {
+          console.error('❌ Error loading campaign by slug:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load campaign data",
+            variant: "destructive"
+          });
+        } finally {
+          setLoadingExistingCampaign(false);
+        }
+        return;
+      }
+
       const contentTaskId = finalContentTaskId;
       if (!contentTaskId) return;
 
