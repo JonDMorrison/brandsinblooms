@@ -538,7 +538,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     `;
     
     blocks.forEach(block => {
-      if (!block.visible) return;
+      if (block.visible === false) return; // Only skip blocks explicitly set to false
       
       switch (block.type) {
         case 'header':
