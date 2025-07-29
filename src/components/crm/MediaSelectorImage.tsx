@@ -1,9 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { MediaSelector } from '@/components/image/MediaSelector';
-import { Camera, Upload, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React, { useState } from 'react';
+import { MediaSelectorSidebar } from './MediaSelectorSidebar';
+import { Camera, Upload } from 'lucide-react';
 
 interface MediaSelectorImageProps {
   src?: string;
@@ -21,12 +19,9 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   console.log('[MediaSelectorImage] Component props:', { src, hasOnChange: !!onChange, contentContext });
   
   const [isSelecting, setIsSelecting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     console.log('[MediaSelectorImage] Image selected:', imageUrl, metadata);
-    console.log('[MediaSelectorImage] onChange prop exists:', !!onChange);
-    setIsLoading(true);
     
     if (onChange) {
       onChange(imageUrl, metadata);
@@ -34,176 +29,55 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
     } else {
       console.error('[MediaSelectorImage] onChange prop is missing!');
     }
-    
-    // Add small delay to show feedback before closing
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSelecting(false);
-    }, 500);
   };
 
-  const handleSelectClick = () => {
-    console.log('[MediaSelectorImage] Select button clicked, opening modal');
+  const handleSelectClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[MediaSelectorImage] Select button clicked, opening sidebar');
     setIsSelecting(true);
   };
 
-  const handleCancel = () => {
-    console.log('[MediaSelectorImage] Cancel clicked, closing modal');
+  const handleClose = () => {
+    console.log('[MediaSelectorImage] Sidebar closing');
     setIsSelecting(false);
-    setIsLoading(false);
   };
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (e.target === e.currentTarget) {
-      handleCancel();
-    }
-  };
-
-  // Add keyboard escape handling
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isSelecting) {
-        handleCancel();
-      }
-    };
-
-    if (isSelecting) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
-  }, [isSelecting]);
-
-  // Get modal root element and add debugging
-  const modalRoot = document.getElementById('modal-root');
-  console.log('[MediaSelectorImage] Modal root found:', !!modalRoot, modalRoot);
-  
-  // If in selection mode, show the MediaSelector as a modal overlay using portal
-  if (isSelecting) {
-    console.log('[MediaSelectorImage] Rendering modal - isSelecting:', isSelecting, 'isLoading:', isLoading);
-    console.log('[MediaSelectorImage] Modal root available:', !!modalRoot);
-    
-    if (!modalRoot) {
-      console.error('[MediaSelectorImage] Modal root not found! Creating fallback.');
-      // Fallback: render inline if modal root doesn't exist
-    }
-    
-    const modalContent = (
-      <div 
-        data-media-selector
-        style={{ 
-          position: 'fixed',
-          top: '0px',
-          left: '0px',
-          right: '0px',
-          bottom: '0px',
-          width: '100vw',
-          height: '100vh',
-          zIndex: 999999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          backdropFilter: 'blur(4px)',
-          padding: '16px',
-          pointerEvents: 'auto'
-        }}
-        onClick={handleBackdropClick}
-      >
-        {/* Modal Content */}
-        <div 
-          style={{ 
-            position: 'relative',
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            padding: '24px',
-            width: '90vw',
-            maxWidth: '1152px',
-            minHeight: '700px',
-            maxHeight: '90vh',
-            overflow: 'hidden',
-            zIndex: 1000002
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between border-b border-gray-100 pb-4 sticky top-0 bg-white">
-            <h4 className="text-lg font-semibold text-gray-900">
-              {isLoading ? 'Processing...' : 'Select Image'}
-            </h4>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleCancel}
-              disabled={isLoading}
-            >
-              <X className="h-4 w-4 mr-2" />
-              {isLoading ? 'Processing' : 'Cancel'}
-            </Button>
-          </div>
-          <div className="w-full relative overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-gray-600">Selecting image...</p>
-                </div>
-              </div>
-            ) : (
-              <MediaSelector
-                onImageSelect={handleImageSelect}
-                selectedImageUrl={src}
-                contentContext={contentContext}
-                compact={true}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    );
-
-    // Try different rendering approaches
-    if (modalRoot) {
-      console.log('[MediaSelectorImage] Rendering to modal root');
-      return createPortal(modalContent, modalRoot);
-    } else {
-      console.log('[MediaSelectorImage] Fallback: rendering to document.body');
-      return createPortal(modalContent, document.body);
-    }
-  }
-
-  // Default display mode
-  console.log('🖼️ MediaSelectorImage render:', {
-    src,
-    hasOnChange: !!onChange,
-    className,
-    contentContext
-  });
 
   return (
-    <div className={`relative group w-full h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors ${className}`}>
-      {src ? (
-        <img 
-          src={src} 
-          alt="Selected content" 
-          className="object-cover w-full h-full"
-          onLoad={() => console.log('🖼️ Image loaded successfully:', src)}
-          onError={(e) => console.error('🖼️ Image failed to load:', src, e)}
-        />
-      ) : (
-        <div className="text-center text-gray-400">
-          <Camera className="w-12 h-12 mx-auto mb-2" />
-          <span className="text-sm">No image selected</span>
-        </div>
-      )}
+    <>
+      <div className={`relative group w-full h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors ${className}`}>
+        {src ? (
+          <img 
+            src={src} 
+            alt="Selected content" 
+            className="object-cover w-full h-full"
+            onLoad={() => console.log('🖼️ Image loaded successfully:', src)}
+            onError={(e) => console.error('🖼️ Image failed to load:', src, e)}
+          />
+        ) : (
+          <div className="text-center text-gray-400">
+            <Camera className="w-12 h-12 mx-auto mb-2" />
+            <span className="text-sm">No image selected</span>
+          </div>
+        )}
 
-      <button
-        onClick={handleSelectClick}
-        className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-sm font-medium"
-      >
-        <Upload className="w-4 h-4 mr-2" />
-        {src ? 'Change Image' : 'Select Image'}
-      </button>
-    </div>
+        <button
+          onClick={handleSelectClick}
+          className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-sm font-medium"
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          {src ? 'Change Image' : 'Select Image'}
+        </button>
+      </div>
+
+      {/* Sidebar */}
+      <MediaSelectorSidebar
+        isOpen={isSelecting}
+        onClose={handleClose}
+        onImageSelect={handleImageSelect}
+        contentContext={contentContext}
+        selectedImageUrl={src}
+      />
+    </>
   );
 };
