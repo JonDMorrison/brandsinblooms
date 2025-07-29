@@ -7,6 +7,7 @@ import { TaskActions } from './task-item/TaskActions';
 import { SocialMediaPostPreview } from './task-item/SocialMediaPostPreview';
 import { MagazineContentDisplay } from './task-item/MagazineContentDisplay';
 import { cleanContentForDisplay } from '@/utils/contentUtils';
+import { NewsletterEditor } from './NewsletterEditor';
 
 interface InlineEditableContentProps {
   task: any;
@@ -32,11 +33,13 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
     setIsEditing(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (contentToSave?: string) => {
+    const contentToUpdate = contentToSave || editedContent;
+    
     console.log('[SAVE] Starting save operation', {
       taskId: task?.id,
-      hasContent: !!editedContent,
-      contentLength: editedContent?.length,
+      hasContent: !!contentToUpdate,
+      contentLength: contentToUpdate?.length,
       isAuthenticated: !!(await supabase.auth.getUser()).data.user
     });
 
@@ -47,7 +50,7 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
       return;
     }
 
-    if (!editedContent.trim()) {
+    if (!contentToUpdate.trim()) {
       console.error('[SAVE] Empty content');
       toast.error('Content cannot be empty');
       return;
@@ -55,7 +58,7 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
 
     // Handle content comparison more intelligently for different post types
     const originalContent = task.ai_output || '';
-    let hasChanges = editedContent !== originalContent;
+    let hasChanges = contentToUpdate !== originalContent;
     
     // For newsletters, compare normalized content to avoid false negatives
     if (task.post_type === 'newsletter') {
@@ -66,7 +69,7 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
           .trim();
       };
       
-      hasChanges = normalizeNewsletter(editedContent) !== normalizeNewsletter(originalContent);
+      hasChanges = normalizeNewsletter(contentToUpdate) !== normalizeNewsletter(originalContent);
     }
 
     if (!hasChanges) {
@@ -90,12 +93,12 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
       console.log('[SAVE] Updating content_tasks', {
         taskId: task.id,
         userId: user.id,
-        newContentLength: editedContent.length
+        newContentLength: contentToUpdate.length
       });
 
       const { data, error } = await supabase
         .from('content_tasks')
-        .update({ ai_output: editedContent })
+        .update({ ai_output: contentToUpdate })
         .eq('id', task.id)
         .select();
 
@@ -189,18 +192,28 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
       {/* Content Area */}
       <div className="space-y-4">
         {isEditing ? (
-          <div className="space-y-2">
-            <Textarea
-              value={editedContent}
-              onChange={(e) => {
-                setEditedContent(e.target.value);
-                setHasUnsavedChanges(e.target.value !== task?.ai_output);
+          task.post_type === 'newsletter' ? (
+            <NewsletterEditor
+              yamlContent={task.ai_output || ''}
+              onSave={(updatedYaml) => {
+                handleSave(updatedYaml);
               }}
-              className="min-h-[200px] resize-none"
-              placeholder={`Edit your ${task.post_type} content...`}
-              disabled={isSaving}
+              onCancel={handleCancel}
             />
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <Textarea
+                value={editedContent}
+                onChange={(e) => {
+                  setEditedContent(e.target.value);
+                  setHasUnsavedChanges(e.target.value !== task?.ai_output);
+                }}
+                className="min-h-[200px] resize-none"
+                placeholder={`Edit your ${task.post_type} content...`}
+                disabled={isSaving}
+              />
+            </div>
+          )
         ) : (
           renderDisplayComponent()
         )}
