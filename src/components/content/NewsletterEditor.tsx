@@ -288,26 +288,29 @@ ${yamlStructure.extra_content_ideas.map(idea => `  - "${idea}"`).join('\n')}`;
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor={`cta-${index}`}>Call-to-Action Text</Label>
+                  <Label htmlFor={`cta-${index}`}>Call-to-Action Text (Optional)</Label>
                   <Input
                     id={`cta-${index}`}
                     value={block.cta || ''}
                     onChange={(e) => updateBlock(index, 'cta', e.target.value)}
-                    placeholder="Learn More"
+                    placeholder="e.g., Learn More, Get Started (leave blank for text-only)"
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor={`link-${index}`}>Link URL</Label>
+                  <Label htmlFor={`link-${index}`}>Link URL (Optional)</Label>
                   <Input
                     id={`link-${index}`}
                     value={block.link || ''}
                     onChange={(e) => updateBlock(index, 'link', e.target.value)}
-                    placeholder={companyWebsite}
+                    placeholder={`e.g., ${companyWebsite} (leave blank for no link)`}
                     className="mt-1"
                   />
                 </div>
               </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                💡 Call-to-Action text and links can be left blank if you don't want clickable buttons. When left blank, content will display as text-only sections.
+              </p>
               <div>
                 <Label htmlFor={`image-${index}`}>Image Description</Label>
                 <Input
