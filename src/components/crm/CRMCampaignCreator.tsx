@@ -530,10 +530,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const generateEmailHTML = (): string => {
     let html = `
       <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
-        <div style="background: linear-gradient(135deg, #22c55e, #16a34a); padding: 30px 20px; text-align: center; color: white;">
-          <h1 style="margin: 0; font-size: 28px;">${campaignName}</h1>
-          ${preheaderText ? `<p style="margin: 10px 0 0 0; opacity: 0.9;">${preheaderText}</p>` : ''}
-        </div>
         <div style="padding: 30px 20px; background: white;">
     `;
     
