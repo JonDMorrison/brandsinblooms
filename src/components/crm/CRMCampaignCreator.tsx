@@ -218,22 +218,31 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Handle direct campaign slug (when editing existing campaign)
       // This takes priority over content task conversion
       if (campaignSlug) {
-        console.log('🔄 Loading existing campaign by slug:', campaignSlug);
-        setLoadingExistingCampaign(true);
-        try {
-          await loadExistingCampaign(campaignSlug);
-          setExistingCampaignId(campaignSlug);
-        } catch (error) {
-          console.error('❌ Error loading campaign by slug:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load campaign data",
-            variant: "destructive"
-          });
-        } finally {
-          setLoadingExistingCampaign(false);
+        // Check if campaignSlug is a valid UUID (existing campaign) or just a slug (new campaign)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        const isValidUUID = uuidRegex.test(campaignSlug);
+        
+        if (isValidUUID) {
+          console.log('🔄 Loading existing campaign by UUID:', campaignSlug);
+          setLoadingExistingCampaign(true);
+          try {
+            await loadExistingCampaign(campaignSlug);
+            setExistingCampaignId(campaignSlug);
+          } catch (error) {
+            console.error('❌ Error loading campaign by UUID:', error);
+            toast({
+              title: "Error",
+              description: "Failed to load campaign data",
+              variant: "destructive"
+            });
+          } finally {
+            setLoadingExistingCampaign(false);
+          }
+          return;
+        } else {
+          console.log('📝 Campaign slug is not a UUID, treating as new campaign:', campaignSlug);
+          // Continue to the content task conversion logic below
         }
-        return;
       }
 
       const contentTaskId = finalContentTaskId;
