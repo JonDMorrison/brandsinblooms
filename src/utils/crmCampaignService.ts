@@ -66,7 +66,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         tenant_id: userProfile.tenant_id,
         user_id: user.id,
         name: campaignData.name,
-        subject: campaignData.subject,
+        subject_line: campaignData.subject, // Map to the correct column name
         sender_name: campaignData.sender_name,
         sender_email: campaignData.sender_email,
         preheader: campaignData.preheader,
