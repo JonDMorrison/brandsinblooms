@@ -1,10 +1,8 @@
 
-import React, { useMemo } from 'react';
-import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
-import { useNewsletterImages } from './newsletter/useNewsletterImages';
+import React from 'react';
+import { useNewsletterRenderer } from '@/hooks/useNewsletterRenderer';
 import { MagazineNewsletterRenderer } from '@/components/newsletter/MagazineNewsletterRenderer';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ImageSelectButton } from '@/components/image/ImageSelectButton';
 
 interface MagazineNewsletterDisplayProps {
   content: string;
@@ -28,38 +26,26 @@ export const MagazineNewsletterDisplay = ({
     taskStatus
   });
 
-  // Process the newsletter content using the unified processor
-  const processedNewsletter = useMemo(() => 
-    processNewsletterContent(content, campaignTitle), 
-    [content, campaignTitle]
-  );
-
-  // Generate featured image prompt
-  const featuredImagePrompt = useMemo(() => {
-    if (campaignTitle) {
-      return `${campaignTitle} garden center newsletter hero image professional`;
-    }
-    const firstLine = content?.split('\n')[0]?.replace(/[#*]/g, '').trim();
-    return firstLine ? `${firstLine} garden newsletter hero` : 'garden center newsletter hero professional';
-  }, [campaignTitle, content]);
-
-  // Load images for the newsletter
-  const { 
-    images, 
-    featuredImage, 
-    loadingImages, 
-    imageErrors 
-  } = useNewsletterImages(
-    processedNewsletter.blocks,
-    processedNewsletter.needsRegeneration,
+  // Use the newsletter renderer hook
+  const {
+    processedNewsletter,
+    images,
+    featuredImage,
+    loadingImages,
+    imageErrors,
+    handleImageSelect,
+    needsRegeneration,
+    isStructured
+  } = useNewsletterRenderer({
+    content,
+    campaignTitle,
     contentTaskId,
-    processedNewsletter.meta.theme,
-    processedNewsletter.unstructuredSections,
-    featuredImagePrompt
-  );
+    format: 'magazine',
+    className
+  });
 
   // Handle empty or placeholder content
-  if (processedNewsletter.needsRegeneration) {
+  if (needsRegeneration) {
     return (
       <div className={`magazine-newsletter-display space-y-6 ${className}`}>
         <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30">
@@ -70,14 +56,8 @@ export const MagazineNewsletterDisplay = ({
     );
   }
 
-  // Handle image selection
-  const handleImageSelect = (blockIndex: number, prompt: string) => {
-    console.log(`[MAGAZINE NEWSLETTER] Image selection for block ${blockIndex}:`, prompt);
-    // This could open an image selection modal or trigger the ImageSelectButton
-  };
-
   // If structured newsletter, use the magazine renderer
-  if (processedNewsletter.isStructured && processedNewsletter.blocks.length > 0) {
+  if (isStructured && processedNewsletter.blocks.length > 0) {
     return (
       <div className={`magazine-newsletter-display ${className}`}>
         {loadingImages && (

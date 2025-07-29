@@ -1,7 +1,7 @@
 
-import React, { useMemo } from 'react';
-import { processNewsletterContent, convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProcessor';
-import { useNewsletterImages } from './useNewsletterImages';
+import React from 'react';
+import { useNewsletterRenderer } from '@/hooks/useNewsletterRenderer';
+import { convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProcessor';
 import { ImageSelectButton } from '@/components/image/ImageSelectButton';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
@@ -29,38 +29,26 @@ export const OptimizedNewsletterDisplay = ({
     taskStatus
   });
 
-  // Process the newsletter content
-  const processedNewsletter = useMemo(() => 
-    processNewsletterContent(content, campaignTitle), 
-    [content, campaignTitle]
-  );
-
-  // Generate featured image prompt from campaign title and content
-  const featuredImagePrompt = useMemo(() => {
-    if (campaignTitle) {
-      return `${campaignTitle} garden center newsletter hero image`;
-    }
-    const firstLine = content?.split('\n')[0]?.replace(/[#*]/g, '').trim();
-    return firstLine ? `${firstLine} garden newsletter` : 'garden center newsletter';
-  }, [campaignTitle, content]);
-
-  // Load images for both structured and unstructured content
-  const { 
-    images, 
-    featuredImage, 
-    loadingImages, 
-    imageErrors 
-  } = useNewsletterImages(
-    processedNewsletter.blocks,
-    processedNewsletter.needsRegeneration,
-    contentTaskId,
-    processedNewsletter.meta.theme,
-    processedNewsletter.unstructuredSections,
+  // Use the newsletter renderer hook
+  const {
+    processedNewsletter,
+    images,
+    featuredImage,
+    loadingImages,
+    handleImageSelect,
+    needsRegeneration,
+    isStructured,
     featuredImagePrompt
-  );
+  } = useNewsletterRenderer({
+    content,
+    campaignTitle,
+    contentTaskId,
+    format: 'magazine',
+    className
+  });
 
   // Handle empty or placeholder content
-  if (processedNewsletter.needsRegeneration) {
+  if (needsRegeneration) {
     return (
       <div className={`newsletter-display space-y-6 ${className}`}>
         <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -115,7 +103,7 @@ export const OptimizedNewsletterDisplay = ({
         </Badge>
         <Badge variant="outline" className="flex items-center gap-1">
           <Target className="w-3 h-3" />
-          {processedNewsletter.isStructured ? 'Structured' : 'Standard'} Format
+          {isStructured ? 'Structured' : 'Standard'} Format
         </Badge>
       </div>
     </div>
@@ -255,13 +243,13 @@ export const OptimizedNewsletterDisplay = ({
       )}
       
       {/* Newsletter Content */}
-      {processedNewsletter.isStructured ? renderStructuredNewsletter() : renderUnstructuredNewsletter()}
+      {isStructured ? renderStructuredNewsletter() : renderUnstructuredNewsletter()}
       
       {/* Debug Info */}
       {import.meta.env.DEV && (
         <div className="mt-8 p-4 bg-gray-50 rounded-lg text-xs text-gray-600">
           <p><strong>Debug Info:</strong></p>
-          <p>Format: {processedNewsletter.isStructured ? 'Structured' : 'Unstructured'}</p>
+          <p>Format: {isStructured ? 'Structured' : 'Unstructured'}</p>
           <p>Blocks: {processedNewsletter.blocks.length}</p>
           <p>Sections: {processedNewsletter.unstructuredSections?.length || 0}</p>
           <p>Images Loaded: {Object.keys(images).length}</p>
