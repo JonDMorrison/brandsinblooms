@@ -45,7 +45,7 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
     return { success: false, generatedCount: 0, failedTypes: [], tokenCost: 0 };
   }
 
-  const totalTokensNeeded = 8; // 2+1+1+1+2+1 for newsletter, facebook, instagram, email, video, linkedin
+  const totalTokensNeeded = 6; // 2+1+1+2 for newsletter, facebook, instagram, video
   const willGoIntoOverage = balance.tokens_balance < totalTokensNeeded;
   
   if (willGoIntoOverage) {
@@ -53,7 +53,7 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
     const overageCost = overageAmount * 0.25;
     
     const proceed = window.confirm(
-      `Generate content pack (5 pieces) for "${theme}"?\n\n` +
+      `Generate content pack (4 pieces) for "${theme}"?\n\n` +
       `Cost: ${totalTokensNeeded} tokens\n` +
       `Current balance: ${Math.max(0, balance.tokens_balance)} tokens\n` +
       `Overage: ${overageAmount} tokens (+$${overageCost.toFixed(2)})\n\n` +
@@ -70,9 +70,7 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
     { type: 'newsletter', tokens: 2 },
     { type: 'facebook', tokens: 1 },
     { type: 'instagram', tokens: 1 },
-    { type: 'email', tokens: 1 },
-    { type: 'video', tokens: 2 },
-    { type: 'linkedin', tokens: 1 }
+    { type: 'video', tokens: 2 }
   ];
 
   const results = [];
@@ -189,10 +187,8 @@ const getHashtagsForType = (type: string): string => {
   const hashtags = {
     facebook: '#GardenCenter #LocalGardening #PlantLife #GreenThumb',
     instagram: '#GardenCenter #Plants #Gardening #LocalBusiness #GreenLife #PlantParent',
-    email: '',
     newsletter: '',
-    video: '#GardenTips #Gardening #LocalExperts #PlantCare',
-    linkedin: '#GardenIndustry #LocalBusiness #Sustainability #GreenBusiness'
+    video: '#GardenTips #Gardening #LocalExperts #PlantCare'
   };
   return hashtags[type as keyof typeof hashtags] || '';
 };
@@ -201,10 +197,8 @@ const getImageIdeaForType = (type: string): string => {
   const imageIdeas = {
     facebook: 'Vibrant garden display with seasonal plants and flowers',
     instagram: 'Aesthetic plant arrangement with natural lighting',
-    email: 'Professional garden center storefront or featured products',
     newsletter: 'Seasonal garden showcase or expert demonstration',
-    video: 'Behind-the-scenes footage of garden center operations',
-    linkedin: 'Professional team photo or business achievement highlight'
+    video: 'Behind-the-scenes footage of garden center operations'
   };
   return imageIdeas[type as keyof typeof imageIdeas] || 'Garden center related imagery';
 };
