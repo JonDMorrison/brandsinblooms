@@ -66,8 +66,13 @@ export function normalizeTask(task: any): NormalizedTask {
     }
   }
 
-  // 5. Clean content for display
-  out.display_content = cleanContentForDisplay(out.ai_output || '', out.post_type);
+  // 5. Clean content for display (but preserve YAML structure for newsletters)
+  if (out.post_type === 'newsletter') {
+    // For newsletters, preserve the original YAML structure for proper processing
+    out.display_content = out.ai_output || '';
+  } else {
+    out.display_content = cleanContentForDisplay(out.ai_output || '', out.post_type);
+  }
 
   return out;
 }
