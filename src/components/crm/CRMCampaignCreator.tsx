@@ -724,7 +724,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         schedule: {
           type: 'immediate'
         },
-        source_content_id: finalContentTaskId,
         content_blocks: campaignBlocks,
         newsletter_sync: finalContentTaskId ? {
           source_task_id: finalContentTaskId,
