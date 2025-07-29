@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, Plus, Calendar, BarChart3, Eye } from 'lucide-react';
+import { Mail, Plus, Calendar, BarChart3, Eye, Trash2 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 export const CRMCampaignsPage: React.FC = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const fetchCRMCampaigns = async () => {
     setLoading(true);
@@ -25,6 +31,42 @@ export const CRMCampaignsPage: React.FC = () => {
       console.error('Error fetching CRM campaigns:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteClick = (campaign: any) => {
+    setCampaignToDelete(campaign);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!campaignToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('crm_campaigns')
+        .delete()
+        .eq('id', campaignToDelete.id);
+
+      if (error) throw error;
+
+      setCampaigns(campaigns.filter(c => c.id !== campaignToDelete.id));
+      toast({
+        title: "Campaign deleted",
+        description: `${campaignToDelete.name} has been deleted successfully.`,
+      });
+      setDeleteDialogOpen(false);
+      setCampaignToDelete(null);
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+      toast({
+        title: "Error deleting campaign",
+        description: "There was an error deleting the campaign. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -134,6 +176,16 @@ export const CRMCampaignsPage: React.FC = () => {
                             Edit
                           </NavLink>
                         </Button>
+                        {campaign.status === 'draft' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeleteClick(campaign)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -166,6 +218,17 @@ export const CRMCampaignsPage: React.FC = () => {
           )}
         </>
       )}
+
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Campaign"
+        description={`Are you sure you want to delete "${campaignToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteConfirm}
+        loading={isDeleting}
+      />
     </div>
   );
 };
