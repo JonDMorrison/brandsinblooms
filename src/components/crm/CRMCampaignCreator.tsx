@@ -420,7 +420,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         // Build the transformed block with comprehensive field mapping
         const transformedBlock: ContentBlock = {
           id: block.id,
-          type: block.block_type as ContentBlock['type'],
+          // Fix block type - if content has image, use image-text type
+          type: (extractedContent.imageUrl && extractedContent.imageUrl !== '/images/newsletter-fallback.jpg') 
+            ? 'image-text' as ContentBlock['type']
+            : block.block_type as ContentBlock['type'],
           title: extractedContent.title || extractedContent.headline || 'Untitled Block',
           headline: extractedContent.headline || extractedContent.title,
           body: extractedContent.body || extractedContent.content,
@@ -462,16 +465,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         };
 
         // Dev logging
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🧱 Hydrated contentObj:', {
-            blockId: transformedBlock.id,
-            type: transformedBlock.type,
-            headline: transformedBlock.headline,
-            body: transformedBlock.body,
-            imageUrl: transformedBlock.imageUrl,
-            hasContent: !!(transformedBlock.headline || transformedBlock.body || transformedBlock.imageUrl)
-          });
-        }
+        console.log('🧱 Hydrated contentObj:', {
+          blockId: block.id,
+          type: transformedBlock.type, // Log the corrected type
+          headline: transformedBlock.headline,
+          body: transformedBlock.body,
+          imageUrl: transformedBlock.imageUrl,
+          buttonText: transformedBlock.buttonText,
+          buttonUrl: transformedBlock.buttonUrl,
+          backgroundColor: transformedBlock.backgroundColor,
+          layout: transformedBlock.layout,
+          hasImage: !!transformedBlock.imageUrl && transformedBlock.imageUrl !== '/images/newsletter-fallback.jpg'
+        });
 
         return transformedBlock;
       };
