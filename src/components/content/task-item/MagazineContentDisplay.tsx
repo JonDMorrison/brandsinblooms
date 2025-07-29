@@ -1,10 +1,14 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { cleanContentForDisplay } from '@/utils/contentUtils';
 import { cleanVideoContent, isVideoScriptContent } from '@/utils/videoContentCleaner';
 import { SafeHtml } from '@/components/ui/safe-html';
 import { stripEmojis } from '@/utils/contentValidation';
 import { validateFormattedContent, repairFormattedContent } from '@/utils/contentFormatValidator';
+import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
+import { useNewsletterImages } from '@/components/content-sidebar/newsletter/useNewsletterImages';
+import { MagazineNewsletterRenderer } from '@/components/newsletter/MagazineNewsletterRenderer';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -31,6 +35,41 @@ export const MagazineContentDisplay = ({
     hasContent: !!content
   });
 
+  // Process newsletter content using structured processor
+  const processedNewsletter = useMemo(() => {
+    if (postType === 'newsletter') {
+      return processNewsletterContent(content, campaignTitle);
+    }
+    return null;
+  }, [content, campaignTitle, postType]);
+
+  // Generate featured image prompt for newsletters
+  const featuredImagePrompt = useMemo(() => {
+    if (postType === 'newsletter') {
+      if (campaignTitle) {
+        return `${campaignTitle} garden center newsletter hero image professional`;
+      }
+      const firstLine = content?.split('\n')[0]?.replace(/[#*]/g, '').trim();
+      return firstLine ? `${firstLine} garden newsletter hero` : 'garden center newsletter hero professional';
+    }
+    return undefined;
+  }, [campaignTitle, content, postType]);
+
+  // Load images for newsletter content
+  const { 
+    images, 
+    featuredImage, 
+    loadingImages, 
+    imageErrors 
+  } = useNewsletterImages(
+    processedNewsletter?.blocks || [],
+    processedNewsletter?.needsRegeneration || false,
+    contentTaskId,
+    processedNewsletter?.meta.theme,
+    processedNewsletter?.unstructuredSections,
+    featuredImagePrompt
+  );
+
   if (!content) {
     return (
       <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
@@ -41,7 +80,73 @@ export const MagazineContentDisplay = ({
     );
   }
 
-  // Minimal content processing - avoid over-cleaning
+  // Handle newsletter content with rich block display
+  if (postType === 'newsletter' && processedNewsletter) {
+    // Handle newsletter content being prepared
+    if (processedNewsletter.needsRegeneration) {
+      return (
+        <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
+          <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30">
+            <LoadingSpinner size="lg" />
+            <p className="mt-4 text-muted-foreground">Newsletter content is being prepared...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Handle image selection
+    const handleImageSelect = (blockIndex: number, prompt: string) => {
+      console.log(`[NEWSLETTER] Image selection for block ${blockIndex}:`, prompt);
+      // This could open an image selection modal or trigger image generation
+    };
+
+    // If structured newsletter, use the magazine renderer
+    if (processedNewsletter.isStructured && processedNewsletter.blocks.length > 0) {
+      return (
+        <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}>
+          <div className="p-6">
+            {loadingImages && (
+              <div className="text-center py-4 mb-6">
+                <LoadingSpinner />
+                <p className="text-sm text-muted-foreground mt-2">Loading newsletter images...</p>
+              </div>
+            )}
+            
+            <MagazineNewsletterRenderer
+              title={campaignTitle || processedNewsletter.meta.week_focus}
+              blocks={processedNewsletter.blocks}
+              meta={processedNewsletter.meta}
+              featuredImage={featuredImage}
+              blockImages={images}
+              onImageSelect={handleImageSelect}
+              className="space-y-8"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // Fallback for unstructured newsletter content
+    return (
+      <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}>
+        <div className="p-6">
+          <div className="prose prose-lg max-w-none">
+            <h1 className="text-4xl font-bold text-foreground mb-6">
+              {campaignTitle || processedNewsletter.meta.week_focus}
+            </h1>
+            <div 
+              className="text-muted-foreground leading-relaxed"
+              dangerouslySetInnerHTML={{ 
+                __html: processedNewsletter.newsletter_md.replace(/\n/g, '<br/>') 
+              }} 
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Minimal content processing for non-newsletter content - avoid over-cleaning
   let processedContent = content;
   
   try {
@@ -114,13 +219,11 @@ export const MagazineContentDisplay = ({
             />
           </div>
         ) : postType === 'newsletter' ? (
-          // Newsletter content uses clean display without HTML/markdown
+          // This should not be reached as newsletters are handled above
           <div className="prose prose-lg max-w-none">
-            <SafeHtml 
-              content={processedContent} 
-              className="text-sm text-gray-700 leading-relaxed"
-              type="newsletter-clean"
-            />
+            <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+              {processedContent}
+            </div>
           </div>
         ) : (
           // Other content types use simple text display with fallback

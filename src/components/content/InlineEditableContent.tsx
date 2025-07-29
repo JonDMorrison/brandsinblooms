@@ -134,7 +134,7 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
       );
     }
 
-    // All other content types use magazine display
+    // All other content types (including newsletters) use magazine display
     return (
       <MagazineContentDisplay
         content={task.ai_output}
