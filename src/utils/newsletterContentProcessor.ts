@@ -342,7 +342,13 @@ const isPlaceholderContent = (content: string): boolean => {
 export const cleanNewsletterContent = (content: string): string => {
   if (!content) return '';
   
-  // First try to parse as JSON newsletter
+  // First try to parse as YAML newsletter structure
+  const parsedYamlContent = parseNewsletterYaml(content);
+  if (parsedYamlContent) {
+    return parsedYamlContent;
+  }
+  
+  // Then try to parse as JSON newsletter
   const parsedNewsletter = parseNewsletterJson(content);
   if (parsedNewsletter) {
     const cleanSubject = lightCleanFormatting(parsedNewsletter.subject);
@@ -366,6 +372,70 @@ const lightCleanFormatting = (text: string): string => {
     .replace(/\n{4,}/g, '\n\n\n')
     .replace(/[ \t]{3,}/g, '  ')
     .trim();
+};
+
+// Parse newsletter YAML content and extract clean text
+const parseNewsletterYaml = (content: string): string | null => {
+  try {
+    // Check for YAML code blocks first
+    if (content.includes('```yaml') || content.includes('```yml')) {
+      const yamlMatch = content.match(/```ya?ml\s*\n([\s\S]*?)\n```/) || content.match(/```ya?ml\s*([\s\S]*?)```/);
+      if (yamlMatch) {
+        return extractContentFromYamlString(yamlMatch[1]);
+      }
+    }
+    
+    // Check for direct YAML structure
+    if (content.includes('newsletter_md:') || content.includes('blocks:')) {
+      return extractContentFromYamlString(content);
+    }
+    
+  } catch (error) {
+    console.log('YAML parsing failed:', error);
+  }
+  
+  return null;
+};
+
+// Extract readable content from YAML string
+const extractContentFromYamlString = (yamlString: string): string | null => {
+  try {
+    // Look for newsletter_md content with pipe syntax
+    const newsletterMdMatch = yamlString.match(/newsletter_md:\s*\|\s*\n([\s\S]*?)(?=\n\w+:|$)/);
+    if (newsletterMdMatch) {
+      // Extract content after the pipe, maintaining indentation structure
+      const rawContent = newsletterMdMatch[1];
+      const lines = rawContent.split('\n');
+      
+      // Remove consistent indentation (usually 2 spaces)
+      const indentMatch = lines.find(line => line.trim())?.match(/^(\s*)/);
+      const baseIndent = indentMatch ? indentMatch[1].length : 0;
+      
+      const cleanedContent = lines
+        .map(line => line.slice(baseIndent))
+        .join('\n')
+        .trim();
+      
+      return cleanedContent;
+    }
+    
+    // Look for content field in YAML
+    const contentMatch = yamlString.match(/content:\s*\|\s*\n([\s\S]*?)(?=\n\w+:|$)/);
+    if (contentMatch) {
+      return contentMatch[1].trim();
+    }
+    
+    // Look for content field without pipe
+    const simpleContentMatch = yamlString.match(/content:\s*["']?(.*?)["']?(?=\n|$)/);
+    if (simpleContentMatch) {
+      return simpleContentMatch[1].trim();
+    }
+    
+  } catch (error) {
+    console.log('YAML content extraction failed:', error);
+  }
+  
+  return null;
 };
 
 // Parse newsletter JSON content helper
