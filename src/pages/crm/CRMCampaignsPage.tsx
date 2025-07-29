@@ -18,11 +18,14 @@ export const CRMCampaignsPage: React.FC = () => {
   const { toast } = useToast();
 
   const fetchCRMCampaigns = async () => {
+    if (!user) return;
+    
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('crm_campaigns')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
