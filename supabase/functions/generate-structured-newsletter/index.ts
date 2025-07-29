@@ -144,11 +144,14 @@ Create compelling, benefit-driven headlines using copywriting best practices:
 - NO generic titles like "Seasonal Tips" or "Weekly Updates"
 ${is_holiday ? `- Incorporate ${holiday_context || theme} themes naturally` : ''}
 
-HEADLINE EXAMPLES TO FOLLOW:
-- Instead of "Seasonal Tips" → "Beat the Heat: Your Garden's Summer Survival Guide"
+HEADLINE EXAMPLES TO FOLLOW (adapt to actual theme):
+${theme.toLowerCase().includes('tree') ? `- Instead of "Tree Tips" → "Essential Tree Health Assessment: Your Property's Foundation Check"
+- Instead of "Tree Problems" → "Warning Signs: When Your Trees Need Professional Attention"  
+- Instead of "Tree Spotlight" → "National Tree Month: The Perfect Time for Tree Care Planning"
+- Instead of "Tree Future" → "Invest in Tomorrow: Strategic Tree Care for Long-term Success"` : `- Instead of "Seasonal Tips" → "Beat the Heat: Your Garden's Summer Survival Guide"
 - Instead of "Problem Solving" → "SOS: Save Your Plants Before It's Too Late"  
 - Instead of "Plant Spotlight" → "This Month's Garden Game-Changer"
-- Instead of "Looking Ahead" → "Get Ready: Your Garden's Next Power Move"
+- Instead of "Looking Ahead" → "Get Ready: Your Garden's Next Power Move"`}
 
 # VOICE & TONE
 Warm, conversational, confident.  Use contractions; avoid jargon and filler.  
@@ -163,7 +166,55 @@ Create a structured newsletter with exactly 4 sections using engaging, StoryBran
 
 Return ONLY valid YAML in this exact format:`;
 
-    const yamlTemplate = `
+    const generateThemeSpecificTemplate = (theme: string, businessName: string) => {
+      if (theme.toLowerCase().includes('tree')) {
+        return `
+\`\`\`yaml
+newsletter_md: |
+  # ${theme} Newsletter
+  *Essential tree care insights${is_holiday ? ` for ${holiday_context || theme}` : ` for ${theme}`} to maintain healthy, thriving trees on your property*
+
+  ## Essential Tree Health Assessment: Your Property's Foundation Check
+  [Write 2-3 sentences about the importance of regular tree health checks, StoryBrand framework.]
+
+  ## National Tree Month: The Perfect Time for Tree Care Planning  
+  [Write 2-3 sentences about timing tree care for optimal results, positioning customer as proactive steward.]
+
+  ## Warning Signs: When Your Trees Need Professional Attention
+  [Write 2-3 sentences about identifying tree problems early, with garden center as expert guide.]
+
+  ## Invest in Tomorrow: Strategic Tree Care for Long-term Success
+  [Write 2-3 sentences about long-term tree investment and future property value.]
+
+  ---
+  Expert tree care with **${businessName}** 🌿
+blocks:
+  - title: "Essential Tree Health Assessment: Your Property's Foundation Check"
+    body: "[StoryBrand content: tree health importance in paragraph form]"
+    cta: "Schedule tree assessment"
+    link: "#"
+    image_prompt: "professional arborist examining tree trunk for health"
+    alt_text: "Professional tree health assessment"
+  - title: "National Tree Month: The Perfect Time for Tree Care Planning"
+    body: "[StoryBrand content: optimal timing for tree care in paragraph form]"
+    cta: "Get tree care supplies"
+    link: "#"
+    image_prompt: "healthy mature trees in residential landscape"
+    alt_text: "Well-maintained residential trees"
+  - title: "Warning Signs: When Your Trees Need Professional Attention"
+    body: "[StoryBrand content: early problem identification in paragraph form]"
+    cta: "Consult tree experts"
+    link: "#"
+    image_prompt: "tree care tools and professional equipment"
+    alt_text: "Professional tree care tools"
+  - title: "Invest in Tomorrow: Strategic Tree Care for Long-term Success"
+    body: "[StoryBrand content: long-term tree investment in paragraph form]"
+    cta: "Plan tree strategy"
+    link: "#"
+    image_prompt: "beautiful mature trees enhancing property value"
+    alt_text: "Mature trees adding property value"`;
+      } else {
+        return `
 \`\`\`yaml
 newsletter_md: |
   # ${theme} Garden Newsletter
@@ -188,35 +239,39 @@ blocks:
     body: "[StoryBrand content: gardener challenge + expert solution in paragraph form]"
     cta: "Get seasonal garden supplies"
     link: "#"
-    image_prompt: "thriving garden summer heat protection ${theme}"
+    image_prompt: "lush garden thriving in summer sunlight"
     alt_text: "Garden thriving in summer heat"
   - title: "This Month's Garden Game-Changer"
     body: "[StoryBrand content: featured plant transformation in paragraph form]"
     cta: "Discover game-changing plants"
     link: "#"
-    image_prompt: "featured plant transformation ${theme} garden center"
+    image_prompt: "featured plant transformation garden center"
     alt_text: "Garden transformation with featured plant"
   - title: "SOS: Save Your Plants Before It's Too Late"
     body: "[StoryBrand content: problem prevention and expert solution in paragraph form]"
     cta: "Get plant rescue solutions"
     link: "#"
-    image_prompt: "plant rescue recovery solution ${theme}"
+    image_prompt: "healthy plants protected from pests naturally"
     alt_text: "Successful plant rescue and recovery"
   - title: "Get Ready: Your Garden's Next Power Move"
     body: "[StoryBrand content: future planning and success visualization in paragraph form]"
     cta: "Plan your garden success"
     link: "#"
-    image_prompt: "garden planning preparation ${theme} success"
-    alt_text: "Garden planning for success"
+    image_prompt: "garden planning preparation for success"
+    alt_text: "Garden planning for success"`;
+      }
+    };
+
+    const yamlTemplate = generateThemeSpecificTemplate(theme, businessName)
 extra_content_ideas:
-  - title: "The Watering Secret Pros Use"
-    quick_desc: "Advanced watering techniques for maximum plant health"
-  - title: "Soil Transformation Magic"
-    quick_desc: "Turn poor soil into plant paradise"
-  - title: "Natural Pest Defense System"
-    quick_desc: "Protect plants without harmful chemicals"
-  - title: "Seasonal Planting Power Strategy"
-    quick_desc: "Time plantings for maximum success"
+  - title: "${theme.toLowerCase().includes('tree') ? 'Professional Tree Pruning Secrets' : 'The Watering Secret Pros Use'}"
+    quick_desc: "${theme.toLowerCase().includes('tree') ? 'Expert pruning techniques for healthy tree growth' : 'Advanced watering techniques for maximum plant health'}"
+  - title: "${theme.toLowerCase().includes('tree') ? 'Soil Health for Strong Trees' : 'Soil Transformation Magic'}"
+    quick_desc: "${theme.toLowerCase().includes('tree') ? 'Soil amendments that promote strong root systems' : 'Turn poor soil into plant paradise'}"
+  - title: "${theme.toLowerCase().includes('tree') ? 'Tree Disease Prevention Guide' : 'Natural Pest Defense System'}"
+    quick_desc: "${theme.toLowerCase().includes('tree') ? 'Protect trees from common diseases naturally' : 'Protect plants without harmful chemicals'}"
+  - title: "${theme.toLowerCase().includes('tree') ? 'Strategic Tree Planting Timeline' : 'Seasonal Planting Power Strategy'}"
+    quick_desc: "${theme.toLowerCase().includes('tree') ? 'Best timing for tree planting and establishment' : 'Time plantings for maximum success'}"
 meta:
   reading_time: "≈3 min"
   theme: "${theme}"

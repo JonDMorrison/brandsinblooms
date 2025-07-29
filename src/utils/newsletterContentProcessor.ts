@@ -61,19 +61,30 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
       (block.title && block.title.trim()) || (block.body && block.body.trim())
     );
     
+    // Detect and fix content duplication
+    const isDuplicated = detectContentDuplication(parsedNewsletter.newsletter_md, finalBlocks);
+    
+    if (isDuplicated) {
+      console.log('[NEWSLETTER PROCESSOR] Detected content duplication, prioritizing structured blocks');
+      // When duplication is detected, clear the markdown to avoid showing the same content twice
+      parsedNewsletter.newsletter_md = '';
+    }
+    
     if (!hasValidBlocks) {
       console.log('[NEWSLETTER PROCESSOR] No valid blocks found, creating from markdown content');
       finalBlocks = createBlocksFromMarkdownContent(parsedNewsletter.newsletter_md);
     } else {
       console.log('[NEWSLETTER PROCESSOR] Using existing structured blocks');
       
-      // Add an introduction block from newsletter_md if it doesn't exist
+      // Only add introduction block if we don't have duplication and no blocks have intro-like content
       const hasIntroduction = finalBlocks.some(block => 
         block.title?.toLowerCase().includes('welcome') || 
-        block.title?.toLowerCase().includes('introduction')
+        block.title?.toLowerCase().includes('introduction') ||
+        block.title?.toLowerCase().includes('beat the heat') ||
+        block.title?.toLowerCase().includes('summer survival')
       );
       
-      if (!hasIntroduction && parsedNewsletter.newsletter_md) {
+      if (!hasIntroduction && parsedNewsletter.newsletter_md && !isDuplicated) {
         const lines = parsedNewsletter.newsletter_md.split('\n');
         const headerLine = lines.find(line => line.trim().startsWith('#'));
         const introText = lines.slice(1).join('\n').trim();
@@ -82,7 +93,7 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
           const introBlock = {
             title: headerLine.replace(/^#+\s*/, '').trim(),
             body: introText,
-            image_prompt: `${parsedNewsletter.meta?.theme || 'garden'} newsletter header`,
+            image_prompt: generateThemeSpecificImagePrompt(headerLine.replace(/^#+\s*/, '').trim(), parsedNewsletter.meta?.theme),
             alt_text: `Header image for ${headerLine.replace(/^#+\s*/, '').trim()}`,
             cta: 'Learn More',
             link: '#'
@@ -90,6 +101,12 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
           finalBlocks.unshift(introBlock);
         }
       }
+      
+      // Improve image prompts for existing blocks
+      finalBlocks = finalBlocks.map(block => ({
+        ...block,
+        image_prompt: improveImagePrompt(block.image_prompt, block.title, parsedNewsletter.meta?.theme)
+      }));
     }
     
     return {
@@ -249,9 +266,7 @@ const createSectionsFromUnstructuredContent = (content: string, campaignTitle?: 
 };
 
 const generateImagePrompt = (title: string, content: string, campaignTitle?: string): string => {
-  const keywords = extractKeywordsFromText(`${title} ${content}`);
-  const basePrompt = campaignTitle ? `${campaignTitle} garden` : 'garden center';
-  return `${basePrompt} ${keywords.slice(0, 3).join(' ')}`.toLowerCase();
+  return generateThemeSpecificImagePrompt(title, campaignTitle, content);
 };
 
 const extractKeywordsFromText = (text: string): string[] => {
@@ -302,10 +317,93 @@ const createEmptyNewsletter = (campaignTitle?: string): ProcessedNewsletter => {
   };
 };
 
+// Detect if content is duplicated between newsletter_md and blocks
+const detectContentDuplication = (newsletter_md: string, blocks: any[]): boolean => {
+  if (!newsletter_md || !blocks || blocks.length === 0) return false;
+  
+  // Check if any block titles appear in the newsletter_md
+  const duplicatedSections = blocks.filter(block => {
+    if (!block.title) return false;
+    const normalizedTitle = block.title.replace(/[^\w\s]/g, '').toLowerCase();
+    const normalizedMd = newsletter_md.replace(/[^\w\s]/g, '').toLowerCase();
+    return normalizedMd.includes(normalizedTitle);
+  });
+  
+  console.log('[NEWSLETTER PROCESSOR] Duplication check:', {
+    blocksCount: blocks.length,
+    duplicatedSections: duplicatedSections.length,
+    duplicatedTitles: duplicatedSections.map(b => b.title)
+  });
+  
+  // If more than half the blocks are duplicated, consider it a duplication issue
+  return duplicatedSections.length > blocks.length / 2;
+};
+
+// Generate theme-specific, natural image prompts
+const generateThemeSpecificImagePrompt = (title: string, theme?: string, content?: string): string => {
+  const cleanTitle = title.toLowerCase().replace(/[^\w\s]/g, '');
+  
+  // Tree-specific prompts for tree themes
+  if (theme?.toLowerCase().includes('tree')) {
+    if (cleanTitle.includes('check') || cleanTitle.includes('health')) {
+      return 'professional arborist examining tree trunk for health assessment';
+    }
+    if (cleanTitle.includes('care') || cleanTitle.includes('maintenance')) {
+      return 'healthy mature trees in residential garden landscape';
+    }
+    if (cleanTitle.includes('problem') || cleanTitle.includes('disease')) {
+      return 'tree care tools and equipment for maintenance';
+    }
+    return 'beautiful mature trees in well-maintained garden setting';
+  }
+  
+  // Season-specific prompts
+  if (cleanTitle.includes('summer') || cleanTitle.includes('heat')) {
+    return 'lush garden thriving in summer sunlight with proper watering';
+  }
+  if (cleanTitle.includes('spring')) {
+    return 'fresh spring garden with new growth and blooming plants';
+  }
+  if (cleanTitle.includes('fall') || cleanTitle.includes('autumn')) {
+    return 'beautiful fall garden with colorful foliage and seasonal plants';
+  }
+  
+  // Activity-specific prompts
+  if (cleanTitle.includes('plant') || cleanTitle.includes('grow')) {
+    return 'hands planting new seedlings in rich garden soil';
+  }
+  if (cleanTitle.includes('water') || cleanTitle.includes('irrigation')) {
+    return 'efficient garden watering system in action';
+  }
+  if (cleanTitle.includes('pest') || cleanTitle.includes('problem')) {
+    return 'healthy plants protected from pests naturally';
+  }
+  
+  // Default garden center prompt
+  return `${theme || 'garden'} ${cleanTitle.split(' ').slice(0, 2).join(' ')} professional garden center`.replace(/\s+/g, ' ');
+};
+
+// Improve existing image prompts
+const improveImagePrompt = (originalPrompt: string, title: string, theme?: string): string => {
+  // If the original prompt looks poor (has keyword stuffing), regenerate it
+  const hasKeywordStuffing = originalPrompt.includes('garden center') && 
+                            originalPrompt.includes('newsletter') && 
+                            originalPrompt.includes('professional');
+  
+  if (hasKeywordStuffing || originalPrompt.split(' ').length > 8) {
+    return generateThemeSpecificImagePrompt(title, theme);
+  }
+  
+  return originalPrompt;
+};
+
 const extractThemeFromContent = (content: string, campaignTitle?: string): string => {
   const textToAnalyze = (campaignTitle + ' ' + content).toLowerCase();
   
-  // Check for specific plant types first
+  // Check for tree-related content first
+  if (textToAnalyze.includes('tree')) return 'Tree Care and Maintenance';
+  
+  // Check for specific plant types
   if (textToAnalyze.includes('hydrangea')) return 'Hydrangea Care and Planting';
   if (textToAnalyze.includes('rose')) return 'Rose Care and Planting';
   if (textToAnalyze.includes('tomato')) return 'Tomato Growing Guide';
