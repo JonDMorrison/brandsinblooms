@@ -1,28 +1,42 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Mail, Plus, Calendar, BarChart3, Eye } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { useCampaigns } from '@/hooks/useCampaigns';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export const CRMCampaignsPage: React.FC = () => {
-  const { campaigns, loading, fetchCampaigns } = useCampaigns();
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const { user } = useAuth();
+
+  const fetchCRMCampaigns = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('crm_campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCampaigns(data || []);
+    } catch (error) {
+      console.error('Error fetching CRM campaigns:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
-      fetchCampaigns(user.id);
+      fetchCRMCampaigns();
     }
-  }, [user, fetchCampaigns]);
+  }, [user]);
 
-  // Separate user campaigns from templates
-  const userCampaigns = campaigns.filter(c => c.source === 'quick_action');
-  const templateCampaigns = campaigns.filter(c => c.source !== 'quick_action');
-
-  const activeCampaigns = userCampaigns.filter(c => c.status === 'active' || c.status === 'sent').length;
-  const scheduledCampaigns = userCampaigns.filter(c => c.status === 'scheduled').length;
-  const draftCampaigns = userCampaigns.filter(c => c.status === 'draft' || !c.status).length;
+  const activeCampaigns = campaigns.filter(c => c.status === 'active' || c.status === 'sent').length;
+  const scheduledCampaigns = campaigns.filter(c => c.status === 'scheduled').length;
+  const draftCampaigns = campaigns.filter(c => c.status === 'draft' || !c.status).length;
 
   return (
     <div className="p-6 space-y-6">
@@ -85,31 +99,37 @@ export const CRMCampaignsPage: React.FC = () => {
         </Card>
       ) : (
         <>
-          {userCampaigns.length > 0 && (
+          {campaigns.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Mail className="h-5 w-5" />
-                  Your Campaigns
+                  Your CRM Campaigns
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {userCampaigns.map((campaign) => (
+                  {campaigns.map((campaign) => (
                     <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                        <h3 className="font-semibold">{campaign.title}</h3>
-                        <p className="text-sm text-muted-foreground">{campaign.description || campaign.prompt}</p>
+                        <h3 className="font-semibold">{campaign.name}</h3>
+                        <p className="text-sm text-muted-foreground">{campaign.subject_line}</p>
                         <p className="text-xs text-muted-foreground">
                           Created: {new Date(campaign.created_at).toLocaleDateString()}
                         </p>
+                        <span className={`inline-block text-xs px-2 py-1 rounded mt-1 ${
+                          campaign.status === 'draft' 
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : campaign.status === 'sent' 
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {campaign.status}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">
-                          Your Campaign
-                        </span>
                         <Button variant="outline" size="sm" asChild>
-                          <NavLink to={`/crm/campaigns/${campaign.id}`}>
+                          <NavLink to={`/crm/campaigns/edit/${campaign.id}`}>
                             <Eye className="h-4 w-4 mr-1" />
                             Edit
                           </NavLink>
@@ -121,50 +141,8 @@ export const CRMCampaignsPage: React.FC = () => {
               </CardContent>
             </Card>
           )}
-
-          {templateCampaigns.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Seasonal Templates
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Pre-built seasonal campaign templates to inspire your marketing
-                  </p>
-                  {templateCampaigns.map((template) => (
-                    <div key={template.id} className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
-                      <div>
-                        <h3 className="font-semibold">{template.title}</h3>
-                        <p className="text-sm text-muted-foreground">{template.theme}</p>
-                        {template.start_date && (
-                          <p className="text-xs text-muted-foreground">
-                            Start date: {new Date(template.start_date).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs px-2 py-1 rounded bg-secondary">
-                          Week {template.week_number}
-                        </span>
-                        <Button variant="outline" size="sm" asChild>
-                          <NavLink to={`/crm/campaigns/${template.id}`}>
-                            <Eye className="h-4 w-4 mr-1" />
-                            Preview
-                          </NavLink>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
           
-          {userCampaigns.length === 0 && (
+          {campaigns.length === 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
