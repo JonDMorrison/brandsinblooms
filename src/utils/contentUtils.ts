@@ -263,33 +263,45 @@ export const cleanContentForDisplay = (content: string, postType: string = ''): 
 // Parse YAML newsletter content
 const parseNewsletterYaml = (content: string): { content: string } | null => {
   try {
+    console.log('🔍 parseNewsletterYaml: Input content:', content.substring(0, 200) + '...');
+    
     // Remove code block markers if present
     const cleanContent = content.replace(/```yaml\s*/g, '').replace(/```\s*$/g, '');
+    console.log('🔍 parseNewsletterYaml: After removing code blocks:', cleanContent.substring(0, 200) + '...');
     
     // Simple YAML parsing for newsletter_md format
     if (cleanContent.includes('newsletter_md:')) {
+      console.log('🔍 parseNewsletterYaml: Found newsletter_md structure');
       const lines = cleanContent.split('\n');
       let inNewsletterMd = false;
       let newsletterContent = '';
       
       for (const line of lines) {
-        if (line.trim() === 'newsletter_md: |') {
+        if (line.trim() === 'newsletter_md: |' || line.trim().startsWith('newsletter_md: |')) {
           inNewsletterMd = true;
+          // If content is on the same line as the header, extract it
+          if (line.trim().length > 'newsletter_md: |'.length) {
+            const inlineContent = line.trim().replace('newsletter_md: |', '').trim();
+            if (inlineContent) {
+              newsletterContent += inlineContent + '\n';
+            }
+          }
           continue;
         }
         
         if (inNewsletterMd) {
           // Stop when we hit another top-level key or end of content
-          if (line.trim() && !line.startsWith('  ') && !line.startsWith('#') && line.includes(':')) {
+          if (line.trim() && !line.startsWith('  ') && !line.startsWith('#') && line.includes(':') && !line.startsWith('newsletter_md:')) {
             break;
           }
           
-          // Remove leading spaces (YAML indentation)
+          // Remove leading spaces (YAML indentation) but preserve content structure
           const cleanLine = line.startsWith('  ') ? line.slice(2) : line;
           newsletterContent += cleanLine + '\n';
         }
       }
       
+      console.log('🔍 parseNewsletterYaml: Extracted content:', newsletterContent.substring(0, 200) + '...');
       return { content: newsletterContent.trim() };
     }
     
@@ -304,14 +316,15 @@ const parseNewsletterYaml = (content: string): { content: string } | null => {
 const cleanNewsletterForDisplay = (content: string): string => {
   if (!content || content.trim().length === 0) return '';
   
-  console.log('📰 Cleaning newsletter content:', content.substring(0, 100) + '...');
+  console.log('📰 cleanNewsletterForDisplay: Input:', content.substring(0, 100) + '...');
   
   // First try to parse as YAML newsletter (new format)
   const yamlParsed = parseNewsletterYaml(content);
   if (yamlParsed && yamlParsed.content) {
-    console.log('📰 Found YAML newsletter structure');
+    console.log('📰 Found YAML newsletter structure, cleaning content...');
     const cleaned = stripAllNewsletterFormatting(yamlParsed.content);
     if (cleaned && cleaned.length > 10) {
+      console.log('📰 Successfully cleaned YAML newsletter:', cleaned.substring(0, 100) + '...');
       return cleaned;
     }
   }
@@ -334,6 +347,7 @@ const cleanNewsletterForDisplay = (content: string): string => {
   }
   
   // Clean regular newsletter content with fallback
+  console.log('📰 No special newsletter format detected, using regular cleaning');
   const cleaned = stripAllNewsletterFormatting(content);
   if (!cleaned || cleaned.length < 10) {
     console.warn('⚠️ Newsletter cleaning too aggressive, using minimal cleaning');
