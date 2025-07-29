@@ -215,6 +215,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Check for existing campaign and load session data
   useEffect(() => {
     const checkExistingCampaign = async () => {
+      console.log('🔍 CRMCampaignCreator: Starting campaign check', { campaignSlug, finalContentTaskId });
+      
       // Handle direct campaign slug (when editing existing campaign)
       // This takes priority over content task conversion
       if (campaignSlug) {
@@ -222,12 +224,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         const isValidUUID = uuidRegex.test(campaignSlug);
         
+        console.log('🔍 CRMCampaignCreator: Checking campaign slug', { campaignSlug, isValidUUID });
+        
         if (isValidUUID) {
           console.log('🔄 Loading existing campaign by UUID:', campaignSlug);
           setLoadingExistingCampaign(true);
           try {
             await loadExistingCampaign(campaignSlug);
             setExistingCampaignId(campaignSlug);
+            console.log('✅ Successfully loaded existing campaign');
           } catch (error) {
             console.error('❌ Error loading campaign by UUID:', error);
             toast({
