@@ -3,8 +3,7 @@ import React from 'react';
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { extractBlogMetadata, cleanContentForDisplay } from "@/utils/contentUtils";
-import { formatNewsletterContent, addNewsletterSections } from "@/utils/newsletterFormatter";
-import { SafeHtml } from "@/components/ui/safe-html";
+import { MagazineContentDisplay } from "@/components/content/task-item/MagazineContentDisplay";
 import { ImageAssetManager } from "@/lib/imageAssetManager";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -74,14 +73,14 @@ export const TaskItemContent = ({ task, hasContent, cleanContent, onClick }: Tas
             onImageSelect={handleImageSelect}
           />
         ) : task.post_type === 'newsletter' ? (
-          <div className="p-4">
-            <div className="prose prose-lg max-w-none">
-              {(() => {
-                const enhancedContent = addNewsletterSections(cleanContent);
-                const formattedContent = formatNewsletterContent(enhancedContent);
-                return <SafeHtml content={formattedContent} />;
-              })()}
-            </div>
+          <div className="p-0">
+            <MagazineContentDisplay
+              content={cleanContent}
+              postType={task.post_type}
+              contentTaskId={task.id}
+              campaignTitle={task.campaigns?.title}
+              task={task}
+            />
           </div>
         ) : (
           <div className="p-4 bg-gray-50">

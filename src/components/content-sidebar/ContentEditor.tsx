@@ -3,6 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SafeHtml } from "@/components/ui/safe-html";
 import { cleanContentForDisplay } from "@/utils/contentUtils";
 import { MagazineNewsletterDisplay } from "./MagazineNewsletterDisplay";
+import { MagazineContentDisplay } from "@/components/content/task-item/MagazineContentDisplay";
 import { SocialMediaPostPreview } from "@/components/content/task-item/SocialMediaPostPreview";
 
 interface ContentEditorProps {
@@ -60,7 +61,15 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
               contentTaskId={task?.id}
               taskStatus={task?.status}
             />
-          ) : (task?.post_type === 'blog' || task?.post_type === 'newsletter') ? (
+          ) : task?.post_type === 'newsletter' ? (
+            <MagazineContentDisplay
+              content={content}
+              postType={task.post_type}
+              contentTaskId={task?.id}
+              campaignTitle={task?.campaigns?.title}
+              task={task}
+            />
+          ) : (task?.post_type === 'blog') ? (
             <SafeHtml
               content={cleanContentForDisplay(content, task?.post_type)}
               className="text-sm prose prose-sm max-w-none"

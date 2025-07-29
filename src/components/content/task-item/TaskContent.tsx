@@ -115,16 +115,17 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       );
     }
 
-    // Enhanced newsletter handling with better formatting
+    // Use magazine-style display for newsletter content  
     if (normalizedTask.post_type === 'newsletter') {
-      const enhancedContent = addNewsletterSections(normalizedTask.ai_output);
-      const formattedContent = formatNewsletterContent(enhancedContent);
-      
       return (
         <div className="space-y-3">
-          <div className="prose prose-lg max-w-none">
-            <SafeHtml content={formattedContent} />
-          </div>
+          <MagazineContentDisplay 
+            content={normalizedTask.ai_output}
+            postType={normalizedTask.post_type}
+            contentTaskId={normalizedTask.id}
+            campaignTitle={normalizedTask.campaigns?.theme || normalizedTask.campaigns?.title}
+            task={normalizedTask}
+          />
           <div className="flex justify-end">
             <Button
               size="sm"
