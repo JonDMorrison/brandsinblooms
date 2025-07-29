@@ -74,20 +74,36 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     }
   }, [localBlock, block.id, onUpdate, debouncedUpdate]);
 
-  // Handle click outside to exit edit mode and save changes
+  // Manage body class for defensive CSS and handle click outside
   useEffect(() => {
-    if (!isEditing) return;
+    if (isEditing) {
+      // Add class to body to ensure scrolling remains enabled
+      document.body.classList.add('editing-block');
+      
+      const handleClickOutside = (event: MouseEvent) => {
+        if (editingRef.current && !editingRef.current.contains(event.target as Node)) {
+          // Save any pending changes before exiting edit mode
+          setIsEditing(false);
+        }
+      };
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (editingRef.current && !editingRef.current.contains(event.target as Node)) {
-        // Save any pending changes before exiting edit mode
-        setIsEditing(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.body.classList.remove('editing-block');
+      };
+    } else {
+      // Ensure class is removed when not editing
+      document.body.classList.remove('editing-block');
+    }
   }, [isEditing]);
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      document.body.classList.remove('editing-block');
+    };
+  }, []);
 
   const handleBlockClick = () => {
     if (!isEditing) {
