@@ -420,17 +420,19 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         // Build the transformed block with comprehensive field mapping
         const transformedBlock: ContentBlock = {
           id: block.id,
-          // Fix block type - if content has image, use image-text type
-          type: (extractedContent.imageUrl && extractedContent.imageUrl !== '/images/newsletter-fallback.jpg') 
-            ? 'image-text' as ContentBlock['type']
-            : block.block_type as ContentBlock['type'],
+          // Preserve header block type, only convert text blocks with images to image-text
+          type: block.block_type === 'header' 
+            ? 'header' as ContentBlock['type']
+            : (block.block_type === 'text' && extractedContent.imageUrl && extractedContent.imageUrl !== '/images/newsletter-fallback.jpg')
+              ? 'image-text' as ContentBlock['type']
+              : block.block_type as ContentBlock['type'],
           title: extractedContent.title || extractedContent.headline || 'Untitled Block',
           headline: extractedContent.headline || extractedContent.title,
           body: extractedContent.body || extractedContent.content,
           content: extractedContent.body || extractedContent.content || '',
           source: (block.source as ContentBlock['source']) || 'manual',
-          // Image fields
-          imageUrl: extractedContent.imageUrl || block.image_url,
+          // Image fields - map correctly for header vs other blocks
+          imageUrl: block.block_type === 'header' ? undefined : (extractedContent.imageUrl || block.image_url),
           altText: extractedContent.altText || extractedContent.alt_text,
           caption: extractedContent.caption,
           // Button/CTA fields
@@ -454,7 +456,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           textAlign: extractedContent.textAlign || extractedContent.alignment,
           // Background
           backgroundColor: extractedContent.backgroundColor || extractedContent.background_color,
-          backgroundImageUrl: extractedContent.backgroundImageUrl,
+          backgroundImageUrl: block.block_type === 'header' ? (extractedContent.imageUrl || block.image_url) : extractedContent.backgroundImageUrl,
           backgroundOpacity: extractedContent.backgroundOpacity,
           // Newsletter-specific
           quote: extractedContent.quote,
@@ -464,18 +466,21 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           publishDate: extractedContent.publishDate
         };
 
-        // Dev logging
+        // Enhanced logging to verify header block fix
         console.log('🧱 Hydrated contentObj:', {
           blockId: block.id,
-          type: transformedBlock.type, // Log the corrected type
+          originalType: block.block_type,
+          finalType: transformedBlock.type, 
           headline: transformedBlock.headline,
           body: transformedBlock.body,
           imageUrl: transformedBlock.imageUrl,
+          backgroundImageUrl: transformedBlock.backgroundImageUrl,
           buttonText: transformedBlock.buttonText,
           buttonUrl: transformedBlock.buttonUrl,
           backgroundColor: transformedBlock.backgroundColor,
           layout: transformedBlock.layout,
-          hasImage: !!transformedBlock.imageUrl && transformedBlock.imageUrl !== '/images/newsletter-fallback.jpg'
+          hasImage: !!transformedBlock.imageUrl && transformedBlock.imageUrl !== '/images/newsletter-fallback.jpg',
+          isHeaderWithBackground: block.block_type === 'header' && !!transformedBlock.backgroundImageUrl
         });
 
         return transformedBlock;
