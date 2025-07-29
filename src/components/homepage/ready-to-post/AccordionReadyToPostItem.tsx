@@ -16,6 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 // Removed sonner import - using global toast replacement
 import { SafeHtml } from "@/components/ui/safe-html";
+import { cleanContentForDisplay } from "@/utils/contentUtils";
 
 interface AccordionReadyToPostItemProps {
   task: any;
@@ -61,8 +62,9 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
   const postLabel = getPostTypeLabel(task.post_type);
   const colorClass = getPostTypeColor(task.post_type);
 
+  // Clean content properly based on post type
   const cleanContent = task.ai_output ? 
-    task.ai_output.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim() : '';
+    cleanContentForDisplay(task.ai_output, task.post_type) : '';
 
   const preview = cleanContent.length > 120 ? 
     cleanContent.substring(0, 120) + '...' : cleanContent;
@@ -221,10 +223,9 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                   {/* Content Preview */}
                   {cleanContent && (
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <SafeHtml 
-                        content={task.ai_output}
-                        className={`text-gray-700 line-clamp-3 ${isMobile ? 'text-sm' : 'text-sm'} leading-relaxed`}
-                      />
+                      <div className={`text-gray-700 line-clamp-3 ${isMobile ? 'text-sm' : 'text-sm'} leading-relaxed whitespace-pre-wrap`}>
+                        {cleanContent.length > 300 ? cleanContent.substring(0, 300) + '...' : cleanContent}
+                      </div>
                     </div>
                   )}
 
