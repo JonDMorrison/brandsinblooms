@@ -16,7 +16,8 @@ interface NewsletterToCRMResult {
 export const convertNewsletterToCRM = async (
   contentTaskId: string,
   title: string,
-  content: string
+  content: string,
+  preservedImages?: Record<string, any>
 ): Promise<NewsletterToCRMResult> => {
   console.log('🔄 Converting newsletter to CRM campaign', { contentTaskId, title });
 
@@ -56,8 +57,8 @@ export const convertNewsletterToCRM = async (
   // Generate subject line suggestions
   const subjectLine = generateSubjectLine(processed, title);
   
-  // Convert newsletter content to CRM blocks with layout and images
-  const { emailContent, blocks } = await convertToEmailBlocks(processed);
+  // Convert newsletter content to CRM blocks with layout and preserved images
+  const { emailContent, blocks } = await convertToEmailBlocks(processed, preservedImages);
 
   return {
     campaignName,
@@ -136,13 +137,13 @@ const generateSubjectLine = (processed: any, title: string): string => {
   return '🌱 Garden Care Tips - This Week\'s Focus';
 };
 
-const convertToEmailBlocks = async (processed: any): Promise<{ emailContent: string; blocks: ContentBlock[] }> => {
+const convertToEmailBlocks = async (processed: any, originalImages?: Record<string, any>): Promise<{ emailContent: string; blocks: ContentBlock[] }> => {
   const blocks: ContentBlock[] = [];
   
-  console.log('[CRM SYNC] Converting newsletter to CRM blocks with layouts and images');
+  console.log('[CRM SYNC] Converting newsletter to CRM blocks with preserved images');
   
   // Create header block from newsletter title and subtitle
-  const headerBlock = await createHeaderBlock(processed);
+  const headerBlock = await createHeaderBlock(processed, originalImages?.featured);
   if (headerBlock) {
     blocks.push(headerBlock);
     console.log(`[CRM SYNC] Created header block: ${headerBlock.title}`);
@@ -181,21 +182,43 @@ const convertToEmailBlocks = async (processed: any): Promise<{ emailContent: str
       return contentBlock;
     });
     
-    // Extract image prompts for batch fetching
-    const imagePrompts = processed.blocks.map((block: any) => 
-      block.image_prompt || block.alt_text || block.title || 'garden center newsletter image'
-    );
-    const images = await batchMediaSelector(imagePrompts, '/images/newsletter-fallback.jpg');
-    
-    // Assign images to blocks
-    newsletterBlocks.forEach((block, index) => {
-      const selectedImage = images[index];
-      block.imageUrl = selectedImage.url;
-      block.altText = selectedImage.alt;
+    // Use preserved images if available, otherwise fetch new ones
+    if (originalImages && Object.keys(originalImages).length > 0) {
+      console.log('[CRM SYNC] Using preserved newsletter images');
       
-      console.log(`[CRM SYNC] Image selected for "${block.title}":`, selectedImage.url);
-      blocks.push(block);
-    });
+      newsletterBlocks.forEach((block, index) => {
+        const preservedImage = originalImages[index];
+        if (preservedImage) {
+          block.imageUrl = preservedImage.url;
+          block.altText = preservedImage.alt;
+          console.log(`[CRM SYNC] Preserved image for "${block.title}":`, preservedImage.url);
+        } else {
+          // Fallback if no preserved image
+          block.imageUrl = '/images/newsletter-fallback.jpg';
+          block.altText = `Image for ${block.title}`;
+          console.log(`[CRM SYNC] Used fallback for "${block.title}"`);
+        }
+        blocks.push(block);
+      });
+    } else {
+      console.log('[CRM SYNC] No preserved images found, fetching new ones');
+      
+      // Extract image prompts for batch fetching
+      const imagePrompts = processed.blocks.map((block: any) => 
+        block.image_prompt || block.alt_text || block.title || 'garden center newsletter image'
+      );
+      const images = await batchMediaSelector(imagePrompts, '/images/newsletter-fallback.jpg');
+      
+      // Assign images to blocks
+      newsletterBlocks.forEach((block, index) => {
+        const selectedImage = images[index];
+        block.imageUrl = selectedImage.url;
+        block.altText = selectedImage.alt;
+        
+        console.log(`[CRM SYNC] Image selected for "${block.title}":`, selectedImage.url);
+        blocks.push(block);
+      });
+    }
   }
   
   // Process unstructured sections if available
@@ -230,21 +253,44 @@ const convertToEmailBlocks = async (processed: any): Promise<{ emailContent: str
       return contentBlock;
     });
     
-    // Extract image prompts for batch fetching
-    const sectionImagePrompts = processed.unstructuredSections.map((section: any) => 
-      section.image_prompt || section.title || 'garden center newsletter'
-    );
-    const sectionImages = await batchMediaSelector(sectionImagePrompts, '/images/newsletter-fallback.jpg');
-    
-    // Assign images to section blocks
-    sectionBlocks.forEach((block, index) => {
-      const selectedImage = sectionImages[index];
-      block.imageUrl = selectedImage.url;
-      block.altText = selectedImage.alt;
+    // Use preserved images for sections if available, otherwise fetch new ones
+    if (originalImages && Object.keys(originalImages).length > 0) {
+      console.log('[CRM SYNC] Using preserved images for unstructured sections');
       
-      console.log(`[CRM SYNC] Image selected for "${block.title}":`, selectedImage.url);
-      blocks.push(block);
-    });
+      sectionBlocks.forEach((block, index) => {
+        const section = processed.unstructuredSections[index];
+        const preservedImage = originalImages[section.id];
+        if (preservedImage) {
+          block.imageUrl = preservedImage.url;
+          block.altText = preservedImage.alt;
+          console.log(`[CRM SYNC] Preserved image for section "${block.title}":`, preservedImage.url);
+        } else {
+          // Fallback if no preserved image
+          block.imageUrl = '/images/newsletter-fallback.jpg';
+          block.altText = `Image for ${block.title}`;
+          console.log(`[CRM SYNC] Used fallback for section "${block.title}"`);
+        }
+        blocks.push(block);
+      });
+    } else {
+      console.log('[CRM SYNC] No preserved images found for sections, fetching new ones');
+      
+      // Extract image prompts for batch fetching
+      const sectionImagePrompts = processed.unstructuredSections.map((section: any) => 
+        section.image_prompt || section.title || 'garden center newsletter'
+      );
+      const sectionImages = await batchMediaSelector(sectionImagePrompts, '/images/newsletter-fallback.jpg');
+      
+      // Assign images to section blocks
+      sectionBlocks.forEach((block, index) => {
+        const selectedImage = sectionImages[index];
+        block.imageUrl = selectedImage.url;
+        block.altText = selectedImage.alt;
+        
+        console.log(`[CRM SYNC] Image selected for "${block.title}":`, selectedImage.url);
+        blocks.push(block);
+      });
+    }
   }
   
   // Generate HTML content for email (existing functionality)
@@ -375,7 +421,7 @@ const suggestSegment = (processed: any): string | undefined => {
   return undefined;
 };
 
-const createHeaderBlock = async (processed: any): Promise<ContentBlock | null> => {
+const createHeaderBlock = async (processed: any, preservedFeaturedImage?: any): Promise<ContentBlock | null> => {
   try {
     const newsletterMd = processed.newsletter_md || '';
     
@@ -389,17 +435,26 @@ const createHeaderBlock = async (processed: any): Promise<ContentBlock | null> =
     
     console.log(`[CRM SYNC] Creating header block with title: "${title}"`);
     
-    // Fetch header image with error handling
+    // Use preserved featured image if available, otherwise fetch new one
     let headerImage;
-    try {
-      const headerImagePrompt = `${title} garden newsletter header banner`;
-      headerImage = await mediaSelector({ 
-        prompt: headerImagePrompt, 
-        fallback: '/images/newsletter-fallback.jpg' 
-      });
-    } catch (imageError) {
-      console.warn('[CRM SYNC] Header image fetch failed:', imageError);
-      headerImage = { url: '/images/newsletter-fallback.jpg', alt: 'Newsletter header' };
+    if (preservedFeaturedImage) {
+      console.log('[CRM SYNC] Using preserved featured image for header');
+      headerImage = {
+        url: preservedFeaturedImage.url,
+        alt: preservedFeaturedImage.alt || 'Newsletter header'
+      };
+    } else {
+      console.log('[CRM SYNC] Fetching new header image');
+      try {
+        const headerImagePrompt = `${title} garden newsletter header banner`;
+        headerImage = await mediaSelector({ 
+          prompt: headerImagePrompt, 
+          fallback: '/images/newsletter-fallback.jpg' 
+        });
+      } catch (imageError) {
+        console.warn('[CRM SYNC] Header image fetch failed:', imageError);
+        headerImage = { url: '/images/newsletter-fallback.jpg', alt: 'Newsletter header' };
+      }
     }
     
     const headerBlock: ContentBlock = {

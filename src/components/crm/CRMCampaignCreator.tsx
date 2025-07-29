@@ -284,8 +284,31 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       
       console.log('🔄 Converting content (length:', fullContent.length, ')');
       
-      // Use the enhanced newsletter conversion system with layout and images
-      const result = await convertNewsletterToCRM(contentTaskId || 'url-content', title, fullContent);
+      // First, try to get preserved newsletter images from the content task
+      let preservedImages = {};
+      try {
+        if (contentTaskId) {
+          const { data: attachmentsData } = await supabase
+            .from('content_tasks')
+            .select('attachments')
+            .eq('id', contentTaskId)
+            .single();
+            
+          if (attachmentsData?.attachments && 
+              typeof attachmentsData.attachments === 'object' && 
+              attachmentsData.attachments !== null &&
+              'newsletter_images' in attachmentsData.attachments) {
+            const attachments = attachmentsData.attachments as Record<string, any>;
+            preservedImages = attachments.newsletter_images;
+            console.log('📸 Found preserved newsletter images:', Object.keys(preservedImages));
+          }
+        }
+      } catch (imageError) {
+        console.warn('⚠️ Could not fetch preserved images:', imageError);
+      }
+      
+      // Use the enhanced newsletter conversion system with preserved images
+      const result = await convertNewsletterToCRM(contentTaskId || 'url-content', title, fullContent, preservedImages);
       
       if (!result.blocks || result.blocks.length === 0) {
         throw new Error('Conversion resulted in no blocks');

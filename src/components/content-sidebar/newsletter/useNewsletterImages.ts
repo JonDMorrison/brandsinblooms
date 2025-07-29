@@ -198,6 +198,31 @@ export const useNewsletterImages = (
         if (newFeaturedImage) {
           setFeaturedImage(newFeaturedImage);
         }
+        
+        // Store images in content task for later CRM conversion
+        if (contentTaskId && (Object.keys(imageMap).length > 0 || newFeaturedImage)) {
+          try {
+            const newsletterImages = {
+              ...imageMap,
+              ...(newFeaturedImage && { featured: newFeaturedImage })
+            };
+            
+            console.log('[NEWSLETTER] Storing images for CRM preservation:', Object.keys(newsletterImages));
+            
+            await supabase
+              .from('content_tasks')
+              .update({
+                attachments: JSON.parse(JSON.stringify({
+                  newsletter_images: newsletterImages
+                }))
+              })
+              .eq('id', contentTaskId);
+              
+            console.log('[NEWSLETTER] Images successfully stored for CRM conversion');
+          } catch (storeError) {
+            console.warn('[NEWSLETTER] Failed to store images:', storeError);
+          }
+        }
       } catch (error) {
         console.error('[NEWSLETTER] Error in Promise.all:', error);
       } finally {
