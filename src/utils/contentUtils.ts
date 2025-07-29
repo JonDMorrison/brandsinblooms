@@ -260,13 +260,63 @@ export const cleanContentForDisplay = (content: string, postType: string = ''): 
   }
 };
 
+// Parse YAML newsletter content
+const parseNewsletterYaml = (content: string): { content: string } | null => {
+  try {
+    // Remove code block markers if present
+    const cleanContent = content.replace(/```yaml\s*/g, '').replace(/```\s*$/g, '');
+    
+    // Simple YAML parsing for newsletter_md format
+    if (cleanContent.includes('newsletter_md:')) {
+      const lines = cleanContent.split('\n');
+      let inNewsletterMd = false;
+      let newsletterContent = '';
+      
+      for (const line of lines) {
+        if (line.trim() === 'newsletter_md: |') {
+          inNewsletterMd = true;
+          continue;
+        }
+        
+        if (inNewsletterMd) {
+          // Stop when we hit another top-level key or end of content
+          if (line.trim() && !line.startsWith('  ') && !line.startsWith('#') && line.includes(':')) {
+            break;
+          }
+          
+          // Remove leading spaces (YAML indentation)
+          const cleanLine = line.startsWith('  ') ? line.slice(2) : line;
+          newsletterContent += cleanLine + '\n';
+        }
+      }
+      
+      return { content: newsletterContent.trim() };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error parsing YAML:', error);
+    return null;
+  }
+};
+
 // Clean newsletter content with better content preservation
 const cleanNewsletterForDisplay = (content: string): string => {
   if (!content || content.trim().length === 0) return '';
   
   console.log('📰 Cleaning newsletter content:', content.substring(0, 100) + '...');
   
-  // First try to parse as JSON newsletter
+  // First try to parse as YAML newsletter (new format)
+  const yamlParsed = parseNewsletterYaml(content);
+  if (yamlParsed && yamlParsed.content) {
+    console.log('📰 Found YAML newsletter structure');
+    const cleaned = stripAllNewsletterFormatting(yamlParsed.content);
+    if (cleaned && cleaned.length > 10) {
+      return cleaned;
+    }
+  }
+  
+  // Then try to parse as JSON newsletter (legacy format)
   const parsedNewsletter = parseNewsletterJson(content);
   if (parsedNewsletter) {
     console.log('📰 Found JSON newsletter structure');
