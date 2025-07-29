@@ -61,3 +61,47 @@ export const extractKeywordsFromContent = (content: string, fallback: string = '
   
   return words.length > 0 ? words : [fallback];
 };
+
+export const convertMarkdownToHtml = (markdown: string): string => {
+  if (!markdown) return '';
+  
+  let html = markdown;
+  
+  // Convert headers
+  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+  
+  // Convert bold text
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  
+  // Convert italic text
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  
+  // Convert bullet points
+  html = html.replace(/^- (.*$)/gim, '<li>$1</li>');
+  
+  // Wrap consecutive list items in ul tags
+  html = html.replace(/(<li>.*<\/li>)/gs, (match) => {
+    if (!match.includes('<ul>')) {
+      return '<ul>' + match + '</ul>';
+    }
+    return match;
+  });
+  
+  // Convert line breaks to paragraphs
+  const paragraphs = html.split(/\n\s*\n/);
+  html = paragraphs
+    .filter(p => p.trim())
+    .map(p => {
+      const trimmed = p.trim();
+      // Don't wrap if already contains block elements
+      if (trimmed.includes('<h') || trimmed.includes('<ul>') || trimmed.includes('<li>')) {
+        return trimmed;
+      }
+      return `<p>${trimmed}</p>`;
+    })
+    .join('\n\n');
+  
+  return html;
+};

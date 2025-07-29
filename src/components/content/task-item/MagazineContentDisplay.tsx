@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { cleanContentForDisplay } from '@/utils/contentUtils';
 import { cleanVideoContent, isVideoScriptContent } from '@/utils/videoContentCleaner';
+import { convertMarkdownToHtml } from '@/utils/markdownUtils';
 import { SafeHtml } from '@/components/ui/safe-html';
 import { stripEmojis } from '@/utils/contentValidation';
 import { validateFormattedContent, repairFormattedContent } from '@/utils/contentFormatValidator';
@@ -189,6 +190,9 @@ export const MagazineContentDisplay = ({
     if (postType === 'video') {
       console.log('🎬 Processing video content for display');
       processedContent = cleanVideoContent(content);
+    } else if (postType === 'blog') {
+      console.log('📝 Converting blog markdown to HTML');
+      processedContent = convertMarkdownToHtml(content);
     } else {
       // For other content types, use minimal processing to preserve content
       console.log('📝 Preserving content with minimal processing:', {
@@ -246,11 +250,11 @@ export const MagazineContentDisplay = ({
           </div>
         ) : postType === 'blog' ? (
           // Blog content uses SafeHtml for rich formatting
-          <div className="prose prose-lg max-w-none">
+          <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-ul:text-gray-700">
             <SafeHtml 
               content={processedContent} 
-              className="text-sm"
-              type="newsletter"
+              className=""
+              type="general"
             />
           </div>
         ) : postType === 'newsletter' ? (
