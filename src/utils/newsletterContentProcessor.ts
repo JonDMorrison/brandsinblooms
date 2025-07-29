@@ -401,7 +401,7 @@ const parseNewsletterYaml = (content: string): string | null => {
 const extractContentFromYamlString = (yamlString: string): string | null => {
   try {
     // Look for newsletter_md content with pipe syntax
-    const newsletterMdMatch = yamlString.match(/newsletter_md:\s*\|\s*\n([\s\S]*?)(?=\n\w+:|$)/);
+    const newsletterMdMatch = yamlString.match(/newsletter_md:\s*\|\s*\n([\s\S]*?)(?=\n(?:blocks|meta|extra_content_ideas|reading_time):|$)/);
     if (newsletterMdMatch) {
       // Extract content after the pipe, maintaining indentation structure
       const rawContent = newsletterMdMatch[1];
