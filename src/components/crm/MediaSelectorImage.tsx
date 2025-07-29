@@ -65,33 +65,57 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
     }
   }, [isSelecting]);
 
-  // Get modal root element
+  // Get modal root element and add debugging
   const modalRoot = document.getElementById('modal-root');
+  console.log('[MediaSelectorImage] Modal root found:', !!modalRoot, modalRoot);
   
   // If in selection mode, show the MediaSelector as a modal overlay using portal
-  if (isSelecting && modalRoot) {
+  if (isSelecting) {
     console.log('[MediaSelectorImage] Rendering modal - isSelecting:', isSelecting, 'isLoading:', isLoading);
+    console.log('[MediaSelectorImage] Modal root available:', !!modalRoot);
+    
+    if (!modalRoot) {
+      console.error('[MediaSelectorImage] Modal root not found! Creating fallback.');
+      // Fallback: render inline if modal root doesn't exist
+    }
     
     const modalContent = (
       <div 
         data-media-selector
         style={{ 
           position: 'fixed',
-          top: '0',
-          left: '0',
-          right: '0',
-          bottom: '0',
-          zIndex: 1000001,
+          top: '0px',
+          left: '0px',
+          right: '0px',
+          bottom: '0px',
+          width: '100vw',
+          height: '100vh',
+          zIndex: 999999,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backgroundColor: 'rgba(255, 0, 0, 0.8)', // RED DEBUG COLOR
           backdropFilter: 'blur(4px)',
           padding: '16px',
           pointerEvents: 'auto'
         }}
         onClick={handleBackdropClick}
       >
+        {/* DEBUG: Visible indicator */}
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          left: '10px',
+          background: 'yellow',
+          color: 'black',
+          padding: '10px',
+          zIndex: 1000000,
+          fontSize: '14px',
+          fontWeight: 'bold'
+        }}>
+          MODAL IS VISIBLE - DEBUG MODE
+        </div>
+        
         {/* Modal Content */}
         <div 
           style={{ 
@@ -106,7 +130,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
             maxHeight: '90vh',
             overflow: 'hidden',
             zIndex: 1000002,
-            border: '3px solid #ff0000'
+            border: '5px solid #00ff00' // GREEN DEBUG BORDER
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -145,8 +169,14 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
       </div>
     );
 
-    // Use React Portal to render modal to dedicated modal root
-    return createPortal(modalContent, modalRoot);
+    // Try different rendering approaches
+    if (modalRoot) {
+      console.log('[MediaSelectorImage] Rendering to modal root');
+      return createPortal(modalContent, modalRoot);
+    } else {
+      console.log('[MediaSelectorImage] Fallback: rendering to document.body');
+      return createPortal(modalContent, document.body);
+    }
   }
 
   // Default display mode
