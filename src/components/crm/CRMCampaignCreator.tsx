@@ -359,8 +359,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           rawContent: block.content,
           contentObj,
           extractedContent: contentObj.content || contentObj.body || '',
-          extractedTitle: contentObj.title || contentObj.headline || ''
+          extractedTitle: contentObj.title || contentObj.headline || '',
+          contentHasContent: !!(contentObj.content),
+          contentHasBody: !!(contentObj.body),
+          contentKeys: Object.keys(contentObj)
         });
+        
         
         return {
           id: block.id,
