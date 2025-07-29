@@ -29,12 +29,24 @@ export const ContentViewerDialog = ({
   const tasksWithContent = tasks.filter(task => task.ai_output && task.ai_output.trim() !== '');
   const tasksWithoutContent = tasks.filter(task => !task.ai_output || task.ai_output.trim() === '');
 
+  // Get unique content types present in tasks
+  const availableContentTypes = [...new Set(tasks.map(task => task.post_type))].filter(Boolean);
+  const showTabs = availableContentTypes.length > 1;
+  
   // Group tasks by type for tabs
   const facebookTasks = tasks.filter(task => task.post_type === 'facebook');
   const instagramTasks = tasks.filter(task => task.post_type === 'instagram');
   const blogTasks = tasks.filter(task => task.post_type === 'blog');
   const videoTasks = tasks.filter(task => task.post_type === 'video');
   const newsletterTasks = tasks.filter(task => task.post_type === 'newsletter');
+
+  const contentTypeMap: Record<string, { label: string; tasks: any[] }> = {
+    facebook: { label: 'Facebook', tasks: facebookTasks },
+    instagram: { label: 'Instagram', tasks: instagramTasks },
+    blog: { label: 'Blog', tasks: blogTasks },
+    video: { label: 'Video', tasks: videoTasks },
+    newsletter: { label: 'Newsletter', tasks: newsletterTasks }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -91,17 +103,52 @@ export const ContentViewerDialog = ({
                   </div>
                 )}
 
-                <Tabs defaultValue="all" className="w-full">
-                  <TabsList className="grid w-full grid-cols-6">
-                    <TabsTrigger value="all">All</TabsTrigger>
-                    <TabsTrigger value="facebook">Facebook</TabsTrigger>
-                    <TabsTrigger value="instagram">Instagram</TabsTrigger>
-                    <TabsTrigger value="blog">Blog</TabsTrigger>
-                    <TabsTrigger value="video">Video</TabsTrigger>
-                    <TabsTrigger value="newsletter">Newsletter</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="all" className="space-y-4">
+                {showTabs ? (
+                  <Tabs defaultValue={availableContentTypes.length > 1 ? "all" : availableContentTypes[0]} className="w-full">
+                    <TabsList className={`grid w-full grid-cols-${availableContentTypes.length > 1 ? availableContentTypes.length + 1 : availableContentTypes.length}`}>
+                      {availableContentTypes.length > 1 && <TabsTrigger value="all">All</TabsTrigger>}
+                      {availableContentTypes.map(type => (
+                        <TabsTrigger key={type} value={type}>
+                          {contentTypeMap[type]?.label || type}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    
+                    {availableContentTypes.length > 1 && (
+                      <TabsContent value="all" className="space-y-4">
+                        <div className="grid gap-4">
+                          {tasks.map((task) => (
+                            <ContentTaskItem 
+                              key={task.id} 
+                              task={task} 
+                              onTaskUpdate={onTaskUpdate}
+                            />
+                          ))}
+                        </div>
+                      </TabsContent>
+                    )}
+                    
+                    {availableContentTypes.map(type => (
+                      <TabsContent key={type} value={type} className="space-y-4">
+                        <div className="grid gap-4">
+                          {contentTypeMap[type]?.tasks.map((task) => (
+                            <ContentTaskItem 
+                              key={task.id} 
+                              task={task} 
+                              onTaskUpdate={onTaskUpdate}
+                            />
+                          ))}
+                        </div>
+                      </TabsContent>
+                    ))}
+                  </Tabs>
+                ) : (
+                  <div className="space-y-4">
+                    {availableContentTypes.length === 1 && (
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {contentTypeMap[availableContentTypes[0]]?.label || availableContentTypes[0]} Content
+                      </h3>
+                    )}
                     <div className="grid gap-4">
                       {tasks.map((task) => (
                         <ContentTaskItem 
@@ -111,68 +158,8 @@ export const ContentViewerDialog = ({
                         />
                       ))}
                     </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="facebook" className="space-y-4">
-                    <div className="grid gap-4">
-                      {facebookTasks.map((task) => (
-                        <ContentTaskItem 
-                          key={task.id} 
-                          task={task} 
-                          onTaskUpdate={onTaskUpdate}
-                        />
-                      ))}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="instagram" className="space-y-4">
-                    <div className="grid gap-4">
-                      {instagramTasks.map((task) => (
-                        <ContentTaskItem 
-                          key={task.id} 
-                          task={task} 
-                          onTaskUpdate={onTaskUpdate}
-                        />
-                      ))}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="blog" className="space-y-4">
-                    <div className="grid gap-4">
-                      {blogTasks.map((task) => (
-                        <ContentTaskItem 
-                          key={task.id} 
-                          task={task} 
-                          onTaskUpdate={onTaskUpdate}
-                        />
-                      ))}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="video" className="space-y-4">
-                    <div className="grid gap-4">
-                      {videoTasks.map((task) => (
-                        <ContentTaskItem 
-                          key={task.id} 
-                          task={task} 
-                          onTaskUpdate={onTaskUpdate}
-                        />
-                      ))}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="newsletter" className="space-y-4">
-                    <div className="grid gap-4">
-                      {newsletterTasks.map((task) => (
-                        <ContentTaskItem 
-                          key={task.id} 
-                          task={task} 
-                          onTaskUpdate={onTaskUpdate}
-                        />
-                      ))}
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                )}
               </div>
             )}
           </div>
