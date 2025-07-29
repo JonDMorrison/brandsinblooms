@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -88,6 +88,129 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   } | null>(null);
   const [existingCampaignId, setExistingCampaignId] = useState<string | null>(null);
   const [loadingExistingCampaign, setLoadingExistingCampaign] = useState(false);
+
+  // Auto-save functionality for CRM campaigns
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const autoSaveCampaign = useCallback(async (campaignData: {
+    blocks: ContentBlock[];
+    campaign_name: string;
+    subject_line: string;
+    preheader: string;
+  }) => {
+    if (!existingCampaignId || isAutoSaving) return;
+    
+    try {
+      setIsAutoSaving(true);
+      console.log('🔄 Auto-saving CRM campaign:', existingCampaignId);
+      
+      // Update campaign metadata
+      const { error: campaignError } = await supabase
+        .from('crm_campaigns')
+        .update({
+          name: campaignData.campaign_name,
+          subject: campaignData.subject_line,
+          preheader: campaignData.preheader,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingCampaignId);
+
+      if (campaignError) throw campaignError;
+
+      // Delete existing blocks and recreate them
+      await supabase
+        .from('campaign_blocks')
+        .delete()
+        .eq('campaign_id', existingCampaignId);
+
+      // Insert updated blocks
+      if (campaignData.blocks.length > 0) {
+        const blocksToSave = campaignData.blocks.map((block, index) => ({
+          campaign_id: existingCampaignId,
+          block_type: block.type,
+          content: {
+            title: block.title || block.headline,
+            content: block.content || block.body,
+            headline: block.headline,
+            body: block.body,
+            alignment: block.alignment,
+            padding: block.padding,
+            margin: block.margin,
+            fontFamily: block.fontFamily,
+            fontSize: block.fontSize,
+            textColor: block.textColor,
+            backgroundColor: block.backgroundColor,
+            backgroundImageUrl: block.backgroundImageUrl,
+            backgroundOpacity: block.backgroundOpacity,
+            layout: block.layout,
+            caption: block.caption,
+            altText: block.altText,
+            buttonText: block.buttonText,
+            buttonUrl: block.buttonUrl,
+            ctaStyle: block.ctaStyle,
+            ctaSize: block.ctaSize,
+            quote: block.quote,
+            author: block.author,
+            authorTitle: block.authorTitle,
+            visible: block.visible,
+            collapsed: block.collapsed
+          },
+          image_url: block.imageUrl,
+          cta_url: block.ctaUrl || block.buttonUrl,
+          cta_text: block.ctaText || block.buttonText,
+          source: block.source || 'manual',
+          persona_tag: block.personaTag,
+          order_index: index
+        }));
+
+        const { error: blocksError } = await supabase
+          .from('campaign_blocks')
+          .insert(blocksToSave);
+
+        if (blocksError) throw blocksError;
+      }
+
+      setLastSaved(new Date());
+      setSaveError(false);
+      console.log('✅ Auto-save successful');
+      
+    } catch (error) {
+      console.error('❌ Auto-save failed:', error);
+      setSaveError(true);
+      toast({
+        title: "Auto-save failed",
+        description: "Your changes may not be saved. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [existingCampaignId, isAutoSaving, toast]);
+
+  const debouncedAutoSave = useCallback((campaignData: {
+    blocks: ContentBlock[];
+    campaign_name: string;
+    subject_line: string;
+    preheader: string;
+  }) => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSaveCampaign(campaignData);
+    }, 2000);
+  }, [autoSaveCampaign]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Check for existing campaign and load session data
   useEffect(() => {
@@ -629,7 +752,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             <p className="text-muted-foreground">Build and customize your email campaign</p>
             <SaveIndicator 
               lastSaved={lastSaved} 
-              saving={loading} 
+              saving={loading || isAutoSaving} 
               error={saveError} 
             />
           </div>
@@ -663,35 +786,68 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="campaign-name">Campaign Name</Label>
-              <Input
-                id="campaign-name"
-                value={campaignName}
-                onChange={(e) => setCampaignName(e.target.value)}
-                placeholder="Enter campaign name"
-                className="mt-1"
-              />
+               <Input
+                 id="campaign-name"
+                 value={campaignName}
+                 onChange={(e) => {
+                   setCampaignName(e.target.value);
+                   // Auto-save campaign settings when they change
+                   if (existingCampaignId) {
+                     debouncedAutoSave({
+                       blocks,
+                       campaign_name: e.target.value,
+                       subject_line: subjectLine,
+                       preheader: preheaderText
+                     });
+                   }
+                 }}
+                 placeholder="Enter campaign name"
+                 className="mt-1"
+               />
             </div>
             
             <div>
               <Label htmlFor="subject-line">Subject Line</Label>
-              <Input
-                id="subject-line"
-                value={subjectLine}
-                onChange={(e) => setSubjectLine(e.target.value)}
-                placeholder="Enter subject line"
-                className="mt-1"
-              />
+               <Input
+                 id="subject-line"
+                 value={subjectLine}
+                 onChange={(e) => {
+                   setSubjectLine(e.target.value);
+                   // Auto-save campaign settings when they change
+                   if (existingCampaignId) {
+                     debouncedAutoSave({
+                       blocks,
+                       campaign_name: campaignName,
+                       subject_line: e.target.value,
+                       preheader: preheaderText
+                     });
+                   }
+                 }}
+                 placeholder="Enter subject line"
+                 className="mt-1"
+               />
             </div>
             
             <div>
               <Label htmlFor="preheader">Preheader Text</Label>
-              <Input
-                id="preheader"
-                value={preheaderText}
-                onChange={(e) => setPreheaderText(e.target.value)}
-                placeholder="Optional preheader text"
-                className="mt-1"
-              />
+               <Input
+                 id="preheader"
+                 value={preheaderText}
+                 onChange={(e) => {
+                   setPreheaderText(e.target.value);
+                   // Auto-save campaign settings when they change
+                   if (existingCampaignId) {
+                     debouncedAutoSave({
+                       blocks,
+                       campaign_name: campaignName,
+                       subject_line: subjectLine,
+                       preheader: e.target.value
+                     });
+                   }
+                 }}
+                 placeholder="Optional preheader text"
+                 className="mt-1"
+               />
             </div>
           </div>
         </CardContent>
@@ -705,7 +861,21 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         <CardContent>
           <CleanEmailBlockEditor
             blocks={blocks}
-            onBlocksChange={setBlocks}
+            onBlocksChange={(newBlocks) => {
+              console.log('[CRM CAMPAIGN CREATOR] Blocks changed:', newBlocks.length);
+              setBlocks(newBlocks);
+              
+              // Auto-save when blocks change
+              if (existingCampaignId && newBlocks.length > 0) {
+                console.log('[CRM CAMPAIGN CREATOR] Triggering auto-save for blocks');
+                debouncedAutoSave({
+                  blocks: newBlocks,
+                  campaign_name: campaignName,
+                  subject_line: subjectLine,
+                  preheader: preheaderText
+                });
+              }
+            }}
           />
         </CardContent>
       </Card>
