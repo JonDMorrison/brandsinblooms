@@ -108,7 +108,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   };
 
   return (
-    <div className="group relative" style={{ position: 'relative', zIndex: 1 }}>
+    <div className={cn("group relative click-to-edit-container", isEditing && "click-to-edit-editing")} style={{ position: 'relative', zIndex: 1 }}>
       {/* Drag Handle - appears on hover */}
       <div className="absolute -left-8 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
         <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
@@ -187,14 +187,14 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       <Card
         ref={blockRef}
         className={cn(
-          "transition-all duration-200",
+          "transition-all duration-200 click-to-edit-block",
           isEditing ? "shadow-md ring-2 ring-primary/20" : "hover:shadow-sm",
           block.visible === false && "opacity-60"
         )}
-        style={{ pointerEvents: 'auto' }}
+        style={{ pointerEvents: 'auto', overflow: 'visible' }}
       >
         {isEditing ? (
-          <div ref={editingRef} className="p-6">
+          <div ref={editingRef} className="p-6 click-to-edit-editor">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium">Editing {block.type} block</h3>
               <div className="flex gap-2">

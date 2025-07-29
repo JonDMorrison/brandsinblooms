@@ -1,0 +1,51 @@
+/* Click-to-Edit Component Styling */
+
+/* Ensure smooth scrolling during editing states */
+.click-to-edit-container {
+  scroll-behavior: smooth;
+}
+
+/* Prevent layout shifts when entering edit mode */
+.click-to-edit-block {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+/* Ensure editing interface doesn't break scrolling */
+.click-to-edit-editing {
+  /* Prevent the editor from affecting page scroll */
+  overflow: visible;
+  position: relative;
+  z-index: 10;
+}
+
+/* Ensure form controls don't prevent scroll events */
+.click-to-edit-editor input,
+.click-to-edit-editor textarea,
+.click-to-edit-editor select {
+  /* Allow scroll events to bubble up */
+  pointer-events: auto;
+}
+
+/* Preserve scrollability on mobile */
+@media (max-width: 768px) {
+  .click-to-edit-container {
+    touch-action: pan-y; /* Allow vertical scrolling */
+  }
+  
+  .click-to-edit-editing {
+    /* Ensure mobile editing doesn't block scrolling */
+    overflow-y: visible;
+  }
+}
+
+/* Defensive CSS to prevent scroll locks */
+body.editing-block {
+  overflow-y: auto !important;
+}
+
+/* Ensure proper z-index for editing overlays */
+.click-to-edit-overlay {
+  z-index: 50;
+  position: relative;
+}

@@ -4,6 +4,7 @@
 @import './components/smart-time/smart-time.css';
 @import './styles/overrides/production-cleanup.css';
 @import './styles/mobile/campaign-creator.css';
+@import './styles/click-to-edit.css';
 
 /* Checkered background pattern for image transparency */
 .bg-checkered {
@@ -20,7 +21,6 @@
 @layer base {
 html {
   @apply antialiased;
-  scroll-behavior: auto !important;
 }
 }
 
