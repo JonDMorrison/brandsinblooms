@@ -212,7 +212,21 @@ blocks:
     cta: "Plan tree strategy"
     link: "#"
     image_prompt: "beautiful mature trees enhancing property value"
-    alt_text: "Mature trees adding property value"`;
+    alt_text: "Mature trees adding property value"
+extra_content_ideas:
+  - title: "Professional Tree Pruning Secrets"
+    quick_desc: "Expert pruning techniques for healthy tree growth"
+  - title: "Soil Health for Strong Trees"
+    quick_desc: "Soil amendments that promote strong root systems"
+  - title: "Tree Disease Prevention Guide"
+    quick_desc: "Protect trees from common diseases naturally"
+  - title: "Strategic Tree Planting Timeline"
+    quick_desc: "Best timing for tree planting and establishment"
+meta:
+  reading_time: "≈3 min"
+  theme: "${theme}"
+  week_focus: "${contextualFocus}"
+\`\`\``;
       } else {
         return `
 \`\`\`yaml
@@ -258,25 +272,25 @@ blocks:
     cta: "Plan your garden success"
     link: "#"
     image_prompt: "garden planning preparation for success"
-    alt_text: "Garden planning for success"`;
-      }
-    };
-
-    const yamlTemplate = generateThemeSpecificTemplate(theme, businessName)
+    alt_text: "Garden planning for success"
 extra_content_ideas:
-  - title: "${theme.toLowerCase().includes('tree') ? 'Professional Tree Pruning Secrets' : 'The Watering Secret Pros Use'}"
-    quick_desc: "${theme.toLowerCase().includes('tree') ? 'Expert pruning techniques for healthy tree growth' : 'Advanced watering techniques for maximum plant health'}"
-  - title: "${theme.toLowerCase().includes('tree') ? 'Soil Health for Strong Trees' : 'Soil Transformation Magic'}"
-    quick_desc: "${theme.toLowerCase().includes('tree') ? 'Soil amendments that promote strong root systems' : 'Turn poor soil into plant paradise'}"
-  - title: "${theme.toLowerCase().includes('tree') ? 'Tree Disease Prevention Guide' : 'Natural Pest Defense System'}"
-    quick_desc: "${theme.toLowerCase().includes('tree') ? 'Protect trees from common diseases naturally' : 'Protect plants without harmful chemicals'}"
-  - title: "${theme.toLowerCase().includes('tree') ? 'Strategic Tree Planting Timeline' : 'Seasonal Planting Power Strategy'}"
-    quick_desc: "${theme.toLowerCase().includes('tree') ? 'Best timing for tree planting and establishment' : 'Time plantings for maximum success'}"
+  - title: "The Watering Secret Pros Use"
+    quick_desc: "Advanced watering techniques for maximum plant health"
+  - title: "Soil Transformation Magic"
+    quick_desc: "Turn poor soil into plant paradise"
+  - title: "Natural Pest Defense System"
+    quick_desc: "Protect plants without harmful chemicals"
+  - title: "Seasonal Planting Power Strategy"
+    quick_desc: "Time plantings for maximum success"
 meta:
   reading_time: "≈3 min"
   theme: "${theme}"
   week_focus: "${contextualFocus}"
 \`\`\``;
+      }
+    };
+
+    const yamlTemplate = generateThemeSpecificTemplate(theme, businessName);
 
     console.log('Calling OpenAI API for StoryBrand newsletter generation...');
 
