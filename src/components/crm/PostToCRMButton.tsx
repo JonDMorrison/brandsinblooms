@@ -37,14 +37,29 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
       
       setCheckingLink(true);
       try {
+        console.log('🔍 PostToCRMButton: Checking for existing CRM link for task:', task.id);
+        
         const { data, error } = await supabase
           .from('content_tasks')
           .select('linked_crm_campaign_id')
           .eq('id', task.id)
           .single();
 
+        console.log('📊 PostToCRMButton: Link check result:', { 
+          data, 
+          error,
+          taskId: task.id,
+          linkedCampaignId: data?.linked_crm_campaign_id 
+        });
+
         if (error) throw error;
         setLinkedCampaignId(data?.linked_crm_campaign_id || null);
+        
+        if (data?.linked_crm_campaign_id) {
+          console.log('✅ PostToCRMButton: Found existing CRM campaign link:', data.linked_crm_campaign_id);
+        } else {
+          console.log('❌ PostToCRMButton: No existing CRM campaign link found');
+        }
       } catch (error) {
         console.error('Error checking CRM link:', error);
       } finally {
