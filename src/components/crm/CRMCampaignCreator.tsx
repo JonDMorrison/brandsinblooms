@@ -348,68 +348,135 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         preheader: campaign.preheader
       });
 
-      // Convert campaign blocks back to ContentBlocks
-      const contentBlocks: ContentBlock[] = campaignBlocks.map((block, index) => {
-        const blockContent = typeof block.content === 'object' && block.content !== null ? block.content : {};
-        const contentObj = blockContent as Record<string, any>;
-        
-        // Handle double nesting: block.content.content.* 
-        const nestedContent = typeof contentObj.content === 'object' && contentObj.content !== null ? contentObj.content : {};
-        const nestedContentObj = nestedContent as Record<string, any>;
-        
+      // Convert campaign blocks back to ContentBlocks using enhanced transformBlock function
+      const transformBlock = (block: any): ContentBlock => {
         console.log('🔍 Transforming block:', {
           blockId: block.id,
           blockType: block.block_type,
           rawContent: block.content,
-          contentObj,
-          nestedContentObj,
-          extractedContent: nestedContentObj.body || nestedContentObj.headline || contentObj.content || contentObj.body || '',
-          extractedTitle: nestedContentObj.headline || nestedContentObj.title || contentObj.title || contentObj.headline || '',
-          contentHasContent: !!(contentObj.content),
-          contentHasBody: !!(contentObj.body),
-          nestedHasContent: !!(nestedContentObj.body || nestedContentObj.headline),
-          contentKeys: Object.keys(contentObj),
-          nestedKeys: Object.keys(nestedContentObj)
+          imageUrl: block.image_url,
+          ctaUrl: block.cta_url,
+          ctaText: block.cta_text
         });
+
+        // Parse the content if it's a string
+        let contentObj = block.content;
+        if (typeof block.content === 'string') {
+          try {
+            contentObj = JSON.parse(block.content);
+          } catch (e) {
+            console.warn('Failed to parse block content as JSON:', e);
+            contentObj = {};
+          }
+        } else if (!block.content || typeof block.content !== 'object') {
+          contentObj = {};
+        }
+
+        // Handle nested content structure (content.content)
+        const nestedContentObj = contentObj?.content || {};
         
-        
-        return {
-          id: block.id,
-          type: block.block_type as ContentBlock['type'],
-          content: nestedContentObj.body || nestedContentObj.headline || contentObj.content || contentObj.body || '',
-          title: nestedContentObj.headline || nestedContentObj.title || contentObj.title || contentObj.headline || '',
-          headline: contentObj.headline,
-          body: contentObj.body,
-          source: (block.source as ContentBlock['source']) || 'manual',
-          ...(block.image_url && { imageUrl: block.image_url }),
-          // Extract image properties from nested content
+        // Extract all possible fields from various levels
+        const extractedContent = { 
+          ...contentObj, 
+          ...nestedContentObj,
+          // Also check for direct fields
+          ...(contentObj.headline && { headline: contentObj.headline }),
+          ...(contentObj.title && { title: contentObj.title }),
+          ...(contentObj.body && { body: contentObj.body }),
+          ...(contentObj.content && typeof contentObj.content === 'string' && { body: contentObj.content }),
+          ...(contentObj.image_url && { imageUrl: contentObj.image_url }),
+          ...(contentObj.alt_text && { altText: contentObj.alt_text }),
+          ...(contentObj.button_text && { buttonText: contentObj.button_text }),
+          ...(contentObj.button_url && { buttonUrl: contentObj.button_url }),
+          // Override with nested values if they exist
+          ...(nestedContentObj.headline && { headline: nestedContentObj.headline }),
+          ...(nestedContentObj.title && { title: nestedContentObj.title }),
+          ...(nestedContentObj.body && { body: nestedContentObj.body }),
           ...(nestedContentObj.imageUrl && { imageUrl: nestedContentObj.imageUrl }),
           ...(nestedContentObj.altText && { altText: nestedContentObj.altText }),
-          ...(nestedContentObj.buttonUrl && { buttonUrl: nestedContentObj.buttonUrl }),
           ...(nestedContentObj.buttonText && { buttonText: nestedContentObj.buttonText }),
-          ...(block.cta_url && { ctaUrl: block.cta_url }),
-          ...(block.cta_text && { ctaText: block.cta_text }),
-          visible: contentObj.visible !== false,
-          collapsed: contentObj.collapsed || false,
-          // Copy other properties from saved content
-          alignment: contentObj.alignment,
-          padding: contentObj.padding,
-          margin: contentObj.margin,
-          fontFamily: contentObj.fontFamily,
-          fontSize: contentObj.fontSize,
-          textColor: contentObj.textColor,
-          backgroundColor: nestedContentObj.backgroundColor || contentObj.backgroundColor,
-          backgroundImageUrl: contentObj.backgroundImageUrl,
-          backgroundOpacity: contentObj.backgroundOpacity,
-          layout: nestedContentObj.layout || contentObj.layout,
-          caption: contentObj.caption,
-          ctaStyle: contentObj.ctaStyle,
-          ctaSize: contentObj.ctaSize,
-          quote: contentObj.quote,
-          author: contentObj.author,
-          authorTitle: contentObj.authorTitle
+          ...(nestedContentObj.buttonUrl && { buttonUrl: nestedContentObj.buttonUrl }),
+          ...(nestedContentObj.backgroundColor && { backgroundColor: nestedContentObj.backgroundColor }),
+          ...(nestedContentObj.layout && { layout: nestedContentObj.layout })
         };
-      });
+
+        console.log('📋 Content extraction details:', {
+          blockId: block.id,
+          originalContentObj: contentObj,
+          nestedContentObj,
+          extractedContent: {
+            headline: extractedContent.headline,
+            title: extractedContent.title,
+            body: extractedContent.body,
+            imageUrl: extractedContent.imageUrl,
+            altText: extractedContent.altText,
+            buttonText: extractedContent.buttonText,
+            buttonUrl: extractedContent.buttonUrl,
+            backgroundColor: extractedContent.backgroundColor,
+            layout: extractedContent.layout
+          }
+        });
+
+        // Build the transformed block with comprehensive field mapping
+        const transformedBlock: ContentBlock = {
+          id: block.id,
+          type: block.block_type as ContentBlock['type'],
+          title: extractedContent.title || extractedContent.headline || 'Untitled Block',
+          headline: extractedContent.headline || extractedContent.title,
+          body: extractedContent.body || extractedContent.content,
+          content: extractedContent.body || extractedContent.content || '',
+          source: (block.source as ContentBlock['source']) || 'manual',
+          // Image fields
+          imageUrl: extractedContent.imageUrl || block.image_url,
+          altText: extractedContent.altText || extractedContent.alt_text,
+          caption: extractedContent.caption,
+          // Button/CTA fields
+          buttonText: extractedContent.buttonText || extractedContent.button_text || block.cta_text,
+          buttonUrl: extractedContent.buttonUrl || extractedContent.button_url || block.cta_url,
+          ctaText: extractedContent.ctaText || extractedContent.button_text || block.cta_text,
+          ctaUrl: extractedContent.ctaUrl || extractedContent.button_url || block.cta_url,
+          ctaStyle: extractedContent.ctaStyle,
+          ctaSize: extractedContent.ctaSize,
+          // Layout and styling
+          visible: extractedContent.visible !== false,
+          collapsed: extractedContent.collapsed || false,
+          layout: extractedContent.layout || 'full-width',
+          alignment: extractedContent.alignment || 'left',
+          padding: extractedContent.padding || 'medium',
+          margin: extractedContent.margin,
+          // Typography
+          fontFamily: extractedContent.fontFamily,
+          fontSize: extractedContent.fontSize,
+          textColor: extractedContent.textColor,
+          textAlign: extractedContent.textAlign || extractedContent.alignment,
+          // Background
+          backgroundColor: extractedContent.backgroundColor || extractedContent.background_color,
+          backgroundImageUrl: extractedContent.backgroundImageUrl,
+          backgroundOpacity: extractedContent.backgroundOpacity,
+          // Newsletter-specific
+          quote: extractedContent.quote,
+          author: extractedContent.author,
+          authorTitle: extractedContent.authorTitle,
+          issueNumber: extractedContent.issueNumber,
+          publishDate: extractedContent.publishDate
+        };
+
+        // Dev logging
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🧱 Hydrated contentObj:', {
+            blockId: transformedBlock.id,
+            type: transformedBlock.type,
+            headline: transformedBlock.headline,
+            body: transformedBlock.body,
+            imageUrl: transformedBlock.imageUrl,
+            hasContent: !!(transformedBlock.headline || transformedBlock.body || transformedBlock.imageUrl)
+          });
+        }
+
+        return transformedBlock;
+      };
+
+      const contentBlocks: ContentBlock[] = campaignBlocks.map(transformBlock);
 
       setBlocks(contentBlocks);
 
