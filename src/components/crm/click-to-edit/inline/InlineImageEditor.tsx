@@ -27,33 +27,28 @@ export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-background/95 z-50 flex items-start justify-center p-4 backdrop-blur">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border-2 border-primary/20">
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Select Image</h3>
-            <Button variant="ghost" size="sm" onClick={onCancel}>
-              ✕
-            </Button>
-          </div>
-          
-          <MediaSelectorImage
-            src={imageUrl}
-            onChange={handleImageChange}
-            contentContext={contentContext}
-            className="w-full min-h-[400px]"
-          />
-          
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button onClick={onSave}>
-              Done
-            </Button>
-          </div>
+    <Card className={`p-4 shadow-lg border-2 border-primary/20 ${className}`}>
+      <div className="space-y-4">
+        <div className="text-sm font-medium text-center mb-3">
+          Select Image
         </div>
-      </Card>
-    </div>
+        
+        <MediaSelectorImage
+          src={imageUrl}
+          onChange={handleImageChange}
+          contentContext={contentContext}
+          className="w-full h-64"
+        />
+        
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={onSave}>
+            Done
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 };
