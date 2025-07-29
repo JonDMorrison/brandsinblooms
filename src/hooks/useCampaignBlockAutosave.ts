@@ -17,6 +17,28 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
     try {
       options.onSaveStart?.();
       
+      // Create the complete content structure that includes all block properties
+      // Store the full block as content to preserve all properties during save/load
+      const fullContent = {
+        ...block.content,
+        // Store the entire block structure to avoid losing properties
+        fullBlock: {
+          ...block,
+          // Remove circular references and database-specific fields
+          content: block.content,
+          created_at: undefined,
+          updated_at: undefined,
+          campaign_id: undefined
+        }
+      };
+
+      console.log('[AUTO-SAVE] Saving block with full content structure:', {
+        blockId: block.id,
+        blockType: block.block_type,
+        hasFullBlock: !!fullContent.fullBlock,
+        contentKeys: Object.keys(fullContent)
+      });
+
       // Use upsert to either insert or update the block
       const { error: upsertError } = await supabase
         .from('campaign_blocks')
@@ -24,7 +46,7 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
           id: block.id,
           campaign_id: campaignId,
           order_index: block.order_index || 0,
-          content: block.content,
+          content: fullContent,
           block_type: block.block_type,
           image_url: block.image_url || null,
           cta_url: block.cta_url || null,

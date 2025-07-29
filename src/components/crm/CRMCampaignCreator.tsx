@@ -372,48 +372,85 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           contentObj = {};
         }
 
-        // Handle nested content structure (content.content)
-        const nestedContentObj = contentObj?.content || {};
-        
-        // Extract all possible fields from various levels
-        const extractedContent = { 
-          ...contentObj, 
-          ...nestedContentObj,
-          // Also check for direct fields
-          ...(contentObj.headline && { headline: contentObj.headline }),
-          ...(contentObj.title && { title: contentObj.title }),
-          ...(contentObj.body && { body: contentObj.body }),
-          ...(contentObj.content && typeof contentObj.content === 'string' && { body: contentObj.content }),
-          ...(contentObj.image_url && { imageUrl: contentObj.image_url }),
-          ...(contentObj.alt_text && { altText: contentObj.alt_text }),
-          ...(contentObj.button_text && { buttonText: contentObj.button_text }),
-          ...(contentObj.button_url && { buttonUrl: contentObj.button_url }),
-          // Override with nested values if they exist
-          ...(nestedContentObj.headline && { headline: nestedContentObj.headline }),
-          ...(nestedContentObj.title && { title: nestedContentObj.title }),
-          ...(nestedContentObj.body && { body: nestedContentObj.body }),
-          ...(nestedContentObj.imageUrl && { imageUrl: nestedContentObj.imageUrl }),
-          ...(nestedContentObj.altText && { altText: nestedContentObj.altText }),
-          ...(nestedContentObj.buttonText && { buttonText: nestedContentObj.buttonText }),
-          ...(nestedContentObj.buttonUrl && { buttonUrl: nestedContentObj.buttonUrl }),
-          ...(nestedContentObj.backgroundColor && { backgroundColor: nestedContentObj.backgroundColor }),
-          ...(nestedContentObj.layout && { layout: nestedContentObj.layout })
-        };
+        // Check if we have the new fullBlock structure saved from the updated auto-save
+        const fullBlock = contentObj?.fullBlock;
+        if (fullBlock) {
+          console.log('[HYDRATION] Found fullBlock structure, using saved block data:', {
+            blockId: block.id,
+            savedBlockType: fullBlock.block_type,
+            savedHeadline: fullBlock.content?.headline,
+            savedContent: fullBlock.content
+          });
+          
+          // Use the saved full block structure directly
+          const extractedContent = {
+            ...fullBlock.content,
+            // Ensure these key fields are preserved
+            headline: fullBlock.content?.headline,
+            title: fullBlock.content?.title,
+            body: fullBlock.content?.body,
+            imageUrl: fullBlock.content?.imageUrl,
+            altText: fullBlock.content?.altText,
+            buttonText: fullBlock.content?.buttonText,
+            buttonUrl: fullBlock.content?.buttonUrl,
+            backgroundColor: fullBlock.content?.backgroundColor,
+            backgroundImageUrl: fullBlock.content?.backgroundImageUrl,
+            backgroundOpacity: fullBlock.content?.backgroundOpacity,
+            textAlign: fullBlock.content?.textAlign,
+            layout: fullBlock.content?.layout
+          };
+
+          console.log('[HYDRATION] Extracted content from fullBlock:', extractedContent);
+          
+          // Use the extracted content for transformation
+          var finalExtractedContent = extractedContent;
+        } else {
+          // Fallback to legacy hydration logic for older blocks
+          console.log('[HYDRATION] Using legacy hydration for block:', block.id);
+          
+          // Handle nested content structure (content.content)
+          const nestedContentObj = contentObj?.content || {};
+          
+          // Extract all possible fields from various levels
+          var finalExtractedContent = { 
+            ...contentObj, 
+            ...nestedContentObj,
+            // Also check for direct fields
+            ...(contentObj.headline && { headline: contentObj.headline }),
+            ...(contentObj.title && { title: contentObj.title }),
+            ...(contentObj.body && { body: contentObj.body }),
+            ...(contentObj.content && typeof contentObj.content === 'string' && { body: contentObj.content }),
+            ...(contentObj.image_url && { imageUrl: contentObj.image_url }),
+            ...(contentObj.alt_text && { altText: contentObj.alt_text }),
+            ...(contentObj.button_text && { buttonText: contentObj.button_text }),
+            ...(contentObj.button_url && { buttonUrl: contentObj.button_url }),
+            // Override with nested values if they exist
+            ...(nestedContentObj.headline && { headline: nestedContentObj.headline }),
+            ...(nestedContentObj.title && { title: nestedContentObj.title }),
+            ...(nestedContentObj.body && { body: nestedContentObj.body }),
+            ...(nestedContentObj.imageUrl && { imageUrl: nestedContentObj.imageUrl }),
+            ...(nestedContentObj.altText && { altText: nestedContentObj.altText }),
+            ...(nestedContentObj.buttonText && { buttonText: nestedContentObj.buttonText }),
+            ...(nestedContentObj.buttonUrl && { buttonUrl: nestedContentObj.buttonUrl }),
+            ...(nestedContentObj.backgroundColor && { backgroundColor: nestedContentObj.backgroundColor }),
+            ...(nestedContentObj.layout && { layout: nestedContentObj.layout })
+          };
+        }
 
         console.log('📋 Content extraction details:', {
           blockId: block.id,
           originalContentObj: contentObj,
-          nestedContentObj,
+          nestedContentObj: fullBlock ? 'N/A (using fullBlock)' : (contentObj?.content || {}),
           extractedContent: {
-            headline: extractedContent.headline,
-            title: extractedContent.title,
-            body: extractedContent.body,
-            imageUrl: extractedContent.imageUrl,
-            altText: extractedContent.altText,
-            buttonText: extractedContent.buttonText,
-            buttonUrl: extractedContent.buttonUrl,
-            backgroundColor: extractedContent.backgroundColor,
-            layout: extractedContent.layout
+            headline: finalExtractedContent.headline,
+            title: finalExtractedContent.title,
+            body: finalExtractedContent.body,
+            imageUrl: finalExtractedContent.imageUrl,
+            altText: finalExtractedContent.altText,
+            buttonText: finalExtractedContent.buttonText,
+            buttonUrl: finalExtractedContent.buttonUrl,
+            backgroundColor: finalExtractedContent.backgroundColor,
+            layout: finalExtractedContent.layout
           }
         });
 
@@ -423,47 +460,47 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           // Preserve header block type, only convert text blocks with images to image-text
           type: block.block_type === 'header' 
             ? 'header' as ContentBlock['type']
-            : (block.block_type === 'text' && extractedContent.imageUrl && extractedContent.imageUrl !== '/images/newsletter-fallback.jpg')
+            : (block.block_type === 'text' && finalExtractedContent.imageUrl && finalExtractedContent.imageUrl !== '/images/newsletter-fallback.jpg')
               ? 'image-text' as ContentBlock['type']
               : block.block_type as ContentBlock['type'],
-          title: extractedContent.title || extractedContent.headline || 'Untitled Block',
-          headline: extractedContent.headline || extractedContent.title,
-          body: extractedContent.body || extractedContent.content,
-          content: extractedContent.body || extractedContent.content || '',
+          title: finalExtractedContent.title || finalExtractedContent.headline || 'Untitled Block',
+          headline: finalExtractedContent.headline || finalExtractedContent.title,
+          body: finalExtractedContent.body || finalExtractedContent.content,
+          content: finalExtractedContent.body || finalExtractedContent.content || '',
           source: (block.source as ContentBlock['source']) || 'manual',
           // Image fields - map correctly for header vs other blocks
-          imageUrl: block.block_type === 'header' ? undefined : (extractedContent.imageUrl || block.image_url),
-          altText: extractedContent.altText || extractedContent.alt_text,
-          caption: extractedContent.caption,
+          imageUrl: block.block_type === 'header' ? undefined : (finalExtractedContent.imageUrl || block.image_url),
+          altText: finalExtractedContent.altText || finalExtractedContent.alt_text,
+          caption: finalExtractedContent.caption,
           // Button/CTA fields
-          buttonText: extractedContent.buttonText || extractedContent.button_text || block.cta_text,
-          buttonUrl: extractedContent.buttonUrl || extractedContent.button_url || block.cta_url,
-          ctaText: extractedContent.ctaText || extractedContent.button_text || block.cta_text,
-          ctaUrl: extractedContent.ctaUrl || extractedContent.button_url || block.cta_url,
-          ctaStyle: extractedContent.ctaStyle,
-          ctaSize: extractedContent.ctaSize,
+          buttonText: finalExtractedContent.buttonText || finalExtractedContent.button_text || block.cta_text,
+          buttonUrl: finalExtractedContent.buttonUrl || finalExtractedContent.button_url || block.cta_url,
+          ctaText: finalExtractedContent.ctaText || finalExtractedContent.button_text || block.cta_text,
+          ctaUrl: finalExtractedContent.ctaUrl || finalExtractedContent.button_url || block.cta_url,
+          ctaStyle: finalExtractedContent.ctaStyle,
+          ctaSize: finalExtractedContent.ctaSize,
           // Layout and styling
-          visible: extractedContent.visible !== false,
-          collapsed: extractedContent.collapsed || false,
-          layout: extractedContent.layout || 'full-width',
-          alignment: extractedContent.alignment || 'left',
-          padding: extractedContent.padding || 'medium',
-          margin: extractedContent.margin,
+          visible: finalExtractedContent.visible !== false,
+          collapsed: finalExtractedContent.collapsed || false,
+          layout: finalExtractedContent.layout || 'full-width',
+          alignment: finalExtractedContent.alignment || 'left',
+          padding: finalExtractedContent.padding || 'medium',
+          margin: finalExtractedContent.margin,
           // Typography
-          fontFamily: extractedContent.fontFamily,
-          fontSize: extractedContent.fontSize,
-          textColor: extractedContent.textColor,
-          textAlign: extractedContent.textAlign || extractedContent.alignment,
+          fontFamily: finalExtractedContent.fontFamily,
+          fontSize: finalExtractedContent.fontSize,
+          textColor: finalExtractedContent.textColor,
+          textAlign: finalExtractedContent.textAlign || finalExtractedContent.alignment,
           // Background
-          backgroundColor: extractedContent.backgroundColor || extractedContent.background_color,
-          backgroundImageUrl: block.block_type === 'header' ? (extractedContent.imageUrl || block.image_url) : extractedContent.backgroundImageUrl,
-          backgroundOpacity: extractedContent.backgroundOpacity,
+          backgroundColor: finalExtractedContent.backgroundColor || finalExtractedContent.background_color,
+          backgroundImageUrl: block.block_type === 'header' ? (finalExtractedContent.imageUrl || block.image_url) : finalExtractedContent.backgroundImageUrl,
+          backgroundOpacity: finalExtractedContent.backgroundOpacity,
           // Newsletter-specific
-          quote: extractedContent.quote,
-          author: extractedContent.author,
-          authorTitle: extractedContent.authorTitle,
-          issueNumber: extractedContent.issueNumber,
-          publishDate: extractedContent.publishDate
+          quote: finalExtractedContent.quote,
+          author: finalExtractedContent.author,
+          authorTitle: finalExtractedContent.authorTitle,
+          issueNumber: finalExtractedContent.issueNumber,
+          publishDate: finalExtractedContent.publishDate
         };
 
         // Enhanced logging to verify header block fix
