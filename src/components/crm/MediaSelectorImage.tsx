@@ -71,34 +71,37 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
     
     const modalContent = (
       <div 
-        className="fixed inset-0 flex items-center justify-center"
         style={{ 
-          zIndex: 999999,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          backdropFilter: 'blur(4px)',
           position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0
+          top: '0',
+          left: '0',
+          right: '0',
+          bottom: '0',
+          zIndex: 999999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(4px)',
+          padding: '16px'
         }}
         onClick={handleBackdropClick}
       >
-        {/* Backdrop */}
-        <div 
-          className="absolute inset-0"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-          onClick={handleCancel}
-        />
-        
         {/* Modal Content */}
         <div 
-          className="relative bg-white border-2 border-primary/20 rounded-lg shadow-xl p-6 space-y-6 w-[90vw] max-w-6xl"
           style={{ 
-            minHeight: '700px', 
-            maxHeight: '90vh', 
+            position: 'relative',
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            padding: '24px',
+            width: '90vw',
+            maxWidth: '1152px',
+            minHeight: '700px',
+            maxHeight: '90vh',
             overflow: 'hidden',
-            zIndex: 1000000
+            zIndex: 1000000,
+            border: '2px solid #22C55E'
           }}
           onClick={(e) => e.stopPropagation()}
         >
