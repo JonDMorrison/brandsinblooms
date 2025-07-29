@@ -65,25 +65,30 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
     }
   }, [isSelecting]);
 
+  // Get modal root element
+  const modalRoot = document.getElementById('modal-root');
+  
   // If in selection mode, show the MediaSelector as a modal overlay using portal
-  if (isSelecting) {
+  if (isSelecting && modalRoot) {
     console.log('[MediaSelectorImage] Rendering modal - isSelecting:', isSelecting, 'isLoading:', isLoading);
     
     const modalContent = (
       <div 
+        data-media-selector
         style={{ 
           position: 'fixed',
           top: '0',
           left: '0',
           right: '0',
           bottom: '0',
-          zIndex: 999999,
+          zIndex: 1000001,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: 'rgba(0, 0, 0, 0.8)',
           backdropFilter: 'blur(4px)',
-          padding: '16px'
+          padding: '16px',
+          pointerEvents: 'auto'
         }}
         onClick={handleBackdropClick}
       >
@@ -100,8 +105,8 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
             minHeight: '700px',
             maxHeight: '90vh',
             overflow: 'hidden',
-            zIndex: 1000000,
-            border: '2px solid #22C55E'
+            zIndex: 1000002,
+            border: '3px solid #ff0000'
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -140,8 +145,8 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
       </div>
     );
 
-    // Use React Portal to render modal outside the normal DOM flow
-    return createPortal(modalContent, document.body);
+    // Use React Portal to render modal to dedicated modal root
+    return createPortal(modalContent, modalRoot);
   }
 
   // Default display mode

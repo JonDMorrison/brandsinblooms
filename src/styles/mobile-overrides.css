@@ -6,4 +6,5 @@
   @import './mobile-typography.css';
   @import './mobile-components.css';
   @import './mobile-interactions.css';
+  @import './modal-isolation.css';
 }
