@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { InlineTextEditor } from '../inline/InlineTextEditor';
-import { InlineImageEditor } from '../inline/InlineImageEditor';
 import { InlineStyleEditor } from '../inline/InlineStyleEditor';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +18,7 @@ interface ImageTextBlockProps {
   isPreview: boolean;
 }
 
-type InlineEditMode = 'headline' | 'body' | 'image' | 'style' | null;
+type InlineEditMode = 'headline' | 'body' | 'style' | null;
 
 export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ block, onUpdate, isPreview }) => {
   const [inlineEditMode, setInlineEditMode] = useState<InlineEditMode>(null);
@@ -115,36 +114,14 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ block, onUpdate,
             )}
           </div>
 
-          {/* Image with inline editing */}
+          {/* Image with direct MediaSelectorImage */}
           <div className={cn(!isImageLeft && "md:order-2", "relative")}>
-            {inlineEditMode === 'image' ? (
-              <div className="relative z-50">
-                <InlineImageEditor
-                  imageUrl={block.imageUrl}
-                  onChange={(imageUrl) => onUpdate({ imageUrl })}
-                  onSave={handleInlineSave}
-                  onCancel={handleInlineCancel}
-                  contentContext="Email newsletter image"
-                />
-              </div>
-            ) : (
-              <div 
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={(e) => handleInlineEdit('image', e)}
-              >
-                {block.imageUrl ? (
-                  <img
-                    src={block.imageUrl}
-                    alt={block.altText || ''}
-                    className="w-full h-auto rounded-lg"
-                  />
-                ) : (
-                  <div className="bg-muted rounded-lg aspect-video flex items-center justify-center text-muted-foreground hover:bg-muted/80">
-                    Click to add image
-                  </div>
-                )}
-              </div>
-            )}
+            <MediaSelectorImage
+              src={block.imageUrl}
+              onChange={(imageUrl) => onUpdate({ imageUrl })}
+              contentContext="Email newsletter image"
+              className="w-full h-auto rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+            />
           </div>
         </div>
 
