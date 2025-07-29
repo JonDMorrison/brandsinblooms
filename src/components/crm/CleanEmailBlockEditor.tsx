@@ -302,35 +302,41 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       console.log("🔄 Syncing blocks - parent has:", blocks.length, "internal has:", internalBlocks.length);
       
       // Create deep copy to prevent reference issues
-      const hydratedBlocks = blocks.map(block => ({
-        ...block,
-        // Ensure all required fields are present with fallbacks
-        title: block.title || block.headline || 'Untitled',
-        content: block.content || block.body || '',
-        imageUrl: block.imageUrl || '',
-        altText: block.altText || '',
-        buttonText: block.buttonText || block.ctaText || '',
-        buttonUrl: block.buttonUrl || block.ctaUrl || '',
-        visible: block.visible !== false,
-        collapsed: block.collapsed || false
-      }));
+      const hydratedBlocks = blocks.map(block => {
+        const hydratedBlock = {
+          ...block,
+          // Ensure all required fields are present with fallbacks
+          title: block.title || block.headline || 'Untitled',
+          content: block.content || block.body || '',
+          imageUrl: block.imageUrl || '',
+          altText: block.altText || '',
+          buttonText: block.buttonText || block.ctaText || '',
+          buttonUrl: block.buttonUrl || block.ctaUrl || '',
+          visible: block.visible !== false,
+          collapsed: block.collapsed || false
+        };
+        
+        console.log('🧱 Hydrating block:', {
+          id: block.id,
+          type: block.type,
+          originalImageUrl: block.imageUrl,
+          hydratedImageUrl: hydratedBlock.imageUrl,
+          title: hydratedBlock.title,
+          hasContent: !!(hydratedBlock.content || hydratedBlock.body)
+        });
+        
+        return hydratedBlock;
+      });
       
       setInternalBlocks(hydratedBlocks);
       setHydrationComplete(true);
       console.log("✅ Synced blocks into internal state:", hydratedBlocks.length, "blocks");
       
-      // Debug log each hydrated block
-      hydratedBlocks.forEach((block, index) => {
-        console.log(`🧱 Hydrated block ${index}:`, {
-          id: block.id,
-          type: block.type,
-          title: block.title,
-          hasContent: !!(block.content || block.body),
-          imageUrl: block.imageUrl,
-          buttonText: block.buttonText,
-          buttonUrl: block.buttonUrl
-        });
-      });
+      // Force re-render after hydration to ensure components update
+      setTimeout(() => {
+        console.log('🔄 Forcing component re-render after hydration');
+        setInternalBlocks([...hydratedBlocks]);
+      }, 50);
     }
   }, [blocks, internalBlocks, hydrationComplete]);
 

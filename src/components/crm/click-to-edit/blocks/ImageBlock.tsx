@@ -21,6 +21,15 @@ type InlineEditMode = 'image' | 'style' | null;
 export const ImageBlock: React.FC<ImageBlockProps> = ({ block, onUpdate, isPreview }) => {
   const [inlineEditMode, setInlineEditMode] = useState<InlineEditMode>(null);
 
+  // Debug logging for image rendering
+  console.log('🖼️ ImageBlock render:', {
+    blockId: block.id,
+    imageUrl: block.imageUrl,
+    altText: block.altText,
+    isPreview,
+    hasImageUrl: !!block.imageUrl
+  });
+
   const handleInlineEdit = (mode: InlineEditMode, event: React.MouseEvent) => {
     event.stopPropagation();
     setInlineEditMode(mode);

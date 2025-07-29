@@ -23,6 +23,15 @@ type InlineEditMode = 'headline' | 'body' | 'image' | 'style' | null;
 
 export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ block, onUpdate, isPreview }) => {
   const [inlineEditMode, setInlineEditMode] = useState<InlineEditMode>(null);
+
+  // Debug logging for image rendering
+  console.log('🖼️ ImageTextBlock render:', {
+    blockId: block.id,
+    imageUrl: block.imageUrl,
+    altText: block.altText,
+    isPreview,
+    hasImageUrl: !!block.imageUrl
+  });
   const isImageLeft = block.layout === 'image-left' || !block.layout;
 
   const handleInlineEdit = (mode: InlineEditMode, event: React.MouseEvent) => {

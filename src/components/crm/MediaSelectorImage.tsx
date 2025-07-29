@@ -173,6 +173,13 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   }
 
   // Default display mode
+  console.log('🖼️ MediaSelectorImage render:', {
+    src,
+    hasOnChange: !!onChange,
+    className,
+    contentContext
+  });
+
   return (
     <div className={`relative group w-full h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors ${className}`}>
       {src ? (
@@ -180,6 +187,8 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
           src={src} 
           alt="Selected content" 
           className="object-cover w-full h-full"
+          onLoad={() => console.log('🖼️ Image loaded successfully:', src)}
+          onError={(e) => console.error('🖼️ Image failed to load:', src, e)}
         />
       ) : (
         <div className="text-center text-gray-400">
