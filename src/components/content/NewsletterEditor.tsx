@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2 } from 'lucide-react';
 import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NewsletterBlock {
   title: string;
@@ -32,6 +33,39 @@ export const NewsletterEditor: React.FC<NewsletterEditorProps> = ({
   const [title, setTitle] = useState('');
   const [blocks, setBlocks] = useState<NewsletterBlock[]>([]);
   const [theme, setTheme] = useState('');
+  const [companyWebsite, setCompanyWebsite] = useState('#');
+
+  // Fetch company website from profile
+  useEffect(() => {
+    const fetchCompanyProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('company_profiles')
+            .select('location_info')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (profile?.location_info) {
+            // Try to extract website from location_info or use a default pattern
+            const websiteMatch = profile.location_info.match(/https?:\/\/[^\s]+/);
+            if (websiteMatch) {
+              setCompanyWebsite(websiteMatch[0]);
+            } else if (profile.location_info.includes('.com') || profile.location_info.includes('.ca')) {
+              // Simple fallback for domain names
+              const domain = profile.location_info.trim();
+              setCompanyWebsite(domain.startsWith('http') ? domain : `https://${domain}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching company profile:', error);
+      }
+    };
+
+    fetchCompanyProfile();
+  }, []);
 
   useEffect(() => {
     // Parse the YAML content to extract editable fields
@@ -61,7 +95,7 @@ export const NewsletterEditor: React.FC<NewsletterEditorProps> = ({
             title: 'Welcome',
             body: 'Welcome to our newsletter...',
             cta: 'Learn More',
-            link: '#',
+            link: companyWebsite,
             image_prompt: 'garden newsletter welcome',
             alt_text: 'Welcome image'
           }
@@ -78,7 +112,7 @@ export const NewsletterEditor: React.FC<NewsletterEditorProps> = ({
           title: 'Welcome',
           body: 'Welcome to our newsletter...',
           cta: 'Learn More',
-          link: '#',
+          link: companyWebsite,
           image_prompt: 'garden newsletter welcome',
           alt_text: 'Welcome image'
         }
@@ -98,7 +132,7 @@ export const NewsletterEditor: React.FC<NewsletterEditorProps> = ({
       title: 'New Section',
       body: 'Add your content here...',
       cta: 'Learn More',
-      link: '#',
+      link: companyWebsite,
       image_prompt: `garden ${theme.toLowerCase()}`,
       alt_text: 'Section image'
     };
@@ -122,7 +156,7 @@ export const NewsletterEditor: React.FC<NewsletterEditorProps> = ({
         title: block.title,
         body: block.body,
         cta: block.cta || 'Learn More',
-        link: block.link || '#',
+        link: block.link || companyWebsite,
         image_prompt: block.image_prompt || `garden ${block.title.toLowerCase()}`,
         alt_text: block.alt_text || `Image for ${block.title}`
       })),
@@ -269,7 +303,7 @@ ${yamlStructure.extra_content_ideas.map(idea => `  - "${idea}"`).join('\n')}`;
                     id={`link-${index}`}
                     value={block.link || ''}
                     onChange={(e) => updateBlock(index, 'link', e.target.value)}
-                    placeholder="#"
+                    placeholder={companyWebsite}
                     className="mt-1"
                   />
                 </div>
