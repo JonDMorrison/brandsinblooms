@@ -75,22 +75,34 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
         style={{ 
           zIndex: 999999,
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          backdropFilter: 'blur(4px)'
+          backdropFilter: 'blur(4px)',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0
         }}
         onClick={handleBackdropClick}
       >
         {/* Backdrop */}
         <div 
-          className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-auto"
+          className="absolute inset-0"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
           onClick={handleCancel}
         />
         
         {/* Modal Content */}
         <div 
-          className="relative bg-white border-2 border-primary/20 rounded-lg shadow-xl p-6 space-y-6 min-h-[700px] max-h-[90vh] overflow-hidden w-[90vw] max-w-6xl pointer-events-auto"
+          className="relative bg-white border-2 border-primary/20 rounded-lg shadow-xl p-6 space-y-6 w-[90vw] max-w-6xl"
+          style={{ 
+            minHeight: '700px', 
+            maxHeight: '90vh', 
+            overflow: 'hidden',
+            zIndex: 1000000
+          }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between border-b border-gray-100 pb-4 sticky top-0 bg-white z-[60]">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-4 sticky top-0 bg-white">
             <h4 className="text-lg font-semibold text-gray-900">
               {isLoading ? 'Processing...' : 'Select Image'}
             </h4>
@@ -104,7 +116,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
               {isLoading ? 'Processing' : 'Cancel'}
             </Button>
           </div>
-          <div className="w-full relative z-10 overflow-y-auto max-h-[calc(90vh-120px)]">
+          <div className="w-full relative overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="text-center">
