@@ -34,10 +34,12 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   };
 
   const handleSelectClick = () => {
+    console.log('[MediaSelectorImage] Select button clicked, opening modal');
     setIsSelecting(true);
   };
 
   const handleCancel = () => {
+    console.log('[MediaSelectorImage] Cancel clicked, closing modal');
     setIsSelecting(false);
     setIsLoading(false);
   };
@@ -65,9 +67,16 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
 
   // If in selection mode, show the MediaSelector as a modal overlay using portal
   if (isSelecting) {
+    console.log('[MediaSelectorImage] Rendering modal - isSelecting:', isSelecting, 'isLoading:', isLoading);
+    
     const modalContent = (
       <div 
-        className={`fixed inset-0 z-[9999] flex items-center justify-center pointer-events-auto ${className}`}
+        className="fixed inset-0 flex items-center justify-center"
+        style={{ 
+          zIndex: 999999,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(4px)'
+        }}
         onClick={handleBackdropClick}
       >
         {/* Backdrop */}
