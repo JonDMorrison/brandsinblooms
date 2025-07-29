@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { cleanContentForDisplay } from '@/utils/contentUtils';
 import { cleanVideoContent, isVideoScriptContent } from '@/utils/videoContentCleaner';
 import { SafeHtml } from '@/components/ui/safe-html';
@@ -8,7 +8,9 @@ import { validateFormattedContent, repairFormattedContent } from '@/utils/conten
 import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
 import { useNewsletterImages } from '@/components/content-sidebar/newsletter/useNewsletterImages';
 import { MagazineNewsletterRenderer } from '@/components/newsletter/MagazineNewsletterRenderer';
+import { PlainEmailRenderer } from '@/components/newsletter/PlainEmailRenderer';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -27,6 +29,9 @@ export const MagazineContentDisplay = ({
   task,
   className = ""
 }: MagazineContentDisplayProps) => {
+  
+  // State for format toggle
+  const [format, setFormat] = useState<'magazine' | 'plain'>('magazine');
   
   console.log('🔍 [MagazineContentDisplay] Input:', {
     contentLength: content?.length || 0,
@@ -100,27 +105,57 @@ export const MagazineContentDisplay = ({
       // This could open an image selection modal or trigger image generation
     };
 
-    // If structured newsletter, use the magazine renderer
+    // If structured newsletter, use conditional renderer based on format
     if (processedNewsletter.isStructured && processedNewsletter.blocks.length > 0) {
       return (
         <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}>
-          <div className="p-6">
-            {loadingImages && (
+          {/* Format Toggle */}
+          <div className="flex justify-end p-4 pb-0">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setFormat(format === 'magazine' ? 'plain' : 'magazine')}
+                    className="text-sm px-3 py-1 border border-border rounded bg-background hover:bg-muted transition-colors"
+                  >
+                    {format === 'magazine' ? 'Switch to Plain Email' : 'Switch to Magazine Format'}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {format === 'magazine'
+                    ? 'Show as simple email (text only, stacked format)'
+                    : 'Show with images and blocks like a printed magazine'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          
+          <div className="p-6 pt-2">
+            {loadingImages && format === 'magazine' && (
               <div className="text-center py-4 mb-6">
                 <LoadingSpinner />
                 <p className="text-sm text-muted-foreground mt-2">Loading newsletter images...</p>
               </div>
             )}
             
-            <MagazineNewsletterRenderer
-              title={campaignTitle || processedNewsletter.meta.week_focus}
-              blocks={processedNewsletter.blocks}
-              meta={processedNewsletter.meta}
-              featuredImage={featuredImage}
-              blockImages={images}
-              onImageSelect={handleImageSelect}
-              className="space-y-8"
-            />
+            {format === 'magazine' ? (
+              <MagazineNewsletterRenderer
+                title={campaignTitle || processedNewsletter.meta.week_focus}
+                blocks={processedNewsletter.blocks}
+                meta={processedNewsletter.meta}
+                featuredImage={featuredImage}
+                blockImages={images}
+                onImageSelect={handleImageSelect}
+                className="space-y-8"
+              />
+            ) : (
+              <PlainEmailRenderer
+                title={campaignTitle || processedNewsletter.meta.week_focus}
+                blocks={processedNewsletter.blocks}
+                meta={processedNewsletter.meta}
+                className="space-y-6"
+              />
+            )}
           </div>
         </div>
       );

@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, Palette, Target, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-interface NewsletterBlock {
+export interface NewsletterBlock {
   title: string;
   body: string;
   cta: string;
@@ -12,7 +12,7 @@ interface NewsletterBlock {
   alt_text: string;
 }
 
-interface NewsletterMeta {
+export interface NewsletterMeta {
   reading_time: string;
   theme: string;
   week_focus: string;
