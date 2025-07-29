@@ -304,6 +304,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         .eq('id', campaignId)
         .single();
 
+      console.log('📊 Campaign query result:', { campaign, campaignError });
+
       if (campaignError) throw campaignError;
 
       // Load campaign blocks
@@ -313,12 +315,24 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         .eq('campaign_id', campaignId)
         .order('order_index');
 
+      console.log('📊 Blocks query result:', { 
+        campaignBlocks: campaignBlocks?.length || 0, 
+        blocksError,
+        firstBlock: campaignBlocks?.[0] 
+      });
+
       if (blocksError) throw blocksError;
 
       // Restore campaign state
       setCampaignName(campaign.name);
       setSubjectLine(campaign.subject_line || campaign.name); // Handle missing subject field
       setPreheaderText(campaign.preheader || '');
+
+      console.log('📋 Campaign metadata restored:', {
+        name: campaign.name,
+        subject: campaign.subject_line,
+        preheader: campaign.preheader
+      });
 
       // Convert campaign blocks back to ContentBlocks
       const contentBlocks: ContentBlock[] = campaignBlocks.map((block, index) => {
