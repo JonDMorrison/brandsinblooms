@@ -118,7 +118,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, isPre
           {block.backgroundImageUrl && (
             <button
               onClick={() => onUpdate({ backgroundImageUrl: undefined })}
-              className="text-sm text-red-600 hover:text-red-800"
+              className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-md transition-colors"
             >
               Remove Image
             </button>
