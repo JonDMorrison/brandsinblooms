@@ -5,12 +5,16 @@ import { CRMCampaignCreator } from './CRMCampaignCreator';
 export const CRMCampaignBuilder: React.FC = () => {
   const { campaignSlug } = useParams<{ campaignSlug: string }>();
 
-  // Extract contentTaskId from the slug or URL parameters
+  // Check if campaignSlug is a valid UUID (existing campaign ID)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const isExistingCampaign = campaignSlug && uuidRegex.test(campaignSlug);
+
+  // Extract contentTaskId from URL parameters for new campaigns
   const urlParams = new URLSearchParams(window.location.search);
   let contentTaskId = urlParams.get('contentTaskId');
 
-  // Try to extract contentTaskId from campaignSlug if not in URL params
-  if (!contentTaskId && campaignSlug) {
+  // Try to extract contentTaskId from campaignSlug if not in URL params (for new campaigns only)
+  if (!contentTaskId && campaignSlug && !isExistingCampaign) {
     // Look for pattern like "newsletter-campaign-7252025-dfe675" where dfe675 is start of UUID
     const slugMatch = campaignSlug.match(/.*-([a-f0-9]{6})$/);
     if (slugMatch) {
@@ -34,7 +38,13 @@ export const CRMCampaignBuilder: React.FC = () => {
     return <Navigate to="/crm/campaigns/new" replace />;
   }
 
-  // Pass the slug and contentTaskId to the main creator component
+  // Handle existing campaign editing (UUID as slug)
+  if (isExistingCampaign) {
+    console.log('🔄 Loading existing campaign for editing:', campaignSlug);
+    return <CRMCampaignCreator campaignSlug={campaignSlug} contentTaskId={null} />;
+  }
+
+  // Handle new campaign creation from content task
   // For newsletter campaigns, add the necessary URL parameters
   if (contentTaskId && campaignSlug?.includes('newsletter-campaign')) {
     // Set URL parameters to trigger newsletter conversion

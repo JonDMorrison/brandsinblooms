@@ -39,11 +39,21 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
       try {
         console.log('🔍 PostToCRMButton: Checking for existing CRM link for task:', task.id);
         
-        const { data, error } = await supabase
-          .from('content_tasks')
-          .select('linked_crm_campaign_id')
-          .eq('id', task.id)
-          .single();
+        // Check both directions for existing campaign link
+        const [contentTaskResult, crmCampaignResult] = await Promise.all([
+          supabase
+            .from('content_tasks')
+            .select('linked_crm_campaign_id')
+            .eq('id', task.id)
+            .single(),
+          supabase
+            .from('crm_campaigns')
+            .select('id')
+            .eq('source_content_task_id', task.id)
+            .single()
+        ]);
+
+        const { data, error } = contentTaskResult;
 
         console.log('📊 PostToCRMButton: Link check result:', { 
           data, 
@@ -52,11 +62,24 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
           linkedCampaignId: data?.linked_crm_campaign_id 
         });
 
-        if (error) throw error;
-        setLinkedCampaignId(data?.linked_crm_campaign_id || null);
+        // Use linked campaign ID from content_tasks or find by source_content_task_id
+        let foundCampaignId = data?.linked_crm_campaign_id;
         
-        if (data?.linked_crm_campaign_id) {
-          console.log('✅ PostToCRMButton: Found existing CRM campaign link:', data.linked_crm_campaign_id);
+        if (!foundCampaignId && !crmCampaignResult.error && crmCampaignResult.data) {
+          foundCampaignId = crmCampaignResult.data.id;
+          console.log('🔗 PostToCRMButton: Found campaign by source_content_task_id:', foundCampaignId);
+          
+          // Update the bidirectional link if missing
+          await supabase
+            .from('content_tasks')
+            .update({ linked_crm_campaign_id: foundCampaignId })
+            .eq('id', task.id);
+        }
+        
+        setLinkedCampaignId(foundCampaignId || null);
+        
+        if (foundCampaignId) {
+          console.log('✅ PostToCRMButton: Found existing CRM campaign link:', foundCampaignId);
         } else {
           console.log('❌ PostToCRMButton: No existing CRM campaign link found');
         }
@@ -81,7 +104,7 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
           linkedCampaignId,
           taskTitle: task.ai_output?.substring(0, 50)
         });
-        navigate(`/crm/campaigns/builder/${linkedCampaignId}`);
+        navigate(`/crm/campaigns/${linkedCampaignId}`);
         toast({
           title: "Opening CRM Campaign",
           description: "Continuing where you left off..."

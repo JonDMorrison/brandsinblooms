@@ -129,7 +129,7 @@ export const CRMCampaignsPage: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" asChild>
-                          <NavLink to={`/crm/campaigns/edit/${campaign.id}`}>
+                          <NavLink to={`/crm/campaigns/${campaign.id}`}>
                             <Eye className="h-4 w-4 mr-1" />
                             Edit
                           </NavLink>
