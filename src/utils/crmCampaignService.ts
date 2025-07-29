@@ -72,9 +72,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         preheader: campaignData.preheader,
         content: campaignData.content, // Save the actual HTML content
         status: 'draft',
-        source_content_id: campaignData.source_content_id,
-        source_content_task_id: campaignData.source_content_id, // Add the new field
-        source_metadata: campaignData.source_metadata || {},
+        source_content_task_id: campaignData.source_content_id, // Map to the correct field
         metrics: {
           sent: 0,
           delivered: 0,
