@@ -216,7 +216,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   useEffect(() => {
     const checkExistingCampaign = async () => {
       // Handle direct campaign slug (when editing existing campaign)
-      if (campaignSlug && !finalContentTaskId) {
+      // This takes priority over content task conversion
+      if (campaignSlug) {
         console.log('🔄 Loading existing campaign by slug:', campaignSlug);
         setLoadingExistingCampaign(true);
         try {
