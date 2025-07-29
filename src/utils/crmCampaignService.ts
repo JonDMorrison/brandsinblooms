@@ -73,6 +73,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         content: campaignData.content, // Save the actual HTML content
         status: 'draft',
         source_content_id: campaignData.source_content_id,
+        source_content_task_id: campaignData.source_content_id, // Add the new field
         source_metadata: campaignData.source_metadata || {},
         metrics: {
           sent: 0,
@@ -88,6 +89,23 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
       .single();
 
     if (campaignError) throw campaignError;
+
+    // Create bidirectional link between content task and CRM campaign
+    if (campaignData.source_content_id) {
+      try {
+        const { error: linkError } = await supabase
+          .from('content_tasks')
+          .update({ linked_crm_campaign_id: campaign.id })
+          .eq('id', campaignData.source_content_id);
+
+        if (linkError) {
+          console.warn('Failed to create bidirectional link:', linkError);
+          // Don't fail the whole operation for this
+        }
+      } catch (linkError) {
+        console.warn('Error creating bidirectional link:', linkError);
+      }
+    }
 
     // Save campaign blocks if content blocks are provided
     if (campaignData.content_blocks && campaignData.content_blocks.length > 0) {

@@ -490,6 +490,7 @@ export type Database = {
           image_source: string | null
           image_url: string | null
           last_posting_error: string | null
+          linked_crm_campaign_id: string | null
           notes: string | null
           platform_post_id: string | null
           platform_post_url: string | null
@@ -517,6 +518,7 @@ export type Database = {
           image_source?: string | null
           image_url?: string | null
           last_posting_error?: string | null
+          linked_crm_campaign_id?: string | null
           notes?: string | null
           platform_post_id?: string | null
           platform_post_url?: string | null
@@ -544,6 +546,7 @@ export type Database = {
           image_source?: string | null
           image_url?: string | null
           last_posting_error?: string | null
+          linked_crm_campaign_id?: string | null
           notes?: string | null
           platform_post_id?: string | null
           platform_post_url?: string | null
@@ -575,6 +578,13 @@ export type Database = {
             columns: ["holiday_id"]
             isOneToOne: false
             referencedRelation: "holidays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_tasks_linked_crm_campaign_id_fkey"
+            columns: ["linked_crm_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
             referencedColumns: ["id"]
           },
           {
@@ -732,6 +742,7 @@ export type Database = {
           sender_email: string | null
           sender_name: string | null
           sent_at: string | null
+          source_content_task_id: string | null
           status: string | null
           subject_line: string | null
           synced_from: string | null
@@ -764,6 +775,7 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           sent_at?: string | null
+          source_content_task_id?: string | null
           status?: string | null
           subject_line?: string | null
           synced_from?: string | null
@@ -796,6 +808,7 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           sent_at?: string | null
+          source_content_task_id?: string | null
           status?: string | null
           subject_line?: string | null
           synced_from?: string | null
@@ -812,6 +825,13 @@ export type Database = {
             columns: ["segment_id"]
             isOneToOne: false
             referencedRelation: "crm_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaigns_source_content_task_id_fkey"
+            columns: ["source_content_task_id"]
+            isOneToOne: false
+            referencedRelation: "content_tasks"
             referencedColumns: ["id"]
           },
           {

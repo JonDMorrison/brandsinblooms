@@ -86,26 +86,58 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     campaignTitle: string;
     contentPreview: string;
   } | null>(null);
+  const [existingCampaignId, setExistingCampaignId] = useState<string | null>(null);
+  const [loadingExistingCampaign, setLoadingExistingCampaign] = useState(false);
 
-  // Check for URL parameters and auto-populate from newsletter
+  // Check for existing campaign and load session data
   useEffect(() => {
-    const contentTaskId = finalContentTaskId;
-    const title = searchParams.get('title');
-    const content = searchParams.get('content');
-    const type = searchParams.get('type');
+    const checkExistingCampaign = async () => {
+      const contentTaskId = finalContentTaskId;
+      if (!contentTaskId) return;
 
-    console.log('📋 useEffect triggered:', { 
-      contentTaskId, 
-      type,
-      hasContent: !!content,
-      contentLength: content?.length || 0
-    });
+      setLoadingExistingCampaign(true);
+      try {
+        // Check if content task is already linked to a CRM campaign
+        const { data: contentTask, error } = await supabase
+          .from('content_tasks')
+          .select('linked_crm_campaign_id')
+          .eq('id', contentTaskId)
+          .single();
 
-    // Simplified condition - if we have contentTaskId and type is newsletter, convert
-    if (contentTaskId && type === 'newsletter' && !converting && blocks.length === 0) {
-      console.log('🔄 Starting newsletter conversion');
-      handleNewsletterConversion(contentTaskId, title || '', content || '');
-    }
+        if (error) throw error;
+
+        if (contentTask?.linked_crm_campaign_id) {
+          // Load existing CRM campaign data
+          await loadExistingCampaign(contentTask.linked_crm_campaign_id);
+          setExistingCampaignId(contentTask.linked_crm_campaign_id);
+        } else {
+          // No existing campaign, proceed with conversion
+          const title = searchParams.get('title');
+          const content = searchParams.get('content');
+          const type = searchParams.get('type');
+
+          if (type === 'newsletter' && !converting && blocks.length === 0) {
+            console.log('🔄 Starting newsletter conversion');
+            handleNewsletterConversion(contentTaskId, title || '', content || '');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking existing campaign:', error);
+        // Fall back to normal conversion if check fails
+        const title = searchParams.get('title');
+        const content = searchParams.get('content');
+        const type = searchParams.get('type');
+
+        if (type === 'newsletter' && !converting && blocks.length === 0) {
+          console.log('🔄 Starting newsletter conversion (fallback)');
+          handleNewsletterConversion(contentTaskId, title || '', content || '');
+        }
+      } finally {
+        setLoadingExistingCampaign(false);
+      }
+    };
+
+    checkExistingCampaign();
   }, [searchParams, finalContentTaskId, campaignSlug, converting, blocks.length]);
 
   // Additional useEffect to monitor blocks changes
@@ -116,6 +148,92 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       blockTypes: blocks.map(b => b.type)
     });
   }, [blocks]);
+
+  const loadExistingCampaign = async (campaignId: string) => {
+    try {
+      console.log('🔄 Loading existing CRM campaign:', campaignId);
+      
+      // Load campaign details
+      const { data: campaign, error: campaignError } = await supabase
+        .from('crm_campaigns')
+        .select('*')
+        .eq('id', campaignId)
+        .single();
+
+      if (campaignError) throw campaignError;
+
+      // Load campaign blocks
+      const { data: campaignBlocks, error: blocksError } = await supabase
+        .from('campaign_blocks')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('order_index');
+
+      if (blocksError) throw blocksError;
+
+      // Restore campaign state
+      setCampaignName(campaign.name);
+      setSubjectLine(campaign.subject_line || campaign.name); // Handle missing subject field
+      setPreheaderText(campaign.preheader || '');
+
+      // Convert campaign blocks back to ContentBlocks
+      const contentBlocks: ContentBlock[] = campaignBlocks.map((block, index) => {
+        const blockContent = typeof block.content === 'object' && block.content !== null ? block.content : {};
+        const contentObj = blockContent as Record<string, any>;
+        
+        return {
+          id: block.id,
+          type: block.block_type as ContentBlock['type'],
+          content: contentObj.content || contentObj.body || '',
+          title: contentObj.title || contentObj.headline || '',
+          headline: contentObj.headline,
+          body: contentObj.body,
+          source: (block.source as ContentBlock['source']) || 'manual',
+          ...(block.image_url && { imageUrl: block.image_url }),
+          ...(block.cta_url && { ctaUrl: block.cta_url }),
+          ...(block.cta_text && { ctaText: block.cta_text }),
+          visible: contentObj.visible !== false,
+          collapsed: contentObj.collapsed || false,
+          // Copy other properties from saved content
+          alignment: contentObj.alignment,
+          padding: contentObj.padding,
+          margin: contentObj.margin,
+          fontFamily: contentObj.fontFamily,
+          fontSize: contentObj.fontSize,
+          textColor: contentObj.textColor,
+          backgroundColor: contentObj.backgroundColor,
+          backgroundImageUrl: contentObj.backgroundImageUrl,
+          backgroundOpacity: contentObj.backgroundOpacity,
+          layout: contentObj.layout,
+          caption: contentObj.caption,
+          altText: contentObj.altText,
+          buttonText: contentObj.buttonText,
+          buttonUrl: contentObj.buttonUrl,
+          ctaStyle: contentObj.ctaStyle,
+          ctaSize: contentObj.ctaSize,
+          quote: contentObj.quote,
+          author: contentObj.author,
+          authorTitle: contentObj.authorTitle
+        };
+      });
+
+      setBlocks(contentBlocks);
+
+      toast({
+        title: "Campaign Loaded",
+        description: `Continuing where you left off with ${contentBlocks.length} blocks.`
+      });
+
+      console.log('✅ Existing campaign loaded successfully');
+    } catch (error) {
+      console.error('Error loading existing campaign:', error);
+      toast({
+        title: "Load Error",
+        description: "Failed to load existing campaign. Starting fresh.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleNewsletterConversion = async (contentTaskId: string, title: string, urlContent: string) => {
     if (converting) return; // Prevent multiple conversions
