@@ -3,6 +3,7 @@ import React from 'react';
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { extractBlogMetadata, cleanContentForDisplay } from "@/utils/contentUtils";
+import { convertMarkdownToHtml } from "@/utils/markdownUtils";
 import { MagazineContentDisplay } from "@/components/content/task-item/MagazineContentDisplay";
 import { ImageAssetManager } from "@/lib/imageAssetManager";
 import { useAuth } from "@/contexts/AuthContext";
@@ -65,7 +66,7 @@ export const TaskItemContent = ({ task, hasContent, cleanContent, onClick }: Tas
           <BlogPostLayout
             title={blogMetadata?.title}
             companyName={task.campaigns?.company_profiles?.business_name}
-            content={cleanContent}
+            content={convertMarkdownToHtml(cleanContent)}
             className="bg-white min-h-0"
             showMediaSelector={true}
             selectedImageUrl={task.image_url}

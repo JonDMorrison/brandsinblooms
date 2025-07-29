@@ -2,6 +2,7 @@
 import { Textarea } from "@/components/ui/textarea";
 import { SafeHtml } from "@/components/ui/safe-html";
 import { cleanContentForDisplay } from "@/utils/contentUtils";
+import { convertMarkdownToHtml } from "@/utils/markdownUtils";
 import { MagazineNewsletterDisplay } from "./MagazineNewsletterDisplay";
 import { MagazineContentDisplay } from "@/components/content/task-item/MagazineContentDisplay";
 import { SocialMediaPostPreview } from "@/components/content/task-item/SocialMediaPostPreview";
@@ -70,11 +71,13 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
               task={task}
             />
           ) : (task?.post_type === 'blog') ? (
-            <SafeHtml
-              content={cleanContentForDisplay(content, task?.post_type)}
-              className="text-sm prose prose-sm max-w-none"
-              type="social"
-            />
+            <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-ul:text-gray-700">
+              <SafeHtml
+                content={convertMarkdownToHtml(content)}
+                className=""
+                type="general"
+              />
+            </div>
           ) : (
             <div className="text-sm whitespace-pre-wrap">
               {cleanContentForDisplay(content, task?.post_type).replace(/<[^>]*>/g, '')}
