@@ -353,24 +353,31 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         const blockContent = typeof block.content === 'object' && block.content !== null ? block.content : {};
         const contentObj = blockContent as Record<string, any>;
         
+        // Handle double nesting: block.content.content.* 
+        const nestedContent = typeof contentObj.content === 'object' && contentObj.content !== null ? contentObj.content : {};
+        const nestedContentObj = nestedContent as Record<string, any>;
+        
         console.log('🔍 Transforming block:', {
           blockId: block.id,
           blockType: block.block_type,
           rawContent: block.content,
           contentObj,
-          extractedContent: contentObj.content || contentObj.body || '',
-          extractedTitle: contentObj.title || contentObj.headline || '',
+          nestedContentObj,
+          extractedContent: nestedContentObj.body || nestedContentObj.headline || contentObj.content || contentObj.body || '',
+          extractedTitle: nestedContentObj.headline || nestedContentObj.title || contentObj.title || contentObj.headline || '',
           contentHasContent: !!(contentObj.content),
           contentHasBody: !!(contentObj.body),
-          contentKeys: Object.keys(contentObj)
+          nestedHasContent: !!(nestedContentObj.body || nestedContentObj.headline),
+          contentKeys: Object.keys(contentObj),
+          nestedKeys: Object.keys(nestedContentObj)
         });
         
         
         return {
           id: block.id,
           type: block.block_type as ContentBlock['type'],
-          content: contentObj.content || contentObj.body || '',
-          title: contentObj.title || contentObj.headline || '',
+          content: nestedContentObj.body || nestedContentObj.headline || contentObj.content || contentObj.body || '',
+          title: nestedContentObj.headline || nestedContentObj.title || contentObj.title || contentObj.headline || '',
           headline: contentObj.headline,
           body: contentObj.body,
           source: (block.source as ContentBlock['source']) || 'manual',
