@@ -53,10 +53,27 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
       return;
     }
 
-    if (editedContent === task.ai_output) {
+    // Handle content comparison more intelligently for different post types
+    const originalContent = task.ai_output || '';
+    let hasChanges = editedContent !== originalContent;
+    
+    // For newsletters, compare normalized content to avoid false negatives
+    if (task.post_type === 'newsletter') {
+      const normalizeNewsletter = (content: string) => {
+        return content
+          .replace(/\r\n/g, '\n')  // Normalize line endings
+          .replace(/[ \t]+$/gm, '') // Remove trailing whitespace
+          .trim();
+      };
+      
+      hasChanges = normalizeNewsletter(editedContent) !== normalizeNewsletter(originalContent);
+    }
+
+    if (!hasChanges) {
       console.log('[SAVE] No changes detected');
       toast.success('No changes to save');
       setHasUnsavedChanges(false);
+      setIsEditing(false); // Exit edit mode when no changes
       return;
     }
 
