@@ -226,7 +226,9 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
   console.log('[MediaSelectorSidebar] Rendering sidebar with portal to document.body', {
     isOpen,
     documentBodyExists: !!document.body,
-    searchResultsLength: searchResults.length
+    searchResultsLength: searchResults.length,
+    bodyChildrenCount: document.body?.children.length,
+    portalTarget: document.body
   });
 
   // Debug: Force check if element exists in DOM after render
@@ -479,18 +481,27 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     </>
   );
 
-  return createPortal(
-    <div style={{ 
-      position: 'fixed', 
-      top: 0, 
-      left: 0, 
-      width: '100vw', 
-      height: '100vh', 
-      zIndex: 999997, // Lower than backdrop
-      pointerEvents: 'auto' // Allow interactions
-    }}>
+  console.log('[MediaSelectorSidebar] About to create portal');
+  
+  const portalElement = (
+    <div 
+      data-testid="media-selector-portal"
+      style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        width: '100vw', 
+        height: '100vh', 
+        zIndex: 999997,
+        pointerEvents: 'auto',
+        background: 'rgba(255, 0, 255, 0.3)' // TEMP: Purple debug background
+      }}
+    >
       {modalContent}
-    </div>, 
-    document.body
+    </div>
   );
+
+  console.log('[MediaSelectorSidebar] Portal element created, returning portal');
+  
+  return createPortal(portalElement, document.body);
 };
