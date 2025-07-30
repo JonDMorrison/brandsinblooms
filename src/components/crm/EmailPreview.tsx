@@ -59,6 +59,20 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
                     </div>
                   ))
                 }
+                {/* Footer Block Preview */}
+                <div className="border-t border-muted pt-4 mt-4">
+                  <div className="bg-muted/20 p-4 rounded text-center text-xs text-muted-foreground">
+                    <div className="font-medium mb-2">{senderName}</div>
+                    <div className="mb-2">123 Business St, Suite 100, City, State 12345</div>
+                    <div className="text-xs mb-2">
+                      You are receiving this email because you opted in at {senderName || 'our website'}.
+                    </div>
+                    <div className="flex justify-center gap-4 text-xs">
+                      <span className="underline">Unsubscribe</span>
+                      <span className="underline">Manage Preferences</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="p-8 text-center text-muted-foreground">

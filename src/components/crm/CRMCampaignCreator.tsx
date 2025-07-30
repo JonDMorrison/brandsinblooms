@@ -15,6 +15,10 @@ import { convertNewsletterToCRM } from '@/utils/newsletterToCrmConverter';
 import { supabase } from '@/integrations/supabase/client';
 import { saveCampaignAsDraft, CampaignData } from '@/utils/crmCampaignService';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
+import { generateFooterHTML } from '@/utils/emailFooterRenderer';
+import { getDefaultTokenData } from '@/utils/emailTokenProcessor';
+import { useFooterSettings } from '@/hooks/useFooterSettings';
+import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 
 // Generate appropriate preheader text based on content and campaign name
 const generatePreheaderText = (content: string, campaignName: string): string => {
@@ -88,6 +92,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   } | null>(null);
   const [existingCampaignId, setExistingCampaignId] = useState<string | null>(null);
   const [loadingExistingCampaign, setLoadingExistingCampaign] = useState(false);
+
+  // Footer and company data
+  const { footerSettings } = useFooterSettings();
+  const { companyInfo } = useCompanyInfo();
 
   // Auto-save functionality for CRM campaigns
   const [isAutoSaving, setIsAutoSaving] = useState(false);
@@ -770,14 +778,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       switch (block.type) {
         case 'header':
           const headerAlign = block.textAlign || 'center';
+          const headerOpacity = block.colorOverlayOpacity !== undefined ? block.colorOverlayOpacity / 100 : 0.5;
           html += `
             <div style="position: relative; text-align: ${headerAlign}; padding: 40px 20px; margin: 20px 0; border-radius: 8px; overflow: hidden;
                         ${block.backgroundImageUrl ? `background-image: url(${block.backgroundImageUrl}); background-size: cover; background-position: center;` : ''}
                         ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : 'background: linear-gradient(135deg, #22c55e, #16a34a);'}">
-              ${block.backgroundColor ? `<div style="position: absolute; inset: 0; background-color: ${block.backgroundColor}; opacity: ${(block.colorOverlayOpacity || 50) / 100};"></div>` : ''}
-              <div style="position: relative; z-index: 10; color: white;">
-                <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif;">${block.headline || 'Your Headline Here'}</h1>
-                ${block.body ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+              ${block.backgroundColor && block.backgroundImageUrl ? `<div style="position: absolute; inset: 0; background-color: ${block.backgroundColor}; opacity: ${headerOpacity};"></div>` : ''}
+              <div style="position: relative; z-index: 10; color: ${block.textColor || 'white'};">
+                <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || 'white'};">${block.headline || 'Your Headline Here'}</h1>
+                ${block.body ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || 'white'};">${block.body}</div>` : ''}
               </div>
             </div>
           `;
@@ -785,9 +794,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
         case 'text':
           const textAlign = block.textAlign || 'left';
+          const textColor = block.textColor || '#475569';
           html += `
-            <div style="margin: 20px 0; text-align: ${textAlign}; font-size: ${block.fontSize || '16px'}; font-family: 'Quicksand', sans-serif;">
-              ${block.content ? `<div style="color: #475569; line-height: 1.6;">${block.content}</div>` : ''}
+            <div style="margin: 20px 0; text-align: ${textAlign}; font-size: ${block.fontSize || '16px'}; font-family: 'Quicksand', sans-serif; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
+              ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
+              ${block.content ? `<div style="color: ${textColor}; line-height: 1.6;">${block.content}</div>` : ''}
             </div>
           `;
           break;
@@ -805,6 +816,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         case 'image-text':
           const isImageRight = block.layout === 'two-column-right';
           const itTextAlign = block.textAlign || 'left';
+          const itTextColor = block.textColor || '#475569';
+          const itHeadlineColor = block.textColor || '#22c55e';
           html += `
             <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px;">
               <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
@@ -815,13 +828,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         '<div style="background: #f1f5f9; padding: 40px 20px; text-align: center; color: #64748b; border-radius: 8px; font-family: \'Quicksand\', sans-serif;">No image</div>'}
                     </td>
                     <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: ${itTextAlign};">
-                      ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: #22c55e; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-                       ${block.body ? `<div style="color: #64748b; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+                      ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
+                       ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
                     </td>
                   ` : `
                     <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: ${itTextAlign};">
-                      ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: #22c55e; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-                      ${block.body ? `<div style="color: #64748b; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+                      ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
+                      ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
                     </td>
                     <td width="50%" style="padding-left: 20px; vertical-align: top;">
                       ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px;" />` :
@@ -881,9 +894,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     
     html += `
         </div>
-        <div style="background: #f1f5f9; padding: 20px; text-align: center; color: #64748b; font-size: 14px;">
-          <p style="margin: 0;">Thanks for reading our newsletter!</p>
-        </div>
+        <!-- Footer Block -->
+        ${generateFooterHTML(footerSettings, companyInfo, getDefaultTokenData(companyInfo))}
       </div>
     `;
     
