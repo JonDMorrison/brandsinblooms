@@ -124,9 +124,12 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         console.log('[ClickToEditBlock] Header block - toggling image edit mode');
         toggleMode('image'); // Enter image edit mode
       } else {
-        // For other blocks, open media selector WITHOUT setting edit mode
+        // For other blocks, force reset then open media selector
         console.log('[ClickToEditBlock] Non-header block - opening MediaSelector');
-        setIsMediaSelectorOpen(true);
+        setIsMediaSelectorOpen(false); // Force reset first
+        setTimeout(() => {
+          setIsMediaSelectorOpen(true); // Then open after reset
+        }, 10);
       }
     } else {
       toggleMode(mode);
