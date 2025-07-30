@@ -34,7 +34,7 @@ export const ContextualToolbar: React.FC<ContextualToolbarProps> = ({
 
   return (
     <div className={cn(
-      "absolute top-0 left-0 right-0 z-10",
+      "absolute top-0 left-0 right-0 z-20",
       "flex items-center justify-between",
       "p-3 bg-black/30 backdrop-blur-sm",
       "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
