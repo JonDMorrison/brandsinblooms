@@ -34,62 +34,49 @@ export const ContextualToolbar: React.FC<ContextualToolbarProps> = ({
 
   return (
     <div className={cn(
-      "absolute top-0 left-0 right-0 z-20",
-      "flex items-center justify-between",
-      "p-3 bg-black/30 backdrop-blur-sm",
+      "absolute top-2 right-2 z-20",
+      "flex items-center gap-1",
       "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
       className
     )}>
-      {/* Left: Edit Text */}
-      <div className="flex">
-        {showTextEdit && (
-          <Button
-            variant={editMode === 'text' ? 'default' : 'secondary'}
-            size="sm"
-            onClick={(e) => handleModeClick('text', e)}
-            className="h-8 px-3 bg-white/90 text-black hover:bg-white shadow-sm"
-            title="Edit text"
-          >
-            <Edit className="w-3.5 h-3.5 mr-1.5" />
-            <span className="text-xs font-medium">Edit Text</span>
-          </Button>
-        )}
-      </div>
-
-      {/* Center: Format */}
-      <div className="flex">
-        {showFormatEdit && (
-          <Button
-            variant={editMode === 'format' ? 'default' : 'secondary'}
-            size="sm"
-            onClick={(e) => handleModeClick('format', e)}
-            className="h-8 px-3 bg-white/90 text-black hover:bg-white shadow-sm"
-            title="Format block"
-          >
-            <Palette className="w-3.5 h-3.5 mr-1.5" />
-            <span className="text-xs font-medium">Format</span>
-          </Button>
-        )}
-      </div>
-
-      {/* Right: Edit Image */}
-      <div className="flex">
-        {showImageEdit && (
-          <Button
-            variant={editMode === 'image' ? 'default' : 'secondary'}
-            size="sm"
-            onClick={(e) => {
-              handleModeClick('image', e);
-              onImageEdit?.();
-            }}
-            className="h-8 px-3 bg-white/90 text-black hover:bg-white shadow-sm"
-            title="Change background image"
-          >
-            <Image className="w-3.5 h-3.5 mr-1.5" />
-            <span className="text-xs font-medium">Change Image</span>
-          </Button>
-        )}
-      </div>
+      {showTextEdit && (
+        <Button
+          variant={editMode === 'text' ? 'default' : 'secondary'}
+          size="sm"
+          onClick={(e) => handleModeClick('text', e)}
+          className="h-7 w-7 p-0 bg-white/90 text-black hover:bg-white shadow-sm rounded-full"
+          title="Edit text"
+        >
+          <Edit className="w-3 h-3" />
+        </Button>
+      )}
+      
+      {showFormatEdit && (
+        <Button
+          variant={editMode === 'format' ? 'default' : 'secondary'}
+          size="sm"
+          onClick={(e) => handleModeClick('format', e)}
+          className="h-7 w-7 p-0 bg-white/90 text-black hover:bg-white shadow-sm rounded-full"
+          title="Format block"
+        >
+          <Palette className="w-3 h-3" />
+        </Button>
+      )}
+      
+      {showImageEdit && (
+        <Button
+          variant={editMode === 'image' ? 'default' : 'secondary'}
+          size="sm"
+          onClick={(e) => {
+            handleModeClick('image', e);
+            onImageEdit?.();
+          }}
+          className="h-7 w-7 p-0 bg-white/90 text-black hover:bg-white shadow-sm rounded-full"
+          title="Change background image"
+        >
+          <Image className="w-3 h-3" />
+        </Button>
+      )}
     </div>
   );
 };
