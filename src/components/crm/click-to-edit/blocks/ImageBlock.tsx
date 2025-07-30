@@ -68,6 +68,11 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({ block, onUpdate, isPrevi
               onSave={handleInlineSave}
               onCancel={handleInlineCancel}
               contentContext="Email newsletter image"
+              backgroundColor={block.backgroundColor}
+              onBackgroundColorChange={(color) => onUpdate({ backgroundColor: color })}
+              layout={block.layout as 'image-left' | 'two-column-left' | 'two-column-right'}
+              onLayoutChange={(layout) => onUpdate({ layout })}
+              showLayoutControls={true}
             />
           </div>
         ) : (

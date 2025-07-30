@@ -7,7 +7,7 @@ import { GripVertical } from 'lucide-react';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
-import { FormatEditMode } from './modes/FormatEditMode';
+
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 
 interface ClickToEditBlockProps {
@@ -42,7 +42,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   const [isMediaSelectorOpen, setIsMediaSelectorOpen] = useState(false);
   
   // Use the new edit mode hook
-  const { editMode, toggleMode, exitEditMode, isTextEditing, isImageEditing, isFormatEditing } = useBlockEditMode();
+  const { editMode, toggleMode, exitEditMode, isTextEditing, isImageEditing } = useBlockEditMode();
 
   // Sync local state with props when block changes from parent
   useEffect(() => {
@@ -137,7 +137,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     }
   };
 
-  const isAnyEditMode = isTextEditing || isFormatEditing || isImageEditing;
+  const isAnyEditMode = isTextEditing || isImageEditing;
 
   return (
     <div className={cn("group relative click-to-edit-container", isAnyEditMode && "click-to-edit-editing")} style={{ position: 'relative', zIndex: 1 }}>
@@ -157,7 +157,6 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
           onDelete={() => onRemove(block.id)}
           className="opacity-0 group-hover:opacity-100"
           showImageButton={false} // Hide since we use contextual buttons
-          showFormatButton={block.type === 'text'} // Only show for text blocks
         />
       )}
 
@@ -190,16 +189,6 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
               </div>
             )}
 
-            {/* Format Edit Mode */}
-            {isFormatEditing && (
-              <div className="p-4">
-                <FormatEditMode 
-                  block={localBlock}
-                  onUpdate={handleLocalUpdate}
-                />
-              </div>
-            )}
-
             {/* Image Edit Mode */}
             {isImageEditing && (
               <div className="p-4">
@@ -213,8 +202,8 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
               </div>
             )}
 
-            {/* Preview when in edit mode but not text/format/image */}
-            {!isTextEditing && !isFormatEditing && !isImageEditing && (
+            {/* Preview when in edit mode but not text/image */}
+            {!isTextEditing && !isImageEditing && (
               <div className="p-0">
                 {React.cloneElement(children.preview as React.ReactElement, {
                   block: localBlock,

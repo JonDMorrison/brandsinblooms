@@ -76,7 +76,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
           }}
           showTextEdit={true}
           showImageEdit={true}
-          showFormatEdit={true}
+          showFormatEdit={false}
         />
       )}
       

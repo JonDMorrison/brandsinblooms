@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Edit, Image, Palette, Copy, Trash2 } from 'lucide-react';
+import { Edit, Image, Copy, Trash2 } from 'lucide-react';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { cn } from '@/lib/utils';
 
@@ -11,7 +11,7 @@ interface BlockEditToolbarProps {
   onDelete: () => void;
   className?: string;
   showImageButton?: boolean;
-  showFormatButton?: boolean;
+  
 }
 
 export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
@@ -21,7 +21,7 @@ export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
   onDelete,
   className,
   showImageButton = true,
-  showFormatButton = true
+  
 }) => {
   const handleModeClick = (mode: EditMode, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -57,19 +57,6 @@ export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
           title="Edit image"
         >
           <Image className="w-3 h-3" />
-        </Button>
-      )}
-
-      {/* Format */}
-      {showFormatButton && (
-        <Button
-          variant={editMode === 'format' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={(e) => handleModeClick('format', e)}
-          className="h-7 w-7 p-0"
-          title="Format block"
-        >
-          <Palette className="w-3 h-3" />
         </Button>
       )}
 

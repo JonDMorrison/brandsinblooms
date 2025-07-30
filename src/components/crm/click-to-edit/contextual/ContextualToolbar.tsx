@@ -51,18 +51,6 @@ export const ContextualToolbar: React.FC<ContextualToolbarProps> = ({
         </Button>
       )}
       
-      {showFormatEdit && (
-        <Button
-          variant={editMode === 'format' ? 'default' : 'secondary'}
-          size="sm"
-          onClick={(e) => handleModeClick('format', e)}
-          className="h-7 w-7 p-0 bg-white/90 text-black hover:bg-white shadow-sm rounded-full"
-          title="Format block"
-        >
-          <Palette className="w-3 h-3" />
-        </Button>
-      )}
-      
       {showImageEdit && (
         <Button
           variant={editMode === 'image' ? 'default' : 'secondary'}
@@ -72,7 +60,7 @@ export const ContextualToolbar: React.FC<ContextualToolbarProps> = ({
             onImageEdit?.();
           }}
           className="h-7 w-7 p-0 bg-white/90 text-black hover:bg-white shadow-sm rounded-full"
-          title="Change background image"
+          title="Edit image & background"
         >
           <Image className="w-3 h-3" />
         </Button>
