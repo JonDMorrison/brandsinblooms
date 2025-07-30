@@ -1,20 +1,35 @@
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
+import { ContextualEditButton } from '../contextual/ContextualEditButton';
+import { EditMode } from '@/hooks/useBlockEditMode';
 
 interface ImageTextBlockProps {
   block: ContentBlock;
   onUpdate?: (updates: Partial<ContentBlock>) => void;
   isPreview?: boolean;
+  editMode?: EditMode;
+  onModeChange?: (mode: EditMode) => void;
 }
 
-export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ block, onUpdate, isPreview = true }) => {
+export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ 
+  block, 
+  onUpdate, 
+  isPreview = true, 
+  editMode,
+  onModeChange 
+}) => {
   const isImageLeft = block.layout === 'image-left' || !block.layout;
+
+  const handleModeClick = (mode: EditMode, event: React.MouseEvent) => {
+    event.stopPropagation();
+    onModeChange?.(editMode === mode ? null : mode);
+  };
 
   // Always render as preview - editing is handled by the new mode system
   return (
     <div 
-      className="relative p-6 rounded-lg"
+      className="relative p-6 rounded-lg group"
       style={{ backgroundColor: block.backgroundColor || 'transparent' }}
     >
       <div className={cn(
@@ -23,11 +38,24 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ block, onUpdate,
       )}>
         {/* Content - shown first on mobile, positioned based on layout on desktop */}
         <div className={cn(
-          "space-y-4",
+          "space-y-4 relative group/text",
           !isImageLeft && "md:order-1",
           block.textAlign === 'center' && "text-center",
-          block.textAlign === 'right' && "text-right"
+          block.textAlign === 'right' && "text-right",
+          "hover:bg-background/50 rounded-md transition-colors duration-200 p-2 -m-2"
         )}>
+          {/* Contextual Text Edit Button */}
+          {onModeChange && (
+            <ContextualEditButton
+              mode="text"
+              isActive={editMode === 'text'}
+              onClick={(e) => handleModeClick('text', e)}
+              variant="text"
+              position="top-right"
+              className="group-hover/text:opacity-100"
+            />
+          )}
+          
           {/* Headline */}
           <h2 className="text-2xl font-bold">
             {block.headline || 'Add headline'}
@@ -40,7 +68,23 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ block, onUpdate,
         </div>
 
         {/* Image */}
-        <div className={cn(!isImageLeft && "md:order-2", "relative")}>
+        <div className={cn(
+          !isImageLeft && "md:order-2", 
+          "relative group/image",
+          "hover:opacity-90 transition-opacity duration-200"
+        )}>
+          {/* Contextual Image Edit Button */}
+          {onModeChange && (
+            <ContextualEditButton
+              mode="image"
+              isActive={editMode === 'image'}
+              onClick={(e) => handleModeClick('image', e)}
+              variant="image"
+              position="top-right"
+              className="group-hover/image:opacity-100"
+            />
+          )}
+          
           {block.imageUrl ? (
             <img 
               src={block.imageUrl}

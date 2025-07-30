@@ -8,6 +8,8 @@ import { Slider } from '@/components/ui/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { Edit, Copy, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ContextualToolbar } from '../contextual/ContextualToolbar';
+import { EditMode } from '@/hooks/useBlockEditMode';
 
 interface HeaderBlockProps {
   block: ContentBlock;
@@ -15,12 +17,22 @@ interface HeaderBlockProps {
   onDuplicate?: () => void;
   onDelete?: () => void;
   isPreview: boolean;
+  editMode?: EditMode;
+  onModeChange?: (mode: EditMode) => void;
 }
 
-export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, onDuplicate, onDelete, isPreview }) => {
+export const HeaderBlock: React.FC<HeaderBlockProps> = ({ 
+  block, 
+  onUpdate, 
+  onDuplicate, 
+  onDelete, 
+  isPreview,
+  editMode,
+  onModeChange 
+}) => {
   // Live preview component that can be reused
   const PreviewContent = () => (
-    <div className="relative overflow-hidden rounded-lg">
+    <div className="relative overflow-hidden rounded-lg group min-h-[300px]">
       {/* Background Image - bottom layer */}
       {block.backgroundImageUrl && (
         <div 
@@ -42,48 +54,61 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, onDup
           }}
         />
       )}
+
+      {/* Contextual Toolbar - only show when onModeChange is available */}
+      {onModeChange && (
+        <ContextualToolbar
+          editMode={editMode}
+          onModeChange={onModeChange}
+          showTextEdit={true}
+          showImageEdit={true}
+          showFormatEdit={true}
+        />
+      )}
       
       {/* Content - top layer */}
       <div className={cn(
-        "relative z-10 p-12 text-white group",
+        "relative z-10 p-12 text-white flex items-center justify-center min-h-[300px]",
         // Add dark background only if no background image or color
         !block.backgroundImageUrl && !block.backgroundColor && "bg-slate-800/80",
         block.textAlign === 'center' && "text-center",
         block.textAlign === 'right' && "text-right"
       )}>
-        {/* Action Buttons */}
-        {!isPreview && (
-          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-md transition-colors"
-              title="Edit"
-            >
-              <Edit size={16} />
-            </button>
-            <button
-              onClick={onDuplicate}
-              className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-md transition-colors"
-              title="Duplicate"
-            >
-              <Copy size={16} />
-            </button>
-            <button
-              onClick={onDelete}
-              className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-md transition-colors"
-              title="Delete"
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        )}
-        
-        <h1 className="text-4xl font-bold mb-4">
-          {block.headline || 'Your Headline Here'}
-        </h1>
-        <p className="text-lg opacity-90">
-          {block.body || 'Add your subtitle or description text here.'}
-        </p>
+        <div className="max-w-2xl">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+            {block.headline || 'Your Headline Here'}
+          </h1>
+          <p className="text-lg md:text-xl opacity-90 leading-relaxed">
+            {block.body || 'Add your subtitle or description text here.'}
+          </p>
+        </div>
       </div>
+
+      {/* Legacy Action Buttons - only show when not using contextual toolbar */}
+      {!isPreview && !onModeChange && (
+        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+          <button
+            className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-md transition-colors"
+            title="Edit"
+          >
+            <Edit size={16} />
+          </button>
+          <button
+            onClick={onDuplicate}
+            className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-md transition-colors"
+            title="Duplicate"
+          >
+            <Copy size={16} />
+          </button>
+          <button
+            onClick={onDelete}
+            className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-md transition-colors"
+            title="Delete"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 

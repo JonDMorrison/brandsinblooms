@@ -106,6 +106,9 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     }
   };
 
+  // Create local edit mode for contextual components
+  const localEditMode = editMode;
+
   // Handle image selection from MediaSelector
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     handleLocalUpdate({ 
@@ -132,16 +135,18 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         </div>
       </div>
 
-      {/* New Block Edit Toolbar - appears on hover */}
-      <BlockEditToolbar
-        editMode={editMode}
-        onModeChange={handleModeChange}
-        onDuplicate={() => onDuplicate(block)}
-        onDelete={() => onRemove(block.id)}
-        className="opacity-0 group-hover:opacity-100"
-        showImageButton={block.type === 'image' || block.imageUrl !== undefined}
-        showFormatButton={true}
-      />
+      {/* New Block Edit Toolbar - only show for non-contextual blocks */}
+      {block.type !== 'header' && (
+        <BlockEditToolbar
+          editMode={editMode}
+          onModeChange={handleModeChange}
+          onDuplicate={() => onDuplicate(block)}
+          onDelete={() => onRemove(block.id)}
+          className="opacity-0 group-hover:opacity-100"
+          showImageButton={false} // Hide since we use contextual buttons
+          showFormatButton={block.type === 'text'} // Only show for text blocks
+        />
+      )}
 
       <Card
         ref={blockRef}
@@ -178,7 +183,9 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             {!isTextEditing && !isFormatEditing && (
               <div className="p-0">
                 {React.cloneElement(children.preview as React.ReactElement, {
-                  block: localBlock
+                  block: localBlock,
+                  editMode: localEditMode,
+                  onModeChange: handleModeChange
                 })}
               </div>
             )}
@@ -190,7 +197,9 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             style={{ pointerEvents: 'auto' }}
           >
             {React.cloneElement(children.preview as React.ReactElement, {
-              block: localBlock
+              block: localBlock,
+              editMode: localEditMode,
+              onModeChange: handleModeChange
             })}
           </div>
         )}
