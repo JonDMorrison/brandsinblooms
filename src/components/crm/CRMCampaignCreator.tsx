@@ -969,8 +969,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       logoUrl: ''
     };
     
+    console.log('🔍 Generating footer in email preview');
     const tokenData = getDefaultTokenData(companyInfo);
     const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData);
+    console.log('✅ Footer HTML generated:', footerHTML.substring(0, 100) + '...');
     
     html += `
           ${footerHTML}
