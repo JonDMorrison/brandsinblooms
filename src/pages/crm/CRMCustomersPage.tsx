@@ -1,15 +1,18 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Plus, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 export const CRMCustomersPage: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Customers</h1>
-        <Button>
+        <Button onClick={() => navigate('/crm/customers/new')}>
           <Plus className="h-4 w-4 mr-2" />
           Add Customer
         </Button>
