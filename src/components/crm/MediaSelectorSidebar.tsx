@@ -39,6 +39,11 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
   const { searchImages, loading: unsplashLoading } = useUnsplash();
   const { uploadAsset } = useContentAssets();
 
+  // Debug editMode state
+  useEffect(() => {
+    console.log('[MediaSelectorSidebar] editMode check', { isOpen, editMode });
+  }, [isOpen, editMode]);
+
   // Handle escape key and backdrop clicks
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -278,7 +283,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
         data-app="media-selector"
         data-testid="media-selector-sidebar"
         className={cn(
-          "fixed top-0 right-0 w-96 shadow-2xl",
+          "fixed top-0 right-0 w-96 bg-white shadow-2xl",
           "border-l border-gray-200"
         )}
         style={{ 
@@ -292,10 +297,9 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
           width: '384px',
           opacity: 1,
           visibility: 'visible',
-          backgroundColor: 'red !important', // TEMP: Force visible red
+          backgroundColor: 'white',
           transform: 'none',
-          pointerEvents: 'auto',
-          border: '5px solid blue !important' // TEMP: Debug border
+          pointerEvents: 'auto'
         }}
       >
         {/* Header */}
@@ -484,42 +488,18 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
 
   console.log('[MediaSelectorSidebar] About to create portal');
   
-  // TEMP: Try direct render instead of portal to debug
-  try {
-    const testElement = (
-      <div 
-        data-testid="media-selector-direct"
-        style={{ 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          width: '100vw', 
-          height: '100vh', 
-          zIndex: 999999,
-          pointerEvents: 'auto',
-          background: 'rgba(255, 0, 255, 0.8)', // TEMP: Purple debug background
-          display: 'block'
-        }}
-      >
-        <div style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: 'white',
-          padding: '20px',
-          border: '5px solid red',
-          fontSize: '24px'
-        }}>
-          MEDIA SELECTOR IS WORKING!
-        </div>
-      </div>
-    );
-    
-    console.log('[MediaSelectorSidebar] Test element created, returning...');
-    return testElement;
-  } catch (error) {
-    console.error('[MediaSelectorSidebar] Render error:', error);
-    return <div>ERROR in MediaSelector</div>;
-  }
+  return createPortal(
+    <div style={{ 
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      width: '100vw', 
+      height: '100vh', 
+      zIndex: 999997,
+      pointerEvents: 'auto'
+    }}>
+      {modalContent}
+    </div>, 
+    document.body
+  );
 };
