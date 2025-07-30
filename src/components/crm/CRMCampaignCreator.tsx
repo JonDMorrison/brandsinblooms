@@ -752,12 +752,84 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
 
   const generateEmailHTML = (): string => {
+    const emailContent = generateEmailContentWithStyles();
+    
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>${subjectLine || 'Email Campaign'}</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+    
+    /* Reset and base styles */
+    body, table, td, p, a, li, blockquote {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    table, td {
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+    img {
+      -ms-interpolation-mode: bicubic;
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+    }
+    
+    /* Mobile responsive styles */
+    @media only screen and (max-width: 600px) {
+      .email-container {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .content-block {
+        padding: 20px 15px !important;
+      }
+      .mobile-center {
+        text-align: center !important;
+      }
+      .mobile-full-width {
+        width: 100% !important;
+        display: block !important;
+      }
+      .mobile-stack {
+        display: block !important;
+        width: 100% !important;
+      }
+      .cta-button {
+        width: auto !important;
+        padding: 12px 24px !important;
+        font-size: 16px !important;
+      }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8f9fa; font-family: 'Quicksand', 'Arial', sans-serif;">
+  ${emailContent}
+</body>
+</html>`;
+  };
+
+  const generateEmailContentWithStyles = (): string => {
     let html = `
-      <div style="max-width: 600px; margin: 0 auto; font-family: 'Quicksand', 'system-ui', sans-serif;">
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
-        </style>
-        <div style="padding: 30px 20px; background: white;">
+      <div class="email-container" style="max-width: 600px; margin: 0 auto; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div class="content-block" style="padding: 30px 20px;">
     `;
     
     blocks.forEach(block => {
