@@ -243,7 +243,14 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       </Card>
 
       {/* MediaSelector Modal for Image Editing */}
-      {isMediaSelectorOpen && (
+      {(() => {
+        console.log('[ClickToEditBlock] MediaSelector rendering check:', {
+          isMediaSelectorOpen,
+          shouldRender: !!isMediaSelectorOpen,
+          blockId: block.id
+        });
+        return isMediaSelectorOpen;
+      })() && (
         <MediaSelectorSidebar
           isOpen={isMediaSelectorOpen}
           editMode="image"
