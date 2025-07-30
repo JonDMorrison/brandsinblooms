@@ -220,22 +220,36 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
 
   const modalContent = (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - Full viewport coverage */}
       <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        style={{ zIndex: 999998 }}
+        className="fixed inset-0 w-screen h-screen bg-black/50 backdrop-blur-sm"
+        style={{ 
+          zIndex: 999998,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0
+        }}
         onClick={onClose}
       />
       
-      {/* Sidebar */}
+      {/* Sidebar - Fixed positioning with full viewport height */}
       <div
         ref={sidebarRef}
         data-media-selector-sidebar
         className={cn(
-          "fixed top-0 right-0 h-full w-96 bg-white shadow-2xl",
+          "fixed top-0 right-0 w-96 bg-white shadow-2xl",
           "border-l border-gray-200"
         )}
-        style={{ zIndex: 999999 }}
+        style={{ 
+          zIndex: 999999,
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          height: '100vh',
+          width: '384px'
+        }}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white sticky top-0 z-10">

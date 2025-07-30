@@ -61,9 +61,18 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
           editMode={editMode}
           onModeChange={onModeChange}
           onImageEdit={() => {
-            // Trigger the MediaSelectorImage click programmatically
-            const mediaSelector = document.querySelector('[data-media-selector-button]') as HTMLButtonElement;
-            mediaSelector?.click();
+            console.log('[HeaderBlock] Image edit triggered via ContextualToolbar');
+            // Find the MediaSelectorImage button in the editor section
+            setTimeout(() => {
+              const mediaSelector = document.querySelector('[data-media-selector-button]') as HTMLButtonElement;
+              console.log('[HeaderBlock] Found MediaSelectorImage button:', !!mediaSelector);
+              if (mediaSelector) {
+                console.log('[HeaderBlock] Clicking MediaSelectorImage button');
+                mediaSelector.click();
+              } else {
+                console.error('[HeaderBlock] MediaSelectorImage button not found');
+              }
+            }, 50);
           }}
           showTextEdit={true}
           showImageEdit={true}
