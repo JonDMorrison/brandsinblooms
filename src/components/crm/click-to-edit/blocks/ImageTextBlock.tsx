@@ -45,7 +45,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
         {/* Content - shown first on mobile, positioned based on layout on desktop */}
         <div className={cn(
           "space-y-4 relative group/text",
-          !isImageLeft && "md:order-1",
+          isImageLeft && "md:order-2",
           block.textAlign === 'center' && "text-center",
           block.textAlign === 'right' && "text-right",
           "hover:bg-background/50 rounded-md transition-colors duration-200 p-2 -m-2"
@@ -89,7 +89,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
 
         {/* Image */}
         <div className={cn(
-          !isImageLeft && "md:order-2", 
+          isImageLeft && "md:order-1", 
           "relative group/image",
           "hover:opacity-90 transition-opacity duration-200"
         )}
