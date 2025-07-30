@@ -36,16 +36,6 @@ const layoutOptions = [
     isNew: true,
     previewType: 'quote-featured' as const
   },
-  {
-    id: 'cta-primary' as LayoutType,
-    title: 'Enhanced CTA',
-    description: 'Advanced call-to-action with customizable styling',
-    category: 'Newsletter',
-    icon: <Target className="h-4 w-4 text-muted-foreground" />,
-    isPopular: true,
-    isNew: true,
-    previewType: 'cta-primary' as const
-  },
 
   // Header Layouts
   {
@@ -75,24 +65,6 @@ const layoutOptions = [
     icon: <Image className="h-4 w-4 text-muted-foreground" />,
     isPopular: true,
     previewType: 'image-full' as const
-  },
-  {
-    id: 'image-60-40' as LayoutType,
-    title: 'Image Focus (60/40)',
-    description: 'Image-dominant layout with 60% image, 40% text',
-    category: 'Image',
-    icon: <Image className="h-4 w-4 text-muted-foreground" />,
-    isNew: true,
-    previewType: 'image-60-40' as const
-  },
-  {
-    id: 'image-70-30' as LayoutType,
-    title: 'Image Dominant (70/30)',
-    description: 'Strong visual impact with 70% image, 30% text',
-    category: 'Image',
-    icon: <Image className="h-4 w-4 text-muted-foreground" />,
-    isNew: true,
-    previewType: 'image-70-30' as const
   },
   {
     id: 'image-overlay' as LayoutType,
@@ -139,22 +111,6 @@ const layoutOptions = [
     isPopular: true,
     previewType: 'button-centered' as const
   },
-  {
-    id: 'button-left' as LayoutType,
-    title: 'Left Aligned Button',
-    description: 'Left-aligned button with text',
-    category: 'Button',
-    icon: <ArrowLeft className="h-4 w-4 text-muted-foreground" />,
-    previewType: 'button-left' as const
-  },
-  {
-    id: 'button-right' as LayoutType,
-    title: 'Right Aligned Button',
-    description: 'Right-aligned button with text',
-    category: 'Button',
-    icon: <ArrowRight className="h-4 w-4 text-muted-foreground" />,
-    previewType: 'button-right' as const
-  },
   
   // Text Layouts
   {
@@ -165,15 +121,6 @@ const layoutOptions = [
     icon: <FileText className="h-4 w-4 text-muted-foreground" />,
     previewType: 'text-double' as const
   },
-  {
-    id: 'text-triple' as LayoutType,
-    title: 'Three Columns',
-    description: 'Text split into three columns for compact presentation',
-    category: 'Text',
-    icon: <FileText className="h-4 w-4 text-muted-foreground" />,
-    isNew: true,
-    previewType: 'text-triple' as const
-  }
 ];
 
 export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> = ({ 

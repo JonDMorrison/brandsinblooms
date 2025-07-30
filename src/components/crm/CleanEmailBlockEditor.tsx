@@ -42,53 +42,7 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           padding: 'large'
         }
       };
-    case 'cta-primary':
-      return {
-        type: 'cta',
-        config: {
-          heading: 'Take Action Today',
-          body: 'Don\'t miss out on this opportunity. Join thousands of satisfied customers.',
-          ctaText: 'Get Started',
-          ctaUrl: '',
-          ctaStyle: 'primary',
-          ctaSize: 'large',
-          alignment: 'center',
-          padding: 'large'
-        }
-      };
     // Enhanced image layouts
-    case 'image-60-40':
-      const image6040 = await mediaSelector({ 
-        prompt: 'beautiful garden flowers plants',
-        count: 1 
-      });
-      return {
-        type: 'image',
-        config: {
-          title: 'Image Focus Layout',
-          content: 'Supporting text content...',
-          altText: image6040.alt || 'Garden content',
-          layout: 'image-60-40',
-          imageUrl: image6040.url,
-          alignment: 'left'
-        }
-      };
-    case 'image-70-30':
-      const image7030 = await mediaSelector({ 
-        prompt: 'gardening landscape design',
-        count: 1 
-      });
-      return {
-        type: 'image',
-        config: {
-          title: 'Image Dominant Layout',
-          content: 'Complementary text...',
-          altText: image7030.alt || 'Landscape design',
-          layout: 'image-70-30',
-          imageUrl: image7030.url,
-          alignment: 'left'
-        }
-      };
     case 'image-overlay':
       const overlayImage = await mediaSelector({ 
         prompt: 'stunning garden landscape background',
@@ -206,30 +160,6 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           padding: 'medium'
         }
       };
-    case 'button-left':
-      return {
-        type: 'button',
-        config: {
-          heading: 'Take Action',
-          body: 'Learn more about our services.',
-          buttonText: 'Learn More',
-          buttonUrl: '',
-          alignment: 'left',
-          padding: 'medium'
-        }
-      };
-    case 'button-right':
-      return {
-        type: 'button',
-        config: {
-          heading: 'Get Started Today',
-          body: 'Join thousands of satisfied customers.',
-          buttonText: 'Join Now',
-          buttonUrl: '',
-          alignment: 'right',
-          padding: 'medium'
-        }
-      };
     case 'text-double':
       return {
         type: 'text',
@@ -237,15 +167,6 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           title: 'Two Column Text',
           content: 'Column 1 content goes here...\n\nColumn 2 content goes here...',
           layout: 'two-column-left',
-          alignment: 'left'
-        }
-      };
-    case 'text-triple':
-      return {
-        type: 'text',
-        config: {
-          title: 'Three Column Text',
-          content: 'Column 1 content...\n\nColumn 2 content...\n\nColumn 3 content...',
           alignment: 'left'
         }
       };
