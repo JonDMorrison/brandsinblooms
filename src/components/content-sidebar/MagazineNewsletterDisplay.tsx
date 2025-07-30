@@ -3,6 +3,7 @@ import React from 'react';
 import { useNewsletterRenderer } from '@/hooks/useNewsletterRenderer';
 import { MagazineNewsletterRenderer } from '@/components/newsletter/MagazineNewsletterRenderer';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { TopicValidationIndicator } from '@/components/debug/TopicValidationIndicator';
 
 interface MagazineNewsletterDisplayProps {
   content: string;
@@ -35,7 +36,8 @@ export const MagazineNewsletterDisplay = ({
     imageErrors,
     handleImageSelect,
     needsRegeneration,
-    isStructured
+    isStructured,
+    topicValidation
   } = useNewsletterRenderer({
     content,
     campaignTitle,

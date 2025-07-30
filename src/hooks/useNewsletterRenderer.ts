@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
 import { useNewsletterImages } from '@/components/content-sidebar/newsletter/useNewsletterImages';
+import { validateCampaignContent } from '@/utils/topicContentValidator';
 
 export interface NewsletterRendererOptions {
   content: string;
@@ -22,6 +23,13 @@ export interface NewsletterRendererResult {
   
   // Meta info
   featuredImagePrompt: string;
+  
+  // Topic validation
+  topicValidation?: {
+    isValid: boolean;
+    confidence: number;
+    suggestions: string[];
+  };
   
   // Rendering utilities
   handleImageSelect: (blockIndex: number, prompt: string) => void;
@@ -45,14 +53,32 @@ export const useNewsletterRenderer = ({
     [content, campaignTitle]
   );
 
-  // Generate featured image prompt
+  // Generate featured image prompt with topic specificity
   const featuredImagePrompt = useMemo(() => {
     if (campaignTitle) {
+      // Use topic-specific image terms for better image alignment
+      if (campaignTitle.toLowerCase().includes('honey month') || campaignTitle.toLowerCase().includes('pollinator')) {
+        return `honey bees pollinator garden newsletter hero`;
+      }
       return `${campaignTitle} garden center newsletter hero image professional`;
     }
     const firstLine = content?.split('\n')[0]?.replace(/[#*]/g, '').trim();
     return firstLine ? `${firstLine} garden newsletter hero` : 'garden center newsletter hero professional';
   }, [campaignTitle, content]);
+
+  // Validate topic alignment of content
+  const topicValidation = useMemo(() => {
+    if (campaignTitle && content && content.length > 50) {
+      const validation = validateCampaignContent(content, campaignTitle);
+      console.log('[NEWSLETTER RENDERER] Topic validation result:', validation);
+      return {
+        isValid: validation.isValid,
+        confidence: validation.confidence,
+        suggestions: validation.suggestions
+      };
+    }
+    return undefined;
+  }, [content, campaignTitle]);
 
   // Load images for the newsletter
   const { 
@@ -82,6 +108,7 @@ export const useNewsletterRenderer = ({
     loadingImages,
     imageErrors,
     featuredImagePrompt,
+    topicValidation,
     handleImageSelect,
     needsRegeneration: processedNewsletter.needsRegeneration,
     isStructured: processedNewsletter.isStructured

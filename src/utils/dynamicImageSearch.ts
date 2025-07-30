@@ -24,8 +24,8 @@ interface CampaignData {
 }
 
 /**
- * Extracts dynamic search query from content task
- * Priority: campaign theme > image_idea > content keywords > post type
+ * Extracts dynamic search query from content task with strict topic adherence
+ * Priority: exact campaign title match > campaign theme > image_idea > content keywords > post type
  */
 export function extractDynamicQuery(
   task?: ContentTask | null, 
@@ -34,10 +34,20 @@ export function extractDynamicQuery(
 ): string {
   console.log('[DYNAMIC QUERY] Extracting query from:', { task, campaign });
   
-  // Priority 1: Use campaign title first (most specific)
+  // Priority 1: Use exact campaign title for topic-specific searches
   const campaignSource = campaign || task?.campaigns;
   if (campaignSource?.title) {
-    const summary = extractImageSummary(campaignSource?.title);
+    const title = campaignSource.title.toLowerCase();
+    
+    // First try exact topic match with enhanced mappings
+    const exactTopicMapping = getExactTopicMapping(title);
+    if (exactTopicMapping) {
+      console.log('[DYNAMIC QUERY] Using exact topic mapping:', exactTopicMapping);
+      return exactTopicMapping;
+    }
+    
+    // Then try extracted summary
+    const summary = extractImageSummary(campaignSource.title);
     if (summary && !isGenericTerm(summary)) {
       console.log('[DYNAMIC QUERY] Using campaign title summary:', summary);
       return summary;
@@ -73,6 +83,41 @@ export function extractDynamicQuery(
   
   console.log('[DYNAMIC QUERY] Using fallback:', fallback);
   return fallback;
+}
+
+/**
+ * Maps exact topic titles to optimal search terms
+ */
+function getExactTopicMapping(title: string): string | null {
+  const topicMappings: Record<string, string> = {
+    'national honey month': 'honey bees',
+    'honey month': 'honey bee',
+    'pollinator month': 'bee pollinator',
+    'bee awareness': 'bee garden',
+    'hydrangea care': 'hydrangea',
+    'rose pruning': 'rose bush',
+    'orchid care': 'orchid',
+    'succulent care': 'succulent',
+    'herb garden': 'herb garden',
+    'vegetable garden': 'vegetable garden',
+    'tomato growing': 'tomato plant',
+    'container gardening': 'container garden',
+    'shade gardening': 'shade garden',
+    'drought resistant': 'drought plants',
+    'native plants': 'native wildflowers',
+    'fall planting': 'autumn planting',
+    'spring garden': 'spring flowers',
+    'summer blooms': 'summer flowers',
+    'winter care': 'winter garden'
+  };
+  
+  for (const [topic, mapping] of Object.entries(topicMappings)) {
+    if (title.includes(topic)) {
+      return mapping;
+    }
+  }
+  
+  return null;
 }
 
 /**

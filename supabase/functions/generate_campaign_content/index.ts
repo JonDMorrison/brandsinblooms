@@ -64,76 +64,129 @@ serve(async (req) => {
 
     console.log(`📝 Generating content for missing types: ${typesToGenerate.join(', ')}`);
 
-    // Define content prompts with structured output instructions
+    // Define content prompts with strict topic adherence
     const contentPrompts = {
-      instagram: `Create an engaging Instagram post about ${campaign_title} for ${businessName}. 
+      instagram: `Create an engaging Instagram post specifically about "${campaign_title}" for ${businessName}. 
 
-      Structure the response as multiple slides/sections if the content is long enough:
-      - Main post content with gardening advice
-      - Include relevant hashtags 
-      - Call-to-action to visit the garden center
+      CRITICAL REQUIREMENT: Your content MUST be entirely focused on "${campaign_title}". 
+      - Do NOT mix in generic gardening advice unless directly related to this specific topic
+      - If the topic is "National Honey Month", focus ONLY on bees, pollinators, honey, bee-friendly plants
+      - If the topic mentions specific plants, focus ONLY on those plants
       
-      Focus on practical tips, seasonal advice, and authentic gardening insights. Do NOT use any emojis.`,
+      Structure:
+      - Opening hook specific to "${campaign_title}"
+      - 2-3 specific tips or insights about this exact topic
+      - Relevant hashtags using topic keywords
+      - Call-to-action mentioning the specific topic
       
-      facebook: `Write a Facebook post about ${campaign_title} for ${businessName}. 
+      Do NOT use any emojis. Stay laser-focused on the exact topic provided.`,
+      
+      facebook: `Write a Facebook post specifically about "${campaign_title}" for ${businessName}. 
 
-      Create engaging, community-focused content with:
-      - Introduction hook about the topic
-      - Practical gardening tips and advice  
-      - Community engagement element
-      - Call-to-action to visit or contact
+      CRITICAL REQUIREMENT: Focus EXCLUSIVELY on "${campaign_title}". Do not dilute with general advice.
       
-      Make it conversational and valuable for garden center customers. Do NOT use any emojis.`,
+      Structure:
+      - Opening question or statement specifically about "${campaign_title}"
+      - 2-3 specific insights or tips related only to this topic
+      - Community engagement question about this specific topic
+      - Call-to-action that mentions "${campaign_title}"
       
-      blog: `Write a comprehensive blog post about ${campaign_title} for ${businessName}. 
+      If the topic is specific (like "National Honey Month"), every sentence should relate to that theme.
+      Do NOT use any emojis. Stay completely focused on the provided topic.`,
+      
+      blog: `Write a comprehensive blog post exclusively about "${campaign_title}" for ${businessName}. 
 
-      Structure the blog with clear sections:
-      - Engaging title and introduction
-      - 3-4 main content sections with helpful tips
-      - Practical advice and actionable insights
-      - Conclusion with call-to-action
+      CRITICAL REQUIREMENT: Every section must relate directly to "${campaign_title}". Do not include generic advice.
       
-      Make it SEO-friendly, informative, and valuable for gardening enthusiasts. Do NOT use any emojis.`,
+      Structure:
+      - Title that includes "${campaign_title}"
+      - Introduction explaining why "${campaign_title}" matters now
+      - 3-4 sections each diving deep into specific aspects of "${campaign_title}"
+      - Each section should use keywords related to the topic
+      - Conclusion reinforcing the importance of "${campaign_title}"
       
-      video: `Create a 90-second video script about ${campaign_title} for ${businessName}. 
+      For specific topics like "National Honey Month", focus on bee-friendly plants, pollinator gardens, honey production, etc.
+      Do NOT use any emojis. Maintain laser focus on the exact topic.`,
+      
+      video: `Create a 90-second video script exclusively about "${campaign_title}" for ${businessName}. 
 
-      Structure the script in segments:
-      - Opening hook (10-15 seconds)
-      - Main teaching content in 2-3 segments (60-70 seconds)
-      - Closing with call-to-action (15-20 seconds)
+      CRITICAL REQUIREMENT: The entire script must focus on "${campaign_title}" only. No generic content.
       
-      Write ONLY the spoken words - no scene descriptions or production notes. Focus on one clear teaching point. Do NOT use any emojis.`,
+      Structure:
+      - Opening hook (10-15 seconds): Start with an intriguing fact about "${campaign_title}"
+      - Main teaching (60-70 seconds): Share specific knowledge about this exact topic
+      - Closing (15-20 seconds): Encourage action related to "${campaign_title}"
       
-      newsletter: `Create a structured newsletter about ${campaign_title} for ${businessName} in this YAML format:
+      For "National Honey Month": focus on bee behavior, pollinator plants, honey facts.
+      Write ONLY spoken words - no scene descriptions. Stay completely on topic. Do NOT use emojis.`,
+      
+      newsletter: `Create a structured newsletter exclusively about "${campaign_title}" for ${businessName} in this YAML format:
+
+      CRITICAL REQUIREMENT: Every section must relate directly to "${campaign_title}". Include topic keywords throughout.
 
       newsletter_md: |
         # ${campaign_title} Newsletter
-        [Newsletter introduction paragraph]
+        [Introduction paragraph specifically about "${campaign_title}" - explain why this topic matters now]
 
       blocks:
-        - title: "Section 1 Title"
-          body: "Detailed content with gardening tips and advice"
-          cta: "Learn more"
+        - title: "[Specific aspect of ${campaign_title}]"
+          body: "Detailed content focusing only on this aspect of ${campaign_title}"
+          cta: "Learn more about ${campaign_title}"
           link: "#"
-          image_prompt: "${campaign_title} gardening professional"
-          alt_text: "Section 1 image description"
-        - title: "Section 2 Title"
-          body: "More valuable content for garden center customers"
-          cta: "Visit us"
+          image_prompt: "${campaign_title.includes('honey') || campaign_title.includes('pollinator') ? 'honey bees pollinator garden' : campaign_title + ' specific gardening'}"
+          alt_text: "Image showing ${campaign_title} related content"
+        - title: "[Another specific aspect of ${campaign_title}]"
+          body: "More focused content about ${campaign_title} - no generic advice"
+          cta: "Visit for ${campaign_title} advice"
           link: "#"
-          image_prompt: "${campaign_title} garden center advice"
-          alt_text: "Section 2 image description"
+          image_prompt: "${campaign_title.includes('honey') || campaign_title.includes('pollinator') ? 'bee garden flowers pollinator' : campaign_title + ' garden advice'}"
+          alt_text: "Image demonstrating ${campaign_title} concepts"
 
       extra_content_ideas:
-        - title: "Follow-up Content Idea"
-          quick_desc: "Brief description of related content"
+        - title: "Advanced ${campaign_title} Tips"
+          quick_desc: "Further exploration of ${campaign_title}"
 
       meta:
         reading_time: "≈3 min"
         theme: "${campaign_title}"
-        week_focus: "Main focus description"
+        week_focus: "Focused on ${campaign_title} exclusively"
       
-      Focus on actionable gardening insights and seasonal advice. Do NOT use any emojis.`
+      For "National Honey Month": focus sections on bee-friendly plants, pollinator gardens, honey uses, bee behavior.
+      Do NOT use emojis. Stay completely focused on the exact topic provided.`
+    };
+
+    // Function to validate topic alignment and clean content
+    const validateTopicAlignment = (content: string, topic: string) => {
+      const normalizedContent = content.toLowerCase();
+      const normalizedTopic = topic.toLowerCase();
+      
+      // Define topic-specific keywords that should appear in content
+      const topicKeywords = {
+        'national honey month': ['honey', 'bee', 'pollinator', 'nectar', 'hive'],
+        'honey month': ['honey', 'bee', 'pollinator'],
+        'hydrangea care': ['hydrangea', 'bloom', 'pruning'],
+        'rose pruning': ['rose', 'pruning', 'cane'],
+        'orchid care': ['orchid', 'epiphyte', 'humidity']
+      };
+      
+      // Get expected keywords for this topic
+      const expectedKeywords = topicKeywords[normalizedTopic] || 
+        normalizedTopic.split(' ').filter(word => word.length > 3);
+      
+      // Count how many topic keywords appear in content
+      const foundKeywords = expectedKeywords.filter(keyword => 
+        normalizedContent.includes(keyword)
+      );
+      
+      const topicAlignment = foundKeywords.length / expectedKeywords.length;
+      console.log(`[TOPIC VALIDATION] ${topic}: ${Math.round(topicAlignment * 100)}% alignment (${foundKeywords.length}/${expectedKeywords.length} keywords)`);
+      
+      return {
+        isAligned: topicAlignment >= 0.5, // At least 50% of keywords should be present
+        score: topicAlignment,
+        foundKeywords,
+        expectedKeywords
+      };
     };
 
     // Function to validate and clean content
@@ -230,10 +283,19 @@ serve(async (req) => {
         const data = await response.json();
         let content = data.choices[0].message.content;
         
+        // Validate topic alignment first
+        const topicValidation = validateTopicAlignment(content, campaign_title);
+        
+        if (!topicValidation.isAligned) {
+          console.warn(`⚠️ Topic alignment issue for ${contentType}: ${Math.round(topicValidation.score * 100)}% alignment`);
+          console.warn(`Expected keywords: ${topicValidation.expectedKeywords.join(', ')}`);
+          console.warn(`Found keywords: ${topicValidation.foundKeywords.join(', ')}`);
+        }
+        
         // Validate and clean the content
         content = validateAndCleanContent(content, contentType);
         
-        console.log(`✅ Generated ${contentType} content (${content.length} chars)`);
+        console.log(`✅ Generated ${contentType} content (${content.length} chars, ${Math.round(topicValidation.score * 100)}% topic alignment)`);
 
         return {
           contentType,

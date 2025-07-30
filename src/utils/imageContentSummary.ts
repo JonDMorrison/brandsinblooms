@@ -85,23 +85,30 @@ export function extractImageSummary(content: string): string {
     }
   }
 
-  // Priority 3: Special seasonal mappings (return single words where possible)
-  const seasonalMappings: Record<string, string> = {
-    'national honey month': 'bee',
-    'honey month': 'bee',
-    'pollinator': 'bee',
-    'bee friendly': 'bee',
-    'summer heat': 'summer',
-    'heat protection': 'summer',
-    'plant rescue': 'plant',
-    'plant recovery': 'plant',
-    'garden planning': 'garden',
-    'garden preparation': 'garden',
-    'fall garden': 'autumn',
-    'winter garden': 'winter'
+  // Priority 3: Enhanced topic-specific mappings (prioritize exact topic searches)
+  const topicMappings: Record<string, string> = {
+    'national honey month': 'honey bees',
+    'honey month': 'honey bees',
+    'pollinator': 'bee pollinator',
+    'bee friendly': 'bee garden',
+    'hydrangea care': 'hydrangea',
+    'rose pruning': 'rose bush',
+    'tomato growing': 'tomato',
+    'orchid care': 'orchid',
+    'succulent care': 'succulent',
+    'herb garden': 'herbs',
+    'vegetable garden': 'vegetables',
+    'summer heat': 'summer garden',
+    'heat protection': 'shade garden',
+    'plant rescue': 'plant care',
+    'plant recovery': 'plant care',
+    'garden planning': 'garden design',
+    'garden preparation': 'garden tools',
+    'fall garden': 'autumn garden',
+    'winter garden': 'winter plants'
   };
 
-  for (const [phrase, mapping] of Object.entries(seasonalMappings)) {
+  for (const [phrase, mapping] of Object.entries(topicMappings)) {
     if (cleanContent.includes(phrase)) {
       return mapping;
     }
