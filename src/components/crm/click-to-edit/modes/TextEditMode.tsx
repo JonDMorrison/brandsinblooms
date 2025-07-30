@@ -2,8 +2,7 @@ import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -46,46 +45,21 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
           <Label htmlFor="bodyText">
             {block.body !== undefined ? 'Body Text' : 'Content'}
           </Label>
-          <Textarea
-            id="bodyText"
-            value={block.body || block.content || ''}
-            onChange={(e) => {
+          <RichTextEditor
+            content={block.body || block.content || ''}
+            onChange={(html) => {
               if (block.body !== undefined) {
-                onUpdate({ body: e.target.value });
+                onUpdate({ body: html });
               } else {
-                onUpdate({ content: e.target.value });
+                onUpdate({ content: html });
               }
             }}
-            placeholder={block.body !== undefined ? "Enter body text" : "Enter content"}
-            rows={4}
-            className="w-full resize-none"
+            placeholder={block.body !== undefined ? "Enter body text..." : "Enter content..."}
+            className="w-full"
+            autoFocus
           />
         </div>
       )}
-
-      {/* Text Alignment */}
-      <div className="space-y-2">
-        <Label>Text Alignment</Label>
-        <Select
-          value={block.textAlign || block.alignment || 'left'}
-          onValueChange={(value) => {
-            // Update both textAlign and alignment for compatibility
-            onUpdate({ 
-              textAlign: value as any,
-              alignment: value as any
-            });
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="left">Left</SelectItem>
-            <SelectItem value="center">Center</SelectItem>
-            <SelectItem value="right">Right</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
       {/* Alt Text (for blocks with images) */}
       {block.imageUrl && (

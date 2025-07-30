@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -198,20 +198,9 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
   };
 
   const insertToken = (token: string) => {
-    const textarea = document.getElementById('message-content') as HTMLTextAreaElement;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newMessage = message.substring(0, start) + token + message.substring(end);
-      setMessage(newMessage);
-      
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + token.length, start + token.length);
-      }, 0);
-    } else {
-      setMessage(prev => prev + token);
-    }
+    // For now, just append the token to the message
+    // In the future, we could integrate with TipTap's editor commands for cursor positioning
+    setMessage(prev => prev + token);
   };
 
   const generatePreviewHTML = () => {
@@ -444,12 +433,11 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
                 {/* Message Editor */}
                 <div className="space-y-4">
                   <Label htmlFor="message-content" className="text-base font-medium">Email Message</Label>
-                  <Textarea
-                    id="message-content"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                  <RichTextEditor
+                    content={message}
+                    onChange={setMessage}
                     placeholder="Write your message here... Keep it personal and engaging!"
-                    className="min-h-[250px] text-base leading-relaxed resize-none"
+                    className="min-h-[250px]"
                   />
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <span>{message.length} characters</span>
