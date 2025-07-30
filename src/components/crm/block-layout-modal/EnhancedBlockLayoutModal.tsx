@@ -183,7 +183,7 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="pt-4">
           <div className="sticky top-0 bg-background/95 backdrop-blur-sm pb-4 border-b border-border/10 mb-4">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="all" className="flex items-center gap-2 text-xs sm:text-sm">
                 <Grid className="h-4 w-4" />
                 All Layouts
@@ -204,9 +204,6 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
                 <Badge variant="outline" className="ml-1 text-xs text-muted-foreground">
                   {recentCount}
                 </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="categories" className="text-xs sm:text-sm">
-                Categories
               </TabsTrigger>
             </TabsList>
           </div>
@@ -296,38 +293,6 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
               </div>
             </TabsContent>
 
-            <TabsContent value="categories" className="mt-0 space-y-8 pb-4">
-              {categories.map(category => (
-                <div key={category}>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    {category} Blocks
-                    <Badge variant="outline" className="text-xs text-muted-foreground">
-                      {layoutOptions.filter(opt => opt.category === category).length}
-                    </Badge>
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {layoutOptions
-                      .filter(option => option.category === category)
-                      .map((option) => (
-                        <LayoutOption
-                          key={option.id}
-                          id={option.id}
-                          title={option.title}
-                          description={option.description}
-                          category={option.category}
-                          icon={option.icon}
-                          isPopular={option.isPopular}
-                          isNew={option.isNew}
-                          preview={<LayoutPreview type={option.previewType} />}
-                          onClick={() => handleSelect(option.id)}
-                        />
-                      ))
-                    }
-                  </div>
-                </div>
-              ))}
-            </TabsContent>
           </div>
         </Tabs>
       </DialogContent>
