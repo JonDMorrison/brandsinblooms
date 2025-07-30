@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Bug } from 'lucide-react';
 import { ClickToEditBlock } from './ClickToEditBlock';
 import { HeaderBlock } from './blocks/HeaderBlock';
 import { TextBlock } from './blocks/TextBlock';
@@ -11,6 +11,7 @@ import { DividerBlock } from './blocks/DividerBlock';
 import { ButtonBlock } from './blocks/ButtonBlock';
 import { SocialFollowBlock } from './blocks/SocialFollowBlock';
 import { FooterBlock } from './blocks/FooterBlock';
+import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
@@ -29,6 +30,9 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
   const [saveError, setSaveError] = useState(false);
+  
+  // Debug state for MediaSelector
+  const [debugMediaSelectorOpen, setDebugMediaSelectorOpen] = useState(false);
   
   // Create a dummy footer block for display (not included in the actual blocks array)
   const footerBlock: ContentBlock = {
@@ -266,6 +270,41 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         </div>
       )}
 
+      {/* Debug Test Button for MediaSelector */}
+      <div className="border border-orange-300 bg-orange-50 p-4 rounded-lg mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Bug className="h-4 w-4 text-orange-600" />
+          <span className="text-sm font-medium text-orange-800">Debug Tools</span>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => {
+            console.log('[DEBUG] Manually opening MediaSelector');
+            setDebugMediaSelectorOpen(true);
+          }}
+          className="mr-2"
+        >
+          Force Open MediaSelector
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => {
+            const sidebar = document.querySelector('[data-testid="media-selector-sidebar"]');
+            const backdrop = document.querySelector('[data-media-selector-backdrop]');
+            console.log('[DEBUG] DOM Check:', {
+              sidebarExists: !!sidebar,
+              sidebarRect: sidebar?.getBoundingClientRect(),
+              backdropExists: !!backdrop,
+              debugStateOpen: debugMediaSelectorOpen
+            });
+          }}
+        >
+          Check DOM
+        </Button>
+      </div>
+
       {/* Auto-included Footer (always at bottom, cannot be deleted) */}
       <div className="border-t-2 border-dashed border-gray-300 mt-8 pt-4">
         <div className="text-center text-sm text-muted-foreground mb-2 uppercase tracking-wide">
@@ -277,6 +316,22 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
           isPreview={true}
         />
       </div>
+
+      {/* Debug MediaSelector */}
+      {debugMediaSelectorOpen && (
+        <MediaSelectorSidebar
+          isOpen={debugMediaSelectorOpen}
+          onClose={() => {
+            console.log('[DEBUG] Closing debug MediaSelector');
+            setDebugMediaSelectorOpen(false);
+          }}
+          onImageSelect={(imageUrl, metadata) => {
+            console.log('[DEBUG] Image selected:', { imageUrl, metadata });
+            setDebugMediaSelectorOpen(false);
+          }}
+          contentContext="Debug test"
+        />
+      )}
     </div>
   );
 };

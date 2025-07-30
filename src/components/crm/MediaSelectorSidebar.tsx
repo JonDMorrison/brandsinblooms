@@ -221,12 +221,36 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     return null;
   }
 
-  console.log('[MediaSelectorSidebar] Rendering sidebar with portal to document.body');
+  console.log('[MediaSelectorSidebar] Rendering sidebar with portal to document.body', {
+    isOpen,
+    documentBodyExists: !!document.body,
+    searchResultsLength: searchResults.length
+  });
+
+  // Debug: Force check if element exists in DOM after render
+  React.useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        const sidebarElement = document.querySelector('[data-testid="media-selector-sidebar"]');
+        const backdropElement = document.querySelector('[data-media-selector-backdrop]');
+        console.log('[MediaSelectorSidebar] DOM Debug Check:', {
+          sidebarExists: !!sidebarElement,
+          sidebarVisible: sidebarElement ? window.getComputedStyle(sidebarElement).visibility : 'not found',
+          sidebarDisplay: sidebarElement ? window.getComputedStyle(sidebarElement).display : 'not found',
+          sidebarOpacity: sidebarElement ? window.getComputedStyle(sidebarElement).opacity : 'not found',
+          sidebarZIndex: sidebarElement ? window.getComputedStyle(sidebarElement).zIndex : 'not found',
+          backdropExists: !!backdropElement,
+          bodyChildren: document.body.children.length
+        });
+      }, 100);
+    }
+  }, [isOpen]);
 
   const modalContent = (
     <>
       {/* Backdrop - Full viewport coverage */}
       <div 
+        data-media-selector-backdrop
         className="fixed inset-0 w-screen h-screen bg-black/50 backdrop-blur-sm"
         style={{ 
           zIndex: 999998,
@@ -234,7 +258,8 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
           top: 0,
           left: 0,
           right: 0,
-          bottom: 0
+          bottom: 0,
+          pointerEvents: 'auto'
         }}
         onClick={onClose}
       />
@@ -249,12 +274,19 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
           "border-l border-gray-200"
         )}
         style={{ 
+          // Force visibility with inline styles for debugging
           zIndex: 999999,
           position: 'fixed',
           top: 0,
           right: 0,
           height: '100vh',
-          width: '384px'
+          width: '384px',
+          display: 'block',
+          opacity: 1,
+          visibility: 'visible',
+          backgroundColor: 'white',
+          transform: 'none',
+          pointerEvents: 'auto'
         }}
       >
         {/* Header */}
@@ -441,5 +473,18 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     </>
   );
 
-  return createPortal(modalContent, document.body);
+  return createPortal(
+    <div style={{ 
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      width: '100vw', 
+      height: '100vh', 
+      zIndex: 999997, // Lower than backdrop
+      pointerEvents: 'auto' // Allow interactions
+    }}>
+      {modalContent}
+    </div>, 
+    document.body
+  );
 };

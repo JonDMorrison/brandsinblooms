@@ -44,6 +44,16 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   // Use the new edit mode hook
   const { editMode, toggleMode, exitEditMode, isTextEditing, isImageEditing } = useBlockEditMode();
 
+  // Debug logging for MediaSelector state changes
+  useEffect(() => {
+    console.log('[ClickToEditBlock] MediaSelector state changed:', {
+      blockId: block.id,
+      blockType: block.type,
+      isMediaSelectorOpen,
+      editMode
+    });
+  }, [isMediaSelectorOpen, editMode, block.id, block.type]);
+
   // Sync local state with props when block changes from parent
   useEffect(() => {
     setLocalBlock(block);
