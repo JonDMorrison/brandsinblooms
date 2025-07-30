@@ -15,7 +15,8 @@ const parseSimpleMarkdown = (text: string) => {
   if (!text) return text;
   
   // Check if the text already contains HTML tags (from rich text editor)
-  const hasHtmlTags = /<[^>]+>/.test(text);
+  // Look for any HTML tags like <p>, <strong>, <em>, <div>, etc.
+  const hasHtmlTags = /<[a-zA-Z][^>]*>/.test(text);
   
   if (hasHtmlTags) {
     // Content is already HTML from rich text editor, return as-is
