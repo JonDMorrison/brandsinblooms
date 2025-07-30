@@ -242,19 +242,33 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             onClick={handleBlockClick}
             style={{ pointerEvents: 'auto' }}
           >
-            {React.isValidElement(children.preview) ? (
-              React.cloneElement(children.preview as React.ReactElement, {
-                block: localBlock,
-                editMode: localEditMode,
-                onModeChange: handleModeChange
-              })
-            ) : typeof children.preview === 'object' && children.preview !== null ? (
-              <div className="p-4 text-center text-muted-foreground">
-                Error: Cannot render block object directly
-              </div>
-            ) : (
-              children.preview
-            )}
+            {(() => {
+              try {
+                if (React.isValidElement(children.preview)) {
+                  return React.cloneElement(children.preview as React.ReactElement, {
+                    block: localBlock,
+                    editMode: localEditMode,
+                    onModeChange: handleModeChange
+                  });
+                } else if (typeof children.preview === 'object' && children.preview !== null) {
+                  console.error('[ClickToEditBlock] Invalid preview object:', children.preview);
+                  return (
+                    <div className="p-4 text-center text-red-500 border border-red-200 rounded">
+                      Error: Invalid preview content (object detected)
+                    </div>
+                  );
+                } else {
+                  return children.preview;
+                }
+              } catch (error) {
+                console.error('[ClickToEditBlock] Error rendering preview:', error);
+                return (
+                  <div className="p-4 text-center text-red-500 border border-red-200 rounded">
+                    Error rendering preview
+                  </div>
+                );
+              }
+            })()}
           </div>
         )}
       </Card>
