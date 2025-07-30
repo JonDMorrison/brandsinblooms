@@ -1,12 +1,12 @@
 
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Grid, Mail, FileText, Image, ArrowLeft, ArrowRight, Quote, MousePointer } from 'lucide-react';
 import { LayoutType } from '../BlockLayoutModal';
 import { LayoutOption } from './LayoutOption';
 import { LayoutPreview } from './LayoutPreview';
-import { SearchAndFilters } from './SearchAndFilters';
+
 
 interface EnhancedBlockLayoutModalProps {
   isOpen: boolean;
@@ -109,48 +109,10 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
   onClose,
   onSelect
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-
   const handleSelect = (layoutType: LayoutType) => {
     console.log('🚀 EnhancedBlockLayoutModal handleSelect called with:', layoutType);
     onSelect(layoutType);
     onClose();
-  };
-
-  const categories = Array.from(new Set(layoutOptions.map(opt => opt.category)));
-  
-  const filteredOptions = useMemo(() => {
-    let filtered = layoutOptions;
-
-    // Filter by search query
-    if (searchQuery) {
-      filtered = filtered.filter(option =>
-        option.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        option.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        option.category.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Filter by selected categories
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter(option => selectedCategories.includes(option.category));
-    }
-
-    return filtered;
-  }, [searchQuery, selectedCategories]);
-
-  const handleCategoryToggle = (category: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
-    );
-  };
-
-  const handleClearFilters = () => {
-    setSearchQuery('');
-    setSelectedCategories([]);
   };
 
 
@@ -165,17 +127,9 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
         </DialogHeader>
         
         <div className="pt-4">
-          <SearchAndFilters
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            selectedCategories={selectedCategories}
-            onCategoryToggle={handleCategoryToggle}
-            availableCategories={categories}
-            onClearFilters={handleClearFilters}
-          />
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4 mt-6">
-            {filteredOptions.map((option) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+            {layoutOptions.map((option) => (
               <LayoutOption
                 key={option.id}
                 id={option.id}
@@ -191,7 +145,7 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
             ))}
           </div>
 
-          {filteredOptions.length === 0 && (
+          {layoutOptions.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <Grid className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
               <p className="text-lg font-medium mb-2">No layouts found</p>
