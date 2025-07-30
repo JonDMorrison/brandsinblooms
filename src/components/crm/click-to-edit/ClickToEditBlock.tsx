@@ -220,17 +220,19 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             {/* Preview when in edit mode but not text/image */}
             {!isTextEditing && !isImageEditing && (
               <div className="p-0">
-                {React.isValidElement(children.preview) ? (
-                  React.cloneElement(children.preview as React.ReactElement, {
-                    block: localBlock,
-                    editMode: localEditMode,
-                    onModeChange: handleModeChange
-                  })
-                ) : (
-                  <div className="p-4 text-center text-muted-foreground">
-                    Invalid preview content
-                  </div>
-                )}
+            {React.isValidElement(children.preview) ? (
+              React.cloneElement(children.preview as React.ReactElement, {
+                block: localBlock,
+                editMode: localEditMode,
+                onModeChange: handleModeChange
+              })
+            ) : typeof children.preview === 'object' && children.preview !== null ? (
+              <div className="p-4 text-center text-muted-foreground">
+                Error: Cannot render block object directly
+              </div>
+            ) : (
+              children.preview
+            )}
               </div>
             )}
           </div>
@@ -246,10 +248,12 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                 editMode: localEditMode,
                 onModeChange: handleModeChange
               })
-            ) : (
+            ) : typeof children.preview === 'object' && children.preview !== null ? (
               <div className="p-4 text-center text-muted-foreground">
-                Invalid preview content
+                Error: Cannot render block object directly
               </div>
+            ) : (
+              children.preview
             )}
           </div>
         )}
