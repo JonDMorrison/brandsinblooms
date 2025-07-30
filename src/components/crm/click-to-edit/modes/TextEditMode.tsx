@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface TextEditModeProps {
   block: ContentBlock;
@@ -15,7 +16,9 @@ interface TextEditModeProps {
 
 export const TextEditMode: React.FC<TextEditModeProps> = ({
   block,
-  onUpdate
+  onUpdate,
+  onSave,
+  onCancel
 }) => {
   return (
     <Card className="p-4 space-y-4 shadow-lg border-2 border-primary/20">
@@ -120,6 +123,26 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
           </div>
         </div>
       )}
+
+      {/* Save/Cancel Buttons */}
+      <div className="flex justify-end gap-2 pt-2 border-t border-border">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={onCancel}
+          className="px-4"
+        >
+          Cancel
+        </Button>
+        <Button 
+          variant="default" 
+          size="sm"
+          onClick={onSave}
+          className="px-4"
+        >
+          Save & Close
+        </Button>
+      </div>
     </Card>
   );
 };
