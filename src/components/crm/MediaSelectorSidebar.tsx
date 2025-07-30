@@ -31,12 +31,14 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
   console.log('[MediaSelectorSidebar] Component called with props:', { isOpen, editMode, contentContext });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [showingSuggestions, setShowingSuggestions] = useState(false);
+  const [showingCurated, setShowingCurated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMorePages, setHasMorePages] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   
-  const { searchImages, loading: unsplashLoading } = useUnsplash();
+  const { getCuratedCollectionImages, searchImages, loading: unsplashLoading } = useUnsplash();
   const { uploadAsset } = useContentAssets();
 
   // Debug editMode state
@@ -101,43 +103,62 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     }
   }, [isOpen]);
 
-  // Load default suggestions when sidebar opens
+  // Load curated collection when sidebar opens
   useEffect(() => {
-    const loadDefaultSuggestions = async () => {
-      if (isOpen && searchResults.length === 0 && !showingSuggestions) {
-        console.log('[MediaSelectorSidebar] Loading default suggestions...');
-        setShowingSuggestions(true);
-        const rawQuery = contentContext ? extractImageSummary(contentContext) : 'garden';
-        const defaultQuery = validateImageQuery(rawQuery);
+    const loadCuratedCollection = async () => {
+      if (isOpen && searchResults.length === 0 && !showingCurated) {
+        console.log('[MediaSelectorSidebar] Loading curated collection...');
+        setShowingCurated(true);
+        setCurrentPage(1);
         
         try {
-          const results = await searchImages(defaultQuery);
-          console.log('[MediaSelectorSidebar] Loaded suggestions:', results);
-          setSearchResults(results.slice(0, 12));
+          const results = await getCuratedCollectionImages(1);
           
-          // Reset scroll after search results are loaded
+          // Fallback to search if curated collection is empty
+          if (results.length === 0) {
+            console.log('[MediaSelectorSidebar] Curated collection empty, falling back to plants search...');
+            const fallbackResults = await searchImages('plants');
+            setSearchResults(fallbackResults.slice(0, 12));
+            setShowingCurated(false);
+          } else {
+            console.log('[MediaSelectorSidebar] Loaded curated collection:', results);
+            setSearchResults(results);
+            setHasMorePages(results.length === 12); // Assume more pages if we got a full page
+          }
+          
+          // Reset scroll after results are loaded
           setTimeout(() => {
             if (contentRef.current) {
               contentRef.current.scrollTop = 0;
-              console.log('[MediaSelectorSidebar] Scroll reset after suggestions loaded');
+              console.log('[MediaSelectorSidebar] Scroll reset after curated collection loaded');
             }
           }, 150);
         } catch (error) {
-          console.error('[MediaSelectorSidebar] Error loading suggestions:', error);
+          console.error('[MediaSelectorSidebar] Error loading curated collection:', error);
+          // Fallback to search on error
+          try {
+            const fallbackResults = await searchImages('plants');
+            setSearchResults(fallbackResults.slice(0, 12));
+            setShowingCurated(false);
+          } catch (fallbackError) {
+            console.error('[MediaSelectorSidebar] Fallback search also failed:', fallbackError);
+          }
         }
       }
     };
     
     if (isOpen) {
-      loadDefaultSuggestions();
+      loadCuratedCollection();
     }
-  }, [isOpen, contentContext, searchImages, searchResults.length, showingSuggestions]);
+  }, [isOpen, getCuratedCollectionImages, searchImages, searchResults.length, showingCurated]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
     const cleanQuery = validateImageQuery(searchQuery);
-    setShowingSuggestions(false);
+    setShowingCurated(false);
+    setCurrentPage(1);
+    setHasMorePages(true);
     
     try {
       const results = await searchImages(cleanQuery);
@@ -155,6 +176,47 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
       toast.error('Search failed. Please try again.');
     }
   };
+
+  // Handle pagination for curated collection
+  const loadMoreImages = async () => {
+    if (!showingCurated || !hasMorePages || unsplashLoading) return;
+    
+    try {
+      const nextPage = currentPage + 1;
+      const moreResults = await getCuratedCollectionImages(nextPage);
+      
+      if (moreResults.length > 0) {
+        setSearchResults(prev => [...prev, ...moreResults]);
+        setCurrentPage(nextPage);
+        setHasMorePages(moreResults.length === 12); // Assume more pages if we got a full page
+      } else {
+        setHasMorePages(false);
+      }
+    } catch (error) {
+      console.error('[MediaSelectorSidebar] Error loading more images:', error);
+      setHasMorePages(false);
+    }
+  };
+
+  // Handle scroll for pagination
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!contentRef.current || !showingCurated || !hasMorePages) return;
+      
+      const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
+      const nearBottom = scrollTop + clientHeight >= scrollHeight - 100;
+      
+      if (nearBottom && !unsplashLoading) {
+        loadMoreImages();
+      }
+    };
+
+    const contentElement = contentRef.current;
+    if (contentElement && isOpen) {
+      contentElement.addEventListener('scroll', handleScroll);
+      return () => contentElement.removeEventListener('scroll', handleScroll);
+    }
+  }, [isOpen, showingCurated, hasMorePages, unsplashLoading, currentPage]);
 
   const handleImageClick = (image: any) => {
     console.log('[MediaSelectorSidebar] Image selected:', image.url);
@@ -391,7 +453,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-medium text-gray-700">
-                        {showingSuggestions ? 'Suggested Images' : 'Search Results'}
+                        {showingCurated ? 'Curated Collection' : 'Search Results'}
                       </h4>
                       <span className="text-xs text-gray-500">
                         {searchResults.length} images
@@ -447,6 +509,21 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                         </button>
                       ))}
                     </div>
+
+                    {/* Pagination Loading for Curated Collection */}
+                    {showingCurated && hasMorePages && unsplashLoading && (
+                      <div className="flex justify-center items-center py-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                        <span className="text-sm text-gray-600">Loading more images...</span>
+                      </div>
+                    )}
+
+                    {/* End of Collection Message */}
+                    {showingCurated && !hasMorePages && searchResults.length > 12 && (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-gray-500">All images from collection loaded</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -468,7 +545,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                 )}
 
                 {/* No Results */}
-                {!unsplashLoading && searchResults.length === 0 && !showingSuggestions && (
+                {!unsplashLoading && searchResults.length === 0 && !showingCurated && (
                   <div className="text-center py-12">
                     <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600 mb-2">No images found</p>

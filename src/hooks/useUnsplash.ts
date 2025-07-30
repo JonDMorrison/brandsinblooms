@@ -18,6 +18,44 @@ export const useUnsplash = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const getCuratedCollectionImages = useCallback(async (page = 1): Promise<ImageAttachment[]> => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
+        body: { 
+          collection: 'cfl9BkhJD2o',
+          page: page,
+          maxImages: 12
+        }
+      });
+
+      if (error) throw error;
+
+      const mappedImages = (data?.images || []).map((img: UnsplashImage): ImageAttachment => ({
+        id: img.id,
+        url: img.download_url,
+        thumb: img.thumb_url,
+        thumb_url: img.thumb_url, // Add for MediaSelectorSidebar compatibility
+        download_url: img.download_url, // Add for MediaSelectorSidebar compatibility
+        alt: img.alt || 'Garden image from curated collection',
+        photographer: img.photographer,
+        photographer_url: img.photographer_url || `https://unsplash.com/@${img.photographer?.toLowerCase().replace(/\s+/g, '')}`,
+        download_location: img.download_location
+      }));
+      
+      console.log('[useUnsplash] Mapped curated collection images:', mappedImages);
+      return mappedImages;
+    } catch (err) {
+      console.error('Error fetching curated collection images:', err);
+      setError('Failed to fetch curated images');
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const getSmartImages = useCallback(async (query: string, count = 12): Promise<ImageAttachment[]> => {
     if (!query.trim()) return [];
     
@@ -75,6 +113,7 @@ export const useUnsplash = () => {
   }, [getSmartImages]);
 
   return {
+    getCuratedCollectionImages,
     getSmartImages,
     searchImages,
     refreshImages,

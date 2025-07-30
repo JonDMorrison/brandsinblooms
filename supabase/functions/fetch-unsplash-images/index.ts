@@ -20,6 +20,8 @@ serve(async (req) => {
   try {
     const { 
       query, 
+      collection,
+      page = 1,
       contentTaskId, 
       maxImages = 4,
       orientation = 'squarish',
@@ -27,12 +29,12 @@ serve(async (req) => {
       contentFilter = 'high'
     } = await req.json();
 
-    if (!query) {
-      throw new Error('Query parameter is required');
+    if (!query && !collection) {
+      throw new Error('Either query or collection parameter is required');
     }
 
     console.log(`[UNSPLASH] ===== ENHANCED FETCH DEBUG =====`);
-    console.log(`[UNSPLASH] Received query: "${query}"`);
+    console.log(`[UNSPLASH] Received query: "${query}", collection: "${collection}", page: ${page}`);
     console.log(`[UNSPLASH] Parameters: maxImages=${maxImages}, orientation=${orientation}, orderBy=${orderBy}, contentFilter=${contentFilter}`);
     console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey} (${unsplashAccessKey ? 'Available' : 'Missing - will use garden center fallbacks'})`);
     console.log(`[UNSPLASH] Supabase URL: ${!!supabaseUrl}`);
@@ -44,43 +46,80 @@ serve(async (req) => {
       throw new Error('Unsplash API key not configured - using garden center fallbacks');
     }
 
-    // Validate query doesn't contain problematic terms
-    const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number)\b/i;
-    if (problematicTerms.test(query)) {
-      console.warn(`[UNSPLASH] Query contains problematic terms: "${query}"`);
-      // Force garden center context
-      const sanitizedQuery = `garden center plants nursery ${query.replace(problematicTerms, '').trim()}`;
-      console.log(`[UNSPLASH] Using sanitized query: "${sanitizedQuery}"`);
+    let unsplashUrl: string;
+    let images: any[] = [];
+
+    if (collection) {
+      // Fetch from curated collection
+      const collectionParams = new URLSearchParams({
+        page: page.toString(),
+        per_page: maxImages.toString(),
+      });
+      
+      unsplashUrl = `https://api.unsplash.com/collections/${collection}/photos?${collectionParams.toString()}`;
+      console.log(`[UNSPLASH] Fetching from collection: ${unsplashUrl}`);
+
+      const unsplashResponse = await fetch(unsplashUrl, {
+        headers: {
+          'Authorization': `Client-ID ${unsplashAccessKey}`,
+        },
+      });
+
+      console.log(`[UNSPLASH] Collection API Response status: ${unsplashResponse.status}`);
+
+      if (!unsplashResponse.ok) {
+        const errorText = await unsplashResponse.text();
+        console.error(`[UNSPLASH] Collection API error ${unsplashResponse.status}: ${errorText}`);
+        throw new Error(`Unsplash Collection API error: ${unsplashResponse.status}`);
+      }
+
+      const collectionData = await unsplashResponse.json();
+      images = collectionData || []; // Collection endpoint returns array directly
+      console.log(`[UNSPLASH] Found ${images.length} images from collection ${collection}`);
+    } else {
+      // Search photos with query
+      if (query) {
+        // Validate query doesn't contain problematic terms
+        const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number)\b/i;
+        let searchQuery = query;
+        if (problematicTerms.test(query)) {
+          console.warn(`[UNSPLASH] Query contains problematic terms: "${query}"`);
+          // Force garden center context
+          searchQuery = `garden center plants nursery ${query.replace(problematicTerms, '').trim()}`;
+          console.log(`[UNSPLASH] Using sanitized query: "${searchQuery}"`);
+        }
+
+        // Enhanced Unsplash API call with quality parameters
+        const searchParams = new URLSearchParams({
+          query: encodeURIComponent(searchQuery),
+          per_page: maxImages.toString(),
+          orientation: orientation,
+          order_by: orderBy,
+          content_filter: contentFilter
+        });
+
+        unsplashUrl = `https://api.unsplash.com/search/photos?${searchParams.toString()}`;
+        console.log(`[UNSPLASH] Search Request URL: ${unsplashUrl}`);
+
+        const unsplashResponse = await fetch(unsplashUrl, {
+          headers: {
+            'Authorization': `Client-ID ${unsplashAccessKey}`,
+          },
+        });
+
+        console.log(`[UNSPLASH] Search API Response status: ${unsplashResponse.status}`);
+
+        if (!unsplashResponse.ok) {
+          const errorText = await unsplashResponse.text();
+          console.error(`[UNSPLASH] Search API error ${unsplashResponse.status}: ${errorText}`);
+          throw new Error(`Unsplash Search API error: ${unsplashResponse.status}`);
+        }
+
+        const unsplashData = await unsplashResponse.json();
+        images = unsplashData.results || [];
+        console.log(`[UNSPLASH] Found ${images.length} images from search`);
+      }
     }
-
-    // Enhanced Unsplash API call with quality parameters
-    const searchParams = new URLSearchParams({
-      query: encodeURIComponent(query),
-      per_page: maxImages.toString(),
-      orientation: orientation,
-      order_by: orderBy,
-      content_filter: contentFilter
-    });
-
-    const unsplashUrl = `https://api.unsplash.com/search/photos?${searchParams.toString()}`;
-    console.log(`[UNSPLASH] Request URL: ${unsplashUrl}`);
-
-    const unsplashResponse = await fetch(unsplashUrl, {
-      headers: {
-        'Authorization': `Client-ID ${unsplashAccessKey}`,
-      },
-    });
-
-    console.log(`[UNSPLASH] API Response status: ${unsplashResponse.status}`);
-
-    if (!unsplashResponse.ok) {
-      const errorText = await unsplashResponse.text();
-      console.error(`[UNSPLASH] API error ${unsplashResponse.status}: ${errorText}`);
-      throw new Error(`Unsplash API error: ${unsplashResponse.status}`);
-    }
-
-    const unsplashData = await unsplashResponse.json();
-    const images = unsplashData.results || [];
 
     console.log(`[UNSPLASH] Found ${images.length} images from Unsplash`);
     
@@ -99,12 +138,28 @@ serve(async (req) => {
 
     // Enhanced image validation and filtering
     const validImages = limitedImages.filter(image => {
+      // For curated collections, apply minimal filtering since they're already curated
+      if (collection) {
+        // Only filter out obviously problematic content for collections
+        const alt = (image.alt_description || '').toLowerCase();
+        const desc = (image.description || '').toLowerCase();
+        const content = `${alt} ${desc}`;
+        
+        const problematicTerms = /\b(inappropriate|nsfw|adult)\b/i;
+        if (problematicTerms.test(content)) {
+          console.warn(`[UNSPLASH] Filtering out inappropriate collection image: ${image.id} - ${alt}`);
+          return false;
+        }
+        return true;
+      }
+      
+      // For search queries, apply full filtering
       const alt = (image.alt_description || '').toLowerCase();
       const desc = (image.description || '').toLowerCase();
       const tags = image.tags?.map(t => t.title.toLowerCase()).join(' ') || '';
       
       const content = `${alt} ${desc} ${tags}`;
-      const queryWords = query.toLowerCase().split(' ');
+      const queryWords = query ? query.toLowerCase().split(' ') : [];
       
       // Check for problematic content (expanded list)
       const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number|people|person|human|face|portrait|indoor|office|computer|technology)\b/i;
@@ -136,10 +191,10 @@ serve(async (req) => {
 
       const imageSuggestions = validImages.map((image: any) => ({
         content_task_id: contentTaskId,
-        query: query,
+        query: collection ? `collection:${collection}` : query,
         thumb_url: image.urls.thumb,
         download_url: image.urls.full,
-        alt: image.alt_description || `${query} image`,
+        alt: image.alt_description || `${collection ? 'Curated garden' : query} image`,
         photographer: image.user.name,
         unsplash_id: image.id,
       }));
@@ -168,7 +223,7 @@ serve(async (req) => {
       },
       thumb_url: image.urls.thumb,
       download_url: image.urls.full,
-      alt: image.alt_description || `${query} image`,
+      alt: image.alt_description || `${collection ? 'Curated garden' : query} image`,
       photographer: image.user.name,
       photographer_username: image.user.username,
       photographer_url: image.user.links.html,
