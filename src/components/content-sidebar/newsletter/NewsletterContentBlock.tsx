@@ -2,6 +2,7 @@
 import React from 'react';
 import { ImageSelectButton } from '@/components/image';
 import { extractImageSummary } from '@/utils/imageContentSummary';
+import { SafeHtml } from '@/components/ui/safe-html';
 
 interface NewsletterBlock {
   title: string;
@@ -63,7 +64,7 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
             
             <div className="prose prose-slate max-w-none">
               <p className="text-lg text-slate-700 leading-relaxed mb-6">
-                {block.body}
+                <SafeHtml content={block.body} type="newsletter" className="text-slate-700 leading-relaxed" />
               </p>
             </div>
           </>
@@ -78,7 +79,7 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
             
             <div className="prose prose-slate max-w-none">
               <div className="text-lg text-slate-700 leading-relaxed whitespace-pre-wrap">
-                {block.body}
+                <SafeHtml content={block.body} type="newsletter" className="text-slate-700 leading-relaxed" />
               </div>
             </div>
           </>

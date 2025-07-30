@@ -1,5 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
+import { SafeHtml } from '@/components/ui/safe-html';
 import { Clock, Palette, Target, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -97,7 +98,7 @@ export const MagazineNewsletterRenderer = ({
               </h2>
               <div className="prose prose-lg max-w-none">
                 <p className="text-muted-foreground leading-relaxed text-lg">
-                  {block.body}
+                  <SafeHtml content={block.body} type="newsletter" className="text-gray-700 leading-relaxed" />
                 </p>
               </div>
             </div>

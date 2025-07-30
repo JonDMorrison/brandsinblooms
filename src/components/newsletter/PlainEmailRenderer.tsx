@@ -1,4 +1,5 @@
 import React from 'react';
+import { SafeHtml } from '@/components/ui/safe-html';
 import { NewsletterBlock, NewsletterMeta } from './MagazineNewsletterRenderer';
 
 interface PlainEmailRendererProps {
@@ -48,7 +49,7 @@ export const PlainEmailRenderer = ({
           {/* Block body */}
           {block.body && (
             <p className="text-muted-foreground leading-relaxed mb-3">
-              {block.body}
+              <SafeHtml content={block.body} type="newsletter" className="text-gray-700 leading-relaxed mb-4" />
             </p>
           )}
           

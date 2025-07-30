@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { SafeHtml } from '@/components/ui/safe-html';
 import { Eye, MousePointer } from 'lucide-react';
 
 interface ButtonBlockEditorProps {
@@ -67,7 +68,7 @@ export const ButtonBlockEditor: React.FC<ButtonBlockEditorProps> = ({
             )}
             {block.body && (
               <div className="text-muted-foreground leading-relaxed">
-                {block.body}
+                <SafeHtml content={block.body || ''} type="general" className="text-sm text-muted-foreground mb-4" />
               </div>
             )}
             <div>

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { SafeHtml } from '@/components/ui/safe-html';
 import { ExternalLink } from 'lucide-react';
 
 interface CTABlockEditorProps {
@@ -63,7 +64,7 @@ export const CTABlockEditor: React.FC<CTABlockEditorProps> = ({
           )}
           {block.body && (
             <p className="text-muted-foreground">
-              {block.body}
+              <SafeHtml content={block.body || ''} type="general" className="text-center text-muted-foreground mb-6" />
             </p>
           )}
           <div>

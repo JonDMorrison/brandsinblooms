@@ -5,6 +5,7 @@ import { convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProces
 import { ImageSelectButton } from '@/components/image/ImageSelectButton';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
+import { SafeHtml } from '@/components/ui/safe-html';
 import { Clock, Palette, Target } from 'lucide-react';
 
 interface OptimizedNewsletterDisplayProps {
@@ -138,7 +139,7 @@ export const OptimizedNewsletterDisplay = ({
               {block.title}
             </h2>
             <div className="prose prose-slate max-w-none mb-4">
-              <p className="text-slate-700 leading-relaxed">{block.body}</p>
+              <SafeHtml content={block.body} type="newsletter" className="text-slate-700 leading-relaxed" />
             </div>
             {block.cta && (
               <div className="mt-4">
@@ -197,10 +198,9 @@ export const OptimizedNewsletterDisplay = ({
                 {section.title}
               </h2>
               <div className="prose prose-slate max-w-none">
-                <div 
-                  dangerouslySetInnerHTML={{ 
-                    __html: convertNewsletterMarkdownToHtml(section.content) 
-                  }} 
+                <SafeHtml 
+                  content={convertNewsletterMarkdownToHtml(section.content)}
+                  type="newsletter"
                 />
               </div>
             </div>
@@ -216,9 +216,10 @@ export const OptimizedNewsletterDisplay = ({
         )) || (
           // Fallback: render as single content block with main newsletter markdown
           <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div 
+            <SafeHtml 
+              content={htmlContent}
+              type="newsletter"
               className="prose prose-slate max-w-none"
-              dangerouslySetInnerHTML={{ __html: htmlContent }}
             />
           </div>
         )}

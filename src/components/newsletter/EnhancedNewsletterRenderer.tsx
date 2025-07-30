@@ -2,6 +2,7 @@ import React from 'react';
 import { ContentBlock, NewsletterTheme } from '@/types/emailBuilder';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { SafeHtml } from '@/components/ui/safe-html';
 import { Clock, Palette, Target, Quote as QuoteIcon, ExternalLink } from 'lucide-react';
 
 interface EnhancedNewsletterRendererProps {
@@ -107,7 +108,7 @@ export const EnhancedNewsletterRenderer: React.FC<EnhancedNewsletterRendererProp
               )}
               {block.body && (
                 <p className="text-muted-foreground max-w-2xl mx-auto">
-                  {block.body}
+                  <SafeHtml content={block.body} type="newsletter" className="text-gray-700 leading-relaxed" />
                 </p>
               )}
               {block.ctaText && (
@@ -171,7 +172,7 @@ export const EnhancedNewsletterRenderer: React.FC<EnhancedNewsletterRendererProp
             {block.content && (
               <div className="prose prose-lg max-w-none">
                 <p className="text-muted-foreground leading-relaxed">
-                  {block.content}
+                  <SafeHtml content={block.content} type="newsletter" className="text-gray-700 leading-relaxed" />
                 </p>
               </div>
             )}
@@ -212,7 +213,7 @@ export const EnhancedNewsletterRenderer: React.FC<EnhancedNewsletterRendererProp
         {block.content && (
           <div className="prose prose-lg max-w-none">
             <p className="text-muted-foreground leading-relaxed text-lg">
-              {block.content}
+              <SafeHtml content={block.content} type="newsletter" className="text-gray-700 leading-relaxed" />
             </p>
           </div>
         )}
