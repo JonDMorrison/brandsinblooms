@@ -275,7 +275,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
         data-app="media-selector"
         data-testid="media-selector-sidebar"
         className={cn(
-          "fixed top-0 right-0 w-96 bg-white shadow-2xl",
+          "fixed top-0 right-0 w-96 shadow-2xl",
           "border-l border-gray-200"
         )}
         style={{ 
@@ -289,9 +289,10 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
           width: '384px',
           opacity: 1,
           visibility: 'visible',
-          backgroundColor: 'white',
+          backgroundColor: 'red !important', // TEMP: Force visible red
           transform: 'none',
-          pointerEvents: 'auto'
+          pointerEvents: 'auto',
+          border: '5px solid blue !important' // TEMP: Debug border
         }}
       >
         {/* Header */}
