@@ -88,7 +88,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       source: 'manual',
       visible: true,
       collapsed: false,
-      layout: type === 'image-text' ? 'image-left' : undefined,
+      layout: type === 'image-text' ? 'image-right' : undefined,
       textAlign: 'left',
       padding: 'medium'
     };

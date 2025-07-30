@@ -171,7 +171,7 @@ export const convertNewsletterBlocksToCRM = (processedNewsletter: any): ContentB
       visible: true,
       textAlign: 'left' as const,
       padding: 'medium' as const,
-      layout: blockType === 'image-text' ? 'image-left' : undefined,
+      layout: blockType === 'image-text' ? 'image-right' : undefined,
     };
 
     // Map block-specific content based on type

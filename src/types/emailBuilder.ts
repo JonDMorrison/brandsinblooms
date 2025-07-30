@@ -1,6 +1,6 @@
 
 export type BlockType = 'header' | 'text' | 'image' | 'image-text' | 'button' | 'divider' | 'product' | 'quote' | 'cta' | 'newsletter-header' | 'image-gallery' | 'social-follow' | 'footer';
-export type BlockLayout = 'full-width' | 'two-column-left' | 'two-column-right' | 'three-column' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'overlay' | 'background' | 'image-left' | 'text-left';
+export type BlockLayout = 'full-width' | 'two-column-left' | 'two-column-right' | 'three-column' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'overlay' | 'background' | 'image-left' | 'image-right' | 'text-left';
 export type AlignmentType = 'left' | 'center' | 'right' | 'justify';
 export type SpacingType = 'none' | 'small' | 'medium' | 'large' | 'extra-large';
 export type ResponsiveBehaviorType = 'stack' | 'reverse' | 'hide-image' | 'mobile-first';

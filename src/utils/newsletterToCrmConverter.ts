@@ -161,7 +161,7 @@ const convertToEmailBlocks = async (processed: any, originalImages?: Record<stri
       
       // Use image-text type for blocks with both text and images
       const blockType = hasImage && hasText ? 'image-text' : 'text';
-      const blockLayout = hasImage && hasText ? 'image-left' : 'full-width';
+      const blockLayout = hasImage && hasText ? 'image-right' : 'full-width';
       
       const contentBlock: ContentBlock = {
         id: `block-${index}`,
@@ -232,7 +232,7 @@ const convertToEmailBlocks = async (processed: any, originalImages?: Record<stri
       
       // Use image-text type for sections with both text and images
       const blockType = hasImage && hasText ? 'image-text' : 'text';
-      const blockLayout = hasImage && hasText ? 'image-left' : 'full-width';
+      const blockLayout = hasImage && hasText ? 'image-right' : 'full-width';
       
       const contentBlock: ContentBlock = {
         id: `section-${index}`,
