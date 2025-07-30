@@ -167,127 +167,163 @@ Create a structured newsletter with exactly 4 sections using engaging, StoryBran
 Return ONLY valid YAML in this exact format:`;
 
     const generateThemeSpecificTemplate = (theme: string, businessName: string) => {
-      if (theme.toLowerCase().includes('tree')) {
-        return `
-\`\`\`yaml
-newsletter_md: |
-  # ${theme} Newsletter
-  *Essential tree care insights${is_holiday ? ` for ${holiday_context || theme}` : ` for ${theme}`} to maintain healthy, thriving trees on your property*
-
-  ## Essential Tree Health Assessment: Your Property's Foundation Check
-  [Write 2-3 sentences about the importance of regular tree health checks, StoryBrand framework.]
-
-  ## National Tree Month: The Perfect Time for Tree Care Planning  
-  [Write 2-3 sentences about timing tree care for optimal results, positioning customer as proactive steward.]
-
-  ## Warning Signs: When Your Trees Need Professional Attention
-  [Write 2-3 sentences about identifying tree problems early, with garden center as expert guide.]
-
-  ## Invest in Tomorrow: Strategic Tree Care for Long-term Success
-  [Write 2-3 sentences about long-term tree investment and future property value.]
-
-  ---
-  Expert tree care with **${businessName}** 🌿
-blocks:
-  - title: "Essential Tree Health Assessment: Your Property's Foundation Check"
-    body: "[StoryBrand content: tree health importance in paragraph form]"
-    cta: "Schedule tree assessment"
-    link: "#"
-    image_prompt: "professional arborist examining tree trunk for health"
-    alt_text: "Professional tree health assessment"
-  - title: "National Tree Month: The Perfect Time for Tree Care Planning"
-    body: "[StoryBrand content: optimal timing for tree care in paragraph form]"
-    cta: "Get tree care supplies"
-    link: "#"
-    image_prompt: "healthy mature trees in residential landscape"
-    alt_text: "Well-maintained residential trees"
-  - title: "Warning Signs: When Your Trees Need Professional Attention"
-    body: "[StoryBrand content: early problem identification in paragraph form]"
-    cta: "Consult tree experts"
-    link: "#"
-    image_prompt: "tree care tools and professional equipment"
-    alt_text: "Professional tree care tools"
-  - title: "Invest in Tomorrow: Strategic Tree Care for Long-term Success"
-    body: "[StoryBrand content: long-term tree investment in paragraph form]"
-    cta: "Plan tree strategy"
-    link: "#"
-    image_prompt: "beautiful mature trees enhancing property value"
-    alt_text: "Mature trees adding property value"
-extra_content_ideas:
-  - title: "Professional Tree Pruning Secrets"
-    quick_desc: "Expert pruning techniques for healthy tree growth"
-  - title: "Soil Health for Strong Trees"
-    quick_desc: "Soil amendments that promote strong root systems"
-  - title: "Tree Disease Prevention Guide"
-    quick_desc: "Protect trees from common diseases naturally"
-  - title: "Strategic Tree Planting Timeline"
-    quick_desc: "Best timing for tree planting and establishment"
-meta:
-  reading_time: "≈3 min"
-  theme: "${theme}"
-  week_focus: "${contextualFocus}"
-\`\`\``;
-      } else {
-        return `
+      // **CRITICAL FIX: Make templates truly theme-specific instead of generic fallbacks**
+      
+      // Theme-specific headline generators
+      const getThemeHeadlines = (campaignTheme: string) => {
+        const lowerTheme = campaignTheme.toLowerCase();
+        
+        // Holiday/Special Event specific headlines
+        if (lowerTheme.includes('seed') && lowerTheme.includes('harvest')) {
+          return {
+            h1: "Master the Art of Seed Collection: Your Legacy Garden Starts Here",
+            h2: "Heirloom Treasures: Why Saving Seeds Connects You to Garden History", 
+            h3: "Seed Storage Success: Professional Tips for Long-Term Viability",
+            h4: "Plan Your Seed Harvest Calendar: Timing is Everything"
+          };
+        } else if (lowerTheme.includes('vegetarian') && lowerTheme.includes('world')) {
+          return {
+            h1: "Grow Your Own Vegetarian Paradise: From Seed to Supper",
+            h2: "Protein-Packed Plants: The Best Vegetables for Plant-Based Living",
+            h3: "Container Vegetable Gardens: Perfect for Small Space Vegetarians", 
+            h4: "Herb Garden Essentials: Elevate Your Plant-Based Cooking"
+          };
+        } else if (lowerTheme.includes('tree')) {
+          return {
+            h1: "Essential Tree Health Assessment: Your Property's Foundation Check",
+            h2: "National Tree Month: The Perfect Time for Tree Care Planning",
+            h3: "Warning Signs: When Your Trees Need Professional Attention",
+            h4: "Invest in Tomorrow: Strategic Tree Care for Long-term Success"
+          };
+        } else if (lowerTheme.includes('fall') || lowerTheme.includes('autumn')) {
+          return {
+            h1: "Fall Garden Transformation: Prepare for Autumn's Bounty",
+            h2: "Soil Prep Secrets: Set Your Garden Up for Next Year's Success",
+            h3: "Fall Planting Power: Plants That Thrive in Cool Weather",
+            h4: "Winter Protection Strategy: Keep Your Garden Healthy All Season"
+          };
+        } else if (lowerTheme.includes('spring') || lowerTheme.includes('planting')) {
+          return {
+            h1: "Spring Garden Revolution: Transform Your Space This Season",
+            h2: "Soil Revival: Wake Up Your Garden After Winter",
+            h3: "Early Planting Success: Beat the Rush for Best Selection",
+            h4: "Garden Planning Mastery: Design Your Dream Growing Space"
+          };
+        } else if (lowerTheme.includes('summer') || lowerTheme.includes('heat')) {
+          return {
+            h1: "Beat the Heat: Your Garden's Summer Survival Guide",
+            h2: "Water-Smart Gardening: Efficiency Meets Plant Health",
+            h3: "Summer Problem Solving: Keep Plants Thriving in Extreme Weather",
+            h4: "Late Summer Prep: Position Your Garden for Fall Success"
+          };
+        } else {
+          // Dynamic headline generation based on actual theme
+          return {
+            h1: `${campaignTheme} Garden Focus: Expert Insights for Success`,
+            h2: `This Month's ${campaignTheme} Strategy: Professional Techniques`,
+            h3: `${campaignTheme} Problem Prevention: Stay Ahead of Issues`,
+            h4: `Future-Proof Your ${campaignTheme} Success: Long-term Planning`
+          };
+        }
+      };
+      
+      // Get theme-specific image queries
+      const getThemeImageQueries = (campaignTheme: string) => {
+        const lowerTheme = campaignTheme.toLowerCase();
+        
+        if (lowerTheme.includes('seed') && lowerTheme.includes('harvest')) {
+          return [
+            "hands collecting heirloom tomato seeds harvest time",
+            "variety of seeds organized for storage containers",
+            "professional seed drying equipment garden center",
+            "seed packet collection heirloom varieties display"
+          ];
+        } else if (lowerTheme.includes('vegetarian') && lowerTheme.includes('world')) {
+          return [
+            "abundant vegetable garden fresh harvest vegetables",
+            "container vegetable garden apartment balcony herbs",
+            "protein rich beans peas growing garden trellis",
+            "herb garden cooking ingredients fresh basil oregano"
+          ];
+        } else if (lowerTheme.includes('tree')) {
+          return [
+            "professional arborist examining tree trunk for health",
+            "healthy mature trees in residential landscape", 
+            "tree care tools and professional equipment",
+            "beautiful mature trees enhancing property value"
+          ];
+        } else {
+          return [
+            `${campaignTheme.toLowerCase()} garden center professional advice`,
+            `beautiful ${campaignTheme.toLowerCase()} garden thriving plants`,
+            `${campaignTheme.toLowerCase()} gardening tools and supplies`,
+            `successful ${campaignTheme.toLowerCase()} garden transformation`
+          ];
+        }
+      };
+      
+      const headlines = getThemeHeadlines(theme);
+      const imageQueries = getThemeImageQueries(theme);
+      
+      return `
 \`\`\`yaml
 newsletter_md: |
   # ${theme} Garden Newsletter
   *Discover expert gardening insights${is_holiday ? ` for ${holiday_context || theme}` : ` for ${theme}`} that transform your garden into a thriving paradise*
 
-  ## Beat the Heat: Your Garden's Summer Survival Guide
+  ## ${headlines.h1}
   [Write 2-3 sentences following StoryBrand: identify gardener challenge, show empathy, provide solution. No lists or bullets - flowing paragraphs only.]
 
-  ## This Month's Garden Game-Changer  
-  [Write 2-3 sentences featuring a transformative plant or technique, positioning customer as hero achieving garden success.]
+  ## ${headlines.h2}
+  [Write 2-3 sentences featuring a transformative approach, positioning customer as hero achieving garden success.]
 
-  ## SOS: Save Your Plants Before It's Too Late
-  [Write 2-3 sentences about preventing garden problems, with garden center as trusted guide providing expert solutions.]
+  ## ${headlines.h3}
+  [Write 2-3 sentences about preventing problems, with garden center as trusted guide providing expert solutions.]
 
-  ## Get Ready: Your Garden's Next Power Move
+  ## ${headlines.h4}
   [Write 2-3 sentences about upcoming opportunities, painting picture of future garden success.]
 
   ---
   Transform your garden with **${businessName}** 🌿
 blocks:
-  - title: "Beat the Heat: Your Garden's Summer Survival Guide"
-    body: "[StoryBrand content: gardener challenge + expert solution in paragraph form]"
-    cta: "Get seasonal garden supplies"
+  - title: "${headlines.h1}"
+    body: "[StoryBrand content: specific to ${theme} theme in paragraph form]"
+    cta: "Get ${theme.toLowerCase()} supplies"
     link: "#"
-    image_prompt: "lush garden thriving in summer sunlight"
-    alt_text: "Garden thriving in summer heat"
-  - title: "This Month's Garden Game-Changer"
-    body: "[StoryBrand content: featured plant transformation in paragraph form]"
-    cta: "Discover game-changing plants"
+    image_prompt: "${imageQueries[0]}"
+    alt_text: "${theme} gardening success"
+  - title: "${headlines.h2}"
+    body: "[StoryBrand content: ${theme}-focused transformation in paragraph form]"
+    cta: "Discover ${theme.toLowerCase()} solutions"
     link: "#"
-    image_prompt: "featured plant transformation garden center"
-    alt_text: "Garden transformation with featured plant"
-  - title: "SOS: Save Your Plants Before It's Too Late"
-    body: "[StoryBrand content: problem prevention and expert solution in paragraph form]"
-    cta: "Get plant rescue solutions"
+    image_prompt: "${imageQueries[1]}"
+    alt_text: "${theme} garden transformation"
+  - title: "${headlines.h3}"
+    body: "[StoryBrand content: ${theme} problem prevention in paragraph form]"
+    cta: "Get expert ${theme.toLowerCase()} advice"
     link: "#"
-    image_prompt: "healthy plants protected from pests naturally"
-    alt_text: "Successful plant rescue and recovery"
-  - title: "Get Ready: Your Garden's Next Power Move"
-    body: "[StoryBrand content: future planning and success visualization in paragraph form]"
-    cta: "Plan your garden success"
+    image_prompt: "${imageQueries[2]}"
+    alt_text: "${theme} problem prevention"
+  - title: "${headlines.h4}"
+    body: "[StoryBrand content: ${theme} future planning in paragraph form]"
+    cta: "Plan your ${theme.toLowerCase()} success"
     link: "#"
-    image_prompt: "garden planning preparation for success"
-    alt_text: "Garden planning for success"
+    image_prompt: "${imageQueries[3]}"
+    alt_text: "${theme} planning for success"
 extra_content_ideas:
-  - title: "The Watering Secret Pros Use"
-    quick_desc: "Advanced watering techniques for maximum plant health"
-  - title: "Soil Transformation Magic"
-    quick_desc: "Turn poor soil into plant paradise"
-  - title: "Natural Pest Defense System"
-    quick_desc: "Protect plants without harmful chemicals"
-  - title: "Seasonal Planting Power Strategy"
-    quick_desc: "Time plantings for maximum success"
+  - title: "Advanced ${theme} Techniques"
+    quick_desc: "Professional techniques for ${theme.toLowerCase()} success"
+  - title: "${theme} Timing Mastery"
+    quick_desc: "Perfect timing strategies for ${theme.toLowerCase()}"
+  - title: "${theme} Problem Solving"
+    quick_desc: "Expert solutions for ${theme.toLowerCase()} challenges"
+  - title: "${theme} Planning Guide"
+    quick_desc: "Strategic planning for ${theme.toLowerCase()} success"
 meta:
   reading_time: "≈3 min"
   theme: "${theme}"
   week_focus: "${contextualFocus}"
 \`\`\``;
-      }
     };
 
     const yamlTemplate = generateThemeSpecificTemplate(theme, businessName);
@@ -323,7 +359,26 @@ Convert this into the structured YAML format while:
 - NO week numbers or "weekly" language anywhere
 
 Template to follow: ${yamlTemplate}` :
-              `Generate a 4-section StoryBrand newsletter for "${theme}" with focus "${contextualFocus}". Each section must follow the StoryBrand framework: position gardeners as heroes, identify their challenges, show garden center as trusted guide, provide actionable solutions, and paint success pictures. Use engaging, benefit-driven headlines. Write in flowing paragraphs only - absolutely no bullet points or numbered lists. NO week numbers or "weekly" language anywhere.${is_holiday ? ` Incorporate ${holiday_context || theme} themes naturally.` : ''}
+              `CRITICAL THEME ENFORCEMENT: Generate a 4-section StoryBrand newsletter that is 100% focused on "${theme}" with emphasis on "${contextualFocus}".
+
+🚨 ABSOLUTE REQUIREMENTS:
+1. **EVERY headline and content block MUST directly relate to "${theme}"**
+2. **FORBIDDEN**: Do NOT include generic phrases like "Beat the Heat", "SOS: Save Your Plants", "This Month's Garden Game-Changer" unless they specifically relate to "${theme}"
+3. **REQUIRED**: All content must celebrate, explain, or provide actionable advice for "${theme}"
+4. **IMAGE QUERIES**: Must search for images directly related to "${theme}" - not generic garden/summer scenes
+
+EXAMPLE OF WHAT TO AVOID:
+❌ "Beat the Heat" when theme is "National Seed Harvest Week"
+❌ "Summer Care" when theme is "World Vegetarian Day" 
+❌ "General plant tips" when theme is specific
+
+EXAMPLE OF WHAT TO INCLUDE:
+✅ For "National Seed Harvest Week": Focus on seed collection, storage, heirloom varieties, seed saving techniques
+✅ For "World Vegetarian Day": Focus on growing vegetables, plant-based gardening, container vegetable gardens, herb cultivation
+
+Each section must follow the StoryBrand framework: position gardeners as heroes, identify their challenges, show garden center as trusted guide, provide actionable solutions, and paint success pictures. Use engaging, benefit-driven headlines. Write in flowing paragraphs only - absolutely no bullet points or numbered lists. NO week numbers or "weekly" language anywhere.${is_holiday ? ` Incorporate ${holiday_context || theme} themes naturally.` : ''}
+
+**CONTENT QUALITY CHECK**: Before finalizing, verify that every sentence relates to "${theme}" and would make sense to someone celebrating or participating in "${theme}".
 
 Template to follow: ${yamlTemplate}`
           }
@@ -344,10 +399,25 @@ Template to follow: ${yamlTemplate}`
     const yamlMatch = content.match(/```yaml\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
     const yamlContent = yamlMatch ? yamlMatch[1] : content;
 
-    // Validate content for StoryBrand compliance
+    // Validate content for StoryBrand compliance and theme alignment
     const validation = validateStoryBrandContent(yamlContent);
+    const themeValidation = validateThemeAlignment(yamlContent, theme);
+    
     if (!validation.isValid) {
       console.warn('⚠️ Generated content has StoryBrand validation issues:', validation.issues);
+    }
+    
+    if (!themeValidation.isValid) {
+      console.error('🚨 CRITICAL: Newsletter content does not match theme!', {
+        theme,
+        issues: themeValidation.issues,
+        contentPreview: yamlContent.substring(0, 200)
+      });
+    }
+    
+    // Log successful theme alignment
+    if (themeValidation.isValid && validation.isValid) {
+      console.log(`✅ Newsletter successfully generated with proper "${theme}" focus`);
     }
 
     console.log(`Generated StoryBrand 4-section newsletter successfully for ${contentType}`);
@@ -427,6 +497,91 @@ function validateStoryBrandContent(content: string): {
   const emojiRegex = /[\p{Emoji}]/u;
   if (emojiRegex.test(content)) {
     issues.push('Content contains emojis');
+  }
+  
+  return {
+    isValid: issues.length === 0,
+    issues
+  };
+}
+
+function validateThemeAlignment(content: string, theme: string): {
+  isValid: boolean;
+  issues: string[];
+} {
+  const issues: string[] = [];
+  const lowerContent = content.toLowerCase();
+  const lowerTheme = theme.toLowerCase();
+  
+  // Define forbidden generic phrases that should not appear with specific themes
+  const genericFallbacks = [
+    'beat the heat',
+    'sos: save your plants',
+    'this month\'s garden game-changer',
+    'get ready: your garden\'s next power move',
+    'summer survival guide',
+    'plant rescue',
+    'seasonal tips',
+    'weekly updates',
+    'general garden care',
+    'summer care',
+    'fall transition'
+  ];
+  
+  // Check if theme-specific content is present
+  let hasThemeContent = false;
+  
+  if (lowerTheme.includes('seed') && lowerTheme.includes('harvest')) {
+    const seedTerms = ['seed', 'harvest', 'collection', 'storage', 'heirloom', 'saving'];
+    hasThemeContent = seedTerms.some(term => lowerContent.includes(term));
+  } else if (lowerTheme.includes('vegetarian') && lowerTheme.includes('world')) {
+    const vegetarianTerms = ['vegetarian', 'vegetable', 'plant-based', 'herbs', 'container', 'growing'];
+    hasThemeContent = vegetarianTerms.some(term => lowerContent.includes(term));
+  } else if (lowerTheme.includes('tree')) {
+    const treeTerms = ['tree', 'arborist', 'pruning', 'trunk', 'branches'];
+    hasThemeContent = treeTerms.some(term => lowerContent.includes(term));
+  } else {
+    // For other themes, check if theme name appears in content
+    hasThemeContent = lowerContent.includes(lowerTheme.split(' ')[0]) || 
+                     lowerContent.includes(lowerTheme);
+  }
+  
+  // Check for forbidden generic content when we have a specific theme
+  if (!lowerTheme.includes('summer') && !lowerTheme.includes('heat')) {
+    genericFallbacks.forEach(generic => {
+      if (lowerContent.includes(generic)) {
+        issues.push(`Contains generic phrase "${generic}" that doesn't match theme "${theme}"`);
+      }
+    });
+  }
+  
+  // Flag if theme-specific content is missing
+  if (!hasThemeContent) {
+    issues.push(`Content does not contain terms related to theme "${theme}"`);
+  }
+  
+  // Check for off-topic image queries
+  if (lowerContent.includes('summer sunlight') && !lowerTheme.includes('summer')) {
+    issues.push('Image queries are generic summer scenes instead of theme-specific');
+  }
+  
+  // Check if headlines relate to theme
+  const headlineMatches = content.match(/title:\s*"([^"]+)"/g) || [];
+  let themeRelevantHeadlines = 0;
+  
+  headlineMatches.forEach(headline => {
+    const headlineText = headline.toLowerCase();
+    if (lowerTheme.includes('seed') && (headlineText.includes('seed') || headlineText.includes('harvest'))) {
+      themeRelevantHeadlines++;
+    } else if (lowerTheme.includes('vegetarian') && (headlineText.includes('vegetable') || headlineText.includes('plant'))) {
+      themeRelevantHeadlines++;
+    } else if (lowerTheme.includes('tree') && headlineText.includes('tree')) {
+      themeRelevantHeadlines++;
+    }
+  });
+  
+  if (headlineMatches.length > 0 && themeRelevantHeadlines === 0) {
+    issues.push('None of the headlines relate to the specified theme');
   }
   
   return {
