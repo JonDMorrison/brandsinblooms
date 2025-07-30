@@ -79,7 +79,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         <div className="apple-fade-in-stagger mx-auto px-4" style={{animationDelay: '0.4s'}}>
           <Button 
             onClick={onGetStarted}
-            className="bg-[#47B881] hover:bg-[#3A9B6C] text-white font-semibold rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 mx-auto block border-0 text-center"
+            className="bg-[#47B881] hover:bg-[#3A9B6C] text-white font-semibold rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 mx-auto block border-0 text-center cursor-pointer"
             style={{
               padding: '16px 20px',
               fontSize: '15px',
@@ -91,7 +91,8 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               textAlign: 'center',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              pointerEvents: 'auto'
             }}
           >
             Get Started In Less Than A Minute
