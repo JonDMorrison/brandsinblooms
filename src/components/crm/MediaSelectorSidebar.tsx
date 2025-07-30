@@ -251,6 +251,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
       {/* Backdrop - Full viewport coverage */}
       <div 
         data-media-selector-backdrop
+        data-app="media-selector-backdrop"
         className="fixed inset-0 w-screen h-screen bg-black/50 backdrop-blur-sm"
         style={{ 
           zIndex: 999998,
@@ -268,20 +269,22 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
       <div
         ref={sidebarRef}
         data-media-selector-sidebar
+        data-media-selector
+        data-app="media-selector"
         data-testid="media-selector-sidebar"
         className={cn(
           "fixed top-0 right-0 w-96 bg-white shadow-2xl",
           "border-l border-gray-200"
         )}
         style={{ 
-          // Force visibility with inline styles for debugging
+          // Force visibility with inline styles - bypasses production-cleanup.css
+          display: isOpen ? 'block' : 'none',
           zIndex: 999999,
           position: 'fixed',
           top: 0,
           right: 0,
           height: '100vh',
           width: '384px',
-          display: 'block',
           opacity: 1,
           visibility: 'visible',
           backgroundColor: 'white',
