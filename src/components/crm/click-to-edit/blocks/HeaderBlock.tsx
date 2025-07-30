@@ -60,6 +60,11 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
         <ContextualToolbar
           editMode={editMode}
           onModeChange={onModeChange}
+          onImageEdit={() => {
+            // Trigger the MediaSelectorImage click programmatically
+            const mediaSelector = document.querySelector('[data-media-selector-button]') as HTMLButtonElement;
+            mediaSelector?.click();
+          }}
           showTextEdit={true}
           showImageEdit={true}
           showFormatEdit={true}

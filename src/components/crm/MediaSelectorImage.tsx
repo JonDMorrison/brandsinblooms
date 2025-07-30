@@ -63,6 +63,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
 
         <button
           onClick={handleSelectClick}
+          data-media-selector-button
           className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-sm font-medium z-50"
           style={{ pointerEvents: 'auto' }}
         >

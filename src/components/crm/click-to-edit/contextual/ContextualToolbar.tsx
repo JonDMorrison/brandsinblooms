@@ -78,7 +78,10 @@ export const ContextualToolbar: React.FC<ContextualToolbarProps> = ({
           <Button
             variant={editMode === 'image' ? 'default' : 'secondary'}
             size="sm"
-            onClick={(e) => handleModeClick('image', e)}
+            onClick={(e) => {
+              handleModeClick('image', e);
+              onImageEdit?.();
+            }}
             className="h-8 px-3 bg-white/90 text-black hover:bg-white shadow-sm"
             title="Change background image"
           >
