@@ -20,7 +20,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   editMode,
   onModeChange 
 }) => {
-  const isImageLeft = block.layout === 'image-left' || !block.layout;
+  const isImageLeft = block.layout === 'image-left';
 
   const handleModeClick = (mode: EditMode, event: React.MouseEvent) => {
     event.stopPropagation();
