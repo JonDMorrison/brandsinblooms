@@ -24,7 +24,12 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
 
   const handleModeClick = (mode: EditMode, event: React.MouseEvent) => {
     event.stopPropagation();
-    onModeChange?.(editMode === mode ? null : mode);
+    if (mode === 'image') {
+      // For image mode, trigger the modal opening
+      onModeChange?.('image');
+    } else {
+      onModeChange?.(editMode === mode ? null : mode);
+    }
   };
 
   // Always render as preview - editing is handled by the new mode system
