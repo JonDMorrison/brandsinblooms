@@ -222,7 +222,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99998] isolation-[isolate]"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99998]"
         onClick={onClose}
       />
       
@@ -232,11 +232,8 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
         data-media-selector-sidebar
         className={cn(
           "fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-[99999]",
-          "transform transition-transform duration-300 ease-in-out",
-          "border-l border-gray-200 isolation-[isolate]",
-          isOpen ? "translate-x-0" : "translate-x-full"
+          "border-l border-gray-200"
         )}
-        style={{ isolation: 'isolate' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
