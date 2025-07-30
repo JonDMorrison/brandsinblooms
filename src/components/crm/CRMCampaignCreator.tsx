@@ -123,7 +123,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           .from('crm_campaigns')
           .update({
             name: campaignData.campaign_name,
-            subject: campaignData.subject_line,
+            subject_line: campaignData.subject_line,
             preheader: campaignData.preheader,
             updated_at: new Date().toISOString()
           })

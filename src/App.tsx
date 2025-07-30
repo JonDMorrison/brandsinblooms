@@ -174,7 +174,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster />
-      <Analytics />
+      {process.env.NODE_ENV === 'production' && <Analytics />}
     </div>
   );
 }
