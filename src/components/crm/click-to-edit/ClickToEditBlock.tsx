@@ -107,7 +107,13 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   // Handle mode changes with special logic for image mode
   const handleModeChange = (mode: EditMode) => {
     if (mode === 'image') {
-      setIsMediaSelectorOpen(true);
+      // For header blocks, image mode should show the full editor interface
+      if (block.type === 'header') {
+        toggleMode('image'); // Enter image edit mode
+      } else {
+        // For other blocks, open media selector
+        setIsMediaSelectorOpen(true);
+      }
     } else {
       toggleMode(mode);
     }
@@ -131,7 +137,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     }
   };
 
-  const isAnyEditMode = editMode !== null;
+  const isAnyEditMode = isTextEditing || isFormatEditing || isImageEditing;
 
   return (
     <div className={cn("group relative click-to-edit-container", isAnyEditMode && "click-to-edit-editing")} style={{ position: 'relative', zIndex: 1 }}>
@@ -194,8 +200,21 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
               </div>
             )}
 
-            {/* Preview when in edit mode but not text/format */}
-            {!isTextEditing && !isFormatEditing && (
+            {/* Image Edit Mode */}
+            {isImageEditing && (
+              <div className="p-4">
+                {React.cloneElement(children.editor as React.ReactElement, {
+                  block: localBlock,
+                  onUpdate: handleLocalUpdate,
+                  isPreview: false,
+                  editMode: 'image',
+                  onModeChange: handleModeChange
+                })}
+              </div>
+            )}
+
+            {/* Preview when in edit mode but not text/format/image */}
+            {!isTextEditing && !isFormatEditing && !isImageEditing && (
               <div className="p-0">
                 {React.cloneElement(children.preview as React.ReactElement, {
                   block: localBlock,
