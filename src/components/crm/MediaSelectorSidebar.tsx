@@ -30,6 +30,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
   const [showingSuggestions, setShowingSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   
   const { searchImages, loading: unsplashLoading } = useUnsplash();
   const { uploadAsset } = useContentAssets();
@@ -64,6 +65,14 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
       };
     }
   }, [isOpen, onClose]);
+
+  // Reset scroll position when sidebar opens
+  useEffect(() => {
+    if (isOpen && contentRef.current) {
+      // Reset scroll to top when sidebar opens
+      contentRef.current.scrollTop = 0;
+    }
+  }, [isOpen]);
 
   // Load default suggestions when sidebar opens
   useEffect(() => {
@@ -255,7 +264,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
           </div>
 
           {/* Results Section */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div ref={contentRef} className="flex-1 overflow-y-auto p-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
