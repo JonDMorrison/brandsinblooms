@@ -128,7 +128,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       if (campaignData.blocks.length > 0) {
         const blocksToSave = campaignData.blocks.map((block, index) => ({
           campaign_id: existingCampaignId,
-          block_type: block.type,
+          block_type: block.type, // This will now correctly save 'header' for header blocks
           content: {
             title: block.title || block.headline,
             content: block.content || block.body,
@@ -348,29 +348,44 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         preheader: campaign.preheader
       });
 
-      // Convert campaign blocks back to ContentBlocks using enhanced transformBlock function
-      const transformBlock = (block: any): ContentBlock => {
-        console.log('🔍 Transforming block:', {
-          blockId: block.id,
-          blockType: block.block_type,
-          rawContent: block.content,
-          imageUrl: block.image_url,
-          ctaUrl: block.cta_url,
-          ctaText: block.cta_text
-        });
+        // Convert campaign blocks back to ContentBlocks using enhanced transformBlock function
+        const transformBlock = (block: any): ContentBlock => {
+          console.log('🔍 Transforming block:', {
+            blockId: block.id,
+            blockType: block.block_type,
+            rawContent: block.content,
+            imageUrl: block.image_url,
+            ctaUrl: block.cta_url,
+            ctaText: block.cta_text
+          });
 
-        // Parse the content if it's a string
-        let contentObj = block.content;
-        if (typeof block.content === 'string') {
-          try {
-            contentObj = JSON.parse(block.content);
-          } catch (e) {
-            console.warn('Failed to parse block content as JSON:', e);
+          // Parse the content if it's a string
+          let contentObj = block.content;
+          if (typeof block.content === 'string') {
+            try {
+              contentObj = JSON.parse(block.content);
+            } catch (e) {
+              console.warn('Failed to parse block content as JSON:', e);
+              contentObj = {};
+            }
+          } else if (!block.content || typeof block.content !== 'object') {
             contentObj = {};
           }
-        } else if (!block.content || typeof block.content !== 'object') {
-          contentObj = {};
-        }
+
+          // Detect if this should actually be a header block
+          // Check for header block characteristics: backgroundColor + imageUrl + full-width layout
+          let actualBlockType = block.block_type;
+          if (block.block_type === 'text' && contentObj?.content) {
+            const nestedContent = contentObj.content;
+            const hasBackgroundColor = nestedContent?.backgroundColor;
+            const hasImageUrl = nestedContent?.imageUrl;
+            const isFullWidth = nestedContent?.layout === 'full-width';
+            
+            if (hasBackgroundColor && hasImageUrl && isFullWidth) {
+              console.log('🔄 Converting misclassified text block to header block:', block.id);
+              actualBlockType = 'header';
+            }
+          }
 
         // Check if we have the new fullBlock structure saved from the updated auto-save
         const fullBlock = contentObj?.fullBlock;
@@ -457,12 +472,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         // Build the transformed block with comprehensive field mapping
         const transformedBlock: ContentBlock = {
           id: block.id,
-          // Preserve header block type, only convert text blocks with images to image-text
-          type: block.block_type === 'header' 
+          // Use the detected actualBlockType which includes header block auto-detection
+          type: actualBlockType === 'header'
             ? 'header' as ContentBlock['type']
-            : (block.block_type === 'text' && finalExtractedContent.imageUrl && finalExtractedContent.imageUrl !== '/images/newsletter-fallback.jpg')
+            : (actualBlockType === 'text' && finalExtractedContent.imageUrl && finalExtractedContent.imageUrl !== '/images/newsletter-fallback.jpg')
               ? 'image-text' as ContentBlock['type']
-              : block.block_type as ContentBlock['type'],
+              : actualBlockType as ContentBlock['type'],
           title: finalExtractedContent.title || finalExtractedContent.headline || 'Untitled Block',
           headline: finalExtractedContent.headline || finalExtractedContent.title,
           body: finalExtractedContent.body || finalExtractedContent.content,
@@ -493,7 +508,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           textAlign: finalExtractedContent.textAlign || finalExtractedContent.alignment,
           // Background
           backgroundColor: finalExtractedContent.backgroundColor || finalExtractedContent.background_color,
-          backgroundImageUrl: block.block_type === 'header' ? (finalExtractedContent.imageUrl || block.image_url) : finalExtractedContent.backgroundImageUrl,
+          backgroundImageUrl: actualBlockType === 'header' ? (finalExtractedContent.imageUrl || block.image_url) : finalExtractedContent.backgroundImageUrl,
           backgroundOpacity: finalExtractedContent.backgroundOpacity,
           // Newsletter-specific
           quote: finalExtractedContent.quote,
