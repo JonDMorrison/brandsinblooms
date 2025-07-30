@@ -122,36 +122,60 @@ serve(async (req) => {
       
       newsletter: `Create a structured newsletter exclusively about "${campaign_title}" for ${businessName} in this YAML format:
 
-      CRITICAL REQUIREMENT: Every section must relate directly to "${campaign_title}". Include topic keywords throughout.
+      CRITICAL REQUIREMENT: Every section must relate directly to "${campaign_title}". Do NOT use seasonal defaults or generic topics.
+
+      TOPIC ENFORCEMENT RULES:
+      - If "${campaign_title}" mentions "Vegetarian Day", focus ONLY on: growing vegetables, plant-based gardens, edible plants, vegetable varieties, harvesting tips
+      - If "${campaign_title}" mentions "National Honey Month", focus ONLY on: pollinators, bee-friendly plants, nectar plants, honey production
+      - If "${campaign_title}" mentions specific plants, focus ONLY on those plants
+      - NEVER use "Beat the Heat", "Summer Care", or other seasonal defaults unless specifically in the topic title
+      - NEVER dilute the topic with generic gardening advice
 
       newsletter_md: |
         # ${campaign_title} Newsletter
-        [Introduction paragraph specifically about "${campaign_title}" - explain why this topic matters now]
+        [Write an introduction paragraph specifically about "${campaign_title}" - explain exactly why this topic matters now. Use keywords from the topic title.]
 
       blocks:
-        - title: "[Specific aspect of ${campaign_title}]"
-          body: "Detailed content focusing only on this aspect of ${campaign_title}"
+        - title: "Growing [specific vegetables/plants from ${campaign_title}]"
+          body: "Detailed content focusing only on the plants/topics mentioned in ${campaign_title}. Include specific varieties, care tips, and timing related to this exact topic."
           cta: "Learn more about ${campaign_title}"
           link: "#"
-          image_prompt: "${campaign_title.includes('honey') || campaign_title.includes('pollinator') ? 'honey bees pollinator garden' : campaign_title + ' specific gardening'}"
+          image_prompt: "${campaign_title.toLowerCase().includes('vegetarian') ? 'vegetable garden growing fresh vegetables' : campaign_title.toLowerCase().includes('honey') || campaign_title.toLowerCase().includes('pollinator') ? 'honey bees pollinator garden flowers' : campaign_title + ' specific gardening'}"
           alt_text: "Image showing ${campaign_title} related content"
-        - title: "[Another specific aspect of ${campaign_title}]"
-          body: "More focused content about ${campaign_title} - no generic advice"
-          cta: "Visit for ${campaign_title} advice"
+        - title: "[Specific aspect of ${campaign_title} - use topic keywords]"
+          body: "More focused content about ${campaign_title} - address specific challenges or opportunities related to this exact topic. NO generic advice."
+          cta: "Discover ${campaign_title} solutions"
           link: "#"
-          image_prompt: "${campaign_title.includes('honey') || campaign_title.includes('pollinator') ? 'bee garden flowers pollinator' : campaign_title + ' garden advice'}"
+          image_prompt: "${campaign_title.toLowerCase().includes('vegetarian') ? 'homegrown vegetables edible plants' : campaign_title.toLowerCase().includes('honey') || campaign_title.toLowerCase().includes('pollinator') ? 'bee garden flowers pollinator plants' : campaign_title + ' garden advice'}"
           alt_text: "Image demonstrating ${campaign_title} concepts"
+        - title: "[Advanced ${campaign_title} techniques]"
+          body: "Expert-level advice specifically for ${campaign_title}. Share professional techniques, timing, or varieties that relate directly to this topic."
+          cta: "Get expert ${campaign_title} advice"
+          link: "#"
+          image_prompt: "${campaign_title.toLowerCase().includes('vegetarian') ? 'professional vegetable garden techniques' : campaign_title.toLowerCase().includes('honey') || campaign_title.toLowerCase().includes('pollinator') ? 'expert pollinator garden design' : campaign_title + ' expert techniques'}"
+          alt_text: "Professional ${campaign_title} techniques"
+        - title: "[${campaign_title} success planning]"
+          body: "Help customers plan their success with ${campaign_title}. Provide actionable next steps, timing, or resources specific to this topic."
+          cta: "Plan your ${campaign_title} success"
+          link: "#"
+          image_prompt: "${campaign_title.toLowerCase().includes('vegetarian') ? 'vegetable garden planning success' : campaign_title.toLowerCase().includes('honey') || campaign_title.toLowerCase().includes('pollinator') ? 'pollinator garden planning' : campaign_title + ' planning success'}"
+          alt_text: "${campaign_title} planning and success"
 
       extra_content_ideas:
         - title: "Advanced ${campaign_title} Tips"
-          quick_desc: "Further exploration of ${campaign_title}"
+          quick_desc: "Further exploration of ${campaign_title} techniques and strategies"
 
       meta:
         reading_time: "≈3 min"
         theme: "${campaign_title}"
-        week_focus: "Focused on ${campaign_title} exclusively"
+        week_focus: "Focused exclusively on ${campaign_title} - NO seasonal defaults"
       
-      For "National Honey Month": focus sections on bee-friendly plants, pollinator gardens, honey uses, bee behavior.
+      VALIDATION CHECK: Before finalizing, verify that:
+      1. Every section title includes keywords from "${campaign_title}"
+      2. No generic seasonal content like "Beat the Heat" appears anywhere
+      3. All image prompts relate specifically to the topic, not generic gardening
+      4. The content would be relevant for someone specifically interested in "${campaign_title}"
+      
       Do NOT use emojis. Stay completely focused on the exact topic provided.`
     };
 
@@ -160,13 +184,17 @@ serve(async (req) => {
       const normalizedContent = content.toLowerCase();
       const normalizedTopic = topic.toLowerCase();
       
-      // Define topic-specific keywords that should appear in content
+      // Enhanced topic-specific keywords that should appear in content
       const topicKeywords = {
-        'national honey month': ['honey', 'bee', 'pollinator', 'nectar', 'hive'],
+        'world vegetarian day': ['vegetarian', 'vegetable', 'edible', 'harvest', 'plant-based', 'growing', 'organic', 'fresh', 'homegrown'],
+        'vegetarian day': ['vegetarian', 'vegetable', 'edible', 'harvest', 'plant-based', 'growing'],
+        'national honey month': ['honey', 'bee', 'pollinator', 'nectar', 'hive', 'pollen'],
         'honey month': ['honey', 'bee', 'pollinator'],
-        'hydrangea care': ['hydrangea', 'bloom', 'pruning'],
-        'rose pruning': ['rose', 'pruning', 'cane'],
-        'orchid care': ['orchid', 'epiphyte', 'humidity']
+        'hydrangea care': ['hydrangea', 'bloom', 'pruning', 'acidic', 'alkaline'],
+        'rose pruning': ['rose', 'pruning', 'cane', 'deadhead'],
+        'orchid care': ['orchid', 'epiphyte', 'humidity', 'bark'],
+        'national herb month': ['herb', 'basil', 'rosemary', 'thyme', 'culinary', 'aromatic'],
+        'national houseplant week': ['houseplant', 'indoor', 'succulent', 'fern', 'pothos']
       };
       
       // Get expected keywords for this topic
@@ -178,14 +206,45 @@ serve(async (req) => {
         normalizedContent.includes(keyword)
       );
       
+      // Check for forbidden seasonal defaults that override the topic
+      const forbiddenDefaults = ['beat the heat', 'summer survival', 'heat wave', 'blazing sun'];
+      const hasForbiddenContent = forbiddenDefaults.some(forbidden => 
+        normalizedContent.includes(forbidden)
+      );
+      
+      // Special validation for vegetarian/vegetable topics
+      if (normalizedTopic.includes('vegetarian') || normalizedTopic.includes('vegetable')) {
+        const vegetableKeywords = ['vegetable', 'edible', 'harvest', 'plant-based', 'growing', 'organic', 'fresh', 'homegrown', 'tomato', 'lettuce', 'herbs', 'leafy', 'produce'];
+        const foundVeggieKeywords = vegetableKeywords.filter(keyword => 
+          normalizedContent.includes(keyword)
+        );
+        
+        if (foundVeggieKeywords.length === 0 && hasForbiddenContent) {
+          console.warn(`🚨 TOPIC OVERRIDE DETECTED: "${topic}" content contains seasonal defaults instead of vegetable focus`);
+          return {
+            isAligned: false,
+            score: 0,
+            foundKeywords: [],
+            expectedKeywords: vegetableKeywords,
+            issues: ['Topic completely overridden by seasonal defaults']
+          };
+        }
+      }
+      
       const topicAlignment = foundKeywords.length / expectedKeywords.length;
-      console.log(`[TOPIC VALIDATION] ${topic}: ${Math.round(topicAlignment * 100)}% alignment (${foundKeywords.length}/${expectedKeywords.length} keywords)`);
+      
+      // Apply penalty for forbidden content
+      const finalScore = hasForbiddenContent ? Math.max(0, topicAlignment - 0.5) : topicAlignment;
+      
+      console.log(`[TOPIC VALIDATION] ${topic}: ${Math.round(finalScore * 100)}% alignment (${foundKeywords.length}/${expectedKeywords.length} keywords)${hasForbiddenContent ? ' ⚠️ Contains forbidden defaults' : ''}`);
       
       return {
-        isAligned: topicAlignment >= 0.5, // At least 50% of keywords should be present
-        score: topicAlignment,
+        isAligned: finalScore >= 0.6, // Stricter requirement: 60% alignment
+        score: finalScore,
         foundKeywords,
-        expectedKeywords
+        expectedKeywords,
+        hasForbiddenContent,
+        issues: hasForbiddenContent ? ['Contains seasonal defaults that override topic'] : []
       };
     };
 
@@ -290,17 +349,24 @@ serve(async (req) => {
           console.warn(`⚠️ Topic alignment issue for ${contentType}: ${Math.round(topicValidation.score * 100)}% alignment`);
           console.warn(`Expected keywords: ${topicValidation.expectedKeywords.join(', ')}`);
           console.warn(`Found keywords: ${topicValidation.foundKeywords.join(', ')}`);
+          
+          if (topicValidation.hasForbiddenContent) {
+            console.error(`🚨 CRITICAL: ${contentType} content overridden by seasonal defaults for topic "${campaign_title}"`);
+            console.error(`Issues: ${topicValidation.issues.join(', ')}`);
+          }
         }
         
         // Validate and clean the content
         content = validateAndCleanContent(content, contentType);
         
-        console.log(`✅ Generated ${contentType} content (${content.length} chars, ${Math.round(topicValidation.score * 100)}% topic alignment)`);
+        console.log(`✅ Generated ${contentType} content (${content.length} chars, ${Math.round(topicValidation.score * 100)}% topic alignment${topicValidation.hasForbiddenContent ? ', ⚠️ contains defaults' : ''})`);
 
         return {
           contentType,
           content,
-          success: true
+          success: true,
+          topicAlignment: topicValidation.score,
+          issues: topicValidation.issues
         };
         
       } catch (error) {
