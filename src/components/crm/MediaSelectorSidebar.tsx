@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { X, Search, Upload, Camera, Download, Loader2 } from 'lucide-react';
@@ -217,11 +218,11 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99998] isolation-[isolate]"
         onClick={onClose}
       />
       
@@ -230,11 +231,12 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
         ref={sidebarRef}
         data-media-selector-sidebar
         className={cn(
-          "fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-[9999]",
+          "fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-[99999]",
           "transform transition-transform duration-300 ease-in-out",
-          "border-l border-gray-200",
+          "border-l border-gray-200 isolation-[isolate]",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
+        style={{ isolation: 'isolate' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
@@ -419,4 +421,6 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
       </div>
     </>
   );
+
+  return createPortal(modalContent, document.body);
 };
