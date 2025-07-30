@@ -485,33 +485,41 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
   console.log('[MediaSelectorSidebar] About to create portal');
   
   // TEMP: Try direct render instead of portal to debug
-  return (
-    <div 
-      data-testid="media-selector-direct"
-      style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        width: '100vw', 
-        height: '100vh', 
-        zIndex: 999999,
-        pointerEvents: 'auto',
-        background: 'rgba(255, 0, 255, 0.8)', // TEMP: Purple debug background
-        display: 'block'
-      }}
-    >
-      <div style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        background: 'white',
-        padding: '20px',
-        border: '5px solid red',
-        fontSize: '24px'
-      }}>
-        MEDIA SELECTOR IS WORKING!
+  try {
+    const testElement = (
+      <div 
+        data-testid="media-selector-direct"
+        style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          width: '100vw', 
+          height: '100vh', 
+          zIndex: 999999,
+          pointerEvents: 'auto',
+          background: 'rgba(255, 0, 255, 0.8)', // TEMP: Purple debug background
+          display: 'block'
+        }}
+      >
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'white',
+          padding: '20px',
+          border: '5px solid red',
+          fontSize: '24px'
+        }}>
+          MEDIA SELECTOR IS WORKING!
+        </div>
       </div>
-    </div>
-  );
+    );
+    
+    console.log('[MediaSelectorSidebar] Test element created, returning...');
+    return testElement;
+  } catch (error) {
+    console.error('[MediaSelectorSidebar] Render error:', error);
+    return <div>ERROR in MediaSelector</div>;
+  }
 };
