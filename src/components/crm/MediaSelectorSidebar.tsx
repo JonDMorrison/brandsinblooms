@@ -28,6 +28,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
   selectedImageUrl,
   editMode
 }) => {
+  console.log('[MediaSelectorSidebar] Component called with props:', { isOpen, editMode, contentContext });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showingSuggestions, setShowingSuggestions] = useState(false);
