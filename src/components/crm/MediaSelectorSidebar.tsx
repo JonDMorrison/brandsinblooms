@@ -66,11 +66,29 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     }
   }, [isOpen, onClose]);
 
-  // Reset scroll position when sidebar opens
+  // Reset scroll position when sidebar opens with multiple attempts
   useEffect(() => {
     if (isOpen && contentRef.current) {
-      // Reset scroll to top when sidebar opens
+      console.log('[MediaSelectorSidebar] Resetting scroll on open');
+      
+      // Immediate reset
       contentRef.current.scrollTop = 0;
+      
+      // Delayed reset to ensure DOM is ready
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.scrollTop = 0;
+          console.log('[MediaSelectorSidebar] Delayed scroll reset applied');
+        }
+      }, 100);
+      
+      // Additional reset using requestAnimationFrame
+      requestAnimationFrame(() => {
+        if (contentRef.current) {
+          contentRef.current.scrollTop = 0;
+          console.log('[MediaSelectorSidebar] RAF scroll reset applied');
+        }
+      });
     }
   }, [isOpen]);
 
@@ -87,6 +105,14 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
           const results = await searchImages(defaultQuery);
           console.log('[MediaSelectorSidebar] Loaded suggestions:', results);
           setSearchResults(results.slice(0, 12));
+          
+          // Reset scroll after search results are loaded
+          setTimeout(() => {
+            if (contentRef.current) {
+              contentRef.current.scrollTop = 0;
+              console.log('[MediaSelectorSidebar] Scroll reset after suggestions loaded');
+            }
+          }, 150);
         } catch (error) {
           console.error('[MediaSelectorSidebar] Error loading suggestions:', error);
         }
@@ -107,6 +133,14 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     try {
       const results = await searchImages(cleanQuery);
       setSearchResults(results);
+      
+      // Reset scroll after search results are loaded
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.scrollTop = 0;
+          console.log('[MediaSelectorSidebar] Scroll reset after search results loaded');
+        }
+      }, 150);
     } catch (error) {
       console.error('[MediaSelectorSidebar] Search error:', error);
       toast.error('Search failed. Please try again.');
