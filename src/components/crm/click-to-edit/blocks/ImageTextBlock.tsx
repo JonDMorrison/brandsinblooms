@@ -1,6 +1,7 @@
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
+import { SafeHtml } from '@/components/ui/safe-html';
 import { ContextualEditButton } from '../contextual/ContextualEditButton';
 import { EditMode } from '@/hooks/useBlockEditMode';
 
@@ -57,14 +58,18 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
           )}
           
           {/* Headline */}
-          <h2 className="text-2xl font-bold">
-            {block.headline || 'Add headline'}
-          </h2>
+          <SafeHtml 
+            content={block.headline || 'Add headline'}
+            type="newsletter"
+            className="text-2xl font-bold"
+          />
           
           {/* Body text */}
-          <div className="text-muted-foreground whitespace-pre-wrap">
-            {block.body || 'Add body text'}
-          </div>
+          <SafeHtml 
+            content={block.body || 'Add body text'}
+            type="newsletter"
+            className="text-muted-foreground"
+          />
         </div>
 
         {/* Image */}
