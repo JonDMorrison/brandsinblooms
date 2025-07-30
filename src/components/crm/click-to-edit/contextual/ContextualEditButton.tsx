@@ -41,11 +41,16 @@ export const ContextualEditButton: React.FC<ContextualEditButtonProps> = ({
     'top-center': 'top-2 left-1/2 -translate-x-1/2'
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    console.log('[ContextualEditButton] Button clicked:', { variant, mode, isActive });
+    onClick(e);
+  };
+
   return (
     <Button
       variant={isActive ? 'default' : 'secondary'}
       size="sm"
-      onClick={onClick}
+      onClick={handleClick}
       className={cn(
         "absolute z-20 h-8 w-8 p-0 shadow-lg",
         "bg-background/95 backdrop-blur-sm border",
