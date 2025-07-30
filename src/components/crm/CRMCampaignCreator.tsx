@@ -777,7 +777,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               ${block.backgroundColor ? `<div style="position: absolute; inset: 0; background-color: ${block.backgroundColor}; opacity: ${(block.colorOverlayOpacity || 50) / 100};"></div>` : ''}
               <div style="position: relative; z-index: 10; color: white;">
                 <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif;">${block.headline || 'Your Headline Here'}</h1>
-                ${block.body ? `<p style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif;">${block.body}</p>` : ''}
+                ${block.body ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
               </div>
             </div>
           `;
@@ -787,7 +787,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           const textAlign = block.textAlign || 'left';
           html += `
             <div style="margin: 20px 0; text-align: ${textAlign}; font-size: ${block.fontSize || '16px'}; font-family: 'Quicksand', sans-serif;">
-              ${block.content ? `<div style="color: #475569; line-height: 1.6; white-space: pre-wrap;">${block.content}</div>` : ''}
+              ${block.content ? `<div style="color: #475569; line-height: 1.6;">${block.content}</div>` : ''}
             </div>
           `;
           break;
@@ -816,12 +816,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     </td>
                     <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: ${itTextAlign};">
                       ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: #22c55e; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-                      ${block.body ? `<p style="color: #64748b; line-height: 1.6; margin: 0; white-space: pre-wrap; font-family: 'Quicksand', sans-serif;">${block.body}</p>` : ''}
+                       ${block.body ? `<div style="color: #64748b; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
                     </td>
                   ` : `
                     <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: ${itTextAlign};">
                       ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: #22c55e; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-                      ${block.body ? `<p style="color: #64748b; line-height: 1.6; margin: 0; white-space: pre-wrap; font-family: 'Quicksand', sans-serif;">${block.body}</p>` : ''}
+                      ${block.body ? `<div style="color: #64748b; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
                     </td>
                     <td width="50%" style="padding-left: 20px; vertical-align: top;">
                       ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px;" />` :
@@ -839,7 +839,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           html += `
             <div style="text-align: ${btnAlign}; margin: 30px 0;">
               ${block.headline ? `<h3 style="color: #22c55e; margin: 0 0 10px 0; font-size: 20px; font-family: 'Quicksand', sans-serif; font-weight: 600;">${block.headline}</h3>` : ''}
-              ${block.body ? `<p style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6; font-family: 'Quicksand', sans-serif;">${block.body}</p>` : ''}
+              ${block.body ? `<div style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
               <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
                 ${block.buttonText || 'Learn More'}
               </a>
@@ -859,7 +859,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           html += `
             <div style="text-align: center; margin: 30px 0; padding: 20px; background: #f8fafc; border-radius: 8px;">
               ${block.headline ? `<h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 20px;">${block.headline}</h3>` : ''}
-              ${block.body ? `<p style="color: #64748b; margin: 0 0 20px 0;">${block.body}</p>` : ''}
+              ${block.body ? `<div style="color: #64748b; margin: 0 0 20px 0;">${block.body}</div>` : ''}
               <div style="display: inline-block;">
                 <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #1877f2; color: white; text-decoration: none; border-radius: 4px;">Facebook</a>
                 <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #1da1f2; color: white; text-decoration: none; border-radius: 4px;">Twitter</a>

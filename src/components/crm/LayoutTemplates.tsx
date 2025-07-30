@@ -10,11 +10,19 @@ interface LayoutProps {
   onUpdate?: (updates: Partial<ContentBlock>) => void;
 }
 
-// Helper function to parse markdown-like text
+// Helper function to parse markdown-like text and handle HTML content
 const parseSimpleMarkdown = (text: string) => {
   if (!text) return text;
   
-  // Simple markdown parsing for bold and italic
+  // Check if the text already contains HTML tags (from rich text editor)
+  const hasHtmlTags = /<[^>]+>/.test(text);
+  
+  if (hasHtmlTags) {
+    // Content is already HTML from rich text editor, return as-is
+    return text;
+  }
+  
+  // Fallback: Simple markdown parsing for legacy content
   return text
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
