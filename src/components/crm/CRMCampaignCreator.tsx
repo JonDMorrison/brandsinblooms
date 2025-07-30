@@ -943,11 +943,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           break;
 
         case 'footer':
-          html += `
-            <div style="text-align: center; margin: 30px 0; padding: 20px; background: #f1f5f9; border-radius: 8px; font-size: 14px; color: #64748b;">
-              ${block.content || 'Thanks for reading our newsletter!'}
-            </div>
-          `;
+          // Footer rendering is handled separately at the end of the function
+          // This case is just for the switch statement - actual footer HTML is added below
           break;
       }
     });
