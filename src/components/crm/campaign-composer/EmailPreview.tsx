@@ -165,6 +165,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
                     height: '100%'
                   }}
                   title="Email Preview"
+                  sandbox="allow-same-origin"
                 />
               </div>
             </div>

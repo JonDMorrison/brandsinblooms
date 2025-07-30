@@ -874,15 +874,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           break;
 
         case 'image-text':
-          const isImageRight = block.layout === 'two-column-right';
+          const isImageLeft = block.layout === 'image-left' || !block.layout;
           const itTextAlign = block.textAlign || 'left';
           const itTextColor = block.textColor || '#475569';
-          const itHeadlineColor = block.textColor || '#22c55e';
+          const itHeadlineColor = block.textColor || '#1f2937'; // Use dark gray instead of green
           html += `
             <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px;">
               <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
                 <tr>
-                  ${!isImageRight ? `
+                  ${isImageLeft ? `
                     <td width="50%" style="padding-right: 20px; vertical-align: top;">
                       ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px;" />` :
                         '<div style="background: #f1f5f9; padding: 40px 20px; text-align: center; color: #64748b; border-radius: 8px; font-family: \'Quicksand\', sans-serif;">No image</div>'}
@@ -910,13 +910,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         case 'button':
           const btnAlign = block.textAlign || 'center';
           html += `
-            <div style="text-align: ${btnAlign}; margin: 30px 0;">
-              ${block.headline ? `<h3 style="color: #22c55e; margin: 0 0 10px 0; font-size: 20px; font-family: 'Quicksand', sans-serif; font-weight: 600;">${block.headline}</h3>` : ''}
-              ${block.body ? `<div style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
-              <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
-                ${block.buttonText || 'Learn More'}
-              </a>
-            </div>
+             <div style="text-align: ${btnAlign}; margin: 30px 0;">
+               ${block.headline ? `<h3 style="color: ${block.textColor || '#1f2937'}; margin: 0 0 10px 0; font-size: 20px; font-family: 'Quicksand', sans-serif; font-weight: 600;">${block.headline}</h3>` : ''}
+               ${block.body ? `<div style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+               <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
+                 ${block.buttonText || 'Learn More'}
+               </a>
+             </div>
           `;
           break;
 
