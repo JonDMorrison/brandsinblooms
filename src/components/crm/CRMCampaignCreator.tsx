@@ -467,75 +467,63 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             }
           }
 
-        // Check if we have the new fullBlock structure saved from the updated auto-save
-        const fullBlock = contentObj?.fullBlock;
-        if (fullBlock) {
-          console.log('[HYDRATION] Found fullBlock structure, using saved block data:', {
-            blockId: block.id,
-            savedBlockType: fullBlock.block_type,
-            savedHeadline: fullBlock.content?.headline,
-            savedContent: fullBlock.content
-          });
-          
-          // Use the saved full block structure directly
-          const extractedContent = {
-            ...fullBlock.content,
-            // Ensure these key fields are preserved
-            headline: fullBlock.content?.headline,
-            title: fullBlock.content?.title,
-            body: fullBlock.content?.body,
-            imageUrl: fullBlock.content?.imageUrl,
-            altText: fullBlock.content?.altText,
-            buttonText: fullBlock.content?.buttonText,
-            buttonUrl: fullBlock.content?.buttonUrl,
-            backgroundColor: fullBlock.content?.backgroundColor,
-            backgroundImageUrl: fullBlock.content?.backgroundImageUrl,
-            backgroundOpacity: fullBlock.content?.backgroundOpacity,
-            textAlign: fullBlock.content?.textAlign,
-            layout: fullBlock.content?.layout
-          };
-
-          console.log('[HYDRATION] Extracted content from fullBlock:', extractedContent);
-          
-          // Use the extracted content for transformation
-          var finalExtractedContent = extractedContent;
-        } else {
-          // Fallback to legacy hydration logic for older blocks
-          console.log('[HYDRATION] Using legacy hydration for block:', block.id);
-          
-          // Handle nested content structure (content.content)
-          const nestedContentObj = contentObj?.content || {};
-          
-          // Extract all possible fields from various levels
-          var finalExtractedContent = { 
-            ...contentObj, 
-            ...nestedContentObj,
-            // Also check for direct fields
-            ...(contentObj.headline && { headline: contentObj.headline }),
-            ...(contentObj.title && { title: contentObj.title }),
-            ...(contentObj.body && { body: contentObj.body }),
-            ...(contentObj.content && typeof contentObj.content === 'string' && { body: contentObj.content }),
-            ...(contentObj.image_url && { imageUrl: contentObj.image_url }),
-            ...(contentObj.alt_text && { altText: contentObj.alt_text }),
-            ...(contentObj.button_text && { buttonText: contentObj.button_text }),
-            ...(contentObj.button_url && { buttonUrl: contentObj.button_url }),
-            // Override with nested values if they exist
-            ...(nestedContentObj.headline && { headline: nestedContentObj.headline }),
-            ...(nestedContentObj.title && { title: nestedContentObj.title }),
-            ...(nestedContentObj.body && { body: nestedContentObj.body }),
-            ...(nestedContentObj.imageUrl && { imageUrl: nestedContentObj.imageUrl }),
-            ...(nestedContentObj.altText && { altText: nestedContentObj.altText }),
-            ...(nestedContentObj.buttonText && { buttonText: nestedContentObj.buttonText }),
-            ...(nestedContentObj.buttonUrl && { buttonUrl: nestedContentObj.buttonUrl }),
-            ...(nestedContentObj.backgroundColor && { backgroundColor: nestedContentObj.backgroundColor }),
-            ...(nestedContentObj.layout && { layout: nestedContentObj.layout })
-          };
-        }
+        // Use simplified content structure with validation
+        console.log('[HYDRATION] Processing block with clean content structure:', {
+          blockId: block.id,
+          blockType: block.block_type,
+          contentObj: contentObj,
+          hasContent: !!contentObj?.content,
+          hasBody: !!contentObj?.body,
+          hasHeadline: !!contentObj?.headline,
+          hasTitle: !!contentObj?.title
+        });
+        
+        // Extract content directly from the simplified structure
+        const finalExtractedContent = {
+          // Essential content fields - prioritize direct fields
+          headline: contentObj?.headline,
+          title: contentObj?.title,
+          body: contentObj?.body || contentObj?.content,
+          content: contentObj?.content || contentObj?.body,
+          // Image fields
+          imageUrl: contentObj?.imageUrl,
+          altText: contentObj?.altText,
+          caption: contentObj?.caption,
+          // Button/CTA fields
+          buttonText: contentObj?.buttonText,
+          buttonUrl: contentObj?.buttonUrl,
+          ctaText: contentObj?.ctaText,
+          ctaUrl: contentObj?.ctaUrl,
+          ctaStyle: contentObj?.ctaStyle,
+          ctaSize: contentObj?.ctaSize,
+          // Layout and styling
+          layout: contentObj?.layout || 'full-width',
+          alignment: contentObj?.alignment,
+          padding: contentObj?.padding || 'medium',
+          margin: contentObj?.margin,
+          // Typography
+          fontFamily: contentObj?.fontFamily,
+          fontSize: contentObj?.fontSize,
+          textColor: contentObj?.textColor,
+          textAlign: contentObj?.textAlign || contentObj?.alignment,
+          // Background
+          backgroundColor: contentObj?.backgroundColor,
+          backgroundImageUrl: contentObj?.backgroundImageUrl,
+          backgroundOpacity: contentObj?.backgroundOpacity,
+          // Special content
+          quote: contentObj?.quote,
+          author: contentObj?.author,
+          authorTitle: contentObj?.authorTitle,
+          issueNumber: contentObj?.issueNumber,
+          publishDate: contentObj?.publishDate,
+          // Meta
+          visible: contentObj?.visible !== false,
+          collapsed: contentObj?.collapsed || false
+        };
 
         console.log('📋 Content extraction details:', {
           blockId: block.id,
           originalContentObj: contentObj,
-          nestedContentObj: fullBlock ? 'N/A (using fullBlock)' : (contentObj?.content || {}),
           extractedContent: {
             headline: finalExtractedContent.headline,
             title: finalExtractedContent.title,
@@ -565,13 +553,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           source: (block.source as ContentBlock['source']) || 'manual',
           // Image fields - map correctly for header vs other blocks
           imageUrl: block.block_type === 'header' ? undefined : (finalExtractedContent.imageUrl || block.image_url),
-          altText: finalExtractedContent.altText || finalExtractedContent.alt_text,
+          altText: finalExtractedContent.altText,
           caption: finalExtractedContent.caption,
           // Button/CTA fields
-          buttonText: finalExtractedContent.buttonText || finalExtractedContent.button_text || block.cta_text,
-          buttonUrl: finalExtractedContent.buttonUrl || finalExtractedContent.button_url || block.cta_url,
-          ctaText: finalExtractedContent.ctaText || finalExtractedContent.button_text || block.cta_text,
-          ctaUrl: finalExtractedContent.ctaUrl || finalExtractedContent.button_url || block.cta_url,
+          buttonText: finalExtractedContent.buttonText || block.cta_text,
+          buttonUrl: finalExtractedContent.buttonUrl || block.cta_url,
+          ctaText: finalExtractedContent.ctaText || block.cta_text,
+          ctaUrl: finalExtractedContent.ctaUrl || block.cta_url,
           ctaStyle: finalExtractedContent.ctaStyle,
           ctaSize: finalExtractedContent.ctaSize,
           // Layout and styling
@@ -587,8 +575,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           textColor: finalExtractedContent.textColor,
           textAlign: finalExtractedContent.textAlign || finalExtractedContent.alignment,
           // Background
-          backgroundColor: finalExtractedContent.backgroundColor || finalExtractedContent.background_color,
-          backgroundImageUrl: actualBlockType === 'header' ? (finalExtractedContent.imageUrl || block.image_url) : finalExtractedContent.backgroundImageUrl,
+          backgroundColor: finalExtractedContent.backgroundColor,
+          backgroundImageUrl: actualBlockType === 'header' ? (finalExtractedContent.backgroundImageUrl || block.image_url) : finalExtractedContent.backgroundImageUrl,
           backgroundOpacity: finalExtractedContent.backgroundOpacity,
           // Newsletter-specific
           quote: finalExtractedContent.quote,

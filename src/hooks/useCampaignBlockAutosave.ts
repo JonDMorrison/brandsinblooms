@@ -17,28 +17,59 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
     try {
       options.onSaveStart?.();
       
-      // Store block properties directly in content to ensure they persist
-      const fullContent = {
-        // Include existing content
-        ...block.content,
-        // Store critical block properties from EmailBlock schema
-        type: block.block_type,
-        // Store the entire block structure to avoid losing properties
-        fullBlock: {
-          ...block,
-          // Remove circular references and database-specific fields
-          content: block.content,
-          created_at: undefined,
-          updated_at: undefined,
-          campaign_id: undefined
-        }
+      // Store content directly without complex nesting to avoid corruption
+      const cleanContent = {
+        // Essential content fields
+        headline: block.content?.headline,
+        title: block.content?.title,
+        body: block.content?.body,
+        content: block.content?.content,
+        // Image fields
+        imageUrl: block.content?.imageUrl,
+        altText: block.content?.altText,
+        caption: block.content?.caption,
+        // Button/CTA fields
+        buttonText: block.content?.buttonText,
+        buttonUrl: block.content?.buttonUrl,
+        ctaText: block.content?.ctaText,
+        ctaUrl: block.content?.ctaUrl,
+        ctaStyle: block.content?.ctaStyle,
+        ctaSize: block.content?.ctaSize,
+        // Layout and styling
+        layout: block.content?.layout,
+        alignment: block.content?.alignment,
+        padding: block.content?.padding,
+        margin: block.content?.margin,
+        // Typography
+        fontFamily: block.content?.fontFamily,
+        fontSize: block.content?.fontSize,
+        textColor: block.content?.textColor,
+        textAlign: block.content?.textAlign,
+        // Background
+        backgroundColor: block.content?.backgroundColor,
+        backgroundImageUrl: block.content?.backgroundImageUrl,
+        backgroundOpacity: block.content?.backgroundOpacity,
+        // Special content
+        quote: block.content?.quote,
+        author: block.content?.author,
+        authorTitle: block.content?.authorTitle,
+        issueNumber: block.content?.issueNumber,
+        publishDate: block.content?.publishDate,
+        // Meta
+        visible: block.content?.visible !== false,
+        collapsed: block.content?.collapsed || false,
+        // Store block type for validation
+        block_type: block.block_type
       };
 
-      console.log('[AUTO-SAVE] Saving block with full content structure:', {
+      console.log('[AUTO-SAVE] Saving block with clean content structure:', {
         blockId: block.id,
         blockType: block.block_type,
-        hasFullBlock: !!fullContent.fullBlock,
-        contentKeys: Object.keys(fullContent)
+        hasContent: !!cleanContent.content,
+        hasHeadline: !!cleanContent.headline,
+        hasTitle: !!cleanContent.title,
+        hasBody: !!cleanContent.body,
+        contentKeys: Object.keys(cleanContent).filter(key => cleanContent[key] !== undefined)
       });
 
       // Use upsert to either insert or update the block
@@ -48,11 +79,12 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
           id: block.id,
           campaign_id: campaignId,
           order_index: block.order_index || 0,
-          content: fullContent,
+          content: cleanContent,
           block_type: block.block_type,
-          image_url: block.image_url || null,
-          cta_url: block.cta_url || null,
-          cta_text: block.cta_text || null,
+          // Store header background images in image_url for headers
+          image_url: block.block_type === 'header' ? block.content?.backgroundImageUrl : (block.image_url || block.content?.imageUrl || null),
+          cta_url: block.cta_url || block.content?.ctaUrl || block.content?.buttonUrl || null,
+          cta_text: block.cta_text || block.content?.ctaText || block.content?.buttonText || null,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'id'
@@ -72,8 +104,11 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
             block_id: block.id,
             campaign_id: campaignId,
             snapshot_json: {
-              content: block.content,
+              content: cleanContent,
               block_type: block.block_type,
+              image_url: block.block_type === 'header' ? block.content?.backgroundImageUrl : (block.image_url || block.content?.imageUrl || null),
+              cta_url: block.cta_url || block.content?.ctaUrl || block.content?.buttonUrl || null,
+              cta_text: block.cta_text || block.content?.ctaText || block.content?.buttonText || null,
               metadata: {
                 created_by: 'autosave',
                 timestamp: new Date().toISOString()
