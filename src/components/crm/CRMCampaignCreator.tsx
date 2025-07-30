@@ -99,93 +99,165 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     subject_line: string;
     preheader: string;
   }) => {
-    if (!existingCampaignId || isAutoSaving) return;
-    
-    try {
-      setIsAutoSaving(true);
-      console.log('🔄 Auto-saving CRM campaign:', existingCampaignId);
-      
-      // Update campaign metadata
-      const { error: campaignError } = await supabase
-        .from('crm_campaigns')
-        .update({
-          name: campaignData.campaign_name,
-          subject: campaignData.subject_line,
-          preheader: campaignData.preheader,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingCampaignId);
-
-      if (campaignError) throw campaignError;
-
-      // Delete existing blocks and recreate them
-      await supabase
-        .from('campaign_blocks')
-        .delete()
-        .eq('campaign_id', existingCampaignId);
-
-      // Insert updated blocks
-      if (campaignData.blocks.length > 0) {
-        const blocksToSave = campaignData.blocks.map((block, index) => ({
-          campaign_id: existingCampaignId,
-          block_type: block.type, // This will now correctly save 'header' for header blocks
-          content: {
-            title: block.title || block.headline,
-            content: block.content || block.body,
-            headline: block.headline,
-            body: block.body,
-            alignment: block.alignment,
-            padding: block.padding,
-            margin: block.margin,
-            fontFamily: block.fontFamily,
-            fontSize: block.fontSize,
-            textColor: block.textColor,
-            backgroundColor: block.backgroundColor,
-            backgroundImageUrl: block.backgroundImageUrl,
-            backgroundOpacity: block.backgroundOpacity,
-            layout: block.layout,
-            caption: block.caption,
-            altText: block.altText,
-            buttonText: block.buttonText,
-            buttonUrl: block.buttonUrl,
-            ctaStyle: block.ctaStyle,
-            ctaSize: block.ctaSize,
-            quote: block.quote,
-            author: block.author,
-            authorTitle: block.authorTitle,
-            visible: block.visible,
-            collapsed: block.collapsed
-          },
-          image_url: block.imageUrl,
-          cta_url: block.ctaUrl || block.buttonUrl,
-          cta_text: block.ctaText || block.buttonText,
-          source: block.source || 'manual',
-          persona_tag: block.personaTag,
-          order_index: index
-        }));
-
-        const { error: blocksError } = await supabase
-          .from('campaign_blocks')
-          .insert(blocksToSave);
-
-        if (blocksError) throw blocksError;
-      }
-
-      setLastSaved(new Date());
-      setSaveError(false);
-      console.log('✅ Auto-save successful');
-      
-    } catch (error) {
-      console.error('❌ Auto-save failed:', error);
-      setSaveError(true);
-      toast({
-        title: "Auto-save failed",
-        description: "Your changes may not be saved. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsAutoSaving(false);
+    if (!existingCampaignId || isAutoSaving) {
+      console.log('🚫 Auto-save skipped:', { existingCampaignId, isAutoSaving });
+      return;
     }
+    
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    const attemptSave = async (): Promise<void> => {
+      try {
+        setIsAutoSaving(true);
+        console.log('🔄 Auto-save attempt', retryCount + 1, 'for campaign:', existingCampaignId);
+        
+        // Validate required fields
+        if (!campaignData.campaign_name?.trim()) {
+          throw new Error('Campaign name is required');
+        }
+
+        // Step 1: Update campaign metadata
+        console.log('📝 Updating campaign metadata...');
+        const { error: campaignError } = await supabase
+          .from('crm_campaigns')
+          .update({
+            name: campaignData.campaign_name,
+            subject: campaignData.subject_line,
+            preheader: campaignData.preheader,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingCampaignId);
+
+        if (campaignError) {
+          console.error('❌ Campaign update failed:', campaignError);
+          throw new Error(`Campaign update failed: ${campaignError.message}`);
+        }
+        console.log('✅ Campaign metadata updated successfully');
+
+        // Step 2: Delete existing blocks
+        console.log('🗑️ Deleting existing blocks...');
+        const { error: deleteError } = await supabase
+          .from('campaign_blocks')
+          .delete()
+          .eq('campaign_id', existingCampaignId);
+
+        if (deleteError) {
+          console.error('❌ Block deletion failed:', deleteError);
+          throw new Error(`Block deletion failed: ${deleteError.message}`);
+        }
+        console.log('✅ Existing blocks deleted successfully');
+
+        // Step 3: Insert updated blocks (if any)
+        if (campaignData.blocks.length > 0) {
+          console.log('📦 Inserting', campaignData.blocks.length, 'new blocks...');
+          
+          // Validate blocks before insertion
+          const blocksToSave = campaignData.blocks.map((block, index) => {
+            const blockData = {
+              campaign_id: existingCampaignId,
+              block_type: block.type,
+              content: {
+                title: block.title || block.headline,
+                content: block.content || block.body,
+                headline: block.headline,
+                body: block.body,
+                alignment: block.alignment,
+                padding: block.padding,
+                margin: block.margin,
+                fontFamily: block.fontFamily,
+                fontSize: block.fontSize,
+                textColor: block.textColor,
+                backgroundColor: block.backgroundColor,
+                backgroundImageUrl: block.backgroundImageUrl,
+                backgroundOpacity: block.backgroundOpacity,
+                layout: block.layout,
+                caption: block.caption,
+                altText: block.altText,
+                buttonText: block.buttonText,
+                buttonUrl: block.buttonUrl,
+                ctaStyle: block.ctaStyle,
+                ctaSize: block.ctaSize,
+                quote: block.quote,
+                author: block.author,
+                authorTitle: block.authorTitle,
+                visible: block.visible,
+                collapsed: block.collapsed
+              },
+              image_url: block.imageUrl,
+              cta_url: block.ctaUrl || block.buttonUrl,
+              cta_text: block.ctaText || block.buttonText,
+              source: block.source || 'manual',
+              persona_tag: block.personaTag,
+              order_index: index
+            };
+
+            // Validate required fields
+            if (!blockData.block_type) {
+              throw new Error(`Block ${index} is missing required block_type`);
+            }
+
+            return blockData;
+          });
+
+          const { error: blocksError } = await supabase
+            .from('campaign_blocks')
+            .insert(blocksToSave);
+
+          if (blocksError) {
+            console.error('❌ Block insertion failed:', blocksError);
+            throw new Error(`Block insertion failed: ${blocksError.message}`);
+          }
+          console.log('✅ New blocks inserted successfully');
+        } else {
+          console.log('📦 No blocks to insert');
+        }
+
+        setLastSaved(new Date());
+        setSaveError(false);
+        console.log('✅ Auto-save completed successfully');
+        
+      } catch (error: any) {
+        console.error('❌ Auto-save error (attempt', retryCount + 1, '):', error);
+        
+        // Check if this is a retryable error
+        const isRetryable = error?.message?.includes('network') || 
+                           error?.message?.includes('timeout') ||
+                           error?.message?.includes('temporary');
+        
+        if (retryCount < maxRetries && isRetryable) {
+          retryCount++;
+          console.log('🔄 Retrying auto-save in 2 seconds...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return attemptSave();
+        }
+        
+        // Final failure
+        setSaveError(true);
+        
+        // Show user-friendly error message
+        let errorMessage = "Your changes may not be saved. Please try again.";
+        if (error?.message?.includes('Campaign name is required')) {
+          errorMessage = "Campaign name is required to save.";
+        } else if (error?.message?.includes('network')) {
+          errorMessage = "Network error. Check your connection and try again.";
+        } else if (error?.message?.includes('Block') && error?.message?.includes('missing')) {
+          errorMessage = "Some blocks have invalid data. Please check your content.";
+        }
+        
+        toast({
+          title: "Auto-save failed",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        
+        throw error;
+      } finally {
+        setIsAutoSaving(false);
+      }
+    };
+
+    return attemptSave();
   }, [existingCampaignId, isAutoSaving, toast]);
 
   const debouncedAutoSave = useCallback((campaignData: {
@@ -952,6 +1024,16 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               lastSaved={lastSaved} 
               saving={loading || isAutoSaving} 
               error={saveError} 
+              onRetry={() => {
+                if (existingCampaignId) {
+                  autoSaveCampaign({
+                    blocks,
+                    campaign_name: campaignName,
+                    subject_line: subjectLine,
+                    preheader: preheaderText
+                  });
+                }
+              }}
             />
           </div>
         </div>

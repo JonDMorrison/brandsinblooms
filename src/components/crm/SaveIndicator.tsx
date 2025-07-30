@@ -7,13 +7,15 @@ interface SaveIndicatorProps {
   saving?: boolean;
   error?: boolean;
   className?: string;
+  onRetry?: () => void;
 }
 
 export const SaveIndicator: React.FC<SaveIndicatorProps> = ({
   lastSaved,
   saving = false,
   error = false,
-  className
+  className,
+  onRetry
 }) => {
   const [showSaved, setShowSaved] = useState(false);
 
@@ -60,6 +62,14 @@ export const SaveIndicator: React.FC<SaveIndicatorProps> = ({
     )}>
       {getIcon()}
       <span>{statusText}</span>
+      {error && onRetry && (
+        <button
+          onClick={onRetry}
+          className="ml-1 text-xs underline hover:no-underline"
+        >
+          Retry
+        </button>
+      )}
     </div>
   );
 };
