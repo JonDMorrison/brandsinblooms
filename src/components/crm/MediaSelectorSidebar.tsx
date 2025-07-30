@@ -222,7 +222,8 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99998]"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        style={{ zIndex: 999998 }}
         onClick={onClose}
       />
       
@@ -231,9 +232,10 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
         ref={sidebarRef}
         data-media-selector-sidebar
         className={cn(
-          "fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-[99999]",
+          "fixed top-0 right-0 h-full w-96 bg-white shadow-2xl",
           "border-l border-gray-200"
         )}
+        style={{ zIndex: 999999 }}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
