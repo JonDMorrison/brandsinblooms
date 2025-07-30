@@ -260,7 +260,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             setIsMediaSelectorOpen(false);
           }}
           onImageSelect={handleImageSelect}
-          contentContext={`${block.type} block image`}
+          contentContext={`${block.title || block.content || block.type}`}
         />
       )}
     </div>

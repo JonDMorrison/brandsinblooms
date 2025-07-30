@@ -30,30 +30,21 @@ interface CampaignData {
 export function extractDynamicQuery(
   task?: ContentTask | null, 
   campaign?: CampaignData | null,
-  fallback = 'garden center'
+  fallback = 'garden'
 ): string {
   console.log('[DYNAMIC QUERY] Extracting query from:', { task, campaign });
   
-  // Priority 1: Use image_idea if available
-  if (task?.image_idea) {
-    const summary = extractImageSummary(task.image_idea);
-    if (summary && !isGenericTerm(summary)) {
-      console.log('[DYNAMIC QUERY] Using image idea summary:', summary);
-      return summary;
-    }
-  }
-  
-  // Priority 2: Extract from AI output content
-  if (task?.ai_output) {
-    const summary = extractImageSummary(task.ai_output);
-    if (summary && !isGenericTerm(summary)) {
-      console.log('[DYNAMIC QUERY] Using AI output summary:', summary);
-      return summary;
-    }
-  }
-  
-  // Priority 3: Use campaign theme
+  // Priority 1: Use campaign title first (most specific)
   const campaignSource = campaign || task?.campaigns;
+  if (campaignSource?.title) {
+    const summary = extractImageSummary(campaignSource?.title);
+    if (summary && !isGenericTerm(summary)) {
+      console.log('[DYNAMIC QUERY] Using campaign title summary:', summary);
+      return summary;
+    }
+  }
+  
+  // Priority 2: Use campaign theme
   if (campaignSource?.theme) {
     const summary = extractImageSummary(campaignSource.theme);
     if (summary && !isGenericTerm(summary)) {
@@ -62,11 +53,20 @@ export function extractDynamicQuery(
     }
   }
   
-  // Priority 4: Use campaign title
-  if (campaignSource?.title) {
-    const summary = extractImageSummary(campaignSource.title);
+  // Priority 3: Use image_idea if available
+  if (task?.image_idea) {
+    const summary = extractImageSummary(task.image_idea);
     if (summary && !isGenericTerm(summary)) {
-      console.log('[DYNAMIC QUERY] Using campaign title summary:', summary);
+      console.log('[DYNAMIC QUERY] Using image idea summary:', summary);
+      return summary;
+    }
+  }
+  
+  // Priority 4: Extract from AI output content
+  if (task?.ai_output) {
+    const summary = extractImageSummary(task.ai_output);
+    if (summary && !isGenericTerm(summary)) {
+      console.log('[DYNAMIC QUERY] Using AI output summary:', summary);
       return summary;
     }
   }
@@ -87,23 +87,29 @@ function isGenericTerm(term: string): boolean {
  * Validates and cleans image queries to ensure quality results
  */
 export function validateImageQuery(query: string): string {
-  if (!query?.trim()) return 'garden center';
+  if (!query?.trim()) return 'garden';
   
-  // Remove overly complex queries - limit to 2 words max
+  // Prioritize single words for better search results
   const words = query.trim().split(/\s+/);
-  if (words.length > 2) {
-    // Try to extract the most relevant 1-2 words
-    const relevantWords = words.filter(word => 
-      word.length > 3 && 
-      !['the', 'and', 'for', 'with', 'your', 'that', 'this', 'from'].includes(word.toLowerCase())
-    );
-    
-    if (relevantWords.length > 0) {
-      return relevantWords.slice(0, 2).join(' ');
-    }
+  
+  // If it's already a single word, return it
+  if (words.length === 1) {
+    return query.trim();
   }
   
-  return query;
+  // For multi-word queries, try to extract the most relevant single word
+  const relevantWords = words.filter(word => 
+    word.length > 3 && 
+    !['the', 'and', 'for', 'with', 'your', 'that', 'this', 'from', 'care', 'tips', 'guide'].includes(word.toLowerCase())
+  );
+  
+  if (relevantWords.length > 0) {
+    // Return just the first relevant word for cleaner searches
+    return relevantWords[0];
+  }
+  
+  // If no relevant words found, return the first word
+  return words[0];
 }
 
 /**

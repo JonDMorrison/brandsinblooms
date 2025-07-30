@@ -107,7 +107,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
       if (isOpen && searchResults.length === 0 && !showingSuggestions) {
         console.log('[MediaSelectorSidebar] Loading default suggestions...');
         setShowingSuggestions(true);
-        const rawQuery = contentContext ? extractImageSummary(contentContext) : 'garden center';
+        const rawQuery = contentContext ? extractImageSummary(contentContext) : 'garden';
         const defaultQuery = validateImageQuery(rawQuery);
         
         try {
