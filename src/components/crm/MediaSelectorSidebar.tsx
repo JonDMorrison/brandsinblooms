@@ -85,6 +85,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
         
         try {
           const results = await searchImages(defaultQuery);
+          console.log('[MediaSelectorSidebar] Loaded suggestions:', results);
           setSearchResults(results.slice(0, 12));
         } catch (error) {
           console.error('[MediaSelectorSidebar] Error loading suggestions:', error);

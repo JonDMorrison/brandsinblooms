@@ -5,6 +5,11 @@ export interface ImageAttachment {
   thumb: string;     // small for UI
   alt: string;
   photographer: string;
+  // Additional properties for MediaSelectorSidebar compatibility
+  thumb_url?: string;
+  download_url?: string;
+  photographer_url?: string;
+  download_location?: string;
 }
 
 export interface ContentTask {

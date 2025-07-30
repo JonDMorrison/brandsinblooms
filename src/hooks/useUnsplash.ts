@@ -10,6 +10,8 @@ interface UnsplashImage {
   download_url: string;
   alt: string;
   photographer: string;
+  photographer_url?: string;
+  download_location?: string;
 }
 
 export const useUnsplash = () => {
@@ -38,13 +40,20 @@ export const useUnsplash = () => {
 
       if (error) throw error;
 
-      return (data?.images || []).map((img: UnsplashImage): ImageAttachment => ({
+      const mappedImages = (data?.images || []).map((img: UnsplashImage): ImageAttachment => ({
         id: img.id,
         url: img.download_url,
         thumb: img.thumb_url,
+        thumb_url: img.thumb_url, // Add for MediaSelectorSidebar compatibility
+        download_url: img.download_url, // Add for MediaSelectorSidebar compatibility
         alt: img.alt || query,
-        photographer: img.photographer
+        photographer: img.photographer,
+        photographer_url: img.photographer_url || `https://unsplash.com/@${img.photographer?.toLowerCase().replace(/\s+/g, '')}`,
+        download_location: img.download_location
       }));
+      
+      console.log('[useUnsplash] Mapped images for MediaSelectorSidebar:', mappedImages);
+      return mappedImages;
     } catch (err) {
       console.error('Error fetching images:', err);
       setError('Failed to fetch images');
