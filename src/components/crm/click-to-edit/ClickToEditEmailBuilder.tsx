@@ -225,14 +225,6 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
 
   return (
     <div className="max-w-4xl mx-auto space-y-2">
-      {/* Save status indicator */}
-      <div className="flex justify-end mb-4">
-        <SaveIndicator 
-          saving={saving} 
-          lastSaved={lastSaved} 
-          error={saveError}
-        />
-      </div>
       
       {/* Add block button at top */}
       <AddBlockButton />
