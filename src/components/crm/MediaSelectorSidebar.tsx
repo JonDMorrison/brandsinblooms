@@ -256,29 +256,49 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
   console.log('[MediaSelectorSidebar] About to create portal');
 
   return createPortal(
-    <div
-      id="media-selector-sidebar"
-      ref={sidebarRef}
-      data-media-selector-sidebar
-      data-media-selector
-      data-app="media-selector"
-      data-testid="media-selector-sidebar"
-      style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        width: '400px',
-        height: '100vh',
-        backgroundColor: 'white',
-        boxShadow: '0 0 20px rgba(0,0,0,0.2)',
-        transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
-        opacity: isOpen ? 1 : 0,
-        pointerEvents: isOpen ? 'auto' : 'none',
-        visibility: isOpen ? 'visible' : 'hidden',
-        transition: 'all 0.3s ease-in-out',
-        zIndex: 1000000,
-      }}
-    >
+    <>
+      {/* Backdrop */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 999998,
+          opacity: isOpen ? 1 : 0,
+          visibility: isOpen ? 'visible' : 'hidden',
+          pointerEvents: 'none',
+          transition: 'all 0.3s ease-in-out',
+        }}
+      />
+      
+      {/* Sidebar */}
+      <div
+        id="media-selector-sidebar"
+        ref={sidebarRef}
+        data-media-selector-sidebar
+        data-media-selector
+        data-app="media-selector"
+        data-testid="media-selector-sidebar"
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          width: '400px',
+          height: '100vh',
+          backgroundColor: 'white',
+          boxShadow: '0 0 20px rgba(0,0,0,0.2)',
+          transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
+          opacity: isOpen ? 1 : 0,
+          pointerEvents: isOpen ? 'auto' : 'none',
+          visibility: isOpen ? 'visible' : 'hidden',
+          transition: 'all 0.3s ease-in-out',
+          zIndex: 1000000,
+        }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
           <h3 className="text-lg font-semibold text-gray-900">
@@ -459,7 +479,8 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
             )}
           </div>
         </div>
-      </div>, 
+      </div>
+    </>,
     document.body
   );
 };
