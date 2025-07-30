@@ -220,11 +220,17 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             {/* Preview when in edit mode but not text/image */}
             {!isTextEditing && !isImageEditing && (
               <div className="p-0">
-                {React.cloneElement(children.preview as React.ReactElement, {
-                  block: localBlock,
-                  editMode: localEditMode,
-                  onModeChange: handleModeChange
-                })}
+                {React.isValidElement(children.preview) ? (
+                  React.cloneElement(children.preview as React.ReactElement, {
+                    block: localBlock,
+                    editMode: localEditMode,
+                    onModeChange: handleModeChange
+                  })
+                ) : (
+                  <div className="p-4 text-center text-muted-foreground">
+                    Invalid preview content
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -234,11 +240,17 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             onClick={handleBlockClick}
             style={{ pointerEvents: 'auto' }}
           >
-            {React.cloneElement(children.preview as React.ReactElement, {
-              block: localBlock,
-              editMode: localEditMode,
-              onModeChange: handleModeChange
-            })}
+            {React.isValidElement(children.preview) ? (
+              React.cloneElement(children.preview as React.ReactElement, {
+                block: localBlock,
+                editMode: localEditMode,
+                onModeChange: handleModeChange
+              })
+            ) : (
+              <div className="p-4 text-center text-muted-foreground">
+                Invalid preview content
+              </div>
+            )}
           </div>
         )}
       </Card>
