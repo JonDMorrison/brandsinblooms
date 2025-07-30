@@ -18,7 +18,7 @@ export const useUnsplash = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getSmartImages = useCallback(async (query: string, count = 4): Promise<ImageAttachment[]> => {
+  const getSmartImages = useCallback(async (query: string, count = 12): Promise<ImageAttachment[]> => {
     if (!query.trim()) return [];
     
     setLoading(true);
@@ -26,6 +26,7 @@ export const useUnsplash = () => {
     
     // Create concise image summary from the query
     const imageQuery = extractImageSummary(query);
+    console.log('[useUnsplash] Query transformation:', { original: query, processed: imageQuery });
     
     try {
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
@@ -64,11 +65,13 @@ export const useUnsplash = () => {
   }, []);
 
   const searchImages = useCallback(async (query: string): Promise<ImageAttachment[]> => {
-    return getSmartImages(query, 4);
+    console.log('[useUnsplash] Searching images with query:', query);
+    return getSmartImages(query, 12);
   }, [getSmartImages]);
 
   const refreshImages = useCallback(async (prevQuery: string): Promise<ImageAttachment[]> => {
-    return getSmartImages(prevQuery, 4);
+    console.log('[useUnsplash] Refreshing images with query:', prevQuery);
+    return getSmartImages(prevQuery, 12);
   }, [getSmartImages]);
 
   return {
