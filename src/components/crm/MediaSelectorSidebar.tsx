@@ -216,7 +216,12 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    console.log('[MediaSelectorSidebar] Not rendering - isOpen is false');
+    return null;
+  }
+
+  console.log('[MediaSelectorSidebar] Rendering sidebar with portal to document.body');
 
   const modalContent = (
     <>
@@ -238,6 +243,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
       <div
         ref={sidebarRef}
         data-media-selector-sidebar
+        data-testid="media-selector-sidebar"
         className={cn(
           "fixed top-0 right-0 w-96 bg-white shadow-2xl",
           "border-l border-gray-200"

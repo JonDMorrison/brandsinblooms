@@ -101,12 +101,21 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
   // Handle mode changes with special logic for image mode
   const handleModeChange = (mode: EditMode) => {
+    console.log('[ClickToEditBlock] handleModeChange called:', { 
+      mode, 
+      blockType: block.type, 
+      blockId: block.id,
+      currentMediaSelectorOpen: isMediaSelectorOpen 
+    });
+    
     if (mode === 'image') {
       // For header blocks, image mode should show the full editor interface
       if (block.type === 'header') {
+        console.log('[ClickToEditBlock] Header block - toggling image edit mode');
         toggleMode('image'); // Enter image edit mode
       } else {
         // For other blocks, open media selector
+        console.log('[ClickToEditBlock] Non-header block - opening MediaSelector');
         setIsMediaSelectorOpen(true);
       }
     } else {
@@ -227,7 +236,10 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       {isMediaSelectorOpen && (
         <MediaSelectorSidebar
           isOpen={isMediaSelectorOpen}
-          onClose={() => setIsMediaSelectorOpen(false)}
+          onClose={() => {
+            console.log('[ClickToEditBlock] Closing MediaSelector for block:', block.id);
+            setIsMediaSelectorOpen(false);
+          }}
           onImageSelect={handleImageSelect}
           contentContext={`${block.type} block image`}
         />
