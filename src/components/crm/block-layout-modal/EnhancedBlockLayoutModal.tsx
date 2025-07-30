@@ -1,9 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Star, Clock, Grid, Mail, MessageSquare, Target, FileText, Image, Square, ArrowLeft, ArrowRight, Quote, MousePointer } from 'lucide-react';
+import { Plus, Grid, Mail, FileText, Image, ArrowLeft, ArrowRight, Quote, MousePointer } from 'lucide-react';
 import { LayoutType } from '../BlockLayoutModal';
 import { LayoutOption } from './LayoutOption';
 import { LayoutPreview } from './LayoutPreview';
@@ -110,7 +109,6 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
   onClose,
   onSelect
 }) => {
-  const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
@@ -139,21 +137,8 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
       filtered = filtered.filter(option => selectedCategories.includes(option.category));
     }
 
-    // Filter by tab
-    switch (activeTab) {
-      case 'popular':
-        filtered = filtered.filter(option => option.isPopular);
-        break;
-      case 'recent':
-        filtered = filtered.filter(option => option.isNew);
-        break;
-      case 'all':
-      default:
-        break;
-    }
-
     return filtered;
-  }, [searchQuery, selectedCategories, activeTab]);
+  }, [searchQuery, selectedCategories]);
 
   const handleCategoryToggle = (category: string) => {
     setSelectedCategories(prev =>
@@ -168,8 +153,6 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
     setSelectedCategories([]);
   };
 
-  const popularCount = layoutOptions.filter(opt => opt.isPopular).length;
-  const recentCount = layoutOptions.filter(opt => opt.isNew).length;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -181,120 +164,41 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
           </DialogTitle>
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="pt-4">
-          <div className="sticky top-0 bg-background/95 backdrop-blur-sm pb-4 border-b border-border/10 mb-4">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="all" className="flex items-center gap-2 text-xs sm:text-sm">
-                <Grid className="h-4 w-4" />
-                All Layouts
-                <Badge variant="secondary" className="ml-1 text-xs">
-                  {layoutOptions.length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="popular" className="flex items-center gap-2 text-xs sm:text-sm">
-                <Star className="h-4 w-4 text-muted-foreground" />
-                Popular
-                <Badge variant="outline" className="ml-1 text-xs text-muted-foreground">
-                  {popularCount}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="recent" className="flex items-center gap-2 text-xs sm:text-sm">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                New
-                <Badge variant="outline" className="ml-1 text-xs text-muted-foreground">
-                  {recentCount}
-                </Badge>
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <div className="min-h-0">
-            <TabsContent value="all" className="mt-0 space-y-6">
-              <SearchAndFilters
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                selectedCategories={selectedCategories}
-                onCategoryToggle={handleCategoryToggle}
-                availableCategories={categories}
-                onClearFilters={handleClearFilters}
+        <div className="pt-4">
+          <SearchAndFilters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            selectedCategories={selectedCategories}
+            onCategoryToggle={handleCategoryToggle}
+            availableCategories={categories}
+            onClearFilters={handleClearFilters}
+          />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4 mt-6">
+            {filteredOptions.map((option) => (
+              <LayoutOption
+                key={option.id}
+                id={option.id}
+                title={option.title}
+                description={option.description}
+                category={option.category}
+                icon={option.icon}
+                isPopular={option.isPopular}
+                isNew={option.isNew}
+                preview={<LayoutPreview type={option.previewType} />}
+                onClick={() => handleSelect(option.id)}
               />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
-                {filteredOptions.map((option) => (
-                  <LayoutOption
-                    key={option.id}
-                    id={option.id}
-                    title={option.title}
-                    description={option.description}
-                    category={option.category}
-                    icon={option.icon}
-                    isPopular={option.isPopular}
-                    isNew={option.isNew}
-                    preview={<LayoutPreview type={option.previewType} />}
-                    onClick={() => handleSelect(option.id)}
-                  />
-                ))}
-              </div>
-
-              {filteredOptions.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Grid className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p className="text-lg font-medium mb-2">No layouts found</p>
-                  <p className="text-sm">Try adjusting your search or filters</p>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="popular" className="mt-0 space-y-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Star className="h-5 w-5 text-muted-foreground" />
-                <h3 className="text-lg font-semibold">Popular Layouts</h3>
-                <Badge variant="outline" className="text-muted-foreground">Most used by teams</Badge>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
-                {layoutOptions.filter(opt => opt.isPopular).map((option) => (
-                  <LayoutOption
-                    key={option.id}
-                    id={option.id}
-                    title={option.title}
-                    description={option.description}
-                    category={option.category}
-                    icon={option.icon}
-                    isPopular={option.isPopular}
-                    preview={<LayoutPreview type={option.previewType} />}
-                    onClick={() => handleSelect(option.id)}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="recent" className="mt-0 space-y-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Clock className="h-5 w-5 text-muted-foreground" />
-                <h3 className="text-lg font-semibold">New Layouts</h3>
-                <Badge variant="outline" className="text-muted-foreground">Recently added</Badge>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
-                {layoutOptions.filter(opt => opt.isNew).map((option) => (
-                  <LayoutOption
-                    key={option.id}
-                    id={option.id}
-                    title={option.title}
-                    description={option.description}
-                    category={option.category}
-                    icon={option.icon}
-                    isNew={option.isNew}
-                    preview={<LayoutPreview type={option.previewType} />}
-                    onClick={() => handleSelect(option.id)}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-
+            ))}
           </div>
-        </Tabs>
+
+          {filteredOptions.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              <Grid className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+              <p className="text-lg font-medium mb-2">No layouts found</p>
+              <p className="text-sm">Try adjusting your search or filters</p>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
