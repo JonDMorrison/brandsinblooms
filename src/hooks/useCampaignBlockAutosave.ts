@@ -17,10 +17,12 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
     try {
       options.onSaveStart?.();
       
-      // Create the complete content structure that includes all block properties
-      // Store the full block as content to preserve all properties during save/load
+      // Store block properties directly in content to ensure they persist
       const fullContent = {
+        // Include existing content
         ...block.content,
+        // Store critical block properties from EmailBlock schema
+        type: block.block_type,
         // Store the entire block structure to avoid losing properties
         fullBlock: {
           ...block,

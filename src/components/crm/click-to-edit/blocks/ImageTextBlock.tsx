@@ -59,14 +59,22 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
           
           {/* Headline */}
           <SafeHtml 
-            content={block.headline || 'Add headline'}
+            content={
+              (typeof block.content === 'object' && block.content && (block.content as any).headline) || 
+              block.headline || 
+              'Add headline'
+            }
             type="newsletter"
             className="text-2xl font-bold"
           />
           
           {/* Body text */}
           <SafeHtml 
-            content={block.body || 'Add body text'}
+            content={
+              (typeof block.content === 'object' && block.content && (block.content as any).body) || 
+              block.body || 
+              'Add body text'
+            }
             type="newsletter"
             className="text-muted-foreground"
           />

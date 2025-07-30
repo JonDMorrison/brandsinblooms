@@ -74,14 +74,9 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   const handleLocalUpdate = useCallback((updates: Partial<ContentBlock>) => {
     const updatedBlock = { ...localBlock, ...updates };
     setLocalBlock(updatedBlock);
-    // Also update parent immediately for simple changes
-    if (updates.headline || updates.body || updates.content) {
-      onUpdate(block.id, updates);
-    } else {
-      // Debounce for style/layout changes
-      debouncedUpdate(updates);
-    }
-  }, [localBlock, block.id, onUpdate, debouncedUpdate]);
+    // Update parent immediately for all content changes
+    onUpdate(block.id, updates);
+  }, [localBlock, block.id, onUpdate]);
 
   // Handle click outside to exit edit mode
   useEffect(() => {
@@ -178,11 +173,11 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                   block={localBlock}
                   onUpdate={handleLocalUpdate}
                   onSave={() => {
-                    debouncedUpdate.flush(); // Force save any pending changes
                     exitEditMode(); // Exit text editing mode
                   }}
                   onCancel={() => {
-                    debouncedUpdate.cancel(); // Cancel any pending changes
+                    // Reset to original block state
+                    setLocalBlock(block);
                     exitEditMode(); // Exit text editing mode
                   }}
                 />
