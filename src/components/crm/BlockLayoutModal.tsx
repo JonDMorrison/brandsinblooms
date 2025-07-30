@@ -8,13 +8,11 @@ export type LayoutType =
   | 'image-vertical-left'
   | 'image-vertical-right'
   | 'text-double'
-  | 'header-hero'
   | 'header-simple'
   | 'image-full'
   | 'button-centered'
   | 'newsletter-header'
   | 'quote-featured'
-  | 'image-overlay'
   | 'image-background';
 
 interface BlockLayoutModalProps {

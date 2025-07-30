@@ -39,15 +39,6 @@ const layoutOptions = [
 
   // Header Layouts
   {
-    id: 'header-hero' as LayoutType,
-    title: 'Feature Banner',
-    description: 'Eye-catching hero section with background image and overlay text',
-    category: 'Header',
-    icon: <Square className="h-4 w-4 text-muted-foreground" />,
-    isPopular: true,
-    previewType: 'header-hero' as const
-  },
-  {
     id: 'header-simple' as LayoutType,
     title: 'Text Only Header',
     description: 'Clean full-width text section with title and subtitle',
@@ -65,15 +56,6 @@ const layoutOptions = [
     icon: <Image className="h-4 w-4 text-muted-foreground" />,
     isPopular: true,
     previewType: 'image-full' as const
-  },
-  {
-    id: 'image-overlay' as LayoutType,
-    title: 'Text Overlay',
-    description: 'Text overlaid on background image for dramatic effect',
-    category: 'Image',
-    icon: <Image className="h-4 w-4 text-muted-foreground" />,
-    isNew: true,
-    previewType: 'image-overlay' as const
   },
   {
     id: 'image-background' as LayoutType,

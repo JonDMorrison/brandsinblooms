@@ -43,23 +43,6 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
         }
       };
     // Enhanced image layouts
-    case 'image-overlay':
-      const overlayImage = await mediaSelector({ 
-        prompt: 'stunning garden landscape background',
-        count: 1 
-      });
-      return {
-        type: 'image',
-        config: {
-          title: 'Overlay Text',
-          content: 'Text overlaid on image background',
-          altText: overlayImage.alt || 'Garden background',
-          layout: 'overlay',
-          imageUrl: overlayImage.url,
-          backgroundOpacity: 60,
-          alignment: 'center'
-        }
-      };
     case 'image-background':
       const bgImage = await mediaSelector({ 
         prompt: 'natural garden background texture',
@@ -78,18 +61,6 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
         }
       };
     // Original layouts (enhanced)
-    case 'header-hero':
-      return {
-        type: 'header',
-        config: {
-          headline: 'Your Feature Banner',
-          body: 'Create an eye-catching hero section with background image and overlay text',
-          alignment: 'center',
-          padding: 'large',
-          backgroundImageUrl: '',
-          backgroundOpacity: 70
-        }
-      };
     case 'header-simple':
       return {
         type: 'header',
