@@ -90,7 +90,9 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
           !isImageLeft && "md:order-2", 
           "relative group/image",
           "hover:opacity-90 transition-opacity duration-200"
-        )}>
+        )}
+        onClick={(e) => e.stopPropagation()} // Prevent parent click handler
+        >
           {/* Contextual Image Edit Button */}
           {onModeChange && (
             <ContextualEditButton
@@ -108,9 +110,13 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               src={block.imageUrl}
               alt={block.altText || 'Content image'}
               className="w-full h-auto rounded-lg"
+              onClick={(e) => e.stopPropagation()} // Prevent parent click handler
             />
           ) : (
-            <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center">
+            <div 
+              className="w-full h-48 bg-muted rounded-lg flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()} // Prevent parent click handler
+            >
               <span className="text-muted-foreground">Click Edit Image to add</span>
             </div>
           )}
