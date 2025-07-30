@@ -246,6 +246,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       {isMediaSelectorOpen && (
         <MediaSelectorSidebar
           isOpen={isMediaSelectorOpen}
+          editMode="image"
           onClose={() => {
             console.log('[ClickToEditBlock] Closing MediaSelector for block:', block.id);
             setIsMediaSelectorOpen(false);

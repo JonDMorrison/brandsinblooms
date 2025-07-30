@@ -17,6 +17,7 @@ interface MediaSelectorSidebarProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
   contentContext?: string;
   selectedImageUrl?: string;
+  editMode?: 'text' | 'image' | null;
 }
 
 export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
@@ -24,7 +25,8 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
   onClose,
   onImageSelect,
   contentContext = '',
-  selectedImageUrl
+  selectedImageUrl,
+  editMode
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
