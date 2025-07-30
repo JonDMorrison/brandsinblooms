@@ -949,13 +949,32 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       }
     });
     
-    // Generate footer with proper token data
+    // Generate footer with proper token data and settings
+    const footerSettings = {
+      showPhone: true,
+      showLogo: true,
+      showManagePreferences: true,
+      padding: 'normal' as const,
+      alignment: 'center' as const,
+      showDivider: true,
+      backgroundColor: 'light' as const,
+      fontSize: 'sm' as const,
+      complianceText: 'You received this email because you subscribed to our newsletter. {{unsubscribe_url}}'
+    };
+    
+    const companyInfo = {
+      name: 'Homestead Nurseryland',
+      address: '123 Garden Center Dr, Green Valley, CA 90210',
+      phone: '(555) 123-GROW',
+      logoUrl: ''
+    };
+    
     const tokenData = getDefaultTokenData(companyInfo);
     const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData);
     
     html += `
+          ${footerHTML}
         </div>
-        ${footerHTML}
       </div>
     `;
     
