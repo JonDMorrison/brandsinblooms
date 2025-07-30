@@ -306,6 +306,46 @@ a:hover {
   }
 }
 
+/* Fix dropdown/overlay scroll blocking */
+body[data-scroll-locked] {
+  overflow: hidden !important;
+}
+
+/* Ensure main content containers don't get pointer-events: none */
+main, 
+[role="main"], 
+.main-content,
+#root,
+#app {
+  pointer-events: auto !important;
+}
+
+/* Ensure dropdowns don't block page interactions */
+[data-radix-portal] {
+  pointer-events: auto !important;
+}
+
+/* Fix for dropdown menus specifically */
+[data-radix-dropdown-menu-content] {
+  pointer-events: auto !important;
+  position: fixed !important;
+  z-index: 9999 !important;
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+/* Ensure the body maintains scroll capability */
+body {
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  scroll-behavior: smooth;
+}
+
+/* Override any global pointer-events: none */
+body *:not([data-disabled="true"]) {
+  pointer-events: auto;
+}
+
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
