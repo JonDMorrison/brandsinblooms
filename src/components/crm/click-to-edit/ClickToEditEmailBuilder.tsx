@@ -270,40 +270,6 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         </div>
       )}
 
-      {/* Debug Test Button for MediaSelector */}
-      <div className="border border-orange-300 bg-orange-50 p-4 rounded-lg mb-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Bug className="h-4 w-4 text-orange-600" />
-          <span className="text-sm font-medium text-orange-800">Debug Tools</span>
-        </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => {
-            console.log('[DEBUG] Manually opening MediaSelector');
-            setDebugMediaSelectorOpen(true);
-          }}
-          className="mr-2"
-        >
-          Force Open MediaSelector
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => {
-            const sidebar = document.querySelector('[data-testid="media-selector-sidebar"]');
-            const backdrop = document.querySelector('[data-media-selector-backdrop]');
-            console.log('[DEBUG] DOM Check:', {
-              sidebarExists: !!sidebar,
-              sidebarRect: sidebar?.getBoundingClientRect(),
-              backdropExists: !!backdrop,
-              debugStateOpen: debugMediaSelectorOpen
-            });
-          }}
-        >
-          Check DOM
-        </Button>
-      </div>
 
       {/* Auto-included Footer (always at bottom, cannot be deleted) */}
       <div className="border-t-2 border-dashed border-gray-300 mt-8 pt-4">
