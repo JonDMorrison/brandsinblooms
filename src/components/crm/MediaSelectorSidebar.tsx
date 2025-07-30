@@ -517,16 +517,21 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
       {/* Sidebar */}
       <div
         ref={sidebarRef}
+        id="media-selector-sidebar"
         data-testid="media-selector-sidebar"
-        className="w-[400px] h-full bg-white shadow-xl border-l border-gray-200"
         style={{
-          position: 'absolute',
-          right: 0,
+          position: 'fixed',
           top: 0,
+          right: 0,
+          width: '400px',
+          height: '100vh',
+          backgroundColor: 'white',
+          boxShadow: '0 0 20px rgba(0,0,0,0.2)',
           transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
           transition: 'all 0.3s ease-in-out',
+          zIndex: 1000000, // Force it above everything
           border: '4px solid red' // Debug style
         }}
       >
