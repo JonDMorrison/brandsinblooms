@@ -67,6 +67,24 @@ export const convertMarkdownToHtml = (markdown: string): string => {
   
   let html = markdown;
   
+  // Detect if this is plain text (no markdown syntax)
+  const hasMarkdownSyntax = /[#*\-]/.test(html);
+  
+  if (!hasMarkdownSyntax) {
+    // Handle plain text content - preserve natural paragraph structure
+    const paragraphs = html.split(/\n\s*\n+/);
+    html = paragraphs
+      .filter(p => p.trim())
+      .map(p => {
+        // Replace single line breaks with spaces, preserving intentional breaks
+        const cleanText = p.trim().replace(/\n+/g, ' ').replace(/\s+/g, ' ');
+        return `<p>${cleanText}</p>`;
+      })
+      .join('\n\n');
+    
+    return html;
+  }
+  
   // Convert headers
   html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
   html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
@@ -89,7 +107,7 @@ export const convertMarkdownToHtml = (markdown: string): string => {
     return match;
   });
   
-  // Convert line breaks to paragraphs
+  // Convert line breaks to paragraphs for markdown content
   const paragraphs = html.split(/\n\s*\n/);
   html = paragraphs
     .filter(p => p.trim())
@@ -99,7 +117,9 @@ export const convertMarkdownToHtml = (markdown: string): string => {
       if (trimmed.includes('<h') || trimmed.includes('<ul>') || trimmed.includes('<li>')) {
         return trimmed;
       }
-      return `<p>${trimmed}</p>`;
+      // Handle single line breaks within paragraphs
+      const cleanText = trimmed.replace(/\n+/g, ' ').replace(/\s+/g, ' ');
+      return `<p>${cleanText}</p>`;
     })
     .join('\n\n');
   
