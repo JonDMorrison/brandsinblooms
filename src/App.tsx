@@ -2,7 +2,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { Homepage } from '@/components/Homepage';
-import { CompleteLandingPage } from '@/components/landing/CompleteLandingPage';
+import Auth from '@/pages/Auth';
 import OnboardingPage from '@/pages/OnboardingPage';
 import CalendarPage from '@/pages/CalendarPage';
 import PublishPage from '@/pages/PublishPage';
@@ -30,7 +30,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Routes>
-        <Route path="/auth" element={<CompleteLandingPage />} />
+        <Route path="/auth" element={<Auth />} />
         <Route path="/onboarding" element={
           <ProtectedRoute>
             <OnboardingPage />
