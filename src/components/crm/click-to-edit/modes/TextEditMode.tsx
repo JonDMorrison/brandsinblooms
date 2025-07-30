@@ -5,8 +5,6 @@ import { Label } from '@/components/ui/label';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAutoSave } from '@/components/crm/AutoSaveManager';
-import { AutoSaveIndicator } from '@/components/crm/AutoSaveIndicator';
 
 interface TextEditModeProps {
   block: ContentBlock;
@@ -21,26 +19,14 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   onSave,
   onCancel
 }) => {
-  const { saveStatus, forceSave } = useAutoSave();
-
   const handleSave = () => {
-    // Just close the editor - updates are already saved immediately
     onSave?.();
-  };
-
-  const handleUpdate = (updates: Partial<ContentBlock>) => {
-    // Update the block with proper content structure
-    const updatedBlock = { ...block, ...updates };
-    onUpdate(updatedBlock);
   };
 
   return (
     <Card className="p-4 space-y-4 shadow-lg border-2 border-primary/20">
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-medium">
-          Edit Text Content
-        </div>
-        <AutoSaveIndicator status={saveStatus} />
+      <div className="text-sm font-medium text-center mb-3">
+        Edit Text Content
       </div>
 
       {/* Headline (for blocks that support it) */}
@@ -50,7 +36,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
           <Input
             id="headline"
             value={block.headline || ''}
-            onChange={(e) => handleUpdate({ headline: e.target.value })}
+            onChange={(e) => onUpdate({ headline: e.target.value })}
             placeholder="Enter headline"
             className="w-full"
           />
@@ -67,9 +53,9 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             content={block.body || block.content || ''}
             onChange={(html) => {
               if (block.body !== undefined) {
-                handleUpdate({ body: html });
+                onUpdate({ body: html });
               } else {
-                handleUpdate({ content: html });
+                onUpdate({ content: html });
               }
             }}
             placeholder={block.body !== undefined ? "Enter body text..." : "Enter content..."}
@@ -86,7 +72,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
           <Input
             id="altText"
             value={block.altText || ''}
-            onChange={(e) => handleUpdate({ altText: e.target.value })}
+            onChange={(e) => onUpdate({ altText: e.target.value })}
             placeholder="Describe the image for accessibility"
           />
         </div>
@@ -100,7 +86,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             <Input
               id="ctaText"
               value={block.ctaText || ''}
-              onChange={(e) => handleUpdate({ ctaText: e.target.value })}
+              onChange={(e) => onUpdate({ ctaText: e.target.value })}
               placeholder="Enter button text"
             />
           </div>
@@ -109,7 +95,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             <Input
               id="ctaUrl"
               value={block.ctaUrl || ''}
-              onChange={(e) => handleUpdate({ ctaUrl: e.target.value })}
+              onChange={(e) => onUpdate({ ctaUrl: e.target.value })}
               placeholder="https://example.com"
             />
           </div>
