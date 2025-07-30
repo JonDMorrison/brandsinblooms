@@ -13,6 +13,7 @@ export const CompleteLandingPage = () => {
   const navigate = useNavigate();
 
   const handleGetStarted = () => {
+    console.log('Get Started button clicked - navigating to /auth');
     navigate('/auth');
   };
 
