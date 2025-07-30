@@ -892,10 +892,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       }
     });
     
+    // Generate footer with proper token data
+    const tokenData = getDefaultTokenData(companyInfo);
+    const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData);
+    
     html += `
         </div>
-        <!-- Footer Block -->
-        ${generateFooterHTML(footerSettings, companyInfo, getDefaultTokenData(companyInfo))}
+        ${footerHTML}
       </div>
     `;
     
