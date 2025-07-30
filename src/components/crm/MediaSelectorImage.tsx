@@ -32,10 +32,23 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   };
 
   const handleSelectClick = (e: React.MouseEvent) => {
+    console.log('🔥 CLICK EVENT FIRED - MediaSelectorImage handleSelectClick', {
+      eventType: e.type,
+      target: e.target,
+      currentTarget: e.currentTarget,
+      timeStamp: e.timeStamp
+    });
     e.preventDefault();
     e.stopPropagation();
     console.log('[MediaSelectorImage] Select button clicked, opening sidebar');
     setIsSelecting(true);
+  };
+
+  const handleButtonEvents = {
+    onMouseDown: (e: React.MouseEvent) => console.log('🔥 MouseDown event:', e.type),
+    onMouseUp: (e: React.MouseEvent) => console.log('🔥 MouseUp event:', e.type),
+    onPointerDown: (e: React.PointerEvent) => console.log('🔥 PointerDown event:', e.type),
+    onTouchStart: (e: React.TouchEvent) => console.log('🔥 TouchStart event:', e.type)
   };
 
   const handleClose = () => {
@@ -63,7 +76,9 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
 
         <button
           onClick={handleSelectClick}
-          className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-sm font-medium"
+          {...handleButtonEvents}
+          className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-sm font-medium z-50"
+          style={{ pointerEvents: 'auto' }}
         >
           <Upload className="w-4 h-4 mr-2" />
           {src ? 'Change Image' : 'Select Image'}
