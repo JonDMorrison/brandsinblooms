@@ -42,7 +42,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   const [isMediaSelectorOpen, setIsMediaSelectorOpen] = useState(false);
   
   // Use the new edit mode hook
-  const { editMode, toggleMode, exitEditMode, isTextEditing, isImageEditing } = useBlockEditMode();
+  const { editMode, setEditMode, toggleMode, exitEditMode, isTextEditing, isImageEditing } = useBlockEditMode();
 
   // Debug logging for MediaSelector state changes
   useEffect(() => {
@@ -124,8 +124,9 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         console.log('[ClickToEditBlock] Header block - toggling image edit mode');
         toggleMode('image'); // Enter image edit mode
       } else {
-        // For other blocks, open media selector
+        // For other blocks, open media selector AND set edit mode
         console.log('[ClickToEditBlock] Non-header block - opening MediaSelector');
+        setEditMode('image'); // Set edit mode to image
         setIsMediaSelectorOpen(true);
       }
     } else {
