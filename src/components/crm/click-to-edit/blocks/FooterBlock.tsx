@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Settings, Building, Mail, Phone, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFooterSettings } from '@/hooks/useFooterSettings';
+import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 
 interface FooterBlockProps {
   block: ContentBlock;
@@ -12,104 +18,306 @@ interface FooterBlockProps {
   isPreview: boolean;
 }
 
-export const FooterBlock: React.FC<FooterBlockProps> = ({ block, onUpdate, isPreview }) => {
-  const content = block.content || '';
-  const alignment = block.textAlign || 'center';
-  const padding = block.padding || 'medium';
+export const FooterBlock: React.FC<FooterBlockProps> = ({ 
+  block, 
+  onUpdate, 
+  isPreview 
+}) => {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { footerSettings, setFooterSettings } = useFooterSettings();
+  const { companyInfo } = useCompanyInfo();
 
-  const insertUnsubscribeToken = () => {
-    const unsubscribeText = '\n\nTo unsubscribe from these emails, click here: {{unsubscribe_url}}';
-    onUpdate({ content: content + unsubscribeText });
+  const handleSettingChange = (key: string, value: any) => {
+    const newSettings = { ...footerSettings, [key]: value };
+    setFooterSettings(newSettings);
+  };
+
+  // Parse tokens in text
+  const parseTokens = (text: string) => {
+    return text
+      .replace(/\{\{company\.name\}\}/g, companyInfo.name || 'Your Company')
+      .replace(/\{\{unsubscribe_url\}\}/g, isPreview ? '#unsubscribe' : '{{unsubscribe_url}}')
+      .replace(/\{\{manage_preferences_url\}\}/g, isPreview ? '#preferences' : '{{manage_preferences_url}}');
+  };
+
+  const backgroundColors = {
+    light: 'bg-gray-50',
+    dark: 'bg-gray-800 text-white',
+    white: 'bg-white'
+  };
+
+  const paddingClasses = {
+    compact: 'py-4 px-3',
+    normal: 'py-6 px-4',
+    spacious: 'py-8 px-6'
+  };
+
+  const alignmentClasses = {
+    left: 'text-left',
+    center: 'text-center'
+  };
+
+  const fontSizeClasses = {
+    xs: 'text-xs',
+    sm: 'text-sm'
   };
 
   if (isPreview) {
-    const paddingClass = {
-      none: 'p-0',
-      small: 'p-4',
-      medium: 'p-6',
-      large: 'p-8'
-    }[padding];
-
     return (
       <div className={cn(
-        paddingClass,
-        "bg-muted/30 text-xs text-muted-foreground",
-        alignment === 'center' && "text-center",
-        alignment === 'right' && "text-right"
+        backgroundColors[footerSettings.backgroundColor],
+        footerSettings.showDivider && 'border-t border-gray-200',
+        'w-full'
       )}>
-        {content ? (
-          <div 
-            className="whitespace-pre-wrap"
-            dangerouslySetInnerHTML={{ 
-              __html: content.replace(/\n/g, '<br />') 
-            }}
-          />
-        ) : (
-          <p>Add your footer content here. Include contact information and unsubscribe link.</p>
-        )}
+        <div className={cn(
+          paddingClasses[footerSettings.padding],
+          alignmentClasses[footerSettings.alignment],
+          fontSizeClasses[footerSettings.fontSize],
+          'max-w-2xl mx-auto space-y-3',
+          footerSettings.backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600'
+        )}>
+          {/* Logo */}
+          {footerSettings.showLogo && companyInfo.logoUrl && (
+            <div className="mb-4">
+              <img 
+                src={companyInfo.logoUrl} 
+                alt={`${companyInfo.name} logo`}
+                className="h-8 mx-auto object-contain"
+              />
+            </div>
+          )}
+
+          {/* Company Info */}
+          <div className="space-y-1">
+            <div className="font-medium">{companyInfo.name}</div>
+            {companyInfo.address && (
+              <div>{companyInfo.address}</div>
+            )}
+            {footerSettings.showPhone && companyInfo.phone && (
+              <div className="flex items-center justify-center gap-1">
+                <Phone className="h-3 w-3" />
+                {companyInfo.phone}
+              </div>
+            )}
+          </div>
+
+          {/* Custom Footer Text */}
+          {footerSettings.customFooterText && (
+            <div className="border-t border-gray-300 pt-3 mt-3">
+              {parseTokens(footerSettings.customFooterText)}
+            </div>
+          )}
+
+          {/* Compliance Notice */}
+          <div className="border-t border-gray-300 pt-3 mt-3">
+            {parseTokens(footerSettings.complianceText)}
+          </div>
+
+          {/* Action Links */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <a 
+              href={isPreview ? '#unsubscribe' : '{{unsubscribe_url}}'} 
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              Unsubscribe
+            </a>
+            {footerSettings.showManagePreferences && (
+              <>
+                <span className="hidden sm:inline text-gray-400">|</span>
+                <a 
+                  href={isPreview ? '#preferences' : '{{manage_preferences_url}}'} 
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  Manage Preferences
+                </a>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
 
+  // Editor view
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label>Footer Content</Label>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={insertUnsubscribeToken}
-            type="button"
-          >
-            Insert Unsubscribe Link
-          </Button>
-        </div>
-        <Textarea
-          value={content}
-          onChange={(e) => onUpdate({ content: e.target.value })}
-          placeholder="Enter footer content, contact information, legal text..."
-          rows={6}
-        />
-        <p className="text-xs text-muted-foreground">
-          Use {`{{unsubscribe_url}}`} token for unsubscribe links. This will be automatically replaced when emails are sent.
-        </p>
+    <div className="relative group">
+      {/* Settings Button */}
+      <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+          className="h-8 w-8 p-0 bg-white shadow-sm"
+        >
+          <Settings className="h-3 w-3" />
+        </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Text Alignment</Label>
-          <Select
-            value={alignment}
-            onValueChange={(value) => onUpdate({ textAlign: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="left">Left</SelectItem>
-              <SelectItem value="center">Center</SelectItem>
-              <SelectItem value="right">Right</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Settings Panel */}
+      {isSettingsOpen && (
+        <Card className="absolute top-12 right-0 z-20 w-80 p-4 shadow-lg border-2 border-primary/20">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium">Footer Settings</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsSettingsOpen(false)}
+                className="h-6 w-6 p-0"
+              >
+                ×
+              </Button>
+            </div>
 
-        <div className="space-y-2">
-          <Label>Padding</Label>
-          <Select
-            value={padding}
-            onValueChange={(value) => onUpdate({ padding: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              <SelectItem value="small">Small</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="large">Large</SelectItem>
-            </SelectContent>
-          </Select>
+            {/* Toggle Options */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Show Phone Number</Label>
+                <Switch
+                  checked={footerSettings.showPhone}
+                  onCheckedChange={(checked) => handleSettingChange('showPhone', checked)}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Show Logo</Label>
+                <Switch
+                  checked={footerSettings.showLogo}
+                  onCheckedChange={(checked) => handleSettingChange('showLogo', checked)}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Show Manage Preferences</Label>
+                <Switch
+                  checked={footerSettings.showManagePreferences}
+                  onCheckedChange={(checked) => handleSettingChange('showManagePreferences', checked)}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Show Divider</Label>
+                <Switch
+                  checked={footerSettings.showDivider}
+                  onCheckedChange={(checked) => handleSettingChange('showDivider', checked)}
+                />
+              </div>
+            </div>
+
+            {/* Style Options */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm">Alignment</Label>
+                <Select value={footerSettings.alignment} onValueChange={(value) => handleSettingChange('alignment', value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="center">Center</SelectItem>
+                    <SelectItem value="left">Left</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-sm">Padding</Label>
+                <Select value={footerSettings.padding} onValueChange={(value) => handleSettingChange('padding', value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="compact">Compact</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="spacious">Spacious</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-sm">Background</Label>
+                <Select value={footerSettings.backgroundColor} onValueChange={(value) => handleSettingChange('backgroundColor', value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="light">Light Gray</SelectItem>
+                    <SelectItem value="white">White</SelectItem>
+                    <SelectItem value="dark">Dark</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-sm">Font Size</Label>
+                <Select value={footerSettings.fontSize} onValueChange={(value) => handleSettingChange('fontSize', value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="xs">Extra Small</SelectItem>
+                    <SelectItem value="sm">Small</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Compliance Text */}
+            <div>
+              <Label className="text-sm">Compliance Notice</Label>
+              <Textarea
+                value={footerSettings.complianceText}
+                onChange={(e) => handleSettingChange('complianceText', e.target.value)}
+                placeholder="Enter compliance text..."
+                className="w-full text-xs"
+                rows={3}
+              />
+            </div>
+
+            {/* Custom Footer Text */}
+            <div>
+              <Label className="text-sm">Additional Footer Text (Optional)</Label>
+              <Textarea
+                value={footerSettings.customFooterText || ''}
+                onChange={(e) => handleSettingChange('customFooterText', e.target.value)}
+                placeholder="Enter additional footer text..."
+                className="w-full text-xs"
+                rows={2}
+              />
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Preview within editor */}
+      <div className={cn(
+        backgroundColors[footerSettings.backgroundColor],
+        footerSettings.showDivider && 'border-t border-gray-200',
+        'w-full min-h-[100px] p-4 rounded border border-dashed border-gray-300'
+      )}>
+        <div className={cn(
+          paddingClasses[footerSettings.padding],
+          alignmentClasses[footerSettings.alignment],
+          fontSizeClasses[footerSettings.fontSize],
+          'max-w-2xl mx-auto space-y-3',
+          footerSettings.backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600'
+        )}>
+          <div className="text-center text-sm text-muted-foreground mb-2">
+            📧 Email Footer (Auto-included)
+          </div>
+          
+          {/* Simplified preview */}
+          <div className="space-y-1">
+            <div className="font-medium">{companyInfo.name}</div>
+            <div className="text-xs">{companyInfo.address}</div>
+          </div>
+          
+          <div className="text-xs border-t pt-2">
+            {parseTokens(footerSettings.complianceText).substring(0, 60)}...
+          </div>
+          
+          <div className="flex items-center justify-center gap-3 text-xs">
+            <a href="#" className="text-blue-600 underline">Unsubscribe</a>
+            {footerSettings.showManagePreferences && (
+              <a href="#" className="text-blue-600 underline">Manage Preferences</a>
+            )}
+          </div>
         </div>
       </div>
     </div>

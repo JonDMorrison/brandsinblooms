@@ -11,6 +11,8 @@ import { DividerBlock } from './blocks/DividerBlock';
 import { ButtonBlock } from './blocks/ButtonBlock';
 import { SocialFollowBlock } from './blocks/SocialFollowBlock';
 import { FooterBlock } from './blocks/FooterBlock';
+import { useFooterSettings } from '@/hooks/useFooterSettings';
+import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
 
 interface ClickToEditEmailBuilderProps {
@@ -27,6 +29,17 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
   const [saveError, setSaveError] = useState(false);
+  
+  // Create a dummy footer block for display (not included in the actual blocks array)
+  const footerBlock: ContentBlock = {
+    id: 'email-footer',
+    type: 'footer',
+    source: 'manual',
+    visible: true,
+    collapsed: false,
+    textAlign: 'center',
+    padding: 'medium'
+  };
 
   // Auto-save to localStorage with debouncing
   const debouncedSave = useCallback(
@@ -252,6 +265,18 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
           <p className="text-sm mb-4">Add your first content block to get started</p>
         </div>
       )}
+
+      {/* Auto-included Footer (always at bottom, cannot be deleted) */}
+      <div className="border-t-2 border-dashed border-gray-300 mt-8 pt-4">
+        <div className="text-center text-sm text-muted-foreground mb-2 uppercase tracking-wide">
+          📧 Auto-Included Email Footer
+        </div>
+        <FooterBlock 
+          block={footerBlock}
+          onUpdate={() => {}} // Footer settings managed separately
+          isPreview={true}
+        />
+      </div>
     </div>
   );
 };

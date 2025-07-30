@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { ClickToEditEmailBuilder } from './click-to-edit/ClickToEditEmailBuilder';
+import { FooterBlock } from './click-to-edit/blocks/FooterBlock';
 import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
 import { mediaSelector } from '@/utils/mediaSelector';
 
