@@ -1157,21 +1157,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           </h1>
           <div className="flex items-center gap-3">
             <p className="text-muted-foreground">Build and customize your email campaign</p>
-            <SaveIndicator 
-              lastSaved={lastSaved} 
-              saving={loading || isAutoSaving} 
-              error={saveError} 
-              onRetry={() => {
-                if (existingCampaignId) {
-                  autoSaveCampaign({
-                    blocks,
-                    campaign_name: campaignName,
-                    subject_line: subjectLine,
-                    preheader: preheaderText
-                  });
-                }
-              }}
-            />
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1273,7 +1258,24 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       {/* Email Content Builder - Full Width */}
       <Card>
         <CardHeader>
-          <CardTitle>Email Content</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Email Content</CardTitle>
+            <SaveIndicator 
+              lastSaved={lastSaved} 
+              saving={loading || isAutoSaving} 
+              error={saveError} 
+              onRetry={() => {
+                if (existingCampaignId) {
+                  autoSaveCampaign({
+                    blocks,
+                    campaign_name: campaignName,
+                    subject_line: subjectLine,
+                    preheader: preheaderText
+                  });
+                }
+              }}
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <CleanEmailBlockEditor
