@@ -64,22 +64,24 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
           
           {/* Headline */}
           <SafeHtml 
-            content={
-              (typeof block.content === 'object' && block.content && (block.content as any).headline) || 
-              block.headline || 
-              'Add headline'
-            }
+            content={(() => {
+              const headline = (typeof block.content === 'object' && block.content && (block.content as any).headline) || 
+                               block.headline || 
+                               'Add headline';
+              return typeof headline === 'string' ? headline : String(headline || 'Add headline');
+            })()}
             type="newsletter"
             className="text-2xl font-bold"
           />
           
           {/* Body text */}
           <SafeHtml 
-            content={
-              (typeof block.content === 'object' && block.content && (block.content as any).body) || 
-              block.body || 
-              'Add body text'
-            }
+            content={(() => {
+              const body = (typeof block.content === 'object' && block.content && (block.content as any).body) || 
+                           block.body || 
+                           'Add body text';
+              return typeof body === 'string' ? body : String(body || 'Add body text');
+            })()}
             type="newsletter"
             className="text-muted-foreground"
           />
