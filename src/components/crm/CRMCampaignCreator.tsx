@@ -807,15 +807,30 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       .mobile-full-width {
         width: 100% !important;
         display: block !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-bottom: 20px !important;
       }
-      .mobile-stack {
+      .mobile-stack table,
+      .mobile-stack tbody,
+      .mobile-stack tr,
+      .mobile-stack td {
         display: block !important;
         width: 100% !important;
+      }
+      .mobile-stack td {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-bottom: 20px !important;
       }
       .cta-button {
         width: auto !important;
         padding: 12px 24px !important;
         font-size: 16px !important;
+      }
+      img {
+        max-width: 100% !important;
+        height: auto !important;
       }
     }
   </style>
@@ -880,24 +895,24 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           const itHeadlineColor = block.textColor || '#1f2937'; // Use dark gray instead of green
           html += `
             <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;" class="mobile-stack">
                 <tr>
                   ${isImageLeft ? `
-                    <td width="50%" style="padding-right: 20px; vertical-align: top;">
-                      ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px;" />` :
+                    <td width="50%" style="padding-right: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                      ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />` :
                         '<div style="background: #f1f5f9; padding: 40px 20px; text-align: center; color: #64748b; border-radius: 8px; font-family: \'Quicksand\', sans-serif;">No image</div>'}
                     </td>
-                    <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: ${itTextAlign};">
+                    <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: ${itTextAlign};" class="mobile-full-width mobile-stack">
                       ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
                        ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
                     </td>
                   ` : `
-                    <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: ${itTextAlign};">
+                    <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: ${itTextAlign};" class="mobile-full-width mobile-stack">
                       ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
                       ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
                     </td>
-                    <td width="50%" style="padding-left: 20px; vertical-align: top;">
-                      ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px;" />` :
+                    <td width="50%" style="padding-left: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                      ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />` :
                         '<div style="background: #f1f5f9; padding: 40px 20px; text-align: center; color: #64748b; border-radius: 8px; font-family: \'Quicksand\', sans-serif;">No image</div>'}
                     </td>
                   `}
