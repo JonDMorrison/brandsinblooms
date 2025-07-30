@@ -894,6 +894,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     console.log('🚀 Save button clicked');
     console.log('📝 Campaign Name:', `"${campaignName}"`);
     console.log('📝 Subject Line:', `"${subjectLine}"`);
+    console.log('📝 Existing Campaign ID:', existingCampaignId);
     
     if (!campaignName.trim() || !subjectLine.trim()) {
       console.log('❌ Validation failed - missing required fields');
@@ -911,73 +912,99 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     setSaveError(false);
     
     try {
-      // Generate HTML content for the campaign
-      const htmlContent = generateEmailHTML();
-      
-      // Convert blocks to the format expected by the campaign service
-      const campaignBlocks = blocks.map((block, index) => ({
-        block_type: block.type as 'header' | 'text' | 'image' | 'button' | 'divider',
-        content: {
-          headline: block.headline,
-          body: block.body,
-          content: block.content,
-          layout: block.layout,
-          imageUrl: block.imageUrl,
-          altText: block.altText,
-          buttonText: block.buttonText,
-          buttonUrl: block.buttonUrl,
-          buttonColor: block.buttonColor,
-          backgroundColor: block.backgroundColor,
-          textAlign: block.textAlign,
-          fontSize: block.fontSize,
-          fontFamily: block.fontFamily
-        },
-        image_url: block.imageUrl,
-        cta_url: block.buttonUrl,
-        cta_text: block.buttonText,
-        source: block.source || 'manual',
-        order_index: index
-      }));
+      if (existingCampaignId) {
+        // Update existing campaign
+        console.log('🔄 Updating existing campaign:', existingCampaignId);
+        
+        await autoSaveCampaign({
+          blocks,
+          campaign_name: campaignName,
+          subject_line: subjectLine,
+          preheader: preheaderText
+        });
+        
+        console.log('✅ Campaign updated successfully');
+        
+        toast({
+          title: "Campaign Updated!",
+          description: "Your email campaign has been updated successfully."
+        });
+        
+      } else {
+        // Create new campaign
+        console.log('➕ Creating new campaign');
+        
+        // Generate HTML content for the campaign
+        const htmlContent = generateEmailHTML();
+        
+        // Convert blocks to the format expected by the campaign service
+        const campaignBlocks = blocks.map((block, index) => ({
+          block_type: block.type as 'header' | 'text' | 'image' | 'button' | 'divider',
+          content: {
+            headline: block.headline,
+            body: block.body,
+            content: block.content,
+            layout: block.layout,
+            imageUrl: block.imageUrl,
+            altText: block.altText,
+            buttonText: block.buttonText,
+            buttonUrl: block.buttonUrl,
+            buttonColor: block.buttonColor,
+            backgroundColor: block.backgroundColor,
+            textAlign: block.textAlign,
+            fontSize: block.fontSize,
+            fontFamily: block.fontFamily
+          },
+          image_url: block.imageUrl,
+          cta_url: block.buttonUrl,
+          cta_text: block.buttonText,
+          source: block.source || 'manual',
+          order_index: index
+        }));
 
-      // Prepare campaign data for saving
-      const campaignData: CampaignData = {
-        name: campaignName,
-        subject: subjectLine,
-        sender_name: 'Brands in Blooms',
-        sender_email: 'hello@brandsinblooms.com',
-        content: htmlContent,
-        preheader: preheaderText,
-        segments: [], // Default empty segments for now
-        schedule: {
-          type: 'immediate'
-        },
-        content_blocks: campaignBlocks,
-        newsletter_sync: finalContentTaskId ? {
-          source_task_id: finalContentTaskId,
-          sync_status: 'synced',
-          original_blocks_count: blocks.length
-        } : undefined
-      };
+        // Prepare campaign data for saving
+        const campaignData: CampaignData = {
+          name: campaignName,
+          subject: subjectLine,
+          sender_name: 'Brands in Blooms',
+          sender_email: 'hello@brandsinblooms.com',
+          content: htmlContent,
+          preheader: preheaderText,
+          segments: [], // Default empty segments for now
+          schedule: {
+            type: 'immediate'
+          },
+          content_blocks: campaignBlocks,
+          newsletter_sync: finalContentTaskId ? {
+            source_task_id: finalContentTaskId,
+            sync_status: 'synced',
+            original_blocks_count: blocks.length
+          } : undefined
+        };
 
-      console.log('💾 Saving campaign to database:', {
-        name: campaignName,
-        subject: subjectLine,
-        preheader: preheaderText,
-        blocks: blocks.length,
-        hasSourceContent: !!finalContentTaskId
-      });
-      
-      // Save campaign using the service
-      const result = await saveCampaignAsDraft(campaignData);
-      
-      console.log('✅ Campaign saved successfully:', result);
+        console.log('💾 Saving new campaign to database:', {
+          name: campaignName,
+          subject: subjectLine,
+          preheader: preheaderText,
+          blocks: blocks.length,
+          hasSourceContent: !!finalContentTaskId
+        });
+        
+        // Save campaign using the service
+        const result = await saveCampaignAsDraft(campaignData);
+        
+        console.log('✅ Campaign created successfully:', result);
+        
+        toast({
+          title: "Campaign Created!",
+          description: "Your email campaign has been saved as a draft."
+        });
+      }
       
       setLastSaved(new Date());
       
-      toast({
-        title: "Campaign Saved!",
-        description: "Your email campaign has been saved as a draft."
-      });
+      // Navigate back to campaigns list
+      navigate('/crm/campaigns');
       
     } catch (error) {
       console.error('❌ Error saving campaign:', error);
@@ -1017,7 +1044,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Create Email Campaign</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {existingCampaignId ? 'Edit Email Campaign' : 'Create Email Campaign'}
+          </h1>
           <div className="flex items-center gap-3">
             <p className="text-muted-foreground">Build and customize your email campaign</p>
             <SaveIndicator 
@@ -1050,7 +1079,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             ) : (
               <>
                 <Mail className="h-4 w-4 mr-2" />
-                Save Campaign
+                {existingCampaignId ? 'Update Campaign' : 'Save Campaign'}
               </>
             )}
           </Button>
