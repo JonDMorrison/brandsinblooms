@@ -53,12 +53,19 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   const debouncedUpdate = useCallback(
     (() => {
       let timeoutId: NodeJS.Timeout;
-      return (updates: Partial<ContentBlock>) => {
+      const fn = (updates: Partial<ContentBlock>) => {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
           onUpdate(block.id, updates);
         }, 300);
       };
+      fn.flush = () => {
+        clearTimeout(timeoutId);
+      };
+      fn.cancel = () => {
+        clearTimeout(timeoutId);
+      };
+      return fn;
     })(),
     [block.id, onUpdate]
   );
@@ -165,6 +172,14 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                 <TextEditMode 
                   block={localBlock}
                   onUpdate={handleLocalUpdate}
+                  onSave={() => {
+                    debouncedUpdate.flush(); // Force save any pending changes
+                    exitEditMode(); // Exit text editing mode
+                  }}
+                  onCancel={() => {
+                    debouncedUpdate.cancel(); // Cancel any pending changes
+                    exitEditMode(); // Exit text editing mode
+                  }}
                 />
               </div>
             )}
