@@ -302,7 +302,7 @@ const CRMCustomers = () => {
                       <TableRow 
                         key={customer.id} 
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => navigate(`/crm/customers/${customer.id}`)}
+                        onClick={() => openCustomerProfile(customer)}
                       >
                         <TableCell className="font-medium">
                           {customer.first_name || customer.last_name 
