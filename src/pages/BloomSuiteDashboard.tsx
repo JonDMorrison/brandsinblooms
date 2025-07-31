@@ -31,11 +31,15 @@ export const BloomSuiteDashboard = () => {
   // Check if user should see the quick start tour
   useEffect(() => {
     const tourDone = localStorage.getItem('dashboardTourDone');
-    if (!tourDone) {
+    console.log('Tour check - tourDone:', tourDone, 'showQuickTour:', showQuickTour);
+    if (!tourDone && !showQuickTour) {
       // Show tour after a brief delay to let the page load
-      setTimeout(() => setShowQuickTour(true), 1000);
+      setTimeout(() => {
+        console.log('Setting showQuickTour to true');
+        setShowQuickTour(true);
+      }, 1000);
     }
-  }, []);
+  }, [showQuickTour]);
   
   const socialStatus = getConnectionStatus(socialConnections);
   const twilioStatus = getTwilioStatus(twilioData?.isSetup || false);

@@ -120,6 +120,13 @@ export const QuickStartTour = ({ isOpen, onClose }: QuickStartTourProps) => {
 
   const handleFinishTour = () => {
     localStorage.setItem('dashboardTourDone', 'true');
+    console.log('Tour finished - localStorage set');
+    onClose();
+  };
+
+  const handleClose = () => {
+    localStorage.setItem('dashboardTourDone', 'true');
+    console.log('Tour closed - localStorage set');
     onClose();
   };
 
@@ -127,7 +134,7 @@ export const QuickStartTour = ({ isOpen, onClose }: QuickStartTourProps) => {
   const currentStepData = tourSteps[currentStep];
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -136,7 +143,7 @@ export const QuickStartTour = ({ isOpen, onClose }: QuickStartTourProps) => {
               <span className="text-sm text-muted-foreground">
                 {currentStep + 1} of {tourSteps.length}
               </span>
-              <Button variant="ghost" size="sm" onClick={onClose}>
+              <Button variant="ghost" size="sm" onClick={handleClose}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
