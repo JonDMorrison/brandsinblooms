@@ -73,7 +73,66 @@ export const useCustomerSegments = (customerId?: string) => {
     mutationFn: async (segmentIds: string[]) => {
       if (!customerId) throw new Error('Customer ID required');
       
-      const insertData = segmentIds.map(segmentId => ({
+      // Check if any of the segments are predefined (non-UUID format)
+      const predefinedSegmentIds = segmentIds.filter(id => !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));
+      const uuidSegmentIds = segmentIds.filter(id => id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));
+      
+      // Create predefined segments in database if needed
+      const createdSegmentIds = [];
+      for (const predefinedId of predefinedSegmentIds) {
+        // Get predefined segment details
+        const predefinedSegments = [
+          { id: 'loyalty-members', name: 'Loyalty Members', description: 'Customers enrolled in your loyalty program with active engagement' },
+          { id: 'high-value', name: 'High-Value Customers', description: 'Top spending customers who drive significant revenue' },
+          { id: 'new-customers', name: 'New Customers', description: 'Recent customers who made their first purchase within 30 days' },
+          { id: 'lapsed-customers', name: 'Lapsed Customers', description: 'Previously active customers who haven\'t purchased in 90+ days' },
+          { id: 'seasonal-shoppers', name: 'Seasonal Shoppers', description: 'Customers who typically purchase during specific seasons or holidays' },
+          { id: 'frequent-buyers', name: 'Frequent Buyers', description: 'Customers with 3+ purchases in the last 6 months' },
+        ];
+        
+        const predefinedSegment = predefinedSegments.find(s => s.id === predefinedId);
+        if (predefinedSegment) {
+          // Get current user
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('User not authenticated');
+          
+          // Get current user's tenant
+          const { data: userData } = await supabase
+            .from('users')
+            .select('tenant_id')
+            .eq('id', user.id)
+            .single();
+          
+          if (userData?.tenant_id) {
+            // Create segment in crm_segments table
+            const { data: newSegment, error: createError } = await supabase
+              .from('crm_segments')
+              .insert({
+                name: predefinedSegment.name,
+                description: predefinedSegment.description,
+                tenant_id: userData.tenant_id,
+                user_id: user.id,
+                conditions: {},
+                customer_count: 0
+              })
+              .select('id')
+              .single();
+            
+            if (!createError && newSegment) {
+              createdSegmentIds.push(newSegment.id);
+            }
+          }
+        }
+      }
+      
+      // Combine all segment IDs (existing UUIDs + newly created UUIDs)
+      const allSegmentIds = [...uuidSegmentIds, ...createdSegmentIds];
+      
+      if (allSegmentIds.length === 0) {
+        throw new Error('No valid segments to assign');
+      }
+      
+      const insertData = allSegmentIds.map(segmentId => ({
         customer_id: customerId,
         segment_id: segmentId
       }));
