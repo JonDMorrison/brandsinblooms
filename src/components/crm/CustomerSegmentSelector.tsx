@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Users, X, Loader2 } from "lucide-react";
 import { useCustomerSegments } from "@/hooks/useCustomerSegments";
-import { useCRMSegments } from "@/hooks/useCRMSegments";
+import { useAllSegments } from "@/hooks/useAllSegments";
 
 interface CustomerSegmentSelectorProps {
   customerId: string;
@@ -19,7 +19,7 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
   const [processingSegments, setProcessingSegments] = useState<Set<string>>(new Set());
 
   const { customerSegments, isLoading, addSegments, removeSegment, isAddingSegments, isRemovingSegment } = useCustomerSegments(customerId);
-  const { segments: availableSegments, loading: segmentsLoading } = useCRMSegments();
+  const { segments: availableSegments, loading: segmentsLoading } = useAllSegments();
 
   // Get assigned segment IDs for easy lookup
   const assignedSegmentIds = new Set(customerSegments.map(cs => cs.segment_id));
