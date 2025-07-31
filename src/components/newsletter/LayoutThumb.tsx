@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Check } from 'lucide-react';
 import { NewsletterTemplate } from '@/types/newsletter';
 import { cn } from '@/lib/utils';
+import '@/styles/newsletter-layouts.css';
 
 interface LayoutThumbProps {
   template: NewsletterTemplate;
@@ -35,20 +36,21 @@ export const LayoutThumb: React.FC<LayoutThumbProps> = ({
         )}
 
         {/* Layout thumbnail */}
-        <div className="aspect-[4/5] bg-gradient-to-b from-muted to-background border rounded-md mb-3 relative overflow-hidden">
-          <img 
-            src={template.thumbnail} 
-            alt={template.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              // Fallback to pattern-based preview if image fails
-              e.currentTarget.style.display = 'none';
-              const parent = e.currentTarget.parentElement;
-              if (parent) {
-                parent.innerHTML = getLayoutPattern(template.layout);
-              }
-            }}
-          />
+        <div className={cn(
+          "aspect-[4/5] border rounded-md mb-3 relative overflow-hidden",
+          `newsletter-layout-${template.layout}`
+        )}>
+          {template.thumbnail && (
+            <img 
+              src={template.thumbnail} 
+              alt={template.name}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Hide the image and show CSS pattern instead
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          )}
         </div>
 
         {/* Template info */}

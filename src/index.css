@@ -5,6 +5,7 @@
 @import './styles/overrides/production-cleanup.css';
 @import './styles/mobile/campaign-creator.css';
 @import './styles/click-to-edit.css';
+@import './styles/newsletter-layouts.css';
 
 /* Checkered background pattern for image transparency */
 .bg-checkered {

@@ -297,6 +297,109 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     const checkExistingCampaign = async () => {
       console.log('🔍 CRMCampaignCreator: Starting campaign check', { campaignSlug, finalContentTaskId });
       
+      // Handle newsletter template processing (from picker)
+      const templateId = searchParams.get('templateId');
+      const layout = searchParams.get('layout');
+      const source = searchParams.get('source');
+      
+      if (templateId && source === 'picker') {
+        console.log('🎨 Processing newsletter template:', { templateId, layout });
+        try {
+          setLoading(true);
+          
+          // Fetch the newsletter ideas to get the template
+          const { data, error } = await supabase.rpc('fn_get_newsletter_ideas');
+          
+          if (error) throw error;
+          
+          const ideas = Array.isArray(data) ? data as any[] : [];
+          const selectedIdea = ideas.find(idea => idea.id === templateId);
+          
+          if (selectedIdea) {
+            console.log('✅ Found template idea:', selectedIdea.title);
+            
+            // Set campaign details from template
+            setCampaignName(selectedIdea.title || 'Newsletter Campaign');
+            setSubjectLine(selectedIdea.title || 'Newsletter');
+            setPreheaderText(generatePreheaderText(selectedIdea.description || '', selectedIdea.title || ''));
+            
+            // Convert template blocks to CRM blocks
+            const templateBlocks = selectedIdea.templateBlocks || [];
+            const crmBlocks: ContentBlock[] = templateBlocks.map((block: any, index: number) => ({
+              id: `block_${Date.now()}_${index}`,
+              type: block.type || 'text',
+              title: block.title || '',
+              content: block.content || '',
+              headline: block.title || '',
+              body: block.content || '',
+              imageUrl: '', // Will be filled by image processing
+              ctaText: block.buttonText || '',
+              ctaUrl: block.buttonUrl || '#',
+              source: 'newsletter',
+              personaTag: selectedIdea.category || 'general',
+              layout: layout as any || 'full-width',
+              alignment: 'left',
+              textAlign: 'left',
+              padding: 'medium',
+              visible: true,
+              collapsed: false
+            }));
+            
+            setBlocks(crmBlocks);
+            
+            // Generate and auto-fill images based on heroQuery
+            if (selectedIdea.heroQuery && crmBlocks.length > 0) {
+              setTimeout(async () => {
+                try {
+                  const { data: imageData } = await supabase.functions.invoke('get-unsplash-image', {
+                    body: { query: selectedIdea.heroQuery }
+                  });
+                  
+                  if (imageData?.urls?.regular) {
+                    // Update the first image block with the hero image
+                    const imageBlockIndex = crmBlocks.findIndex(block => 
+                      block.type === 'image' || block.type === 'image-text' || block.type === 'header'
+                    );
+                    
+                    if (imageBlockIndex >= 0) {
+                      setBlocks(prev => prev.map((block, index) => 
+                        index === imageBlockIndex 
+                          ? { ...block, imageUrl: imageData.urls.regular, altText: imageData.alt_description || selectedIdea.title }
+                          : block
+                      ));
+                    }
+                  }
+                } catch (error) {
+                  console.error('Failed to fetch hero image:', error);
+                }
+              }, 1000);
+            }
+            
+            toast({
+              title: "Template Applied",
+              description: `Newsletter template "${selectedIdea.title}" has been applied successfully.`,
+            });
+          } else {
+            console.warn('⚠️ Template not found:', templateId);
+            toast({
+              title: "Template Not Found",
+              description: "The selected template could not be loaded. Starting with a blank campaign.",
+              variant: "destructive"
+            });
+          }
+        } catch (error) {
+          console.error('❌ Error processing template:', error);
+          toast({
+            title: "Template Error",
+            description: "Failed to load the selected template. Starting with a blank campaign.",
+            variant: "destructive"
+          });
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+      
       // Handle direct campaign slug (when editing existing campaign)
       // This takes priority over content task conversion
       if (campaignSlug) {

@@ -14,22 +14,22 @@ export const useNewsletterIdeas = () => {
       id: 'classic',
       name: 'Classic',
       layout: 'classic',
-      thumbnail: '/newsletter-layouts/classic.png',
+      thumbnail: '', // Using CSS patterns instead
       description: 'Traditional newsletter layout with header, content blocks, and footer',
       isDefault: true
     },
     {
       id: 'magazine',
       name: 'Magazine',
-      layout: 'magazine',
-      thumbnail: '/newsletter-layouts/magazine.png',
+      layout: 'magazine', 
+      thumbnail: '', // Using CSS patterns instead
       description: 'Modern magazine-style layout with sidebar and featured content'
     },
     {
       id: 'minimal',
       name: 'One Column',
       layout: 'one-column',
-      thumbnail: '/newsletter-layouts/one-column.png',
+      thumbnail: '', // Using CSS patterns instead
       description: 'Clean, minimal single-column layout for easy reading'
     }
   ];
@@ -39,9 +39,17 @@ export const useNewsletterIdeas = () => {
       setLoading(true);
       setError(null);
 
-      // For now, use fallback data until we create the RPC function
-      // TODO: Implement the actual RPC function fn_get_newsletter_ideas
-      setIdeas(getFallbackIdeas());
+      // Call the RPC function to get newsletter ideas
+      const { data, error: rpcError } = await supabase
+        .rpc('fn_get_newsletter_ideas');
+
+      if (rpcError) {
+        throw rpcError;
+      }
+
+      // Convert the JSONB data to the expected format
+      const ideasArray = Array.isArray(data) ? (data as unknown) as NewsletterIdea[] : [];
+      setIdeas(ideasArray);
       setTemplates(defaultTemplates);
     } catch (err) {
       console.error('Error fetching newsletter ideas:', err);

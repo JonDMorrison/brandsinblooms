@@ -78,7 +78,7 @@ export const BloomSuiteDashboard = () => {
       gradient: 'from-blue-50 to-blue-100',
       primaryAction: {
         label: 'Create Newsletter',
-        onClick: () => navigate('/crm/campaigns/new?type=newsletter')
+        onClick: () => navigate('/newsletters/new')
       },
       secondaryAction: {
         label: 'Browse Templates',

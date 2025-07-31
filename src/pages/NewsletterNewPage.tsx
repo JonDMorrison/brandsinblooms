@@ -58,7 +58,11 @@ export const NewsletterNewPage: React.FC = () => {
             <p className="text-sm text-muted-foreground mb-4">
               Begin with an empty canvas and build your newsletter exactly as you envision it.
             </p>
-            <Button variant="outline" className="w-full">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => window.location.href = '/crm/campaigns/new?type=newsletter'}
+            >
               <Plus className="w-4 h-4 mr-2" />
               Start Blank
             </Button>
