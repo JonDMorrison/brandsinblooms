@@ -82,8 +82,11 @@ export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
         variant="ghost"
         size="sm"
         onClick={(e) => {
+          console.log('🗑️ Delete button clicked!', e);
           e.stopPropagation();
+          console.log('🗑️ Calling onDelete function...');
           onDelete();
+          console.log('🗑️ onDelete function called');
         }}
         className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground"
         title="Delete block"

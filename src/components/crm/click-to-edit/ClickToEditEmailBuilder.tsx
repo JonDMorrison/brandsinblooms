@@ -117,7 +117,11 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   }, [blocks, onBlocksChange]);
 
   const removeBlock = (id: string) => {
-    onBlocksChange(blocks.filter(block => block.id !== id));
+    console.log('🗑️ removeBlock called with id:', id);
+    console.log('🗑️ Current blocks before removal:', blocks.map(b => ({ id: b.id, type: b.type })));
+    const filteredBlocks = blocks.filter(block => block.id !== id);
+    console.log('🗑️ Filtered blocks after removal:', filteredBlocks.map(b => ({ id: b.id, type: b.type })));
+    onBlocksChange(filteredBlocks);
   };
 
   const duplicateBlock = (block: ContentBlock) => {
