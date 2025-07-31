@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Users, Plus, X } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Users, X, Loader2 } from "lucide-react";
 import { useCustomerSegments } from "@/hooks/useCustomerSegments";
 import { useCRMSegments } from "@/hooks/useCRMSegments";
 
@@ -14,34 +15,35 @@ interface CustomerSegmentSelectorProps {
 }
 
 export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorProps) => {
-  const [showSelector, setShowSelector] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
+  const [processingSegments, setProcessingSegments] = useState<Set<string>>(new Set());
 
-  const { customerSegments, isLoading, addSegments, removeSegment } = useCustomerSegments(customerId);
+  const { customerSegments, isLoading, addSegments, removeSegment, isAddingSegments, isRemovingSegment } = useCustomerSegments(customerId);
   const { segments: availableSegments, loading: segmentsLoading } = useCRMSegments();
 
-  // Filter available segments to exclude already assigned ones
-  const assignedSegmentIds = customerSegments.map(cs => cs.segment_id);
-  const unassignedSegments = availableSegments.filter(
-    segment => !assignedSegmentIds.includes(segment.id) &&
+  // Get assigned segment IDs for easy lookup
+  const assignedSegmentIds = new Set(customerSegments.map(cs => cs.segment_id));
+  
+  // Filter all segments based on search term
+  const filteredSegments = availableSegments.filter(segment =>
     segment.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSegmentToggle = (segmentId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedSegmentIds(prev => [...prev, segmentId]);
-    } else {
-      setSelectedSegmentIds(prev => prev.filter(id => id !== segmentId));
-    }
-  };
-
-  const handleAddSelectedSegments = () => {
-    if (selectedSegmentIds.length > 0) {
-      addSegments(selectedSegmentIds);
-      setSelectedSegmentIds([]);
-      setShowSelector(false);
-      setSearchTerm("");
+  const handleSegmentToggle = async (segmentId: string, isCurrentlyAssigned: boolean) => {
+    setProcessingSegments(prev => new Set(prev).add(segmentId));
+    
+    try {
+      if (isCurrentlyAssigned) {
+        await removeSegment(segmentId);
+      } else {
+        await addSegments([segmentId]);
+      }
+    } finally {
+      setProcessingSegments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(segmentId);
+        return newSet;
+      });
     }
   };
 
@@ -53,22 +55,19 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
     return <div className="text-sm text-muted-foreground">Loading segments...</div>;
   }
 
+  const assignedCount = customerSegments.length;
+  const totalCount = availableSegments.length;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">Segments</Label>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => setShowSelector(!showSelector)}
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Add Segments
-        </Button>
+        <Label className="text-sm font-medium">
+          Segments ({assignedCount}/{totalCount})
+        </Label>
       </div>
 
-      {/* Display assigned segments */}
-      {customerSegments.length > 0 ? (
+      {/* Display assigned segments as badges */}
+      {customerSegments.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {customerSegments.map((customerSegment) => (
             <Badge 
@@ -86,48 +85,60 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
                 size="sm"
                 className="h-4 w-4 p-0 hover:bg-transparent"
                 onClick={() => handleRemoveSegment(customerSegment.segment_id)}
+                disabled={isRemovingSegment}
               >
                 <X className="h-3 w-3" />
               </Button>
             </Badge>
           ))}
         </div>
-      ) : (
-        <div className="text-sm text-muted-foreground">No segments assigned</div>
       )}
 
-      {/* Segment selection interface */}
-      {showSelector && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Add Customer to Segments</CardTitle>
-            <Input
-              placeholder="Search segments..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="mt-2"
-            />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {segmentsLoading ? (
-              <div className="text-sm text-muted-foreground">Loading available segments...</div>
-            ) : unassignedSegments.length > 0 ? (
-              <>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {unassignedSegments.map((segment) => (
-                    <div key={segment.id} className="flex items-start space-x-3 p-2 hover:bg-muted/50 rounded-md">
-                      <Checkbox
-                        id={segment.id}
-                        checked={selectedSegmentIds.includes(segment.id)}
-                        onCheckedChange={(checked) => handleSegmentToggle(segment.id, !!checked)}
-                      />
+      {/* All segments list with real-time toggle */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">All Segments</CardTitle>
+          <Input
+            placeholder="Search segments..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="mt-2"
+          />
+        </CardHeader>
+        <CardContent>
+          {segmentsLoading ? (
+            <div className="text-sm text-muted-foreground py-4">Loading segments...</div>
+          ) : filteredSegments.length > 0 ? (
+            <ScrollArea className="h-64">
+              <div className="space-y-2 pr-4">
+                {filteredSegments.map((segment) => {
+                  const isAssigned = assignedSegmentIds.has(segment.id);
+                  const isProcessing = processingSegments.has(segment.id);
+                  
+                  return (
+                    <div key={segment.id} className="flex items-start space-x-3 p-3 hover:bg-muted/50 rounded-md border border-transparent hover:border-border/50 transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 mt-0.5">
+                        {isProcessing ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Checkbox
+                            id={segment.id}
+                            checked={isAssigned}
+                            onCheckedChange={() => handleSegmentToggle(segment.id, isAssigned)}
+                            disabled={isProcessing || isAddingSegments || isRemovingSegment}
+                          />
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <label htmlFor={segment.id} className="cursor-pointer">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm">{segment.name}</span>
+                            <span className={`font-medium text-sm ${isAssigned ? 'text-brand-teal' : ''}`}>
+                              {segment.name}
+                            </span>
                             <Badge variant="secondary" className="text-xs">
                               {segment.customer_count} customers
                             </Badge>
+                            {isAssigned && <Badge variant="outline" className="text-xs bg-brand-teal/10 border-brand-teal/20 text-brand-teal">Assigned</Badge>}
                           </div>
                           {segment.description && (
                             <p className="text-xs text-muted-foreground mt-1">{segment.description}</p>
@@ -135,38 +146,17 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
                         </label>
                       </div>
                     </div>
-                  ))}
-                </div>
-                
-                <div className="flex gap-2 pt-3 border-t">
-                  <Button 
-                    onClick={handleAddSelectedSegments}
-                    disabled={selectedSegmentIds.length === 0}
-                    size="sm"
-                  >
-                    Add Selected ({selectedSegmentIds.length})
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setShowSelector(false);
-                      setSelectedSegmentIds([]);
-                      setSearchTerm("");
-                    }}
-                    size="sm"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="text-sm text-muted-foreground text-center py-4">
-                {searchTerm ? 'No segments match your search' : 'All available segments are already assigned'}
+                  );
+                })}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            </ScrollArea>
+          ) : (
+            <div className="text-sm text-muted-foreground text-center py-8">
+              {searchTerm ? 'No segments match your search' : 'No segments available'}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
