@@ -41,6 +41,12 @@ type Customer = {
   phone: string | null;
   persona: string | null;
   persona_id: string | null;
+  personas?: {
+    id: string;
+    name: string;
+    icon: string;
+    color_theme: string;
+  } | null;
   tags: string[] | null;
   last_purchase_date: string | null;
   lifetime_value: number | null;
@@ -82,7 +88,15 @@ const CRMCustomers = () => {
     queryFn: async () => {
       let query = supabase
         .from('crm_customers')
-        .select('*')
+        .select(`
+          *,
+          personas:persona_id (
+            id,
+            name,
+            icon,
+            color_theme
+          )
+        `)
         .order(sortBy, { ascending: sortBy === 'first_name' });
 
       if (searchTerm) {
@@ -90,7 +104,8 @@ const CRMCustomers = () => {
       }
 
       if (personaFilter !== 'all') {
-        query = query.eq('persona', personaFilter);
+        // Filter by persona name if we have persona data
+        query = query.eq('personas.name', personaFilter);
       }
 
       if (smsOptInFilter !== 'all') {
@@ -316,9 +331,17 @@ const CRMCustomers = () => {
                         <TableCell>{customer.email}</TableCell>
                         <TableCell>{customer.phone || '-'}</TableCell>
                         <TableCell>
-                          {customer.persona ? (
-                            <Badge className={getPersonaColor(customer.persona)}>
-                              {customer.persona.charAt(0).toUpperCase() + customer.persona.slice(1)}
+                          {customer.personas ? (
+                            <Badge 
+                              className="inline-flex items-center gap-1"
+                              style={{ 
+                                backgroundColor: customer.personas.color_theme + '20',
+                                color: customer.personas.color_theme,
+                                borderColor: customer.personas.color_theme + '40'
+                              }}
+                            >
+                              <span className="text-sm">{customer.personas.icon}</span>
+                              {customer.personas.name}
                             </Badge>
                           ) : (
                             <span className="text-muted-foreground">-</span>
