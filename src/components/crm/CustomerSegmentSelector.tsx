@@ -96,10 +96,10 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
         <CardContent>
           {segmentsLoading ? (
             <div className="text-sm text-muted-foreground py-4">Loading segments...</div>
-          ) : availableSegments.length > 0 ? (
+          ) : availableSegments.filter(segment => !assignedSegmentIds.has(segment.id)).length > 0 ? (
             <ScrollArea className="h-64">
               <div className="space-y-2 pr-4">
-                {availableSegments.map((segment) => {
+                {availableSegments.filter(segment => !assignedSegmentIds.has(segment.id)).map((segment) => {
                   const isAssigned = assignedSegmentIds.has(segment.id);
                   const isProcessing = processingSegments.has(segment.id);
                   
