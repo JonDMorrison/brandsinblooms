@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { LaunchpadModal } from "@/components/dashboard/LaunchpadModal";
+import { NewsletterTemplateDrawer } from "@/components/dashboard/NewsletterTemplateDrawer";
+import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
+import { PostComposerModal } from "@/components/dashboard/PostComposerModal";
 import { useConnectedAccounts, getConnectionStatus } from "@/components/dashboard/ConnectedAccountChecker";
 import { useTwilioSetup, getTwilioStatus } from "@/components/dashboard/TwilioSetupChecker";
 import { Button } from "@/components/ui/button";
@@ -18,9 +21,21 @@ import {
 export const BloomSuiteDashboard = () => {
   const navigate = useNavigate();
   const [showLaunchpad, setShowLaunchpad] = useState(false);
+  const [showNewsletterDrawer, setShowNewsletterDrawer] = useState(false);
+  const [showPostComposer, setShowPostComposer] = useState(false);
+  const [showQuickTour, setShowQuickTour] = useState(false);
   
   const { data: socialConnections = [], isLoading: loadingConnections } = useConnectedAccounts();
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
+
+  // Check if user should see the quick start tour
+  useEffect(() => {
+    const tourDone = localStorage.getItem('dashboardTourDone');
+    if (!tourDone) {
+      // Show tour after a brief delay to let the page load
+      setTimeout(() => setShowQuickTour(true), 1000);
+    }
+  }, []);
   
   const socialStatus = getConnectionStatus(socialConnections);
   const twilioStatus = getTwilioStatus(twilioData?.isSetup || false);
@@ -28,16 +43,20 @@ export const BloomSuiteDashboard = () => {
   const handleSelectAction = (action: string) => {
     switch (action) {
       case 'newsletter':
-        navigate('/crm/campaigns/new');
+        navigate('/crm/campaigns/new?type=newsletter');
         break;
       case 'social-post':
-        navigate('/social-accounts');
+        setShowPostComposer(true);
         break;
       case 'campaign':
-        navigate('/crm/campaigns/new');
+        navigate('/crm/automations/new?mode=quick');
         break;
       case 'content-calendar':
         navigate('/calendar');
+        // Set flag for first-time calendar onboarding
+        if (!localStorage.getItem('calendarOnboard')) {
+          localStorage.setItem('calendarOnboard', 'true');
+        }
         break;
       case 'dashboard':
       default:
@@ -55,11 +74,11 @@ export const BloomSuiteDashboard = () => {
       gradient: 'from-blue-50 to-blue-100',
       primaryAction: {
         label: 'Create Newsletter',
-        onClick: () => navigate('/crm/campaigns/new')
+        onClick: () => navigate('/crm/campaigns/new?type=newsletter')
       },
       secondaryAction: {
         label: 'Browse Templates',
-        onClick: () => navigate('/crm/campaigns')
+        onClick: () => setShowNewsletterDrawer(true)
       },
       status: 'ready' as const,
       statusMessage: 'Email system ready'
@@ -72,11 +91,11 @@ export const BloomSuiteDashboard = () => {
       gradient: 'from-green-50 to-green-100',
       primaryAction: {
         label: 'Build Campaign',
-        onClick: () => navigate('/crm/campaigns/new')
+        onClick: () => navigate('/crm/automations/new?mode=quick')
       },
       secondaryAction: {
         label: 'View Automations',
-        onClick: () => navigate('/automation')
+        onClick: () => navigate('/crm/automations')
       },
       status: twilioStatus.status,
       statusMessage: twilioStatus.statusMessage
@@ -123,7 +142,7 @@ export const BloomSuiteDashboard = () => {
       gradient: 'from-pink-50 to-pink-100',
       primaryAction: {
         label: 'Create Post',
-        onClick: () => navigate('/publish')
+        onClick: () => setShowPostComposer(true)
       },
       secondaryAction: {
         label: 'Manage Accounts',
@@ -147,14 +166,29 @@ export const BloomSuiteDashboard = () => {
           <p className="text-xl text-gray-600 mb-6">
             Your complete marketing command center
           </p>
-          <Button 
-            variant="outline" 
-            onClick={() => setShowLaunchpad(true)}
-            className="mb-8"
-          >
-            <HelpCircle className="w-4 h-4 mr-2" />
-            Not sure where to start?
-          </Button>
+          
+          {/* Quick Help Banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 max-w-md mx-auto">
+            <p className="text-blue-900 text-sm mb-2">Not sure where to start?</p>
+            <div className="flex gap-2 justify-center">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowQuickTour(true)}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Quick Tour
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowLaunchpad(true)}
+              >
+                <HelpCircle className="w-4 h-4 mr-2" />
+                Get Help
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Dashboard Cards Grid */}
@@ -189,11 +223,26 @@ export const BloomSuiteDashboard = () => {
 
       </div>
 
-      {/* Getting Started Modal */}
+      {/* Modals and Drawers */}
       <LaunchpadModal 
         isOpen={showLaunchpad}
         onClose={() => setShowLaunchpad(false)}
         onSelectAction={handleSelectAction}
+      />
+
+      <NewsletterTemplateDrawer
+        isOpen={showNewsletterDrawer}
+        onClose={() => setShowNewsletterDrawer(false)}
+      />
+
+      <PostComposerModal
+        isOpen={showPostComposer}
+        onClose={() => setShowPostComposer(false)}
+      />
+
+      <QuickStartTour
+        isOpen={showQuickTour}
+        onClose={() => setShowQuickTour(false)}
       />
     </div>
   );
