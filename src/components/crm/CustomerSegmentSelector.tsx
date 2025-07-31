@@ -16,6 +16,7 @@ interface CustomerSegmentSelectorProps {
 
 export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorProps) => {
   const [processingSegments, setProcessingSegments] = useState<Set<string>>(new Set());
+  const [showAllSegments, setShowAllSegments] = useState(true);
 
   const { customerSegments, isLoading, addSegments, removeSegment, isAddingSegments, isRemovingSegment } = useCustomerSegments(customerId);
   const { segments: availableSegments, loading: segmentsLoading } = useAllSegments();
@@ -89,62 +90,80 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
       )}
 
       {/* All segments list with real-time toggle */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">All Segments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {segmentsLoading ? (
-            <div className="text-sm text-muted-foreground py-4">Loading segments...</div>
-          ) : availableSegments.filter(segment => !assignedSegmentIds.has(segment.id)).length > 0 ? (
-            <ScrollArea className="h-64">
-              <div className="space-y-2 pr-4">
-                {availableSegments.filter(segment => !assignedSegmentIds.has(segment.id)).map((segment) => {
-                  const isAssigned = assignedSegmentIds.has(segment.id);
-                  const isProcessing = processingSegments.has(segment.id);
-                  
-                  return (
-                    <div key={segment.id} className="flex items-start space-x-3 p-3 hover:bg-muted/50 rounded-md border border-transparent hover:border-border/50 transition-colors">
-                      <div className="flex items-center justify-center w-5 h-5 mt-0.5">
-                        {isProcessing ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Checkbox
-                            id={segment.id}
-                            checked={isAssigned}
-                            onCheckedChange={() => handleSegmentToggle(segment.id, isAssigned)}
-                            disabled={isProcessing || isAddingSegments || isRemovingSegment}
-                          />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <label htmlFor={segment.id} className="cursor-pointer">
-                          <div className="flex items-center gap-2">
-                            <span className={`font-medium text-sm ${isAssigned ? 'text-brand-teal' : ''}`}>
-                              {segment.name}
-                            </span>
-                            <Badge variant="secondary" className="text-xs">
-                              {segment.customer_count} customers
-                            </Badge>
-                            {isAssigned && <Badge variant="outline" className="text-xs bg-brand-teal/10 border-brand-teal/20 text-brand-teal">Assigned</Badge>}
-                          </div>
-                          {segment.description && (
-                            <p className="text-xs text-muted-foreground mt-1">{segment.description}</p>
+      {showAllSegments ? (
+        <Card>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-base">All Segments</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => setShowAllSegments(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {segmentsLoading ? (
+              <div className="text-sm text-muted-foreground py-4">Loading segments...</div>
+            ) : availableSegments.filter(segment => !assignedSegmentIds.has(segment.id)).length > 0 ? (
+              <ScrollArea className="h-64">
+                <div className="space-y-2 pr-4">
+                  {availableSegments.filter(segment => !assignedSegmentIds.has(segment.id)).map((segment) => {
+                    const isAssigned = assignedSegmentIds.has(segment.id);
+                    const isProcessing = processingSegments.has(segment.id);
+                    
+                    return (
+                      <div key={segment.id} className="flex items-start space-x-3 p-3 hover:bg-muted/50 rounded-md border border-transparent hover:border-border/50 transition-colors">
+                        <div className="flex items-center justify-center w-5 h-5 mt-0.5">
+                          {isProcessing ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Checkbox
+                              id={segment.id}
+                              checked={isAssigned}
+                              onCheckedChange={() => handleSegmentToggle(segment.id, isAssigned)}
+                              disabled={isProcessing || isAddingSegments || isRemovingSegment}
+                            />
                           )}
-                        </label>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <label htmlFor={segment.id} className="cursor-pointer">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-medium text-sm ${isAssigned ? 'text-brand-teal' : ''}`}>
+                                {segment.name}
+                              </span>
+                              <Badge variant="secondary" className="text-xs">
+                                {segment.customer_count} customers
+                              </Badge>
+                              {isAssigned && <Badge variant="outline" className="text-xs bg-brand-teal/10 border-brand-teal/20 text-brand-teal">Assigned</Badge>}
+                            </div>
+                            {segment.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{segment.description}</p>
+                            )}
+                          </label>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-sm text-muted-foreground text-center py-8">
+                No segments available
               </div>
-            </ScrollArea>
-          ) : (
-            <div className="text-sm text-muted-foreground text-center py-8">
-              No segments available
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Button
+          variant="outline"
+          onClick={() => setShowAllSegments(true)}
+          className="w-full justify-center"
+        >
+          Show All Segments
+        </Button>
+      )}
     </div>
   );
 };
