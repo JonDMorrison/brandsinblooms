@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -43,6 +45,8 @@ const AddCustomer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { tenant } = useTenant();
   
   const [formData, setFormData] = useState<CustomerFormData>({
     email: '',
@@ -74,6 +78,14 @@ const AddCustomer = () => {
 
   const addCustomerMutation = useMutation({
     mutationFn: async (customerData: CustomerFormData) => {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
+      if (!tenant?.id) {
+        throw new Error('Tenant not found');
+      }
+
       const dataToInsert = {
         email: customerData.email,
         first_name: customerData.first_name || null,
@@ -88,7 +100,9 @@ const AddCustomer = () => {
         custom_fields: {
           ...customerData.custom_fields,
           notes: customerData.notes
-        }
+        },
+        user_id: user.id,
+        tenant_id: tenant.id
       };
       
       const { data, error } = await supabase
@@ -97,7 +111,10 @@ const AddCustomer = () => {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
