@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Plus, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { CustomerImportDialog } from '@/components/crm/customers/CustomerImportDialog';
 
 export const CRMCustomersPage: React.FC = () => {
   const navigate = useNavigate();
@@ -12,10 +13,13 @@ export const CRMCustomersPage: React.FC = () => {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Customers</h1>
-        <Button onClick={() => navigate('/crm/customers/new')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Customer
-        </Button>
+        <div className="flex gap-2">
+          <CustomerImportDialog />
+          <Button onClick={() => navigate('/crm/customers/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Customer
+          </Button>
+        </div>
       </div>
       
       <Card>
