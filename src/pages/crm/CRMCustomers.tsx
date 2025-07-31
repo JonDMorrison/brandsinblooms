@@ -357,7 +357,7 @@ const CRMCustomers = () => {
 
         {/* Customer Profile Sheet */}
         <Sheet open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-          <SheetContent className="w-[600px] sm:max-w-[600px]">
+          <SheetContent className="w-[600px] sm:max-w-[600px] bg-white">
             <SheetHeader>
               <SheetTitle className="flex items-center justify-between">
                 Customer Profile
