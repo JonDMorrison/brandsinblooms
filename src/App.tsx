@@ -22,6 +22,7 @@ import { CRMPersonasPage } from '@/pages/crm/CRMPersonasPage';
 import { CRMPersonaAnalyticsPage } from '@/pages/crm/CRMPersonaAnalyticsPage';
 import { CRMAnalyticsPage } from '@/pages/crm/CRMAnalyticsPage';
 import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
+import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
@@ -38,6 +39,13 @@ function App() {
           </ProtectedRoute>
         } />
         <Route path="/" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <BloomSuiteDashboard />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/legacy" element={
           <ProtectedRoute>
             <SidebarLayout>
               <ContentGenerationProvider>
