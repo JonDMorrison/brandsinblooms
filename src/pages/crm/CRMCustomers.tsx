@@ -30,6 +30,8 @@ import {
   X
 } from 'lucide-react';
 import { CustomerImportModal } from '@/components/crm/CustomerImportModal';
+import { PersonaSelector } from '@/components/crm/personas/PersonaSelector';
+import { CustomerSegmentSelector } from '@/components/crm/CustomerSegmentSelector';
 
 type Customer = {
   id: string;
@@ -38,6 +40,7 @@ type Customer = {
   last_name: string | null;
   phone: string | null;
   persona: string | null;
+  persona_id: string | null;
   tags: string[] | null;
   last_purchase_date: string | null;
   lifetime_value: number | null;
@@ -400,30 +403,13 @@ const CRMCustomers = () => {
                   </div>
                 </div>
 
-                {/* Persona and SMS */}
+                {/* Persona Selection */}
                 <div className="space-y-4">
-                  <div>
-                    <Label>Gardening Persona</Label>
-                    <Select 
-                      value={selectedCustomer.persona || ''} 
-                      onValueChange={(value) => updateCustomer({ persona: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select persona..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="plant-killer pam">Plant-Killer Pam</SelectItem>
-                        <SelectItem value="curb appeal ashley">Curb Appeal Ashley</SelectItem>
-                        <SelectItem value="diy dana">DIY Dana</SelectItem>
-                        <SelectItem value="patio gardener gail">Patio Gardener Gail</SelectItem>
-                        <SelectItem value="pet-friendly hannah">Pet-Friendly Hannah</SelectItem>
-                        <SelectItem value="pollinator paula">Pollinator Paula</SelectItem>
-                        <SelectItem value="sustainable susie">Sustainable Susie</SelectItem>
-                        <SelectItem value="vegetable garden veronica">Vegetable Garden Veronica</SelectItem>
-                        <SelectItem value="wellness whitney">Wellness Whitney</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <PersonaSelector 
+                    value={selectedCustomer.persona_id}
+                    onChange={(personaId) => updateCustomer({ persona_id: personaId })}
+                    customerId={selectedCustomer.id}
+                  />
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -449,6 +435,9 @@ const CRMCustomers = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Segment Management */}
+                <CustomerSegmentSelector customerId={selectedCustomer.id} />
 
                 {/* Tags */}
                 <div>
@@ -520,9 +509,6 @@ const CRMCustomers = () => {
                       Send SMS
                     </Button>
                   )}
-                  <Button variant="outline" className="flex-1">
-                    Add to Segment
-                  </Button>
                 </div>
               </div>
             )}

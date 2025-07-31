@@ -1252,6 +1252,41 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_segments: {
+        Row: {
+          assigned_at: string
+          assigned_by_user_id: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          segment_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by_user_id?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          segment_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by_user_id?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          segment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_customer_segments_customer"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_timeline: {
         Row: {
           activity_type: string
