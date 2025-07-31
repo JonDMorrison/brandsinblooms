@@ -33,7 +33,7 @@ export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
     <div className={cn(
       "absolute top-2 right-2 flex items-center gap-1",
       "bg-background/95 backdrop-blur-sm border rounded-md shadow-sm p-1",
-      "opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10",
+      "opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50",
       className
     )}>
       {/* Edit Text */}
