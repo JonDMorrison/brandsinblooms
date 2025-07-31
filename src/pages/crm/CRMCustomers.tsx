@@ -359,16 +359,7 @@ const CRMCustomers = () => {
         <Sheet open={isProfileOpen} onOpenChange={setIsProfileOpen}>
           <SheetContent className="w-[600px] sm:max-w-[600px] bg-white">
             <SheetHeader>
-              <SheetTitle className="flex items-center justify-between">
-                Customer Profile
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setIsProfileOpen(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </SheetTitle>
+              <SheetTitle>Customer Profile</SheetTitle>
             </SheetHeader>
             
             {selectedCustomer && (
