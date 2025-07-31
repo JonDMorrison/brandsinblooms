@@ -2913,6 +2913,10 @@ export type Database = {
         Args: { feature_name: string }
         Returns: boolean
       }
+      fn_get_newsletter_ideas: {
+        Args: { p_user_id?: string }
+        Returns: Json
+      }
       get_admin_user_data: {
         Args: Record<PropertyKey, never>
         Returns: {
