@@ -15,7 +15,6 @@ interface CustomerSegmentSelectorProps {
 }
 
 export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorProps) => {
-  const [searchTerm, setSearchTerm] = useState("");
   const [processingSegments, setProcessingSegments] = useState<Set<string>>(new Set());
 
   const { customerSegments, isLoading, addSegments, removeSegment, isAddingSegments, isRemovingSegment } = useCustomerSegments(customerId);
@@ -23,11 +22,6 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
 
   // Get assigned segment IDs for easy lookup
   const assignedSegmentIds = new Set(customerSegments.map(cs => cs.segment_id));
-  
-  // Filter all segments based on search term
-  const filteredSegments = availableSegments.filter(segment =>
-    segment.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const handleSegmentToggle = async (segmentId: string, isCurrentlyAssigned: boolean) => {
     setProcessingSegments(prev => new Set(prev).add(segmentId));
@@ -98,20 +92,14 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">All Segments</CardTitle>
-          <Input
-            placeholder="Search segments..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="mt-2"
-          />
         </CardHeader>
         <CardContent>
           {segmentsLoading ? (
             <div className="text-sm text-muted-foreground py-4">Loading segments...</div>
-          ) : filteredSegments.length > 0 ? (
+          ) : availableSegments.length > 0 ? (
             <ScrollArea className="h-64">
               <div className="space-y-2 pr-4">
-                {filteredSegments.map((segment) => {
+                {availableSegments.map((segment) => {
                   const isAssigned = assignedSegmentIds.has(segment.id);
                   const isProcessing = processingSegments.has(segment.id);
                   
@@ -152,7 +140,7 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
             </ScrollArea>
           ) : (
             <div className="text-sm text-muted-foreground text-center py-8">
-              {searchTerm ? 'No segments match your search' : 'No segments available'}
+              No segments available
             </div>
           )}
         </CardContent>
