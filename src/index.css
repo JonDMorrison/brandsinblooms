@@ -334,16 +334,19 @@ main,
   border: 1px solid hsl(var(--border)) !important;
 }
 
-/* Ensure the body maintains scroll capability */
+/* Ensure the body maintains scroll capability - no conflicts with dropdowns */
 body {
   overflow-x: hidden;
-  overflow-y: auto !important;
+  overflow-y: auto;
   scroll-behavior: smooth;
 }
 
-/* Override any global pointer-events: none */
-body *:not([data-disabled="true"]) {
-  pointer-events: auto;
+/* Ensure dropdowns and interactive elements maintain pointer events */
+[data-radix-portal],
+[data-radix-dropdown-menu-content],
+[data-radix-select-content],
+[data-radix-popover-content] {
+  pointer-events: auto !important;
 }
 
 input:-webkit-autofill,

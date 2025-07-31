@@ -106,7 +106,7 @@
   opacity: 1 !important;
 }
 
-/* Enhanced dropdown content styling with accessibility fixes */
+/* Enhanced dropdown content styling - Remove ARIA violations */
 [data-radix-select-content] {
   background-color: white !important;
   border: 1px solid rgb(229, 231, 235) !important;
@@ -115,9 +115,8 @@
   min-width: 8rem !important;
   max-height: 24rem !important;
   overflow: hidden !important;
-  z-index: 9999 !important;
-  /* Ensure content is not hidden by ARIA */
-  aria-hidden: false !important;
+  z-index: 1000010 !important;
+  /* Do NOT set aria-hidden - let Radix handle accessibility */
 }
 
 /* Dark mode support for dropdown */
@@ -129,17 +128,24 @@
   }
 }
 
-/* Global overflow prevention for all screen sizes - FIXED: Allow vertical scroll */
-html, body {
+/* Global overflow prevention - Scoped to layout wrappers */
+.mobile-layout-wrapper {
   overflow-x: hidden !important;
   overflow-y: auto !important;
   max-width: 100vw !important;
 }
 
+/* Allow natural scroll behavior for html/body */
+html, body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-width: 100vw;
+}
+
 .main, main {
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  max-width: 100% !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-width: 100%;
 }
 
 /* Ensure no horizontal scrolling on any screen size */
@@ -151,12 +157,5 @@ html, body {
   max-width: 100% !important;
 }
 
-/* Sidebar-specific ARIA fixes */
-[data-vaul-drawer][aria-hidden="true"] [data-radix-select-content],
-[data-vaul-drawer][aria-hidden="true"] [data-radix-select-trigger],
-.group\/sidebar-wrapper[aria-hidden="true"] [data-radix-select-content],
-.group\/sidebar-wrapper[aria-hidden="true"] [data-radix-select-trigger] {
-  aria-hidden: false !important;
-  visibility: visible !important;
-  pointer-events: auto !important;
-}
+/* Remove ARIA conflicts - Let Radix handle accessibility properly */
+/* Previous ARIA overrides removed to prevent focus trap violations */
