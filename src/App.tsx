@@ -15,7 +15,7 @@ import AccountPage from '@/pages/AccountPage';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import { CRMDashboardPage } from '@/pages/crm/CRMDashboardPage';
-import { CRMCustomersPage } from '@/pages/crm/CRMCustomersPage';
+import CRMCustomers from '@/pages/crm/CRMCustomers';
 import AddCustomer from '@/pages/crm/AddCustomer';
 import { CRMSegmentsPage } from '@/pages/crm/CRMSegmentsPage';
 import { CRMPersonasPage } from '@/pages/crm/CRMPersonasPage';
@@ -70,7 +70,7 @@ function App() {
         <Route path="/crm/customers" element={
           <ProtectedRoute>
             <SidebarLayout>
-              <CRMCustomersPage />
+              <CRMCustomers />
             </SidebarLayout>
           </ProtectedRoute>
         } />
