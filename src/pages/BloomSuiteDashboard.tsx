@@ -129,7 +129,7 @@ export const BloomSuiteDashboard = () => {
       gradient: 'from-purple-50 to-purple-100',
       primaryAction: {
         label: 'View Analytics',
-        onClick: () => navigate('/crm/analytics')
+        onClick: () => navigate('/analytics')
       },
       secondaryAction: {
         label: 'Customer Insights',
