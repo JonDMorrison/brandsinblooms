@@ -47,6 +47,11 @@ type Customer = {
     icon: string;
     color_theme: string;
   } | null;
+  segments?: {
+    id: string;
+    name: string;
+    description: string | null;
+  }[] | null;
   tags: string[] | null;
   last_purchase_date: string | null;
   lifetime_value: number | null;
@@ -99,6 +104,11 @@ const CRMCustomers = () => {
         `)
         .order(sortBy, { ascending: sortBy === 'first_name' });
 
+      const { data: customersData, error: customersError } = await query;
+      if (customersError) throw customersError;
+
+      // Fetch segments separately for each customer
+      // Apply filters to the original query
       if (searchTerm) {
         query = query.or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
       }
@@ -112,9 +122,35 @@ const CRMCustomers = () => {
         query = query.eq('sms_opt_in', smsOptInFilter === 'true');
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as Customer[];
+      const { data: filteredCustomersData, error: filteredError } = await query;
+      if (filteredError) throw filteredError;
+
+      // Fetch segments separately for each customer
+      const customersWithSegments = await Promise.all(
+        (filteredCustomersData || []).map(async (customer) => {
+          const { data: customerSegments } = await supabase
+            .from('customer_segments')
+            .select('segment_id')
+            .eq('customer_id', customer.id);
+
+          if (!customerSegments || customerSegments.length === 0) {
+            return { ...customer, segments: [] };
+          }
+
+          const segmentIds = customerSegments.map(cs => cs.segment_id);
+          const { data: segments } = await supabase
+            .from('crm_segments')
+            .select('id, name, description')
+            .in('id', segmentIds);
+
+          return {
+            ...customer,
+            segments: segments || []
+          };
+        })
+      );
+
+      return customersWithSegments as Customer[];
     }
   });
 
@@ -309,7 +345,7 @@ const CRMCustomers = () => {
                       <TableHead>Email</TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Persona</TableHead>
-                      <TableHead>Tags</TableHead>
+                      <TableHead>Segments</TableHead>
                       <TableHead>Last Purchase</TableHead>
                       <TableHead>LTV</TableHead>
                       <TableHead></TableHead>
@@ -348,16 +384,16 @@ const CRMCustomers = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          {customer.tags && customer.tags.length > 0 ? (
+                          {customer.segments && customer.segments.length > 0 ? (
                             <div className="flex gap-1 flex-wrap">
-                              {customer.tags.slice(0, 2).map((tag, index) => (
+                              {customer.segments.slice(0, 2).map((segment, index) => (
                                 <Badge key={index} variant="secondary" className="text-xs">
-                                  {tag}
+                                  {segment.name}
                                 </Badge>
                               ))}
-                              {customer.tags.length > 2 && (
+                              {customer.segments.length > 2 && (
                                 <Badge variant="secondary" className="text-xs">
-                                  +{customer.tags.length - 2}
+                                  +{customer.segments.length - 2}
                                 </Badge>
                               )}
                             </div>
