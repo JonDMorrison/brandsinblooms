@@ -168,7 +168,7 @@ export const BloomSuiteDashboard = () => {
           </p>
           
           {/* Quick Help Banner */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 max-w-md mx-auto">
+          <div className="rounded-lg p-4 mb-6 max-w-md mx-auto">
             <p className="text-blue-900 text-sm mb-2">Not sure where to start?</p>
             <div className="flex gap-2 justify-center">
               <Button 
