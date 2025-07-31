@@ -63,7 +63,12 @@
 
     /* Safe area for mobile devices with better constraints */
     .mobile-safe-area {
-      @apply px-3 mx-1 max-w-full overflow-hidden !important;
+      @apply px-3 mx-1 max-w-full !important;
+    }
+    
+    /* Allow dropdowns and modals to render properly */
+    .mobile-layout-wrapper {
+      overflow-x: hidden !important;
     }
 
     /* Section padding reduction for mobile */
