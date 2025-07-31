@@ -35,15 +35,24 @@ export class DropdownPortalManager {
   }
 }
 
-// Enhanced scroll lock utility with proper cleanup
+// Enhanced scroll lock utility with modal support
 export const scrollLockManager = {
   private: {
     originalBodyStyle: '',
     lockCount: 0,
+    modalLockCount: 0,
     originalScrollY: 0,
   },
 
   lock(context: string = 'dropdown') {
+    const isModal = context === 'modal' || context === 'sheet';
+    
+    if (isModal) {
+      this.private.modalLockCount++;
+      console.log(`[DropdownFix] Modal scroll context registered: ${context}`);
+      return; // Modals/sheets should not lock body scroll
+    }
+    
     if (this.private.lockCount === 0) {
       // Store original styles before locking
       this.private.originalScrollY = window.scrollY;
@@ -61,6 +70,14 @@ export const scrollLockManager = {
   },
 
   unlock(context: string = 'dropdown') {
+    const isModal = context === 'modal' || context === 'sheet';
+    
+    if (isModal) {
+      this.private.modalLockCount = Math.max(0, this.private.modalLockCount - 1);
+      console.log(`[DropdownFix] Modal scroll context unregistered: ${context}`);
+      return; // Modals/sheets don't affect body scroll
+    }
+    
     this.private.lockCount = Math.max(0, this.private.lockCount - 1);
     
     if (this.private.lockCount === 0) {
@@ -80,6 +97,7 @@ export const scrollLockManager = {
   // Force unlock (emergency cleanup)
   forceUnlock() {
     this.private.lockCount = 0;
+    this.private.modalLockCount = 0;
     this.unlock('force');
   }
 };
