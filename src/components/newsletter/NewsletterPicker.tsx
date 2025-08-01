@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { IdeaGrid } from './IdeaGrid';
 import { LayoutThumb } from './LayoutThumb';
 import { NewsletterIdea, NewsletterTemplate } from '@/types/newsletter';
@@ -117,8 +118,9 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto">
-        {currentStep === 'ideas' ? (
+      <div className="flex-1 min-h-0">
+        <ScrollArea className="h-full">
+          {currentStep === 'ideas' ? (
           <div className="space-y-6">
             {/* AI Idea Generator */}
             <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
@@ -189,6 +191,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
             </div>
           </div>
         )}
+        </ScrollArea>
       </div>
 
       {/* Footer */}
