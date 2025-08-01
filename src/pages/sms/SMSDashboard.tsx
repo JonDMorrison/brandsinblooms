@@ -1,39 +1,62 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MessageSquareIcon, PlusIcon, SettingsIcon, TrendingUpIcon, UsersIcon, SendIcon, ClockIcon } from 'lucide-react'
 import { useTwilioSetup } from '@/components/dashboard/TwilioSetupChecker'
-
-// Placeholder data - will be replaced with actual data hooks
-const SAMPLE_CAMPAIGNS = [
-  {
-    id: '1',
-    name: 'Spring Garden Tips',
-    status: 'sent',
-    sent_at: '2024-01-15T10:30:00Z',
-    metrics: { sent: 250, delivered: 248, clicked: 45 }
-  },
-  {
-    id: '2', 
-    name: 'Weekend Sale Alert',
-    status: 'sending',
-    sent_at: '2024-01-16T09:00:00Z',
-    metrics: { sent: 156, delivered: 150, clicked: 28 }
-  }
-]
-
-const SAMPLE_STATS = {
-  totalSent: 1250,
-  deliveryRate: 98.5,
-  clickRate: 12.8,
-  optInRate: 65.2
-}
+import { supabase } from '@/integrations/supabase/client'
+import { useAuth } from '@/hooks/useAuth'
+import { useTenant } from '@/hooks/useTenant'
 
 export default function SMSDashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const { tenant } = useTenant()
   const { data: twilioSetup } = useTwilioSetup()
+
+  // Fetch real SMS campaign data
+  const { data: campaigns = [], isLoading } = useQuery({
+    queryKey: ['sms-campaigns', user?.id],
+    queryFn: async () => {
+      if (!user || !tenant) return [];
+      
+      const { data, error } = await supabase
+        .from('crm_sms_campaigns')
+        .select('*')
+        .eq('tenant_id', tenant.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user && !!tenant
+  });
+
+  // Calculate stats from real data
+  const stats = useMemo(() => {
+    const getMetrics = (campaign: any) => campaign.metrics && typeof campaign.metrics === 'object' ? campaign.metrics as any : {};
+    
+    const totalSent = campaigns.reduce((sum, campaign) => sum + (getMetrics(campaign).sent || 0), 0);
+    const totalDelivered = campaigns.reduce((sum, campaign) => sum + (getMetrics(campaign).delivered || 0), 0);
+    const totalClicked = campaigns.reduce((sum, campaign) => sum + (getMetrics(campaign).clicked || 0), 0);
+    const totalOptOuts = campaigns.reduce((sum, campaign) => sum + (getMetrics(campaign).opt_outs || 0), 0);
+
+    return {
+      totalSent,
+      deliveryRate: totalSent > 0 ? ((totalDelivered / totalSent) * 100) : 0,
+      clickRate: totalDelivered > 0 ? ((totalClicked / totalDelivered) * 100) : 0,
+      optOutRate: totalSent > 0 ? ((totalOptOuts / totalSent) * 100) : 0,
+      recentCampaigns: campaigns.slice(0, 5).map(campaign => ({
+        id: campaign.id,
+        name: campaign.name,
+        sent: getMetrics(campaign).sent || 0,
+        delivered: getMetrics(campaign).delivered || 0,
+        status: campaign.status
+      }))
+    };
+  }, [campaigns]);
 
   const handleCreateCampaign = () => {
     if (!twilioSetup?.isSetup) {
@@ -57,6 +80,10 @@ export default function SMSDashboard() {
       default:
         return <Badge variant="outline">{status}</Badge>
     }
+  }
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-8">Loading SMS dashboard...</div>
   }
 
   return (
@@ -112,9 +139,9 @@ export default function SMSDashboard() {
             <SendIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{SAMPLE_STATS.totalSent.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{stats.totalSent.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              SMS messages this month
+              SMS messages sent
             </p>
           </CardContent>
         </Card>
@@ -125,7 +152,7 @@ export default function SMSDashboard() {
             <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{SAMPLE_STATS.deliveryRate}%</div>
+            <div className="text-2xl font-bold">{stats.deliveryRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
               Messages delivered successfully
             </p>
@@ -138,7 +165,7 @@ export default function SMSDashboard() {
             <MessageSquareIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{SAMPLE_STATS.clickRate}%</div>
+            <div className="text-2xl font-bold">{stats.clickRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
               Average click-through rate
             </p>
@@ -147,13 +174,13 @@ export default function SMSDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Opt-in Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">Opt-out Rate</CardTitle>
             <UsersIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{SAMPLE_STATS.optInRate}%</div>
+            <div className="text-2xl font-bold">{stats.optOutRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              Customers opted in for SMS
+              Customer opt-out rate
             </p>
           </CardContent>
         </Card>
@@ -168,7 +195,7 @@ export default function SMSDashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {SAMPLE_CAMPAIGNS.length === 0 ? (
+          {campaigns.length === 0 ? (
             <div className="text-center py-8">
               <MessageSquareIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium">No SMS campaigns yet</h3>
@@ -182,7 +209,7 @@ export default function SMSDashboard() {
             </div>
           ) : (
             <div className="space-y-4">
-              {SAMPLE_CAMPAIGNS.map((campaign) => (
+              {stats.recentCampaigns.map((campaign) => (
                 <div
                   key={campaign.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer"
@@ -194,13 +221,8 @@ export default function SMSDashboard() {
                       {getStatusBadge(campaign.status)}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <ClockIcon className="h-3 w-3" />
-                        {new Date(campaign.sent_at).toLocaleDateString()}
-                      </span>
-                      <span>{campaign.metrics.sent} sent</span>
-                      <span>{campaign.metrics.delivered} delivered</span>
-                      <span>{campaign.metrics.clicked} clicked</span>
+                      <span>{campaign.sent} sent</span>
+                      <span>{campaign.delivered} delivered</span>
                     </div>
                   </div>
                   <Button variant="outline" size="sm">

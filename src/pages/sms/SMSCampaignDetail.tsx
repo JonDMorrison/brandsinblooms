@@ -1,5 +1,7 @@
 import React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -31,8 +33,31 @@ export default function SMSCampaignDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   
-  // TODO: Fetch campaign data based on ID
-  const campaign = SAMPLE_CAMPAIGN
+  // Fetch real campaign data
+  const { data: campaign, isLoading } = useQuery({
+    queryKey: ['sms-campaign', id],
+    queryFn: async () => {
+      if (!id) return null;
+      
+      const { data, error } = await supabase
+        .from('crm_sms_campaigns')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id
+  });
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-8">Loading...</div>;
+  }
+
+  if (!campaign) {
+    return <div className="flex items-center justify-center p-8">Campaign not found</div>;
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -51,12 +76,17 @@ export default function SMSCampaignDetail() {
     }
   }
 
-  const deliveryRate = campaign.metrics.sent > 0 
-    ? ((campaign.metrics.delivered / campaign.metrics.sent) * 100).toFixed(1)
+  // Type guard for metrics
+  const metrics = campaign.metrics && typeof campaign.metrics === 'object' ? campaign.metrics as any : {
+    sent: 0, delivered: 0, clicked: 0, opt_outs: 0, revenue: 0, failed: 0
+  };
+
+  const deliveryRate = metrics.sent > 0 
+    ? ((metrics.delivered / metrics.sent) * 100).toFixed(1)
     : '0'
 
-  const clickRate = campaign.metrics.delivered > 0
-    ? ((campaign.metrics.clicked / campaign.metrics.delivered) * 100).toFixed(1)
+  const clickRate = metrics.delivered > 0
+    ? ((metrics.clicked / metrics.delivered) * 100).toFixed(1)
     : '0'
 
   return (
@@ -94,9 +124,9 @@ export default function SMSCampaignDetail() {
             <MessageSquareIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{campaign.metrics.sent.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{metrics.sent.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              To {campaign.segment.name}
+              SMS Campaign
             </p>
           </CardContent>
         </Card>
@@ -109,7 +139,7 @@ export default function SMSCampaignDetail() {
           <CardContent>
             <div className="text-2xl font-bold">{deliveryRate}%</div>
             <p className="text-xs text-muted-foreground">
-              {campaign.metrics.delivered} delivered
+              {metrics.delivered} delivered
             </p>
           </CardContent>
         </Card>
@@ -122,7 +152,7 @@ export default function SMSCampaignDetail() {
           <CardContent>
             <div className="text-2xl font-bold">{clickRate}%</div>
             <p className="text-xs text-muted-foreground">
-              {campaign.metrics.clicked} clicks
+              {metrics.clicked} clicks
             </p>
           </CardContent>
         </Card>
@@ -133,7 +163,7 @@ export default function SMSCampaignDetail() {
             <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${campaign.metrics.revenue.toFixed(0)}</div>
+            <div className="text-2xl font-bold">${(metrics.revenue || 0).toFixed(0)}</div>
             <p className="text-xs text-muted-foreground">
               From this campaign
             </p>
@@ -173,27 +203,27 @@ export default function SMSCampaignDetail() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center py-2 border-b border-border/50">
                   <span>Messages Sent</span>
-                  <span className="font-medium">{campaign.metrics.sent}</span>
+                  <span className="font-medium">{metrics.sent}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-border/50">
                   <span>Delivered</span>
-                  <span className="font-medium">{campaign.metrics.delivered}</span>
+                  <span className="font-medium">{metrics.delivered}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-border/50">
                   <span>Failed</span>
-                  <span className="font-medium text-destructive">{campaign.metrics.failed}</span>
+                  <span className="font-medium text-destructive">{metrics.failed || 0}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-border/50">
                   <span>Clicked</span>
-                  <span className="font-medium">{campaign.metrics.clicked}</span>
+                  <span className="font-medium">{metrics.clicked}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-border/50">
                   <span>Opt-outs</span>
-                  <span className="font-medium">{campaign.metrics.opt_outs}</span>
+                  <span className="font-medium">{metrics.opt_outs || 0}</span>
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <span>Revenue Generated</span>
-                  <span className="font-medium">${campaign.metrics.revenue.toFixed(2)}</span>
+                  <span className="font-medium">${(metrics.revenue || 0).toFixed(2)}</span>
                 </div>
               </div>
             </CardContent>
@@ -214,9 +244,9 @@ export default function SMSCampaignDetail() {
               
               <div>
                 <div className="text-sm font-medium mb-1">Target Segment</div>
-                <div className="text-sm text-muted-foreground">{campaign.segment.name}</div>
+                <div className="text-sm text-muted-foreground">SMS Campaign</div>
                 <div className="text-xs text-muted-foreground">
-                  {campaign.segment.customer_count} customers
+                  {metrics.sent} recipients
                 </div>
               </div>
 
