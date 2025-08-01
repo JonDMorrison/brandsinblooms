@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { IdeaGrid } from './IdeaGrid';
-import { LayoutThumb } from './LayoutThumb';
+import { NewsletterLayoutPicker } from '../NewsletterLayoutPicker';
 import { NewsletterIdea, NewsletterTemplate } from '@/types/newsletter';
 import { useNewsletterIdeas } from '@/hooks/useNewsletterIdeas';
 import { ArrowLeft, Sparkles, Search } from 'lucide-react';
@@ -29,17 +29,16 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   
   const [currentStep, setCurrentStep] = useState<PickerStep>('ideas');
   const [selectedIdea, setSelectedIdea] = useState<NewsletterIdea | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<NewsletterTemplate | null>(null);
+  const [selectedLayout, setSelectedLayout] = useState<'classic' | 'magazine' | 'one-column' | null>('classic');
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingAI, setGeneratingAI] = useState(false);
 
-  // Auto-select default template
+  // Default to classic layout
   useEffect(() => {
-    const defaultTemplate = templates.find(t => t.isDefault) || templates[0];
-    if (defaultTemplate && !selectedTemplate) {
-      setSelectedTemplate(defaultTemplate);
+    if (!selectedLayout) {
+      setSelectedLayout('classic');
     }
-  }, [templates, selectedTemplate]);
+  }, [selectedLayout]);
 
   const handleSelectIdea = (idea: NewsletterIdea) => {
     setSelectedIdea(idea);
@@ -61,12 +60,12 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   };
 
   const handleContinue = () => {
-    if (!selectedIdea || !selectedTemplate) return;
+    if (!selectedIdea || !selectedLayout) return;
 
     // Navigate to email builder with template data
     const params = new URLSearchParams({
       templateId: selectedIdea.id,
-      layout: selectedTemplate.layout,
+      layout: selectedLayout,
       source: 'picker'
     });
     
@@ -180,16 +179,10 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                 )}
 
                 {/* Layout Options */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {templates.map((template) => (
-                    <LayoutThumb
-                      key={template.id}
-                      template={template}
-                      isSelected={selectedTemplate?.id === template.id}
-                      onSelect={setSelectedTemplate}
-                    />
-                  ))}
-                </div>
+                <NewsletterLayoutPicker
+                  value={selectedLayout}
+                  onChange={setSelectedLayout}
+                />
               </div>
             )}
           </div>
@@ -201,7 +194,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
         <div className="flex-shrink-0 mt-6 pt-4 border-t">
           <Button 
             onClick={handleContinue}
-            disabled={!selectedIdea || !selectedTemplate}
+            disabled={!selectedIdea || !selectedLayout}
             className="w-full"
             size="lg"
           >
