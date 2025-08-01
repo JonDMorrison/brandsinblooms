@@ -352,7 +352,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             
             // Generate blocks using the new newsletter block generator
             const templateBlocks = selectedIdea.templateBlocks || [];
-            const layoutType = layout as 'classic' | 'magazine' | 'one-column' || 'classic';
+            const layoutType = layout as 'classic' | 'one-column' || 'classic';
             
             console.log(`🎨 Generating blocks for ${layoutType} layout with ${templateBlocks.length} template blocks`);
             

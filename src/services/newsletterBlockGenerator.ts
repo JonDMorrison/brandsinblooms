@@ -2,7 +2,7 @@ import { ContentBlock, BlockLayout } from '@/types/emailBuilder';
 
 interface GenerateBlocksOptions {
   topic: string;
-  layout: 'classic' | 'magazine' | 'one-column';
+  layout: 'classic' | 'one-column';
   templateBlocks?: any[];
 }
 
@@ -14,15 +14,25 @@ export const generateNewsletterBlocks = (options: GenerateBlocksOptions): Conten
   // If we have template blocks, convert them first
   if (templateBlocks.length > 0) {
     console.log(`[NewsletterInit] Converting ${templateBlocks.length} template blocks for ${layout} layout`);
-    return convertTemplateBlocks(templateBlocks, layout, topic);
+    const convertedBlocks = convertTemplateBlocks(templateBlocks, layout, topic);
+    
+    // Ensure we have at least some blocks, if conversion fails use layout-specific generation
+    if (convertedBlocks.length === 0) {
+      console.warn(`[NewsletterInit] Template conversion failed, falling back to ${layout} generation`);
+      return generateLayoutSpecificBlocks(layout, topic);
+    }
+    
+    return convertedBlocks;
   }
   
   // Generate layout-specific blocks
+  return generateLayoutSpecificBlocks(layout, topic);
+};
+
+const generateLayoutSpecificBlocks = (layout: 'classic' | 'one-column', topic: string): ContentBlock[] => {
   switch (layout) {
     case 'classic':
       return generateClassicBlocks(topic);
-    case 'magazine':
-      return generateMagazineBlocks(topic);
     case 'one-column':
       return generateOneColumnBlocks(topic);
     default:
@@ -32,6 +42,11 @@ export const generateNewsletterBlocks = (options: GenerateBlocksOptions): Conten
 };
 
 const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: string): ContentBlock[] => {
+  if (!templateBlocks || templateBlocks.length === 0) {
+    console.warn(`[NewsletterInit] No template blocks provided for conversion`);
+    return [];
+  }
+
   const blocks: ContentBlock[] = templateBlocks.map((block: any, index: number) => {
     const baseBlock: ContentBlock = {
       id: `block_${Date.now()}_${index}`,
@@ -163,128 +178,6 @@ const generateClassicBlocks = (topic: string): ContentBlock[] => {
   return blocks;
 };
 
-const generateMagazineBlocks = (topic: string): ContentBlock[] => {
-  const blocks: ContentBlock[] = [
-    {
-      id: `header_${Date.now()}`,
-      type: 'header',
-      title: topic,
-      content: '',
-      headline: topic,
-      body: '',
-      imageUrl: '',
-      ctaText: '',
-      ctaUrl: '',
-      source: 'template',
-      personaTag: 'general',
-      layout: 'full-width',
-      alignment: 'center',
-      textAlign: 'center',
-      padding: 'large',
-      visible: true,
-      collapsed: false
-    },
-    {
-      id: `featured_${Date.now()}`,
-      type: 'image-text',
-      title: 'Featured Story',
-      content: 'This is your featured article that takes center stage in the magazine layout.',
-      headline: 'Featured Story',
-      body: 'This is your featured article that takes center stage in the magazine layout.',
-      imageUrl: '',
-      ctaText: 'Read More',
-      ctaUrl: '#',
-      source: 'template',
-      personaTag: 'general',
-      layout: 'full-width', // Magazine layout hint
-      alignment: 'left',
-      textAlign: 'left',
-      padding: 'large',
-      visible: true,
-      collapsed: false
-    },
-    {
-      id: `sidebar1_${Date.now()}`,
-      type: 'text',
-      title: 'Quick Tips',
-      content: 'Essential tips and quick insights for your readers.',
-      headline: 'Quick Tips',
-      body: 'Essential tips and quick insights for your readers.',
-      imageUrl: '',
-      ctaText: '',
-      ctaUrl: '',
-      source: 'template',
-      personaTag: 'general',
-      layout: 'two-column-left', // Magazine layout hint
-      alignment: 'left',
-      textAlign: 'left',
-      padding: 'small',
-      visible: true,
-      collapsed: false
-    },
-    {
-      id: `sidebar2_${Date.now()}`,
-      type: 'image-text',
-      title: 'Product Spotlight',
-      content: 'Highlight a featured product or service.',
-      headline: 'Product Spotlight',
-      body: 'Highlight a featured product or service.',
-      imageUrl: '',
-      ctaText: 'Shop Now',
-      ctaUrl: '#',
-      source: 'template',
-      personaTag: 'general',
-      layout: 'two-column-right', // Magazine layout hint
-      alignment: 'left',
-      textAlign: 'left',
-      padding: 'small',
-      visible: true,
-      collapsed: false
-    },
-    {
-      id: `secondary_${Date.now()}`,
-      type: 'text',
-      title: 'Community News',
-      content: 'Share community updates, events, or customer stories.',
-      headline: 'Community News',
-      body: 'Share community updates, events, or customer stories.',
-      imageUrl: '',
-      ctaText: '',
-      ctaUrl: '',
-      source: 'template',
-      personaTag: 'general',
-      layout: 'full-width',
-      alignment: 'left',
-      textAlign: 'left',
-      padding: 'medium',
-      visible: true,
-      collapsed: false
-    },
-    {
-      id: `cta_${Date.now()}`,
-      type: 'button',
-      title: 'Newsletter CTA',
-      content: '',
-      headline: '',
-      body: '',
-      imageUrl: '',
-      ctaText: 'Visit Our Store',
-      ctaUrl: '#',
-      source: 'template',
-      personaTag: 'general',
-      layout: 'full-width',
-      alignment: 'center',
-      textAlign: 'center',
-      padding: 'medium',
-      visible: true,
-      collapsed: false
-    }
-  ];
-  
-  console.log(`[NewsletterInit] Generated ${blocks.length} blocks for "${topic}" (layout: magazine)`);
-  return blocks;
-};
-
 const generateOneColumnBlocks = (topic: string): ContentBlock[] => {
   const blocks: ContentBlock[] = [
     {
@@ -409,20 +302,7 @@ const mapBlockType = (templateType: string): ContentBlock['type'] => {
 };
 
 const getLayoutHint = (layout: string, blockType: string, index: number): BlockLayout => {
-  if (layout === 'magazine') {
-    // First image-text block becomes featured
-    if (blockType === 'image-text' && index === 1) {
-      return 'full-width';
-    }
-    // Next few blocks become sidebar
-    if (index >= 2 && index <= 3) {
-      return 'two-column-left';
-    }
-    if (index === 4) {
-      return 'two-column-right';
-    }
-  }
-  
+  // For now, all layouts use full-width since magazine layout is removed
   return 'full-width';
 };
 
@@ -465,6 +345,25 @@ export const getFallbackBlocks = (topic: string): ContentBlock[] => {
       layout: 'full-width',
       alignment: 'left',
       textAlign: 'left',
+      padding: 'medium',
+      visible: true,
+      collapsed: false
+    },
+    {
+      id: `fallback_cta_${Date.now()}`,
+      type: 'button',
+      title: 'Call to Action',
+      content: '',
+      headline: '',
+      body: '',
+      imageUrl: '',
+      ctaText: 'Learn More',
+      ctaUrl: '#',
+      source: 'manual',
+      personaTag: 'general',
+      layout: 'full-width',
+      alignment: 'center',
+      textAlign: 'center',
       padding: 'medium',
       visible: true,
       collapsed: false
