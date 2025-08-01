@@ -17,13 +17,13 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, className })
   const getBadgeVariant = (category: NewsletterIdea['category']) => {
     switch (category) {
       case 'holiday':
-        return 'destructive';
+        return 'secondary'; // Changed from destructive to more muted
       case 'weekly':
-        return 'default';
+        return 'outline'; // Changed from default to more subtle
       case 'seasonal':
         return 'secondary';
       case 'product':
-        return 'default';
+        return 'outline'; // Changed from default to more subtle
       case 'ai-generated':
         return 'outline';
       default:
@@ -75,7 +75,10 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, className })
     )}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-3">
-          <Badge variant={getBadgeVariant(idea.category)} className="text-xs">
+          <Badge 
+            variant={getBadgeVariant(idea.category)} 
+            className="text-xs text-muted-foreground bg-muted/50 border-muted hover:bg-muted/70"
+          >
             {getDateRangeLabel(idea)}
           </Badge>
           {idea.estimatedReadTime && (
