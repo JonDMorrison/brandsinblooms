@@ -19,6 +19,7 @@ import { generateFooterHTML } from '@/utils/emailFooterRenderer';
 import { getDefaultTokenData } from '@/utils/emailTokenProcessor';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
+import { generateNewsletterBlocks, getFallbackBlocks } from '@/services/newsletterBlockGenerator';
 
 // Generate appropriate preheader text based on content and campaign name
 const generatePreheaderText = (content: string, campaignName: string): string => {
@@ -323,27 +324,28 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             setSubjectLine(selectedIdea.title || 'Newsletter');
             setPreheaderText(generatePreheaderText(selectedIdea.description || '', selectedIdea.title || ''));
             
-            // Convert template blocks to CRM blocks
+            // Generate blocks using the new newsletter block generator
             const templateBlocks = selectedIdea.templateBlocks || [];
-            const crmBlocks: ContentBlock[] = templateBlocks.map((block: any, index: number) => ({
-              id: `block_${Date.now()}_${index}`,
-              type: block.type || 'text',
-              title: block.title || '',
-              content: block.content || '',
-              headline: block.title || '',
-              body: block.content || '',
-              imageUrl: '', // Will be filled by image processing
-              ctaText: block.buttonText || '',
-              ctaUrl: block.buttonUrl || '#',
-              source: 'newsletter',
-              personaTag: selectedIdea.category || 'general',
-              layout: layout as any || 'full-width',
-              alignment: 'left',
-              textAlign: 'left',
-              padding: 'medium',
-              visible: true,
-              collapsed: false
-            }));
+            const layoutType = layout as 'classic' | 'magazine' | 'one-column' || 'classic';
+            
+            console.log(`🎨 Generating blocks for ${layoutType} layout with ${templateBlocks.length} template blocks`);
+            
+            let crmBlocks: ContentBlock[];
+            try {
+              crmBlocks = generateNewsletterBlocks({
+                topic: selectedIdea.title || 'Newsletter Campaign',
+                layout: layoutType,
+                templateBlocks: templateBlocks
+              });
+              
+              if (crmBlocks.length === 0) {
+                console.warn('⚠️ Block generator returned empty array, using fallback');
+                crmBlocks = getFallbackBlocks(selectedIdea.title || 'Newsletter Campaign');
+              }
+            } catch (error) {
+              console.error('❌ Error generating blocks:', error);
+              crmBlocks = getFallbackBlocks(selectedIdea.title || 'Newsletter Campaign');
+            }
             
             setBlocks(crmBlocks);
             
@@ -367,6 +369,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                           ? { ...block, imageUrl: imageData.urls.regular, altText: imageData.alt_description || selectedIdea.title }
                           : block
                       ));
+                      console.log(`🖼️ Applied hero image to block ${imageBlockIndex}`);
                     }
                   }
                 } catch (error) {
@@ -377,8 +380,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             
             toast({
               title: "Template Applied",
-              description: `Newsletter template "${selectedIdea.title}" has been applied successfully.`,
+              description: `Newsletter template "${selectedIdea.title}" has been applied successfully with ${crmBlocks.length} blocks for ${layoutType} layout.`,
             });
+            
+            console.log(`✅ [NewsletterInit] Generated ${crmBlocks.length} blocks for "${selectedIdea.title}" (layout: ${layoutType})`);
           } else {
             console.warn('⚠️ Template not found:', templateId);
             toast({
