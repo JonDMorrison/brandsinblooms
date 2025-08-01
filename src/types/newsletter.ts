@@ -2,13 +2,16 @@ export interface NewsletterIdea {
   id: string;
   title: string;
   description: string;
-  category: 'holiday' | 'seasonal' | 'product' | 'ai-generated' | 'general';
+  category: 'holiday' | 'seasonal' | 'product' | 'ai-generated' | 'general' | 'weekly';
   badge?: string;
   previewHtml?: string;
   templateBlocks: any[];
   heroQuery?: string;
   estimatedReadTime?: string;
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  priority?: number;
+  daysUntil?: number;
+  weekNumber?: number;
 }
 
 export interface NewsletterTemplate {

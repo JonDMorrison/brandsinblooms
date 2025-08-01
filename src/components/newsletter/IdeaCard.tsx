@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, ChevronRight } from 'lucide-react';
 import { NewsletterIdea } from '@/types/newsletter';
 import { cn } from '@/lib/utils';
+import { format, addDays } from 'date-fns';
 
 interface IdeaCardProps {
   idea: NewsletterIdea;
@@ -17,6 +18,8 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, className })
     switch (category) {
       case 'holiday':
         return 'destructive';
+      case 'weekly':
+        return 'default';
       case 'seasonal':
         return 'secondary';
       case 'product':
@@ -28,19 +31,40 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, className })
     }
   };
 
-  const getCategoryLabel = (category: NewsletterIdea['category']) => {
-    switch (category) {
-      case 'holiday':
-        return 'Holiday';
-      case 'seasonal':
-        return 'Seasonal';
-      case 'product':
-        return 'Product';
-      case 'ai-generated':
-        return 'AI Generated';
-      default:
-        return 'General';
+  const getDateRangeLabel = (idea: NewsletterIdea): string => {
+    const today = new Date();
+    
+    // For holidays with daysUntil
+    if (idea.category === 'holiday' && typeof idea.daysUntil === 'number') {
+      const targetDate = addDays(today, idea.daysUntil);
+      
+      if (idea.daysUntil === 0) {
+        return format(today, 'MMM d'); // Today
+      } else if (idea.daysUntil <= 7) {
+        return `${format(today, 'MMM d')} - ${format(targetDate, 'MMM d')}`;
+      } else if (idea.daysUntil <= 14) {
+        return `${format(addDays(today, 7), 'MMM d')} - ${format(targetDate, 'MMM d')}`;
+      } else {
+        return `${format(addDays(today, 14), 'MMM d')} - ${format(targetDate, 'MMM d')}`;
+      }
     }
+    
+    // For weekly themes
+    if (idea.category === 'weekly') {
+      const weekStart = today;
+      const weekEnd = addDays(today, 6);
+      return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`;
+    }
+    
+    // For seasonal content (show current month range)
+    if (idea.category === 'seasonal') {
+      const monthEnd = addDays(today, 30);
+      return `${format(today, 'MMM d')} - ${format(monthEnd, 'MMM d')}`;
+    }
+    
+    // For product/general content (show next month range)
+    const nextMonth = addDays(today, 30);
+    return `${format(today, 'MMM d')} - ${format(nextMonth, 'MMM d')}`;
   };
 
   return (
@@ -52,7 +76,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, className })
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-3">
           <Badge variant={getBadgeVariant(idea.category)} className="text-xs">
-            {idea.badge || getCategoryLabel(idea.category)}
+            {getDateRangeLabel(idea)}
           </Badge>
           {idea.estimatedReadTime && (
             <div className="flex items-center text-xs text-muted-foreground">
