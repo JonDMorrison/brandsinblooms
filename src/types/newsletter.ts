@@ -17,7 +17,7 @@ export interface NewsletterIdea {
 export interface NewsletterTemplate {
   id: string;
   name: string;
-  layout: 'classic' | 'magazine' | 'one-column';
+  layout: 'classic' | 'one-column';
   thumbnail: string;
   description: string;
   isDefault?: boolean;

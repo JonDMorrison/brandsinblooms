@@ -1,7 +1,7 @@
 import { CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type LayoutKey = 'classic' | 'magazine' | 'one-column';
+type LayoutKey = 'classic' | 'one-column';
 
 interface CardProps {
   layout: LayoutKey;
@@ -15,21 +15,6 @@ const THUMBS: Record<LayoutKey, JSX.Element> = {
     <div className="h-full w-full rounded-md bg-white shadow-inner flex flex-col p-2 gap-1">
       <div className="h-6 rounded bg-gradient-to-b from-sky-200 to-sky-300" />
       <div className="flex-1 rounded bg-slate-50 border border-dashed border-slate-200" />
-      <div className="h-4 rounded bg-gradient-to-r from-slate-200 to-slate-100" />
-    </div>
-  ),
-
-  /** ⬤ header  ▭ featured  | sidebar  ▭ grid blocks ▭ footer */
-  magazine: (
-    <div className="h-full w-full rounded-md bg-white shadow-inner flex flex-col p-2 gap-1">
-      <div className="h-6 rounded bg-gradient-to-b from-amber-200 to-amber-300" />
-      <div className="flex flex-1 gap-1">
-        <div className="w-2/3 rounded bg-amber-100" />
-        <div className="w-1/3 flex flex-col gap-1">
-          <div className="flex-1 rounded bg-slate-100" />
-          <div className="flex-1 rounded bg-slate-100" />
-        </div>
-      </div>
       <div className="h-4 rounded bg-gradient-to-r from-slate-200 to-slate-100" />
     </div>
   ),
@@ -76,8 +61,6 @@ const Card = ({ layout, selected, onSelect }: CardProps) => {
       <p className="text-sm text-muted-foreground text-center">
         {layout === 'classic' &&
           'Traditional header, multiple blocks, footer'}
-        {layout === 'magazine' &&
-          'Featured article with sidebar blocks'}
         {layout === 'one-column' && 'Clean and minimal single column'}
       </p>
     </button>
@@ -92,8 +75,8 @@ export function NewsletterLayoutPicker({
   onChange: (v: LayoutKey) => void;
 }) {
   return (
-    <section className="grid auto-rows-fr grid-cols-1 gap-6 md:grid-cols-3">
-      {(['classic', 'magazine', 'one-column'] as LayoutKey[]).map((k) => (
+    <section className="grid auto-rows-fr grid-cols-1 gap-6 md:grid-cols-2">
+      {(['classic', 'one-column'] as LayoutKey[]).map((k) => (
         <Card key={k} layout={k} selected={value} onSelect={onChange} />
       ))}
     </section>

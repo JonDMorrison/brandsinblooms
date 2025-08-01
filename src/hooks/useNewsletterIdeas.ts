@@ -19,13 +19,6 @@ export const useNewsletterIdeas = () => {
       isDefault: true
     },
     {
-      id: 'magazine',
-      name: 'Magazine',
-      layout: 'magazine', 
-      thumbnail: '', // Using CSS patterns instead
-      description: 'Modern magazine-style layout with sidebar and featured content'
-    },
-    {
       id: 'minimal',
       name: 'One Column',
       layout: 'one-column',

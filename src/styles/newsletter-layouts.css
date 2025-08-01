@@ -26,32 +26,6 @@
   border-radius: 2px;
 }
 
-.newsletter-layout-magazine {
-  background: linear-gradient(135deg, #fef3c7 0%, #f59e0b 100%);
-  position: relative;
-}
-
-.newsletter-layout-magazine::before {
-  content: '';
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 40%;
-  height: 30px;
-  background: rgba(0,0,0,0.1);
-  border-radius: 2px;
-}
-
-.newsletter-layout-magazine::after {
-  content: '';
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 45%;
-  height: 30px;
-  background: rgba(0,0,0,0.1);
-  border-radius: 2px;
-}
 
 .newsletter-layout-one-column {
   background: linear-gradient(180deg, #f0f9ff 0%, #0ea5e9 100%);
