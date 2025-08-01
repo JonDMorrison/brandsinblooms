@@ -87,9 +87,9 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   };
 
   const renderContent = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full max-h-[calc(90vh-120px)]">
       {/* Header */}
-      <div className="mb-6">
+      <div className="flex-shrink-0 mb-6">
         {currentStep === 'ideas' ? (
           <>
             <div className="flex items-center justify-between mb-2">
@@ -118,85 +118,87 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0">
-        <ScrollArea className="h-full">
-          {currentStep === 'ideas' ? (
-          <div className="space-y-6">
-            {/* AI Idea Generator */}
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-              <div className="flex items-center mb-3">
-                <Sparkles className="w-5 h-5 text-purple-600 mr-2" />
-                <h3 className="font-medium text-purple-900">Generate Custom Ideas</h3>
-              </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
-                  <Input
-                    id="ai-prompt"
-                    placeholder="Describe the newsletter you'd like to create..."
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleGenerateAI()}
-                  />
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ScrollArea className="h-full w-full">
+          <div className="pr-4">
+            {currentStep === 'ideas' ? (
+              <div className="space-y-6 pb-4">
+                {/* AI Idea Generator */}
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-center mb-3">
+                    <Sparkles className="w-5 h-5 text-purple-600 mr-2" />
+                    <h3 className="font-medium text-purple-900">Generate Custom Ideas</h3>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
+                      <Input
+                        id="ai-prompt"
+                        placeholder="Describe the newsletter you'd like to create..."
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleGenerateAI()}
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleGenerateAI}
+                      disabled={!aiPrompt.trim() || generatingAI}
+                      size="sm"
+                    >
+                      {generatingAI ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4 mr-2" />
+                          Generate
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <Button 
-                  onClick={handleGenerateAI}
-                  disabled={!aiPrompt.trim() || generatingAI}
-                  size="sm"
-                >
-                  {generatingAI ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4 mr-2" />
-                      Generate
-                    </>
-                  )}
-                </Button>
+
+                <Separator />
+
+                {/* Ideas Grid */}
+                <IdeaGrid 
+                  ideas={ideas}
+                  onSelectIdea={handleSelectIdea}
+                  loading={loading}
+                />
               </div>
-            </div>
+            ) : (
+              <div className="space-y-6 pb-4">
+                {/* Selected Idea Summary */}
+                {selectedIdea && (
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <h3 className="font-medium mb-1">Selected Idea:</h3>
+                    <p className="text-sm text-muted-foreground">{selectedIdea.title}</p>
+                  </div>
+                )}
 
-            <Separator />
-
-            {/* Ideas Grid */}
-            <IdeaGrid 
-              ideas={ideas}
-              onSelectIdea={handleSelectIdea}
-              loading={loading}
-            />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Selected Idea Summary */}
-            {selectedIdea && (
-              <div className="bg-muted/50 rounded-lg p-4">
-                <h3 className="font-medium mb-1">Selected Idea:</h3>
-                <p className="text-sm text-muted-foreground">{selectedIdea.title}</p>
+                {/* Layout Options */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {templates.map((template) => (
+                    <LayoutThumb
+                      key={template.id}
+                      template={template}
+                      isSelected={selectedTemplate?.id === template.id}
+                      onSelect={setSelectedTemplate}
+                    />
+                  ))}
+                </div>
               </div>
             )}
-
-            {/* Layout Options */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {templates.map((template) => (
-                <LayoutThumb
-                  key={template.id}
-                  template={template}
-                  isSelected={selectedTemplate?.id === template.id}
-                  onSelect={setSelectedTemplate}
-                />
-              ))}
-            </div>
           </div>
-        )}
         </ScrollArea>
       </div>
 
       {/* Footer */}
       {currentStep === 'layout' && (
-        <div className="mt-6 pt-4 border-t">
+        <div className="flex-shrink-0 mt-6 pt-4 border-t">
           <Button 
             onClick={handleContinue}
             disabled={!selectedIdea || !selectedTemplate}
