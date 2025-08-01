@@ -11,7 +11,7 @@ import { Loader2, Mail, ArrowLeft } from 'lucide-react';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
 import { EmailPreview } from './campaign-composer/EmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
-import { convertNewsletterToCRM, convertNewsletterToCRM_Direct } from '@/utils/newsletterToCrmSync';
+import { convertNewsletterToCRM } from '@/utils/newsletterToCrmSync';
 import { supabase } from '@/integrations/supabase/client';
 import { saveCampaignAsDraft, CampaignData } from '@/utils/crmCampaignService';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
@@ -20,9 +20,32 @@ import { getDefaultTokenData } from '@/utils/emailTokenProcessor';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { generateNewsletterBlocks, getFallbackBlocks } from '@/services/newsletterBlockGenerator';
-import { generateStructuredNewsletter } from '@/components/homepage/StructuredNewsletterService';
 
-// Note: Enhanced block processing is now handled by convertNewsletterToCRM_Direct
+// Helper function to create topic-specific prompts for individual blocks
+const createBlockPrompt = (block: ContentBlock, campaignTitle: string, campaignDescription: string): string => {
+  const blockTypeContext = {
+    'image-text': 'featured content section with compelling headline and engaging description',
+    'text': 'informative content section with valuable insights',
+    'button': 'call-to-action section with motivating copy',
+    'quote': 'inspirational quote or testimonial section',
+    'divider': 'section divider or spacer'
+  };
+
+  const context = blockTypeContext[block.type] || 'content section';
+  const topic = campaignTitle.replace(/Newsletter$/i, '').trim();
+  
+  return `Create ${context} for a "${campaignTitle}" newsletter.
+    
+    Topic focus: ${topic}
+    Campaign description: ${campaignDescription}
+    Block type: ${block.type}
+    Current title: "${block.title}"
+    Current content: "${block.content}"
+    
+    Make this content specifically relevant to ${topic}. 
+    Write engaging, actionable content that would interest garden center customers.
+    Keep the tone professional yet friendly and accessible.`;
+};
 
 // Generate appropriate preheader text based on content and campaign name
 const generatePreheaderText = (content: string, campaignName: string): string => {
@@ -347,36 +370,65 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 crmBlocks = getFallbackBlocks(selectedIdea.title || 'Newsletter Campaign');
               }
               
-              // Generate AI-enhanced content for the newsletter template
-              console.log('🤖 Generating AI-enhanced content for template blocks...');
+              // Enhance each block with AI content using direct block generation
+              console.log('🤖 Enhancing template blocks with AI content...');
+              
               try {
-                const aiContent = await generateStructuredNewsletter(
-                  'generated-campaign',
-                  selectedIdea.title || 'Newsletter Campaign',
-                  0, // week number 0 for template-based
-                  undefined, // userId will be added in the service
-                  selectedIdea.description || '',
-                  [], // no promo items
-                  undefined // no tone note
+                const enhancedBlocks = await Promise.all(
+                  crmBlocks.map(async (block, index) => {
+                    // Skip header blocks from AI enhancement to keep clean titles
+                    if (block.type === 'header') {
+                      return block;
+                    }
+
+                    // Create topic-specific prompt for this block
+                    const blockPrompt = createBlockPrompt(block, selectedIdea.title || 'Newsletter Campaign', selectedIdea.description || '');
+                    
+                    try {
+                      console.log(`🔄 Generating AI content for block ${index + 1}: ${block.type}`);
+                      
+                      const response = await supabase.functions.invoke('generate-email-content', {
+                        body: { 
+                          prompt: blockPrompt,
+                          type: 'email_block'
+                        }
+                      });
+
+                      if (response.error) {
+                        console.warn(`⚠️ AI generation failed for block ${index + 1}:`, response.error);
+                        return block; // Return original block if AI fails
+                      }
+
+                      const aiResult = response.data;
+                      if (aiResult && aiResult.title && aiResult.content) {
+                        console.log(`✅ AI content generated for block ${index + 1}`);
+                        
+                        // Apply AI content to block with proper field mapping
+                        return {
+                          ...block,
+                          title: aiResult.title,
+                          headline: aiResult.title,
+                          content: aiResult.content,
+                          body: aiResult.content,
+                          ctaText: aiResult.cta_text || block.ctaText,
+                          ctaUrl: aiResult.cta_url || block.ctaUrl
+                        };
+                      } else {
+                        console.warn(`⚠️ AI returned incomplete content for block ${index + 1}`);
+                        return block;
+                      }
+                    } catch (blockError) {
+                      console.warn(`⚠️ Failed to enhance block ${index + 1}:`, blockError);
+                      return block; // Return original block if enhancement fails
+                    }
+                  })
                 );
+
+                console.log(`✅ Enhanced ${enhancedBlocks.length} blocks with AI content`);
+                crmBlocks = enhancedBlocks;
                 
-                if (aiContent && typeof aiContent === 'string') {
-                  console.log('🤖 AI content generated successfully, processing with convertNewsletterToCRM_Direct...');
-                  
-                  // Use the proven conversion function to create properly structured blocks
-                  const aiBlocks = convertNewsletterToCRM_Direct(aiContent);
-                  
-                  if (aiBlocks && aiBlocks.length > 0) {
-                    console.log(`✅ AI-enhanced blocks created: ${aiBlocks.length} blocks`);
-                    crmBlocks = aiBlocks;
-                  } else {
-                    console.warn('⚠️ AI enhancement returned no blocks, using template blocks');
-                  }
-                } else {
-                  console.warn('⚠️ AI content generation returned empty, using template blocks');
-                }
-              } catch (aiError) {
-                console.error('❌ AI enhancement failed, using template blocks:', aiError);
+              } catch (enhancementError) {
+                console.error('❌ Block enhancement failed, using template blocks:', enhancementError);
                 // Keep the template blocks as fallback
               }
               
