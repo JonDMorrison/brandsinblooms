@@ -516,12 +516,34 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             
             console.log(`✅ [NewsletterInit] Generated ${crmBlocks.length} blocks for "${selectedIdea.title}" (layout: ${layoutType})`);
           } else {
-            console.warn('⚠️ Template not found:', templateId);
-            toast({
-              title: "Template Not Found",
-              description: "The selected template could not be loaded. Starting with a blank campaign.",
-              variant: "destructive"
+            console.warn('⚠️ Template not found, generating from topic:', templateId);
+            
+            // Extract topic from URL parameters or use default
+            const urlTitle = decodeURIComponent(window.location.href.split('templateId=')[1]?.split('&')[0] || '');
+            const topicFromUrl = urlTitle.replace(/^holiday-[a-f0-9-]+$/, 'National Farmers Market Week Newsletter');
+            const topic = topicFromUrl || 'Newsletter Campaign';
+            
+            // Generate blocks based on layout and topic
+            const layoutType = layout as 'classic' | 'one-column' || 'classic';
+            setCampaignName(topic);
+            setSubjectLine(topic.replace(' Newsletter', ''));
+            setPreheaderText(generatePreheaderText(topic, topic));
+            
+            console.log(`🎨 Generating ${layoutType} layout blocks for topic: "${topic}"`);
+            
+            let crmBlocks = generateNewsletterBlocks({
+              topic: topic,
+              layout: layoutType,
+              templateBlocks: []
             });
+            
+            if (crmBlocks.length === 0) {
+              console.warn('⚠️ Block generator returned empty array, using fallback');
+              crmBlocks = getFallbackBlocks(topic);
+            }
+            
+            setBlocks(crmBlocks);
+            console.log(`✅ [FallbackInit] Generated ${crmBlocks.length} blocks for "${topic}" (layout: ${layoutType})`);
           }
         } catch (error) {
           console.error('❌ Error processing template:', error);
