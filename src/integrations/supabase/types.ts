@@ -2389,6 +2389,180 @@ export type Database = {
           },
         ]
       }
+      sms_automation_logs: {
+        Row: {
+          automation_id: string | null
+          created_at: string
+          customer_id: string | null
+          error_message: string | null
+          id: string
+          message_id: string | null
+          scheduled_at: string
+          sent_at: string | null
+          status: string | null
+          step_number: number
+        }
+        Insert: {
+          automation_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string | null
+          step_number: number
+        }
+        Update: {
+          automation_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string | null
+          step_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_automation_logs_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "sms_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_automation_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_automation_logs_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "sms_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_automations: {
+        Row: {
+          created_at: string
+          description: string | null
+          flow: Json
+          id: string
+          name: string
+          status: string | null
+          tenant_id: string | null
+          trigger_config: Json | null
+          trigger_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          flow: Json
+          id?: string
+          name: string
+          status?: string | null
+          tenant_id?: string | null
+          trigger_config?: Json | null
+          trigger_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          flow?: Json
+          id?: string
+          name?: string
+          status?: string | null
+          tenant_id?: string | null
+          trigger_config?: Json | null
+          trigger_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_automations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_messages: {
+        Row: {
+          campaign_id: string | null
+          content: string
+          created_at: string
+          customer_id: string | null
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          phone: string
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string | null
+          twilio_sid: string | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          content: string
+          created_at?: string
+          customer_id?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          phone: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          twilio_sid?: string | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          content?: string
+          created_at?: string
+          customer_id?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          phone?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          twilio_sid?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_sms_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_connections: {
         Row: {
           access_token: string

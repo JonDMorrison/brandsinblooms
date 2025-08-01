@@ -25,6 +25,7 @@ import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewsletterNewPage } from '@/pages/NewsletterNewPage';
 import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
+import SMSRoutes from '@/routes/SMSRoutes';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
@@ -151,6 +152,13 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <CRMCampaignCreatorPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/sms/*" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <SMSRoutes />
             </SidebarLayout>
           </ProtectedRoute>
         } />

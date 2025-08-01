@@ -1,0 +1,167 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+interface TwilioConfig {
+  accountSid: string
+  authToken: string
+  phoneNumber: string
+}
+
+async function sendSMS(config: TwilioConfig, to: string, body: string, mediaUrl?: string) {
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`
+  
+  const formData = new FormData()
+  formData.append('From', config.phoneNumber)
+  formData.append('To', to)
+  formData.append('Body', body)
+  if (mediaUrl) {
+    formData.append('MediaUrl', mediaUrl)
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Basic ' + btoa(`${config.accountSid}:${config.authToken}`)
+    },
+    body: formData
+  })
+
+  return response.json()
+}
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    console.log('SMS Queue Worker starting...')
+
+    // Get Twilio configuration
+    const twilioConfig: TwilioConfig = {
+      accountSid: Deno.env.get('TWILIO_ACCOUNT_SID') ?? '',
+      authToken: Deno.env.get('TWILIO_AUTH_TOKEN') ?? '',
+      phoneNumber: Deno.env.get('TWILIO_PHONE_NUMBER') ?? ''
+    }
+
+    if (!twilioConfig.accountSid || !twilioConfig.authToken || !twilioConfig.phoneNumber) {
+      throw new Error('Missing Twilio configuration')
+    }
+
+    // Get queued SMS messages that are ready to send
+    const { data: queuedMessages, error: fetchError } = await supabase
+      .from('sms_messages')
+      .select('*')
+      .eq('status', 'queued')
+      .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`)
+      .limit(50) // Process in batches
+
+    if (fetchError) {
+      console.error('Error fetching queued messages:', fetchError)
+      throw fetchError
+    }
+
+    console.log(`Found ${queuedMessages?.length || 0} queued SMS messages to process`)
+
+    let processed = 0
+    let sent = 0
+    let failed = 0
+
+    for (const message of queuedMessages || []) {
+      try {
+        // Send SMS via Twilio
+        const result = await sendSMS(
+          twilioConfig,
+          message.phone,
+          message.content
+        )
+
+        if (result.error_code) {
+          // Failed to send
+          await supabase
+            .from('sms_messages')
+            .update({
+              status: 'failed',
+              error_message: result.message || 'Unknown Twilio error',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', message.id)
+          
+          failed++
+          console.error(`Failed to send SMS ${message.id}:`, result.message)
+        } else {
+          // Successfully sent
+          await supabase
+            .from('sms_messages')
+            .update({
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+              twilio_sid: result.sid,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', message.id)
+          
+          sent++
+          console.log(`SMS ${message.id} sent successfully with SID: ${result.sid}`)
+        }
+
+        processed++
+      } catch (error) {
+        console.error(`Error processing SMS ${message.id}:`, error)
+        
+        // Mark as failed
+        await supabase
+          .from('sms_messages')
+          .update({
+            status: 'failed',
+            error_message: error.message,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', message.id)
+        
+        failed++
+        processed++
+      }
+    }
+
+    console.log(`SMS Queue Worker completed. Processed: ${processed}, Sent: ${sent}, Failed: ${failed}`)
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        processed,
+        sent,
+        failed,
+        message: `Processed ${processed} SMS messages`
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      }
+    )
+
+  } catch (error) {
+    console.error('SMS Queue Worker error:', error)
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      }
+    )
+  }
+})
