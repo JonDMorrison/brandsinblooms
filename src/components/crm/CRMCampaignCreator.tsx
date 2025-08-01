@@ -347,7 +347,38 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 crmBlocks = getFallbackBlocks(selectedIdea.title || 'Newsletter Campaign');
               }
               
-              // Legacy AI enhancement (keeping for reference - enhanced processing now in convertNewsletterToCRM_Direct)
+              // Generate AI-enhanced content for the newsletter template
+              console.log('🤖 Generating AI-enhanced content for template blocks...');
+              try {
+                const aiContent = await generateStructuredNewsletter(
+                  'generated-campaign',
+                  selectedIdea.title || 'Newsletter Campaign',
+                  0, // week number 0 for template-based
+                  undefined, // userId will be added in the service
+                  selectedIdea.description || '',
+                  [], // no promo items
+                  undefined // no tone note
+                );
+                
+                if (aiContent && typeof aiContent === 'string') {
+                  console.log('🤖 AI content generated successfully, processing with convertNewsletterToCRM_Direct...');
+                  
+                  // Use the proven conversion function to create properly structured blocks
+                  const aiBlocks = convertNewsletterToCRM_Direct(aiContent);
+                  
+                  if (aiBlocks && aiBlocks.length > 0) {
+                    console.log(`✅ AI-enhanced blocks created: ${aiBlocks.length} blocks`);
+                    crmBlocks = aiBlocks;
+                  } else {
+                    console.warn('⚠️ AI enhancement returned no blocks, using template blocks');
+                  }
+                } else {
+                  console.warn('⚠️ AI content generation returned empty, using template blocks');
+                }
+              } catch (aiError) {
+                console.error('❌ AI enhancement failed, using template blocks:', aiError);
+                // Keep the template blocks as fallback
+              }
               
             } catch (error) {
               console.error('❌ Error generating blocks:', error);
