@@ -20,6 +20,132 @@ import { getDefaultTokenData } from '@/utils/emailTokenProcessor';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { generateNewsletterBlocks, getFallbackBlocks } from '@/services/newsletterBlockGenerator';
+import { generateStructuredNewsletter } from '@/components/homepage/StructuredNewsletterService';
+
+// Helper function to enhance blocks with AI-generated content
+const enhanceBlocksWithAIContent = async (
+  originalBlocks: ContentBlock[], 
+  aiContent: string, 
+  selectedIdea: any
+): Promise<ContentBlock[]> => {
+  try {
+    console.log('🔧 Enhancing blocks with AI content...');
+    
+    // Parse AI content into sections
+    const sections = parseAIContentSections(aiContent);
+    console.log(`📝 Parsed ${sections.length} AI content sections`);
+    
+    // Map sections to blocks
+    const enhancedBlocks = originalBlocks.map((block, index) => {
+      const section = sections[index];
+      
+      if (!section) return block;
+      
+      // Enhance based on block type
+      switch (block.type) {
+        case 'header':
+          return {
+            ...block,
+            title: section.title || block.title,
+            headline: section.title || block.headline,
+            content: section.description || block.content
+          };
+          
+        case 'image-text':
+          return {
+            ...block,
+            title: section.title || block.title,
+            headline: section.title || block.headline,
+            body: section.content || block.body,
+            content: section.content || block.content,
+            ctaText: section.call_to_action || block.ctaText || 'Learn More'
+          };
+          
+        case 'text':
+          return {
+            ...block,
+            title: section.title || block.title,
+            headline: section.title || block.headline,
+            body: section.content || block.body,
+            content: section.content || block.content
+          };
+          
+        case 'button':
+          return {
+            ...block,
+            ctaText: section.call_to_action || section.title || block.ctaText || 'Take Action'
+          };
+          
+        default:
+          return block;
+      }
+    });
+    
+    console.log('✅ Blocks enhanced with AI content');
+    return enhancedBlocks;
+    
+  } catch (error) {
+    console.error('❌ Error enhancing blocks with AI content:', error);
+    return originalBlocks;
+  }
+};
+
+// Helper function to parse YAML-like AI content into sections
+const parseAIContentSections = (content: string): Array<{
+  title?: string;
+  description?: string;
+  content?: string;
+  call_to_action?: string;
+}> => {
+  const sections: Array<{
+    title?: string;
+    description?: string;
+    content?: string;
+    call_to_action?: string;
+  }> = [];
+  
+  try {
+    // Split content by block separators
+    const blocks = content.split(/(?=- title:)/);
+    
+    blocks.forEach(block => {
+      if (!block.trim()) return;
+      
+      const section: any = {};
+      
+      // Extract title
+      const titleMatch = block.match(/- title:\s*(.+)/);
+      if (titleMatch) section.title = titleMatch[1].trim();
+      
+      // Extract description  
+      const descMatch = block.match(/description:\s*(.+)/);
+      if (descMatch) section.description = descMatch[1].trim();
+      
+      // Extract content (multi-line)
+      const contentMatch = block.match(/content:\s*\|\s*([\s\S]*?)(?=\n\s*(?:call_to_action|$))/);
+      if (contentMatch) {
+        section.content = contentMatch[1]
+          .split('\n')
+          .map(line => line.replace(/^\s{4}/, '').trim())
+          .filter(line => line)
+          .join('\n');
+      }
+      
+      // Extract call to action
+      const ctaMatch = block.match(/call_to_action:\s*(.+)/);
+      if (ctaMatch) section.call_to_action = ctaMatch[1].trim();
+      
+      if (Object.keys(section).length > 0) {
+        sections.push(section);
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error parsing AI content sections:', error);
+  }
+  
+  return sections;
+};
 
 // Generate appropriate preheader text based on content and campaign name
 const generatePreheaderText = (content: string, campaignName: string): string => {
@@ -332,6 +458,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             
             let crmBlocks: ContentBlock[];
             try {
+              // First, generate basic template blocks
               crmBlocks = generateNewsletterBlocks({
                 topic: selectedIdea.title || 'Newsletter Campaign',
                 layout: layoutType,
@@ -342,6 +469,39 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 console.warn('⚠️ Block generator returned empty array, using fallback');
                 crmBlocks = getFallbackBlocks(selectedIdea.title || 'Newsletter Campaign');
               }
+              
+              // Then enhance with AI-generated content
+              setTimeout(async () => {
+                try {
+                  console.log('🤖 Generating AI-enhanced content for newsletter...');
+                  
+                  const aiContent = await generateStructuredNewsletter(
+                    'temp-campaign-id', // Temporary ID for generation
+                    selectedIdea.title || 'Newsletter Campaign',
+                    0, // Week number for special themes
+                    undefined, // userId - will be filled from company profile
+                    selectedIdea.description || `Special ${selectedIdea.title} content for garden centers`,
+                    [], // No promo items for now
+                    'Professional, engaging, and informative tone suitable for garden center customers'
+                  );
+                  
+                  if (aiContent) {
+                    console.log('✅ AI content generated successfully');
+                    
+                    // Parse YAML-like content into blocks
+                    const enhancedBlocks = await enhanceBlocksWithAIContent(crmBlocks, aiContent, selectedIdea);
+                    
+                    if (enhancedBlocks.length > 0) {
+                      setBlocks(enhancedBlocks);
+                      console.log(`🔄 Updated ${enhancedBlocks.length} blocks with AI content`);
+                    }
+                  }
+                } catch (aiError) {
+                  console.error('❌ AI content generation failed:', aiError);
+                  // Continue with template blocks if AI fails
+                }
+              }, 500);
+              
             } catch (error) {
               console.error('❌ Error generating blocks:', error);
               crmBlocks = getFallbackBlocks(selectedIdea.title || 'Newsletter Campaign');
@@ -349,33 +509,74 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             
             setBlocks(crmBlocks);
             
-            // Generate and auto-fill images based on heroQuery
+            // Generate and auto-fill images based on heroQuery and block content
             if (selectedIdea.heroQuery && crmBlocks.length > 0) {
               setTimeout(async () => {
                 try {
-                  const { data: imageData } = await supabase.functions.invoke('get-unsplash-image', {
-                    body: { query: selectedIdea.heroQuery }
-                  });
+                  console.log('🖼️ Fetching images for newsletter blocks...');
                   
-                  if (imageData?.urls?.regular) {
-                    // Update the first image block with the hero image
-                    const imageBlockIndex = crmBlocks.findIndex(block => 
+                  // Find all blocks that need images
+                  const imageBlocks = crmBlocks
+                    .map((block, index) => ({ block, index }))
+                    .filter(({ block }) => 
                       block.type === 'image' || block.type === 'image-text' || block.type === 'header'
                     );
+                  
+                  if (imageBlocks.length > 0) {
+                    // Fetch hero image for the first image block
+                    const { data: heroImageData } = await supabase.functions.invoke('get-unsplash-image', {
+                      body: { query: selectedIdea.heroQuery }
+                    });
                     
-                    if (imageBlockIndex >= 0) {
+                    if (heroImageData?.urls?.regular && imageBlocks[0]) {
                       setBlocks(prev => prev.map((block, index) => 
-                        index === imageBlockIndex 
-                          ? { ...block, imageUrl: imageData.urls.regular, altText: imageData.alt_description || selectedIdea.title }
+                        index === imageBlocks[0].index
+                          ? { 
+                              ...block, 
+                              imageUrl: heroImageData.urls.regular, 
+                              altText: heroImageData.alt_description || selectedIdea.title 
+                            }
                           : block
                       ));
-                      console.log(`🖼️ Applied hero image to block ${imageBlockIndex}`);
+                      console.log(`🖼️ Applied hero image to block ${imageBlocks[0].index}`);
+                    }
+                    
+                    // Fetch additional images for other image blocks
+                    if (imageBlocks.length > 1) {
+                      for (let i = 1; i < Math.min(imageBlocks.length, 3); i++) {
+                        try {
+                          const blockInfo = imageBlocks[i];
+                          const searchQuery = `${selectedIdea.title} gardening plants garden center`;
+                          
+                          const { data: blockImageData } = await supabase.functions.invoke('get-unsplash-image', {
+                            body: { query: searchQuery }
+                          });
+                          
+                          if (blockImageData?.urls?.regular) {
+                            setBlocks(prev => prev.map((block, index) => 
+                              index === blockInfo.index
+                                ? { 
+                                    ...block, 
+                                    imageUrl: blockImageData.urls.regular, 
+                                    altText: blockImageData.alt_description || `${selectedIdea.title} content` 
+                                  }
+                                : block
+                            ));
+                            console.log(`🖼️ Applied additional image to block ${blockInfo.index}`);
+                          }
+                          
+                          // Add delay between requests to avoid rate limiting
+                          await new Promise(resolve => setTimeout(resolve, 500));
+                        } catch (error) {
+                          console.error(`Failed to fetch image for block ${i}:`, error);
+                        }
+                      }
                     }
                   }
                 } catch (error) {
-                  console.error('Failed to fetch hero image:', error);
+                  console.error('Failed to fetch newsletter images:', error);
                 }
-              }, 1000);
+              }, 1500); // Increased delay to let AI content load first
             }
             
             toast({
