@@ -763,8 +763,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           title: contentObj?.title,
           body: contentObj?.body || contentObj?.content,
           content: contentObj?.content || contentObj?.body,
-          // Image fields
-          imageUrl: contentObj?.imageUrl,
+          // Image fields - CRITICAL FIX: Treat empty strings as null
+          imageUrl: contentObj?.imageUrl && contentObj.imageUrl.trim() !== '' ? contentObj.imageUrl : null,
           altText: contentObj?.altText,
           caption: contentObj?.caption,
           // Button/CTA fields
