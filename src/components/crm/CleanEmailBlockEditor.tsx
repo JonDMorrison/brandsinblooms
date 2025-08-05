@@ -12,6 +12,7 @@ import { mediaSelector } from '@/utils/mediaSelector';
 interface CleanEmailBlockEditorProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
+  generatingBlocks?: Set<string>;
 }
 
 // Enhanced mapping function to convert layout types to block types and configurations
@@ -154,7 +155,8 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
 
 export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   blocks,
-  onBlocksChange
+  onBlocksChange,
+  generatingBlocks = new Set()
 }) => {
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -414,6 +416,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           onBlocksChange(newBlocks);
         }}
         onOpenAddModal={openAddModal}
+        generatingBlocks={generatingBlocks}
       />
 
       {/* Empty State */}

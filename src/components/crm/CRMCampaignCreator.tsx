@@ -258,6 +258,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   } | null>(null);
   const [existingCampaignId, setExistingCampaignId] = useState<string | null>(null);
   const [loadingExistingCampaign, setLoadingExistingCampaign] = useState(false);
+  const [generatingBlocks, setGeneratingBlocks] = useState<Set<string>>(new Set());
 
   // Footer and company data
   const { footerSettings } = useFooterSettings();
@@ -1715,6 +1716,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 });
               }
             }}
+            generatingBlocks={generatingBlocks}
           />
         </CardContent>
       </Card>

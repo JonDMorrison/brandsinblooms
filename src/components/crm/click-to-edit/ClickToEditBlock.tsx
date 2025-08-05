@@ -7,7 +7,7 @@ import { GripVertical } from 'lucide-react';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
-
+import { BlockLoadingOverlay } from './BlockLoadingOverlay';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 
 interface ClickToEditBlockProps {
@@ -19,6 +19,7 @@ interface ClickToEditBlockProps {
   onMove: (id: string, direction: 'up' | 'down') => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  isGenerating?: boolean;
   children: {
     preview: React.ReactNode;
     editor: React.ReactNode;
@@ -34,6 +35,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   onMove,
   canMoveUp,
   canMoveDown,
+  isGenerating = false,
   children
 }) => {
   const [localBlock, setLocalBlock] = useState<ContentBlock>(block);
@@ -178,12 +180,15 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       <Card
         ref={blockRef}
         className={cn(
-          "transition-all duration-200 click-to-edit-block",
+          "transition-all duration-200 click-to-edit-block relative",
           isAnyEditMode ? "shadow-md ring-2 ring-primary/20" : "hover:shadow-sm",
-          block.visible === false && "opacity-60"
+          block.visible === false && "opacity-60",
+          isGenerating && "bg-accent/10"
         )}
         style={{ pointerEvents: 'auto', overflow: 'visible' }}
       >
+        {/* Loading overlay when content is being generated */}
+        {isGenerating && <BlockLoadingOverlay />}
         {isAnyEditMode ? (
           <div ref={editingRef} className="relative">
             {/* Text Edit Mode */}

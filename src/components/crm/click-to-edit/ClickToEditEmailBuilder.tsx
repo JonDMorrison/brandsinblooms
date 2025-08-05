@@ -20,12 +20,14 @@ interface ClickToEditEmailBuilderProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
   onOpenAddModal?: (afterIndex?: number) => void;
+  generatingBlocks?: Set<string>;
 }
 
 export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = ({
   blocks,
   onBlocksChange,
-  onOpenAddModal
+  onOpenAddModal,
+  generatingBlocks = new Set()
 }) => {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
@@ -245,6 +247,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
             onMove={moveBlock}
             canMoveUp={index > 0}
             canMoveDown={index < blocks.length - 1}
+            isGenerating={generatingBlocks.has(block.id)}
           >
             {{
               preview: renderBlockPreview(block),
