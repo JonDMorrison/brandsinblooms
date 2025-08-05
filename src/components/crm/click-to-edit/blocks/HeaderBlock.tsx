@@ -45,15 +45,26 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       )}
       
       {/* Color Overlay - middle layer */}
-      {block.backgroundColor && (
-        <div 
-          className="absolute inset-0"
-          style={{ 
-            backgroundColor: block.backgroundColor,
-            opacity: (block.colorOverlayOpacity || 50) / 100
-          }}
-        />
-      )}
+      {(() => {
+        // Debug logging for black color issue
+        console.log('[HeaderBlock Debug]', {
+          backgroundColor: block.backgroundColor,
+          hasBackgroundColor: !!block.backgroundColor,
+          colorOverlayOpacity: block.colorOverlayOpacity,
+          shouldShowOverlay: !!block.backgroundColor
+        });
+        
+        // Only render overlay if backgroundColor exists
+        return block.backgroundColor ? (
+          <div 
+            className="absolute inset-0"
+            style={{ 
+              backgroundColor: block.backgroundColor,
+              opacity: (block.colorOverlayOpacity || 50) / 100
+            }}
+          />
+        ) : null;
+      })()}
 
       {/* Contextual Toolbar - only show when onModeChange is available */}
       {onModeChange && (
@@ -228,7 +239,14 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
               id="bgColor"
               type="color"
               value={block.backgroundColor || '#000000'}
-              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+              onChange={(e) => {
+                console.log('[HeaderBlock Color Input]', {
+                  newValue: e.target.value,
+                  oldValue: block.backgroundColor,
+                  isBlack: e.target.value === '#000000'
+                });
+                onUpdate({ backgroundColor: e.target.value });
+              }}
             />
           </div>
           <div className="space-y-3">
