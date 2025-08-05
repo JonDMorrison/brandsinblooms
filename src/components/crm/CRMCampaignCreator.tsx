@@ -20,6 +20,49 @@ import { getDefaultTokenData } from '@/utils/emailTokenProcessor';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { generateNewsletterBlocks, getFallbackBlocks } from '@/services/newsletterBlockGenerator';
+import { fetchSmartImage } from '@/services/unsplashService';
+
+// Helper function to fetch image for blocks with missing images
+const getOrFetchImage = async (contentObj: any, block: any): Promise<string | null> => {
+  // Check if we already have a valid image URL
+  const existingImageUrl = contentObj?.imageUrl;
+  if (existingImageUrl && existingImageUrl.trim() !== '') {
+    return existingImageUrl;
+  }
+
+  // Generate image based on block content
+  const searchQuery = contentObj?.headline || contentObj?.title || contentObj?.body || 'garden plants';
+  console.log(`🖼️ Fetching image for block ${block.id} with query: "${searchQuery}"`);
+  
+  try {
+    const imageData = await fetchSmartImage(searchQuery, '', true);
+    if (imageData?.url) {
+      // Save the image URL back to the database
+      const { error } = await supabase
+        .from('campaign_blocks')
+        .update({ 
+          content: {
+            ...contentObj,
+            imageUrl: imageData.url,
+            altText: imageData.alt
+          }
+        })
+        .eq('id', block.id);
+
+      if (error) {
+        console.warn('Failed to save image URL to database:', error);
+      } else {
+        console.log(`✅ Saved image URL for block ${block.id}`);
+      }
+
+      return imageData.url;
+    }
+  } catch (error) {
+    console.warn('Failed to fetch image:', error);
+  }
+
+  return null;
+};
 
 // Helper function to create topic-specific prompts for individual blocks
 const createBlockPrompt = (block: ContentBlock, campaignTitle: string, campaignDescription: string): string => {
@@ -690,7 +733,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       });
 
         // Convert campaign blocks back to ContentBlocks using enhanced transformBlock function
-        const transformBlock = (block: any): ContentBlock => {
+        const transformBlock = async (block: any): Promise<ContentBlock> => {
           console.log('🔍 Transforming block:', {
             blockId: block.id,
             blockType: block.block_type,
@@ -763,8 +806,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           title: contentObj?.title,
           body: contentObj?.body || contentObj?.content,
           content: contentObj?.content || contentObj?.body,
-          // Image fields - CRITICAL FIX: Treat empty strings as null
-          imageUrl: contentObj?.imageUrl && contentObj.imageUrl.trim() !== '' ? contentObj.imageUrl : null,
+          // Image fields - CRITICAL FIX: Treat empty strings as null and fetch if missing
+          imageUrl: await getOrFetchImage(contentObj, block),
           altText: contentObj?.altText,
           caption: contentObj?.caption,
           // Button/CTA fields
@@ -884,7 +927,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         return transformedBlock;
       };
 
-      const contentBlocks: ContentBlock[] = campaignBlocks.map(transformBlock);
+      const contentBlocks: ContentBlock[] = await Promise.all(campaignBlocks.map(transformBlock));
 
       setBlocks(contentBlocks);
 
