@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, persona, type, personas = [] } = await req.json();
+    const { prompt, persona, type, personas = [], postType } = await req.json();
 
     // Get OpenAI API key
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -65,11 +65,28 @@ serve(async (req) => {
       `\n\nAudience insights: This campaign is targeted toward the following customer personas: ${formattedPersonas}. Write with empathy and clarity to resonate with these profiles. Ensure relevance, tone, and examples match their goals and challenges.` : 
       personaContext;
 
-    // Create system prompt based on type
+    // Get post-type specific instructions
+    const getPostTypeInstructions = (postType: string): string => {
+      const instructions = {
+        'instagram': 'Visual, engaging content with hashtag-friendly style. Use short paragraphs, compelling visuals, and social media tone. Keep content punchy and engaging.',
+        'facebook': 'Community-focused, conversational content that encourages engagement. Use a friendly, approachable tone that invites discussion.',
+        'blog': 'Educational, detailed content with how-to format. Use informative headlines, structured content, and value-driven approach.',
+        'video': 'Step-by-step instructional content. Use clear, actionable language and sequential formatting that works for video narration.',
+        'newsletter': 'Summary/tips format with clear CTAs. Use professional newsletter tone with value-driven content and clear next steps.'
+      };
+      return instructions[postType] || instructions['newsletter'];
+    };
+
+    // Create system prompt based on type and post type
     const systemPrompt = type === 'email_block' 
       ? `You are an expert email marketing copywriter specializing in garden and plant content. 
          Create compelling, actionable email content blocks that drive engagement and conversions.
          ${personaInsights}
+         
+         ${postType ? `CONTENT STYLE: ${postType.toUpperCase()}
+         STYLE INSTRUCTIONS: ${getPostTypeInstructions(postType)}
+         
+         CRITICAL: Write in the ${postType} content style throughout. This affects tone, structure, and formatting.` : ''}
          
          Return your response as JSON with these fields:
          - title: A compelling headline (max 60 characters)

@@ -64,30 +64,126 @@ const getOrFetchImage = async (contentObj: any, block: any): Promise<string | nu
   return null;
 };
 
-// Helper function to create topic-specific prompts for individual blocks
-const createBlockPrompt = (block: ContentBlock, campaignTitle: string, campaignDescription: string): string => {
+// Post type rotation for varied content styles
+const POST_TYPE_ROTATION = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
+
+// Subtopic mapping for content variety
+const getSubtopicForBlock = (campaignTitle: string, blockIndex: number): string => {
+  const baseTheme = campaignTitle.replace(/Newsletter$/i, '').trim();
+  
+  // Define subtopics based on theme patterns
+  const subtopicMappings: Record<string, string[]> = {
+    'bee': [
+      'Bee-friendly garden plants and flowers',
+      'Supporting local beekeepers and honey',
+      'Creating pollinator habitats in small spaces',
+      'DIY bee house construction guide',
+      'Weekly bee conservation tips'
+    ],
+    'spring': [
+      'Early spring planting essentials',
+      'Soil preparation and testing',
+      'Starting seedlings indoors',
+      'Spring garden cleanup tips',
+      'Spring fertilizing schedule'
+    ],
+    'summer': [
+      'Heat-tolerant plants for summer',
+      'Watering strategies for hot weather',
+      'Summer pest management',
+      'Harvesting summer vegetables',
+      'Summer garden maintenance'
+    ],
+    'fall': [
+      'Fall planting opportunities',
+      'Preparing gardens for winter',
+      'Fall harvest celebrations',
+      'Seasonal color plants',
+      'Fall garden cleanup'
+    ],
+    'winter': [
+      'Winter garden protection',
+      'Indoor gardening projects',
+      'Planning next year\'s garden',
+      'Winter plant care',
+      'Holiday decorating with plants'
+    ]
+  };
+
+  // Find matching theme
+  const theme = Object.keys(subtopicMappings).find(key => 
+    baseTheme.toLowerCase().includes(key)
+  );
+  
+  if (theme && subtopicMappings[theme]) {
+    return subtopicMappings[theme][blockIndex % subtopicMappings[theme].length];
+  }
+  
+  // Generic fallback subtopics
+  const genericSubtopics = [
+    'Featured plant spotlight',
+    'Garden care essentials',
+    'Seasonal gardening tips',
+    'Problem-solving solutions',
+    'Community gardening updates'
+  ];
+  
+  return genericSubtopics[blockIndex % genericSubtopics.length];
+};
+
+// Enhanced block prompt creation with post-type variety
+const createBlockPrompt = (
+  block: ContentBlock, 
+  campaignTitle: string, 
+  campaignDescription: string, 
+  blockIndex: number
+): string => {
+  const postType = POST_TYPE_ROTATION[blockIndex % POST_TYPE_ROTATION.length];
+  const subtopic = getSubtopicForBlock(campaignTitle, blockIndex);
+  
+  const baseTheme = campaignTitle.replace(/Newsletter$/i, '').trim();
+  
+  const postTypeInstructions = {
+    'instagram': 'Visual, engaging content with hashtag-friendly style. Use short paragraphs, compelling visuals, and social media tone.',
+    'facebook': 'Community-focused, conversational content that encourages engagement. Use a friendly, approachable tone.',
+    'blog': 'Educational, detailed content with how-to format. Use informative headlines and structured content.',
+    'video': 'Step-by-step instructional content. Use clear, actionable language and sequential formatting.',
+    'newsletter': 'Summary/tips format with clear CTAs. Use professional newsletter tone with value-driven content.'
+  };
+  
   const blockTypeContext = {
     'image-text': 'featured content section with compelling headline and engaging description',
     'text': 'informative content section with valuable insights',
     'button': 'call-to-action section with motivating copy',
     'quote': 'inspirational quote or testimonial section',
-    'divider': 'section divider or spacer'
+    'divider': 'section divider or spacer',
+    'header': 'header section with campaign title'
   };
 
   const context = blockTypeContext[block.type] || 'content section';
-  const topic = campaignTitle.replace(/Newsletter$/i, '').trim();
   
-  return `Create ${context} for a "${campaignTitle}" newsletter.
+  return `Create ${context} for a "${campaignTitle}" newsletter with ${postType} content style.
     
-    Topic focus: ${topic}
-    Campaign description: ${campaignDescription}
+    PRIMARY THEME: ${baseTheme}
+    SPECIFIC SUBTOPIC: ${subtopic}
+    CONTENT STYLE: ${postType}
+    STYLE INSTRUCTIONS: ${postTypeInstructions[postType]}
+    
     Block type: ${block.type}
-    Current title: "${block.title}"
-    Current content: "${block.content}"
+    Block position: ${blockIndex + 1}
     
-    Make this content specifically relevant to ${topic}. 
+    CONTENT VARIETY REQUIREMENTS:
+    - DO NOT start with "It's [Theme] Week" or similar repetitive openings
+    - Use the ${postType} content style and tone throughout
+    - Focus specifically on the subtopic: ${subtopic}
+    - Make each block serve a different purpose within the campaign
+    - Vary your opening approach completely from other blocks
+    
+    FORMATTING FOR ${postType.toUpperCase()}:
+    ${postTypeInstructions[postType]}
+    
     Write engaging, actionable content that would interest garden center customers.
-    Keep the tone professional yet friendly and accessible.`;
+    Make this content specifically about ${subtopic} within the broader ${baseTheme} theme.`;
 };
 
 // Generate appropriate preheader text based on content and campaign name
@@ -425,15 +521,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     }
 
                     // Create topic-specific prompt for this block
-                    const blockPrompt = createBlockPrompt(block, selectedIdea.title || 'Newsletter Campaign', selectedIdea.description || '');
+                    const blockPrompt = createBlockPrompt(block, selectedIdea.title || 'Newsletter Campaign', selectedIdea.description || '', index);
                     
                     try {
                       console.log(`🔄 Generating AI content for block ${index + 1}: ${block.type}`);
                       
+                      const postType = POST_TYPE_ROTATION[index % POST_TYPE_ROTATION.length];
+                      
                       const response = await supabase.functions.invoke('generate-email-content', {
                         body: { 
                           prompt: blockPrompt,
-                          type: 'email_block'
+                          type: 'email_block',
+                          postType: postType
                         }
                       });
 
