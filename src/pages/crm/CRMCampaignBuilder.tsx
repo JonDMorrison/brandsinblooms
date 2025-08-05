@@ -141,11 +141,20 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
       return;
     }
     
-    setBlocks(data?.map(block => ({
-      ...block,
-      block_type: block.block_type as BlockType,
-      content: typeof block.content === 'string' ? JSON.parse(block.content) : block.content
-    })) || []);
+    setBlocks(data?.map(block => {
+      let content = typeof block.content === 'string' ? JSON.parse(block.content) : block.content;
+      
+      // Handle nested content structure (content.content)
+      if (content && typeof content === 'object' && content.content && typeof content.content === 'object') {
+        content = content.content;
+      }
+      
+      return {
+        ...block,
+        block_type: block.block_type as BlockType,
+        content
+      };
+    }) || []);
   };
 
   // Manual save function for force save
