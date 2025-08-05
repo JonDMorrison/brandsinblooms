@@ -142,27 +142,43 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
     }
     
     setBlocks(data?.map(block => {
-      let content = typeof block.content === 'string' ? JSON.parse(block.content) : block.content;
+      let rawContent = typeof block.content === 'string' ? JSON.parse(block.content) : block.content;
       
-      // Recursively unwrap nested content structure
-      while (content && typeof content === 'object' && content.content) {
-        if (typeof content.content === 'object') {
-          content = content.content;
-        } else if (typeof content.content === 'string') {
-          // If the nested content is a string, it's the actual content
-          content = { content: content.content };
-          break;
-        } else {
-          break;
-        }
+      // Recursively unwrap nested content structure to find the actual content object
+      let contentObj = rawContent;
+      while (contentObj && typeof contentObj === 'object' && contentObj.content && typeof contentObj.content === 'object') {
+        contentObj = contentObj.content;
       }
       
-      console.log('Processed block content:', block.id, content);
+      // Extract the actual text content for display
+      let displayText = '';
+      if (contentObj) {
+        // Try different possible content fields in priority order
+        displayText = contentObj.body || contentObj.content || contentObj.headline || contentObj.text || '';
+      }
+      
+      // Create a properly structured content object for EmailBlockRenderer
+      // EmailBlockRenderer expects: block.content.content for text content
+      const processedContent = {
+        title: contentObj?.headline || '',
+        content: displayText, // This is what EmailBlockRenderer.renderText() uses
+        body: contentObj?.body || displayText,
+        headline: contentObj?.headline || '',
+        imageUrl: contentObj?.imageUrl || '',
+        layout: contentObj?.layout || 'full-width',
+        textAlign: contentObj?.textAlign || 'left'
+      };
+      
+      console.log('✅ Block processed:', block.id, { 
+        originalStructure: Object.keys(rawContent),
+        extractedText: displayText.substring(0, 100) + '...',
+        finalContent: processedContent
+      });
       
       return {
         ...block,
         block_type: block.block_type as BlockType,
-        content
+        content: processedContent
       };
     }) || []);
   };
