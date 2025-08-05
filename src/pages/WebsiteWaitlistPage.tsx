@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Globe, Zap, Sparkles, Users, ArrowRight, Check } from 'lucide-react';
+import { Globe, Zap, Sparkles, Users, ArrowRight, Check, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export const WebsiteWaitlistPage = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -58,7 +60,7 @@ export const WebsiteWaitlistPage = () => {
               Thanks for joining our website builder waitlist. We'll send you early access when it's ready!
             </p>
             <Button 
-              onClick={() => window.history.back()}
+              onClick={() => navigate('/')}
               className="w-full"
             >
               Back to Dashboard
@@ -69,9 +71,21 @@ export const WebsiteWaitlistPage = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
-      <div className="container mx-auto px-4 py-12">
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
+        {/* Back Button */}
+        <div className="absolute top-6 left-6">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </Button>
+        </div>
+        
+        <div className="container mx-auto px-4 py-12">
         {/* Hero Section */}
         <div className="text-center mb-16">
           <Badge className="mb-4 bg-teal-100 text-teal-700 border-teal-200">
