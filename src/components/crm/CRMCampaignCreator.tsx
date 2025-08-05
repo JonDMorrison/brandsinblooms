@@ -713,6 +713,23 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             contentObj = {};
           }
 
+          // CRITICAL FIX: Unwrap nested content structure
+          // Database stores content like: { content: { body: "text", content: "text", headline: "..." } }
+          // We need to unwrap to get to the actual content fields
+          while (contentObj && typeof contentObj === 'object' && contentObj.content && typeof contentObj.content === 'object') {
+            console.log('🔧 Unwrapping nested content layer:', Object.keys(contentObj.content));
+            contentObj = contentObj.content;
+          }
+          
+          console.log('✅ Content after unwrapping:', {
+            blockId: block.id,
+            hasBody: !!contentObj?.body,
+            hasContent: !!contentObj?.content,
+            hasHeadline: !!contentObj?.headline,
+            bodyType: typeof contentObj?.body,
+            contentType: typeof contentObj?.content
+          });
+
           // Detect if this should actually be a header block
           // Check for header block characteristics: backgroundColor + imageUrl + full-width layout
           let actualBlockType = block.block_type;
