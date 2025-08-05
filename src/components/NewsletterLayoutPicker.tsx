@@ -10,12 +10,30 @@ interface CardProps {
 }
 
 const THUMBS: Record<LayoutKey, JSX.Element> = {
-  /** ⬤ header  ▭ spacer ▭ blocks ▭ footer */
+  /** ⬤ header  ▭ image-text blocks ▭ footer */
   classic: (
     <div className="h-full w-full rounded-md bg-white shadow-inner flex flex-col p-2 gap-1">
       <div className="h-6 rounded bg-gradient-to-b from-sky-200 to-sky-300" />
-      <div className="flex-1 rounded bg-slate-50 border border-dashed border-slate-200" />
-      <div className="h-4 rounded bg-gradient-to-r from-slate-200 to-slate-100" />
+      
+      {/* Image-text block 1 */}
+      <div className="flex gap-2 items-start p-1">
+        <div className="w-6 h-4 rounded bg-slate-300 flex-shrink-0" />
+        <div className="flex-1 space-y-1">
+          <div className="h-1 rounded bg-slate-200" />
+          <div className="h-1 rounded bg-slate-200 w-3/4" />
+        </div>
+      </div>
+      
+      {/* Image-text block 2 */}
+      <div className="flex gap-2 items-start p-1">
+        <div className="w-6 h-4 rounded bg-slate-300 flex-shrink-0" />
+        <div className="flex-1 space-y-1">
+          <div className="h-1 rounded bg-slate-200" />
+          <div className="h-1 rounded bg-slate-200 w-2/3" />
+        </div>
+      </div>
+      
+      <div className="h-4 rounded bg-gradient-to-r from-slate-200 to-slate-100 mt-auto" />
     </div>
   ),
 
