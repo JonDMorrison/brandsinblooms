@@ -22,6 +22,8 @@ import { CRMPersonasPage } from '@/pages/crm/CRMPersonasPage';
 import { CRMPersonaAnalyticsPage } from '@/pages/crm/CRMPersonaAnalyticsPage';
 import { CRMAnalyticsPage } from '@/pages/crm/CRMAnalyticsPage';
 import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
+import CRMAutomations from '@/pages/crm/CRMAutomations';
+import CRMAutomationBuilder from '@/pages/crm/CRMAutomationBuilder';
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewsletterNewPage } from '@/pages/NewsletterNewPage';
 import { WebsiteWaitlistPage } from '@/pages/WebsiteWaitlistPage';
@@ -153,6 +155,27 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <CRMCampaignCreatorPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/automations" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMAutomations />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/automations/new" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMAutomationBuilder />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/automations/:id" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMAutomationBuilder />
             </SidebarLayout>
           </ProtectedRoute>
         } />
