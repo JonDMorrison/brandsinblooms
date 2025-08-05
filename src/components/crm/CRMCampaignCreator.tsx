@@ -352,7 +352,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             
             // Generate blocks using the new newsletter block generator
             const templateBlocks = selectedIdea.templateBlocks || [];
-            const layoutType = layout as 'classic' | 'one-column' || 'classic';
+            const layoutType = layout as 'block-builder' | 'simple-email' || 'block-builder';
             
             console.log(`🎨 Generating blocks for ${layoutType} layout with ${templateBlocks.length} template blocks`);
             
@@ -524,7 +524,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             const topic = topicFromUrl || 'Newsletter Campaign';
             
             // Generate blocks based on layout and topic
-            const layoutType = layout as 'classic' | 'one-column' || 'classic';
+            const layoutType = layout as 'block-builder' | 'simple-email' || 'block-builder';
             setCampaignName(topic);
             setSubjectLine(topic.replace(' Newsletter', ''));
             setPreheaderText(generatePreheaderText(topic, topic));

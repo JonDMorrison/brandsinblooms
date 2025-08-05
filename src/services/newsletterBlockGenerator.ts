@@ -2,7 +2,7 @@ import { ContentBlock, BlockLayout } from '@/types/emailBuilder';
 
 interface GenerateBlocksOptions {
   topic: string;
-  layout: 'classic' | 'one-column';
+  layout: 'block-builder' | 'simple-email';
   templateBlocks?: any[];
 }
 
@@ -29,15 +29,15 @@ export const generateNewsletterBlocks = (options: GenerateBlocksOptions): Conten
   return generateLayoutSpecificBlocks(layout, topic);
 };
 
-const generateLayoutSpecificBlocks = (layout: 'classic' | 'one-column', topic: string): ContentBlock[] => {
+const generateLayoutSpecificBlocks = (layout: 'block-builder' | 'simple-email', topic: string): ContentBlock[] => {
   switch (layout) {
-    case 'classic':
-      return generateClassicBlocks(topic);
-    case 'one-column':
-      return generateOneColumnBlocks(topic);
+    case 'block-builder':
+      return generateBlockBuilderBlocks(topic);
+    case 'simple-email':
+      return generateSimpleEmailBlocks(topic);
     default:
-      console.warn(`[NewsletterInit] Unknown layout: ${layout}, falling back to classic`);
-      return generateClassicBlocks(topic);
+      console.warn(`[NewsletterInit] Unknown layout: ${layout}, falling back to block-builder`);
+      return generateBlockBuilderBlocks(topic);
   }
 };
 
@@ -75,7 +75,7 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
   return blocks;
 };
 
-const generateClassicBlocks = (topic: string): ContentBlock[] => {
+const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
   const blocks: ContentBlock[] = [
     {
       id: `header_${Date.now()}`,
@@ -174,11 +174,11 @@ const generateClassicBlocks = (topic: string): ContentBlock[] => {
     }
   ];
   
-  console.log(`[NewsletterInit] Generated ${blocks.length} blocks for "${topic}" (layout: classic)`);
+  console.log(`[NewsletterInit] Generated ${blocks.length} blocks for "${topic}" (layout: block-builder)`);
   return blocks;
 };
 
-const generateOneColumnBlocks = (topic: string): ContentBlock[] => {
+const generateSimpleEmailBlocks = (topic: string): ContentBlock[] => {
   const blocks: ContentBlock[] = [
     {
       id: `header_${Date.now()}`,
@@ -277,7 +277,7 @@ const generateOneColumnBlocks = (topic: string): ContentBlock[] => {
     }
   ];
   
-  console.log(`[NewsletterInit] Generated ${blocks.length} blocks for "${topic}" (layout: one-column)`);
+  console.log(`[NewsletterInit] Generated ${blocks.length} blocks for "${topic}" (layout: simple-email)`);
   return blocks;
 };
 

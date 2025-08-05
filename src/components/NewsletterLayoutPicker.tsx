@@ -1,7 +1,7 @@
 import { CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type LayoutKey = 'classic' | 'one-column';
+type LayoutKey = 'block-builder' | 'simple-email';
 
 interface CardProps {
   layout: LayoutKey;
@@ -11,7 +11,7 @@ interface CardProps {
 
 const THUMBS: Record<LayoutKey, JSX.Element> = {
   /** ⬤ header  ▭ image-text blocks ▭ footer */
-  classic: (
+  'block-builder': (
     <div className="h-full w-full rounded-md bg-white shadow-inner flex flex-col p-2 gap-1">
       <div className="h-6 rounded bg-gradient-to-b from-sky-200 to-sky-300" />
       
@@ -38,7 +38,7 @@ const THUMBS: Record<LayoutKey, JSX.Element> = {
   ),
 
   /** single column blocks */
-  'one-column': (
+  'simple-email': (
     <div className="h-full w-full rounded-md bg-white shadow-inner flex flex-col p-2 gap-1">
       {Array.from({ length: 5 }).map((_, i) => (
         <div
@@ -74,12 +74,12 @@ const Card = ({ layout, selected, onSelect }: CardProps) => {
       )}
 
       <h3 className="text-lg font-semibold capitalize">
-        {layout === 'one-column' ? 'One Column' : layout}
+        {layout === 'block-builder' ? 'Block Builder' : layout === 'simple-email' ? 'Simple Email' : layout}
       </h3>
       <p className="text-sm text-muted-foreground text-center">
-        {layout === 'classic' &&
-          'Traditional header, multiple blocks, footer'}
-        {layout === 'one-column' && 'Clean and minimal single column'}
+        {layout === 'block-builder' &&
+          'Multiple customizable blocks for rich content'}
+        {layout === 'simple-email' && 'Clean, straightforward single-column format'}
       </p>
     </button>
   );
@@ -94,7 +94,7 @@ export function NewsletterLayoutPicker({
 }) {
   return (
     <section className="grid auto-rows-fr grid-cols-1 gap-6 md:grid-cols-2">
-      {(['classic', 'one-column'] as LayoutKey[]).map((k) => (
+      {(['block-builder', 'simple-email'] as LayoutKey[]).map((k) => (
         <Card key={k} layout={k} selected={value} onSelect={onChange} />
       ))}
     </section>

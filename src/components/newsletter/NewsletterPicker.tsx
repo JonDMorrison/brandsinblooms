@@ -29,14 +29,14 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   
   const [currentStep, setCurrentStep] = useState<PickerStep>('ideas');
   const [selectedIdea, setSelectedIdea] = useState<NewsletterIdea | null>(null);
-  const [selectedLayout, setSelectedLayout] = useState<'classic' | 'one-column' | null>('classic');
+  const [selectedLayout, setSelectedLayout] = useState<'block-builder' | 'simple-email' | null>('block-builder');
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingAI, setGeneratingAI] = useState(false);
 
-  // Default to classic layout
+  // Default to block-builder layout
   useEffect(() => {
     if (!selectedLayout) {
-      setSelectedLayout('classic');
+      setSelectedLayout('block-builder');
     }
   }, [selectedLayout]);
 

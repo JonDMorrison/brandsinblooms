@@ -11,19 +11,19 @@ export const useNewsletterIdeas = () => {
   // Default templates
   const defaultTemplates: NewsletterTemplate[] = [
     {
-      id: 'classic',
-      name: 'Classic',
-      layout: 'classic',
+      id: 'block-builder',
+      name: 'Block Builder',
+      layout: 'block-builder',
       thumbnail: '', // Using CSS patterns instead
-      description: 'Traditional newsletter layout with header, content blocks, and footer',
+      description: 'Multiple customizable blocks for rich content',
       isDefault: true
     },
     {
-      id: 'minimal',
-      name: 'One Column',
-      layout: 'one-column',
+      id: 'simple-email',
+      name: 'Simple Email',
+      layout: 'simple-email',
       thumbnail: '', // Using CSS patterns instead
-      description: 'Clean, minimal single-column layout for easy reading'
+      description: 'Clean, straightforward single-column format'
     }
   ];
 
