@@ -17,7 +17,7 @@ const THUMBS: Record<LayoutKey, JSX.Element> = {
       
       {/* Image-text block 1 */}
       <div className="flex gap-2 items-start p-1">
-        <div className="w-6 h-4 rounded bg-slate-300 flex-shrink-0" />
+        <div className="w-1/2 h-8 rounded bg-slate-300 flex-shrink-0" />
         <div className="flex-1 space-y-1">
           <div className="h-1 rounded bg-slate-200" />
           <div className="h-1 rounded bg-slate-200 w-3/4" />
@@ -26,7 +26,7 @@ const THUMBS: Record<LayoutKey, JSX.Element> = {
       
       {/* Image-text block 2 */}
       <div className="flex gap-2 items-start p-1">
-        <div className="w-6 h-4 rounded bg-slate-300 flex-shrink-0" />
+        <div className="w-1/2 h-8 rounded bg-slate-300 flex-shrink-0" />
         <div className="flex-1 space-y-1">
           <div className="h-1 rounded bg-slate-200" />
           <div className="h-1 rounded bg-slate-200 w-2/3" />
