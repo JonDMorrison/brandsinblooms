@@ -144,10 +144,20 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
     setBlocks(data?.map(block => {
       let content = typeof block.content === 'string' ? JSON.parse(block.content) : block.content;
       
-      // Handle nested content structure (content.content)
-      if (content && typeof content === 'object' && content.content && typeof content.content === 'object') {
-        content = content.content;
+      // Recursively unwrap nested content structure
+      while (content && typeof content === 'object' && content.content) {
+        if (typeof content.content === 'object') {
+          content = content.content;
+        } else if (typeof content.content === 'string') {
+          // If the nested content is a string, it's the actual content
+          content = { content: content.content };
+          break;
+        } else {
+          break;
+        }
       }
+      
+      console.log('Processed block content:', block.id, content);
       
       return {
         ...block,
