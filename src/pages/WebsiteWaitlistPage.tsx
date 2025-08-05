@@ -19,11 +19,21 @@ export const WebsiteWaitlistPage = () => {
     setIsSubmitting(true);
     
     try {
-      const { error } = await supabase
-        .from('website_waitlist')
-        .insert([{ email, source: 'dashboard' }]);
+      // Use direct REST API call until types are generated
+      const SUPABASE_URL = 'https://udldmkqwnxhdeztyqcau.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM';
+      
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/website_waitlist`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ email, source: 'dashboard' })
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Failed to join waitlist');
 
       setIsSubmitted(true);
       toast.success('You\'re on the waitlist! We\'ll notify you when it\'s ready.');

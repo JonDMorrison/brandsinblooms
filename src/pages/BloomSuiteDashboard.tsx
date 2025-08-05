@@ -14,6 +14,7 @@ import {
   Calendar, 
   BarChart3, 
   Share2,
+  Globe,
   HelpCircle,
   Sparkles
 } from "lucide-react";
