@@ -31,52 +31,11 @@ export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
 
   return (
     <div className={cn(
-      "absolute top-2 right-2 flex items-center gap-1",
+      "absolute top-2 right-2 flex items-center",
       "bg-background/95 backdrop-blur-sm border rounded-md shadow-sm p-1",
       "opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50",
       className
     )}>
-      {/* Edit Text */}
-      <Button
-        variant={editMode === 'text' ? 'default' : 'ghost'}
-        size="sm"
-        onClick={(e) => handleModeClick('text', e)}
-        className="h-7 w-7 p-0"
-        title="Edit text"
-      >
-        <Edit className="w-3 h-3" />
-      </Button>
-
-      {/* Edit Image */}
-      {showImageButton && (
-        <Button
-          variant={editMode === 'image' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={(e) => handleModeClick('image', e)}
-          className="h-7 w-7 p-0"
-          title="Edit image"
-        >
-          <Image className="w-3 h-3" />
-        </Button>
-      )}
-
-      {/* Divider */}
-      <div className="w-px h-4 bg-border mx-1" />
-
-      {/* Duplicate */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDuplicate();
-        }}
-        className="h-7 w-7 p-0 hover:bg-muted"
-        title="Duplicate block"
-      >
-        <Copy className="w-3 h-3" />
-      </Button>
-
       {/* Delete */}
       <Button
         variant="ghost"
