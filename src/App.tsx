@@ -24,6 +24,7 @@ import { CRMAnalyticsPage } from '@/pages/crm/CRMAnalyticsPage';
 import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewsletterNewPage } from '@/pages/NewsletterNewPage';
+import { WebsiteWaitlistPage } from '@/pages/WebsiteWaitlistPage';
 import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
 import SMSRoutes from '@/routes/SMSRoutes';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -167,6 +168,11 @@ function App() {
             <SidebarLayout>
               <NewsletterNewPage />
             </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/website" element={
+          <ProtectedRoute>
+            <WebsiteWaitlistPage />
           </ProtectedRoute>
         } />
         <Route path="/profile" element={

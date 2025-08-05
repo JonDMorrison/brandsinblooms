@@ -154,6 +154,23 @@ export const BloomSuiteDashboard = () => {
       },
       status: socialStatus.status,
       statusMessage: socialStatus.statusMessage
+    },
+    {
+      id: 'website',
+      title: 'Build & Manage Website',
+      description: 'Use AI to build your site in just minutes. Create stunning, professional websites without any coding knowledge.',
+      icon: <Globe className="w-6 h-6 text-teal-600" />,
+      gradient: 'from-teal-50 to-teal-100',
+      primaryAction: {
+        label: 'Join the Waitlist',
+        onClick: () => navigate('/website')
+      },
+      secondaryAction: {
+        label: 'Learn More',
+        onClick: () => navigate('/website')
+      },
+      status: 'setup-needed' as const,
+      statusMessage: 'Feature coming soon'
     }
   ];
 
