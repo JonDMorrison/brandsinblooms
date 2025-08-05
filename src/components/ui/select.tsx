@@ -76,18 +76,37 @@ const SelectContent = React.forwardRef<
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    console.log(`[DropdownFix] Repaired dropdown behavior in ${context}: select`);
+    console.log(`[SelectDropdown] Opening dropdown: ${context}`);
     
-    // Ensure proper ARIA and visibility settings
+    // Enhanced visibility and positioning fixes
     if (contentRef.current) {
-      contentRef.current.removeAttribute('aria-hidden');
-      contentRef.current.style.visibility = 'visible';
-      contentRef.current.style.pointerEvents = 'auto';
-      contentRef.current.style.opacity = '1';
+      const element = contentRef.current;
+      
+      // Remove any hiding attributes
+      element.removeAttribute('aria-hidden');
+      element.removeAttribute('hidden');
+      
+      // Force visibility with important styles
+      element.style.visibility = 'visible !important';
+      element.style.pointerEvents = 'auto !important';
+      element.style.opacity = '1 !important';
+      element.style.display = 'block !important';
+      element.style.zIndex = Z_INDEX.dropdown.toString();
+      
+      // Ensure it's positioned correctly
+      element.style.position = 'fixed';
+      element.style.transform = 'none';
+      
+      console.log(`[SelectDropdown] Enhanced visibility applied`, {
+        zIndex: element.style.zIndex,
+        visibility: element.style.visibility,
+        opacity: element.style.opacity,
+        position: element.style.position
+      });
     }
     
     return () => {
-      console.log(`[DropdownFix] Closed: select (${context})`);
+      console.log(`[SelectDropdown] Closing dropdown: ${context}`);
     };
   }, [context]);
 
@@ -104,10 +123,13 @@ const SelectContent = React.forwardRef<
         style={{ 
           zIndex: Z_INDEX.dropdown,
           position: 'fixed',
-          pointerEvents: 'auto'
+          pointerEvents: 'auto',
+          visibility: 'visible',
+          opacity: 1
         }}
         className={cn(
-          "relative max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover shadow-lg animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          "relative max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          "!visible !opacity-100 !pointer-events-auto", // Force visibility
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className
@@ -151,9 +173,13 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
+    onClick={(e) => {
+      console.log(`[SelectDropdown] Item clicked:`, children);
+      if (props.onClick) props.onClick(e);
+    }}
     {...props}
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
