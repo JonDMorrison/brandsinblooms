@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -126,19 +126,15 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
 
         <div>
           <Label htmlFor="alignment">Text Alignment</Label>
-          <Select
+          <NativeSelect
             value={block.alignment || 'center'}
-            onValueChange={(value) => updateField('alignment', value)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="left">Left</SelectItem>
-              <SelectItem value="center">Center</SelectItem>
-              <SelectItem value="right">Right</SelectItem>
-            </SelectContent>
-          </Select>
+            onChange={(e) => updateField('alignment', e.target.value)}
+            options={[
+              { value: 'left', label: 'Left' },
+              { value: 'center', label: 'Center' },
+              { value: 'right', label: 'Right' }
+            ]}
+          />
         </div>
       </div>
 
@@ -197,20 +193,16 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
 
           <div>
             <Label htmlFor="padding">Padding</Label>
-            <Select
+            <NativeSelect
               value={block.padding || 'medium'}
-              onValueChange={(value) => updateField('padding', value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="small">Small</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="large">Large</SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={(e) => updateField('padding', e.target.value)}
+              options={[
+                { value: 'none', label: 'None' },
+                { value: 'small', label: 'Small' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'large', label: 'Large' }
+              ]}
+            />
           </div>
         </CollapsibleContent>
       </Collapsible>

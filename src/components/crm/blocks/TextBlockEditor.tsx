@@ -4,7 +4,7 @@ import { ContentBlock, BlockLayout, AlignmentType, SpacingType, ImageSizeType, I
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -226,61 +226,49 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
         <TabsContent value="layout" className="space-y-4 mt-4">
           <div>
             <Label htmlFor="block-layout">Block Layout</Label>
-            <Select 
-              value={block.layout || 'full-width'} 
-              onValueChange={(value) => onUpdate({ layout: value as BlockLayout })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="full-width">Full Width</SelectItem>
-                <SelectItem value="two-column-left">Image Left</SelectItem>
-                <SelectItem value="two-column-right">Image Right</SelectItem>
-                <SelectItem value="image-60-40">60/40 Split</SelectItem>
-                <SelectItem value="image-70-30">70/30 Split</SelectItem>
-                <SelectItem value="image-overlay">Text Overlay</SelectItem>
-                <SelectItem value="image-background">Background Image</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={block.layout || 'full-width'}
+              onChange={(e) => onUpdate({ layout: e.target.value as BlockLayout })}
+              options={[
+                { value: 'full-width', label: 'Full Width' },
+                { value: 'two-column-left', label: 'Image Left' },
+                { value: 'two-column-right', label: 'Image Right' },
+                { value: 'image-60-40', label: '60/40 Split' },
+                { value: 'image-70-30', label: '70/30 Split' },
+                { value: 'image-overlay', label: 'Text Overlay' },
+                { value: 'image-background', label: 'Background Image' }
+              ]}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="text-alignment">Text Alignment</Label>
-              <Select 
-                value={block.alignment || 'left'} 
-                onValueChange={(value) => onUpdate({ alignment: value as AlignmentType })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="left">Left</SelectItem>
-                  <SelectItem value="center">Center</SelectItem>
-                  <SelectItem value="right">Right</SelectItem>
-                  <SelectItem value="justify">Justify</SelectItem>
-                </SelectContent>
-              </Select>
+              <NativeSelect
+                value={block.alignment || 'left'}
+                onChange={(e) => onUpdate({ alignment: e.target.value as AlignmentType })}
+                options={[
+                  { value: 'left', label: 'Left' },
+                  { value: 'center', label: 'Center' },
+                  { value: 'right', label: 'Right' },
+                  { value: 'justify', label: 'Justify' }
+                ]}
+              />
             </div>
 
             <div>
               <Label htmlFor="text-padding">Padding</Label>
-              <Select 
-                value={block.padding || 'medium'} 
-                onValueChange={(value) => onUpdate({ padding: value as SpacingType })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="small">Small</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="large">Large</SelectItem>
-                  <SelectItem value="extra-large">Extra Large</SelectItem>
-                </SelectContent>
-              </Select>
+              <NativeSelect
+                value={block.padding || 'medium'}
+                onChange={(e) => onUpdate({ padding: e.target.value as SpacingType })}
+                options={[
+                  { value: 'none', label: 'None' },
+                  { value: 'small', label: 'Small' },
+                  { value: 'medium', label: 'Medium' },
+                  { value: 'large', label: 'Large' },
+                  { value: 'extra-large', label: 'Extra Large' }
+                ]}
+              />
             </div>
           </div>
         </TabsContent>
@@ -303,40 +291,32 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="image-size">Image Size</Label>
-                  <Select 
-                    value={block.imageSize || 'medium'} 
-                    onValueChange={(value) => onUpdate({ imageSize: value as ImageSizeType })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="small">Small</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="large">Large</SelectItem>
-                      <SelectItem value="full-width">Full Width</SelectItem>
-                      <SelectItem value="cover">Cover</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect
+                    value={block.imageSize || 'medium'}
+                    onChange={(e) => onUpdate({ imageSize: e.target.value as ImageSizeType })}
+                    options={[
+                      { value: 'small', label: 'Small' },
+                      { value: 'medium', label: 'Medium' },
+                      { value: 'large', label: 'Large' },
+                      { value: 'full-width', label: 'Full Width' },
+                      { value: 'cover', label: 'Cover' }
+                    ]}
+                  />
                 </div>
 
                 <div>
                   <Label htmlFor="image-position">Image Position</Label>
-                  <Select 
-                    value={block.imagePosition || 'center'} 
-                    onValueChange={(value) => onUpdate({ imagePosition: value as ImagePositionType })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="left">Left</SelectItem>
-                      <SelectItem value="center">Center</SelectItem>
-                      <SelectItem value="right">Right</SelectItem>
-                      <SelectItem value="background">Background</SelectItem>
-                      <SelectItem value="overlay">Overlay</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect
+                    value={block.imagePosition || 'center'}
+                    onChange={(e) => onUpdate({ imagePosition: e.target.value as ImagePositionType })}
+                    options={[
+                      { value: 'left', label: 'Left' },
+                      { value: 'center', label: 'Center' },
+                      { value: 'right', label: 'Right' },
+                      { value: 'background', label: 'Background' },
+                      { value: 'overlay', label: 'Overlay' }
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -408,38 +388,30 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
 
           <div>
             <Label htmlFor="animation">Animation</Label>
-            <Select 
-              value={block.animation || 'none'} 
-              onValueChange={(value) => onUpdate({ animation: value as any })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="fade-in">Fade In</SelectItem>
-                <SelectItem value="slide-up">Slide Up</SelectItem>
-                <SelectItem value="scale-in">Scale In</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={block.animation || 'none'}
+              onChange={(e) => onUpdate({ animation: e.target.value as any })}
+              options={[
+                { value: 'none', label: 'None' },
+                { value: 'fade-in', label: 'Fade In' },
+                { value: 'slide-up', label: 'Slide Up' },
+                { value: 'scale-in', label: 'Scale In' }
+              ]}
+            />
           </div>
 
           <div>
             <Label htmlFor="responsive-behavior">Mobile Behavior</Label>
-            <Select 
-              value={block.responsiveBehavior || 'stack'} 
-              onValueChange={(value) => onUpdate({ responsiveBehavior: value as any })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="stack">Stack Vertically</SelectItem>
-                <SelectItem value="reverse">Reverse Order</SelectItem>
-                <SelectItem value="hide-image">Hide Image</SelectItem>
-                <SelectItem value="mobile-first">Mobile First</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={block.responsiveBehavior || 'stack'}
+              onChange={(e) => onUpdate({ responsiveBehavior: e.target.value as any })}
+              options={[
+                { value: 'stack', label: 'Stack Vertically' },
+                { value: 'reverse', label: 'Reverse Order' },
+                { value: 'hide-image', label: 'Hide Image' },
+                { value: 'mobile-first', label: 'Mobile First' }
+              ]}
+            />
           </div>
         </TabsContent>
       </Tabs>

@@ -3,7 +3,7 @@ import { ContentBlock, CTABlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SafeHtml } from '@/components/ui/safe-html';
@@ -128,75 +128,59 @@ export const CTABlockEditor: React.FC<CTABlockEditorProps> = ({
       <div className="grid grid-cols-3 gap-4">
         <div>
           <Label htmlFor="cta-style">Button Style</Label>
-          <Select 
-            value={block.ctaStyle || 'primary'} 
-            onValueChange={(value) => onUpdate({ ctaStyle: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="primary">Primary</SelectItem>
-              <SelectItem value="secondary">Secondary</SelectItem>
-              <SelectItem value="outline">Outline</SelectItem>
-              <SelectItem value="ghost">Ghost</SelectItem>
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            value={block.ctaStyle || 'primary'}
+            onChange={(e) => onUpdate({ ctaStyle: e.target.value as any })}
+            options={[
+              { value: 'primary', label: 'Primary' },
+              { value: 'secondary', label: 'Secondary' },
+              { value: 'outline', label: 'Outline' },
+              { value: 'ghost', label: 'Ghost' }
+            ]}
+          />
         </div>
 
         <div>
           <Label htmlFor="cta-size">Button Size</Label>
-          <Select 
-            value={block.ctaSize || 'medium'} 
-            onValueChange={(value) => onUpdate({ ctaSize: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="small">Small</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="large">Large</SelectItem>
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            value={block.ctaSize || 'medium'}
+            onChange={(e) => onUpdate({ ctaSize: e.target.value as any })}
+            options={[
+              { value: 'small', label: 'Small' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'large', label: 'Large' }
+            ]}
+          />
         </div>
 
         <div>
           <Label htmlFor="cta-alignment">Alignment</Label>
-          <Select 
-            value={block.alignment || 'center'} 
-            onValueChange={(value) => onUpdate({ alignment: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="left">Left</SelectItem>
-              <SelectItem value="center">Center</SelectItem>
-              <SelectItem value="right">Right</SelectItem>
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            value={block.alignment || 'center'}
+            onChange={(e) => onUpdate({ alignment: e.target.value as any })}
+            options={[
+              { value: 'left', label: 'Left' },
+              { value: 'center', label: 'Center' },
+              { value: 'right', label: 'Right' }
+            ]}
+          />
         </div>
       </div>
 
       {/* Spacing */}
       <div>
         <Label htmlFor="cta-padding">Padding</Label>
-        <Select 
-          value={block.padding || 'medium'} 
-          onValueChange={(value) => onUpdate({ padding: value as any })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="small">Small</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="large">Large</SelectItem>
-            <SelectItem value="extra-large">Extra Large</SelectItem>
-          </SelectContent>
-        </Select>
+        <NativeSelect
+          value={block.padding || 'medium'}
+          onChange={(e) => onUpdate({ padding: e.target.value as any })}
+          options={[
+            { value: 'none', label: 'None' },
+            { value: 'small', label: 'Small' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'large', label: 'Large' },
+            { value: 'extra-large', label: 'Extra Large' }
+          ]}
+        />
       </div>
     </div>
   );

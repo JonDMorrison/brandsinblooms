@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -167,21 +167,14 @@ export const TimezoneScheduler = ({ onScheduleChange, defaultSchedule }: Timezon
         {scheduleType === 'optimal' && (
           <div className="space-y-3">
             <Label>Preferred time</Label>
-            <Select value={optimalTime} onValueChange={setOptimalTime}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {OPTIMAL_TIMES.map((time) => (
-                  <SelectItem 
-                    key={`${time.hours}:${time.minutes.toString().padStart(2, '0')}`}
-                    value={`${time.hours}:${time.minutes.toString().padStart(2, '0')}`}
-                  >
-                    {time.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={optimalTime}
+              onChange={(e) => setOptimalTime(e.target.value)}
+              options={OPTIMAL_TIMES.map(time => ({
+                value: `${time.hours}:${time.minutes.toString().padStart(2, '0')}`,
+                label: time.label
+              }))}
+            />
           </div>
         )}
 
@@ -236,21 +229,14 @@ export const TimezoneScheduler = ({ onScheduleChange, defaultSchedule }: Timezon
               <Globe className="h-4 w-4" />
               Timezone
             </Label>
-            <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={userTimezone}>
-                  <span className="font-medium">Your timezone: {userTimezoneLabel}</span>
-                </SelectItem>
-                {TIMEZONES.filter(tz => tz.value !== userTimezone).map((timezone) => (
-                  <SelectItem key={timezone.value} value={timezone.value}>
-                    {timezone.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={selectedTimezone}
+              onChange={(e) => setSelectedTimezone(e.target.value)}
+              options={[
+                { value: userTimezone, label: `Your timezone: ${userTimezoneLabel}` },
+                ...TIMEZONES.filter(tz => tz.value !== userTimezone)
+              ]}
+            />
           </div>
         )}
 

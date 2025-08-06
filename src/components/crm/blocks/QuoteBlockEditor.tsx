@@ -3,7 +3,7 @@ import { ContentBlock, QuoteBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Card } from '@/components/ui/card';
 import { Quote } from 'lucide-react';
 
@@ -91,38 +91,30 @@ export const QuoteBlockEditor: React.FC<QuoteBlockEditorProps> = ({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="quote-alignment">Alignment</Label>
-          <Select 
-            value={block.alignment || 'left'} 
-            onValueChange={(value) => onUpdate({ alignment: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="left">Left</SelectItem>
-              <SelectItem value="center">Center</SelectItem>
-              <SelectItem value="right">Right</SelectItem>
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            value={block.alignment || 'left'}
+            onChange={(e) => onUpdate({ alignment: e.target.value as any })}
+            options={[
+              { value: 'left', label: 'Left' },
+              { value: 'center', label: 'Center' },
+              { value: 'right', label: 'Right' }
+            ]}
+          />
         </div>
 
         <div>
           <Label htmlFor="quote-padding">Padding</Label>
-          <Select 
-            value={block.padding || 'medium'} 
-            onValueChange={(value) => onUpdate({ padding: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              <SelectItem value="small">Small</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="large">Large</SelectItem>
-              <SelectItem value="extra-large">Extra Large</SelectItem>
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            value={block.padding || 'medium'}
+            onChange={(e) => onUpdate({ padding: e.target.value as any })}
+            options={[
+              { value: 'none', label: 'None' },
+              { value: 'small', label: 'Small' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'large', label: 'Large' },
+              { value: 'extra-large', label: 'Extra Large' }
+            ]}
+          />
         </div>
       </div>
     </div>

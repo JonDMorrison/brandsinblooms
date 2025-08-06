@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -339,16 +339,15 @@ export const TemplateGalleryModal: React.FC<TemplateGalleryModalProps> = ({
               {/* Sort */}
               <div>
                 <h4 className="font-medium mb-3">Sort by</h4>
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="popular">Most Popular</SelectItem>
-                    <SelectItem value="newest">Newest</SelectItem>
-                    <SelectItem value="name">A–Z</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  options={[
+                    { value: 'popular', label: 'Most Popular' },
+                    { value: 'newest', label: 'Newest' },
+                    { value: 'name', label: 'A–Z' }
+                  ]}
+                />
               </div>
             </div>
 

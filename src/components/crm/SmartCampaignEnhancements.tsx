@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { toast } from '@/utils/toast';
 import { usePersonaAwareGeneration } from '@/hooks/usePersonaAwareGeneration';
 import { useEnhancedSmartTime } from '@/hooks/useEnhancedSmartTime';
@@ -252,16 +252,16 @@ export const SmartCampaignEnhancements: React.FC<SmartCampaignEnhancementsProps>
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="tone-select">Tone</Label>
-            <Select value={selectedTone} onValueChange={(value: any) => setSelectedTone(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select tone" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="friendly">Friendly</SelectItem>
-                <SelectItem value="urgent">Urgent</SelectItem>
-                <SelectItem value="seasonal">Seasonal</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={selectedTone}
+              onChange={(e) => setSelectedTone(e.target.value as any)}
+              options={[
+                { value: 'friendly', label: 'Friendly' },
+                { value: 'urgent', label: 'Urgent' },
+                { value: 'seasonal', label: 'Seasonal' }
+              ]}
+              placeholder="Select tone"
+            />
           </div>
 
           <div>

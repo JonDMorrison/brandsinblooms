@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, X, Mail, MessageSquare, Clock, ArrowLeft } from 'lucide-react';
@@ -166,35 +166,34 @@ export function AutomationBuilder({ automation, segments, onClose, onSave }: Aut
             
             <div>
               <Label htmlFor="trigger">Trigger Type</Label>
-              <Select value={triggerType} onValueChange={setTriggerType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select trigger type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="signup">New Customer Signup</SelectItem>
-                  <SelectItem value="tag_added">Tag Added to Customer</SelectItem>
-                   <SelectItem value="seasonal">Seasonal Campaign</SelectItem>
-                   <SelectItem value="purchase">After Purchase</SelectItem>
-                   <SelectItem value="persona_assigned">Persona Assigned</SelectItem>
-                </SelectContent>
-              </Select>
+              <NativeSelect
+                value={triggerType}
+                onChange={(e) => setTriggerType(e.target.value)}
+                options={[
+                  { value: 'signup', label: 'New Customer Signup' },
+                  { value: 'tag_added', label: 'Tag Added to Customer' },
+                  { value: 'seasonal', label: 'Seasonal Campaign' },
+                  { value: 'purchase', label: 'After Purchase' },
+                  { value: 'persona_assigned', label: 'Persona Assigned' }
+                ]}
+                placeholder="Select trigger type"
+              />
             </div>
 
             <div>
               <Label htmlFor="segment">Target Segment (Optional)</Label>
-              <Select value={selectedSegment} onValueChange={setSelectedSegment}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select target segment" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All customers</SelectItem>
-                  {segments.map((segment) => (
-                    <SelectItem key={segment.id} value={segment.id}>
-                      {segment.name} ({segment.customer_count} customers)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <NativeSelect
+                value={selectedSegment}
+                onChange={(e) => setSelectedSegment(e.target.value)}
+                options={[
+                  { value: '', label: 'All customers' },
+                  ...segments.map(segment => ({
+                    value: segment.id,
+                    label: `${segment.name} (${segment.customer_count} customers)`
+                  }))
+                ]}
+                placeholder="Select target segment"
+              />
             </div>
           </CardContent>
         </Card>
@@ -221,21 +220,18 @@ export function AutomationBuilder({ automation, segments, onClose, onSave }: Aut
                       {step.type === 'wait' ? (
                         <div>
                           <Label>Wait Duration</Label>
-                          <Select 
-                            value={step.delay} 
-                            onValueChange={(value) => updateStep(step.id, { delay: value })}
-                          >
-                            <SelectTrigger className="w-48">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1h">1 hour</SelectItem>
-                              <SelectItem value="6h">6 hours</SelectItem>
-                              <SelectItem value="1d">1 day</SelectItem>
-                              <SelectItem value="2d">2 days</SelectItem>
-                              <SelectItem value="1w">1 week</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <NativeSelect
+                            value={step.delay || ''}
+                            onChange={(e) => updateStep(step.id, { delay: e.target.value })}
+                            options={[
+                              { value: '1h', label: '1 hour' },
+                              { value: '6h', label: '6 hours' },
+                              { value: '1d', label: '1 day' },
+                              { value: '2d', label: '2 days' },
+                              { value: '1w', label: '1 week' }
+                            ]}
+                            className="w-48"
+                          />
                         </div>
                       ) : (
                         <>

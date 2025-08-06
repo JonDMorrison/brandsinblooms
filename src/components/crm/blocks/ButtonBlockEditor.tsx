@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Button } from '@/components/ui/button';
 import { SafeHtml } from '@/components/ui/safe-html';
 import { Eye, MousePointer } from 'lucide-react';
@@ -106,19 +106,15 @@ export const ButtonBlockEditor: React.FC<ButtonBlockEditorProps> = ({
 
           <div>
             <Label htmlFor="alignment">Text Alignment</Label>
-            <Select
+            <NativeSelect
               value={block.alignment || 'center'}
-              onValueChange={(value) => updateField('alignment', value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="left">Left</SelectItem>
-                <SelectItem value="center">Center</SelectItem>
-                <SelectItem value="right">Right</SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={(e) => updateField('alignment', e.target.value)}
+              options={[
+                { value: 'left', label: 'Left' },
+                { value: 'center', label: 'Center' },
+                { value: 'right', label: 'Right' }
+              ]}
+            />
           </div>
         </div>
 

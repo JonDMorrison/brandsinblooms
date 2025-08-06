@@ -2,7 +2,7 @@
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Input } from '@/components/ui/input';
 
 interface DividerBlockEditorProps {
@@ -31,20 +31,16 @@ export const DividerBlockEditor: React.FC<DividerBlockEditorProps> = ({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="divider-style">Style</Label>
-          <Select 
-            value={block.content || 'solid'} 
-            onValueChange={(value) => onUpdate({ content: value })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="solid">Solid Line</SelectItem>
-              <SelectItem value="dashed">Dashed Line</SelectItem>
-              <SelectItem value="dotted">Dotted Line</SelectItem>
-              <SelectItem value="space">Space Only</SelectItem>
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            value={block.content || 'solid'}
+            onChange={(e) => onUpdate({ content: e.target.value })}
+            options={[
+              { value: 'solid', label: 'Solid Line' },
+              { value: 'dashed', label: 'Dashed Line' },
+              { value: 'dotted', label: 'Dotted Line' },
+              { value: 'space', label: 'Space Only' }
+            ]}
+          />
         </div>
 
         <div>
@@ -62,37 +58,29 @@ export const DividerBlockEditor: React.FC<DividerBlockEditorProps> = ({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="divider-margin">Margin</Label>
-          <Select 
-            value={block.margin || 'medium'} 
-            onValueChange={(value) => onUpdate({ margin: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              <SelectItem value="small">Small</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="large">Large</SelectItem>
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            value={block.margin || 'medium'}
+            onChange={(e) => onUpdate({ margin: e.target.value as any })}
+            options={[
+              { value: 'none', label: 'None' },
+              { value: 'small', label: 'Small' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'large', label: 'Large' }
+            ]}
+          />
         </div>
 
         <div>
           <Label htmlFor="divider-alignment">Alignment</Label>
-          <Select 
-            value={block.alignment || 'center'} 
-            onValueChange={(value) => onUpdate({ alignment: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="left">Left</SelectItem>
-              <SelectItem value="center">Center</SelectItem>
-              <SelectItem value="right">Right</SelectItem>
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            value={block.alignment || 'center'}
+            onChange={(e) => onUpdate({ alignment: e.target.value as any })}
+            options={[
+              { value: 'left', label: 'Left' },
+              { value: 'center', label: 'Center' },
+              { value: 'right', label: 'Right' }
+            ]}
+          />
         </div>
       </div>
     </div>
