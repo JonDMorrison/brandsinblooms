@@ -34,6 +34,7 @@ import { SidebarLayout } from '@/components/SidebarLayout';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
 import { Analytics } from '@vercel/analytics/react';
 import { OverlayManager } from '@/providers/OverlayManager';
+import POSPage from '@/pages/settings/POSPage';
 
 function App() {
   return (
@@ -239,6 +240,13 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <AccountPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/settings/pos" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <POSPage />
             </SidebarLayout>
           </ProtectedRoute>
         } />

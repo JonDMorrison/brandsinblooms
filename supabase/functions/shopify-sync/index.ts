@@ -276,6 +276,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
+          new_customers: customersImported,
+          new_orders: ordersImported,
           customers_imported: customersImported,
           orders_imported: ordersImported,
         }),
