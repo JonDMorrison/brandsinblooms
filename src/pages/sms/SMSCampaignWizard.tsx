@@ -36,6 +36,7 @@ export default function SMSCampaignWizard() {
   const [formData, setFormData] = useState({
     name: '',
     message: '',
+    media_urls: [] as string[],
     scheduled_at: null as string | null
   })
   const [selectedSegments, setSelectedSegments] = useState<Array<{id: string, name: string}>>([])
@@ -82,6 +83,7 @@ export default function SMSCampaignWizard() {
         tenant_id: tenant.id,
         user_id: user.id,
         status: 'draft' as const,
+        media_urls: formData.media_urls,
         metrics: {
           sent: 0,
           delivered: 0,
@@ -122,6 +124,7 @@ export default function SMSCampaignWizard() {
             customer_id: customer.id,
             phone: customer.phone,
             content: formData.message,
+            media_urls: formData.media_urls,
             status: formData.scheduled_at ? 'queued' : 'sent',
             scheduled_at: formData.scheduled_at || new Date().toISOString()
           })
@@ -233,6 +236,9 @@ export default function SMSCampaignWizard() {
                 <SMSComposer
                   value={formData.message}
                   onChange={(value) => setFormData(prev => ({ ...prev, message: value }))}
+                  mediaUrls={formData.media_urls}
+                  onMediaUrlsChange={(urls) => setFormData(prev => ({ ...prev, media_urls: urls }))}
+                  enableMultiImage={true}
                   placeholder="Compose your SMS message..."
                 />
               </div>
@@ -261,6 +267,11 @@ export default function SMSCampaignWizard() {
                   <span className="text-muted-foreground">Message:</span>
                   <span className="font-medium">
                     {formData.message ? `${formData.message.length} characters` : 'No message'}
+                    {formData.media_urls.length > 0 && (
+                      <span className="text-blue-600 ml-2">
+                        + {formData.media_urls.length} image{formData.media_urls.length !== 1 ? 's' : ''} (MMS)
+                      </span>
+                    )}
                   </span>
                 </div>
               </CardContent>

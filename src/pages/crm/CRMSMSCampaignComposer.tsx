@@ -9,6 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { MessageSquare, Calendar as CalendarIcon, Clock, Send, Save, Sparkles, Eye, Upload, Smartphone } from "lucide-react";
+import { SMSComposer } from "@/components/sms/SMSComposer";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -27,6 +28,7 @@ export default function CRMSMSCampaignComposer() {
   const [message, setMessage] = useState("");
   const [selectedSegment, setSelectedSegment] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [scheduledTime, setScheduledTime] = useState("");
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -222,6 +224,7 @@ export default function CRMSMSCampaignComposer() {
         message: finalMessage,
         segment_id: selectedSegment,
         image_url: imageUrl || null,
+        media_urls: mediaUrls.length > 0 ? mediaUrls : null,
         status,
         scheduled_at: scheduledAt,
       };
@@ -331,17 +334,22 @@ export default function CRMSMSCampaignComposer() {
             </div>
 
             <div>
-              <Label htmlFor="imageUrl">Image URL (Optional)</Label>
-              <Input
-                id="imageUrl"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://example.com/image.jpg"
-                className="mt-1"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Add an image for MMS campaigns
-              </p>
+              <Label>Media Content</Label>
+              <div className="mt-2">
+                <SMSComposer
+                  value={message}
+                  onChange={(value) => setMessage(value)}
+                  imageUrl={imageUrl}
+                  onImageChange={(url) => setImageUrl(url || "")}
+                  mediaUrls={mediaUrls}
+                  onMediaUrlsChange={setMediaUrls}
+                  enableMultiImage={true}
+                  showMergeTags={true}
+                  showImageUpload={true}
+                  maxLength={MAX_CHARS}
+                  placeholder="Enter your SMS message..."
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -401,41 +409,7 @@ export default function CRMSMSCampaignComposer() {
               </div>
             )}
 
-            <div>
-              <Label htmlFor="message">Message Content *</Label>
-              <Textarea
-                id="message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value.slice(0, MAX_CHARS))}
-                placeholder="Enter your SMS message..."
-                className="mt-1 min-h-[120px]"
-                maxLength={MAX_CHARS}
-              />
-              <div className="flex justify-between items-center mt-2">
-                <p className="text-sm text-muted-foreground">
-                  Auto-includes: "Reply STOP to unsubscribe."
-                </p>
-                <span className={cn(
-                  "text-sm",
-                  remainingChars < 20 ? "text-destructive" : "text-muted-foreground"
-                )}>
-                  {remainingChars} characters remaining
-                </span>
-              </div>
-            </div>
-
-            {/* AI SMS Generation Button */}
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSmsAiDialog(true)}
-                className="flex items-center space-x-2"
-              >
-                <span>✍️</span>
-                <span>Generate SMS with AI</span>
-              </Button>
-            </div>
+            {/* Message content moved to above with SMSComposer */}
           </CardContent>
         </Card>
 
