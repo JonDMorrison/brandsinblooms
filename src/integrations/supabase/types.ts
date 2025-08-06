@@ -607,6 +607,7 @@ export type Database = {
       }
       company_profiles: {
         Row: {
+          beta_tour_enabled: boolean | null
           brand_voice: string | null
           company_name: string | null
           company_overview: string | null
@@ -639,6 +640,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          beta_tour_enabled?: boolean | null
           brand_voice?: string | null
           company_name?: string | null
           company_overview?: string | null
@@ -671,6 +673,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          beta_tour_enabled?: boolean | null
           brand_voice?: string | null
           company_name?: string | null
           company_overview?: string | null
@@ -3686,6 +3689,30 @@ export type Database = {
           email_sent_at?: string
           email_type?: string
           id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tutorial_progress: {
+        Row: {
+          completed_at: string
+          created_at: string
+          id: string
+          step: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          step: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          step?: string
           user_id?: string
         }
         Relationships: []

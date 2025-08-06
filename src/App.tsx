@@ -36,12 +36,15 @@ import { SidebarLayout } from '@/components/SidebarLayout';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
 import { Analytics } from '@vercel/analytics/react';
 import { OverlayManager } from '@/providers/OverlayManager';
+import { QuickTourProvider } from '@/contexts/QuickTourContext';
+import { TourManager } from '@/components/tour/TourManager';
 import POSPage from '@/pages/settings/POSPage';
 
 function App() {
   return (
     <OverlayManager>
-      <div className="min-h-screen bg-background">
+      <QuickTourProvider>
+        <div className="min-h-screen bg-background">
       <Routes>
         <Route path="/auth" element={<Auth />} />
         <Route path="/onboarding" element={
@@ -268,9 +271,11 @@ function App() {
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+        <TourManager />
         <Toaster />
         {process.env.NODE_ENV === 'production' && <Analytics />}
-      </div>
+        </div>
+      </QuickTourProvider>
     </OverlayManager>
   );
 }

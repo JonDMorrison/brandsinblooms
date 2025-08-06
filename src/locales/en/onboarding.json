@@ -1,0 +1,93 @@
+{
+  "tour": {
+    "welcome": {
+      "title": "Welcome to Your Garden Center Dashboard!",
+      "description": "Let's take a quick 60-second tour to get you started with the key features.",
+      "cta": "Start Tour"
+    },
+    "skip": "Skip Tour",
+    "next": "Next",
+    "previous": "Previous",
+    "finish": "Finish Tour",
+    "steps": {
+      "dashboard": {
+        "title": "Dashboard Overview",
+        "description": "This is your command center. Monitor sales, track customers, and manage your garden center operations all in one place.",
+        "highlight": "Check out your latest metrics and quick actions here."
+      },
+      "pos": {
+        "title": "Connect Your POS System",
+        "description": "Link your Shopify, Square, or import CSV data to automatically sync customers and orders.",
+        "highlight": "Click here to connect your POS system and unlock powerful customer insights.",
+        "cta": "Connect POS"
+      },
+      "customers": {
+        "title": "Customer Management",
+        "description": "View and segment your customers based on purchase history, preferences, and behavior.",
+        "highlight": "Build targeted segments for more effective marketing campaigns."
+      },
+      "composer": {
+        "title": "AI Content Composer",
+        "description": "Create engaging email and SMS campaigns with AI assistance tailored to your garden center.",
+        "highlight": "Generate personalized content that resonates with your customers."
+      },
+      "automation": {
+        "title": "Marketing Automation",
+        "description": "Set up automated workflows to nurture customers and drive repeat purchases.",
+        "highlight": "Build automated sequences that work while you focus on your business.",
+        "complete": "🎉 You're all set! Start building amazing customer relationships."
+      }
+    },
+    "progress": {
+      "step": "Step {{current}} of {{total}}",
+      "completed": "Tour completed!"
+    }
+  },
+  "pos": {
+    "wizard": {
+      "title": "Connect Your POS System",
+      "subtitle": "Choose your platform to get started",
+      "platforms": {
+        "shopify": {
+          "title": "Shopify",
+          "description": "Connect your Shopify store to sync customers and orders automatically.",
+          "fields": {
+            "store_url": "Store URL",
+            "access_token": "Access Token"
+          }
+        },
+        "square": {
+          "title": "Square",
+          "description": "Link your Square account for seamless customer and transaction sync.",
+          "fields": {
+            "application_id": "Application ID",
+            "access_token": "Access Token"
+          }
+        },
+        "csv": {
+          "title": "CSV Import",
+          "description": "Upload customer data from your existing system via CSV file.",
+          "fields": {
+            "file": "CSV File"
+          }
+        }
+      },
+      "connect": "Connect",
+      "cancel": "Cancel",
+      "testing": "Testing connection...",
+      "success": "Successfully connected!",
+      "error": "Connection failed. Please check your credentials."
+    }
+  },
+  "help": {
+    "tooltip": "Need help?",
+    "links": {
+      "dashboard": "Dashboard Guide",
+      "customers": "Customer Management",
+      "campaigns": "Email Campaigns",
+      "automation": "Marketing Automation",
+      "pos": "POS Integration",
+      "analytics": "Analytics & Reports"
+    }
+  }
+}
