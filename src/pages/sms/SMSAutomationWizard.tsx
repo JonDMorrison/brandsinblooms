@@ -16,6 +16,7 @@ interface AutomationStep {
   delay_hours: number
   message: string
   image_url?: string
+  media_urls?: string[]
 }
 
 const TRIGGER_TYPES = [
@@ -249,8 +250,11 @@ export default function SMSAutomationWizard() {
                           onChange={(value) => updateStep(step.id, 'message', value)}
                           imageUrl={step.image_url}
                           onImageChange={(imageUrl) => updateStep(step.id, 'image_url', imageUrl)}
+                          mediaUrls={step.media_urls || []}
+                          onMediaUrlsChange={(urls) => updateStep(step.id, 'media_urls', urls)}
                           placeholder={`Enter message for step ${step.step}...`}
                           showImageUpload={true}
+                          enableMultiImage={true}
                         />
                       </div>
                     </div>
@@ -291,7 +295,14 @@ export default function SMSAutomationWizard() {
                   <div key={step.id} className="text-xs text-muted-foreground">
                     Step {step.step}: {getDelayLabel(step.delay_hours)} - 
                     {step.message ? ` "${step.message.substring(0, 50)}${step.message.length > 50 ? '...' : ''}"` : ' No message'}
-                    {step.image_url && <span className="text-blue-600"> + Image (MMS)</span>}
+                    {(step.image_url || (step.media_urls && step.media_urls.length > 0)) && (
+                      <span className="text-blue-600">
+                        {step.media_urls && step.media_urls.length > 1 
+                          ? ` + ${step.media_urls.length} Images (MMS)`
+                          : ' + Image (MMS)'
+                        }
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

@@ -10,7 +10,7 @@ interface TwilioResponse {
   message?: string
 }
 
-async function sendTwilioSMS(to: string, body: string, mediaUrl?: string): Promise<TwilioResponse> {
+async function sendTwilioSMS(to: string, body: string, mediaUrls?: string[]): Promise<TwilioResponse> {
   const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
   const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
   const phoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER')
@@ -25,8 +25,13 @@ async function sendTwilioSMS(to: string, body: string, mediaUrl?: string): Promi
   formData.append('From', phoneNumber)
   formData.append('To', to)
   formData.append('Body', body)
-  if (mediaUrl) {
-    formData.append('MediaUrl', mediaUrl)
+  
+  // Support multiple media URLs (up to 3 for MMS)
+  if (mediaUrls && mediaUrls.length > 0) {
+    const validUrls = mediaUrls.filter(url => url && url.trim()).slice(0, 3)
+    validUrls.forEach(url => {
+      formData.append('MediaUrl', url)
+    })
   }
 
   const response = await fetch(url, {
@@ -60,7 +65,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, body, mediaUrl } = await req.json()
+    const { to, body, mediaUrl, mediaUrls } = await req.json()
 
     if (!to || !body) {
       return new Response(
@@ -74,7 +79,9 @@ Deno.serve(async (req) => {
 
     console.log(`Sending SMS to ${to}`)
 
-    const result = await sendTwilioSMS(to, body, mediaUrl)
+    // Support both single mediaUrl (legacy) and multiple mediaUrls (new)
+    const finalMediaUrls = mediaUrls || (mediaUrl ? [mediaUrl] : [])
+    const result = await sendTwilioSMS(to, body, finalMediaUrls)
 
     return new Response(
       JSON.stringify(result),

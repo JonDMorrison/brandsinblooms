@@ -5,19 +5,23 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent } from '@/components/ui/card'
 import { ImageIcon, UserIcon, PhoneIcon, MessageSquareIcon } from 'lucide-react'
-import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage' // Fixed reference error
+import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage'
+import { MultiImageUpload } from './MultiImageUpload'
 
 interface SMSComposerProps {
   value: string
   onChange: (value: string) => void
   imageUrl?: string
   onImageChange?: (imageUrl: string | null) => void
+  mediaUrls?: string[]
+  onMediaUrlsChange?: (urls: string[]) => void
   maxLength?: number
   placeholder?: string
   showMergeTags?: boolean
   showCharacterCount?: boolean
   showMmsWarning?: boolean
   showImageUpload?: boolean
+  enableMultiImage?: boolean
   className?: string
 }
 
@@ -33,12 +37,15 @@ export function SMSComposer({
   onChange,
   imageUrl,
   onImageChange,
+  mediaUrls = [],
+  onMediaUrlsChange,
   maxLength = 320,
   placeholder = "Type your SMS message...",
   showMergeTags = true,
   showCharacterCount = true,
   showMmsWarning = true,
   showImageUpload = true,
+  enableMultiImage = false,
   className = ""
 }: SMSComposerProps) {
   const [showMergeTagMenu, setShowMergeTagMenu] = useState(false)
@@ -135,20 +142,31 @@ export function SMSComposer({
       {/* Image Upload */}
       {showImageUpload && (
         <div className="space-y-3">
-          <h4 className="text-sm font-medium">Add Image (MMS)</h4>
-          
-          <MediaSelectorImage
-            src={imageUrl || ''}
-            onChange={(imageUrl) => onImageChange?.(imageUrl)}
-            contentContext="SMS MMS image attachment"
-            className="h-32"
-          />
-          
-          {imageUrl && (
-            <Badge variant="secondary" className="text-xs">
-              <ImageIcon className="h-3 w-3 mr-1" />
-              Will send as MMS
-            </Badge>
+          {enableMultiImage ? (
+            <MultiImageUpload
+              value={mediaUrls}
+              onChange={(urls) => onMediaUrlsChange?.(urls)}
+              maxFiles={3}
+              maxSizePerFile={500}
+            />
+          ) : (
+            <>
+              <h4 className="text-sm font-medium">Add Image (MMS)</h4>
+              
+              <MediaSelectorImage
+                src={imageUrl || ''}
+                onChange={(imageUrl) => onImageChange?.(imageUrl)}
+                contentContext="SMS MMS image attachment"
+                className="h-32"
+              />
+              
+              {imageUrl && (
+                <Badge variant="secondary" className="text-xs">
+                  <ImageIcon className="h-3 w-3 mr-1" />
+                  Will send as MMS
+                </Badge>
+              )}
+            </>
           )}
         </div>
       )}

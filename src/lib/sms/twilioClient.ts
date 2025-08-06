@@ -4,6 +4,7 @@ interface SMSMessage {
   to: string
   body: string
   mediaUrl?: string
+  mediaUrls?: string[]
 }
 
 interface TwilioResponse {
@@ -34,7 +35,8 @@ export class TwilioClient {
         body: {
           to: message.to,
           body: message.body,
-          mediaUrl: message.mediaUrl
+          mediaUrl: message.mediaUrl,
+          mediaUrls: message.mediaUrls
         }
       })
 

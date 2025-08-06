@@ -1239,6 +1239,7 @@ export type Database = {
           created_at: string
           id: string
           image_url: string | null
+          media_urls: Json | null
           message: string
           metrics: Json | null
           name: string
@@ -1254,6 +1255,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          media_urls?: Json | null
           message: string
           metrics?: Json | null
           name: string
@@ -1269,6 +1271,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          media_urls?: Json | null
           message?: string
           metrics?: Json | null
           name?: string
@@ -2622,6 +2625,7 @@ export type Database = {
           delivered_at: string | null
           error_message: string | null
           id: string
+          media_urls: Json | null
           phone: string
           scheduled_at: string | null
           sent_at: string | null
@@ -2637,6 +2641,7 @@ export type Database = {
           delivered_at?: string | null
           error_message?: string | null
           id?: string
+          media_urls?: Json | null
           phone: string
           scheduled_at?: string | null
           sent_at?: string | null
@@ -2652,6 +2657,7 @@ export type Database = {
           delivered_at?: string | null
           error_message?: string | null
           id?: string
+          media_urls?: Json | null
           phone?: string
           scheduled_at?: string | null
           sent_at?: string | null
