@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useCallback, useRef, useState } from 'react';
-import { lock, unlock } from '@/utils/focusLock';
-import { ensureNoAriaHidden } from '@/utils/ensureNoAriaHidden';
+import React, { createContext, useContext, useCallback, useRef, useState, useEffect } from 'react';
+import { lock, unlock, lockBodySiblings, unlockBodySiblings } from '@/utils/focusLock';
+import { ensureNoAriaHidden, startAriaHiddenMonitoring, stopAriaHiddenMonitoring } from '@/utils/ensureNoAriaHidden';
 
 interface OverlayState {
   overlayCount: number;
@@ -36,6 +36,32 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
     focusStack: []
   });
 
+  // Start aria-hidden monitoring on mount
+  useEffect(() => {
+    startAriaHiddenMonitoring();
+    
+    // Create overlay root if it doesn't exist
+    if (!document.getElementById('overlay-root')) {
+      const overlayRoot = document.createElement('div');
+      overlayRoot.id = 'overlay-root';
+      overlayRoot.style.position = 'fixed';
+      overlayRoot.style.top = '0';
+      overlayRoot.style.left = '0';
+      overlayRoot.style.width = '100vw';
+      overlayRoot.style.height = '100vh';
+      overlayRoot.style.pointerEvents = 'none';
+      overlayRoot.style.zIndex = '1000000';
+      document.body.appendChild(overlayRoot);
+    }
+    
+    return () => {
+      stopAriaHiddenMonitoring();
+      // Cleanup any remaining locks
+      unlockBodySiblings();
+      ensureNoAriaHidden();
+    };
+  }, []);
+
   const originalBodyStyle = useRef<{
     overflow: string;
     position: string;
@@ -62,14 +88,14 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
       document.body.style.top = `-${originalScrollY.current}px`;
       document.body.style.width = '100%';
 
-      // Lock overlay-lockable elements with inert (not aria-hidden)
-      const overlayLockEl = document.querySelector('[data-overlay-lock]') as HTMLElement;
-      if (overlayLockEl) {
-        lock(overlayLockEl);
-      }
+      // Lock all body siblings except overlay containers using inert
+      lockBodySiblings();
 
       setState(prev => ({ ...prev, scrollLocked: true }));
-      console.log('[OverlayManager] Body scroll locked');
+      console.log('[OverlayManager] Body scroll locked, body siblings locked with inert');
+      
+      // Safety cleanup of any aria-hidden
+      ensureNoAriaHidden();
     }
   }, [state.scrollLocked]);
 
@@ -82,21 +108,24 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
       document.body.style.top = original.top;
       document.body.style.width = original.width;
 
-      // Unlock overlay-lockable elements
-      const overlayLockEl = document.querySelector('[data-overlay-lock]') as HTMLElement;
-      if (overlayLockEl) {
-        unlock(overlayLockEl);
-      }
+      // Unlock all body siblings
+      unlockBodySiblings();
 
       // Restore scroll position
       window.scrollTo(0, originalScrollY.current);
 
       setState(prev => ({ ...prev, scrollLocked: false }));
-      console.log('[OverlayManager] Body scroll unlocked');
+      console.log('[OverlayManager] Body scroll unlocked, body siblings unlocked');
+      
+      // Final cleanup of any aria-hidden
+      ensureNoAriaHidden();
     }
   }, [state.scrollLocked, state.overlayCount]);
 
   const openOverlay = useCallback((context: string) => {
+    // Preventive cleanup before opening
+    ensureNoAriaHidden();
+    
     // Store focus
     const activeElement = document.activeElement as HTMLElement;
     if (activeElement) {
@@ -115,6 +144,8 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
     }
 
     console.log(`[OverlayManager] Overlay opened: ${context} (count: ${state.overlayCount + 1})`);
+    console.debug('[OverlayManager] Open debug - aria-hidden count:', 
+      document.querySelectorAll('[aria-hidden="true"]').length);
   }, [state.overlayCount, lockScroll]);
 
   const closeOverlay = useCallback((context: string) => {

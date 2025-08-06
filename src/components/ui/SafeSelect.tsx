@@ -42,6 +42,10 @@ export const SafeSelect: React.FC<SafeSelectProps> = ({
     setIsOpen(open);
     
     if (open) {
+      // Preventive cleanup before opening
+      const ariaHiddenElements = document.querySelectorAll('[aria-hidden="true"]');
+      ariaHiddenElements.forEach(el => el.removeAttribute('aria-hidden'));
+      
       openOverlay(context);
       console.log(`[SafeSelect] Opened: ${context}`);
     } else {
