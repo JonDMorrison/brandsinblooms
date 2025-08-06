@@ -3,9 +3,10 @@
  * Excludes Radix portals to avoid interfering with legitimate accessibility patterns
  */
 
-console.log('[DEV-SENTINEL] Environment check:', process.env.VITE_ENABLE_SENTINEL);
+console.log('[DEV-SENTINEL] Loading in development mode');
 
-if (process.env.VITE_ENABLE_SENTINEL === "true") {
+// Enable in development mode
+if (import.meta.env.DEV) {
   console.log('[DEV-SENTINEL] Initializing aria-hidden mutation observer');
 
   // Monitor aria-hidden changes
