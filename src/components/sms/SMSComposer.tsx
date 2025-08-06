@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ImageIcon, UserIcon, PhoneIcon, MessageSquareIcon } from 'lucide-react'
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage'
 import { MultiImageUpload } from './MultiImageUpload'
+import { CarrierStatus } from './CarrierStatus'
 
 interface SMSComposerProps {
   value: string
@@ -22,6 +23,7 @@ interface SMSComposerProps {
   showMmsWarning?: boolean
   showImageUpload?: boolean
   enableMultiImage?: boolean
+  testPhoneNumber?: string
   className?: string
 }
 
@@ -46,6 +48,7 @@ export function SMSComposer({
   showMmsWarning = true,
   showImageUpload = true,
   enableMultiImage = false,
+  testPhoneNumber,
   className = ""
 }: SMSComposerProps) {
   const [showMergeTagMenu, setShowMergeTagMenu] = useState(false)
@@ -169,6 +172,14 @@ export function SMSComposer({
             </>
           )}
         </div>
+      )}
+
+      {/* Carrier Status & Compatibility Check */}
+      {testPhoneNumber && (mediaUrls.length > 0 || imageUrl) && (
+        <CarrierStatus 
+          phoneNumber={testPhoneNumber}
+          mediaUrls={enableMultiImage ? mediaUrls : (imageUrl ? [imageUrl] : [])}
+        />
       )}
 
       {/* Warnings & Info */}

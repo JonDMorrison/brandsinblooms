@@ -8,6 +8,47 @@ interface TwilioResponse {
   status?: string
   error_code?: string
   message?: string
+  fallback_used?: boolean
+}
+
+async function detectCarrier(phoneNumber: string): Promise<{ supportsMms: boolean }> {
+  // Simple carrier detection - in production use a proper service
+  const cleanNumber = phoneNumber.replace(/[^\d+]/g, '')
+  
+  // VoIP and known problematic patterns
+  const unsupportedPatterns = [
+    /^(\+1)?6[0-9]{9}$/, // Many Google Voice numbers
+    /^(\+1)?8[0-9]{9}$/, // Some 8xx VoIP numbers
+  ]
+  
+  for (const pattern of unsupportedPatterns) {
+    if (pattern.test(cleanNumber)) {
+      return { supportsMms: false }
+    }
+  }
+  
+  // International numbers - be conservative
+  if (!cleanNumber.startsWith('+1') && cleanNumber.length !== 10) {
+    return { supportsMms: false }
+  }
+  
+  // Default: assume MMS support for US numbers
+  return { supportsMms: true }
+}
+
+async function createFallbackMessage(body: string, mediaUrls: string[]): Promise<string> {
+  if (!mediaUrls || mediaUrls.length === 0) return body
+  
+  const imageText = mediaUrls.length === 1 
+    ? 'View image: ' 
+    : `View ${mediaUrls.length} images: `
+  
+  // Simple URL shortening - in production use proper service
+  const shortUrl = mediaUrls[0].length > 50 
+    ? mediaUrls[0].substring(0, 47) + '...'
+    : mediaUrls[0]
+  
+  return `${body}\n\n${imageText}${shortUrl}`
 }
 
 async function sendTwilioSMS(to: string, body: string, mediaUrls?: string[]): Promise<TwilioResponse> {
@@ -19,16 +60,27 @@ async function sendTwilioSMS(to: string, body: string, mediaUrls?: string[]): Pr
     throw new Error('Missing Twilio configuration')
   }
 
+  // Check carrier MMS support and apply fallback if needed
+  const carrierInfo = await detectCarrier(to)
+  let finalBody = body
+  let finalMediaUrls = mediaUrls
+
+  if (mediaUrls && mediaUrls.length > 0 && !carrierInfo.supportsMms) {
+    console.log(`Carrier doesn't support MMS for ${to}, using fallback`)
+    finalBody = await createFallbackMessage(body, mediaUrls)
+    finalMediaUrls = [] // Remove media for SMS-only fallback
+  }
+
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
   
   const formData = new FormData()
   formData.append('From', phoneNumber)
   formData.append('To', to)
-  formData.append('Body', body)
+  formData.append('Body', finalBody)
   
-  // Support multiple media URLs (up to 3 for MMS)
-  if (mediaUrls && mediaUrls.length > 0) {
-    const validUrls = mediaUrls.filter(url => url && url.trim()).slice(0, 3)
+  // Support multiple media URLs (up to 3 for MMS) if carrier supports it
+  if (finalMediaUrls && finalMediaUrls.length > 0) {
+    const validUrls = finalMediaUrls.filter(url => url && url.trim()).slice(0, 3)
     validUrls.forEach(url => {
       formData.append('MediaUrl', url)
     })
@@ -52,9 +104,11 @@ async function sendTwilioSMS(to: string, body: string, mediaUrls?: string[]): Pr
     }
   }
 
+  console.log(`SMS sent successfully to ${to} - SID: ${result.sid}`)
   return {
     sid: result.sid,
-    status: result.status
+    status: result.status,
+    fallback_used: finalMediaUrls?.length !== mediaUrls?.length // Indicate if fallback was used
   }
 }
 
