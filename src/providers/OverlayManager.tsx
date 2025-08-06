@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useCallback, useRef, useState } from 'react';
-import { lockBodySiblings, unlockBodySiblings } from '@/utils/focusLock';
+import { lock, unlock } from '@/utils/focusLock';
 
 interface OverlayState {
   overlayCount: number;
@@ -61,8 +61,11 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
       document.body.style.top = `-${originalScrollY.current}px`;
       document.body.style.width = '100%';
 
-      // Lock non-modal siblings with inert
-      lockBodySiblings();
+      // Lock overlay-lockable elements with inert (not aria-hidden)
+      const overlayLockEl = document.querySelector('[data-overlay-lock]') as HTMLElement;
+      if (overlayLockEl) {
+        lock(overlayLockEl);
+      }
 
       setState(prev => ({ ...prev, scrollLocked: true }));
       console.log('[OverlayManager] Body scroll locked');
@@ -78,8 +81,11 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
       document.body.style.top = original.top;
       document.body.style.width = original.width;
 
-      // Unlock all inert siblings
-      unlockBodySiblings();
+      // Unlock overlay-lockable elements
+      const overlayLockEl = document.querySelector('[data-overlay-lock]') as HTMLElement;
+      if (overlayLockEl) {
+        unlock(overlayLockEl);
+      }
 
       // Restore scroll position
       window.scrollTo(0, originalScrollY.current);
@@ -139,6 +145,8 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
     }, 0);
 
     console.log(`[OverlayManager] Overlay closed: ${context} (count: ${Math.max(0, state.overlayCount - 1)})`);
+    console.debug('[Overlay]', context, 'closed – inert removed:', 
+      !document.querySelector('[data-overlay-lock]')?.hasAttribute('inert'));
   }, [state.overlayCount, state.focusStack, unlockScroll]);
 
   const value: OverlayManagerContextType = {
