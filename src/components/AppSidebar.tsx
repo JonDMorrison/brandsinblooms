@@ -138,7 +138,7 @@ const AppSidebar: React.FC = () => {
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <Sidebar collapsible="icon" className="sidebar border-r">
+    <Sidebar collapsible="icon" className="sidebar border-r relative z-30">
       <SidebarHeader className="flex flex-row items-center justify-between p-4">
         <NavLink to="/" className="font-semibold flex items-center gap-2">
           <img 
@@ -161,7 +161,7 @@ const AppSidebar: React.FC = () => {
                   <Collapsible key={item.title} defaultOpen={item.items.some(subItem => isActive(subItem.url))}>
                     <SidebarMenuItem>
                         <CollapsibleTrigger asChild>
-                          <SidebarMenuButton className="group">
+                          <SidebarMenuButton className="group w-full">
                             <item.icon className="h-4 w-4" />
                             {!isCollapsed && <span>{item.title}</span>}
                             {!isCollapsed && <ChevronDown className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
@@ -187,12 +187,16 @@ const AppSidebar: React.FC = () => {
                   </Collapsible>
                 ) : (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink to={item.url} className={({ isActive }) => isActive ? "bg-accent text-accent-foreground" : ""}>
-                        <item.icon className="h-4 w-4" />
-                        {!isCollapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
+                     <SidebarMenuButton asChild className="w-full">
+                       <NavLink 
+                         to={item.url} 
+                         className={({ isActive }) => isActive ? "bg-accent text-accent-foreground" : ""}
+                         onClick={() => console.log('Sidebar link clicked:', item.title)}
+                       >
+                         <item.icon className="h-4 w-4" />
+                         {!isCollapsed && <span>{item.title}</span>}
+                       </NavLink>
+                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 )
               )}
