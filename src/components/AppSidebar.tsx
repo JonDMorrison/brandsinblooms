@@ -138,7 +138,7 @@ const AppSidebar: React.FC = () => {
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <Sidebar collapsible="icon" className="sidebar border-r relative z-30 min-w-[200px] flex-shrink-0">
+    <Sidebar collapsible="icon">
       <SidebarHeader className="flex flex-row items-center justify-between p-4">
         <NavLink to="/" className="font-semibold flex items-center gap-2">
           <img 
@@ -188,11 +188,10 @@ const AppSidebar: React.FC = () => {
                 ) : (
                   <SidebarMenuItem key={item.title}>
                      <SidebarMenuButton asChild className="w-full">
-                       <NavLink 
-                         to={item.url} 
-                         className={({ isActive }) => isActive ? "bg-accent text-accent-foreground" : ""}
-                         onClick={() => console.log('Sidebar link clicked:', item.title)}
-                       >
+                        <NavLink 
+                          to={item.url} 
+                          className={({ isActive }) => isActive ? "bg-accent text-accent-foreground" : ""}
+                        >
                          <item.icon className="h-4 w-4" />
                          {!isCollapsed && <span>{item.title}</span>}
                        </NavLink>
