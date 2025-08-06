@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -333,20 +333,16 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
             
             <div>
               <Label>Gardening Experience</Label>
-              <Select 
+              <NativeSelect
                 value={quickAddForm.persona} 
-                onValueChange={(value) => setQuickAddForm(prev => ({ ...prev, persona: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newbie">🌱 Newbie - Just getting started</SelectItem>
-                  <SelectItem value="struggler">🥀 Struggler - Has challenges</SelectItem>
-                  <SelectItem value="regular">🌿 Regular - Experienced gardener</SelectItem>
-                  <SelectItem value="expert">🌳 Expert - Master gardener</SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(e) => setQuickAddForm(prev => ({ ...prev, persona: e.target.value }))}
+                options={[
+                  { value: 'newbie', label: '🌱 Newbie - Just getting started' },
+                  { value: 'struggler', label: '🥀 Struggler - Has challenges' },
+                  { value: 'regular', label: '🌿 Regular - Experienced gardener' },
+                  { value: 'expert', label: '🌳 Expert - Master gardener' }
+                ]}
+              />
             </div>
             
             <div className="flex gap-2 pt-4">

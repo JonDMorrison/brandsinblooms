@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Separator } from '@/components/ui/separator';
 import { GlobalSettings } from '@/types/emailBuilder';
 
@@ -53,40 +53,34 @@ export const GlobalSettingsPanel: React.FC<GlobalSettingsPanelProps> = ({
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="fontFamily">Font Family</Label>
-                <Select
+                <NativeSelect
                   value={settings.fontFamily}
-                  onValueChange={(value) => updateSettings('fontFamily', '', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select font" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Arial, sans-serif">Arial</SelectItem>
-                    <SelectItem value="Georgia, serif">Georgia</SelectItem>
-                    <SelectItem value="'Times New Roman', serif">Times New Roman</SelectItem>
-                    <SelectItem value="'Helvetica Neue', sans-serif">Helvetica</SelectItem>
-                    <SelectItem value="'Roboto', sans-serif">Roboto</SelectItem>
-                    <SelectItem value="'Open Sans', sans-serif">Open Sans</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => updateSettings('fontFamily', '', e.target.value)}
+                  placeholder="Select font"
+                  options={[
+                    { value: 'Arial, sans-serif', label: 'Arial' },
+                    { value: 'Georgia, serif', label: 'Georgia' },
+                    { value: "'Times New Roman', serif", label: 'Times New Roman' },
+                    { value: "'Helvetica Neue', sans-serif", label: 'Helvetica' },
+                    { value: "'Roboto', sans-serif", label: 'Roboto' },
+                    { value: "'Open Sans', sans-serif", label: 'Open Sans' }
+                  ]}
+                />
               </div>
               
               <div>
                 <Label htmlFor="fontSize">Base Font Size</Label>
-                <Select
+                <NativeSelect
                   value={settings.fontSize}
-                  onValueChange={(value) => updateSettings('fontSize', '', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="14px">14px</SelectItem>
-                    <SelectItem value="16px">16px</SelectItem>
-                    <SelectItem value="18px">18px</SelectItem>
-                    <SelectItem value="20px">20px</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => updateSettings('fontSize', '', e.target.value)}
+                  placeholder="Select size"
+                  options={[
+                    { value: '14px', label: '14px' },
+                    { value: '16px', label: '16px' },
+                    { value: '18px', label: '18px' },
+                    { value: '20px', label: '20px' }
+                  ]}
+                />
               </div>
             </CardContent>
           </Card>
@@ -135,22 +129,19 @@ export const GlobalSettingsPanel: React.FC<GlobalSettingsPanelProps> = ({
               
               <div>
                 <Label htmlFor="buttonRadius">Corner Radius</Label>
-                <Select
+                <NativeSelect
                   value={settings.buttonStyle.cornerRadius}
-                  onValueChange={(value) => updateSettings('buttonStyle', 'cornerRadius', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select radius" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0px">Sharp (0px)</SelectItem>
-                    <SelectItem value="4px">Small (4px)</SelectItem>
-                    <SelectItem value="6px">Medium (6px)</SelectItem>
-                    <SelectItem value="8px">Large (8px)</SelectItem>
-                    <SelectItem value="12px">Extra Large (12px)</SelectItem>
-                    <SelectItem value="999px">Rounded (999px)</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => updateSettings('buttonStyle', 'cornerRadius', e.target.value)}
+                  placeholder="Select radius"
+                  options={[
+                    { value: '0px', label: 'Sharp (0px)' },
+                    { value: '4px', label: 'Small (4px)' },
+                    { value: '6px', label: 'Medium (6px)' },
+                    { value: '8px', label: 'Large (8px)' },
+                    { value: '12px', label: 'Extra Large (12px)' },
+                    { value: '999px', label: 'Rounded (999px)' }
+                  ]}
+                />
               </div>
             </CardContent>
           </Card>

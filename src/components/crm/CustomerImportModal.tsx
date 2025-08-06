@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
@@ -416,20 +416,18 @@ export const CustomerImportModal = () => {
         {expectedColumns.map(col => (
           <div key={col.key} className="grid grid-cols-2 gap-4 items-center">
             <Label>{col.label}</Label>
-            <Select 
+            <NativeSelect
               value={columnMapping[col.key] || ''} 
-              onValueChange={(value) => setColumnMapping(prev => ({ ...prev, [col.key]: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select column..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">-- Skip --</SelectItem>
-                {Object.keys(fileData[0] || {}).map(header => (
-                  <SelectItem key={header} value={header}>{header}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(e) => setColumnMapping(prev => ({ ...prev, [col.key]: e.target.value }))}
+              placeholder="Select column..."
+              options={[
+                { value: '', label: '-- Skip --' },
+                ...Object.keys(fileData[0] || {}).map(header => ({
+                  value: header,
+                  label: header
+                }))
+              ]}
+            />
           </div>
         ))}
       </div>

@@ -191,20 +191,19 @@ export const CampaignTemplatesModal: React.FC<CampaignTemplatesModalProps> = ({
                     className="pl-10"
                   />
                 </div>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-48">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
-                    {categories.map(category => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  placeholder="All Categories"
+                  className="w-48"
+                  options={[
+                    { value: '', label: 'All Categories' },
+                    ...categories.map(category => ({
+                      value: category,
+                      label: category
+                    }))
+                  ]}
+                />
               </div>
 
               {/* Top Performing Templates */}

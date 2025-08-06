@@ -236,30 +236,30 @@ export const CampaignHistoryView: React.FC = () => {
               </div>
             </div>
             
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
-                <SelectItem value="sent">Sent</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              placeholder="All Status"
+              className="w-40"
+              options={[
+                { value: '', label: 'All Status' },
+                { value: 'sent', label: 'Sent' },
+                { value: 'draft', label: 'Draft' },
+                { value: 'scheduled', label: 'Scheduled' },
+                { value: 'failed', label: 'Failed' }
+              ]}
+            />
 
-            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Recent</SelectItem>
-                <SelectItem value="performance">Performance</SelectItem>
-                <SelectItem value="sent">Send Date</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="w-40"
+              options={[
+                { value: 'recent', label: 'Recent' },
+                { value: 'performance', label: 'Performance' },
+                { value: 'sent', label: 'Send Date' }
+              ]}
+            />
           </div>
         </CardContent>
       </Card>

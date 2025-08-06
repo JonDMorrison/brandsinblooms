@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { EmailBlock } from '@/types/emailBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, FileText, Sparkles, Bookmark, Calendar, Plus, Loader2, Image, ExternalLink, GripVertical, Edit3, Copy, Trash2, MoreVertical } from 'lucide-react';
@@ -503,21 +503,15 @@ export const ContentIntegrationSidebar: React.FC<ContentIntegrationSidebarProps>
                 <label className="text-sm font-medium mb-2 block">
                   Choose Persona (optional)
                 </label>
-                <Select value={selectedPersona} onValueChange={setSelectedPersona}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a persona..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {personas.map((persona) => (
-                      <SelectItem key={persona.id} value={persona.name}>
-                        <div className="flex items-center gap-2">
-                          <span>{persona.icon}</span>
-                          <span>{persona.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={selectedPersona}
+                  onChange={(e) => setSelectedPersona(e.target.value)}
+                  placeholder="Select a persona..."
+                  options={personas.map((persona) => ({
+                    value: persona.name,
+                    label: `${persona.icon} ${persona.name}`
+                  }))}
+                />
               </div>
 
               <div>

@@ -255,30 +255,30 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
           />
         </div>
         
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="scheduled">Scheduled</SelectItem>
-            <SelectItem value="sent">Sent</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
+        <NativeSelect
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          placeholder="Filter by status"
+          className="w-48"
+          options={[
+            { value: 'all', label: 'All Statuses' },
+            { value: 'draft', label: 'Draft' },
+            { value: 'scheduled', label: 'Scheduled' },
+            { value: 'sent', label: 'Sent' },
+            { value: 'completed', label: 'Completed' }
+          ]}
+        />
 
-        <Select value={sortBy} onValueChange={(value: 'recent' | 'performance') => setSortBy(value)}>
-          <SelectTrigger className="w-48">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="recent">Most Recent</SelectItem>
-            <SelectItem value="performance">Best Performance</SelectItem>
-          </SelectContent>
-        </Select>
+        <NativeSelect
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as 'recent' | 'performance')}
+          placeholder="Sort by"
+          className="w-48"
+          options={[
+            { value: 'recent', label: 'Most Recent' },
+            { value: 'performance', label: 'Best Performance' }
+          ]}
+        />
       </div>
 
       {/* Campaign List */}
