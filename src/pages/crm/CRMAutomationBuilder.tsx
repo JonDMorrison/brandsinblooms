@@ -186,7 +186,6 @@ export const CRMAutomationBuilder = () => {
                 <Button 
                   variant="outline" 
                   className="w-full justify-between"
-                  disabled={!!triggerType}
                 >
                   {selectedTrigger ? (
                     <div className="flex items-center gap-2">
