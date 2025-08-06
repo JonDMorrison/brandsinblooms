@@ -45,9 +45,9 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex" data-overlay-lock>
+      <div className="min-h-screen w-full flex">
         {/* Fixed UserMenu - always visible in top-right */}
-        <div className="fixed top-6 right-6 z-50">
+        <div className="fixed top-6 right-6 z-40">
           <UserMenu />
         </div>
         
