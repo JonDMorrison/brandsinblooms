@@ -1,6 +1,25 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { TEMPLATES, getTemplatesForTrigger, type Step } from '../../../src/lib/campaignTemplates.ts';
+// Import templates directly in edge function - can't access src/ directory
+const TEMPLATES = {
+  loyalty_join_sms: {
+    name: 'Instant Loyalty SMS',
+    trigger: 'loyalty_join',
+    steps: [{
+      delayHours: 0,
+      channel: 'sms' as const,
+      body: '🎉 Thanks for joining! Reply BUD to get 10% off your next purchase.',
+      template_id: 'loyalty_join_sms-0'
+    }]
+  }
+};
+
+interface Step {
+  delayHours: number;
+  channel: 'sms' | 'email';
+  body: string;
+  template_id: string;
+}
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -26,7 +45,7 @@ serve(async (req) => {
     }
 
     // First check if we have existing templates for this trigger
-    const existingTemplates = getTemplatesForTrigger(trigger);
+    const existingTemplates = Object.values(TEMPLATES).filter(t => t.trigger === trigger);
     if (existingTemplates.length > 0) {
       // Return the first matching template
       const template = existingTemplates[0];
