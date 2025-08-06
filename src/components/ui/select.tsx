@@ -27,6 +27,12 @@ const Select = React.forwardRef<
       timestamp: Date.now() 
     });
     
+    // Prevent auto-close for single-option dropdowns
+    if (!open && isOpen && props.children && React.Children.count(props.children) <= 1) {
+      console.debug('[SelectDebug] Preventing auto-close for single option dropdown');
+      return;
+    }
+    
     setIsOpen(open);
     
     if (open) {
@@ -38,7 +44,7 @@ const Select = React.forwardRef<
     }
     
     onOpenChange?.(open);
-  }, [onOpenChange, debugMode]);
+  }, [onOpenChange, debugMode, isOpen, props.children]);
 
   React.useEffect(() => {
     if (debugMode) {

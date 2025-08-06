@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, ArrowUp, ArrowDown, Mail, MessageSquare, Save, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, Mail, MessageSquare, Save, ArrowLeft, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useTwilioSetup } from "@/components/dashboard/TwilioSetupChecker";
 
 interface WorkflowStep {
   id: string;
@@ -39,6 +40,28 @@ const CRMAutomationBuilder = () => {
   
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { data: twilioStatus, isLoading: twilioLoading } = useTwilioSetup();
+
+  // Dynamic trigger types based on Twilio setup
+  const triggerTypes = useMemo(() => {
+    const baseTriggers = [
+      { value: 'welcome', label: 'Welcome', description: 'Triggers when a new customer signs up' },
+      { value: 'segment_joined', label: 'Segment Joined', description: 'Triggers when a customer joins a specific segment' },
+      { value: 'manual', label: 'Manual', description: 'Triggers when manually activated' }
+    ];
+
+    if (twilioStatus?.isSetup) {
+      return [
+        ...baseTriggers,
+        { value: 'purchase_delay', label: 'Purchase Delay', description: 'Triggers X days after last purchase' },
+        { value: 'seasonal', label: 'Seasonal Reminder', description: 'Triggers based on seasonal timing' }
+      ];
+    }
+
+    return baseTriggers;
+  }, [twilioStatus?.isSetup]);
+
+  const isSingleOption = triggerTypes.length === 1;
 
   useEffect(() => {
     fetchSegments();
@@ -135,20 +158,14 @@ const CRMAutomationBuilder = () => {
   };
 
   const getTriggerDescription = () => {
-    switch (triggerType) {
-      case 'welcome':
-        return 'Triggers when a new customer signs up';
-      case 'segment_joined':
-        return 'Triggers when a customer joins a specific segment';
-      case 'purchase_delay':
+    const selectedTrigger = triggerTypes.find(t => t.value === triggerType);
+    if (selectedTrigger) {
+      if (triggerType === 'purchase_delay') {
         return `Triggers ${triggerConditions.delay_days || 0} days after last purchase`;
-      case 'seasonal':
-        return 'Triggers based on seasonal timing';
-      case 'manual':
-        return 'Triggers when manually activated';
-      default:
-        return 'Select a trigger type to see description';
+      }
+      return selectedTrigger.description;
     }
+    return isSingleOption ? triggerTypes[0]?.description : 'Select a trigger type to see description';
   };
 
   const getStepTypeIcon = (type: string) => {
@@ -196,21 +213,52 @@ const CRMAutomationBuilder = () => {
 
             <div>
               <Label htmlFor="trigger">Trigger Type</Label>
-              <Select value={triggerType} onValueChange={setTriggerType}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select trigger type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="welcome">Welcome</SelectItem>
-                  <SelectItem value="segment_joined">Segment Joined</SelectItem>
-                  <SelectItem value="purchase_delay">Purchase Delay</SelectItem>
-                  <SelectItem value="seasonal">Seasonal Reminder</SelectItem>
-                  <SelectItem value="manual">Manual</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground mt-1">
-                {getTriggerDescription()}
-              </p>
+              {isSingleOption ? (
+                <div className="mt-1">
+                  <div className="flex items-center justify-between p-3 border rounded-md bg-muted/50">
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline">{triggerTypes[0].label}</Badge>
+                      <span className="text-sm">{triggerTypes[0].label}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-muted-foreground">
+                      <Lock className="h-4 w-4" />
+                      <span className="text-xs">More options with SMS setup</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {triggerTypes[0].description}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Select 
+                    value={triggerType} 
+                    onValueChange={setTriggerType}
+                    onOpenChange={(open) => {
+                      if (open && triggerTypes.length === 1) return false;
+                    }}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="— Select —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {triggerTypes.map((trigger) => (
+                        <SelectItem key={trigger.value} value={trigger.value}>
+                          {trigger.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {getTriggerDescription()}
+                  </p>
+                </>
+              )}
+              {!twilioStatus?.isSetup && !twilioLoading && (
+                <p className="text-sm text-orange-600 mt-1">
+                  💡 Set up SMS to unlock more trigger options like Purchase Delay and Seasonal campaigns
+                </p>
+              )}
             </div>
 
             {/* Conditional trigger settings */}
