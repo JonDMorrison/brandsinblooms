@@ -9,6 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ContentBlockEditor, ContentBlock } from '@/components/content-hub/ContentBlockEditor';
 import { ContentHubSettings } from '@/components/content-hub/ContentHubSettings';
+import { HubPreview } from '@/components/content-hub/HubPreview';
+import { SMSTestingPanel } from '@/components/content-hub/SMSTestingPanel';
 import { useContentBlocks } from '@/hooks/useContentBlocks';
 import { useHubAnalytics } from '@/hooks/useHubAnalytics';
 
@@ -166,7 +168,9 @@ export const CampaignContentHub: React.FC = () => {
       <Tabs defaultValue="content" className="space-y-6">
         <TabsList>
           <TabsTrigger value="content">Content Blocks</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="settings">Hub Settings</TabsTrigger>
+          <TabsTrigger value="testing">SMS & QR Testing</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -198,10 +202,25 @@ export const CampaignContentHub: React.FC = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="preview" className="space-y-6">
+          <HubPreview
+            campaign={campaign}
+            blocks={editableBlocks}
+            className="mx-auto max-w-md"
+          />
+        </TabsContent>
+
         <TabsContent value="settings" className="space-y-6">
           <ContentHubSettings
             campaign={campaign}
             onCampaignUpdate={handleCampaignUpdate}
+          />
+        </TabsContent>
+
+        <TabsContent value="testing" className="space-y-6">
+          <SMSTestingPanel 
+            campaignId={campaignId}
+            campaignSlug={campaign?.slug}
           />
         </TabsContent>
 

@@ -421,7 +421,7 @@ export const ContentBlockEditor: React.FC<ContentBlockEditorProps> = ({
             <select 
               value={selectedBlockType} 
               onChange={(e) => setSelectedBlockType(e.target.value)}
-              className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
               <option value="">Choose block type...</option>
               {BLOCK_TYPES.map((type) => (
