@@ -1,366 +1,257 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Plus, Trash2, Mail, MessageSquare, Clock, ArrowRight } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { triggerCatalog, getTriggerById } from '@/lib/automation/triggerCatalog';
-import { getTemplateForTrigger } from '@/lib/automation/templates';
-import { getTemplatesByTrigger } from '@/lib/automation/templates/campaignTemplates';
-import { TemplateCard } from '@/components/crm/TemplateCard';
-import { TemplateSelector } from '@/components/automation/TemplateSelector';
-import { type Step } from '@/lib/campaignTemplates';
+import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
+import { TemplateGallery } from '@/components/automation/TemplateGallery';
+import { Save, Palette, Zap } from 'lucide-react';
 
 export const CRMAutomationBuilder = () => {
+  const { id: automationId } = useParams();
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode') || 'canvas';
+  
   const [automationName, setAutomationName] = useState('');
-  const [triggerType, setTriggerType] = useState<string | null>(null);
-  const [steps, setSteps] = useState<Step[]>([]);
-  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
-  const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
+  const [automationDescription, setAutomationDescription] = useState('');
+  const [currentFlowState, setCurrentFlowState] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(!!automationId);
+  const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState(mode === 'quick' ? 'templates' : 'canvas');
   
   const { toast } = useToast();
 
-  const template = useMemo(() => getTemplateForTrigger(triggerType), [triggerType]);
+  // Load existing automation if editing
+  useEffect(() => {
+    if (automationId) {
+      loadAutomation();
+    }
+  }, [automationId]);
 
-  const handleTriggerSelect = (val: string) => {
-    setTriggerType(val);
-    console.log('[Builder] trigger selected', val);
-  };
+  const loadAutomation = async () => {
+    if (!automationId) return;
 
-  const handleSelectTemplate = (templateSteps: Step[]) => {
-    setSteps(templateSteps);
-    setShowTemplateSelector(false);
-    toast({
-      title: "Template Applied",
-      description: `${templateSteps.length} step${templateSteps.length > 1 ? 's' : ''} added to your automation.`,
-    });
-  };
-
-  const handleStartFromScratch = () => {
-    setSteps([]);
-    setShowTemplateSelector(false);
-  };
-
-  const handleGenerateWithAI = async () => {
-    setIsGeneratingTemplate(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-automation-template', {
-        body: {
-          trigger: triggerType,
-          businessName: 'Bloom Gardens'
-        }
-      });
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('crm_automations')
+        .select('*')
+        .eq('id', automationId)
+        .single();
 
       if (error) throw error;
 
-      if (data && data.steps) {
-        setSteps(data.steps);
-        setShowTemplateSelector(false);
-        toast({
-          title: "AI Template Generated",
-          description: `Created ${data.steps.length} step${data.steps.length > 1 ? 's' : ''} for your automation.`,
-        });
-      }
+      setAutomationName(data.name || '');
+      // TODO: Add description field to database
+      setAutomationDescription('');
+      // TODO: Use flow_state once column is available
+      setCurrentFlowState({ nodes: [], edges: [] });
     } catch (error) {
-      console.error('Error generating template:', error);
+      console.error('Error loading automation:', error);
       toast({
-        title: "Generation Failed",
-        description: "Unable to generate template. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to load automation details.',
+        variant: 'destructive',
       });
     } finally {
-      setIsGeneratingTemplate(false);
+      setIsLoading(false);
     }
   };
 
-  const addStep = (type: 'email' | 'sms') => {
-    const newStep: Step = {
-      delayValue: 0,
-      delayUnit: 'minutes',
-      channel: type,
-      body: '',
-      template_id: `custom-${Date.now()}`,
-      delayHours: 0
-    };
-    setSteps([...steps, newStep]);
-  };
-
-  const removeStep = (index: number) => {
-    setSteps(steps.filter((_, i) => i !== index));
-  };
-
-  const updateStep = (index: number, field: keyof Step, value: string | number) => {
-    setSteps(steps.map((step, i) => 
-      i === index ? { ...step, [field]: value } : step
-    ));
-  };
-
-  const saveAutomation = async () => {
-    if (!automationName.trim() || !triggerType) {
+  const handleSaveAutomation = async () => {
+    if (!automationName.trim()) {
       toast({
-        title: "Missing Information",
-        description: "Please provide automation name and trigger type.",
-        variant: "destructive",
+        title: 'Missing Information',
+        description: 'Please provide an automation name.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!currentFlowState || currentFlowState.nodes.length === 0) {
+      toast({
+        title: 'Missing Workflow',
+        description: 'Please create at least one step in your automation.',
+        variant: 'destructive',
       });
       return;
     }
 
     try {
-      const { data, error } = await supabase
-        .from('crm_automations')
-        .insert({
-          name: automationName,
-          trigger_type: triggerType,
-          trigger_conditions: { event: triggerType },
-          workflow_steps: steps as any,
-          is_active: true,
-          template_source: steps.some(s => s.template_id?.startsWith('ai-')) ? 'ai_generated' : 'template_library'
-        })
-        .select()
-        .single();
+      setIsSaving(true);
+      
+      const automationData = {
+        name: automationName,
+        is_active: false, // Start as draft
+        trigger_type: currentFlowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
+        trigger_conditions: {},
+        workflow_steps: [], // Legacy field, keeping for compatibility
+      };
 
-      if (error) throw error;
+      if (automationId) {
+        // Update existing automation
+        const { error } = await supabase
+          .from('crm_automations')
+          .update(automationData)
+          .eq('id', automationId);
 
-      toast({
-        title: "Success",
-        description: "Automation saved successfully!",
-      });
+        if (error) throw error;
 
-      // Reset form
-      setAutomationName('');
-      setTriggerType(null);
-      setSteps([]);
-      setShowTemplateSelector(false);
+        toast({
+          title: 'Success',
+          description: 'Automation updated successfully!',
+        });
+      } else {
+        // Create new automation
+        const { data, error } = await supabase
+          .from('crm_automations')
+          .insert(automationData)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        toast({
+          title: 'Success',
+          description: 'Automation created successfully!',
+        });
+
+        // Redirect to edit mode
+        window.history.replaceState({}, '', `/crm/automations/${data.id}`);
+      }
     } catch (error) {
       console.error('Error saving automation:', error);
       toast({
-        title: "Error",
-        description: "Failed to save automation. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to save automation. Please try again.',
+        variant: 'destructive',
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  const handleTemplateSelect = (template: any) => {
+    setCurrentFlowState(template.flow_data);
+    setAutomationName(template.name + ' (Copy)');
+    setAutomationDescription(template.description);
+    setActiveTab('canvas');
+    
+    toast({
+      title: 'Template Applied',
+      description: 'Template has been loaded into the canvas. You can now customize it.',
+    });
+  };
+
+  const handleFlowChange = (flowState: any) => {
+    setCurrentFlowState(flowState);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 max-w-6xl mx-auto">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Create Automation</h1>
-          <p className="text-muted-foreground">Build automated workflows to engage your customers</p>
+          <h1 className="text-2xl font-bold">
+            {automationId ? 'Edit Automation' : 'Create Automation'}
+          </h1>
+          <p className="text-muted-foreground">
+            Design visual automation workflows to engage your customers
+          </p>
         </div>
         <Button 
-          onClick={saveAutomation}
-          disabled={!automationName.trim() || !triggerType || steps.length === 0}
+          onClick={handleSaveAutomation}
+          disabled={!automationName.trim() || isSaving}
+          className="gap-2"
         >
-          Save Automation
+          <Save className="w-4 h-4" />
+          {isSaving ? 'Saving...' : 'Save Automation'}
         </Button>
       </div>
 
+      {/* Automation Details */}
       <Card>
         <CardHeader>
           <CardTitle>Automation Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="automation-name">Automation Name</Label>
-            <Input
-              id="automation-name"
-              value={automationName}
-              onChange={(e) => setAutomationName(e.target.value)}
-              placeholder="Enter automation name"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="automation-name">Automation Name *</Label>
+              <Input
+                id="automation-name"
+                value={automationName}
+                onChange={(e) => setAutomationName(e.target.value)}
+                placeholder="e.g., Welcome Series"
+              />
+            </div>
+            <div>
+              <Label htmlFor="automation-description">Description</Label>
+              <Input
+                id="automation-description"
+                value={automationDescription}
+                onChange={(e) => setAutomationDescription(e.target.value)}
+                placeholder="Brief description of this automation"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Trigger Configuration</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <NativeSelect
-              id="triggerType"
-              label="Trigger"
-              value={triggerType ?? ''}
-              onChange={e => handleTriggerSelect(e.target.value)}
-              placeholder="Select trigger…"
-              options={triggerCatalog.map(opt => ({
-                value: opt.id,
-                label: opt.label
-              }))}
-            />
-          </div>
+      {/* Main Content Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="canvas" className="gap-2">
+            <Palette className="w-4 h-4" />
+            Visual Canvas
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2">
+            <Zap className="w-4 h-4" />
+            Templates
+          </TabsTrigger>
+        </TabsList>
 
-          {template && (
-            <TemplateCard
-              title={template.title}
-              steps={template.steps.length}
-              onUse={() => {
-                setSteps(template.steps.map(step => ({
-                  delayValue: step.delay || 0,
-                  delayUnit: step.delay >= 1440 ? 'days' : step.delay >= 60 ? 'hours' : 'minutes',
-                  channel: step.channel,
-                  body: step.content,
-                  template_id: template.id,
-                  delayHours: step.delay || 0
-                })));
-                toast({
-                  title: "Template Applied",
-                  description: `${template.steps.length} step${template.steps.length > 1 ? 's' : ''} added to your automation.`,
-                });
-              }}
-            />
-          )}
-        </CardContent>
-      </Card>
+        <TabsContent value="canvas" className="space-y-4">
+          <Card className="h-[600px]">
+            <CardHeader>
+              <CardTitle>Automation Flow Canvas</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Drag and drop nodes to build your automation workflow. Connect them to define the customer journey.
+              </p>
+            </CardHeader>
+            <CardContent className="h-[500px] p-0">
+              <AutomationFlowCanvas
+                automationId={automationId}
+                initialFlowState={currentFlowState}
+                onSave={handleFlowChange}
+                className="h-full w-full"
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {showTemplateSelector && triggerType && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Template Selection</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TemplateSelector
-              triggerId={triggerType}
-              onSelectTemplate={handleSelectTemplate}
-              onStartFromScratch={handleStartFromScratch}
-              onGenerateWithAI={handleGenerateWithAI}
-              isGenerating={isGeneratingTemplate}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {!showTemplateSelector && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Automation Steps
-              {steps.length > 0 && (
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => addStep('email')}
-                    className="gap-2"
-                  >
-                    <Mail className="w-4 h-4" />
-                    Add Email
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => addStep('sms')}
-                    className="gap-2"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    Add SMS
-                  </Button>
-                </div>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {steps.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                {triggerType ? "Select a template above to get started." : "Select a trigger to configure automation steps."}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {steps.map((step, index) => (
-                  <Card key={index} className="relative">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start gap-4">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            {step.channel === 'email' && <Mail className="w-4 h-4" />}
-                            {step.channel === 'sms' && <MessageSquare className="w-4 h-4" />}
-                          </div>
-                          {index < steps.length - 1 && (
-                            <ArrowRight className="w-4 h-4 text-muted-foreground rotate-90" />
-                          )}
-                        </div>
-                        
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary">
-                              {step.channel.toUpperCase()}
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeStep(index)}
-                              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                            <div>
-                              <Label htmlFor={`delay-value-${index}`}>Delay Value</Label>
-                              <Input
-                                id={`delay-value-${index}`}
-                                type="number"
-                                min="0"
-                                value={step.delayValue || 0}
-                                onChange={(e) => updateStep(index, 'delayValue', parseInt(e.target.value) || 0)}
-                                placeholder="0"
-                              />
-                            </div>
-                            <div>
-                              <NativeSelect
-                                id={`delay-unit-${index}`}
-                                label="Time Unit"
-                                value={step.delayUnit || 'minutes'}
-                                onChange={(e) => updateStep(index, 'delayUnit', e.target.value as 'minutes' | 'hours' | 'days')}
-                                options={[
-                                  { value: 'minutes', label: 'Minutes' },
-                                  { value: 'hours', label: 'Hours' },
-                                  { value: 'days', label: 'Days' }
-                                ]}
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <Label htmlFor={`content-${index}`}>
-                              {step.channel === 'email' ? 'Email Content' : 'SMS Message'}
-                            </Label>
-                            <Textarea
-                              id={`content-${index}`}
-                              value={step.body}
-                              onChange={(e) => updateStep(index, 'body', e.target.value)}
-                              placeholder={
-                                step.channel === 'email' 
-                                  ? "Enter email content (HTML supported)" 
-                                  : "Enter SMS message (160 chars recommended)"
-                              }
-                              rows={step.channel === 'email' ? 4 : 2}
-                            />
-                            {step.channel === 'sms' && step.body && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {step.body.length}/160 characters
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="templates" className="space-y-4">
+          <TemplateGallery
+            onSelectTemplate={handleTemplateSelect}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
