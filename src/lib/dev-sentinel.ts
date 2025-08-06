@@ -89,42 +89,7 @@ function isRadixComponent(node: Element): boolean {
 
 // ---------------------------------------------------------------------------
 
-if (import.meta.env.DEV) {
-  const observer = new MutationObserver(records => {
-    for (const r of records) {
-      r.addedNodes.forEach(n => {
-        if (
-          n instanceof HTMLElement &&
-          n.hasAttribute('aria-hidden') &&
-          !isAllowlisted(n) &&
-          !isRadixComponent(n)
-        ) {
-          log('[Sentinel] stripping rogue aria-hidden from added node →', n);
-          n.removeAttribute('aria-hidden');
-        }
-      });
-      
-      // Check for aria-hidden attribute changes (outside allowlist)
-      if (r.type === 'attributes' && r.attributeName === 'aria-hidden') {
-        const target = r.target as HTMLElement;
-        if (
-          target.getAttribute('aria-hidden') === 'true' &&
-          !isAllowlisted(target) &&
-          !isRadixComponent(target)
-        ) {
-          log('[Sentinel] blocking rogue aria-hidden=true on →', target);
-          target.removeAttribute('aria-hidden');
-        }
-      }
-    }
-  });
-
-  observer.observe(document.body, {
-    subtree: true, 
-    attributes: true, 
-    attributeFilter: ['aria-hidden'],
-    childList: true
-  });
-  
-  console.log('[Sentinel] aria-hidden monitoring active with enhanced Radix detection');
+// TEMPORARILY DISABLED FOR DROPDOWN DEBUGGING
+if (false && import.meta.env.DEV) {
+  console.log('[Sentinel] DISABLED for dropdown debugging');
 }
