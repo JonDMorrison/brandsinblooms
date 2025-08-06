@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 
 interface ImageBlockEditorProps {
@@ -67,19 +67,15 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
 
       <div className="space-y-2">
         <Label>Image Alignment</Label>
-        <Select
+        <NativeSelect
           value={block.textAlign || 'center'}
-          onValueChange={handleAlignmentChange}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="left">Left</SelectItem>
-            <SelectItem value="center">Center</SelectItem>
-            <SelectItem value="right">Right</SelectItem>
-          </SelectContent>
-        </Select>
+          onChange={(e) => handleAlignmentChange(e.target.value)}
+          options={[
+            { value: 'left', label: 'Left' },
+            { value: 'center', label: 'Center' },
+            { value: 'right', label: 'Right' }
+          ]}
+        />
       </div>
     </div>
   );

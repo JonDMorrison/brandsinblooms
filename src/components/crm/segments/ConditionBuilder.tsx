@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
@@ -113,18 +113,15 @@ const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
           <div key={index} className="space-y-3">
             {index > 0 && (
               <div className="flex items-center gap-2">
-                <Select
+                <NativeSelect
                   value={condition.logic}
-                  onValueChange={(value) => onUpdateCondition(index, { logic: value as 'AND' | 'OR' })}
-                >
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="AND">AND</SelectItem>
-                    <SelectItem value="OR">OR</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => onUpdateCondition(index, { logic: e.target.value as 'AND' | 'OR' })}
+                  options={[
+                    { value: 'AND', label: 'AND' },
+                    { value: 'OR', label: 'OR' }
+                  ]}
+                  className="w-20"
+                />
               </div>
             )}
 
@@ -153,149 +150,84 @@ const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <Label className="text-xs">Field</Label>
-                      <Select
+                      <NativeSelect
                         value={condition.field}
-                        onValueChange={(value) => onUpdateCondition(index, { field: value, value: '' })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="persona">
-                            <div className="flex items-center gap-2">
-                              <Users className="h-3 w-3" />
-                              Persona
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="tags">
-                            <div className="flex items-center gap-2">
-                              <Filter className="h-3 w-3" />
-                              Customer Tags
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="created_at">
-                            <div className="flex items-center gap-2">
-                              <CalendarIcon className="h-3 w-3" />
-                              Joined Date
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="last_purchase_date">
-                            <div className="flex items-center gap-2">
-                              <ShoppingCart className="h-3 w-3" />
-                              Last Purchase
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="lifetime_value">
-                            <div className="flex items-center gap-2">
-                              <TrendingUp className="h-3 w-3" />
-                              Lifetime Value
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="sms_opt_in">
-                            <div className="flex items-center gap-2">
-                              <MessageSquare className="h-3 w-3" />
-                              SMS Opt-In
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="email">
-                            <div className="flex items-center gap-2">
-                              <Mail className="h-3 w-3" />
-                              Email Contains
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                        onChange={(e) => onUpdateCondition(index, { field: e.target.value, value: '' })}
+                        options={[
+                          { value: 'persona', label: 'Persona' },
+                          { value: 'tags', label: 'Customer Tags' },
+                          { value: 'created_at', label: 'Joined Date' },
+                          { value: 'last_purchase_date', label: 'Last Purchase' },
+                          { value: 'lifetime_value', label: 'Lifetime Value' },
+                          { value: 'sms_opt_in', label: 'SMS Opt-In' },
+                          { value: 'email', label: 'Email Contains' }
+                        ]}
+                      />
                     </div>
                     
                     <div>
                       <Label className="text-xs">Operator</Label>
-                      <Select
+                      <NativeSelect
                         value={condition.operator}
-                        onValueChange={(value) => onUpdateCondition(index, { operator: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {condition.field === 'persona' && (
-                            <SelectItem value="equals">is</SelectItem>
-                          )}
-                          {condition.field === 'tags' && (
-                            <SelectItem value="includes">includes</SelectItem>
-                          )}
-                          {condition.field === 'sms_opt_in' && (
-                            <SelectItem value="equals">is</SelectItem>
-                          )}
-                          {(condition.field === 'created_at' || condition.field === 'last_purchase_date') && (
-                            <>
-                              <SelectItem value="after">after</SelectItem>
-                              <SelectItem value="before">before</SelectItem>
-                            </>
-                          )}
-                          {condition.field === 'lifetime_value' && (
-                            <>
-                              <SelectItem value="greater_than">greater than</SelectItem>
-                              <SelectItem value="less_than">less than</SelectItem>
-                              <SelectItem value="equals">equals</SelectItem>
-                            </>
-                          )}
-                          {condition.field === 'email' && (
-                            <SelectItem value="contains">contains</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
+                        onChange={(e) => onUpdateCondition(index, { operator: e.target.value })}
+                        options={(() => {
+                          const baseOptions = [];
+                          if (condition.field === 'persona') baseOptions.push({ value: 'equals', label: 'is' });
+                          if (condition.field === 'tags') baseOptions.push({ value: 'includes', label: 'includes' });
+                          if (condition.field === 'sms_opt_in') baseOptions.push({ value: 'equals', label: 'is' });
+                          if (condition.field === 'created_at' || condition.field === 'last_purchase_date') {
+                            baseOptions.push({ value: 'after', label: 'after' });
+                            baseOptions.push({ value: 'before', label: 'before' });
+                          }
+                          if (condition.field === 'lifetime_value') {
+                            baseOptions.push({ value: 'greater_than', label: 'greater than' });
+                            baseOptions.push({ value: 'less_than', label: 'less than' });
+                            baseOptions.push({ value: 'equals', label: 'equals' });
+                          }
+                          if (condition.field === 'email') baseOptions.push({ value: 'contains', label: 'contains' });
+                          return baseOptions;
+                        })()}
+                      />
                     </div>
                     
                     <div>
                       <Label className="text-xs">Value</Label>
                       {condition.field === 'persona' && (
-                        <Select
+                        <NativeSelect
                           value={condition.value as string}
-                          onValueChange={(value) => onUpdateCondition(index, { value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select persona" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Newbie">🌱 Newbie</SelectItem>
-                            <SelectItem value="Struggler">😅 Plant Killer</SelectItem>
-                            <SelectItem value="Regular">🌿 Regular</SelectItem>
-                            <SelectItem value="Expert">🌺 Expert</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          onChange={(e) => onUpdateCondition(index, { value: e.target.value })}
+                          placeholder="Select persona"
+                          options={[
+                            { value: 'Newbie', label: '🌱 Newbie' },
+                            { value: 'Struggler', label: '😅 Plant Killer' },
+                            { value: 'Regular', label: '🌿 Regular' },
+                            { value: 'Expert', label: '🌺 Expert' }
+                          ]}
+                        />
                       )}
                       
                       {condition.field === 'sms_opt_in' && (
-                        <Select
+                        <NativeSelect
                           value={condition.value as string}
-                          onValueChange={(value) => onUpdateCondition(index, { value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select option" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="true">✅ Yes</SelectItem>
-                            <SelectItem value="false">❌ No</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          onChange={(e) => onUpdateCondition(index, { value: e.target.value })}
+                          placeholder="Select option"
+                          options={[
+                            { value: 'true', label: '✅ Yes' },
+                            { value: 'false', label: '❌ No' }
+                          ]}
+                        />
                       )}
                       
                       {condition.field === 'tags' && (
-                        <Select
+                        <NativeSelect
                           value={condition.value as string}
-                          onValueChange={(value) => onUpdateCondition(index, { value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select tag" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableTags.map(tag => (
-                              <SelectItem key={tag} value={tag}>
-                                <Badge variant="secondary" className="text-xs">{tag}</Badge>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          onChange={(e) => onUpdateCondition(index, { value: e.target.value })}
+                          placeholder="Select tag"
+                          options={availableTags.map(tag => ({
+                            value: tag,
+                            label: tag
+                          }))}
+                        />
                       )}
 
                       {(condition.field === 'created_at' || condition.field === 'last_purchase_date') && (

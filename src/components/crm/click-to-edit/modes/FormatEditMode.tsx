@@ -2,7 +2,7 @@ import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 
@@ -65,62 +65,50 @@ export const FormatEditMode: React.FC<FormatEditModeProps> = ({
       {/* Padding */}
       <div className="space-y-2">
         <Label>Padding</Label>
-        <Select
+        <NativeSelect
           value={block.padding || 'medium'}
-          onValueChange={(value) => onUpdate({ padding: value as any })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="small">Small</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="large">Large</SelectItem>
-          </SelectContent>
-        </Select>
+          onChange={(e) => onUpdate({ padding: e.target.value as any })}
+          options={[
+            { value: 'none', label: 'None' },
+            { value: 'small', label: 'Small' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'large', label: 'Large' }
+          ]}
+        />
       </div>
 
       {/* Margin */}
       <div className="space-y-2">
         <Label>Margin</Label>
-        <Select
+        <NativeSelect
           value={block.margin || 'medium'}
-          onValueChange={(value) => onUpdate({ margin: value as any })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="small">Small</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="large">Large</SelectItem>
-          </SelectContent>
-        </Select>
+          onChange={(e) => onUpdate({ margin: e.target.value as any })}
+          options={[
+            { value: 'none', label: 'None' },
+            { value: 'small', label: 'Small' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'large', label: 'Large' }
+          ]}
+        />
       </div>
 
       {/* Font Size (for text blocks) */}
       {(block.type === 'text' || block.fontSize !== undefined) && (
         <div className="space-y-2">
           <Label>Font Size</Label>
-          <Select
+          <NativeSelect
             value={block.fontSize || '16px'}
-            onValueChange={(value) => onUpdate({ fontSize: value })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="12px">12px</SelectItem>
-              <SelectItem value="14px">14px</SelectItem>
-              <SelectItem value="16px">16px</SelectItem>
-              <SelectItem value="18px">18px</SelectItem>
-              <SelectItem value="20px">20px</SelectItem>
-              <SelectItem value="24px">24px</SelectItem>
-              <SelectItem value="32px">32px</SelectItem>
-            </SelectContent>
-          </Select>
+            onChange={(e) => onUpdate({ fontSize: e.target.value })}
+            options={[
+              { value: '12px', label: '12px' },
+              { value: '14px', label: '14px' },
+              { value: '16px', label: '16px' },
+              { value: '18px', label: '18px' },
+              { value: '20px', label: '20px' },
+              { value: '24px', label: '24px' },
+              { value: '32px', label: '32px' }
+            ]}
+          />
         </div>
       )}
 
@@ -128,22 +116,18 @@ export const FormatEditMode: React.FC<FormatEditModeProps> = ({
       {(block.type === 'text' || block.fontFamily !== undefined) && (
         <div className="space-y-2">
           <Label>Font Family</Label>
-          <Select
+          <NativeSelect
             value={block.fontFamily || 'inherit'}
-            onValueChange={(value) => onUpdate({ fontFamily: value })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="inherit">Default</SelectItem>
-              <SelectItem value="Arial, sans-serif">Arial</SelectItem>
-              <SelectItem value="Helvetica, sans-serif">Helvetica</SelectItem>
-              <SelectItem value="Georgia, serif">Georgia</SelectItem>
-              <SelectItem value="Times New Roman, serif">Times New Roman</SelectItem>
-              <SelectItem value="Inter, sans-serif">Inter</SelectItem>
-            </SelectContent>
-          </Select>
+            onChange={(e) => onUpdate({ fontFamily: e.target.value })}
+            options={[
+              { value: 'inherit', label: 'Default' },
+              { value: 'Arial, sans-serif', label: 'Arial' },
+              { value: 'Helvetica, sans-serif', label: 'Helvetica' },
+              { value: 'Georgia, serif', label: 'Georgia' },
+              { value: 'Times New Roman, serif', label: 'Times New Roman' },
+              { value: 'Inter, sans-serif', label: 'Inter' }
+            ]}
+          />
         </div>
       )}
     </Card>

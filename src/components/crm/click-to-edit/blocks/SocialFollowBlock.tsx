@@ -2,7 +2,7 @@ import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Facebook, Twitter, Instagram, Youtube } from 'lucide-react';
@@ -131,19 +131,15 @@ export const SocialFollowBlock: React.FC<SocialFollowBlockProps> = ({ block, onU
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label>Alignment</Label>
-          <Select
+          <NativeSelect
             value={alignment}
-            onValueChange={(value) => onUpdate({ textAlign: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="left">Left</SelectItem>
-              <SelectItem value="center">Center</SelectItem>
-              <SelectItem value="right">Right</SelectItem>
-            </SelectContent>
-          </Select>
+            onChange={(e) => onUpdate({ textAlign: e.target.value as any })}
+            options={[
+              { value: 'left', label: 'Left' },
+              { value: 'center', label: 'Center' },
+              { value: 'right', label: 'Right' }
+            ]}
+          />
         </div>
 
         <div className="space-y-2">
@@ -158,19 +154,15 @@ export const SocialFollowBlock: React.FC<SocialFollowBlockProps> = ({ block, onU
 
         <div className="space-y-2">
           <Label>Icon Size</Label>
-          <Select
+          <NativeSelect
             value={iconSize}
-            onValueChange={(value) => onUpdate({ iconSize: value })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="small">Small</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="large">Large</SelectItem>
-            </SelectContent>
-          </Select>
+            onChange={(e) => onUpdate({ iconSize: e.target.value })}
+            options={[
+              { value: 'small', label: 'Small' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'large', label: 'Large' }
+            ]}
+          />
         </div>
       </div>
     </div>

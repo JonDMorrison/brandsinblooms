@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Switch } from '@/components/ui/switch';
 
 interface InlineStyleEditorProps {
@@ -49,19 +49,15 @@ export const InlineStyleEditor: React.FC<InlineStyleEditorProps> = ({
         {onTextAlignChange && (
           <div className="space-y-2">
             <Label>Text Alignment</Label>
-            <Select
+            <NativeSelect
               value={textAlign || 'left'}
-              onValueChange={onTextAlignChange}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="left">Left</SelectItem>
-                <SelectItem value="center">Center</SelectItem>
-                <SelectItem value="right">Right</SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={(e) => onTextAlignChange(e.target.value)}
+              options={[
+                { value: 'left', label: 'Left' },
+                { value: 'center', label: 'Center' },
+                { value: 'right', label: 'Right' }
+              ]}
+            />
           </div>
         )}
 

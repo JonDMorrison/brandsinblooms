@@ -2,7 +2,7 @@ import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 
 interface DividerBlockProps {
   block: ContentBlock;
@@ -41,21 +41,17 @@ export const DividerBlock: React.FC<DividerBlockProps> = ({ block, onUpdate, isP
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Line Thickness</Label>
-          <Select
+          <NativeSelect
             value={String(thickness)}
-            onValueChange={(value) => onUpdate({ dividerThickness: Number(value) })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">1px</SelectItem>
-              <SelectItem value="2">2px</SelectItem>
-              <SelectItem value="3">3px</SelectItem>
-              <SelectItem value="4">4px</SelectItem>
-              <SelectItem value="5">5px</SelectItem>
-            </SelectContent>
-          </Select>
+            onChange={(e) => onUpdate({ dividerThickness: Number(e.target.value) })}
+            options={[
+              { value: '1', label: '1px' },
+              { value: '2', label: '2px' },
+              { value: '3', label: '3px' },
+              { value: '4', label: '4px' },
+              { value: '5', label: '5px' }
+            ]}
+          />
         </div>
 
         <div className="space-y-2">

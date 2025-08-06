@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Settings, Building, Mail, Phone, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
@@ -205,56 +205,56 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
             <div className="space-y-3">
               <div>
                 <Label className="text-sm">Alignment</Label>
-                <Select value={footerSettings.alignment} onValueChange={(value) => handleSettingChange('alignment', value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="center">Center</SelectItem>
-                    <SelectItem value="left">Left</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={footerSettings.alignment}
+                  onChange={(e) => handleSettingChange('alignment', e.target.value)}
+                  options={[
+                    { value: 'center', label: 'Center' },
+                    { value: 'left', label: 'Left' }
+                  ]}
+                  className="w-full"
+                />
               </div>
 
               <div>
                 <Label className="text-sm">Padding</Label>
-                <Select value={footerSettings.padding} onValueChange={(value) => handleSettingChange('padding', value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="compact">Compact</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="spacious">Spacious</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={footerSettings.padding}
+                  onChange={(e) => handleSettingChange('padding', e.target.value)}
+                  options={[
+                    { value: 'compact', label: 'Compact' },
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'spacious', label: 'Spacious' }
+                  ]}
+                  className="w-full"
+                />
               </div>
 
               <div>
                 <Label className="text-sm">Background</Label>
-                <Select value={footerSettings.backgroundColor} onValueChange={(value) => handleSettingChange('backgroundColor', value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="light">Light Gray</SelectItem>
-                    <SelectItem value="white">White</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={footerSettings.backgroundColor}
+                  onChange={(e) => handleSettingChange('backgroundColor', e.target.value)}
+                  options={[
+                    { value: 'light', label: 'Light Gray' },
+                    { value: 'white', label: 'White' },
+                    { value: 'dark', label: 'Dark' }
+                  ]}
+                  className="w-full"
+                />
               </div>
 
               <div>
                 <Label className="text-sm">Font Size</Label>
-                <Select value={footerSettings.fontSize} onValueChange={(value) => handleSettingChange('fontSize', value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="xs">Extra Small</SelectItem>
-                    <SelectItem value="sm">Small</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={footerSettings.fontSize}
+                  onChange={(e) => handleSettingChange('fontSize', e.target.value)}
+                  options={[
+                    { value: 'xs', label: 'Extra Small' },
+                    { value: 'sm', label: 'Small' }
+                  ]}
+                  className="w-full"
+                />
               </div>
             </div>
 

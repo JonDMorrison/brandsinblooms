@@ -3,7 +3,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Slider } from '@/components/ui/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { Edit, Copy, Trash2 } from 'lucide-react';
@@ -164,19 +164,15 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
         </div>
         <div className="space-y-2">
           <Label htmlFor="alignment">Text Alignment</Label>
-          <Select
+          <NativeSelect
             value={block.textAlign || 'left'}
-            onValueChange={(value) => onUpdate({ textAlign: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="left">Left</SelectItem>
-              <SelectItem value="center">Center</SelectItem>
-              <SelectItem value="right">Right</SelectItem>
-            </SelectContent>
-          </Select>
+            onChange={(e) => onUpdate({ textAlign: e.target.value as any })}
+            options={[
+              { value: 'left', label: 'Left' },
+              { value: 'center', label: 'Center' },
+              { value: 'right', label: 'Right' }
+            ]}
+          />
         </div>
       </div>
 
@@ -268,20 +264,16 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
 
       <div className="space-y-2">
         <Label>Padding</Label>
-        <Select
+        <NativeSelect
           value={block.padding || 'medium'}
-          onValueChange={(value) => onUpdate({ padding: value as any })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="small">Small</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="large">Large</SelectItem>
-          </SelectContent>
-        </Select>
+          onChange={(e) => onUpdate({ padding: e.target.value as any })}
+          options={[
+            { value: 'none', label: 'None' },
+            { value: 'small', label: 'Small' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'large', label: 'Large' }
+          ]}
+        />
       </div>
     </div>
   );

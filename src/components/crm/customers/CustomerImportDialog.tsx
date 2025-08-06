@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, Download, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -437,17 +437,17 @@ jane@example.com,Jane,Smith,5559876543,new-customer,"plants,seeds",75.25,2024-01
 
                 <div className="space-y-2">
                   <Label htmlFor="default-persona">Default persona for all customers</Label>
-                  <Select value={defaultPersona} onValueChange={setDefaultPersona}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a persona (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new-customer">New Customer</SelectItem>
-                      <SelectItem value="loyal-customer">Loyal Customer</SelectItem>
-                      <SelectItem value="seasonal-shopper">Seasonal Shopper</SelectItem>
-                      <SelectItem value="high-value">High Value</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect
+                    value={defaultPersona}
+                    onChange={(e) => setDefaultPersona(e.target.value)}
+                    placeholder="Select a persona (optional)"
+                    options={[
+                      { value: 'new-customer', label: 'New Customer' },
+                      { value: 'loyal-customer', label: 'Loyal Customer' },
+                      { value: 'seasonal-shopper', label: 'Seasonal Shopper' },
+                      { value: 'high-value', label: 'High Value' }
+                    ]}
+                  />
                 </div>
               </CardContent>
             </Card>
