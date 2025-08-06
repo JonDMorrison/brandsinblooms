@@ -51,13 +51,12 @@ export const EnhancedCalendarTaskItem = ({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'published':
+        return { text: 'Published', className: 'bg-purple-100 text-purple-700 border-purple-300' };
       case 'completed':
       case 'approved':
         return { text: 'Approved', className: 'bg-green-100 text-green-700 border-green-300' };
       case 'scheduled':
         return { text: 'Scheduled', className: 'bg-blue-100 text-blue-700 border-blue-300' };
-      case 'published':
-        return { text: 'Published', className: 'bg-purple-100 text-purple-700 border-purple-300' };
       default:
         return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-300' };
     }
