@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useCallback, useRef, useState, useEffect } from 'react';
-import { lock, unlock, lockBodySiblings, unlockBodySiblings } from '@/utils/focusLock';
-import { ensureNoAriaHidden, startAriaHiddenMonitoring, stopAriaHiddenMonitoring } from '@/utils/ensureNoAriaHidden';
+import { lockBackground, unlockBackground } from '@/lib/overlay-utils';
 
 interface OverlayState {
   overlayCount: number;
@@ -36,29 +35,11 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
     focusStack: []
   });
 
-  // Start aria-hidden monitoring on mount
+  // Simplified overlay manager - use central overlay utils
   useEffect(() => {
-    startAriaHiddenMonitoring();
-    
-    // Create overlay root if it doesn't exist
-    if (!document.getElementById('overlay-root')) {
-      const overlayRoot = document.createElement('div');
-      overlayRoot.id = 'overlay-root';
-      overlayRoot.style.position = 'fixed';
-      overlayRoot.style.top = '0';
-      overlayRoot.style.left = '0';
-      overlayRoot.style.width = '100vw';
-      overlayRoot.style.height = '100vh';
-      overlayRoot.style.pointerEvents = 'none';
-      overlayRoot.style.zIndex = '1000000';
-      document.body.appendChild(overlayRoot);
-    }
-    
     return () => {
-      stopAriaHiddenMonitoring();
-      // Cleanup any remaining locks
-      unlockBodySiblings();
-      ensureNoAriaHidden();
+      // Cleanup any remaining locks on unmount
+      unlockBackground();
     };
   }, []);
 
@@ -82,20 +63,11 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
         width: document.body.style.width
       };
 
-      // Apply scroll lock
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${originalScrollY.current}px`;
-      document.body.style.width = '100%';
-
-      // Lock all body siblings except overlay containers using inert
-      lockBodySiblings();
+      // Apply scroll lock using central utility
+      lockBackground();
 
       setState(prev => ({ ...prev, scrollLocked: true }));
-      console.log('[OverlayManager] Body scroll locked, body siblings locked with inert');
-      
-      // Safety cleanup of any aria-hidden
-      ensureNoAriaHidden();
+      console.log('[OverlayManager] Scroll locked via central utility');
     }
   }, [state.scrollLocked]);
 
@@ -108,24 +80,18 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
       document.body.style.top = original.top;
       document.body.style.width = original.width;
 
-      // Unlock all body siblings
-      unlockBodySiblings();
+      // Unlock using central utility
+      unlockBackground();
 
       // Restore scroll position
       window.scrollTo(0, originalScrollY.current);
 
       setState(prev => ({ ...prev, scrollLocked: false }));
-      console.log('[OverlayManager] Body scroll unlocked, body siblings unlocked');
-      
-      // Final cleanup of any aria-hidden
-      ensureNoAriaHidden();
+      console.log('[OverlayManager] Scroll unlocked via central utility');
     }
   }, [state.scrollLocked, state.overlayCount]);
 
   const openOverlay = useCallback((context: string) => {
-    // Preventive cleanup before opening
-    ensureNoAriaHidden();
-    
     // Store focus
     const activeElement = document.activeElement as HTMLElement;
     if (activeElement) {
@@ -144,8 +110,6 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
     }
 
     console.log(`[OverlayManager] Overlay opened: ${context} (count: ${state.overlayCount + 1})`);
-    console.debug('[OverlayManager] Open debug - aria-hidden count:', 
-      document.querySelectorAll('[aria-hidden="true"]').length);
   }, [state.overlayCount, lockScroll]);
 
   const closeOverlay = useCallback((context: string) => {
@@ -177,14 +141,7 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
     }, 0);
 
     console.log(`[OverlayManager] Overlay closed: ${context} (count: ${Math.max(0, state.overlayCount - 1)})`);
-    
-    // Safety net: remove any aria-hidden attributes
-    ensureNoAriaHidden();
-    
-    console.debug('[Overlay]', context, 'closed – inert removed:', 
-      !document.querySelector('[data-overlay-lock]')?.hasAttribute('inert'),
-      'aria-hidden count:',
-      document.querySelectorAll('[aria-hidden="true"]').length);
+    console.debug('[OverlayManager] Close debug - no aria-hidden cleanup needed');
   }, [state.overlayCount, state.focusStack, unlockScroll]);
 
   const value: OverlayManagerContextType = {
