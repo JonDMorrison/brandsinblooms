@@ -61,27 +61,19 @@ const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
 >(({ className, sideOffset = 4, ...props }, ref) => (
-  // TODO: re-enable portal + inert once root cause is isolated
-  // <DropdownMenuPrimitive.Portal container={getOverlayRoot()}>
-  <DropdownMenuPrimitive.Content
-    ref={ref}
-    sideOffset={sideOffset}
-    className={cn(
-      "absolute z-[2147483647] min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-red-500 outline-2 outline data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 pointer-events-auto",
+  <DropdownMenuPrimitive.Portal container={document.body}>
+    <div data-overlay-root>
+      <DropdownMenuPrimitive.Content
+        ref={ref}
+        sideOffset={sideOffset}
+        className={cn(
+          "z-[1000010] min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 pointer-events-auto",
       className
-    )}
-    // TODO: re-enable portal + inert once root cause is isolated
-    // onOpenAutoFocus={() => {
-    //   lockBackground();
-    //   console.log('[DropdownMenu] Background locked via central utility');
-    // }}
-    // onCloseAutoFocus={() => {
-    //   unlockBackground();
-    //   console.log('[DropdownMenu] Background unlocked via central utility');
-    // }}
-    {...props}
-  />
-  // </DropdownMenuPrimitive.Portal>
+        )}
+        {...props}
+      />
+    </div>
+  </DropdownMenuPrimitive.Portal>
 ))
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
 
