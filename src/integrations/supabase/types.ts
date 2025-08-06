@@ -209,6 +209,13 @@ export type Database = {
             referencedRelation: "crm_customers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "automation_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
         ]
       }
       automation_templates: {
@@ -1371,6 +1378,13 @@ export type Database = {
             referencedRelation: "crm_customers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "crm_email_sends_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
         ]
       }
       crm_message_logs: {
@@ -1784,6 +1798,13 @@ export type Database = {
             referencedRelation: "crm_customers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_customer_segments_customer"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
         ]
       }
       customer_timeline: {
@@ -1824,6 +1845,57 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      customer_timeline_events: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          customer_id: string
+          description: string | null
+          event_date: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          title: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          customer_id: string
+          description?: string | null
+          event_date: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          title: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          customer_id?: string
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_timeline_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_timeline_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deletion_requests: {
         Row: {
@@ -2951,6 +3023,48 @@ export type Database = {
           },
         ]
       }
+      segments: {
+        Row: {
+          count_cached: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          last_computed_at: string | null
+          name: string
+          query_json: Json
+          tenant_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          count_cached?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_computed_at?: string | null
+          name: string
+          query_json: Json
+          tenant_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          count_cached?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_computed_at?: string | null
+          name?: string
+          query_json?: Json
+          tenant_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       sms_automation_logs: {
         Row: {
           automation_id: string | null
@@ -3001,6 +3115,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_automation_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
             referencedColumns: ["id"]
           },
           {
@@ -3124,6 +3245,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
             referencedColumns: ["id"]
           },
         ]
@@ -3682,7 +3810,61 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      customer_360_enriched: {
+        Row: {
+          avg_order_value: number | null
+          created_at: string | null
+          custom_fields: Json | null
+          customer_status: string | null
+          email: string | null
+          enriched_total_spent: number | null
+          favorite_products: string | null
+          first_name: string | null
+          first_order_date: string | null
+          footer_last_sent_at: string | null
+          id: string | null
+          last_name: string | null
+          last_order_date: string | null
+          last_purchase_date: string | null
+          lifetime_value: number | null
+          loyalty_status: string | null
+          opt_out: boolean | null
+          order_count: number | null
+          order_history: Json | null
+          persona: string | null
+          persona_assignment_method: string | null
+          persona_confidence_score: number | null
+          persona_id: string | null
+          phone: string | null
+          pos_source: string | null
+          product_categories: string | null
+          product_tags: string[] | null
+          sms_opt_in: boolean | null
+          sms_opt_in_at: string | null
+          tags: string[] | null
+          tenant_id: string | null
+          timezone: string | null
+          total_spent: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_customers_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_delete_user: {

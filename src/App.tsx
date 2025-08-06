@@ -24,6 +24,8 @@ import { CRMAnalyticsPage } from '@/pages/crm/CRMAnalyticsPage';
 import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
 import CRMAutomations from '@/pages/crm/CRMAutomations';
 import { CRMAutomationBuilder } from '@/pages/crm/CRMAutomationBuilder';
+import Customer360Page from '@/pages/crm/Customer360Page';
+import SegmentBuilderPage from '@/pages/crm/SegmentBuilderPage';
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewsletterNewPage } from '@/pages/NewsletterNewPage';
 import { WebsiteWaitlistPage } from '@/pages/WebsiteWaitlistPage';
@@ -98,10 +100,24 @@ function App() {
             </SidebarLayout>
           </ProtectedRoute>
         } />
+        <Route path="/crm/customers/:id" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <Customer360Page />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
         <Route path="/crm/segments" element={
           <ProtectedRoute>
             <SidebarLayout>
               <CRMSegmentsPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/segments/new" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <SegmentBuilderPage />
             </SidebarLayout>
           </ProtectedRoute>
         } />
