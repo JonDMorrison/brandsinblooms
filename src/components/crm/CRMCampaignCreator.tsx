@@ -21,6 +21,7 @@ import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { generateNewsletterBlocks, getFallbackBlocks } from '@/services/newsletterBlockGenerator';
 import { fetchSmartImage } from '@/services/unsplashService';
+import { PersonaSegmentSelector } from './PersonaSegmentSelector';
 
 // Helper function to fetch image for blocks with missing images
 const getOrFetchImage = async (contentObj: any, block: any): Promise<string | null> => {
@@ -246,6 +247,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [subjectLine, setSubjectLine] = useState('');
   const [preheaderText, setPreheaderText] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
+  const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
+  const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -1674,9 +1677,20 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             </div>
           </div>
         </CardContent>
-      </Card>
+       </Card>
 
-      {/* Email Content Builder - Full Width */}
+       {/* Persona & Segment Targeting */}
+       <PersonaSegmentSelector
+         selectedPersonas={selectedPersonas}
+         selectedSegments={selectedSegments}
+         onPersonasChange={setSelectedPersonas}
+         onSegmentsChange={setSelectedSegments}
+         maxPersonas={3}
+         maxSegments={5}
+         showCombinedAudience={true}
+       />
+
+       {/* Email Content Builder - Full Width */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

@@ -218,6 +218,27 @@ export type Database = {
           },
         ]
       }
+      automation_personas: {
+        Row: {
+          automation_id: string
+          created_at: string | null
+          id: string
+          persona_id: string
+        }
+        Insert: {
+          automation_id: string
+          created_at?: string | null
+          id?: string
+          persona_id: string
+        }
+        Update: {
+          automation_id?: string
+          created_at?: string | null
+          id?: string
+          persona_id?: string
+        }
+        Relationships: []
+      }
       automation_templates: {
         Row: {
           category: string
@@ -415,6 +436,27 @@ export type Database = {
           persona_tag?: string | null
           source?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      campaign_personas: {
+        Row: {
+          campaign_id: string
+          created_at: string | null
+          id: string
+          persona_id: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string | null
+          id?: string
+          persona_id: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string | null
+          id?: string
+          persona_id?: string
         }
         Relationships: []
       }
@@ -1062,6 +1104,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          persona_targeting: Json | null
           template_source: string | null
           tenant_id: string | null
           trigger_conditions: Json | null
@@ -1077,6 +1120,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          persona_targeting?: Json | null
           template_source?: string | null
           tenant_id?: string | null
           trigger_conditions?: Json | null
@@ -1092,6 +1136,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          persona_targeting?: Json | null
           template_source?: string | null
           tenant_id?: string | null
           trigger_conditions?: Json | null
@@ -1116,6 +1161,7 @@ export type Database = {
           metrics: Json | null
           name: string
           open_rate: number | null
+          persona_ids: string[] | null
           predicted_segment_ids: string[] | null
           preheader: string | null
           preheader_text: string | null
@@ -1149,6 +1195,7 @@ export type Database = {
           metrics?: Json | null
           name: string
           open_rate?: number | null
+          persona_ids?: string[] | null
           predicted_segment_ids?: string[] | null
           preheader?: string | null
           preheader_text?: string | null
@@ -1182,6 +1229,7 @@ export type Database = {
           metrics?: Json | null
           name?: string
           open_rate?: number | null
+          persona_ids?: string[] | null
           predicted_segment_ids?: string[] | null
           preheader?: string | null
           preheader_text?: string | null

@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
 import { TemplateGallery } from '@/components/automation/TemplateGallery';
+import { PersonaSegmentSelector } from '@/components/crm/PersonaSegmentSelector';
 import { Save, Palette, Zap } from 'lucide-react';
 
 export const CRMAutomationBuilder = () => {
@@ -213,6 +214,17 @@ export const CRMAutomationBuilder = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Persona & Segment Targeting */}
+      <PersonaSegmentSelector
+        selectedPersonas={[]}
+        selectedSegments={[]}
+        onPersonasChange={() => {}}
+        onSegmentsChange={() => {}}
+        maxPersonas={3}
+        maxSegments={5}
+        showCombinedAudience={true}
+      />
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
