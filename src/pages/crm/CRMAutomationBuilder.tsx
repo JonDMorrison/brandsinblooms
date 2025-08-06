@@ -25,9 +25,11 @@ export const CRMAutomationBuilder = () => {
   const selectedTrigger = getTriggerById(triggerType);
 
   const handleTriggerSelect = (trigger: Trigger) => {
+    console.log('🎯 Trigger selected:', trigger);
     setTriggerType(trigger.id);
     setTriggerPopoverOpen(false);
     setShowTemplateSelector(true);
+    console.log('✅ Trigger state updated, template selector shown');
   };
 
   const handleSelectTemplate = (templateSteps: Step[]) => {
@@ -181,12 +183,20 @@ export const CRMAutomationBuilder = () => {
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="trigger-type">Trigger Type</Label>
-            <Popover open={triggerPopoverOpen} onOpenChange={setTriggerPopoverOpen}>
+            <Popover open={triggerPopoverOpen} onOpenChange={(open) => {
+              console.log('🔄 Popover state changing:', { from: triggerPopoverOpen, to: open });
+              setTriggerPopoverOpen(open);
+            }}>
               <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
                   className="w-full justify-between"
-                  onClick={() => setTriggerPopoverOpen(!triggerPopoverOpen)}
+                  onClick={(e) => {
+                    console.log('🖱️ Button clicked! Current state:', triggerPopoverOpen);
+                    console.log('🖱️ Event details:', e);
+                    setTriggerPopoverOpen(!triggerPopoverOpen);
+                    console.log('🖱️ Will toggle to:', !triggerPopoverOpen);
+                  }}
                 >
                   {selectedTrigger ? (
                     <div className="flex items-center gap-2">
@@ -199,13 +209,24 @@ export const CRMAutomationBuilder = () => {
                   <ChevronDown className="w-4 h-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[400px] p-0" align="start" sideOffset={4}>
-                <div className="max-h-80 overflow-y-auto">
+              <PopoverContent 
+                className="w-[400px] p-0 z-[1000010] bg-popover border border-border shadow-lg" 
+                align="start" 
+                sideOffset={4}
+                onOpenAutoFocus={() => console.log('🎯 Popover focused')}
+                onCloseAutoFocus={() => console.log('🎯 Popover closed')}
+              >
+                <div className="max-h-80 overflow-y-auto bg-popover">
                   {TRIGGERS.map((trigger) => (
                     <button
                       key={trigger.id}
-                      onClick={() => handleTriggerSelect(trigger)}
-                      className="w-full p-3 text-left hover:bg-accent transition-colors border-b border-border last:border-0"
+                      onClick={(e) => {
+                        console.log('🎯 Trigger option clicked:', trigger.label);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleTriggerSelect(trigger);
+                      }}
+                      className="w-full p-3 text-left hover:bg-accent hover:text-accent-foreground transition-colors border-b border-border last:border-0 text-popover-foreground"
                     >
                       <div className="flex items-start gap-3">
                         <trigger.icon className="w-5 h-5 mt-0.5 text-primary" />
