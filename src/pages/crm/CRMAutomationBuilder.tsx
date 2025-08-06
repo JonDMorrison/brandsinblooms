@@ -80,10 +80,12 @@ export const CRMAutomationBuilder = () => {
 
   const addStep = (type: 'email' | 'sms') => {
     const newStep: Step = {
-      delayHours: 0,
+      delayValue: 0,
+      delayUnit: 'minutes',
       channel: type,
       body: '',
-      template_id: `custom-${Date.now()}`
+      template_id: `custom-${Date.now()}`,
+      delayHours: 0
     };
     setSteps([...steps, newStep]);
   };
@@ -206,10 +208,12 @@ export const CRMAutomationBuilder = () => {
               steps={template.steps.length}
               onUse={() => {
                 setSteps(template.steps.map(step => ({
-                  delayHours: step.delay,
+                  delayValue: step.delay || 0,
+                  delayUnit: step.delay >= 1440 ? 'days' : step.delay >= 60 ? 'hours' : 'minutes',
                   channel: step.channel,
                   body: step.content,
-                  template_id: template.id
+                  template_id: template.id,
+                  delayHours: step.delay || 0
                 })));
                 toast({
                   title: "Template Applied",
@@ -305,15 +309,28 @@ export const CRMAutomationBuilder = () => {
 
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                             <div>
-                              <Label htmlFor={`delay-${index}`}>Delay (hours)</Label>
+                              <Label htmlFor={`delay-value-${index}`}>Delay Value</Label>
                               <Input
-                                id={`delay-${index}`}
+                                id={`delay-value-${index}`}
                                 type="number"
                                 min="0"
-                                value={step.delayHours}
-                                onChange={(e) => updateStep(index, 'delayHours', parseInt(e.target.value))}
+                                value={step.delayValue || 0}
+                                onChange={(e) => updateStep(index, 'delayValue', parseInt(e.target.value) || 0)}
                                 placeholder="0"
                               />
+                            </div>
+                            <div>
+                              <Label htmlFor={`delay-unit-${index}`}>Time Unit</Label>
+                              <select
+                                id={`delay-unit-${index}`}
+                                className="h-9 w-full rounded-md border px-3 text-sm bg-background"
+                                value={step.delayUnit || 'minutes'}
+                                onChange={(e) => updateStep(index, 'delayUnit', e.target.value as 'minutes' | 'hours' | 'days')}
+                              >
+                                <option value="minutes">Minutes</option>
+                                <option value="hours">Hours</option>
+                                <option value="days">Days</option>
+                              </select>
                             </div>
                           </div>
 

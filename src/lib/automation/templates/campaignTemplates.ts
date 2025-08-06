@@ -1,3 +1,5 @@
+import { convertFromMinutes } from '@/lib/delayUtils';
+
 export interface AutomationStep {
   type: 'sms' | 'email';
   delayMin: number;
