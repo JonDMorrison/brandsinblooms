@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useCallback, useRef, useState } from 'react';
+import { lockBodySiblings, unlockBodySiblings } from '@/utils/focusLock';
 
 interface OverlayState {
   overlayCount: number;
@@ -60,13 +61,8 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
       document.body.style.top = `-${originalScrollY.current}px`;
       document.body.style.width = '100%';
 
-      // Lock non-modal siblings with inert instead of aria-hidden
-      const bodySiblings = Array.from(document.body.children);
-      bodySiblings.forEach((sibling) => {
-        if (sibling.id !== 'overlay-root' && sibling instanceof HTMLElement) {
-          sibling.setAttribute('inert', '');
-        }
-      });
+      // Lock non-modal siblings with inert
+      lockBodySiblings();
 
       setState(prev => ({ ...prev, scrollLocked: true }));
       console.log('[OverlayManager] Body scroll locked');
@@ -83,12 +79,7 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
       document.body.style.width = original.width;
 
       // Unlock all inert siblings
-      const bodySiblings = Array.from(document.body.children);
-      bodySiblings.forEach((sibling) => {
-        if (sibling instanceof HTMLElement) {
-          sibling.removeAttribute('inert');
-        }
-      });
+      unlockBodySiblings();
 
       // Restore scroll position
       window.scrollTo(0, originalScrollY.current);

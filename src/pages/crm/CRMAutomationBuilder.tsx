@@ -13,7 +13,6 @@ import { triggerCatalog } from '@/lib/automation/triggerCatalog';
 import { getTemplateForTrigger } from '@/lib/automation/templates';
 import { TemplateCard } from '@/components/crm/TemplateCard';
 import { TemplateSelector } from '@/components/automation/TemplateSelector';
-import { useSelectFocus } from '@/hooks/useSelectFocus';
 import { type Step } from '@/lib/campaignTemplates';
 
 export const CRMAutomationBuilder = () => {
@@ -25,9 +24,6 @@ export const CRMAutomationBuilder = () => {
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
   
   const { toast } = useToast();
-
-  // Use focus management hook for accessibility
-  useSelectFocus(triggerOpen);
 
   const template = useMemo(() => getTemplateForTrigger(triggerType), [triggerType]);
 
