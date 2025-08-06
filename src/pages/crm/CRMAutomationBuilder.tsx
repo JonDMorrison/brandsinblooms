@@ -201,11 +201,9 @@ export const CRMAutomationBuilder = () => {
                 </Button>
               </PopoverTrigger>
               <PopoverContent 
-                className="w-[400px] p-0 z-[1000010] bg-popover border border-border shadow-lg" 
+                className="w-[400px] p-0" 
                 align="start" 
                 sideOffset={4}
-                onOpenAutoFocus={() => console.log('🎯 Popover opened')}
-                onCloseAutoFocus={() => console.log('🎯 Popover closed')}
               >
                 <div className="max-h-80 overflow-y-auto bg-popover">
                   {TRIGGERS.map((trigger) => (
