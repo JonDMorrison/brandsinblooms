@@ -15,6 +15,7 @@ interface AutomationStep {
   step: number
   delay_hours: number
   message: string
+  image_url?: string
 }
 
 const TRIGGER_TYPES = [
@@ -246,7 +247,10 @@ export default function SMSAutomationWizard() {
                         <SMSComposer
                           value={step.message}
                           onChange={(value) => updateStep(step.id, 'message', value)}
+                          imageUrl={step.image_url}
+                          onImageChange={(imageUrl) => updateStep(step.id, 'image_url', imageUrl)}
                           placeholder={`Enter message for step ${step.step}...`}
+                          showImageUpload={true}
                         />
                       </div>
                     </div>
@@ -287,6 +291,7 @@ export default function SMSAutomationWizard() {
                   <div key={step.id} className="text-xs text-muted-foreground">
                     Step {step.step}: {getDelayLabel(step.delay_hours)} - 
                     {step.message ? ` "${step.message.substring(0, 50)}${step.message.length > 50 ? '...' : ''}"` : ' No message'}
+                    {step.image_url && <span className="text-blue-600"> + Image (MMS)</span>}
                   </div>
                 ))}
               </div>

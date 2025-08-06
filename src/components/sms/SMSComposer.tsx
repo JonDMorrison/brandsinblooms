@@ -4,16 +4,20 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent } from '@/components/ui/card'
-import { ImageIcon, UserIcon, PhoneIcon, MessageSquareIcon } from 'lucide-react'
+import { ImageIcon, UserIcon, PhoneIcon, MessageSquareIcon, X } from 'lucide-react'
+import { ImageSelectButton } from '@/components/image/ImageSelectButton'
 
 interface SMSComposerProps {
   value: string
   onChange: (value: string) => void
+  imageUrl?: string
+  onImageChange?: (imageUrl: string | null) => void
   maxLength?: number
   placeholder?: string
   showMergeTags?: boolean
   showCharacterCount?: boolean
   showMmsWarning?: boolean
+  showImageUpload?: boolean
   className?: string
 }
 
@@ -27,11 +31,14 @@ const MERGE_TAGS = [
 export function SMSComposer({
   value,
   onChange,
+  imageUrl,
+  onImageChange,
   maxLength = 320,
   placeholder = "Type your SMS message...",
   showMergeTags = true,
   showCharacterCount = true,
   showMmsWarning = true,
+  showImageUpload = true,
   className = ""
 }: SMSComposerProps) {
   const [showMergeTagMenu, setShowMergeTagMenu] = useState(false)
@@ -121,6 +128,64 @@ export function SMSComposer({
                 </div>
               </CardContent>
             </Card>
+          )}
+        </div>
+      )}
+
+      {/* Image Upload */}
+      {showImageUpload && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium">Add Image (MMS)</h4>
+            {imageUrl && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onImageChange?.(null)}
+                className="h-6 text-xs text-muted-foreground hover:text-destructive"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Remove
+              </Button>
+            )}
+          </div>
+          
+          {imageUrl ? (
+            <div className="relative group">
+              <img 
+                src={imageUrl} 
+                alt="MMS attachment" 
+                className="w-full max-w-xs rounded-md border object-cover max-h-32"
+              />
+              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-md transition-all">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onImageChange?.(null)}
+                  className="absolute top-1 right-1 h-6 w-6 p-0 bg-destructive/80 hover:bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <ImageSelectButton
+              onImageSelect={(imageUrl) => onImageChange?.(imageUrl)}
+              contentContext="SMS MMS image attachment"
+              className="h-20 border-dashed"
+              buttonText="Add Image"
+              mode="inline"
+              compact
+            />
+          )}
+          
+          {imageUrl && (
+            <Badge variant="secondary" className="text-xs">
+              <ImageIcon className="h-3 w-3 mr-1" />
+              Will send as MMS
+            </Badge>
           )}
         </div>
       )}
