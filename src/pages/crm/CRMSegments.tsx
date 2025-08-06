@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import ConditionBuilder from '@/components/crm/segments/ConditionBuilder';
 import { PersonaSegmentTemplates } from '@/components/crm/segments/PersonaSegmentTemplates';
 import { PersonaModal } from '@/components/crm/personas/PersonaModal';
+import { GeoEnrichmentPanel } from '@/components/crm/GeoEnrichmentPanel';
 import { 
   Plus, 
   Target, 
@@ -841,6 +842,9 @@ const CRMSegments = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Geographic Enrichment */}
+        <GeoEnrichmentPanel />
 
         {/* Pre-built Segments */}
         {prebuiltSegments.length > 0 && (
