@@ -186,6 +186,7 @@ export const CRMAutomationBuilder = () => {
                 <Button 
                   variant="outline" 
                   className="w-full justify-between"
+                  onClick={() => setTriggerPopoverOpen(!triggerPopoverOpen)}
                 >
                   {selectedTrigger ? (
                     <div className="flex items-center gap-2">
@@ -198,7 +199,7 @@ export const CRMAutomationBuilder = () => {
                   <ChevronDown className="w-4 h-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-full p-0 z-[1000010]" align="start">
+              <PopoverContent className="w-[400px] p-0" align="start" sideOffset={4}>
                 <div className="max-h-80 overflow-y-auto">
                   {TRIGGERS.map((trigger) => (
                     <button
