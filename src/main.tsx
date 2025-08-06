@@ -9,6 +9,7 @@ import { GlobalDataProvider } from '@/contexts/GlobalDataContext'
 import { GlobalLoadingOverlay } from '@/components/loading/GlobalLoadingOverlay'
 import App from './App.tsx'
 import './index.css'
+import './dev-sentinel'
 import './utils/globalToastReplace'
 
 

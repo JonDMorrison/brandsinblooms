@@ -5,9 +5,6 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  define: {
-    "process.env.VITE_ENABLE_SENTINEL": JSON.stringify("false")
-  },
   server: {
     host: "::",
     port: 8080,
