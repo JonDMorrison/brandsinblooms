@@ -19,7 +19,7 @@ export const CRMAutomationBuilder = () => {
   const [steps, setSteps] = useState<Step[]>([]);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
-  const [triggerPopoverOpen, setTriggerPopoverOpen] = useState(false);
+  
   const { toast } = useToast();
 
   const selectedTrigger = getTriggerById(triggerType);
@@ -27,7 +27,6 @@ export const CRMAutomationBuilder = () => {
   const handleTriggerSelect = (trigger: Trigger) => {
     console.log('🎯 Trigger selected:', trigger);
     setTriggerType(trigger.id);
-    setTriggerPopoverOpen(false);
     setShowTemplateSelector(true);
     console.log('✅ Trigger state updated, template selector shown');
   };
@@ -183,20 +182,12 @@ export const CRMAutomationBuilder = () => {
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="trigger-type">Trigger Type</Label>
-            <Popover open={triggerPopoverOpen} onOpenChange={(open) => {
-              console.log('🔄 Popover state changing:', { from: triggerPopoverOpen, to: open });
-              setTriggerPopoverOpen(open);
-            }}>
+            <Popover>
               <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
                   className="w-full justify-between"
-                  onClick={(e) => {
-                    console.log('🖱️ Button clicked! Current state:', triggerPopoverOpen);
-                    console.log('🖱️ Event details:', e);
-                    setTriggerPopoverOpen(!triggerPopoverOpen);
-                    console.log('🖱️ Will toggle to:', !triggerPopoverOpen);
-                  }}
+                  onClick={() => console.log('🖱️ Button clicked!')}
                 >
                   {selectedTrigger ? (
                     <div className="flex items-center gap-2">
@@ -213,7 +204,7 @@ export const CRMAutomationBuilder = () => {
                 className="w-[400px] p-0 z-[1000010] bg-popover border border-border shadow-lg" 
                 align="start" 
                 sideOffset={4}
-                onOpenAutoFocus={() => console.log('🎯 Popover focused')}
+                onOpenAutoFocus={() => console.log('🎯 Popover opened')}
                 onCloseAutoFocus={() => console.log('🎯 Popover closed')}
               >
                 <div className="max-h-80 overflow-y-auto bg-popover">
