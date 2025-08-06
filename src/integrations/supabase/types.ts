@@ -79,6 +79,48 @@ export type Database = {
           },
         ]
       }
+      analytics_events: {
+        Row: {
+          automation_id: string | null
+          campaign_id: string | null
+          contact_id: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          message_type: string | null
+          payload: Json | null
+          sms_id: string | null
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          automation_id?: string | null
+          campaign_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          message_type?: string | null
+          payload?: Json | null
+          sms_id?: string | null
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          automation_id?: string | null
+          campaign_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          message_type?: string | null
+          payload?: Json | null
+          sms_id?: string | null
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       analytics_settings: {
         Row: {
           auto_sync_enabled: boolean
@@ -239,6 +281,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      campaign_attribution: {
+        Row: {
+          attribution_window_days: number | null
+          automation_id: string | null
+          campaign_id: string | null
+          contact_id: string
+          created_at: string | null
+          first_touch_at: string | null
+          id: string
+          last_touch_at: string | null
+          tenant_id: string
+          total_redemptions: number | null
+          total_revenue: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          attribution_window_days?: number | null
+          automation_id?: string | null
+          campaign_id?: string | null
+          contact_id: string
+          created_at?: string | null
+          first_touch_at?: string | null
+          id?: string
+          last_touch_at?: string | null
+          tenant_id: string
+          total_redemptions?: number | null
+          total_revenue?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          attribution_window_days?: number | null
+          automation_id?: string | null
+          campaign_id?: string | null
+          contact_id?: string
+          created_at?: string | null
+          first_touch_at?: string | null
+          id?: string
+          last_touch_at?: string | null
+          tenant_id?: string
+          total_redemptions?: number | null
+          total_revenue?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       campaign_block_versions: {
         Row: {
@@ -856,6 +943,69 @@ export type Database = {
           usage_count?: number | null
           user_id?: string
           variables?: string[] | null
+        }
+        Relationships: []
+      }
+      coupons: {
+        Row: {
+          automation_id: string | null
+          campaign_id: string | null
+          code: string
+          created_at: string | null
+          discount_type: string
+          discount_value: number
+          expires_at: string | null
+          generated_at: string | null
+          id: string
+          is_active: boolean | null
+          min_purchase_amount: number | null
+          net_sales: number | null
+          pos_txn_id: string | null
+          redeemed_at: string | null
+          tenant_id: string
+          updated_at: string | null
+          usage_count: number | null
+          usage_limit: number | null
+        }
+        Insert: {
+          automation_id?: string | null
+          campaign_id?: string | null
+          code: string
+          created_at?: string | null
+          discount_type: string
+          discount_value: number
+          expires_at?: string | null
+          generated_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_purchase_amount?: number | null
+          net_sales?: number | null
+          pos_txn_id?: string | null
+          redeemed_at?: string | null
+          tenant_id: string
+          updated_at?: string | null
+          usage_count?: number | null
+          usage_limit?: number | null
+        }
+        Update: {
+          automation_id?: string | null
+          campaign_id?: string | null
+          code?: string
+          created_at?: string | null
+          discount_type?: string
+          discount_value?: number
+          expires_at?: string | null
+          generated_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_purchase_amount?: number | null
+          net_sales?: number | null
+          pos_txn_id?: string | null
+          redeemed_at?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+          usage_count?: number | null
+          usage_limit?: number | null
         }
         Relationships: []
       }
