@@ -21,6 +21,7 @@ import { ConnectionsSettings } from './ConnectionsSettings';
 import { AccountBillingSettings } from './AccountBillingSettings';
 import { ComplianceSettings } from './ComplianceSettings';
 import { SupportSettings } from './SupportSettings';
+import { POSSetupWizard } from '@/components/crm/pos/POSSetupWizard';
 
 // Import hooks for status checking
 import { usePOSConnection } from '@/hooks/usePOSConnection';
@@ -28,6 +29,7 @@ import { useConnectedAccounts } from '@/components/dashboard/ConnectedAccountChe
 
 export const SettingsHub = () => {
   const [activeTab, setActiveTab] = useState('business');
+  const [showPOSWizard, setShowPOSWizard] = useState(false);
   
   // Status hooks
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
@@ -79,6 +81,14 @@ export const SettingsHub = () => {
     return <Badge variant="default" className="ml-2">{totalConnections} Connected</Badge>;
   }
 
+  const handlePOSCardClick = () => {
+    if (!hasPOSConnection) {
+      setShowPOSWizard(true);
+    } else {
+      setActiveTab('connections');
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <div className="max-w-7xl mx-auto">
@@ -107,7 +117,19 @@ export const SettingsHub = () => {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* POS Connection Status */}
-              <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div 
+                className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={handlePOSCardClick}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handlePOSCardClick();
+                  }
+                }}
+                aria-label={hasPOSConnection ? "View POS connections" : "Set up POS connection"}
+              >
                 <div className="flex items-center gap-2">
                   <Store className="h-4 w-4" />
                   <span className="text-sm font-medium">POS System</span>
@@ -200,6 +222,18 @@ export const SettingsHub = () => {
             <SupportSettings />
           </TabsContent>
         </Tabs>
+
+        {/* POS Setup Wizard Modal */}
+        {showPOSWizard && (
+          <POSSetupWizard
+            platform="shopify"
+            onSuccess={() => {
+              setShowPOSWizard(false);
+              setActiveTab('connections');
+            }}
+            onCancel={() => setShowPOSWizard(false)}
+          />
+        )}
       </div>
     </div>
   );
