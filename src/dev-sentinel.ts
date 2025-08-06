@@ -3,6 +3,8 @@
  * Excludes Radix portals to avoid interfering with legitimate accessibility patterns
  */
 
+console.log('[DEV-SENTINEL] Environment check:', process.env.VITE_ENABLE_SENTINEL);
+
 if (process.env.VITE_ENABLE_SENTINEL === "true") {
   console.log('[DEV-SENTINEL] Initializing aria-hidden mutation observer');
 
