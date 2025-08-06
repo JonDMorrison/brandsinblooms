@@ -41,6 +41,9 @@ import { TourManager } from '@/components/tour/TourManager';
 import POSPage from '@/pages/settings/POSPage';
 import SettingsPage from '@/pages/SettingsPage';
 
+// Emergency cleanup - remove any stray inert attributes
+import '@/utils/emergency-cleanup';
+
 function App() {
   return (
     <OverlayManager>

@@ -30,11 +30,11 @@ export const useBodyScrollLock = ({ enabled = true, id = 'default' }: UseBodyScr
         document.body.style.overflow = 'hidden';
         document.body.style.paddingRight = `${scrollbarWidth}px`;
         
-        // Add inert to root if available
-        const rootElement = document.getElementById('root');
-        if (rootElement) {
-          rootElement.setAttribute('inert', 'true');
-        }
+        // DISABLED - inert causes global unclickability
+        // const rootElement = document.getElementById('root');
+        // if (rootElement) {
+        //   rootElement.setAttribute('inert', 'true');
+        // }
 
         console.log(`[BodyScrollLock] Locked body scroll (${id})`);
       }
@@ -49,11 +49,10 @@ export const useBodyScrollLock = ({ enabled = true, id = 'default' }: UseBodyScr
         document.body.style.overflow = originalStylesRef.current.overflow || '';
         document.body.style.paddingRight = originalStylesRef.current.paddingRight || '';
         
-        // Remove inert from root
-        const rootElement = document.getElementById('root');
-        if (rootElement) {
-          rootElement.removeAttribute('inert');
-        }
+        // Force cleanup of any inert attributes anywhere
+        document.querySelectorAll('[inert]').forEach(el => {
+          el.removeAttribute('inert');
+        });
 
         console.log(`[BodyScrollLock] Unlocked body scroll (${id})`);
       }

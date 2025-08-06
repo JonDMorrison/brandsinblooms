@@ -4,25 +4,21 @@
  */
 
 export function lockBackground() {
-  // Lock body scrolling
-  document.body.classList.add('overflow-hidden');
-  
-  // Lock all body children except overlay root using inert
-  [...document.body.children].forEach(el => {
-    if (!el.closest('#overlay-root') && el.id !== 'overlay-root') {
-      (el as HTMLElement).setAttribute('inert', '');
-    }
-  });
+  // DISABLED - causing global unclickability
+  // TODO: Implement proper overlay management
+  console.log('lockBackground called but disabled to prevent inert issues');
 }
 
 export function unlockBackground() {
-  // Unlock body scrolling
+  // Force cleanup of any remaining inert attributes
   document.body.classList.remove('overflow-hidden');
   
-  // Remove inert from all elements
-  [...document.body.children].forEach(el => {
-    (el as HTMLElement).removeAttribute('inert');
+  // Remove inert from ALL elements (emergency cleanup)
+  document.querySelectorAll('[inert]').forEach(el => {
+    el.removeAttribute('inert');
   });
+  
+  console.log('unlockBackground: cleaned up all inert attributes');
 }
 
 /**

@@ -7,15 +7,11 @@ export const lock = (el: HTMLElement) => el.setAttribute('inert', '');
 export const unlock = (el: HTMLElement) => el.removeAttribute('inert');
 
 /**
- * Lock all body children except overlay containers
+ * Lock all body children except overlay containers - DISABLED
  */
 export const lockBodySiblings = () => {
-  const bodySiblings = Array.from(document.body.children);
-  bodySiblings.forEach((sibling) => {
-    if (sibling.id !== 'overlay-root' && sibling instanceof HTMLElement) {
-      lock(sibling);
-    }
-  });
+  // DISABLED - causing global unclickability
+  console.log('lockBodySiblings called but disabled to prevent inert issues');
 };
 
 /**
