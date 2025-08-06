@@ -1,34 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, Trash2, Mail, MessageSquare, Clock, ArrowRight, ChevronDown } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Trash2, Mail, MessageSquare, Clock, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { TRIGGERS, getTriggerById, type Trigger } from '@/lib/triggerCatalog';
+import { triggerCatalog } from '@/lib/automation/triggerCatalog';
+import { getTemplateForTrigger } from '@/lib/automation/templates';
+import { TemplateCard } from '@/components/crm/TemplateCard';
 import { TemplateSelector } from '@/components/automation/TemplateSelector';
 import { type Step } from '@/lib/campaignTemplates';
 
 export const CRMAutomationBuilder = () => {
   const [automationName, setAutomationName] = useState('');
-  const [triggerType, setTriggerType] = useState('');
+  const [triggerType, setTriggerType] = useState<string | null>(null);
+  const [triggerOpen, setTriggerOpen] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
   
   const { toast } = useToast();
 
-  const selectedTrigger = getTriggerById(triggerType);
+  const template = useMemo(() => getTemplateForTrigger(triggerType), [triggerType]);
 
-  const handleTriggerSelect = (trigger: Trigger) => {
-    console.log('🎯 Trigger selected:', trigger);
-    setTriggerType(trigger.id);
-    setShowTemplateSelector(true);
-    console.log('✅ Trigger state updated, template selector shown');
+  const handleTriggerSelect = (val: string) => {
+    setTriggerType(val);
+    setTriggerOpen(false);
+    console.log('[Builder] trigger selected', val);
   };
 
   const handleSelectTemplate = (templateSteps: Step[]) => {
@@ -130,7 +132,7 @@ export const CRMAutomationBuilder = () => {
 
       // Reset form
       setAutomationName('');
-      setTriggerType('');
+      setTriggerType(null);
       setSteps([]);
       setShowTemplateSelector(false);
     } catch (error) {
@@ -182,54 +184,44 @@ export const CRMAutomationBuilder = () => {
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="trigger-type">Trigger Type</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-between"
-                  onClick={() => console.log('🖱️ Button clicked!')}
-                >
-                  {selectedTrigger ? (
-                    <div className="flex items-center gap-2">
-                      <selectedTrigger.icon className="w-4 h-4" />
-                      {selectedTrigger.label}
-                    </div>
-                  ) : (
-                    "Select trigger type"
-                  )}
-                  <ChevronDown className="w-4 h-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent 
-                className="w-[400px] p-0" 
-                align="start" 
-                sideOffset={4}
-              >
-                <div className="max-h-80 overflow-y-auto bg-popover">
-                  {TRIGGERS.map((trigger) => (
-                    <button
-                      key={trigger.id}
-                      onClick={(e) => {
-                        console.log('🎯 Trigger option clicked:', trigger.label);
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleTriggerSelect(trigger);
-                      }}
-                      className="w-full p-3 text-left hover:bg-accent hover:text-accent-foreground transition-colors border-b border-border last:border-0 text-popover-foreground"
-                    >
-                      <div className="flex items-start gap-3">
-                        <trigger.icon className="w-5 h-5 mt-0.5 text-primary" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium">{trigger.label}</div>
-                          <div className="text-sm text-muted-foreground">{trigger.description}</div>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+            <Select 
+              open={triggerOpen} 
+              onOpenChange={setTriggerOpen} 
+              value={triggerType ?? ''} 
+              onValueChange={handleTriggerSelect}
+            >
+              <SelectTrigger className="w-full" aria-label="Select trigger">
+                <SelectValue placeholder="Select Trigger Type" />
+              </SelectTrigger>
+              
+              <SelectContent position="popper" className="z-[1000010] max-h-60 overflow-y-auto">
+                {triggerCatalog.map(opt => (
+                  <SelectItem key={opt.id} value={opt.id} className="flex gap-2">
+                    <span>{opt.icon}</span><span>{opt.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {template && (
+            <TemplateCard
+              title={template.title}
+              steps={template.steps.length}
+              onUse={() => {
+                setSteps(template.steps.map(step => ({
+                  delayHours: step.delay,
+                  channel: step.channel,
+                  body: step.content,
+                  template_id: template.id
+                })));
+                toast({
+                  title: "Template Applied",
+                  description: `${template.steps.length} step${template.steps.length > 1 ? 's' : ''} added to your automation.`,
+                });
+              }}
+            />
+          )}
         </CardContent>
       </Card>
 
