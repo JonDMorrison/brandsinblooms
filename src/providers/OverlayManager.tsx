@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useCallback, useRef, useState } from 'react';
 import { lock, unlock } from '@/utils/focusLock';
+import { ensureNoAriaHidden } from '@/utils/ensureNoAriaHidden';
 
 interface OverlayState {
   overlayCount: number;
@@ -145,8 +146,14 @@ export const OverlayManager: React.FC<OverlayManagerProps> = ({ children }) => {
     }, 0);
 
     console.log(`[OverlayManager] Overlay closed: ${context} (count: ${Math.max(0, state.overlayCount - 1)})`);
+    
+    // Safety net: remove any aria-hidden attributes
+    ensureNoAriaHidden();
+    
     console.debug('[Overlay]', context, 'closed – inert removed:', 
-      !document.querySelector('[data-overlay-lock]')?.hasAttribute('inert'));
+      !document.querySelector('[data-overlay-lock]')?.hasAttribute('inert'),
+      'aria-hidden count:',
+      document.querySelectorAll('[aria-hidden="true"]').length);
   }, [state.overlayCount, state.focusStack, unlockScroll]);
 
   const value: OverlayManagerContextType = {
