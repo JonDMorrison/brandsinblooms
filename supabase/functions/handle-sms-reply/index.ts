@@ -66,75 +66,118 @@ serve(async (req) => {
 
     console.log('Found customer:', customer.id, customer.email)
 
-    // Define opt-out keywords
-    const optOutKeywords = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']
-    const optInKeywords = ['START', 'YES']
-
+    // Enhanced keyword detection with TCPA compliance
+    const keywords = /^\s*(STOP|UNSTOP|HELP|START|YES|RESUME)\s*$/i;
     let responseMessage = ''
     let activityType = ''
     let newOptInStatus = customer.sms_opt_in
+    let eventType = ''
 
-    // Check for opt-out keywords
-    if (optOutKeywords.some(keyword => messageBody.includes(keyword))) {
-      console.log('Opt-out keyword detected')
-      
-      // Update customer opt-in status
-      const { error: updateError } = await supabase
-        .from('crm_customers')
-        .update({ 
-          sms_opt_in: false,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', customer.id)
+    async function logComplianceEvent(eventType: string, meta?: Record<string, any>) {
+      try {
+        await supabase
+          .from('compliance_logs')
+          .insert({
+            tenant_id: customer.tenant_id || '00000000-0000-0000-0000-000000000000',
+            user_id: customer.user_id || '00000000-0000-0000-0000-000000000000',
+            event_type: eventType,
+            msisdn: phoneNumber,
+            message_content: payload.Body,
+            meta: meta || {}
+          });
+      } catch (error) {
+        console.error('Failed to log compliance event:', error);
+      }
+    }
 
-      if (updateError) {
-        console.error('Error updating customer opt-in status:', updateError)
-        return new Response('Database error', { status: 500 })
+    if (keywords.test(payload.Body)) {
+      if (messageBody === 'STOP' || messageBody === 'UNSTOP') {
+        console.log('Opt-out keyword detected')
+        
+        // Update customer status
+        const { error: updateError } = await supabase
+          .from('crm_customers')
+          .update({ 
+            sms_opt_in: false,
+            opt_out: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', customer.id)
+
+        if (updateError) {
+          console.error('Error updating customer opt-out status:', updateError)
+          return new Response('Database error', { status: 500 })
+        }
+
+        newOptInStatus = false
+        activityType = 'sms_opt_out'
+        eventType = 'opt_out'
+        
+        // Get company name for personalized message
+        const { data: companyProfile } = await supabase
+          .from('company_profiles')
+          .select('company_name')
+          .eq('user_id', customer.user_id)
+          .single()
+
+        const companyName = companyProfile?.company_name || 'us'
+        responseMessage = `You've been opted out and will no longer receive texts from ${companyName}.`
+        
+      } else if (messageBody === 'START' || messageBody === 'YES' || messageBody === 'RESUME') {
+        console.log('Opt-in keyword detected')
+        
+        // Update customer status
+        const { error: updateError } = await supabase
+          .from('crm_customers')
+          .update({ 
+            sms_opt_in: true,
+            opt_out: false,
+            sms_opt_in_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', customer.id)
+
+        if (updateError) {
+          console.error('Error updating customer opt-in status:', updateError)
+          return new Response('Database error', { status: 500 })
+        }
+
+        newOptInStatus = true
+        activityType = 'sms_opt_in'
+        eventType = 'opt_in'
+        
+        // Get company name for personalized message
+        const { data: companyProfile } = await supabase
+          .from('company_profiles')
+          .select('company_name')
+          .eq('user_id', customer.user_id)
+          .single()
+
+        const companyName = companyProfile?.company_name || 'our service'
+        responseMessage = `Welcome back! You've been re-subscribed to messages from ${companyName}. Reply STOP to opt out anytime.`
+        
+      } else if (messageBody === 'HELP') {
+        eventType = 'help_request'
+        
+        // Get compliance settings for help response
+        const { data: complianceSettings } = await supabase
+          .from('company_profiles')
+          .select('compliance_settings')
+          .eq('user_id', customer.user_id)
+          .single()
+
+        const helpResponse = complianceSettings?.compliance_settings?.help_response || 
+          'For support, contact us at support@example.com or call 1-800-XXX-XXXX. Reply STOP to opt out.'
+        
+        responseMessage = helpResponse
       }
 
-      newOptInStatus = false
-      activityType = 'sms_opt_out'
-      
-      // Get company name for personalized message
-      const { data: companyProfile } = await supabase
-        .from('company_profiles')
-        .select('company_name')
-        .eq('user_id', customer.user_id)
-        .single()
-
-      const companyName = companyProfile?.company_name || 'us'
-      responseMessage = `You've been unsubscribed from ${companyName}. No more messages will be sent. Reply START to resubscribe.`
-      
-    } else if (optInKeywords.some(keyword => messageBody.includes(keyword))) {
-      console.log('Opt-in keyword detected')
-      
-      // Update customer opt-in status
-      const { error: updateError } = await supabase
-        .from('crm_customers')
-        .update({ 
-          sms_opt_in: true,
-          sms_opt_in_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', customer.id)
-
-      if (updateError) {
-        console.error('Error updating customer opt-in status:', updateError)
-        return new Response('Database error', { status: 500 })
-      }
-
-      newOptInStatus = true
-      activityType = 'sms_opt_in'
-      
-      // Get company name for personalized message
-      const { data: companyProfile } = await supabase
-        .from('company_profiles')
-        .select('company_name')
-        .eq('user_id', customer.user_id)
-        .single()
-
-      const companyName = companyProfile?.company_name || 'our service'
-      responseMessage = `Welcome back! You're now subscribed to ${companyName} updates. Msg & data rates may apply. Reply STOP to opt-out.`
+      // Log compliance event
+      await logComplianceEvent(eventType, {
+        twilio_sid: payload.MessageSid,
+        keyword_detected: messageBody,
+        response_sent: responseMessage
+      });
     }
 
     // Log the activity in customer timeline

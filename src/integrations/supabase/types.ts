@@ -568,6 +568,48 @@ export type Database = {
         }
         Relationships: []
       }
+      compliance_logs: {
+        Row: {
+          automation_id: string | null
+          campaign_id: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          message_content: string | null
+          meta: Json | null
+          msisdn: string
+          tenant_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          automation_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          message_content?: string | null
+          meta?: Json | null
+          msisdn: string
+          tenant_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          automation_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          message_content?: string | null
+          meta?: Json | null
+          msisdn?: string
+          tenant_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       content_assets: {
         Row: {
           created_at: string
@@ -1034,10 +1076,12 @@ export type Database = {
           custom_fields: Json | null
           email: string
           first_name: string | null
+          footer_last_sent_at: string | null
           id: string
           last_name: string | null
           last_purchase_date: string | null
           lifetime_value: number | null
+          opt_out: boolean | null
           order_history: Json | null
           persona: string | null
           persona_assignment_method: string | null
@@ -1050,6 +1094,7 @@ export type Database = {
           sms_opt_in_at: string | null
           tags: string[] | null
           tenant_id: string | null
+          timezone: string | null
           total_spent: number | null
           updated_at: string | null
           user_id: string | null
@@ -1059,10 +1104,12 @@ export type Database = {
           custom_fields?: Json | null
           email: string
           first_name?: string | null
+          footer_last_sent_at?: string | null
           id?: string
           last_name?: string | null
           last_purchase_date?: string | null
           lifetime_value?: number | null
+          opt_out?: boolean | null
           order_history?: Json | null
           persona?: string | null
           persona_assignment_method?: string | null
@@ -1075,6 +1122,7 @@ export type Database = {
           sms_opt_in_at?: string | null
           tags?: string[] | null
           tenant_id?: string | null
+          timezone?: string | null
           total_spent?: number | null
           updated_at?: string | null
           user_id?: string | null
@@ -1084,10 +1132,12 @@ export type Database = {
           custom_fields?: Json | null
           email?: string
           first_name?: string | null
+          footer_last_sent_at?: string | null
           id?: string
           last_name?: string | null
           last_purchase_date?: string | null
           lifetime_value?: number | null
+          opt_out?: boolean | null
           order_history?: Json | null
           persona?: string | null
           persona_assignment_method?: string | null
@@ -1100,6 +1150,7 @@ export type Database = {
           sms_opt_in_at?: string | null
           tags?: string[] | null
           tenant_id?: string | null
+          timezone?: string | null
           total_spent?: number | null
           updated_at?: string | null
           user_id?: string | null

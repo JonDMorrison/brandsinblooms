@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, body, mediaUrl, mediaUrls } = await req.json()
+    const { to, body, mediaUrl, mediaUrls, skipOptOutCheck = false } = await req.json()
 
     if (!to || !body) {
       return new Response(
@@ -129,6 +129,36 @@ Deno.serve(async (req) => {
           status: 400
         }
       )
+    }
+
+    // Pre-flight opt-out check (unless explicitly skipped for keyword responses)
+    if (!skipOptOutCheck) {
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      const supabase = createClient(supabaseUrl, supabaseKey)
+
+      const cleanedPhone = to.replace(/^\+?1?/, '').replace(/\D/g, '')
+      
+      const { data: customer } = await supabase
+        .from('crm_customers')
+        .select('opt_out, sms_opt_in')
+        .eq('phone', cleanedPhone)
+        .single()
+
+      if (customer && (customer.opt_out || !customer.sms_opt_in)) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Message blocked: recipient has opted out',
+            error_code: 451,
+            details: `Number ${to} is opted out of SMS communications`
+          }),
+          { 
+            status: 451, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
     }
 
     console.log(`Sending SMS to ${to}`)
