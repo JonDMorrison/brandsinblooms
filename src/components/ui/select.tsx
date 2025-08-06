@@ -4,7 +4,8 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { lockBackground, unlockBackground, getOverlayRoot } from "@/lib/overlay-utils"
+// TODO: re-enable portal + inert once root cause is isolated
+// import { lockBackground, unlockBackground, getOverlayRoot } from "@/lib/overlay-utils"
 
 
 // Export SelectPrimitive.Root directly - SafeSelect handles the overlay management
@@ -72,32 +73,42 @@ const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", sideOffset = 4, ...props }, ref) => (
-  <SelectPrimitive.Portal container={getOverlayRoot()}>
-    <SelectPrimitive.Content
-      ref={ref}
+  // TODO: re-enable portal + inert once root cause is isolated
+  // <SelectPrimitive.Portal container={getOverlayRoot()}>
+  <SelectPrimitive.Content
+    ref={ref}
+    className={cn(
+      "absolute z-[2147483647] max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md outline-red-500 outline-2 outline data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 pointer-events-auto",
+      position === "popper" &&
+        "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+      className
+    )}
+    position={position}
+    sideOffset={sideOffset}
+    // TODO: re-enable portal + inert once root cause is isolated
+    // onOpenAutoFocus={() => {
+    //   lockBackground();
+    //   console.log('[Select] Background locked via central utility');
+    // }}
+    // onCloseAutoFocus={() => {
+    //   unlockBackground();
+    //   console.log('[Select] Background unlocked via central utility');
+    // }}
+    {...props}
+  >
+    <SelectScrollUpButton />
+    <SelectPrimitive.Viewport
       className={cn(
-        "relative z-[1000010] max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 pointer-events-auto",
+        "p-1",
         position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-        className
+          "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
       )}
-      position={position}
-      sideOffset={sideOffset}
-      {...props}
     >
-      <SelectScrollUpButton />
-      <SelectPrimitive.Viewport
-        className={cn(
-          "p-1",
-          position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
-        )}
-      >
-        {children}
-      </SelectPrimitive.Viewport>
-      <SelectScrollDownButton />
-    </SelectPrimitive.Content>
-  </SelectPrimitive.Portal>
+      {children}
+    </SelectPrimitive.Viewport>
+    <SelectScrollDownButton />
+  </SelectPrimitive.Content>
+  // </SelectPrimitive.Portal>
 ))
 SelectContent.displayName = SelectPrimitive.Content.displayName
 
