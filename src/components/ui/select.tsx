@@ -4,65 +4,11 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { Z } from "@/lib/zLayer"
-import { useBodyScrollLock } from "@/hooks/useBodyScrollLock"
-import { scrollLockManager, dropdownLogger } from "@/lib/dropdown-utils"
-import '@/styles/dropdown-visibility.css'
+import { Z } from "@/lib/zIndex"
+import { OverlayPortal } from "@/components/ui/OverlayPortal"
 
-const Select = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root> & {
-    debugMode?: boolean;
-  }
->(({ debugMode = false, onOpenChange, ...props }, ref) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  
-  // Enable body scroll lock when dropdown is open
-  useBodyScrollLock({ enabled: isOpen, id: 'select-dropdown' });
-
-  const handleOpenChange = React.useCallback((open: boolean) => {
-    console.debug('[SelectDebug] State change:', { 
-      open, 
-      debugMode,
-      timestamp: Date.now() 
-    });
-    
-    // Prevent auto-close for single-option dropdowns
-    if (!open && isOpen && props.children && React.Children.count(props.children) <= 1) {
-      console.debug('[SelectDebug] Preventing auto-close for single option dropdown');
-      return;
-    }
-    
-    setIsOpen(open);
-    
-    if (open) {
-      dropdownLogger.logOpen('select', 'trigger-click');
-      scrollLockManager.lock('select');
-    } else {
-      dropdownLogger.logClose('select', 'selection-made');
-      scrollLockManager.unlock('select');
-    }
-    
-    onOpenChange?.(open);
-  }, [onOpenChange, debugMode, isOpen, props.children]);
-
-  React.useEffect(() => {
-    if (debugMode) {
-      document.body.classList.add('dropdown-debug-mode');
-      return () => document.body.classList.remove('dropdown-debug-mode');
-    }
-  }, [debugMode]);
-
-  return (
-    <div ref={ref}>
-      <SelectPrimitive.Root
-        onOpenChange={handleOpenChange}
-        {...props}
-      />
-    </div>
-  );
-})
-Select.displayName = "Select"
+// Export SelectPrimitive.Root directly - SafeSelect handles the overlay management
+const Select = SelectPrimitive.Root
 
 const SelectGroup = SelectPrimitive.Group
 
@@ -124,134 +70,35 @@ SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayNam
 
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> & {
-    container?: HTMLElement | null;
-    context?: string;
-    debugMode?: boolean;
-  }
->(({ className, children, position = "popper", container, context = 'select', debugMode = false, ...props }, ref) => {
-  const contentRef = React.useRef<HTMLDivElement>(null);
-  const [hiddenAncestor, setHiddenAncestor] = React.useState<HTMLElement | null>(null);
-
-  React.useEffect(() => {
-    console.debug('[SelectDebug] Content mounting:', { 
-      context,
-      debugMode,
-      position,
-      container: container ? 'custom' : 'body' 
-    });
-    
-    // Fix aria-hidden focus trap
-    const triggerElement = document.querySelector('[data-radix-select-trigger]') as HTMLElement;
-    if (triggerElement) {
-      const hiddenElement = triggerElement.closest('[aria-hidden="true"]') as HTMLElement;
-      if (hiddenElement) {
-        console.debug('[SelectDebug] Found aria-hidden ancestor, temporarily removing');
-        setHiddenAncestor(hiddenElement);
-        hiddenElement.removeAttribute('aria-hidden');
-      }
-    }
-    
-    // Enhanced visibility and positioning fixes
-    if (contentRef.current) {
-      const element = contentRef.current;
-      
-      // Log bounding rect and computed styles
-      const rect = element.getBoundingClientRect();
-      const styles = window.getComputedStyle(element);
-      
-      console.table({
-        'Bounding Rect': {
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
-          height: rect.height,
-          bottom: rect.bottom,
-          right: rect.right
-        },
-        'Computed Styles': {
-          position: styles.position,
-          zIndex: styles.zIndex,
-          visibility: styles.visibility,
-          opacity: styles.opacity,
-          display: styles.display,
-          pointerEvents: styles.pointerEvents
-        }
-      });
-      
-      // Apply CSS classes instead of inline styles
-      element.classList.add('dropdown-force-visible', 'dropdown-content-enhanced');
-      
-      if (debugMode) {
-        element.classList.add('dropdown-debug-outline');
-      }
-      
-      // Set z-index using the new Z constants
-      element.style.zIndex = Z.dropdown.toString();
-      
-      console.log(`[SelectDropdown] Enhanced visibility applied via CSS classes`, {
-        zIndex: element.style.zIndex,
-        classes: element.className,
-        debugMode
-      });
-    }
-    
-    return () => {
-      console.debug('[SelectDebug] Content unmounting:', { context });
-      
-      // Restore aria-hidden if it was removed
-      if (hiddenAncestor) {
-        hiddenAncestor.setAttribute('aria-hidden', 'true');
-        setHiddenAncestor(null);
-      }
-    };
-  }, [context, debugMode]);
-
-  return (
-    <SelectPrimitive.Portal 
-      container={container || (typeof document !== 'undefined' ? document.body : undefined)}
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
+>(({ className, children, position = "popper", sideOffset = 4, ...props }, ref) => (
+  <OverlayPortal zIndex="popover">
+    <SelectPrimitive.Content
+      ref={ref}
+      className={cn(
+        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        position === "popper" &&
+          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+        className
+      )}
+      position={position}
+      sideOffset={sideOffset}
+      {...props}
     >
-      <SelectPrimitive.Content
-        ref={(node) => {
-          if (ref) {
-            if (typeof ref === 'function') ref(node);
-            else ref.current = node;
-          }
-          contentRef.current = node;
-        }}
-        style={{ 
-          zIndex: Z.dropdown,
-          position: 'fixed'
-        }}
+      <SelectScrollUpButton />
+      <SelectPrimitive.Viewport
         className={cn(
-          "relative max-h-96 min-w-[8rem] overflow-hidden rounded-md border shadow-lg",
-          "animate-in fade-in-0 zoom-in-95",
-          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-          "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2",
-          "data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          "p-1",
           position === "popper" &&
-            "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-          className
+            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
         )}
-        position={position}
-        sideOffset={6}
-        {...props}
       >
-        <SelectScrollUpButton />
-        <SelectPrimitive.Viewport
-          className={cn(
-            "p-1",
-            position === "popper" &&
-              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
-          )}
-        >
-          {children}
-        </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
-      </SelectPrimitive.Content>
-    </SelectPrimitive.Portal>
-  );
-})
+        {children}
+      </SelectPrimitive.Viewport>
+      <SelectScrollDownButton />
+    </SelectPrimitive.Content>
+  </OverlayPortal>
+))
 SelectContent.displayName = SelectPrimitive.Content.displayName
 
 const SelectLabel = React.forwardRef<
@@ -273,32 +120,9 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none",
-      "dropdown-item-enhanced",
+      "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
-    onClick={(e) => {
-      console.debug(`[SelectDebug] Item clicked:`, { 
-        value: props.value,
-        children,
-        timestamp: Date.now() 
-      });
-      
-      // Prevent event bubbling issues
-      e.stopPropagation();
-      
-      if (props.onClick) props.onClick(e);
-    }}
-    onKeyDown={(e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        console.debug(`[SelectDebug] Item selected via keyboard:`, { 
-          value: props.value,
-          children,
-          key: e.key 
-        });
-      }
-      if (props.onKeyDown) props.onKeyDown(e);
-    }}
     {...props}
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">

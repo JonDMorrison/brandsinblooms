@@ -33,10 +33,12 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
 import { Analytics } from '@vercel/analytics/react';
+import { OverlayManager } from '@/providers/OverlayManager';
 
 function App() {
   return (
-    <div className="min-h-screen bg-background">
+    <OverlayManager>
+      <div className="min-h-screen bg-background">
       <Routes>
         <Route path="/auth" element={<Auth />} />
         <Route path="/onboarding" element={
@@ -242,9 +244,10 @@ function App() {
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <Toaster />
-      {process.env.NODE_ENV === 'production' && <Analytics />}
-    </div>
+        <Toaster />
+        {process.env.NODE_ENV === 'production' && <Analytics />}
+      </div>
+    </OverlayManager>
   );
 }
 

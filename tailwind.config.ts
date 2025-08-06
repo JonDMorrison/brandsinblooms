@@ -24,6 +24,14 @@ export default {
 			}
 		},
 		extend: {
+			zIndex: {
+				header: '10',
+				sidebar: '20', 
+				overlay: '30',
+				popover: '40',
+				modal: '50',
+				toast: '60'
+			},
 			fontFamily: {
 				...fontFamily,
 				display: ['Inter', 'system-ui', 'sans-serif'],

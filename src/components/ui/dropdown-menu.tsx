@@ -4,7 +4,8 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { Z_INDEX } from "@/lib/z-index"
+import { Z } from "@/lib/zIndex"
+import { OverlayPortal } from "@/components/ui/OverlayPortal"
 
 const DropdownMenu = DropdownMenuPrimitive.Root
 
@@ -47,7 +48,7 @@ const DropdownMenuSubContent = React.forwardRef<
   <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "z-[1000002] min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+      "z-popover min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
       className
     )}
     {...props}
@@ -58,62 +59,20 @@ DropdownMenuSubContent.displayName =
 
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & {
-    container?: HTMLElement | null;
-    context?: string;
-  }
->(({ className, sideOffset = 4, container, context = 'dropdown-menu', ...props }, ref) => {
-  const contentRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    console.log(`[DropdownFix] Repaired dropdown behavior in ${context}: dropdown-menu`);
-    
-    // Ensure proper ARIA and visibility settings
-    if (contentRef.current) {
-      contentRef.current.removeAttribute('aria-hidden');
-      contentRef.current.style.visibility = 'visible';
-      contentRef.current.style.pointerEvents = 'auto';
-      contentRef.current.style.opacity = '1';
-    }
-    
-    return () => {
-      console.log(`[DropdownFix] Closed: dropdown-menu (${context})`);
-    };
-  }, [context]);
-
-  return (
-    <DropdownMenuPrimitive.Portal container={container}>
-      <DropdownMenuPrimitive.Content
-        ref={(node) => {
-          if (ref) {
-            if (typeof ref === 'function') ref(node);
-            else ref.current = node;
-          }
-          contentRef.current = node;
-        }}
-        sideOffset={sideOffset}
-        style={{ 
-          zIndex: Z_INDEX.dropdown,
-          position: 'fixed',
-          pointerEvents: 'auto'
-        }}
-        className={cn(
-          "min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-          className
-        )}
-        onPointerDownOutside={(e) => {
-          // Allow closing on outside click
-          e.preventDefault();
-        }}
-        onEscapeKeyDown={(e) => {
-          // Allow closing on escape
-          e.preventDefault();
-        }}
-        {...props}
-      />
-    </DropdownMenuPrimitive.Portal>
-  );
-})
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
+>(({ className, sideOffset = 4, ...props }, ref) => (
+  <OverlayPortal zIndex="popover">
+    <DropdownMenuPrimitive.Content
+      ref={ref}
+      sideOffset={sideOffset}
+      className={cn(
+        "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        className
+      )}
+      {...props}
+    />
+  </OverlayPortal>
+))
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
 
 const DropdownMenuItem = React.forwardRef<

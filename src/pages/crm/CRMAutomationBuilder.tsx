@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SafeSelect } from "@/components/ui/SafeSelect";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -231,14 +232,13 @@ const CRMAutomationBuilder = () => {
                 </div>
               ) : (
                 <>
-                  <Select 
+                  <SafeSelect 
                     value={triggerType} 
                     onValueChange={setTriggerType}
-                    onOpenChange={(open) => {
-                      if (open && triggerTypes.length === 1) return false;
-                    }}
+                    preventAutoClose={triggerTypes.length === 1}
+                    context="trigger-type-select"
                   >
-                    <SelectTrigger className="mt-1">
+                    <SelectTrigger className="mt-1" data-testid="trigger-type-select">
                       <SelectValue placeholder="— Select —" />
                     </SelectTrigger>
                     <SelectContent>
@@ -248,7 +248,7 @@ const CRMAutomationBuilder = () => {
                         </SelectItem>
                       ))}
                     </SelectContent>
-                  </Select>
+                  </SafeSelect>
                   <p className="text-sm text-muted-foreground mt-1">
                     {getTriggerDescription()}
                   </p>
@@ -265,9 +265,10 @@ const CRMAutomationBuilder = () => {
             {triggerType === 'segment_joined' && (
               <div>
                 <Label htmlFor="segment">Target Segment</Label>
-                <Select 
+                <SafeSelect 
                   value={triggerConditions.segment_id || ''} 
                   onValueChange={(value) => setTriggerConditions({...triggerConditions, segment_id: value})}
+                  context="segment-select"
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Select segment" />
@@ -279,7 +280,7 @@ const CRMAutomationBuilder = () => {
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </SafeSelect>
               </div>
             )}
 
@@ -370,9 +371,10 @@ const CRMAutomationBuilder = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                           <div>
                             <Label htmlFor={`type-${step.id}`}>Step Type</Label>
-                            <Select 
+                            <SafeSelect 
                               value={step.type} 
                               onValueChange={(value: 'email' | 'sms') => updateWorkflowStep(step.id, { type: value })}
+                              context={`step-type-${step.id}`}
                             >
                               <SelectTrigger>
                                 <SelectValue />
@@ -381,7 +383,7 @@ const CRMAutomationBuilder = () => {
                                 <SelectItem value="email">Email</SelectItem>
                                 <SelectItem value="sms">SMS</SelectItem>
                               </SelectContent>
-                            </Select>
+                            </SafeSelect>
                           </div>
                           <div>
                             <Label htmlFor={`delay-${step.id}`}>Delay (days after trigger)</Label>
