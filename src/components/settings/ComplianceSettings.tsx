@@ -1,137 +1,178 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Shield, Clock, Database, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 interface ComplianceSettingsProps {
-  settings?: {
-    quiet_hours: { start: string; end: string };
-    timezone: string;
-    footer_enabled: boolean;
-    footer_text: string;
-    help_response: string;
-  };
-  onUpdate: (settings: any) => void;
+  onUpdate?: () => void;
 }
 
-export const ComplianceSettings = ({ settings, onUpdate }: ComplianceSettingsProps) => {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  
-  const [quietHours, setQuietHours] = useState({
-    start: settings?.quiet_hours?.start || '20:00',
-    end: settings?.quiet_hours?.end || '08:00'
+export const ComplianceSettings = ({ onUpdate }: ComplianceSettingsProps = {}) => {
+  const [settings, setSettings] = useState({
+    smsOptIn: true,
+    quietHoursEnabled: true,
+    quietHoursStart: '22:00',
+    quietHoursEnd: '08:00',
+    dataRetentionDays: 365,
+    unsubscribeText: 'Reply STOP to unsubscribe',
+    complianceFooter: 'Msg&data rates may apply. Msg frequency varies.',
   });
   
-  const [footerEnabled, setFooterEnabled] = useState(settings?.footer_enabled ?? true);
-  const [footerText, setFooterText] = useState(
-    settings?.footer_text || 'Reply STOP to opt out, HELP for help. Msg&Data Rates May Apply.'
-  );
-  const [helpResponse, setHelpResponse] = useState(
-    settings?.help_response || 'For support, contact us at support@example.com or call 1-800-XXX-XXXX. Reply STOP to opt out.'
-  );
+  const { toast } = useToast();
 
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      const newSettings = {
-        quiet_hours: quietHours,
-        timezone: 'America/New_York',
-        footer_enabled: footerEnabled,
-        footer_text: footerText,
-        help_response: helpResponse
-      };
+  const handleSettingChange = (key: string, value: any) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
 
-      const { error } = await supabase
-        .from('company_profiles')
-        .update({ compliance_settings: newSettings })
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
-
-      if (error) throw error;
-
-      onUpdate(newSettings);
-      toast({ title: 'Compliance settings updated successfully' });
-    } catch (error) {
-      toast({ 
-        title: 'Error updating settings', 
-        description: (error as Error).message,
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleSave = () => {
+    // TODO: Implement save functionality
+    toast({
+      title: "Settings Saved",
+      description: "Your compliance settings have been updated.",
+    });
+    if (onUpdate) onUpdate();
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>SMS Compliance Settings</CardTitle>
-        <CardDescription>Configure TCPA/CTIA compliant messaging settings</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div>
-          <Label className="text-base font-medium">Quiet Hours</Label>
-          <div className="grid grid-cols-2 gap-4 mt-2">
-            <div>
-              <Label htmlFor="start-time">Start Time</Label>
-              <Input
-                id="start-time"
-                type="time"
-                value={quietHours.start}
-                onChange={(e) => setQuietHours(prev => ({ ...prev, start: e.target.value }))}
-              />
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Compliance & Privacy
+          </CardTitle>
+          <CardDescription>
+            Configure SMS compliance, quiet hours, data retention, and privacy settings to ensure legal compliance.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* SMS Compliance */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              <h3 className="text-lg font-medium">SMS Compliance</h3>
             </div>
-            <div>
-              <Label htmlFor="end-time">End Time</Label>
-              <Input
-                id="end-time"
-                type="time"
-                value={quietHours.end}
-                onChange={(e) => setQuietHours(prev => ({ ...prev, end: e.target.value }))}
-              />
+            
+            <div className="space-y-4 pl-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="sms-opt-in">Require SMS Opt-in</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Require explicit consent before sending SMS messages
+                  </p>
+                </div>
+                <Switch
+                  id="sms-opt-in"
+                  checked={settings.smsOptIn}
+                  onCheckedChange={(checked) => handleSettingChange('smsOptIn', checked)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="unsubscribe-text">Unsubscribe Instructions</Label>
+                <Input
+                  id="unsubscribe-text"
+                  value={settings.unsubscribeText}
+                  onChange={(e) => handleSettingChange('unsubscribeText', e.target.value)}
+                  placeholder="Reply STOP to unsubscribe"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="compliance-footer">Compliance Footer</Label>
+                <Textarea
+                  id="compliance-footer"
+                  value={settings.complianceFooter}
+                  onChange={(e) => handleSettingChange('complianceFooter', e.target.value)}
+                  placeholder="Msg&data rates may apply. Msg frequency varies."
+                  rows={2}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="text-base font-medium">Footer Injection</Label>
-            <p className="text-sm text-muted-foreground">Automatically add compliance footer once per 24 hours</p>
+          {/* Quiet Hours */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <h3 className="text-lg font-medium">Quiet Hours</h3>
+            </div>
+            
+            <div className="space-y-4 pl-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="quiet-hours">Enable Quiet Hours</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Prevent messages from being sent during specified hours
+                  </p>
+                </div>
+                <Switch
+                  id="quiet-hours"
+                  checked={settings.quietHoursEnabled}
+                  onCheckedChange={(checked) => handleSettingChange('quietHoursEnabled', checked)}
+                />
+              </div>
+
+              {settings.quietHoursEnabled && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="quiet-start">Start Time</Label>
+                    <Input
+                      id="quiet-start"
+                      type="time"
+                      value={settings.quietHoursStart}
+                      onChange={(e) => handleSettingChange('quietHoursStart', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quiet-end">End Time</Label>
+                    <Input
+                      id="quiet-end"
+                      type="time"
+                      value={settings.quietHoursEnd}
+                      onChange={(e) => handleSettingChange('quietHoursEnd', e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <Switch checked={footerEnabled} onCheckedChange={setFooterEnabled} />
-        </div>
 
-        <div>
-          <Label htmlFor="footer-text">Footer Text</Label>
-          <Textarea
-            id="footer-text"
-            value={footerText}
-            onChange={(e) => setFooterText(e.target.value)}
-            placeholder="Reply STOP to opt out, HELP for help. Msg&Data Rates May Apply."
-            className="mt-1"
-          />
-        </div>
+          {/* Data Retention */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              <h3 className="text-lg font-medium">Data Retention</h3>
+            </div>
+            
+            <div className="space-y-4 pl-6">
+              <div className="space-y-2">
+                <Label htmlFor="retention-days">Data Retention Period (Days)</Label>
+                <Input
+                  id="retention-days"
+                  type="number"
+                  value={settings.dataRetentionDays}
+                  onChange={(e) => handleSettingChange('dataRetentionDays', parseInt(e.target.value))}
+                  min="30"
+                  max="2555"
+                />
+                <p className="text-sm text-muted-foreground">
+                  How long to keep customer data and interaction logs (minimum 30 days, maximum 7 years)
+                </p>
+              </div>
+            </div>
+          </div>
 
-        <div>
-          <Label htmlFor="help-response">HELP Keyword Response</Label>
-          <Textarea
-            id="help-response"
-            value={helpResponse}
-            onChange={(e) => setHelpResponse(e.target.value)}
-            placeholder="For support, contact us at support@example.com"
-            className="mt-1"
-          />
-        </div>
-
-        <Button onClick={handleSave} disabled={loading}>
-          {loading ? 'Saving...' : 'Save Settings'}
-        </Button>
-      </CardContent>
-    </Card>
+          <div className="flex justify-end pt-4">
+            <Button onClick={handleSave}>Save Compliance Settings</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

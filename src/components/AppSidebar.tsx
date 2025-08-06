@@ -129,31 +129,9 @@ const AppSidebar: React.FC = () => {
       ],
     }] : []),
     {
-      title: "Advanced",
-      url: "/integrations",
+      title: "Settings",
+      url: "/settings",
       icon: Settings,
-      items: [
-        {
-          title: "Success Metrics",
-          url: "/success",
-          icon: Trophy,
-        },
-        {
-          title: "Integrations",
-          url: "/integrations",
-          icon: Puzzle,
-        },
-        {
-          title: "Automation",
-          url: "/automation",
-          icon: Zap,
-        },
-      ],
-    },
-    {
-      title: "Account",
-      url: "/account",
-      icon: Users,
     },
   ];
 

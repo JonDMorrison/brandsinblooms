@@ -39,6 +39,7 @@ import { OverlayManager } from '@/providers/OverlayManager';
 import { QuickTourProvider } from '@/contexts/QuickTourContext';
 import { TourManager } from '@/components/tour/TourManager';
 import POSPage from '@/pages/settings/POSPage';
+import SettingsPage from '@/pages/SettingsPage';
 
 function App() {
   return (
@@ -252,6 +253,13 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <AutomationPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <SettingsPage />
             </SidebarLayout>
           </ProtectedRoute>
         } />
