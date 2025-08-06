@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent } from '@/components/ui/card'
 import { ImageIcon, UserIcon, PhoneIcon, MessageSquareIcon } from 'lucide-react'
-import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage'
+import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage' // Fixed reference error
 
 interface SMSComposerProps {
   value: string
