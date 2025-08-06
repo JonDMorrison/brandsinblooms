@@ -1,4 +1,5 @@
-/* Modal Root Isolation Styles */
+/* Modal Root Isolation Styles - DISABLED to fix click blocking */
+/*
 #modal-root {
   position: fixed;
   top: 0;
@@ -8,6 +9,7 @@
   z-index: 1000000;
   pointer-events: none;
 }
+*/
 
 /* Media Selector Modal Styles */
 [data-media-selector] {

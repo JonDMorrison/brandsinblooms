@@ -5,7 +5,7 @@
   pointer-events: auto !important;
   display: block !important;
   position: fixed !important;
-  z-index: 1000010 !important;
+  z-index: 9999 !important;
 }
 
 .dropdown-debug-outline {
@@ -52,5 +52,5 @@
   color: white !important;
   padding: 4px 8px !important;
   font-size: 12px !important;
-  z-index: 9999999 !important;
+  z-index: 10000 !important;
 }
