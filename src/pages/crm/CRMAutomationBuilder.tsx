@@ -5,8 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import * as SelectPrimitive from '@radix-ui/react-select';
-import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Plus, Trash2, Mail, MessageSquare, Clock, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +19,6 @@ import { type Step } from '@/lib/campaignTemplates';
 export const CRMAutomationBuilder = () => {
   const [automationName, setAutomationName] = useState('');
   const [triggerType, setTriggerType] = useState<string | null>(null);
-  const [triggerOpen, setTriggerOpen] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
@@ -32,7 +29,6 @@ export const CRMAutomationBuilder = () => {
 
   const handleTriggerSelect = (val: string) => {
     setTriggerType(val);
-    setTriggerOpen(false);
     console.log('[Builder] trigger selected', val);
   };
 
@@ -186,53 +182,22 @@ export const CRMAutomationBuilder = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="trigger-type">Trigger Type</Label>
-            <SelectPrimitive.Root
+            <label className="text-sm font-medium mb-1 block" htmlFor="triggerType">
+              Trigger
+            </label>
+            <select
+              id="triggerType"
+              className="h-9 w-full rounded-md border px-3 text-sm"
               value={triggerType ?? ''}
-              onValueChange={handleTriggerSelect}
+              onChange={e => handleTriggerSelect(e.target.value)}
             >
-              <SelectPrimitive.Trigger
-                className={cn(
-                  "flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                )}
-                aria-label="Select trigger type"
-              >
-                <SelectPrimitive.Value placeholder="Select trigger type" />
-                <SelectPrimitive.Icon asChild>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </SelectPrimitive.Icon>
-              </SelectPrimitive.Trigger>
-              
-              <SelectPrimitive.Portal>
-                <SelectPrimitive.Content
-                  className={cn(
-                    "relative z-[1000010] max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
-                  )}
-                  position="popper"
-                  sideOffset={4}
-                >
-                  <SelectPrimitive.Viewport className="p-1">
-                    {triggerCatalog.map(opt => (
-                      <SelectPrimitive.Item
-                        key={opt.id}
-                        value={opt.id}
-                        className={cn(
-                          "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          {opt.icon}
-                          <span>{opt.label}</span>
-                        </div>
-                        <SelectPrimitive.ItemIndicator className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
-                          <ChevronDown className="h-4 w-4" />
-                        </SelectPrimitive.ItemIndicator>
-                      </SelectPrimitive.Item>
-                    ))}
-                  </SelectPrimitive.Viewport>
-                </SelectPrimitive.Content>
-              </SelectPrimitive.Portal>
-            </SelectPrimitive.Root>
+              <option value="" disabled>Select trigger…</option>
+              {triggerCatalog.map(opt => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {template && (
