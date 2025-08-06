@@ -990,6 +990,116 @@ export type Database = {
           },
         ]
       }
+      crm_message_logs: {
+        Row: {
+          created_at: string | null
+          delivered_at: string | null
+          error_message: string | null
+          external_id: string | null
+          id: string
+          message_type: string
+          metadata: Json | null
+          outbox_id: string | null
+          recipient: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          message_type: string
+          metadata?: Json | null
+          outbox_id?: string | null
+          recipient: string
+          status: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          outbox_id?: string | null
+          recipient?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_message_logs_outbox_id_fkey"
+            columns: ["outbox_id"]
+            isOneToOne: false
+            referencedRelation: "crm_outbox"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_outbox: {
+        Row: {
+          automation_id: string | null
+          content: string
+          created_at: string | null
+          customer_id: string
+          error_message: string | null
+          id: string
+          max_retries: number | null
+          message_type: string
+          recipient: string
+          retry_count: number | null
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string | null
+          subject: string | null
+          template_data: Json | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          automation_id?: string | null
+          content: string
+          created_at?: string | null
+          customer_id: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number | null
+          message_type: string
+          recipient: string
+          retry_count?: number | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject?: string | null
+          template_data?: Json | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          automation_id?: string | null
+          content?: string
+          created_at?: string | null
+          customer_id?: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number | null
+          message_type?: string
+          recipient?: string
+          retry_count?: number | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject?: string | null
+          template_data?: Json | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       crm_persona_campaign_templates: {
         Row: {
           ai_prompt_context: string | null
@@ -2952,6 +3062,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_integrations: {
+        Row: {
+          created_at: string | null
+          credentials: Json
+          id: string
+          integration_type: string
+          is_active: boolean | null
+          tenant_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          credentials?: Json
+          id?: string
+          integration_type: string
+          is_active?: boolean | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          credentials?: Json
+          id?: string
+          integration_type?: string
+          is_active?: boolean | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_segment_preferences: {
         Row: {
           created_at: string
@@ -3109,6 +3252,10 @@ export type Database = {
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string }
         Returns: number
+      }
+      create_automation_from_draft: {
+        Args: { draft_id: string; template_key?: string }
+        Returns: string
       }
       feature_enabled: {
         Args: { feature_name: string }

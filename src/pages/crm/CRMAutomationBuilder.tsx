@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2, Mail, MessageSquare, Clock, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { triggerCatalog } from '@/lib/automation/triggerCatalog';
+import { triggerCatalog, getTriggerById } from '@/lib/automation/triggerCatalog';
 import { getTemplateForTrigger } from '@/lib/automation/templates';
+import { getTemplatesByTrigger } from '@/lib/automation/templates/campaignTemplates';
 import { TemplateCard } from '@/components/crm/TemplateCard';
 import { TemplateSelector } from '@/components/automation/TemplateSelector';
 import { type Step } from '@/lib/campaignTemplates';
