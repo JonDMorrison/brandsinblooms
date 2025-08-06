@@ -16,13 +16,13 @@ export const removeConsoleLogging = () => {
   }
 };
 
-// Security headers for production
+// Security headers for production - cleaned up legacy tokens
 export const getSecurityHeaders = () => ({
   'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;",
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
 });
 
 // Validate user input for XSS prevention

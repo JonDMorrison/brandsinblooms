@@ -3,8 +3,6 @@
  * Allows legitimate usage inside overlay portals and Radix components
  */
 
-const isDev = process.env.NODE_ENV === 'development';
-
 // --- allow-listed selectors (Radix & our portals) --------------------------
 const ALLOWLIST = [
   '[data-radix-focus-guard]',
@@ -19,39 +17,25 @@ const ALLOWLIST = [
   '[data-radix-popover-content]',
 ];
 
+// silence in prod
+const log = import.meta.env.DEV ? console.warn : () => {};
+
 function isAllowlisted(node: Element): boolean {
   return ALLOWLIST.some(sel => node.matches(sel) || node.closest(sel));
 }
 
-function isOverlay(el: Element): boolean {
-  return el.closest('[data-overlay-root]') !== null;
-}
-
 // ---------------------------------------------------------------------------
 
-if (isDev) {
+if (import.meta.env.DEV) {
   const observer = new MutationObserver(records => {
     for (const r of records) {
-      // Allow aria-hidden inside overlay portals - Radix needs this for proper behavior
-      if (
-        r.type === 'attributes' &&
-        r.attributeName === 'aria-hidden' &&
-        (isOverlay(r.target as Element) || isAllowlisted(r.target as Element))
-      ) {
-        continue; // allow overlay/allowlisted elements to manage their own aria-hidden
-      }
-
-      // Check for added nodes with aria-hidden (outside allowlist)
       r.addedNodes.forEach(n => {
         if (
           n instanceof HTMLElement &&
           n.hasAttribute('aria-hidden') &&
-          !isAllowlisted(n)           // ← skip allow-listed nodes
+          !isAllowlisted(n)
         ) {
-          if (isDev) {
-            // eslint-disable-next-line no-console
-            console.warn('[Sentinel] stripping rogue aria-hidden from added node →', n);
-          }
+          log('[Sentinel] stripping rogue aria-hidden →', n);
           n.removeAttribute('aria-hidden');
         }
       });
@@ -61,13 +45,9 @@ if (isDev) {
         const target = r.target as HTMLElement;
         if (
           target.getAttribute('aria-hidden') === 'true' &&
-          !isOverlay(target) &&
           !isAllowlisted(target)
         ) {
-          if (isDev) {
-            // eslint-disable-next-line no-console
-            console.warn('[Sentinel] blocking rogue aria-hidden=true on →', target);
-          }
+          log('[Sentinel] blocking rogue aria-hidden=true on →', target);
           target.removeAttribute('aria-hidden');
         }
       }
@@ -81,7 +61,7 @@ if (isDev) {
     childList: true
   });
   
-  if (isDev) {
+  if (import.meta.env.DEV) {
     // eslint-disable-next-line no-console
     console.log('[Sentinel] aria-hidden monitoring active (allowlist-aware)');
   }
