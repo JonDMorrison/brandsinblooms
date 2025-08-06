@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Calendar, Send, Clock, Loader2, Image } from 'lucide-react';
 import { StatusIndicator } from '@/components/ui/status-indicator';
 import { TASK_STATUS } from '@/constants/taskStatus';
@@ -115,19 +115,17 @@ export const QuickPublishModal = ({
             {/* Platform Selection */}
           <div>
             <Label>Platform</Label>
-            <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select platform to publish to" />
-              </SelectTrigger>
-              <SelectContent>
-                {socialConnections.map((connection) => (
-                  <SelectItem key={connection.id} value={connection.platform}>
-                    {connection.platform.charAt(0).toUpperCase() + connection.platform.slice(1)} 
-                    {connection.platform_account_name && ` - ${connection.platform_account_name}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <NativeSelect 
+              value={selectedPlatform} 
+              onChange={(e) => setSelectedPlatform(e.target.value)}
+              placeholder="Select platform to publish to"
+              options={socialConnections.map((connection) => ({
+                value: connection.platform,
+                label: `${connection.platform.charAt(0).toUpperCase() + connection.platform.slice(1)}${
+                  connection.platform_account_name ? ` - ${connection.platform_account_name}` : ''
+                }`
+              }))}
+            />
             {socialConnections.length === 0 && (
               <p className="text-sm text-red-600 mt-1">
                 No social accounts connected. Connect accounts in Settings.
@@ -162,18 +160,15 @@ export const QuickPublishModal = ({
           {publishMode === 'scheduled' && (
             <div>
               <Label>Schedule for</Label>
-              <Select value={scheduledTime} onValueChange={setScheduledTime}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose optimal time" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getOptimalTimes().map((time) => (
-                    <SelectItem key={time.value} value={time.value}>
-                      {time.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <NativeSelect 
+                value={scheduledTime} 
+                onChange={(e) => setScheduledTime(e.target.value)}
+                placeholder="Choose optimal time"
+                options={getOptimalTimes().map((time) => ({
+                  value: time.value,
+                  label: time.label
+                }))}
+              />
             </div>
           )}
 

@@ -44,61 +44,36 @@ const POSFilterGroup: React.FC<POSFilterGroupProps> = ({ condition, index, onUpd
         <div className="grid grid-cols-3 gap-3">
           <div>
             <Label className="text-xs">Filter Type</Label>
-            <Select
+            <NativeSelect
               value={condition.field}
-              onValueChange={(value) => onUpdate(index, { field: value, value: '' })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="product_purchased">
-                  <div className="flex items-center gap-2">
-                    <Package className="h-3 w-3" />
-                    Product Purchased
-                  </div>
-                </SelectItem>
-                <SelectItem value="product_category">
-                  <div className="flex items-center gap-2">
-                    <ShoppingCart className="h-3 w-3" />
-                    Product Category
-                  </div>
-                </SelectItem>
-                <SelectItem value="purchase_count">
-                  <div className="flex items-center gap-2">
-                    <Hash className="h-3 w-3" />
-                    Purchase Count
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={(e) => onUpdate(index, { field: e.target.value, value: '' })}
+              options={[
+                { value: 'product_purchased', label: '📦 Product Purchased' },
+                { value: 'product_category', label: '🛒 Product Category' },
+                { value: 'purchase_count', label: '#️⃣ Purchase Count' }
+              ]}
+            />
           </div>
           
           <div>
             <Label className="text-xs">Operator</Label>
-            <Select
+            <NativeSelect
               value={condition.operator}
-              onValueChange={(value) => onUpdate(index, { operator: value })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {condition.field === 'product_purchased' && (
-                  <SelectItem value="contains">contains</SelectItem>
-                )}
-                {condition.field === 'product_category' && (
-                  <SelectItem value="equals">is</SelectItem>
-                )}
-                {condition.field === 'purchase_count' && (
-                  <>
-                    <SelectItem value="greater_than">greater than</SelectItem>
-                    <SelectItem value="less_than">less than</SelectItem>
-                    <SelectItem value="equals">equals</SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
+              onChange={(e) => onUpdate(index, { operator: e.target.value })}
+              options={(() => {
+                const options = [];
+                if (condition.field === 'product_purchased') options.push({ value: 'contains', label: 'contains' });
+                if (condition.field === 'product_category') options.push({ value: 'equals', label: 'is' });
+                if (condition.field === 'purchase_count') {
+                  options.push(
+                    { value: 'greater_than', label: 'greater than' },
+                    { value: 'less_than', label: 'less than' },
+                    { value: 'equals', label: 'equals' }
+                  );
+                }
+                return options;
+              })()}
+            />
           </div>
           
           <div>
@@ -112,19 +87,15 @@ const POSFilterGroup: React.FC<POSFilterGroupProps> = ({ condition, index, onUpd
             )}
             
             {condition.field === 'product_category' && (
-              <Select
+              <NativeSelect
                 value={condition.value as string}
-                onValueChange={(value) => onUpdate(index, { value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {productCategories.map(category => (
-                    <SelectItem key={category} value={category}>{category}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(e) => onUpdate(index, { value: e.target.value })}
+                placeholder="Select category"
+                options={productCategories.map(category => ({
+                  value: category,
+                  label: category
+                }))}
+              />
             )}
             
             {condition.field === 'purchase_count' && (

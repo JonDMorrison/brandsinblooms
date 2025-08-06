@@ -30,50 +30,27 @@ const EngagementFilterGroup: React.FC<EngagementFilterGroupProps> = ({ condition
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Engagement Type</Label>
-            <Select
+            <NativeSelect
               value={condition.field}
-              onValueChange={(value) => onUpdate(index, { field: value, value: 'true' })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="opened_last_campaign">
-                  <div className="flex items-center gap-2">
-                    <Eye className="h-3 w-3" />
-                    Opened Last Campaign
-                  </div>
-                </SelectItem>
-                <SelectItem value="clicked_last_3_campaigns">
-                  <div className="flex items-center gap-2">
-                    <MousePointer className="h-3 w-3" />
-                    Clicked Last 3 Campaigns
-                  </div>
-                </SelectItem>
-                <SelectItem value="never_opened_campaign">
-                  <div className="flex items-center gap-2">
-                    <X className="h-3 w-3" />
-                    Never Opened Any Campaign
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={(e) => onUpdate(index, { field: e.target.value, value: 'true' })}
+              options={[
+                { value: 'opened_last_campaign', label: '👀 Opened Last Campaign' },
+                { value: 'clicked_last_3_campaigns', label: '🖱️ Clicked Last 3 Campaigns' },
+                { value: 'never_opened_campaign', label: '❌ Never Opened Any Campaign' }
+              ]}
+            />
           </div>
           
           <div>
             <Label className="text-xs">Value</Label>
-            <Select
+            <NativeSelect
               value={condition.value as string}
-              onValueChange={(value) => onUpdate(index, { value })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="true">Yes</SelectItem>
-                <SelectItem value="false">No</SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={(e) => onUpdate(index, { value: e.target.value })}
+              options={[
+                { value: 'true', label: 'Yes' },
+                { value: 'false', label: 'No' }
+              ]}
+            />
           </div>
         </div>
         

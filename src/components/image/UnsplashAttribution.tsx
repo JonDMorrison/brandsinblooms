@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Copy, Download, ExternalLink, Info, Check, Camera } from 'lucide-react';
 import { downloadUnsplashImage, copyAttributionToClipboard, generateAttributionText, UnsplashDownloadData } from '@/services/unsplashDownloadService';
 import { toast } from '@/hooks/use-toast';
@@ -247,18 +247,14 @@ export const UnsplashAttribution: React.FC<UnsplashAttributionProps> = ({
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Platform</label>
-                    <Select value={selectedPlatform} onValueChange={(value: Platform) => setSelectedPlatform(value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {platformOptions.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <NativeSelect 
+                      value={selectedPlatform} 
+                      onChange={(e) => setSelectedPlatform(e.target.value as Platform)}
+                      options={platformOptions.map(option => ({
+                        value: option.value,
+                        label: option.label
+                      }))}
+                    />
                   </div>
                   
                   <div className="bg-surface-secondary/50 p-3 rounded-lg">
@@ -306,16 +302,15 @@ export const UnsplashAttribution: React.FC<UnsplashAttributionProps> = ({
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Quality</label>
-                    <Select value={selectedQuality} onValueChange={(value: Quality) => setSelectedQuality(value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {urls?.raw && <SelectItem value="raw">Highest Quality (Raw)</SelectItem>}
-                        {urls?.full && <SelectItem value="full">High Quality (Full)</SelectItem>}
-                        <SelectItem value="regular">Standard Quality</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <NativeSelect 
+                      value={selectedQuality} 
+                      onChange={(e) => setSelectedQuality(e.target.value as Quality)}
+                      options={[
+                        ...(urls?.raw ? [{ value: 'raw' as const, label: 'Highest Quality (Raw)' }] : []),
+                        ...(urls?.full ? [{ value: 'full' as const, label: 'High Quality (Full)' }] : []),
+                        { value: 'regular' as const, label: 'Standard Quality' }
+                      ]}
+                    />
                   </div>
                   
                   <div className="bg-surface-secondary/50 p-3 rounded-lg">
