@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 
 // Import existing components
-import { BusinessProfileSettings } from './BusinessProfileSettings';
 import { ConnectionsSettings } from './ConnectionsSettings';
 import { AccountBillingSettings } from './AccountBillingSettings';
 import { ComplianceSettings } from './ComplianceSettings';
@@ -28,7 +27,7 @@ import { usePOSConnection } from '@/hooks/usePOSConnection';
 import { useConnectedAccounts } from '@/components/dashboard/ConnectedAccountChecker';
 
 export const SettingsHub = () => {
-  const [activeTab, setActiveTab] = useState('business');
+  const [activeTab, setActiveTab] = useState('connections');
   const [showPOSWizard, setShowPOSWizard] = useState(false);
   
   // Status hooks
@@ -36,12 +35,6 @@ export const SettingsHub = () => {
   const { data: socialConnections = [], isLoading: socialLoading } = useConnectedAccounts();
 
   const settingsTabs = [
-    {
-      id: 'business',
-      label: 'Business Profile',
-      icon: Building2,
-      description: 'Company information, brand voice, and target audience',
-    },
     {
       id: 'connections',
       label: 'Connections',
@@ -184,7 +177,7 @@ export const SettingsHub = () => {
 
         {/* Settings Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-5 h-auto p-2">
+          <TabsList className="grid w-full grid-cols-4 h-auto p-2">
             {settingsTabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
@@ -201,10 +194,6 @@ export const SettingsHub = () => {
               </TabsTrigger>
             ))}
           </TabsList>
-
-          <TabsContent value="business" className="space-y-6">
-            <BusinessProfileSettings />
-          </TabsContent>
 
           <TabsContent value="connections" className="space-y-6">
             <ConnectionsSettings />
