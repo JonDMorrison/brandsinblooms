@@ -1,5 +1,5 @@
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { TrialBanner } from "@/components/TrialBanner";
 import { UserMenu } from "@/components/UserMenu";
@@ -12,6 +12,32 @@ interface SidebarLayoutProps {
 
 export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const { user } = useAuth();
+
+  // Defensive: ensure nothing marks the sidebar wrapper aria-hidden
+  useEffect(() => {
+    const wrapper = document.querySelector('.group\\/sidebar-wrapper');
+    if (wrapper?.hasAttribute('aria-hidden')) {
+      wrapper.removeAttribute('aria-hidden');
+    }
+
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        if (mutation.target instanceof HTMLElement && 
+            mutation.target.hasAttribute('aria-hidden')) {
+          mutation.target.removeAttribute('aria-hidden');
+        }
+      });
+    });
+    
+    if (wrapper) {
+      observer.observe(wrapper, { 
+        attributes: true, 
+        attributeFilter: ['aria-hidden'] 
+      });
+    }
+    
+    return () => observer.disconnect();
+  }, []);
 
   if (!user) {
     return <div>Please log in to access this page</div>;

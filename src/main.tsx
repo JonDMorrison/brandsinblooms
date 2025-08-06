@@ -10,7 +10,7 @@ import { GlobalLoadingOverlay } from '@/components/loading/GlobalLoadingOverlay'
 import App from './App.tsx'
 import './index.css'
 import './utils/globalToastReplace'
-import './lib/dev-sentinel'
+
 
 // Create a client
 const queryClient = new QueryClient({

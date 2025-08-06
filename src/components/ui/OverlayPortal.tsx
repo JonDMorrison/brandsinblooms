@@ -15,21 +15,7 @@ interface OverlayPortalProps {
 export const OverlayPortal: React.FC<OverlayPortalProps> = ({ children, className, zIndex, ...props }) => {
   const overlayRoot = document.getElementById('overlay-root') || document.body;
   
-  useEffect(() => {
-    // Cleanup aria-hidden on mount
-    const cleanup = () => {
-      const ariaHiddenElements = document.querySelectorAll('[aria-hidden="true"]');
-      ariaHiddenElements.forEach(el => {
-        console.warn('[OverlayPortal] Removing aria-hidden from:', el);
-        el.removeAttribute('aria-hidden');
-      });
-    };
-    
-    cleanup();
-    
-    // Cleanup on unmount
-    return cleanup;
-  }, []);
+  // No cleanup needed - let Radix handle accessibility properly
 
   return createPortal(
     <div 
