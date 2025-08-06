@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
@@ -360,21 +360,15 @@ export const SMSCampaignComposer: React.FC = () => {
               
               <div>
                 <Label>Target Segment</Label>
-                <Select 
-                  value={campaignData.segment_id} 
-                  onValueChange={(value) => setCampaignData(prev => ({ ...prev, segment_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select segment..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {segments.map(segment => (
-                      <SelectItem key={segment.id} value={segment.id}>
-                        {segment.name} ({segment.customer_count} customers)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={campaignData.segment_id}
+                  onChange={(e) => setCampaignData(prev => ({ ...prev, segment_id: e.target.value }))}
+                  placeholder="Select segment..."
+                  options={segments.map(segment => ({
+                    value: segment.id,
+                    label: `${segment.name} (${segment.customer_count} customers)`
+                  }))}
+                />
                 
                 {selectedSegment && (
                   <div className="mt-2 space-y-2">

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -511,21 +511,15 @@ export const EmailCampaignComposer: React.FC = () => {
               
               <div>
                 <Label>Target Segment</Label>
-                <Select 
-                  value={campaignData.segment_id} 
-                  onValueChange={(value) => setCampaignData(prev => ({ ...prev, segment_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select segment..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {segments.map(segment => (
-                      <SelectItem key={segment.id} value={segment.id}>
-                        {segment.name} ({segment.customer_count} customers)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={campaignData.segment_id}
+                  onChange={(e) => setCampaignData(prev => ({ ...prev, segment_id: e.target.value }))}
+                  placeholder="Select segment..."
+                  options={segments.map(segment => ({
+                    value: segment.id,
+                    label: `${segment.name} (${segment.customer_count} customers)`
+                  }))}
+                />
                 {selectedSegment && (
                   <div className="flex items-center gap-2 mt-2">
                     <Users className="h-4 w-4 text-muted-foreground" />

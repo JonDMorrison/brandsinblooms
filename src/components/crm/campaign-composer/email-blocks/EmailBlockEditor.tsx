@@ -1,7 +1,7 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -56,19 +56,15 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({ block, onUpd
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Size</Label>
-                <Select 
-                  value={block.content.level?.toString() || '2'} 
-                  onValueChange={(value) => updateContent({ level: parseInt(value) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Large (H1)</SelectItem>
-                    <SelectItem value="2">Medium (H2)</SelectItem>
-                    <SelectItem value="3">Small (H3)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={block.content.level?.toString() || '2'}
+                  onChange={(e) => updateContent({ level: parseInt(e.target.value) })}
+                  options={[
+                    { value: '1', label: 'Large (H1)' },
+                    { value: '2', label: 'Medium (H2)' },
+                    { value: '3', label: 'Small (H3)' }
+                  ]}
+                />
               </div>
               
               <div>
@@ -152,19 +148,15 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({ block, onUpd
               
               <div>
                 <Label>Alignment</Label>
-                <Select 
-                  value={block.content.align || 'center'} 
-                  onValueChange={(value) => updateContent({ align: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="left">Left</SelectItem>
-                    <SelectItem value="center">Center</SelectItem>
-                    <SelectItem value="right">Right</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={block.content.align || 'center'}
+                  onChange={(e) => updateContent({ align: e.target.value })}
+                  options={[
+                    { value: 'left', label: 'Left' },
+                    { value: 'center', label: 'Center' },
+                    { value: 'right', label: 'Right' }
+                  ]}
+                />
               </div>
             </div>
             
@@ -221,35 +213,27 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({ block, onUpd
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Style</Label>
-                <Select 
-                  value={block.content.style || 'primary'} 
-                  onValueChange={(value) => updateContent({ style: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="primary">Primary (Green)</SelectItem>
-                    <SelectItem value="secondary">Secondary (Gray)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={block.content.style || 'primary'}
+                  onChange={(e) => updateContent({ style: e.target.value })}
+                  options={[
+                    { value: 'primary', label: 'Primary (Green)' },
+                    { value: 'secondary', label: 'Secondary (Gray)' }
+                  ]}
+                />
               </div>
               
               <div>
                 <Label>Alignment</Label>
-                <Select 
-                  value={block.content.align || 'center'} 
-                  onValueChange={(value) => updateContent({ align: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="left">Left</SelectItem>
-                    <SelectItem value="center">Center</SelectItem>
-                    <SelectItem value="right">Right</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={block.content.align || 'center'}
+                  onChange={(e) => updateContent({ align: e.target.value })}
+                  options={[
+                    { value: 'left', label: 'Left' },
+                    { value: 'center', label: 'Center' },
+                    { value: 'right', label: 'Right' }
+                  ]}
+                />
               </div>
             </div>
             
@@ -279,19 +263,15 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({ block, onUpd
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Style</Label>
-                <Select 
-                  value={block.content.style || 'solid'} 
-                  onValueChange={(value) => updateContent({ style: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="solid">Solid Line</SelectItem>
-                    <SelectItem value="dashed">Dashed Line</SelectItem>
-                    <SelectItem value="dotted">Dotted Line</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={block.content.style || 'solid'}
+                  onChange={(e) => updateContent({ style: e.target.value })}
+                  options={[
+                    { value: 'solid', label: 'Solid Line' },
+                    { value: 'dashed', label: 'Dashed Line' },
+                    { value: 'dotted', label: 'Dotted Line' }
+                  ]}
+                />
               </div>
               
               <div>

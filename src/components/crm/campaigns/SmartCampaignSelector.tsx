@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -274,11 +274,12 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="relative">
-                <Select disabled>
-                  <SelectTrigger className="h-12 bg-gray-50 border-gray-200">
-                    <SelectValue placeholder="Enable CRM to select campaign content" />
-                  </SelectTrigger>
-                </Select>
+                <NativeSelect
+                  disabled
+                  placeholder="Enable CRM to select campaign content"
+                  options={[]}
+                  className="h-12 bg-gray-50 border-gray-200"
+                />
                 <div className="absolute inset-0 bg-gray-50/80 rounded-md flex items-center justify-center">
                   <Crown className="h-5 w-5 text-orange-500" />
                 </div>
@@ -304,37 +305,18 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
           </span>
         </Label>
         
-        <Select value={selectedType} onValueChange={setSelectedType}>
-          <SelectTrigger className="h-12">
-            <SelectValue placeholder="Choose a campaign source..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="weekly_theme">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-green-600" />
-                Weekly Theme ({availableThemes.length} available)
-              </div>
-            </SelectItem>
-            <SelectItem value="seasonal_event">
-              <div className="flex items-center gap-2">
-                <TreePine className="h-4 w-4 text-red-600" />
-                Seasonal Events ({upcomingHolidays.length} upcoming)
-              </div>
-            </SelectItem>
-            <SelectItem value="custom_content">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-blue-600" />
-                Your Custom Content ({recentCustomContent.length} recent)
-              </div>
-            </SelectItem>
-            <SelectItem value="new_idea">
-              <div className="flex items-center gap-2">
-                <Plus className="h-4 w-4 text-purple-600" />
-                Create New Idea
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <NativeSelect
+          value={selectedType}
+          onChange={(e) => setSelectedType(e.target.value)}
+          placeholder="Choose a campaign source..."
+          className="h-12"
+          options={[
+            { value: 'weekly_theme', label: `Weekly Theme (${availableThemes.length} available)` },
+            { value: 'seasonal_event', label: `Seasonal Events (${upcomingHolidays.length} upcoming)` },
+            { value: 'custom_content', label: `Your Custom Content (${recentCustomContent.length} recent)` },
+            { value: 'new_idea', label: 'Create New Idea' }
+          ]}
+        />
       </div>
 
       {/* Dynamic Content Cards */}
