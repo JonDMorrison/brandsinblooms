@@ -686,6 +686,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          template_source: string | null
           tenant_id: string | null
           trigger_conditions: Json | null
           trigger_type: string
@@ -698,6 +699,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          template_source?: string | null
           tenant_id?: string | null
           trigger_conditions?: Json | null
           trigger_type: string
@@ -710,6 +712,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          template_source?: string | null
           tenant_id?: string | null
           trigger_conditions?: Json | null
           trigger_type?: string

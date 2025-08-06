@@ -23,7 +23,7 @@ import { CRMPersonaAnalyticsPage } from '@/pages/crm/CRMPersonaAnalyticsPage';
 import { CRMAnalyticsPage } from '@/pages/crm/CRMAnalyticsPage';
 import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
 import CRMAutomations from '@/pages/crm/CRMAutomations';
-import CRMAutomationBuilder from '@/pages/crm/CRMAutomationBuilder';
+import { CRMAutomationBuilder } from '@/pages/crm/CRMAutomationBuilder';
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewsletterNewPage } from '@/pages/NewsletterNewPage';
 import { WebsiteWaitlistPage } from '@/pages/WebsiteWaitlistPage';

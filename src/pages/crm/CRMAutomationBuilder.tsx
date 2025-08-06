@@ -1,469 +1,355 @@
-import { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SafeSelect } from "@/components/ui/SafeSelect";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, ArrowUp, ArrowDown, Mail, MessageSquare, Save, ArrowLeft, Lock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import { useTwilioSetup } from "@/components/dashboard/TwilioSetupChecker";
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Plus, Trash2, Mail, MessageSquare, Clock, ArrowRight, ChevronDown } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { TRIGGERS, getTriggerById, type Trigger } from '@/lib/triggerCatalog';
+import { TemplateSelector } from '@/components/automation/TemplateSelector';
+import { type Step } from '@/lib/campaignTemplates';
 
-interface WorkflowStep {
-  id: string;
-  type: 'email' | 'sms';
-  delay: number;
-  subject?: string;
-  content: string;
-  template_id?: string;
-}
-
-interface TriggerConditions {
-  delay_days?: number;
-  segment_id?: string;
-  [key: string]: any;
-}
-
-const CRMAutomationBuilder = () => {
-  const [name, setName] = useState("");
-  const [triggerType, setTriggerType] = useState("");
-  const [triggerConditions, setTriggerConditions] = useState<TriggerConditions>({});
-  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
-  const [isActive, setIsActive] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [segments, setSegments] = useState<any[]>([]);
-  
+export const CRMAutomationBuilder = () => {
+  const [automationName, setAutomationName] = useState('');
+  const [triggerType, setTriggerType] = useState('');
+  const [steps, setSteps] = useState<Step[]>([]);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
+  const [triggerPopoverOpen, setTriggerPopoverOpen] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const { data: twilioStatus, isLoading: twilioLoading } = useTwilioSetup();
 
-  // Dynamic trigger types based on Twilio setup
-  const triggerTypes = useMemo(() => {
-    const baseTriggers = [
-      { value: 'welcome', label: 'Welcome', description: 'Triggers when a new customer signs up' },
-      { value: 'segment_joined', label: 'Segment Joined', description: 'Triggers when a customer joins a specific segment' },
-      { value: 'manual', label: 'Manual', description: 'Triggers when manually activated' }
-    ];
+  const selectedTrigger = getTriggerById(triggerType);
 
-    if (twilioStatus?.isSetup) {
-      return [
-        ...baseTriggers,
-        { value: 'purchase_delay', label: 'Purchase Delay', description: 'Triggers X days after last purchase' },
-        { value: 'seasonal', label: 'Seasonal Reminder', description: 'Triggers based on seasonal timing' }
-      ];
-    }
+  const handleTriggerSelect = (trigger: Trigger) => {
+    setTriggerType(trigger.id);
+    setTriggerPopoverOpen(false);
+    setShowTemplateSelector(true);
+  };
 
-    return baseTriggers;
-  }, [twilioStatus?.isSetup]);
+  const handleSelectTemplate = (templateSteps: Step[]) => {
+    setSteps(templateSteps);
+    setShowTemplateSelector(false);
+    toast({
+      title: "Template Applied",
+      description: `${templateSteps.length} step${templateSteps.length > 1 ? 's' : ''} added to your automation.`,
+    });
+  };
 
-  const isSingleOption = triggerTypes.length === 1;
+  const handleStartFromScratch = () => {
+    setSteps([]);
+    setShowTemplateSelector(false);
+  };
 
-  useEffect(() => {
-    fetchSegments();
-  }, []);
-
-  const fetchSegments = async () => {
+  const handleGenerateWithAI = async () => {
+    setIsGeneratingTemplate(true);
     try {
-      const { data, error } = await supabase
-        .from('crm_segments')
-        .select('id, name')
-        .order('name');
+      const { data, error } = await supabase.functions.invoke('generate-automation-template', {
+        body: {
+          trigger: triggerType,
+          businessName: 'Bloom Gardens'
+        }
+      });
 
       if (error) throw error;
-      setSegments(data || []);
+
+      if (data && data.steps) {
+        setSteps(data.steps);
+        setShowTemplateSelector(false);
+        toast({
+          title: "AI Template Generated",
+          description: `Created ${data.steps.length} step${data.steps.length > 1 ? 's' : ''} for your automation.`,
+        });
+      }
     } catch (error) {
-      console.error('Error fetching segments:', error);
+      console.error('Error generating template:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Unable to generate template. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingTemplate(false);
     }
   };
 
-  const generateId = () => Math.random().toString(36).substr(2, 9);
-
-  const addWorkflowStep = () => {
-    const newStep: WorkflowStep = {
-      id: generateId(),
-      type: 'email',
-      delay: 0,
-      content: ''
+  const addStep = (type: 'email' | 'sms') => {
+    const newStep: Step = {
+      delayHours: 0,
+      channel: type,
+      body: '',
+      template_id: `custom-${Date.now()}`
     };
-    setWorkflowSteps([...workflowSteps, newStep]);
+    setSteps([...steps, newStep]);
   };
 
-  const updateWorkflowStep = (id: string, updates: Partial<WorkflowStep>) => {
-    setWorkflowSteps(prev => prev.map(step => 
-      step.id === id ? { ...step, ...updates } : step
+  const removeStep = (index: number) => {
+    setSteps(steps.filter((_, i) => i !== index));
+  };
+
+  const updateStep = (index: number, field: keyof Step, value: string | number) => {
+    setSteps(steps.map((step, i) => 
+      i === index ? { ...step, [field]: value } : step
     ));
   };
 
-  const removeWorkflowStep = (id: string) => {
-    setWorkflowSteps(prev => prev.filter(step => step.id !== id));
-  };
-
-  const moveStep = (id: string, direction: 'up' | 'down') => {
-    const index = workflowSteps.findIndex(step => step.id === id);
-    if ((direction === 'up' && index === 0) || (direction === 'down' && index === workflowSteps.length - 1)) {
-      return;
-    }
-
-    const newSteps = [...workflowSteps];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]];
-    setWorkflowSteps(newSteps);
-  };
-
   const saveAutomation = async () => {
-    if (!name.trim() || !triggerType || workflowSteps.length === 0) {
+    if (!automationName.trim() || !triggerType) {
       toast({
-        title: "Error",
-        description: "Please fill in all required fields and add at least one workflow step",
+        title: "Missing Information",
+        description: "Please provide automation name and trigger type.",
         variant: "destructive",
       });
       return;
     }
 
-    setSaving(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('crm_automations')
         .insert({
-          name: name.trim(),
+          name: automationName,
           trigger_type: triggerType,
-          trigger_conditions: triggerConditions as any,
-          workflow_steps: workflowSteps as any,
-          is_active: isActive
-        });
+          trigger_conditions: { event: triggerType },
+          workflow_steps: steps as any,
+          is_active: true,
+          template_source: steps.some(s => s.template_id?.startsWith('ai-')) ? 'ai_generated' : 'template_library'
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Automation created successfully",
+        description: "Automation saved successfully!",
       });
 
-      navigate('/crm/automations');
+      // Reset form
+      setAutomationName('');
+      setTriggerType('');
+      setSteps([]);
+      setShowTemplateSelector(false);
     } catch (error) {
       console.error('Error saving automation:', error);
       toast({
         title: "Error",
-        description: "Failed to save automation",
+        description: "Failed to save automation. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setSaving(false);
     }
-  };
-
-  const getTriggerDescription = () => {
-    const selectedTrigger = triggerTypes.find(t => t.value === triggerType);
-    if (selectedTrigger) {
-      if (triggerType === 'purchase_delay') {
-        return `Triggers ${triggerConditions.delay_days || 0} days after last purchase`;
-      }
-      return selectedTrigger.description;
-    }
-    return isSingleOption ? triggerTypes[0]?.description : 'Select a trigger type to see description';
-  };
-
-  const getStepTypeIcon = (type: string) => {
-    return type === 'email' ? Mail : MessageSquare;
   };
 
   return (
-    <div className="p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => navigate('/crm/automations')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Create Automation</h1>
-              <p className="text-muted-foreground">
-                Build automated workflows to engage your customers
-              </p>
-            </div>
-          </div>
-          <Button onClick={saveAutomation} disabled={saving}>
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Automation'}
-          </Button>
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Create Automation</h1>
+          <p className="text-muted-foreground">Build automated workflows to engage your customers</p>
         </div>
+        <Button 
+          onClick={saveAutomation}
+          disabled={!automationName.trim() || !triggerType || steps.length === 0}
+        >
+          Save Automation
+        </Button>
+      </div>
 
-        {/* Step 1: Name & Trigger */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Step 1: Name & Trigger</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="name">Automation Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Welcome New Customers"
-                className="mt-1"
-              />
-            </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Automation Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="automation-name">Automation Name</Label>
+            <Input
+              id="automation-name"
+              value={automationName}
+              onChange={(e) => setAutomationName(e.target.value)}
+              placeholder="Enter automation name"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-            <div>
-              <Label htmlFor="trigger">Trigger Type</Label>
-              {isSingleOption ? (
-                <div className="mt-1">
-                  <div className="flex items-center justify-between p-3 border rounded-md bg-muted/50">
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">{triggerTypes[0].label}</Badge>
-                      <span className="text-sm">{triggerTypes[0].label}</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-muted-foreground">
-                      <Lock className="h-4 w-4" />
-                      <span className="text-xs">More options with SMS setup</span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {triggerTypes[0].description}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <SafeSelect 
-                    value={triggerType} 
-                    onValueChange={setTriggerType}
-                    preventAutoClose={triggerTypes.length === 1}
-                    context="trigger-type-select"
-                  >
-                    <SelectTrigger className="mt-1" data-testid="trigger-type-select">
-                      <SelectValue placeholder="— Select —" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {triggerTypes.map((trigger) => (
-                        <SelectItem key={trigger.value} value={trigger.value}>
-                          {trigger.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </SafeSelect>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {getTriggerDescription()}
-                  </p>
-                </>
-              )}
-              {!twilioStatus?.isSetup && !twilioLoading && (
-                <p className="text-sm text-orange-600 mt-1">
-                  💡 Set up SMS to unlock more trigger options like Purchase Delay and Seasonal campaigns
-                </p>
-              )}
-            </div>
-
-            {/* Conditional trigger settings */}
-            {triggerType === 'segment_joined' && (
-              <div>
-                <Label htmlFor="segment">Target Segment</Label>
-                <SafeSelect 
-                  value={triggerConditions.segment_id || ''} 
-                  onValueChange={(value) => setTriggerConditions({...triggerConditions, segment_id: value})}
-                  context="segment-select"
+      <Card>
+        <CardHeader>
+          <CardTitle>Trigger Configuration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="trigger-type">Trigger Type</Label>
+            <Popover open={triggerPopoverOpen} onOpenChange={setTriggerPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-between"
+                  disabled={!!triggerType}
                 >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select segment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {segments.map((segment) => (
-                      <SelectItem key={segment.id} value={segment.id}>
-                        {segment.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </SafeSelect>
-              </div>
-            )}
+                  {selectedTrigger ? (
+                    <div className="flex items-center gap-2">
+                      <selectedTrigger.icon className="w-4 h-4" />
+                      {selectedTrigger.label}
+                    </div>
+                  ) : (
+                    "Select trigger type"
+                  )}
+                  <ChevronDown className="w-4 h-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0 z-[1000010]" align="start">
+                <div className="max-h-80 overflow-y-auto">
+                  {TRIGGERS.map((trigger) => (
+                    <button
+                      key={trigger.id}
+                      onClick={() => handleTriggerSelect(trigger)}
+                      className="w-full p-3 text-left hover:bg-accent transition-colors border-b border-border last:border-0"
+                    >
+                      <div className="flex items-start gap-3">
+                        <trigger.icon className="w-5 h-5 mt-0.5 text-primary" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium">{trigger.label}</div>
+                          <div className="text-sm text-muted-foreground">{trigger.description}</div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </CardContent>
+      </Card>
 
-            {triggerType === 'purchase_delay' && (
-              <div>
-                <Label htmlFor="delay">Days after last purchase</Label>
-                <Input
-                  id="delay"
-                  type="number"
-                  value={triggerConditions.delay_days || ''}
-                  onChange={(e) => setTriggerConditions({...triggerConditions, delay_days: parseInt(e.target.value) || 0})}
-                  placeholder="7"
-                  className="mt-1"
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Step 2: Workflow Builder */}
-        <Card className="mb-6">
+      {showTemplateSelector && triggerType && (
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Step 2: Workflow Steps
-              <Button onClick={addWorkflowStep} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Step
-              </Button>
-            </CardTitle>
+            <CardTitle>Template Selection</CardTitle>
           </CardHeader>
           <CardContent>
-            {workflowSteps.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  No workflow steps yet
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  Add your first step to start building your automation
-                </p>
-                <Button onClick={addWorkflowStep}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Step
-                </Button>
+            <TemplateSelector
+              triggerId={triggerType}
+              onSelectTemplate={handleSelectTemplate}
+              onStartFromScratch={handleStartFromScratch}
+              onGenerateWithAI={handleGenerateWithAI}
+              isGenerating={isGeneratingTemplate}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {!showTemplateSelector && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Automation Steps
+              {steps.length > 0 && (
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addStep('email')}
+                    className="gap-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Add Email
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addStep('sms')}
+                    className="gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Add SMS
+                  </Button>
+                </div>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {steps.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {triggerType ? "Select a template above to get started." : "Select a trigger to configure automation steps."}
               </div>
             ) : (
               <div className="space-y-4">
-                {workflowSteps.map((step, index) => {
-                  const StepIcon = getStepTypeIcon(step.type);
-                  return (
-                    <Card key={step.id} className="border-l-4 border-l-garden-green">
-                      <CardContent className="pt-4">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center space-x-2">
-                            <StepIcon className="h-5 w-5 text-garden-green" />
-                            <Badge variant="outline">Step {index + 1}</Badge>
-                            <Badge variant={step.type === 'email' ? 'default' : 'secondary'}>
-                              {step.type.toUpperCase()}
-                            </Badge>
+                {steps.map((step, index) => (
+                  <Card key={index} className="relative">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-4">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            {step.channel === 'email' && <Mail className="w-4 h-4" />}
+                            {step.channel === 'sms' && <MessageSquare className="w-4 h-4" />}
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => moveStep(step.id, 'up')}
-                              disabled={index === 0}
-                            >
-                              <ArrowUp className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => moveStep(step.id, 'down')}
-                              disabled={index === workflowSteps.length - 1}
-                            >
-                              <ArrowDown className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeWorkflowStep(step.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <Label htmlFor={`type-${step.id}`}>Step Type</Label>
-                            <SafeSelect 
-                              value={step.type} 
-                              onValueChange={(value: 'email' | 'sms') => updateWorkflowStep(step.id, { type: value })}
-                              context={`step-type-${step.id}`}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="email">Email</SelectItem>
-                                <SelectItem value="sms">SMS</SelectItem>
-                              </SelectContent>
-                            </SafeSelect>
-                          </div>
-                          <div>
-                            <Label htmlFor={`delay-${step.id}`}>Delay (days after trigger)</Label>
-                            <Input
-                              id={`delay-${step.id}`}
-                              type="number"
-                              value={step.delay}
-                              onChange={(e) => updateWorkflowStep(step.id, { delay: parseInt(e.target.value) || 0 })}
-                              min="0"
-                            />
-                          </div>
-                        </div>
-
-                        {step.type === 'email' && (
-                          <div className="mb-4">
-                            <Label htmlFor={`subject-${step.id}`}>Email Subject</Label>
-                            <Input
-                              id={`subject-${step.id}`}
-                              value={step.subject || ''}
-                              onChange={(e) => updateWorkflowStep(step.id, { subject: e.target.value })}
-                              placeholder="Welcome to our garden community!"
-                            />
-                          </div>
-                        )}
-
-                        <div>
-                          <Label htmlFor={`content-${step.id}`}>
-                            {step.type === 'email' ? 'Email Content' : 'SMS Message'}
-                          </Label>
-                          <Textarea
-                            id={`content-${step.id}`}
-                            value={step.content}
-                            onChange={(e) => updateWorkflowStep(step.id, { content: e.target.value })}
-                            placeholder={
-                              step.type === 'email' 
-                                ? "Welcome to our garden center! We're excited to help you grow..."
-                                : "Welcome! Get 20% off your first purchase with code WELCOME20"
-                            }
-                            rows={step.type === 'email' ? 6 : 3}
-                          />
-                          {step.type === 'sms' && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {step.content.length}/160 characters
-                            </p>
+                          {index < steps.length - 1 && (
+                            <ArrowRight className="w-4 h-4 text-muted-foreground rotate-90" />
                           )}
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        
+                        <div className="flex-1 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">
+                              {step.channel.toUpperCase()}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeStep(index)}
+                              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div>
+                              <Label htmlFor={`delay-${index}`}>Delay (hours)</Label>
+                              <Input
+                                id={`delay-${index}`}
+                                type="number"
+                                min="0"
+                                value={step.delayHours}
+                                onChange={(e) => updateStep(index, 'delayHours', parseInt(e.target.value))}
+                                placeholder="0"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label htmlFor={`content-${index}`}>
+                              {step.channel === 'email' ? 'Email Content' : 'SMS Message'}
+                            </Label>
+                            <Textarea
+                              id={`content-${index}`}
+                              value={step.body}
+                              onChange={(e) => updateStep(index, 'body', e.target.value)}
+                              placeholder={
+                                step.channel === 'email' 
+                                  ? "Enter email content (HTML supported)" 
+                                  : "Enter SMS message (160 chars recommended)"
+                              }
+                              rows={step.channel === 'email' ? 4 : 2}
+                            />
+                            {step.channel === 'sms' && step.body && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {step.body.length}/160 characters
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Step 3: Activation */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 3: Activation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="active"
-                checked={isActive}
-                onCheckedChange={setIsActive}
-              />
-              <Label htmlFor="active">Activate Automation</Label>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              {isActive 
-                ? "This automation will start running immediately after saving"
-                : "Save as draft - you can activate it later"
-              }
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      )}
     </div>
   );
 };
-
-export default CRMAutomationBuilder;

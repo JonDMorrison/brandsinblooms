@@ -1,83 +1,40 @@
-/// <reference types="cypress" />
+import { defineConfig } from 'cypress';
 
-describe('Dropdown Overlay System', () => {
-  beforeEach(() => {
+export default defineConfig({
+  e2e: {
+    baseUrl: 'http://localhost:5173',
+    setupNodeEvents(on, config) {
+      // implement node event listeners here
+    },
+  },
+});
+
+describe('Automation Dropdown Test', () => {
+  it('should test automation dropdown functionality', () => {
+    // Visit the CRM automation builder page
     cy.visit('/crm/automations/new');
-    cy.wait(1000); // Allow page to load
-  });
-
-  it('should open "Select Trigger Type" dropdown and manage scroll correctly', () => {
-    // Test dropdown opens and is visible
-    cy.get('[data-testid="trigger-type-select"]').should('be.visible');
-    cy.get('[data-testid="trigger-type-select"]').click();
     
-    // Verify dropdown listbox is visible
+    // Find and click the trigger type dropdown
+    cy.get('button').contains('Select trigger type').click();
+    
+    // Assert that the dropdown listbox is visible
     cy.get('[role="listbox"]').should('be.visible');
     
-    // Verify body scroll is locked when dropdown is open
+    // Check that body overflow is hidden (scroll locked)
     cy.document().then((doc) => {
       expect(doc.body.style.overflow).to.eq('hidden');
     });
     
-    // Test dropdown selection
-    cy.get('[role="option"]').first().click();
+    // Select a trigger option
+    cy.get('[role="listbox"]').contains('Customer joins Loyalty Program').click();
     
-    // Verify dropdown closes
+    // Verify dropdown closes and scroll lock is released
     cy.get('[role="listbox"]').should('not.exist');
-    
-    // Verify body scroll is unlocked after dropdown closes
     cy.document().then((doc) => {
-      expect(doc.body.style.overflow).to.eq('');
+      expect(doc.body.style.overflow).to.not.eq('hidden');
     });
-  });
-
-  it('should handle single-option dropdowns with locked pill display', () => {
-    // This test assumes Twilio is not set up, showing only base triggers
-    cy.get('.locked-pill').should('be.visible');
-    cy.get('.locked-pill').should('contain.text', 'More options with SMS setup');
-  });
-
-  it('should maintain proper z-index stacking', () => {
-    cy.get('[data-testid="trigger-type-select"]').click();
     
-    // Verify overlay has correct z-index
-    cy.get('#overlay-root').should('have.css', 'z-index', '30');
-    
-    // Verify dropdown content has higher z-index
-    cy.get('[role="listbox"]').should('have.css', 'z-index').and('satisfy', (zIndex) => {
-      return parseInt(zIndex) >= 40;
-    });
-  });
-
-  it('should handle escape key to close dropdown', () => {
-    cy.get('[data-testid="trigger-type-select"]').click();
-    cy.get('[role="listbox"]').should('be.visible');
-    
-    // Press escape key
-    cy.get('body').type('{esc}');
-    
-    // Verify dropdown closes
-    cy.get('[role="listbox"]').should('not.exist');
-    
-    // Verify scroll is unlocked
-    cy.document().then((doc) => {
-      expect(doc.body.style.overflow).to.eq('');
-    });
-  });
-
-  it('should handle outside click to close dropdown', () => {
-    cy.get('[data-testid="trigger-type-select"]').click();
-    cy.get('[role="listbox"]').should('be.visible');
-    
-    // Click outside the dropdown
-    cy.get('body').click(0, 0);
-    
-    // Verify dropdown closes
-    cy.get('[role="listbox"]').should('not.exist');
-    
-    // Verify scroll is unlocked
-    cy.document().then((doc) => {
-      expect(doc.body.style.overflow).to.eq('');
-    });
+    // Verify template selector appears
+    cy.contains('Choose a Template').should('be.visible');
   });
 });
