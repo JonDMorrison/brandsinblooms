@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { NativeSelect } from '@/components/ui/NativeSelect'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeftIcon, PlusIcon, TrashIcon, SettingsIcon } from 'lucide-react'
 import { SMSComposer } from '@/components/sms/SMSComposer'
@@ -137,24 +137,15 @@ export default function SMSAutomationWizard() {
             </div>
             <div>
               <Label htmlFor="trigger">Trigger Event</Label>
-              <Select
+              <NativeSelect
                 value={automationData.trigger_type}
-                onValueChange={(value) => setAutomationData(prev => ({ ...prev, trigger_type: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select trigger event" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TRIGGER_TYPES.map((trigger) => (
-                    <SelectItem key={trigger.value} value={trigger.value}>
-                      <div>
-                        <div className="font-medium">{trigger.label}</div>
-                        <div className="text-xs text-muted-foreground">{trigger.description}</div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(e) => setAutomationData(prev => ({ ...prev, trigger_type: e.target.value }))}
+                placeholder="Select trigger event"
+                options={TRIGGER_TYPES.map((trigger) => ({
+                  value: trigger.value,
+                  label: trigger.label
+                }))}
+              />
             </div>
           </div>
           <div>
@@ -210,23 +201,20 @@ export default function SMSAutomationWizard() {
                           <Label htmlFor={`delay-${step.id}`} className="text-sm">
                             Send after:
                           </Label>
-                          <Select
+                          <NativeSelect
                             value={step.delay_hours.toString()}
-                            onValueChange={(value) => updateStep(step.id, 'delay_hours', parseInt(value))}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0">Immediately</SelectItem>
-                              <SelectItem value="1">1 hour</SelectItem>
-                              <SelectItem value="6">6 hours</SelectItem>
-                              <SelectItem value="24">1 day</SelectItem>
-                              <SelectItem value="48">2 days</SelectItem>
-                              <SelectItem value="72">3 days</SelectItem>
-                              <SelectItem value="168">1 week</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            onChange={(e) => updateStep(step.id, 'delay_hours', parseInt(e.target.value))}
+                            className="w-32"
+                            options={[
+                              { value: '0', label: 'Immediately' },
+                              { value: '1', label: '1 hour' },
+                              { value: '6', label: '6 hours' },
+                              { value: '24', label: '1 day' },
+                              { value: '48', label: '2 days' },
+                              { value: '72', label: '3 days' },
+                              { value: '168', label: '1 week' }
+                            ]}
+                          />
                         </div>
                       </div>
                       

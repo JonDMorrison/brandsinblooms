@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -271,46 +271,49 @@ const CRMCustomers = () => {
               </div>
               
               <div className="flex gap-2">
-                <Select value={personaFilter} onValueChange={setPersonaFilter}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Persona" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Personas</SelectItem>
-                    <SelectItem value="plant-killer pam">Plant-Killer Pam</SelectItem>
-                    <SelectItem value="curb appeal ashley">Curb Appeal Ashley</SelectItem>
-                    <SelectItem value="diy dana">DIY Dana</SelectItem>
-                    <SelectItem value="patio gardener gail">Patio Gardener Gail</SelectItem>
-                    <SelectItem value="pet-friendly hannah">Pet-Friendly Hannah</SelectItem>
-                    <SelectItem value="pollinator paula">Pollinator Paula</SelectItem>
-                    <SelectItem value="sustainable susie">Sustainable Susie</SelectItem>
-                    <SelectItem value="vegetable garden veronica">Vegetable Garden Veronica</SelectItem>
-                    <SelectItem value="wellness whitney">Wellness Whitney</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={personaFilter}
+                  onChange={(e) => setPersonaFilter(e.target.value)}
+                  className="w-[140px]"
+                  placeholder="Persona"
+                  options={[
+                    { value: 'all', label: 'All Personas' },
+                    { value: 'plant-killer pam', label: 'Plant-Killer Pam' },
+                    { value: 'curb appeal ashley', label: 'Curb Appeal Ashley' },
+                    { value: 'diy dana', label: 'DIY Dana' },
+                    { value: 'patio gardener gail', label: 'Patio Gardener Gail' },
+                    { value: 'pet-friendly hannah', label: 'Pet-Friendly Hannah' },
+                    { value: 'pollinator paula', label: 'Pollinator Paula' },
+                    { value: 'sustainable susie', label: 'Sustainable Susie' },
+                    { value: 'vegetable garden veronica', label: 'Vegetable Garden Veronica' },
+                    { value: 'wellness whitney', label: 'Wellness Whitney' }
+                  ]}
+                />
 
-                <Select value={smsOptInFilter} onValueChange={setSmsOptInFilter}>
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="SMS" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All SMS</SelectItem>
-                    <SelectItem value="true">Opted In</SelectItem>
-                    <SelectItem value="false">Opted Out</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={smsOptInFilter}
+                  onChange={(e) => setSmsOptInFilter(e.target.value)}
+                  className="w-[120px]"
+                  placeholder="SMS"
+                  options={[
+                    { value: 'all', label: 'All SMS' },
+                    { value: 'true', label: 'Opted In' },
+                    { value: 'false', label: 'Opted Out' }
+                  ]}
+                />
 
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="created_at">Date Added</SelectItem>
-                    <SelectItem value="first_name">Name</SelectItem>
-                    <SelectItem value="last_purchase_date">Last Purchase</SelectItem>
-                    <SelectItem value="lifetime_value">Lifetime Value</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-[140px]"
+                  placeholder="Sort by"
+                  options={[
+                    { value: 'created_at', label: 'Date Added' },
+                    { value: 'first_name', label: 'Name' },
+                    { value: 'last_purchase_date', label: 'Last Purchase' },
+                    { value: 'lifetime_value', label: 'Lifetime Value' }
+                  ]}
+                />
               </div>
             </div>
 

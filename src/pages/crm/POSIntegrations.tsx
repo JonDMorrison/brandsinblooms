@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Upload, Store, RefreshCw, Download, Clock } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -135,25 +135,16 @@ const POSIntegrations = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Select value={selectedPOS} onValueChange={handlePOSSelection}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select your POS system" />
-            </SelectTrigger>
-            <SelectContent>
-              {posOptions.map((option) => (
-                <SelectItem 
-                  key={option.value} 
-                  value={option.value}
-                  disabled={option.disabled}
-                >
-                  <div className="flex flex-col">
-                    <span>{option.label}</span>
-                    <span className="text-xs text-muted-foreground">{option.description}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            value={selectedPOS}
+            onChange={(e) => handlePOSSelection(e.target.value)}
+            placeholder="Select your POS system"
+            options={posOptions.map((option) => ({
+              value: option.value,
+              label: option.label,
+              disabled: option.disabled
+            }))}
+          />
           
           {selectedPOS === 'vmx' && (
             <div className="mt-4">

@@ -3,7 +3,7 @@ import { BarChart3, TrendingUp, Clock, Target, Users, Heart, MessageCircle, Shar
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { supabase } from '@/integrations/supabase/client';
 import { format, addDays, subDays } from 'date-fns';
 
@@ -148,16 +148,16 @@ export const AnalyticsIntegration = ({ selectedPost, onOptimalTimeSelect }: Anal
             <CardTitle>Analytics Overview</CardTitle>
           </div>
           
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-            </SelectContent>
-          </Select>
+          <NativeSelect 
+            value={timeRange} 
+            onChange={(e) => setTimeRange(e.target.value)}
+            className="w-32"
+            options={[
+              { value: '7d', label: 'Last 7 days' },
+              { value: '30d', label: 'Last 30 days' },
+              { value: '90d', label: 'Last 90 days' }
+            ]}
+          />
         </CardHeader>
         
         <CardContent>

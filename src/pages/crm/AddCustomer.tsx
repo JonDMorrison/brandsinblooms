@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -268,21 +268,15 @@ const AddCustomer = () => {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="persona">Gardening Persona</Label>
-                <Select 
+                <NativeSelect 
                   value={formData.persona} 
-                  onValueChange={(value) => handleInputChange('persona', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a persona..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customerPersonas.map((persona) => (
-                      <SelectItem key={persona} value={persona.toLowerCase()}>
-                        {persona}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => handleInputChange('persona', e.target.value)}
+                  placeholder="Select a persona..."
+                  options={customerPersonas.map((persona) => ({
+                    value: persona.toLowerCase(),
+                    label: persona
+                  }))}
+                />
               </div>
 
               <div>

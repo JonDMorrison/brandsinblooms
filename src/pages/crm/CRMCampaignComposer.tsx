@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -610,26 +610,15 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
                 
                 <div className="space-y-2">
                   <Label htmlFor="segment">Customer Segment *</Label>
-                  <Select 
-                    value={formData.segment_id} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, segment_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a segment" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {segments.map((segment) => (
-                        <SelectItem key={segment.id} value={segment.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{segment.name}</span>
-                            <span className="text-muted-foreground ml-2">
-                              {segment.customer_count} customers
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect
+                    value={formData.segment_id}
+                    onChange={(e) => setFormData(prev => ({ ...prev, segment_id: e.target.value }))}
+                    placeholder="Select a segment"
+                    options={segments.map((segment) => ({
+                      value: segment.id,
+                      label: `${segment.name} (${segment.customer_count} customers)`
+                    }))}
+                  />
                 </div>
               </CardContent>
             </Card>

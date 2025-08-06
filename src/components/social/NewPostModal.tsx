@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 // Removed sonner import - using global toast replacement
 
 interface NewPostModalProps {
@@ -59,18 +59,15 @@ export const NewPostModal: React.FC<NewPostModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="platform">Platform</Label>
-            <Select value={platform} onValueChange={setPlatform}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select platform" />
-              </SelectTrigger>
-              <SelectContent>
-                {connections.map((connection) => (
-                  <SelectItem key={connection.id} value={connection.platform}>
-                    {connection.platform_account_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value)}
+              placeholder="Select platform"
+              options={connections.map((connection) => ({
+                value: connection.platform,
+                label: connection.platform_account_name
+              }))}
+            />
           </div>
           
           <div>

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/NativeSelect";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -309,23 +309,16 @@ export default function CRMSMSCampaignComposer() {
 
             <div>
               <Label htmlFor="segment">Customer Segment *</Label>
-              <Select value={selectedSegment} onValueChange={setSelectedSegment}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Choose a segment..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {segments.map((segment) => (
-                    <SelectItem key={segment.id} value={segment.id}>
-                      <div className="flex items-center justify-between w-full">
-                        <span>{segment.name}</span>
-                        <span className="text-muted-foreground ml-2">
-                          ({segment.customer_count || 0} customers)
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <NativeSelect
+                value={selectedSegment}
+                onChange={(e) => setSelectedSegment(e.target.value)}
+                className="mt-1"
+                placeholder="Choose a segment..."
+                options={segments.map((segment) => ({
+                  value: segment.id,
+                  label: `${segment.name} (${segment.customer_count || 0} customers)`
+                }))}
+              />
               {selectedSegmentData && (
                 <p className="text-sm text-muted-foreground mt-1">
                   {smsEligibleCount} SMS-eligible customers in this segment

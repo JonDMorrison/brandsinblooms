@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PersonaPerformanceChart } from '@/components/crm/analytics/PersonaPerformanceChart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { HeadlineLarge, BodyMedium } from '@/components/ui/typography';
 import { TrendingUp, Users, DollarSign, Mail, MessageSquare, ArrowUpIcon, ArrowDownIcon, ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';

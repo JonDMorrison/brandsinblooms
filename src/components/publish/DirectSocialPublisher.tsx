@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -137,39 +137,27 @@ const TimePicker = ({
   
   return (
     <div className="flex items-center gap-2">
-      <Select 
+      <NativeSelect 
         value={currentHour.toString()} 
-        onValueChange={(value) => onTimeChange(setHours(selectedTime, parseInt(value)))}
-      >
-        <SelectTrigger className="w-20">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {hours.map(hour => (
-            <SelectItem key={hour} value={hour.toString()}>
-              {hour.toString().padStart(2, '0')}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        onChange={(e) => onTimeChange(setHours(selectedTime, parseInt(e.target.value)))}
+        className="w-20"
+        options={hours.map(hour => ({
+          value: hour.toString(),
+          label: hour.toString().padStart(2, '0')
+        }))}
+      />
       
       <span className="text-gray-500">:</span>
       
-      <Select 
+      <NativeSelect 
         value={currentMinute.toString()} 
-        onValueChange={(value) => onTimeChange(setMinutes(selectedTime, parseInt(value)))}
-      >
-        <SelectTrigger className="w-20">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {minutes.map(minute => (
-            <SelectItem key={minute} value={minute.toString()}>
-              {minute.toString().padStart(2, '0')}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        onChange={(e) => onTimeChange(setMinutes(selectedTime, parseInt(e.target.value)))}
+        className="w-20"
+        options={minutes.map(minute => ({
+          value: minute.toString(),
+          label: minute.toString().padStart(2, '0')
+        }))}
+      />
     </div>
   );
 };

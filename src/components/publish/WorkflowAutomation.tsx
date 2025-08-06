@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -287,19 +287,15 @@ export const WorkflowAutomation = ({ onRuleUpdate }: WorkflowAutomationProps) =>
               
               <div>
                 <Label htmlFor="rule-type">Rule Type</Label>
-                <Select
+                <NativeSelect
                   value={editingRule.type}
-                  onValueChange={(value: any) => setEditingRule({ ...editingRule, type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto_approve">Auto Approve Content</SelectItem>
-                    <SelectItem value="bulk_schedule">Bulk Schedule Posts</SelectItem>
-                    <SelectItem value="recurring_template">Recurring Template</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => setEditingRule({ ...editingRule, type: e.target.value as any })}
+                  options={[
+                    { value: 'auto_approve', label: 'Auto Approve Content' },
+                    { value: 'bulk_schedule', label: 'Bulk Schedule Posts' },
+                    { value: 'recurring_template', label: 'Recurring Template' }
+                  ]}
+                />
               </div>
               
               {editingRule.type === 'auto_approve' && (

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
@@ -183,17 +183,17 @@ const CRMCampaignCreator = () => {
                 </div>
                 <div>
                   <Label htmlFor="campaignType">Campaign Type</Label>
-                  <Select value={campaignType} onValueChange={setCampaignType}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="sms">SMS</SelectItem>
-                      <SelectItem value="social">Social Media</SelectItem>
-                      <SelectItem value="multi-channel">Multi-Channel</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect
+                    value={campaignType}
+                    onChange={(e) => setCampaignType(e.target.value)}
+                    className="mt-1"
+                    options={[
+                      { value: 'email', label: 'Email' },
+                      { value: 'sms', label: 'SMS' },
+                      { value: 'social', label: 'Social Media' },
+                      { value: 'multi-channel', label: 'Multi-Channel' }
+                    ]}
+                  />
                 </div>
               </div>
 

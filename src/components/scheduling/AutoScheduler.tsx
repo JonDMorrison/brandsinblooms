@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar, Clock, Zap, TrendingUp } from 'lucide-react';
@@ -184,23 +184,13 @@ export const AutoScheduler: React.FC = () => {
                       <Label className="text-sm font-medium mb-2 block">
                         Posting Frequency
                       </Label>
-                      <Select
+                      <NativeSelect
                         value={preference.frequency}
-                        onValueChange={(frequency) => 
-                          updatePreference(platform, { frequency })
+                        onChange={(e) => 
+                          updatePreference(platform, { frequency: e.target.value })
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {FREQUENCY_OPTIONS.map(({ value, label }) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        options={FREQUENCY_OPTIONS}
+                      />
                     </div>
 
                     <div>
