@@ -4,8 +4,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent } from '@/components/ui/card'
-import { ImageIcon, UserIcon, PhoneIcon, MessageSquareIcon, X } from 'lucide-react'
-import { ImageSelectButton } from '@/components/image/ImageSelectButton'
+import { ImageIcon, UserIcon, PhoneIcon, MessageSquareIcon } from 'lucide-react'
+import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage'
 
 interface SMSComposerProps {
   value: string
@@ -135,51 +135,14 @@ export function SMSComposer({
       {/* Image Upload */}
       {showImageUpload && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">Add Image (MMS)</h4>
-            {imageUrl && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => onImageChange?.(null)}
-                className="h-6 text-xs text-muted-foreground hover:text-destructive"
-              >
-                <X className="h-3 w-3 mr-1" />
-                Remove
-              </Button>
-            )}
-          </div>
+          <h4 className="text-sm font-medium">Add Image (MMS)</h4>
           
-          {imageUrl ? (
-            <div className="relative group">
-              <img 
-                src={imageUrl} 
-                alt="MMS attachment" 
-                className="w-full max-w-xs rounded-md border object-cover max-h-32"
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-md transition-all">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onImageChange?.(null)}
-                  className="absolute top-1 right-1 h-6 w-6 p-0 bg-destructive/80 hover:bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <ImageSelectButton
-              onImageSelect={(imageUrl) => onImageChange?.(imageUrl)}
-              contentContext="SMS MMS image attachment"
-              className="h-20 border-dashed"
-              buttonText="Add Image"
-              mode="inline"
-              compact
-            />
-          )}
+          <MediaSelectorImage
+            src={imageUrl || ''}
+            onChange={(imageUrl) => onImageChange?.(imageUrl)}
+            contentContext="SMS MMS image attachment"
+            className="h-32"
+          />
           
           {imageUrl && (
             <Badge variant="secondary" className="text-xs">
