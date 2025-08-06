@@ -45,27 +45,19 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex">
-        {/* Fixed UserMenu - always visible in top-right */}
-        <div className="fixed top-6 right-6 z-40">
-          <UserMenu />
-        </div>
-        
+      <div className="min-h-screen w-full flex relative">
         <AppSidebar />
-        <main 
-          className="flex-1 w-full h-full overflow-x-hidden flex flex-col"
-          style={{
-            scrollBehavior: 'auto',
-            contain: 'layout style paint',
-            willChange: 'transform',
-            transform: 'translateZ(0)',
-            backfaceVisibility: 'hidden',
-            perspective: '1000px'
-          }}
-        >
-          {/* Trial Banner - constrained to main content width */}
+        
+        <main className="flex-1 w-full min-h-screen overflow-auto">
+          {/* Fixed UserMenu - always visible in top-right */}
+          <div className="fixed top-6 right-6 z-40">
+            <UserMenu />
+          </div>
+          
+          {/* Trial Banner */}
           <TrialBanner />
-          <div className="flex-1 w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             {children}
           </div>
         </main>
