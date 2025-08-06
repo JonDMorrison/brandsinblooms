@@ -112,6 +112,134 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_events: {
+        Row: {
+          automation_id: string | null
+          branch_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          event_type: string
+          id: string
+          is_test: boolean | null
+          message_id: string | null
+          metadata: Json | null
+          order_id: string | null
+          revenue_amount: number | null
+        }
+        Insert: {
+          automation_id?: string | null
+          branch_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          event_type: string
+          id?: string
+          is_test?: boolean | null
+          message_id?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          revenue_amount?: number | null
+        }
+        Update: {
+          automation_id?: string | null
+          branch_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          event_type?: string
+          id?: string
+          is_test?: boolean | null
+          message_id?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          revenue_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_events_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_templates: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          flow_data: Json
+          id: string
+          is_active: boolean | null
+          kpi_data: Json | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description?: string | null
+          flow_data: Json
+          id?: string
+          is_active?: boolean | null
+          kpi_data?: Json | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          flow_data?: Json
+          id?: string
+          is_active?: boolean | null
+          kpi_data?: Json | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      automation_versions: {
+        Row: {
+          author_user_id: string
+          automation_id: string | null
+          created_at: string | null
+          diff_data: Json
+          id: string
+          version_number: number
+        }
+        Insert: {
+          author_user_id: string
+          automation_id?: string | null
+          created_at?: string | null
+          diff_data: Json
+          id?: string
+          version_number: number
+        }
+        Update: {
+          author_user_id?: string
+          automation_id?: string | null
+          created_at?: string | null
+          diff_data?: Json
+          id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_versions_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_automations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_block_versions: {
         Row: {
           block_id: string
@@ -238,8 +366,11 @@ export type Database = {
           created_by_user_id: string | null
           deleted_at: string | null
           description: string | null
+          hub_enabled: boolean | null
+          hub_expiry: string | null
           id: string
           prompt: string | null
+          slug: string | null
           source: string | null
           start_date: string | null
           tenant_id: string | null
@@ -253,8 +384,11 @@ export type Database = {
           created_by_user_id?: string | null
           deleted_at?: string | null
           description?: string | null
+          hub_enabled?: boolean | null
+          hub_expiry?: string | null
           id?: string
           prompt?: string | null
+          slug?: string | null
           source?: string | null
           start_date?: string | null
           tenant_id?: string | null
@@ -268,8 +402,11 @@ export type Database = {
           created_by_user_id?: string | null
           deleted_at?: string | null
           description?: string | null
+          hub_enabled?: boolean | null
+          hub_expiry?: string | null
           id?: string
           prompt?: string | null
+          slug?: string | null
           source?: string | null
           start_date?: string | null
           tenant_id?: string | null
@@ -338,6 +475,7 @@ export type Database = {
           company_name: string | null
           company_overview: string | null
           company_values: string | null
+          compliance_settings: Json | null
           created_at: string
           crm_onboarding_completed_at: string | null
           custom_sender_email: string | null
@@ -356,6 +494,7 @@ export type Database = {
           seasonal_focus: string | null
           specializations: string | null
           target_audience: string | null
+          test_numbers: string[] | null
           tokens_balance: number | null
           tokens_reset_at: string | null
           tone_of_writing: string | null
@@ -368,6 +507,7 @@ export type Database = {
           company_name?: string | null
           company_overview?: string | null
           company_values?: string | null
+          compliance_settings?: Json | null
           created_at?: string
           crm_onboarding_completed_at?: string | null
           custom_sender_email?: string | null
@@ -386,6 +526,7 @@ export type Database = {
           seasonal_focus?: string | null
           specializations?: string | null
           target_audience?: string | null
+          test_numbers?: string[] | null
           tokens_balance?: number | null
           tokens_reset_at?: string | null
           tone_of_writing?: string | null
@@ -398,6 +539,7 @@ export type Database = {
           company_name?: string | null
           company_overview?: string | null
           company_values?: string | null
+          compliance_settings?: Json | null
           created_at?: string
           crm_onboarding_completed_at?: string | null
           custom_sender_email?: string | null
@@ -416,6 +558,7 @@ export type Database = {
           seasonal_focus?: string | null
           specializations?: string | null
           target_audience?: string | null
+          test_numbers?: string[] | null
           tokens_balance?: number | null
           tokens_reset_at?: string | null
           tone_of_writing?: string | null
@@ -470,6 +613,39 @@ export type Database = {
           unsplash_id?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      content_blocks: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          payload_json: Json
+          sort_order: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          payload_json?: Json
+          sort_order?: number
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          payload_json?: Json
+          sort_order?: number
+          type?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -683,6 +859,7 @@ export type Database = {
       crm_automations: {
         Row: {
           created_at: string | null
+          flow_state: Json | null
           id: string
           is_active: boolean | null
           name: string
@@ -692,10 +869,12 @@ export type Database = {
           trigger_type: string
           updated_at: string | null
           user_id: string | null
+          version: number | null
           workflow_steps: Json | null
         }
         Insert: {
           created_at?: string | null
+          flow_state?: Json | null
           id?: string
           is_active?: boolean | null
           name: string
@@ -705,10 +884,12 @@ export type Database = {
           trigger_type: string
           updated_at?: string | null
           user_id?: string | null
+          version?: number | null
           workflow_steps?: Json | null
         }
         Update: {
           created_at?: string | null
+          flow_state?: Json | null
           id?: string
           is_active?: boolean | null
           name?: string
@@ -718,6 +899,7 @@ export type Database = {
           trigger_type?: string
           updated_at?: string | null
           user_id?: string | null
+          version?: number | null
           workflow_steps?: Json | null
         }
         Relationships: []
@@ -1717,6 +1899,69 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      hub_interactions: {
+        Row: {
+          block_id: string | null
+          campaign_id: string
+          created_at: string
+          id: string
+          interaction_type: string
+          metadata: Json | null
+          session_id: string
+        }
+        Insert: {
+          block_id?: string | null
+          campaign_id: string
+          created_at?: string
+          id?: string
+          interaction_type: string
+          metadata?: Json | null
+          session_id: string
+        }
+        Update: {
+          block_id?: string | null
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          interaction_type?: string
+          metadata?: Json | null
+          session_id?: string
+        }
+        Relationships: []
+      }
+      hub_views: {
+        Row: {
+          campaign_id: string
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          referrer: string | null
+          session_id: string
+          user_agent: string | null
+          viewed_at: string
+        }
+        Insert: {
+          campaign_id: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          referrer?: string | null
+          session_id: string
+          user_agent?: string | null
+          viewed_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          referrer?: string | null
+          session_id?: string
+          user_agent?: string | null
+          viewed_at?: string
         }
         Relationships: []
       }
@@ -3270,6 +3515,10 @@ export type Database = {
       fn_get_newsletter_ideas: {
         Args: { p_user_id?: string }
         Returns: Json
+      }
+      generate_campaign_slug: {
+        Args: { campaign_title: string; campaign_id: string }
+        Returns: string
       }
       get_admin_user_data: {
         Args: Record<PropertyKey, never>
