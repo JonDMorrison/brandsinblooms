@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/NativeSelect";
 import { CalendarIcon, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -175,19 +175,14 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
           </div>
 
           <div className="space-y-2">
-            <Label>Schedule for Week *</Label>
-            <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a week for the campaign" />
-              </SelectTrigger>
-              <SelectContent>
-                {generateWeekOptions().map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              label="Schedule for Week *"
+              value={selectedWeek}
+              onChange={(e) => setSelectedWeek(e.target.value)}
+              placeholder="Select a week for the campaign"
+              options={generateWeekOptions()}
+              required
+            />
           </div>
 
           <div className="space-y-2">

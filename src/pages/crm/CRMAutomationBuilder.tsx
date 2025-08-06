@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Plus, Trash2, Mail, MessageSquare, Clock, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -184,22 +185,17 @@ export const CRMAutomationBuilder = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-sm font-medium mb-1 block" htmlFor="triggerType">
-              Trigger
-            </label>
-            <select
+            <NativeSelect
               id="triggerType"
-              className="h-9 w-full rounded-md border px-3 text-sm"
+              label="Trigger"
               value={triggerType ?? ''}
               onChange={e => handleTriggerSelect(e.target.value)}
-            >
-              <option value="" disabled>Select trigger…</option>
-              {triggerCatalog.map(opt => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              placeholder="Select trigger…"
+              options={triggerCatalog.map(opt => ({
+                value: opt.id,
+                label: opt.label
+              }))}
+            />
           </div>
 
           {template && (
@@ -320,17 +316,17 @@ export const CRMAutomationBuilder = () => {
                               />
                             </div>
                             <div>
-                              <Label htmlFor={`delay-unit-${index}`}>Time Unit</Label>
-                              <select
+                              <NativeSelect
                                 id={`delay-unit-${index}`}
-                                className="h-9 w-full rounded-md border px-3 text-sm bg-background"
+                                label="Time Unit"
                                 value={step.delayUnit || 'minutes'}
                                 onChange={(e) => updateStep(index, 'delayUnit', e.target.value as 'minutes' | 'hours' | 'days')}
-                              >
-                                <option value="minutes">Minutes</option>
-                                <option value="hours">Hours</option>
-                                <option value="days">Days</option>
-                              </select>
+                                options={[
+                                  { value: 'minutes', label: 'Minutes' },
+                                  { value: 'hours', label: 'Hours' },
+                                  { value: 'days', label: 'Days' }
+                                ]}
+                              />
                             </div>
                           </div>
 

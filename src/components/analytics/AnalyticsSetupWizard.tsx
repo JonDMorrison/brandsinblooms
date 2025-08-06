@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/NativeSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 // Removed sonner import - using global toast replacement
@@ -90,20 +90,16 @@ export const AnalyticsSetupWizard = () => {
           {settings.auto_sync_enabled && (
             <div className="ml-4 space-y-2">
               <Label className="text-sm">Sync Frequency</Label>
-              <Select
+              <NativeSelect
+                label="Sync Frequency"
                 value={settings.sync_frequency}
-                onValueChange={(value: 'daily' | 'weekly') =>
-                  setSettings(prev => ({ ...prev, sync_frequency: value }))
-                }
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(e) => setSettings(prev => ({ ...prev, sync_frequency: e.target.value as 'daily' | 'weekly' }))}
+                className="w-48"
+                options={[
+                  { value: 'daily', label: 'Daily' },
+                  { value: 'weekly', label: 'Weekly' }
+                ]}
+              />
               <p className="text-xs text-gray-500">
                 {settings.sync_frequency === 'daily' 
                   ? 'Data will be updated every day at midnight'
@@ -137,20 +133,16 @@ export const AnalyticsSetupWizard = () => {
           {settings.email_reports_enabled && (
             <div className="ml-4 space-y-2">
               <Label className="text-sm">Report Frequency</Label>
-              <Select
+              <NativeSelect
+                label="Report Frequency"
                 value={settings.email_frequency}
-                onValueChange={(value: 'weekly' | 'monthly') =>
-                  setSettings(prev => ({ ...prev, email_frequency: value }))
-                }
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="weekly">Weekly Summary</SelectItem>
-                  <SelectItem value="monthly">Monthly Report</SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(e) => setSettings(prev => ({ ...prev, email_frequency: e.target.value as 'weekly' | 'monthly' }))}
+                className="w-48"
+                options={[
+                  { value: 'weekly', label: 'Weekly Summary' },
+                  { value: 'monthly', label: 'Monthly Report' }
+                ]}
+              />
               <p className="text-xs text-gray-500">
                 {settings.email_frequency === 'weekly' 
                   ? 'Receive a summary every Monday morning'

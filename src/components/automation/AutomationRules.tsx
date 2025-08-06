@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -229,72 +229,34 @@ export const AutomationRules = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Trigger When *</Label>
-                  <Select value={triggerType} onValueChange={setTriggerType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select trigger" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="time">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          Scheduled Time
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="performance">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4" />
-                          Performance Threshold
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="engagement">
-                        <div className="flex items-center gap-2">
-                          <Target className="w-4 h-4" />
-                          Engagement Level
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="content_generated">
-                        <div className="flex items-center gap-2">
-                          <Plus className="w-4 h-4" />
-                          Content Generated
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect
+                    label="Trigger When *"
+                    value={triggerType}
+                    onChange={(e) => setTriggerType(e.target.value)}
+                    placeholder="Select trigger"
+                    options={[
+                      { value: 'time', label: '🕐 Scheduled Time' },
+                      { value: 'performance', label: '📈 Performance Threshold' },
+                      { value: 'engagement', label: '🎯 Engagement Level' },
+                      { value: 'content_generated', label: '✨ Content Generated' }
+                    ]}
+                  />
                 </div>
 
                 <div>
                   <Label>Action *</Label>
-                  <Select value={actionType} onValueChange={setActionType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select action" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="repost">
-                        <div className="flex items-center gap-2">
-                          <Repeat className="w-4 h-4" />
-                          Repost Content
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="generate_content">
-                        <div className="flex items-center gap-2">
-                          <Plus className="w-4 h-4" />
-                          Generate New Content
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="send_notification">
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4" />
-                          Send Notification
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="webhook">
-                        <div className="flex items-center gap-2">
-                          <Settings className="w-4 h-4" />
-                          Trigger Webhook
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect
+                    label="Action *"
+                    value={actionType}
+                    onChange={(e) => setActionType(e.target.value)}
+                    placeholder="Select action"
+                    options={[
+                      { value: 'repost', label: '🔄 Repost Content' },
+                      { value: 'generate_content', label: '✨ Generate New Content' },
+                      { value: 'send_notification', label: '🔔 Send Notification' },
+                      { value: 'webhook', label: '⚙️ Trigger Webhook' }
+                    ]}
+                  />
                 </div>
               </div>
 

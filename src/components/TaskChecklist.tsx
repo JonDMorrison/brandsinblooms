@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/NativeSelect";
 import { Plus, CheckCircle, X, Trash2 } from "lucide-react";
 
 interface ChecklistTask {
@@ -218,18 +218,15 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
                 autoFocus
               />
               <div className="flex items-center gap-3">
-                <Select value={newTaskCategory} onValueChange={setNewTaskCategory}>
-                  <SelectTrigger className="w-32 border-green-300 text-black">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category} className="text-black">
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={newTaskCategory}
+                  onChange={(e) => setNewTaskCategory(e.target.value)}
+                  className="w-32 border-green-300 text-black"
+                  options={categories.map(category => ({
+                    value: category,
+                    label: category
+                  }))}
+                />
                 <Button 
                   onClick={addNewTask}
                   size="sm"

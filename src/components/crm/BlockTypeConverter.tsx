@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ContentBlock, BlockType, BlockLayout } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
 import { mapModalLayoutToBlockLayout, determineBlockTypeFromLayout } from './LayoutRenderer';
 import { RefreshCw, Layout } from 'lucide-react';
@@ -59,21 +59,15 @@ export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({
       <div className="flex items-center gap-2">
         <RefreshCw className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium text-muted-foreground">Convert to:</span>
-        <Select value={block.type} onValueChange={handleTypeChange}>
-          <SelectTrigger className="w-36 h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {blockTypeOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                <div className="flex items-center gap-2">
-                  <span>{option.icon}</span>
-                  <span>{option.label}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <NativeSelect
+          value={block.type}
+          onChange={(e) => handleTypeChange(e.target.value as BlockType)}
+          className="w-36 h-8"
+          options={blockTypeOptions.map((option) => ({
+            value: option.value,
+            label: `${option.icon} ${option.label}`
+          }))}
+        />
       </div>
       
       <div className="flex items-center gap-2">

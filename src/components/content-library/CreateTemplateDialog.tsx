@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/NativeSelect";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 
@@ -111,17 +111,18 @@ export const CreateTemplateDialog = ({ open, onOpenChange, onCreateTemplate }: C
             </div>
             <div>
               <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Educational">Educational</SelectItem>
-                  <SelectItem value="Promotional">Promotional</SelectItem>
-                  <SelectItem value="Community">Community</SelectItem>
-                  <SelectItem value="Seasonal">Seasonal</SelectItem>
-                </SelectContent>
-              </Select>
+              <NativeSelect
+                label="Category"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                placeholder="Select category"
+                options={[
+                  { value: 'Educational', label: 'Educational' },
+                  { value: 'Promotional', label: 'Promotional' },
+                  { value: 'Community', label: 'Community' },
+                  { value: 'Seasonal', label: 'Seasonal' }
+                ]}
+              />
             </div>
           </div>
 

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/NativeSelect";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,15 +94,15 @@ export const TeamInviteDialog = ({ team, teamMembers, onInviteSuccess }: TeamInv
           </div>
           <div>
             <Label htmlFor="role">Role</Label>
-            <Select value={inviteRole} onValueChange={setInviteRole}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="member">Member</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              label="Role"
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value)}
+              options={[
+                { value: 'member', label: 'Member' },
+                { value: 'admin', label: 'Admin' }
+              ]}
+            />
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setOpen(false)}>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/NativeSelect";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -62,16 +62,17 @@ export const CustomSegmentBuilder = ({ onSave, onCancel }: CustomSegmentBuilderP
       case "lastPurchase":
         return (
           <div className="flex gap-2 items-center">
-            <Select value={filter.operator} onValueChange={(value) => updateFilter(index, { operator: value })}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="within">Within</SelectItem>
-                <SelectItem value="before">Before</SelectItem>
-                <SelectItem value="never">Never purchased</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={filter.operator || ''}
+              onChange={(e) => updateFilter(index, { operator: e.target.value })}
+              placeholder="Select"
+              className="w-32"
+              options={[
+                { value: 'within', label: 'Within' },
+                { value: 'before', label: 'Before' },
+                { value: 'never', label: 'Never purchased' }
+              ]}
+            />
             {filter.operator !== "never" && (
               <Input
                 type="number"
@@ -87,16 +88,17 @@ export const CustomSegmentBuilder = ({ onSave, onCancel }: CustomSegmentBuilderP
       case "purchaseCount":
         return (
           <div className="flex gap-2 items-center">
-            <Select value={filter.operator} onValueChange={(value) => updateFilter(index, { operator: value })}>
-              <SelectTrigger className="w-20">
-                <SelectValue placeholder="≥" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="gte">≥</SelectItem>
-                <SelectItem value="eq">=</SelectItem>
-                <SelectItem value="lte">≤</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={filter.operator || ''}
+              onChange={(e) => updateFilter(index, { operator: e.target.value })}
+              placeholder="≥"
+              className="w-20"
+              options={[
+                { value: 'gte', label: '≥' },
+                { value: 'eq', label: '=' },
+                { value: 'lte', label: '≤' }
+              ]}
+            />
             <Input
               type="number"
               placeholder="Number"
@@ -110,16 +112,17 @@ export const CustomSegmentBuilder = ({ onSave, onCancel }: CustomSegmentBuilderP
       case "totalSpend":
         return (
           <div className="flex gap-2 items-center">
-            <Select value={filter.operator} onValueChange={(value) => updateFilter(index, { operator: value })}>
-              <SelectTrigger className="w-20">
-                <SelectValue placeholder="≥" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="gte">≥</SelectItem>
-                <SelectItem value="eq">=</SelectItem>
-                <SelectItem value="lte">≤</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={filter.operator || ''}
+              onChange={(e) => updateFilter(index, { operator: e.target.value })}
+              placeholder="≥"
+              className="w-20"
+              options={[
+                { value: 'gte', label: '≥' },
+                { value: 'eq', label: '=' },
+                { value: 'lte', label: '≤' }
+              ]}
+            />
             <Input
               type="number"
               placeholder="Amount"
@@ -205,15 +208,16 @@ export const CustomSegmentBuilder = ({ onSave, onCancel }: CustomSegmentBuilderP
       case "emailEngagement":
         return (
           <div className="flex gap-2 items-center">
-            <Select value={filter.operator} onValueChange={(value) => updateFilter(index, { operator: value })}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Action" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="opened">Opened</SelectItem>
-                <SelectItem value="clicked">Clicked</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect
+              value={filter.operator || ''}
+              onChange={(e) => updateFilter(index, { operator: e.target.value })}
+              placeholder="Action"
+              className="w-32"
+              options={[
+                { value: 'opened', label: 'Opened' },
+                { value: 'clicked', label: 'Clicked' }
+              ]}
+            />
             <Input
               type="number"
               placeholder="Campaigns"

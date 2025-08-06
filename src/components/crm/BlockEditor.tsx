@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Button } from '@/components/ui/button';
 import { Upload } from 'lucide-react';
 
@@ -111,19 +111,17 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       </div>
       <div>
         <Label htmlFor="alignment">Alignment</Label>
-        <Select
+        <NativeSelect
+          label="Alignment"
           value={block.content.alignment || 'center'}
-          onValueChange={(value) => updateContent('alignment', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select alignment" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="left">Left</SelectItem>
-            <SelectItem value="center">Center</SelectItem>
-            <SelectItem value="right">Right</SelectItem>
-          </SelectContent>
-        </Select>
+          onChange={(e) => updateContent('alignment', e.target.value)}
+          placeholder="Select alignment"
+          options={[
+            { value: 'left', label: 'Left' },
+            { value: 'center', label: 'Center' },
+            { value: 'right', label: 'Right' }
+          ]}
+        />
       </div>
     </div>
   );
@@ -156,19 +154,17 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       </div>
       <div>
         <Label htmlFor="alignment">Alignment</Label>
-        <Select
+        <NativeSelect
+          label="Alignment"
           value={block.content.alignment || 'center'}
-          onValueChange={(value) => updateContent('alignment', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select alignment" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="left">Left</SelectItem>
-            <SelectItem value="center">Center</SelectItem>
-            <SelectItem value="right">Right</SelectItem>
-          </SelectContent>
-        </Select>
+          onChange={(e) => updateContent('alignment', e.target.value)}
+          placeholder="Select alignment"
+          options={[
+            { value: 'left', label: 'Left' },
+            { value: 'center', label: 'Center' },
+            { value: 'right', label: 'Right' }
+          ]}
+        />
       </div>
     </div>
   );
@@ -177,19 +173,17 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     <div className="space-y-4">
       <div>
         <Label htmlFor="style">Style</Label>
-        <Select
+        <NativeSelect
+          label="Style"
           value={block.content.style || 'solid'}
-          onValueChange={(value) => updateContent('style', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select style" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="solid">Solid</SelectItem>
-            <SelectItem value="dashed">Dashed</SelectItem>
-            <SelectItem value="dotted">Dotted</SelectItem>
-          </SelectContent>
-        </Select>
+          onChange={(e) => updateContent('style', e.target.value)}
+          placeholder="Select style"
+          options={[
+            { value: 'solid', label: 'Solid' },
+            { value: 'dashed', label: 'Dashed' },
+            { value: 'dotted', label: 'Dotted' }
+          ]}
+        />
       </div>
       <div>
         <Label htmlFor="color">Color</Label>

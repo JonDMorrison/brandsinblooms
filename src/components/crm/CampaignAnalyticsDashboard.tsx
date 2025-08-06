@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { CampaignPerformanceCard } from './CampaignPerformanceCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useCRMAccess } from '@/hooks/useCRMAccess';
