@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Store, 
   Users, 
@@ -18,11 +19,13 @@ import {
   FileText,
   Facebook,
   Instagram,
-  Zap
+  Zap,
+  HelpCircle
 } from 'lucide-react';
 
 // Import POS related components and hooks
-import { POSConnectionForm } from '@/components/crm/pos/POSConnectionForm';
+import { POSSetupWizard } from '@/components/crm/pos/POSSetupWizard';
+import { POSConnectionHelp } from '@/components/crm/pos/POSConnectionHelp';
 import { usePOSConnections } from '@/hooks/usePOSConnections';
 import { useConnectedAccounts, getConnectionStatus } from '@/components/dashboard/ConnectedAccountChecker';
 import { useToast } from '@/hooks/use-toast';
@@ -38,6 +41,7 @@ interface POSPlatform {
 export const ConnectionsSettings = () => {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [showConnectionForm, setShowConnectionForm] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   
   const { connections: posConnections, isLoading: posLoading, runSync, disconnectPOS } = usePOSConnections();
   const { data: socialConnections = [], isLoading: socialLoading } = useConnectedAccounts();
@@ -218,24 +222,38 @@ export const ConnectionsSettings = () => {
                             <p className="text-sm text-muted-foreground mb-3">
                               {platform.description}
                             </p>
-                            <Button
-                              size="sm"
-                              onClick={() => handleConnectPOS(platform.id)}
-                              disabled={isConnected}
-                              className="w-full"
-                            >
-                              {isConnected ? (
-                                <>
-                                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                                  Connected
-                                </>
-                              ) : (
-                                <>
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Connect
-                                </>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleConnectPOS(platform.id)}
+                                disabled={isConnected}
+                                className="flex-1"
+                              >
+                                {isConnected ? (
+                                  <>
+                                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                                    Connected
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Connect
+                                  </>
+                                )}
+                              </Button>
+                              {!isConnected && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedPlatform(platform.id);
+                                    setShowHelp(true);
+                                  }}
+                                >
+                                  <HelpCircle className="h-4 w-4" />
+                                </Button>
                               )}
-                            </Button>
+                            </div>
                           </CardContent>
                         </Card>
                       );
@@ -376,9 +394,9 @@ export const ConnectionsSettings = () => {
         </CardContent>
       </Card>
 
-      {/* POS Connection Modal */}
+      {/* POS Setup Wizard */}
       {showConnectionForm && selectedPlatform && (
-        <POSConnectionForm
+        <POSSetupWizard
           platform={selectedPlatform}
           onSuccess={handlePOSConnectionSuccess}
           onCancel={() => {
@@ -386,6 +404,32 @@ export const ConnectionsSettings = () => {
             setSelectedPlatform(null);
           }}
         />
+      )}
+
+      {/* POS Help Modal */}
+      {showHelp && selectedPlatform && (
+        <Dialog open={showHelp} onOpenChange={setShowHelp}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Setup Guide</DialogTitle>
+              <DialogDescription>
+                Step-by-step instructions for connecting your POS system
+              </DialogDescription>
+            </DialogHeader>
+            <POSConnectionHelp platform={selectedPlatform} />
+            <div className="flex justify-between pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowHelp(false)}>
+                Close
+              </Button>
+              <Button onClick={() => {
+                setShowHelp(false);
+                handleConnectPOS(selectedPlatform);
+              }}>
+                Start Setup
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
