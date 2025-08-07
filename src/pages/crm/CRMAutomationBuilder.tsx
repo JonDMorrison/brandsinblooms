@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
 import { TemplateGallery } from '@/components/automation/TemplateGallery';
-import { PersonaSegmentSelector } from '@/components/crm/PersonaSegmentSelector';
+import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
 import { Save, Palette, Zap } from 'lucide-react';
 
 export const CRMAutomationBuilder = () => {
@@ -24,6 +24,10 @@ export const CRMAutomationBuilder = () => {
   const [isLoading, setIsLoading] = useState(!!automationId);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(mode === 'quick' ? 'templates' : 'canvas');
+  
+  // Audience targeting state
+  const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
+  const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   
   const { toast } = useToast();
 
@@ -215,16 +219,6 @@ export const CRMAutomationBuilder = () => {
         </CardContent>
       </Card>
 
-      {/* Persona & Segment Targeting */}
-      <PersonaSegmentSelector
-        selectedPersonas={[]}
-        selectedSegments={[]}
-        onPersonasChange={() => {}}
-        onSegmentsChange={() => {}}
-        maxPersonas={3}
-        maxSegments={5}
-        showCombinedAudience={true}
-      />
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -240,6 +234,16 @@ export const CRMAutomationBuilder = () => {
         </TabsList>
 
         <TabsContent value="canvas" className="space-y-4">
+          {/* Audience Targeting - Compact placement */}
+          <AudienceTargetingButton
+            selectedPersonas={selectedPersonas}
+            selectedSegments={selectedSegments}
+            onPersonasChange={setSelectedPersonas}
+            onSegmentsChange={setSelectedSegments}
+            maxPersonas={3}
+            maxSegments={5}
+          />
+          
           <Card className="h-[600px]">
             <CardHeader>
               <CardTitle>Automation Flow Canvas</CardTitle>
