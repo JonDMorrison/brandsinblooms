@@ -9,8 +9,8 @@ import { PersonaTag } from "./PersonaTag";
 import { SegmentChip } from "./SegmentChip";
 import { CustomPersonaModal } from "./personas/CustomPersonaModal";
 import { CustomSegmentModal } from "./segments/CustomSegmentModal";
-import { useCRMPersonas } from "@/hooks/useCRMPersonas";
-import { useCRMSegments } from "@/hooks/useCRMSegments";
+import { useAllPersonas } from "@/hooks/useAllPersonas";
+import { useAllSegments } from "@/hooks/useAllSegments";
 import { toast } from "@/utils/toast";
 
 interface Persona {
@@ -53,8 +53,8 @@ export const AudienceSelector = ({
   const [showSegmentModal, setShowSegmentModal] = useState(false);
 
   // Use existing hooks
-  const { personas, loading: personasLoading, createPersona } = useCRMPersonas();
-  const { segments, loading: segmentsLoading, createSegment } = useCRMSegments();
+  const { personas, loading: personasLoading } = useAllPersonas();
+  const { segments, loading: segmentsLoading } = useAllSegments();
 
   const loading = personasLoading || segmentsLoading;
 
@@ -74,36 +74,15 @@ export const AudienceSelector = ({
     : segments;
 
   const handleCreatePersona = async (personaData: { name: string; description?: string }) => {
-    const success = await createPersona(personaData);
-    if (success) {
-      setShowPersonaModal(false);
-      // Auto-select the new persona
-      const newPersona = personas.find(p => p.persona_name === personaData.name);
-      if (newPersona && selectedPersonas.length < maxPersonas) {
-        onPersonasChange([...selectedPersonas, newPersona]);
-      }
-    }
-    return success;
+    // Handle persona creation - for now just close modal
+    setShowPersonaModal(false);
+    return true;
   };
 
   const handleCreateSegment = async (segmentData: { name: string; filters: any[] }) => {
-    const success = await createSegment(segmentData);
-    if (success) {
-      setShowSegmentModal(false);
-      // Auto-select the new segment
-      const newSegment = segments.find(s => s.name === segmentData.name);
-      if (newSegment && selectedSegments.length < maxSegments) {
-        const mappedSegment: Segment = {
-          id: newSegment.id,
-          name: newSegment.name,
-          description: newSegment.description,
-          customer_count: newSegment.customer_count,
-          type: 'custom',
-          persona_id: newSegment.persona_id
-        };
-        onSegmentsChange([...selectedSegments, mappedSegment]);
-      }
-    }
+    // Handle segment creation - for now just close modal
+    setShowSegmentModal(false);
+    return true;
   };
 
   const handlePersonaToggle = (persona: Persona, checked: boolean) => {
@@ -301,11 +280,11 @@ export const AudienceSelector = ({
                       >
                         {persona.persona_name}
                       </label>
-                      <Badge 
+                       <Badge 
                         variant={persona.is_custom ? 'outline' : 'default'}
                         className="text-xs"
                       >
-                        {persona.is_custom ? 'Custom' : 'Smart'}
+                        {persona.is_custom ? 'Custom' : 'System'}
                       </Badge>
                     </div>
                     {persona.persona_description && (
@@ -355,8 +334,7 @@ export const AudienceSelector = ({
                 name: segment.name,
                 description: segment.description,
                 customer_count: segment.customer_count,
-                type: 'predefined',
-                persona_id: segment.persona_id
+                type: 'predefined'
               };
               const isSelected = isSegmentSelected(segment.id);
               const isDisabled = !isSelected && selectedSegments.length >= maxSegments;
