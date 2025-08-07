@@ -213,11 +213,6 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
             }`}
             onClick={() => setShowTemplates(!showTemplates)}
           >
-            <div className="absolute top-3 right-3">
-              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                Recommended
-              </Badge>
-            </div>
             
             <CardContent className="p-6">
               <div className="space-y-4">
