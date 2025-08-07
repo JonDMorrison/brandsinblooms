@@ -252,15 +252,6 @@ export const CRMAutomationBuilder = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline"
-            onClick={handleSaveAutomation}
-            disabled={!automationName.trim() || isSaving}
-            className="gap-2"
-          >
-            <Save className="w-4 h-4" />
-            {isSaving ? 'Saving...' : 'Save Draft'}
-          </Button>
           {currentFlowState && currentFlowState.nodes.length > 0 && (
             <Button 
               onClick={() => {
