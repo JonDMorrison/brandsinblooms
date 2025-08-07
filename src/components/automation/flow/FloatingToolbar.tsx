@@ -17,6 +17,7 @@ interface FloatingToolbarProps {
   selectedNodeId: string | null;
   onToggleAISuggestions: () => void;
   showAISuggestions: boolean;
+  isModalOpen?: boolean;
 }
 
 export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
@@ -24,6 +25,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   selectedNodeId,
   onToggleAISuggestions,
   showAISuggestions,
+  isModalOpen = false,
 }) => {
   const nodeTypes = [
     {
@@ -62,6 +64,10 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
       description: 'Branch flow',
     },
   ];
+
+  if (isModalOpen) {
+    return null;
+  }
 
   return (
     <div className="absolute top-4 left-4 z-50 space-y-3">
