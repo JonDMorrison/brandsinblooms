@@ -27,6 +27,7 @@ interface ReviewLaunchModalProps {
   onLaunch: () => void;
   onTestSend: () => void;
   isLoading?: boolean;
+  isTestSending?: boolean;
 }
 
 export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
@@ -35,7 +36,8 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
   automation,
   onLaunch,
   onTestSend,
-  isLoading = false
+  isLoading = false,
+  isTestSending = false
 }) => {
   const getTriggerDescription = (triggerType: string) => {
     switch (triggerType) {
@@ -177,9 +179,9 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
             <Button
               variant="outline"
               onClick={onTestSend}
-              disabled={isLoading}
+              disabled={isLoading || isTestSending}
             >
-              Send Test
+              {isTestSending ? 'Sending...' : 'Send Test'}
             </Button>
             <Button
               variant="outline"
