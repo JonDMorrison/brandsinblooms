@@ -46,9 +46,15 @@ interface AutomationFlowCanvasProps {
   };
   onSave?: (flowState: { nodes: Node[]; edges: Edge[] }) => void;
   onLaunch?: (automationData: any) => void;
+  onSaveDraft?: () => void;
+  onReviewLaunch?: () => void;
   automationName?: string;
   triggerType?: string;
   className?: string;
+  selectedPersonas?: any[];
+  selectedSegments?: any[];
+  onPersonasChange?: (personas: any[]) => void;
+  onSegmentsChange?: (segments: any[]) => void;
 }
 
 export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
@@ -56,9 +62,15 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   initialFlowState,
   onSave,
   onLaunch,
+  onSaveDraft,
+  onReviewLaunch,
   automationName = '',
   triggerType = '',
   className,
+  selectedPersonas = [],
+  selectedSegments = [],
+  onPersonasChange,
+  onSegmentsChange,
 }) => {
   const {
     nodes,
@@ -76,8 +88,6 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
 
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
-  const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   const [isLaunchLoading, setIsLaunchLoading] = useState(false);
   
   const { toast } = useToast();
@@ -135,8 +145,12 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   );
 
   const handleReviewAndLaunch = useCallback(() => {
-    setShowReviewModal(true);
-  }, []);
+    if (onReviewLaunch) {
+      onReviewLaunch();
+    } else {
+      setShowReviewModal(true);
+    }
+  }, [onReviewLaunch]);
 
   const handleLaunch = useCallback(async () => {
     if (!onLaunch) return;
@@ -182,12 +196,16 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   }, [toast]);
 
   const handleSaveDraft = useCallback(() => {
-    autoSave();
-    toast({
-      title: "Draft Saved",
-      description: "Your automation has been saved as a draft.",
-    });
-  }, [autoSave, toast]);
+    if (onSaveDraft) {
+      onSaveDraft();
+    } else {
+      autoSave();
+      toast({
+        title: "Draft Saved",
+        description: "Your automation has been saved as a draft.",
+      });
+    }
+  }, [onSaveDraft, autoSave, toast]);
 
   // Check if automation is ready to launch
   const selectedAudience = {
@@ -203,50 +221,21 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
 
   return (
     <div className={`relative w-full h-full ${className}`}>
-      {/* Canvas Header with Controls */}
-      <div className="absolute top-4 left-4 z-50 bg-white rounded-lg shadow-lg border p-4 min-w-96">
-        <div className="flex items-center justify-between gap-4 mb-3">
-          <div className="flex items-center gap-3">
-            <FlowStatusBadge 
-              nodes={nodes} 
-              edges={edges} 
-              selectedAudience={selectedAudience}
-            />
+      {/* Canvas Status Header */}
+      <div className="absolute top-4 left-4 z-50 bg-white rounded-lg shadow-lg border p-3">
+        <div className="flex items-center gap-3">
+          <FlowStatusBadge 
+            nodes={nodes} 
+            edges={edges} 
+            selectedAudience={selectedAudience}
+          />
             <AudienceTargetingButton
               selectedPersonas={selectedPersonas}
               selectedSegments={selectedSegments}
-              onPersonasChange={setSelectedPersonas}
-              onSegmentsChange={setSelectedSegments}
+              onPersonasChange={onPersonasChange || (() => {})}
+              onSegmentsChange={onSegmentsChange || (() => {})}
             />
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSaveDraft}
-              className="gap-1"
-            >
-              <Save className="w-4 h-4" />
-              Save Draft
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleReviewAndLaunch}
-              disabled={!isReadyToLaunch}
-              className="gap-1 bg-green-600 hover:bg-green-700"
-            >
-              <Play className="w-4 h-4" />
-              Review & Launch
-            </Button>
-          </div>
         </div>
-        
-        {/* Flow Validation */}
-        <FlowValidation 
-          nodes={nodes} 
-          edges={edges} 
-          selectedAudience={selectedAudience}
-        />
       </div>
 
       <ReactFlow

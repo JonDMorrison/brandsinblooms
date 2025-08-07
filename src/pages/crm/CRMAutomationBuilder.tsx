@@ -251,14 +251,50 @@ export const CRMAutomationBuilder = () => {
             Design visual automation workflows to engage your customers
           </p>
         </div>
-        <Button 
-          onClick={handleSaveAutomation}
-          disabled={!automationName.trim() || isSaving}
-          className="gap-2"
-        >
-          <Save className="w-4 h-4" />
-          {isSaving ? 'Saving...' : 'Save Automation'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline"
+            onClick={handleSaveAutomation}
+            disabled={!automationName.trim() || isSaving}
+            className="gap-2"
+          >
+            <Save className="w-4 h-4" />
+            {isSaving ? 'Saving...' : 'Save Draft'}
+          </Button>
+          {currentFlowState && currentFlowState.nodes.length > 0 && (
+            <Button 
+              onClick={() => {
+                const hasValidFlow = currentFlowState.nodes.some((n: any) => n.type === 'trigger') && 
+                                   currentFlowState.nodes.some((n: any) => n.type === 'email' || n.type === 'sms');
+                const hasAudience = selectedPersonas.length > 0 || selectedSegments.length > 0;
+                
+                if (hasValidFlow && hasAudience) {
+                  handleLaunchAutomation({
+                    name: automationName,
+                    triggerType: currentFlowState.nodes.find((n: any) => n.type === 'trigger')?.data?.triggerType || '',
+                    flowSteps: currentFlowState.nodes.filter((n: any) => n.type !== 'trigger'),
+                    selectedAudience: {
+                      personas: selectedPersonas,
+                      segments: selectedSegments,
+                      totalContacts: selectedSegments.reduce((total: number, segment: any) => total + (segment.customer_count || 0), 0)
+                    },
+                    flowState: currentFlowState
+                  });
+                }
+              }}
+              disabled={
+                !automationName.trim() || 
+                isSaving ||
+                !currentFlowState?.nodes?.some((n: any) => n.type === 'trigger') ||
+                !currentFlowState?.nodes?.some((n: any) => n.type === 'email' || n.type === 'sms') ||
+                (selectedPersonas.length === 0 && selectedSegments.length === 0)
+              }
+              className="gap-2"
+            >
+              Review & Launch
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Choose Your Starting Point - For New Automations */}
@@ -331,8 +367,13 @@ export const CRMAutomationBuilder = () => {
                 initialFlowState={currentFlowState}
                 onSave={handleFlowChange}
                 onLaunch={handleLaunchAutomation}
+                onSaveDraft={handleSaveAutomation}
                 automationName={automationName}
                 triggerType={currentFlowState?.nodes?.find((n: any) => n.type === 'trigger')?.data?.triggerType || ''}
+                selectedPersonas={selectedPersonas}
+                selectedSegments={selectedSegments}
+                onPersonasChange={setSelectedPersonas}
+                onSegmentsChange={setSelectedSegments}
                 className="h-full w-full"
               />
             </CardContent>
