@@ -280,12 +280,14 @@ export const AudienceSelector = ({
                       >
                         {persona.persona_name}
                       </label>
-                       <Badge 
-                        variant={persona.is_custom ? 'outline' : 'default'}
-                        className="text-xs"
-                      >
-                        {persona.is_custom ? 'Custom' : 'System'}
-                      </Badge>
+                      {persona.is_custom && (
+                        <Badge 
+                          variant="outline"
+                          className="text-xs"
+                        >
+                          Custom
+                        </Badge>
+                      )}
                     </div>
                     {persona.persona_description && (
                       <p className="text-sm text-muted-foreground mt-1">
