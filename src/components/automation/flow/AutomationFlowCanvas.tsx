@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -93,7 +93,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [isLaunchLoading, setIsLaunchLoading] = useState(false);
   const [editingNode, setEditingNode] = useState<{id: string; type: string; data: any} | null>(null);
-  const [showAudienceSelector, setShowAudienceSelector] = useState(false);
+  const audienceButtonRef = useRef<any>(null);
   
   const { toast } = useToast();
 
@@ -294,31 +294,22 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             hasAudience={hasAudience}
             isReadyToLaunch={isReadyToLaunch}
             onAddNode={handleAddNode}
-            onOpenAudienceSelector={() => setShowAudienceSelector(true)}
+            onOpenAudienceSelector={() => audienceButtonRef.current?.openModal()}
           />
         )}
         
-        {/* Audience Selector Dialog */}
-        {showAudienceSelector && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[80vh] mx-4 overflow-y-auto">
-              <h3 className="text-lg font-semibold mb-4">Select Your Audience</h3>
-              <AudienceTargetingButton
-                selectedPersonas={selectedPersonas}
-                selectedSegments={selectedSegments}
-                onPersonasChange={onPersonasChange || (() => {})}
-                onSegmentsChange={onSegmentsChange || (() => {})}
-                maxPersonas={3}
-                maxSegments={5}
-              />
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setShowAudienceSelector(false)}>
-                  Done
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Audience Targeting Button - hidden but manages its own dialog */}
+        <div className="hidden">
+          <AudienceTargetingButton
+            ref={audienceButtonRef}
+            selectedPersonas={selectedPersonas}
+            selectedSegments={selectedSegments}
+            onPersonasChange={onPersonasChange || (() => {})}
+            onSegmentsChange={onSegmentsChange || (() => {})}
+            maxPersonas={3}
+            maxSegments={5}
+          />
+        </div>
         
         {hasValidFlow && (
           <div className="flex items-center gap-3">
