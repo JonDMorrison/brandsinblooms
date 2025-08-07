@@ -223,22 +223,6 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
 
   return (
     <div className={`relative w-full h-full ${className}`}>
-      {/* Canvas Status Header */}
-      <div className="absolute top-4 left-4 z-50 bg-white rounded-lg shadow-lg border p-3">
-        <div className="flex items-center gap-3">
-          <FlowStatusBadge 
-            nodes={nodes} 
-            edges={edges} 
-            selectedAudience={selectedAudience}
-          />
-            <AudienceTargetingButton
-              selectedPersonas={selectedPersonas}
-              selectedSegments={selectedSegments}
-              onPersonasChange={onPersonasChange || (() => {})}
-              onSegmentsChange={onSegmentsChange || (() => {})}
-            />
-        </div>
-      </div>
 
       <ReactFlow
         nodes={nodes}
