@@ -70,7 +70,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
         <CardContent className="p-3">
           <div className="flex items-center gap-2 mb-3">
             <Plus className="w-4 h-4" />
-            <span className="text-sm font-medium">Add Node</span>
+            <span className="text-sm font-medium">Add Step</span>
           </div>
           
           <div className="grid grid-cols-1 gap-2">
