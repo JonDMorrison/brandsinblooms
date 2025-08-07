@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -29,6 +29,7 @@ import { useAutomationFlow } from '../hooks/useAutomationFlow';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
+import { AudienceSelector } from '@/components/crm/AudienceSelector';
 import { useSegmentSelector } from '@/hooks/useSegmentSelector';
 import { Play, Save, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -93,7 +94,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [isLaunchLoading, setIsLaunchLoading] = useState(false);
   const [editingNode, setEditingNode] = useState<{id: string; type: string; data: any} | null>(null);
-  const audienceButtonRef = useRef<any>(null);
+  const [showAudienceSelector, setShowAudienceSelector] = useState(false);
   
   const { toast } = useToast();
 
@@ -294,22 +295,34 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             hasAudience={hasAudience}
             isReadyToLaunch={isReadyToLaunch}
             onAddNode={handleAddNode}
-            onOpenAudienceSelector={() => audienceButtonRef.current?.openModal()}
+            onOpenAudienceSelector={() => setShowAudienceSelector(true)}
           />
         )}
         
-        {/* Audience Targeting Button - hidden but manages its own dialog */}
-        <div className="hidden">
-          <AudienceTargetingButton
-            ref={audienceButtonRef}
-            selectedPersonas={selectedPersonas}
-            selectedSegments={selectedSegments}
-            onPersonasChange={onPersonasChange || (() => {})}
-            onSegmentsChange={onSegmentsChange || (() => {})}
-            maxPersonas={3}
-            maxSegments={5}
-          />
-        </div>
+        {/* Audience Selector Modal */}
+        {showAudienceSelector && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-background rounded-lg shadow-lg max-w-4xl w-full max-h-[80vh] mx-4 overflow-hidden">
+              <div className="p-6 border-b">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Configure Target Audience
+                </h3>
+              </div>
+              <div className="overflow-y-auto">
+                <AudienceSelector
+                  selectedPersonas={selectedPersonas}
+                  selectedSegments={selectedSegments}
+                  onPersonasChange={onPersonasChange || (() => {})}
+                  onSegmentsChange={onSegmentsChange || (() => {})}
+                  maxPersonas={3}
+                  maxSegments={5}
+                  onClose={() => setShowAudienceSelector(false)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
         
         {hasValidFlow && (
           <div className="flex items-center gap-3">

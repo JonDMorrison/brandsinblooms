@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -30,22 +30,15 @@ interface AudienceTargetingButtonProps {
   maxSegments?: number;
 }
 
-export const AudienceTargetingButton = forwardRef<
-  { openModal: () => void },
-  AudienceTargetingButtonProps
->(({
+export const AudienceTargetingButton = ({
   selectedPersonas,
   selectedSegments,
   onPersonasChange,
   onSegmentsChange,
   maxPersonas = 3,
   maxSegments = 5
-}, ref) => {
+}: AudienceTargetingButtonProps) => {
   const [isOpen, setIsOpen] = useState(false);
-
-  useImperativeHandle(ref, () => ({
-    openModal: () => setIsOpen(true)
-  }), []);
 
   const getTotalAudience = () => {
     if (selectedSegments.length === 0) return "All Contacts";
@@ -127,6 +120,4 @@ export const AudienceTargetingButton = forwardRef<
       </Dialog>
     </>
   );
-});
-
-AudienceTargetingButton.displayName = 'AudienceTargetingButton';
+};
