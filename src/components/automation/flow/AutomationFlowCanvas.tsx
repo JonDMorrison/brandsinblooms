@@ -244,6 +244,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
 
       // Find email nodes in the flow
       console.log('📧 Looking for email nodes...', nodes.length, 'total nodes');
+      console.log('📧 Node types found:', nodes.map(n => ({ id: n.id, type: n.type, data: Object.keys(n.data || {}) })));
       const emailNodes = nodes.filter(node => node.type === 'email' && node.data?.subject && node.data?.body);
       console.log('📧 Found email nodes:', emailNodes.length);
       
