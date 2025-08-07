@@ -275,6 +275,15 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         />
       </ReactFlow>
 
+      {/* Flow Status Below Canvas */}
+      <div className="mt-4 flex justify-center">
+        <FlowStatusBadge 
+          nodes={nodes} 
+          edges={edges} 
+          selectedAudience={selectedAudience} 
+        />
+      </div>
+
       {/* Floating Toolbar */}
       <FloatingToolbar
         onAddNode={handleAddNode}
@@ -311,12 +320,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
       {/* Bottom Action Bar */}
       {hasValidFlow && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40">
-          <div className="bg-background border rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
-            <FlowStatusBadge 
-              nodes={nodes} 
-              edges={edges} 
-              selectedAudience={selectedAudience} 
-            />
+           <div className="bg-background border rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
             
             {hasAudience && (
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
