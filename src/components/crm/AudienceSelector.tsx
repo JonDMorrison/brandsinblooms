@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -51,14 +51,35 @@ export const AudienceSelector = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showPersonaModal, setShowPersonaModal] = useState(false);
   const [showSegmentModal, setShowSegmentModal] = useState(false);
+  const [isStableLoading, setIsStableLoading] = useState(true);
+  const [fadeIn, setFadeIn] = useState(false);
 
   // Use existing hooks
   const { personas, loading: personasLoading } = useAllPersonas();
   const { segments, loading: segmentsLoading } = useAllSegments();
 
-  // Wait for both to complete to prevent flashing
-  const loading = personasLoading || segmentsLoading;
-  const dataReady = !loading && personas.length >= 0 && segments.length >= 0;
+  // Stable loading state management
+  const isDataLoading = personasLoading || segmentsLoading;
+  const hasData = personas.length >= 0 && segments.length >= 0;
+
+  // Implement minimum loading duration and smooth transitions
+  useEffect(() => {
+    if (!isDataLoading && hasData) {
+      // Add minimum loading time of 300ms to prevent flashing
+      const timer = setTimeout(() => {
+        setIsStableLoading(false);
+        // Start fade-in after loading completes
+        requestAnimationFrame(() => {
+          setFadeIn(true);
+        });
+      }, 300);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isDataLoading, hasData]);
+
+  const loading = isStableLoading;
+  const dataReady = !loading && !isDataLoading && hasData;
 
   // Filter options based on search
   const filteredPersonas = searchTerm 
@@ -138,7 +159,7 @@ export const AudienceSelector = ({
 
   if (loading) {
     return (
-      <div className="p-6 min-h-[600px]">
+      <div className="p-6 min-h-[600px] opacity-100 transition-opacity duration-300">
         <div className="animate-pulse space-y-6">
           {/* Search skeleton */}
           <div className="h-10 bg-muted rounded"></div>
@@ -168,7 +189,7 @@ export const AudienceSelector = ({
   }
 
   return (
-    <div className={`space-y-6 min-h-[600px] ${dataReady ? 'animate-fade-in' : ''}`}>
+    <div className={`space-y-6 min-h-[600px] transition-all duration-300 ${fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
