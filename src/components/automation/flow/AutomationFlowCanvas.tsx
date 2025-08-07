@@ -308,6 +308,35 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         isLoading={isLaunchLoading}
       />
 
+      {/* Bottom Action Bar */}
+      {hasValidFlow && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40">
+          <div className="bg-background border rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
+            <FlowStatusBadge 
+              nodes={nodes} 
+              edges={edges} 
+              selectedAudience={selectedAudience} 
+            />
+            
+            {hasAudience && (
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Users className="w-4 h-4" />
+                <span>{totalAudienceContacts} contacts</span>
+              </div>
+            )}
+            
+            <Button
+              onClick={handleReviewAndLaunch}
+              disabled={!isReadyToLaunch}
+              className="gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Review & Launch
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Node Editor Dialog */}
       <NodeEditorDialog
         open={!!editingNode}
