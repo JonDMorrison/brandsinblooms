@@ -26,6 +26,7 @@ import { ReviewLaunchModal } from './ReviewLaunchModal';
 import { NodeEditorDialog } from './NodeEditorDialog';
 import { useAutomationFlow } from '../hooks/useAutomationFlow';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
 import { useSegmentSelector } from '@/hooks/useSegmentSelector';
 import { Play, Save, Users } from 'lucide-react';
@@ -292,14 +293,31 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
               </div>
             )}
             
-            <Button
-              onClick={handleReviewAndLaunch}
-              disabled={!isReadyToLaunch}
-              className="gap-2"
-            >
-              <Play className="w-4 h-4" />
-              Review & Launch
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Button
+                      onClick={handleReviewAndLaunch}
+                      disabled={!isReadyToLaunch}
+                      className="gap-2"
+                    >
+                      <Play className="w-4 h-4" />
+                      Review & Launch
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {!isReadyToLaunch && (
+                  <TooltipContent>
+                    <p>
+                      {!nodes.some(n => n.type === 'trigger') && "Add a trigger to continue"}
+                      {nodes.some(n => n.type === 'trigger') && !nodes.some(n => n.type === 'email' || n.type === 'sms') && "Add at least one action (email or SMS)"}
+                      {hasValidFlow && !hasAudience && "Select an audience to continue"}
+                    </p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
       </div>
