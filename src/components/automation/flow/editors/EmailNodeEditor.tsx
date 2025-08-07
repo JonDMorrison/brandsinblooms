@@ -195,7 +195,7 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
           📧 Edit Email Content
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto">
         <div className="space-y-2">
           <Label htmlFor="template">Email Template</Label>
           <NativeSelect
