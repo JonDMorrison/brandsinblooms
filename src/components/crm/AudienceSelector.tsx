@@ -227,11 +227,11 @@ export const AudienceSelector = ({
         </div>
       )}
 
-      {/* Options List */}
-      <div className="space-y-6">
-        {/* Personas Section */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
+      {/* Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Personas Column */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Lightbulb className="h-4 w-4 text-purple-500" />
               <h3 className="font-medium">Personas</h3>
@@ -250,7 +250,7 @@ export const AudienceSelector = ({
             </Button>
           </div>
           
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-80 overflow-y-auto border border-border rounded-lg p-3">
             {filteredPersonas.map((persona) => {
               const isSelected = isPersonaSelected(persona.id);
               const isDisabled = !isSelected && selectedPersonas.length >= maxPersonas;
@@ -308,9 +308,9 @@ export const AudienceSelector = ({
           </div>
         </div>
 
-        {/* Segments Section */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
+        {/* Segments Column */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-brand-teal" />
               <h3 className="font-medium">Segments</h3>
@@ -329,7 +329,7 @@ export const AudienceSelector = ({
             </Button>
           </div>
           
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-80 overflow-y-auto border border-border rounded-lg p-3">
             {filteredSegments.map((segment) => {
               const mappedSegment: Segment = {
                 id: segment.id,
