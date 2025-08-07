@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
 import { TemplateGalleryEnhanced } from '@/components/automation/TemplateGalleryEnhanced';
 import { GuidedAutomationBuilder } from '@/components/automation/GuidedAutomationBuilder';
 import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
-import { Save, Palette, Zap } from 'lucide-react';
+import { Save } from 'lucide-react';
 
 export const CRMAutomationBuilder = () => {
   const { id: automationId } = useParams();
@@ -24,8 +24,8 @@ export const CRMAutomationBuilder = () => {
   const [currentFlowState, setCurrentFlowState] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(!!automationId);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState(mode === 'quick' ? 'templates' : 'canvas');
   const [showGuidedBuilder, setShowGuidedBuilder] = useState(false);
+  const [showChooseStartingPoint, setShowChooseStartingPoint] = useState(!automationId && !currentFlowState);
   
   // Audience targeting state
   const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
@@ -148,7 +148,7 @@ export const CRMAutomationBuilder = () => {
     setAutomationName(template.name);
     setAutomationDescription(template.description);
     setShowGuidedBuilder(false);
-    setActiveTab('canvas');
+    setShowChooseStartingPoint(false);
     
     toast({
       title: 'Template Applied',
@@ -165,7 +165,7 @@ export const CRMAutomationBuilder = () => {
     setAutomationName(automationConfig.name);
     setAutomationDescription(automationConfig.description);
     setShowGuidedBuilder(false);
-    setActiveTab('canvas');
+    setShowChooseStartingPoint(false);
     
     toast({
       title: 'Automation Created',
@@ -214,60 +214,63 @@ export const CRMAutomationBuilder = () => {
         </Button>
       </div>
 
-      {/* Automation Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Automation Details</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="automation-name">Automation Name *</Label>
-              <Input
-                id="automation-name"
-                value={automationName}
-                onChange={(e) => setAutomationName(e.target.value)}
-                placeholder="e.g., Welcome Series"
+      {/* Choose Your Starting Point - For New Automations */}
+      {showChooseStartingPoint && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Choose Your Starting Point</CardTitle>
+            <p className="text-muted-foreground">
+              Select a template or build from scratch to get started with your automation
+            </p>
+          </CardHeader>
+          <CardContent>
+            {showGuidedBuilder ? (
+              <GuidedAutomationBuilder
+                onComplete={handleGuidedBuilderComplete}
+                onBack={handleBackToTemplates}
               />
-            </div>
-            <div>
-              <Label htmlFor="automation-description">Description</Label>
-              <Input
-                id="automation-description"
-                value={automationDescription}
-                onChange={(e) => setAutomationDescription(e.target.value)}
-                placeholder="Brief description of this automation"
+            ) : (
+              <TemplateGalleryEnhanced
+                onSelectTemplate={handleTemplateSelect}
+                onStartFromScratch={handleStartFromScratch}
               />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-
-      {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="canvas" className="gap-2">
-            <Palette className="w-4 h-4" />
-            Visual Canvas
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="gap-2">
-            <Zap className="w-4 h-4" />
-            Templates
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="canvas" className="space-y-4">
-          {/* Audience Targeting - Compact placement */}
-          <AudienceTargetingButton
-            selectedPersonas={selectedPersonas}
-            selectedSegments={selectedSegments}
-            onPersonasChange={setSelectedPersonas}
-            onSegmentsChange={setSelectedSegments}
-            maxPersonas={3}
-            maxSegments={5}
-          />
+      {/* Automation Canvas - Show when template selected or editing existing */}
+      {!showChooseStartingPoint && (
+        <div className="space-y-4">
+          {/* Inline Name Field and Audience Targeting */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                <div className="flex-1 max-w-md">
+                  <Label htmlFor="automation-name" className="text-sm font-medium">
+                    Automation Name *
+                  </Label>
+                  <Input
+                    id="automation-name"
+                    value={automationName}
+                    onChange={(e) => setAutomationName(e.target.value)}
+                    placeholder="e.g., Welcome Series"
+                    className="mt-1"
+                  />
+                </div>
+                <AudienceTargetingButton
+                  selectedPersonas={selectedPersonas}
+                  selectedSegments={selectedSegments}
+                  onPersonasChange={setSelectedPersonas}
+                  onSegmentsChange={setSelectedSegments}
+                  maxPersonas={3}
+                  maxSegments={5}
+                />
+              </div>
+            </CardContent>
+          </Card>
           
+          {/* Flow Canvas */}
           <Card className="h-[600px]">
             <CardHeader>
               <CardTitle>Automation Flow Canvas</CardTitle>
@@ -284,22 +287,8 @@ export const CRMAutomationBuilder = () => {
               />
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="templates" className="space-y-4">
-          {showGuidedBuilder ? (
-            <GuidedAutomationBuilder
-              onComplete={handleGuidedBuilderComplete}
-              onBack={handleBackToTemplates}
-            />
-          ) : (
-            <TemplateGalleryEnhanced
-              onSelectTemplate={handleTemplateSelect}
-              onStartFromScratch={handleStartFromScratch}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 };
