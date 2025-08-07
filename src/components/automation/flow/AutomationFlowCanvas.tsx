@@ -368,6 +368,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         selectedNodeId={selectedNode}
         onToggleAISuggestions={() => setShowAISuggestions(!showAISuggestions)}
         showAISuggestions={showAISuggestions}
+        isModalOpen={showAudienceSelector}
       />
 
       {/* AI Suggestions Panel */}

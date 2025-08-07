@@ -228,7 +228,7 @@ export const AudienceSelector = ({
       )}
 
       {/* Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-6">
         {/* Personas Column */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
