@@ -237,20 +237,6 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
                   )}
                 </div>
                 
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    <span>5-10 min setup</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-3 h-3 text-yellow-500" />
-                    <span>95% success rate</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3 text-green-500" />
-                    <span>Proven results</span>
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
