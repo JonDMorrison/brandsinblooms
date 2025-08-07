@@ -196,47 +196,98 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 max-w-4xl mx-auto place-items-center min-h-[30vh] md:min-h-[40vh]">
-        <Card 
-          className="cursor-pointer hover:shadow-lg transition-all duration-200 border-2 border-primary/20 h-full min-h-[120px] md:min-h-[160px]"
-          onClick={() => setShowTemplates(!showTemplates)}
-        >
-          <CardContent className="p-4 md:p-6 h-full">
-            <div className="flex items-center gap-3 md:gap-4 h-full">
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Zap className="w-5 h-5 md:w-6 md:h-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-base md:text-lg">Use a Template</h3>
-                <p className="text-muted-foreground text-sm md:text-base">Start with proven garden center automations</p>
-              </div>
-              {showTemplates ? (
-                <ChevronUp className="w-5 h-5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-muted-foreground" />
-              )}
+    <div className="space-y-8">
+      {/* Main Action Cards - Improved Design */}
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold mb-2">Create Your Automation</h2>
+          <p className="text-muted-foreground">Choose how you'd like to get started with your customer engagement</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Use Template - Primary Option */}
+          <Card 
+            className={`cursor-pointer transition-all duration-300 group relative overflow-hidden ${
+              showTemplates 
+                ? 'ring-2 ring-primary shadow-lg border-primary/20' 
+                : 'hover:shadow-xl hover:border-primary/30 hover:-translate-y-1'
+            }`}
+            onClick={() => setShowTemplates(!showTemplates)}
+          >
+            <div className="absolute top-3 right-3">
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                Recommended
+              </Badge>
             </div>
-          </CardContent>
-        </Card>
+            
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Zap className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1">Use a Template</h3>
+                    <p className="text-muted-foreground text-sm">Start with proven garden center automations</p>
+                  </div>
+                  {showTemplates ? (
+                    <ChevronUp className="w-5 h-5 text-muted-foreground transition-transform duration-200" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform duration-200" />
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span>5-10 min setup</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-3 h-3 text-yellow-500" />
+                    <span>95% success rate</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3 text-green-500" />
+                    <span>Proven results</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full min-h-[120px] md:min-h-[160px]" onClick={onStartFromScratch}>
-          <CardContent className="p-4 md:p-6 h-full">
-            <div className="flex items-center gap-3 md:gap-4 h-full">
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 md:w-6 md:h-6 text-secondary-foreground" />
+          {/* Start From Scratch - Secondary Option */}
+          <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 group hover:-translate-y-1" onClick={onStartFromScratch}>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Users className="w-6 h-6 text-foreground/70" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1">Start From Scratch</h3>
+                    <p className="text-muted-foreground text-sm">Build a custom automation with guided steps</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform duration-200" />
+                </div>
+                
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span>15-30 min setup</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Zap className="w-3 h-3" />
+                    <span>Full control</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>Advanced users</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-base md:text-lg">Start From Scratch</h3>
-                <p className="text-muted-foreground text-sm md:text-base">Build a custom automation with guided steps</p>
-              </div>
-              <ArrowRight className="w-5 h-5 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Template Selection Section */}
