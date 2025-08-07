@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
-import { TemplateGallery } from '@/components/automation/TemplateGallery';
+import { TemplateGalleryEnhanced } from '@/components/automation/TemplateGalleryEnhanced';
+import { GuidedAutomationBuilder } from '@/components/automation/GuidedAutomationBuilder';
 import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
 import { Save, Palette, Zap } from 'lucide-react';
 
@@ -24,6 +25,7 @@ export const CRMAutomationBuilder = () => {
   const [isLoading, setIsLoading] = useState(!!automationId);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(mode === 'quick' ? 'templates' : 'canvas');
+  const [showGuidedBuilder, setShowGuidedBuilder] = useState(false);
   
   // Audience targeting state
   const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
@@ -143,14 +145,36 @@ export const CRMAutomationBuilder = () => {
 
   const handleTemplateSelect = (template: any) => {
     setCurrentFlowState(template.flow_data);
-    setAutomationName(template.name + ' (Copy)');
+    setAutomationName(template.name);
     setAutomationDescription(template.description);
+    setShowGuidedBuilder(false);
     setActiveTab('canvas');
     
     toast({
       title: 'Template Applied',
       description: 'Template has been loaded into the canvas. You can now customize it.',
     });
+  };
+
+  const handleStartFromScratch = () => {
+    setShowGuidedBuilder(true);
+  };
+
+  const handleGuidedBuilderComplete = (automationConfig: any) => {
+    setCurrentFlowState(automationConfig.flow_data);
+    setAutomationName(automationConfig.name);
+    setAutomationDescription(automationConfig.description);
+    setShowGuidedBuilder(false);
+    setActiveTab('canvas');
+    
+    toast({
+      title: 'Automation Created',
+      description: 'Your custom automation has been set up. Customize it further in the canvas.',
+    });
+  };
+
+  const handleBackToTemplates = () => {
+    setShowGuidedBuilder(false);
   };
 
   const handleFlowChange = (flowState: any) => {
@@ -263,9 +287,17 @@ export const CRMAutomationBuilder = () => {
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-4">
-          <TemplateGallery
-            onSelectTemplate={handleTemplateSelect}
-          />
+          {showGuidedBuilder ? (
+            <GuidedAutomationBuilder
+              onComplete={handleGuidedBuilderComplete}
+              onBack={handleBackToTemplates}
+            />
+          ) : (
+            <TemplateGalleryEnhanced
+              onSelectTemplate={handleTemplateSelect}
+              onStartFromScratch={handleStartFromScratch}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>
