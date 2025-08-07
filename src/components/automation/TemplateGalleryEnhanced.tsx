@@ -202,11 +202,11 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto place-items-center min-h-[40vh]">
         <Card 
-          className="cursor-pointer hover:shadow-lg transition-all duration-200 border-2 border-primary/20"
+          className="cursor-pointer hover:shadow-lg transition-all duration-200 border-2 border-primary/20 h-full min-h-[160px]"
           onClick={() => setShowTemplates(!showTemplates)}
         >
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
+          <CardContent className="p-6 h-full">
+            <div className="flex items-center gap-4 h-full">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
                 <Zap className="w-6 h-6 text-primary" />
               </div>
@@ -223,9 +223,9 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={onStartFromScratch}>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full min-h-[160px]" onClick={onStartFromScratch}>
+          <CardContent className="p-6 h-full">
+            <div className="flex items-center gap-4 h-full">
               <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
                 <Users className="w-6 h-6 text-secondary-foreground" />
               </div>
