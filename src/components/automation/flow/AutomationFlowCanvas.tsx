@@ -231,7 +231,9 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
       setIsTestSending(true);
       
       // Check if user is authenticated
+      console.log('🔐 Checking authentication...', user?.email);
       if (!user?.email) {
+        console.log('❌ No user email found');
         toast({
           title: "Authentication Required",
           description: "Please log in to send test emails.",
@@ -241,9 +243,12 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
       }
 
       // Find email nodes in the flow
+      console.log('📧 Looking for email nodes...', nodes.length, 'total nodes');
       const emailNodes = nodes.filter(node => node.type === 'email' && node.data?.subject && node.data?.body);
+      console.log('📧 Found email nodes:', emailNodes.length);
       
       if (emailNodes.length === 0) {
+        console.log('❌ No email nodes with content found');
         toast({
           title: "No Email Content",
           description: "Add at least one email step with content to send a test.",
@@ -255,8 +260,10 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
       // Use the first email node for testing
       const firstEmailNode = emailNodes[0];
       const { subject, body } = firstEmailNode.data;
+      console.log('📮 Preparing to send test email:', { subject, bodyLength: typeof body === 'string' ? body.length : 'unknown' });
 
       // Send test email using the Supabase edge function
+      console.log('🚀 Calling send-test-email function...');
       const { data, error } = await supabase.functions.invoke('send-test-email', {
         body: {
           email: user.email,
@@ -267,16 +274,20 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         }
       });
 
+      console.log('📬 Function response:', { data, error });
+
       if (error) {
+        console.log('❌ Function returned error:', error);
         throw new Error(error.message || 'Failed to send test email');
       }
       
+      console.log('✅ Test email sent successfully!');
       toast({
         title: "Test Email Sent! 📧",
         description: `A test email has been sent to ${user.email}`,
       });
     } catch (error) {
-      console.error('Test send error:', error);
+      console.error('❌ Test send error:', error);
       toast({
         title: "Test Send Failed",
         description: error instanceof Error ? error.message : "There was an error sending the test email. Please try again.",
