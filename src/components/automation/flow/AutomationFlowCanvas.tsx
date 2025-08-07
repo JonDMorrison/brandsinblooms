@@ -21,7 +21,14 @@ import SMSNode from './nodes/SMSNode';
 import DelayNode from './nodes/DelayNode';
 import SplitNode from './nodes/SplitNode';
 import { FloatingToolbar } from './FloatingToolbar';
+import { FlowValidation, FlowStatusBadge } from './FlowValidation';
+import { ReviewLaunchModal } from './ReviewLaunchModal';
 import { useAutomationFlow } from '../hooks/useAutomationFlow';
+import { Button } from '@/components/ui/button';
+import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
+import { useSegmentSelector } from '@/hooks/useSegmentSelector';
+import { Play, Save, Users } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
@@ -38,6 +45,9 @@ interface AutomationFlowCanvasProps {
     edges: Edge[];
   };
   onSave?: (flowState: { nodes: Node[]; edges: Edge[] }) => void;
+  onLaunch?: (automationData: any) => void;
+  automationName?: string;
+  triggerType?: string;
   className?: string;
 }
 
@@ -45,6 +55,9 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   automationId,
   initialFlowState,
   onSave,
+  onLaunch,
+  automationName = '',
+  triggerType = '',
   className,
 }) => {
   const {
@@ -62,6 +75,17 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   } = useAutomationFlow(automationId, initialFlowState);
 
   const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
+  const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
+  const [isLaunchLoading, setIsLaunchLoading] = useState(false);
+  
+  const { toast } = useToast();
+
+  // Calculate total audience
+  const totalAudienceContacts = selectedSegments.reduce((total, segment) => 
+    total + (segment.customer_count || 0), 0
+  );
 
   // Handle node selection
   const handleNodeClick = useCallback(
@@ -110,8 +134,121 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
     [addNode]
   );
 
+  const handleReviewAndLaunch = useCallback(() => {
+    setShowReviewModal(true);
+  }, []);
+
+  const handleLaunch = useCallback(async () => {
+    if (!onLaunch) return;
+    
+    setIsLaunchLoading(true);
+    try {
+      const automationData = {
+        name: automationName,
+        triggerType,
+        flowSteps: nodes.filter(n => n.type !== 'trigger'),
+        selectedAudience: {
+          personas: selectedPersonas,
+          segments: selectedSegments,
+          totalContacts: totalAudienceContacts
+        },
+        flowState: { nodes, edges }
+      };
+      
+      await onLaunch(automationData);
+      setShowReviewModal(false);
+      
+      toast({
+        title: "Automation Activated",
+        description: `${automationName} is now running and will process new customers automatically.`,
+      });
+    } catch (error) {
+      console.error('Launch error:', error);
+      toast({
+        title: "Launch Failed",
+        description: "There was an error activating your automation. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLaunchLoading(false);
+    }
+  }, [onLaunch, automationName, triggerType, nodes, edges, selectedPersonas, selectedSegments, totalAudienceContacts, toast]);
+
+  const handleTestSend = useCallback(() => {
+    toast({
+      title: "Test Send",
+      description: "Test functionality will be implemented soon.",
+    });
+  }, [toast]);
+
+  const handleSaveDraft = useCallback(() => {
+    autoSave();
+    toast({
+      title: "Draft Saved",
+      description: "Your automation has been saved as a draft.",
+    });
+  }, [autoSave, toast]);
+
+  // Check if automation is ready to launch
+  const selectedAudience = {
+    personas: selectedPersonas,
+    segments: selectedSegments,
+    totalContacts: totalAudienceContacts
+  };
+
+  const hasValidFlow = nodes.some(n => n.type === 'trigger') && 
+                     nodes.some(n => n.type === 'email' || n.type === 'sms');
+  const hasAudience = selectedPersonas.length > 0 || selectedSegments.length > 0;
+  const isReadyToLaunch = hasValidFlow && hasAudience;
+
   return (
     <div className={`relative w-full h-full ${className}`}>
+      {/* Canvas Header with Controls */}
+      <div className="absolute top-4 left-4 z-50 bg-white rounded-lg shadow-lg border p-4 min-w-96">
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <div className="flex items-center gap-3">
+            <FlowStatusBadge 
+              nodes={nodes} 
+              edges={edges} 
+              selectedAudience={selectedAudience}
+            />
+            <AudienceTargetingButton
+              selectedPersonas={selectedPersonas}
+              selectedSegments={selectedSegments}
+              onPersonasChange={setSelectedPersonas}
+              onSegmentsChange={setSelectedSegments}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSaveDraft}
+              className="gap-1"
+            >
+              <Save className="w-4 h-4" />
+              Save Draft
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleReviewAndLaunch}
+              disabled={!isReadyToLaunch}
+              className="gap-1 bg-green-600 hover:bg-green-700"
+            >
+              <Play className="w-4 h-4" />
+              Review & Launch
+            </Button>
+          </div>
+        </div>
+        
+        {/* Flow Validation */}
+        <FlowValidation 
+          nodes={nodes} 
+          edges={edges} 
+          selectedAudience={selectedAudience}
+        />
+      </div>
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -161,6 +298,21 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
           </p>
         </div>
       )}
+
+      {/* Review & Launch Modal */}
+      <ReviewLaunchModal
+        open={showReviewModal}
+        onOpenChange={setShowReviewModal}
+        automation={{
+          name: automationName,
+          triggerType,
+          flowSteps: nodes.filter(n => n.type !== 'trigger'),
+          selectedAudience
+        }}
+        onLaunch={handleLaunch}
+        onTestSend={handleTestSend}
+        isLoading={isLaunchLoading}
+      />
     </div>
   );
 };

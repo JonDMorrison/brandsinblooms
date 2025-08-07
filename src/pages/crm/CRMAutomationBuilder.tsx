@@ -181,6 +181,53 @@ export const CRMAutomationBuilder = () => {
     setCurrentFlowState(flowState);
   };
 
+  const handleLaunchAutomation = async (automationData: any) => {
+    try {
+      setIsSaving(true);
+      
+      const launchData = {
+        name: automationData.name,
+        is_active: true,
+        trigger_type: automationData.triggerType,
+        trigger_conditions: {},
+        workflow_steps: automationData.flowSteps,
+        flow_state: automationData.flowState,
+      };
+
+      if (automationId) {
+        // Update existing automation to active
+        const { error } = await supabase
+          .from('crm_automations')
+          .update(launchData)
+          .eq('id', automationId);
+
+        if (error) throw error;
+      } else {
+        // Create new active automation
+        const { data, error } = await supabase
+          .from('crm_automations')
+          .insert(launchData)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Redirect to edit mode
+        window.history.replaceState({}, '', `/crm/automations/${data.id}`);
+      }
+      
+      // Update local state
+      setCurrentFlowState(automationData.flowState);
+      setAutomationName(automationData.name);
+      
+    } catch (error) {
+      console.error('Error launching automation:', error);
+      throw error; // Re-throw to handle in canvas
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 max-w-6xl mx-auto">
@@ -283,6 +330,9 @@ export const CRMAutomationBuilder = () => {
                 automationId={automationId}
                 initialFlowState={currentFlowState}
                 onSave={handleFlowChange}
+                onLaunch={handleLaunchAutomation}
+                automationName={automationName}
+                triggerType={currentFlowState?.nodes?.find((n: any) => n.type === 'trigger')?.data?.triggerType || ''}
                 className="h-full w-full"
               />
             </CardContent>
