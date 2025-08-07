@@ -195,12 +195,6 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="text-center space-y-4">
-        <h2 className="text-3xl font-bold">Choose Your Starting Point</h2>
-        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Start with a proven template designed for garden centers, or build your own automation from scratch
-        </p>
-      </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
