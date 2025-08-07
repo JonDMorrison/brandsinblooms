@@ -227,7 +227,7 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-secondary" />
+                <Users className="w-6 h-6 text-secondary-foreground" />
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-lg">Start From Scratch</h3>
