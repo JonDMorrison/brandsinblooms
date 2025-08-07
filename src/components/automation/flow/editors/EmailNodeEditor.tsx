@@ -9,11 +9,14 @@ import { Sparkles, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { regenerateEmailContent } from '@/utils/aiContentRegenerator';
 import { toast } from '@/utils/toast';
+import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 
 interface EmailNodeData {
   subject: string;
   content: string;
   template?: string;
+  imageUrl?: string;
+  imageMetadata?: any;
 }
 
 interface EmailNodeEditorProps {
@@ -40,7 +43,9 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
   const [formData, setFormData] = useState<EmailNodeData>({
     subject: data.subject || '',
     content: data.content || '',
-    template: data.template || ''
+    template: data.template || '',
+    imageUrl: data.imageUrl || '',
+    imageMetadata: data.imageMetadata || null
   });
 
   const [errors, setErrors] = useState<Partial<EmailNodeData>>({});
@@ -51,7 +56,9 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
     setFormData({
       subject: data.subject || '',
       content: data.content || '',
-      template: data.template || ''
+      template: data.template || '',
+      imageUrl: data.imageUrl || '',
+      imageMetadata: data.imageMetadata || null
     });
   }, [data]);
 
@@ -296,6 +303,25 @@ export const EmailNodeEditor: React.FC<EmailNodeEditorProps> = ({
               💡 Tip: Use the "Improve" button to enhance your content with seasonal relevance and better engagement.
             </p>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>Email Image (Optional)</Label>
+          <MediaSelectorImage
+            src={formData.imageUrl}
+            onChange={(imageUrl, metadata) => {
+              setFormData({ 
+                ...formData, 
+                imageUrl,
+                imageMetadata: metadata 
+              });
+            }}
+            contentContext={formData.content || formData.template || 'Garden center email content'}
+            className="w-full h-48"
+          />
+          <p className="text-xs text-muted-foreground">
+            📸 Add a relevant image to make your email more engaging and professional.
+          </p>
         </div>
 
         <div className="flex justify-end gap-3 pt-4">

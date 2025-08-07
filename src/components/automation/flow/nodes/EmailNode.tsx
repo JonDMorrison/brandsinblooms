@@ -8,6 +8,8 @@ export interface EmailNodeData {
   subject?: string;
   content?: string;
   template?: string;
+  imageUrl?: string;
+  imageMetadata?: any;
   editable?: boolean;
   [key: string]: unknown;
 }
