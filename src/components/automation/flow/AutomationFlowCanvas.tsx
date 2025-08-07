@@ -219,9 +219,15 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const [isTestSending, setIsTestSending] = useState(false);
 
   const handleTestSend = useCallback(async () => {
-    if (isTestSending) return;
+    console.log('🧪 Send Test button clicked!', { isTestSending, user: user?.email });
+    
+    if (isTestSending) {
+      console.log('❌ Already sending test, ignoring click');
+      return;
+    }
     
     try {
+      console.log('🚀 Starting test send process...');
       setIsTestSending(true);
       
       // Check if user is authenticated
