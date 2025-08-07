@@ -43,7 +43,14 @@ const EmailNode: React.FC<NodeProps> = ({
             </Badge>
           </div>
           <div className="flex gap-1">
-            <Settings className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" />
+            <Settings 
+              className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" 
+              onClick={(e) => {
+                e.stopPropagation();
+                // TODO: Implement edit functionality
+                console.log('Edit email node:', id);
+              }}
+            />
             <Button
               variant="ghost"
               size="sm"
