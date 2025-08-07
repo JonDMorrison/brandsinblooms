@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Search, Users, Lightbulb, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Search, Users, Lightbulb, X, Plus } from "lucide-react";
 import { PersonaTag } from "./PersonaTag";
 import { SegmentChip } from "./SegmentChip";
+import { CustomPersonaModal } from "./personas/CustomPersonaModal";
+import { CustomSegmentModal } from "./segments/CustomSegmentModal";
+import { useCRMPersonas } from "@/hooks/useCRMPersonas";
+import { useCRMSegments } from "@/hooks/useCRMSegments";
 import { toast } from "@/utils/toast";
 
 interface Persona {
@@ -45,83 +48,61 @@ export const AudienceSelector = ({
   maxSegments = 5,
   onClose
 }: AudienceSelectorProps) => {
-  const [availablePersonas, setAvailablePersonas] = useState<Persona[]>([]);
-  const [availableSegments, setAvailableSegments] = useState<Segment[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [showPersonaModal, setShowPersonaModal] = useState(false);
+  const [showSegmentModal, setShowSegmentModal] = useState(false);
 
-  // Combine and filter all audience options
-  const allOptions: Array<{ type: 'persona'; data: Persona } | { type: 'segment'; data: Segment }> = [
-    ...availablePersonas.map(p => ({ type: 'persona' as const, data: p })),
-    ...availableSegments.map(s => ({ type: 'segment' as const, data: s }))
-  ];
+  // Use existing hooks
+  const { personas, loading: personasLoading, createPersona } = useCRMPersonas();
+  const { segments, loading: segmentsLoading, createSegment } = useCRMSegments();
 
-  const filteredOptions = searchTerm 
-    ? allOptions.filter(option => {
-        const name = option.type === 'persona' ? option.data.persona_name : option.data.name;
-        const description = option.type === 'persona' ? option.data.persona_description : option.data.description;
-        return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               (description && description.toLowerCase().includes(searchTerm.toLowerCase()));
-      })
-    : allOptions;
+  const loading = personasLoading || segmentsLoading;
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Filter options based on search
+  const filteredPersonas = searchTerm 
+    ? personas.filter(persona => 
+        persona.persona_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        persona.persona_description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : personas;
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch personas
-      const { data: personas, error: personasError } = await supabase
-        .from('crm_personas')
-        .select('*')
-        .order('persona_name');
+  const filteredSegments = searchTerm 
+    ? segments.filter(segment => 
+        segment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        segment.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : segments;
 
-      if (personasError) throw personasError;
+  const handleCreatePersona = async (personaData: { name: string; description?: string }) => {
+    const success = await createPersona(personaData);
+    if (success) {
+      setShowPersonaModal(false);
+      // Auto-select the new persona
+      const newPersona = personas.find(p => p.persona_name === personaData.name);
+      if (newPersona && selectedPersonas.length < maxPersonas) {
+        onPersonasChange([...selectedPersonas, newPersona]);
+      }
+    }
+    return success;
+  };
 
-      // Fetch predefined segments
-      const { data: predefinedSegments, error: predefinedError } = await supabase
-        .from('crm_segments')
-        .select('*')
-        .order('name');
-
-      if (predefinedError) throw predefinedError;
-
-      // Fetch custom segments
-      const { data: customSegments, error: customError } = await supabase
-        .from('custom_segments')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-
-      if (customError) throw customError;
-
-      const allSegments: Segment[] = [
-        ...(predefinedSegments || []).map(seg => ({
-          id: seg.id,
-          name: seg.name,
-          description: seg.description,
-          customer_count: seg.customer_count || 0,
-          type: 'predefined' as const,
-          persona_id: seg.persona_id
-        })),
-        ...(customSegments || []).map(seg => ({
-          id: seg.id,
-          name: seg.name,
-          description: undefined,
-          customer_count: seg.customer_count || 0,
-          type: 'custom' as const
-        }))
-      ];
-
-      setAvailablePersonas(personas || []);
-      setAvailableSegments(allSegments);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
+  const handleCreateSegment = async (segmentData: { name: string; filters: any[] }) => {
+    const success = await createSegment(segmentData);
+    if (success) {
+      setShowSegmentModal(false);
+      // Auto-select the new segment
+      const newSegment = segments.find(s => s.name === segmentData.name);
+      if (newSegment && selectedSegments.length < maxSegments) {
+        const mappedSegment: Segment = {
+          id: newSegment.id,
+          name: newSegment.name,
+          description: newSegment.description,
+          customer_count: newSegment.customer_count,
+          type: 'custom',
+          persona_id: newSegment.persona_id
+        };
+        onSegmentsChange([...selectedSegments, mappedSegment]);
+      }
     }
   };
 
@@ -268,114 +249,167 @@ export const AudienceSelector = ({
       )}
 
       {/* Options List */}
-      <div className="space-y-2 max-h-96 overflow-y-auto">
-        {filteredOptions.map((option, index) => {
-          if (option.type === 'persona') {
-            const persona = option.data;
-            const isSelected = isPersonaSelected(persona.id);
-            const isDisabled = !isSelected && selectedPersonas.length >= maxPersonas;
-            
-            return (
-              <div
-                key={`persona-${persona.id}`}
-                className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
-                  isSelected 
-                    ? 'border-purple-500 bg-purple-50' 
-                    : isDisabled 
-                      ? 'border-muted bg-muted/50 opacity-50' 
-                      : 'border-border hover:border-purple-300 hover:bg-purple-50/50'
-                }`}
-              >
-                <Checkbox
-                  id={persona.id}
-                  checked={isSelected}
-                  disabled={isDisabled}
-                  onCheckedChange={(checked) => handlePersonaToggle(persona, checked as boolean)}
-                />
-                <Lightbulb className="h-4 w-4 text-purple-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <label 
-                      htmlFor={persona.id}
-                      className={`font-medium cursor-pointer ${isDisabled ? 'cursor-not-allowed' : ''}`}
-                    >
-                      {persona.persona_name}
-                    </label>
-                    <Badge 
-                      variant={persona.is_custom ? 'outline' : 'default'}
-                      className="text-xs"
-                    >
-                      {persona.is_custom ? 'Custom' : 'Smart'}
-                    </Badge>
-                  </div>
-                  {persona.persona_description && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {persona.persona_description}
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          } else {
-            const segment = option.data;
-            const isSelected = isSegmentSelected(segment.id);
-            const isDisabled = !isSelected && selectedSegments.length >= maxSegments;
-            
-            return (
-              <div
-                key={`segment-${segment.id}`}
-                className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
-                  isSelected 
-                    ? 'border-brand-teal bg-brand-teal/5' 
-                    : isDisabled 
-                      ? 'border-muted bg-muted/50 opacity-50' 
-                      : 'border-border hover:border-brand-teal/30 hover:bg-brand-teal/5'
-                }`}
-              >
-                <Checkbox
-                  id={segment.id}
-                  checked={isSelected}
-                  disabled={isDisabled}
-                  onCheckedChange={(checked) => handleSegmentToggle(segment, checked as boolean)}
-                />
-                <Users className="h-4 w-4 text-brand-teal flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <label 
-                      htmlFor={segment.id}
-                      className={`font-medium cursor-pointer ${isDisabled ? 'cursor-not-allowed' : ''}`}
-                    >
-                      {segment.name}
-                    </label>
-                    <div className="flex items-center gap-2">
+      <div className="space-y-6">
+        {/* Personas Section */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-purple-500" />
+              <h3 className="font-medium">Personas</h3>
+              <Badge variant="outline" className="text-xs">
+                {selectedPersonas.length}/{maxPersonas}
+              </Badge>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPersonaModal(true)}
+              className="h-8"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add New
+            </Button>
+          </div>
+          
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {filteredPersonas.map((persona) => {
+              const isSelected = isPersonaSelected(persona.id);
+              const isDisabled = !isSelected && selectedPersonas.length >= maxPersonas;
+              
+              return (
+                <div
+                  key={persona.id}
+                  className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                    isSelected 
+                      ? 'border-purple-500 bg-purple-50' 
+                      : isDisabled 
+                        ? 'border-muted bg-muted/50 opacity-50' 
+                        : 'border-border hover:border-purple-300 hover:bg-purple-50/50'
+                  }`}
+                >
+                  <Checkbox
+                    id={persona.id}
+                    checked={isSelected}
+                    disabled={isDisabled}
+                    onCheckedChange={(checked) => handlePersonaToggle(persona, checked as boolean)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <label 
+                        htmlFor={persona.id}
+                        className={`font-medium cursor-pointer ${isDisabled ? 'cursor-not-allowed' : ''}`}
+                      >
+                        {persona.persona_name}
+                      </label>
                       <Badge 
-                        variant={segment.type === 'predefined' ? 'default' : 'outline'}
+                        variant={persona.is_custom ? 'outline' : 'default'}
                         className="text-xs"
                       >
-                        {segment.type === 'predefined' ? 'Smart' : 'Custom'}
+                        {persona.is_custom ? 'Custom' : 'Smart'}
                       </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {segment.customer_count.toLocaleString()}
-                      </span>
                     </div>
+                    {persona.persona_description && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {persona.persona_description}
+                      </p>
+                    )}
                   </div>
-                  {segment.description && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {segment.description}
-                    </p>
-                  )}
                 </div>
+              );
+            })}
+            
+            {filteredPersonas.length === 0 && (
+              <div className="text-center py-6 text-muted-foreground">
+                <Lightbulb className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No personas found</p>
               </div>
-            );
-          }
-        })}
-        
-        {filteredOptions.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No audience options found matching your search</p>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Segments Section */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-brand-teal" />
+              <h3 className="font-medium">Segments</h3>
+              <Badge variant="outline" className="text-xs">
+                {selectedSegments.length}/{maxSegments}
+              </Badge>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSegmentModal(true)}
+              className="h-8"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add New
+            </Button>
+          </div>
+          
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {filteredSegments.map((segment) => {
+              const mappedSegment: Segment = {
+                id: segment.id,
+                name: segment.name,
+                description: segment.description,
+                customer_count: segment.customer_count,
+                type: 'predefined',
+                persona_id: segment.persona_id
+              };
+              const isSelected = isSegmentSelected(segment.id);
+              const isDisabled = !isSelected && selectedSegments.length >= maxSegments;
+              
+              return (
+                <div
+                  key={segment.id}
+                  className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                    isSelected 
+                      ? 'border-brand-teal bg-brand-teal/5' 
+                      : isDisabled 
+                        ? 'border-muted bg-muted/50 opacity-50' 
+                        : 'border-border hover:border-brand-teal/30 hover:bg-brand-teal/5'
+                  }`}
+                >
+                  <Checkbox
+                    id={segment.id}
+                    checked={isSelected}
+                    disabled={isDisabled}
+                    onCheckedChange={(checked) => handleSegmentToggle(mappedSegment, checked as boolean)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <label 
+                        htmlFor={segment.id}
+                        className={`font-medium cursor-pointer ${isDisabled ? 'cursor-not-allowed' : ''}`}
+                      >
+                        {segment.name}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {segment.customer_count.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    {segment.description && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {segment.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            
+            {filteredSegments.length === 0 && (
+              <div className="text-center py-6 text-muted-foreground">
+                <Users className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No segments found</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Actions */}
@@ -387,6 +421,19 @@ export const AudienceSelector = ({
           Apply Selection
         </Button>
       </div>
+
+      {/* Modals */}
+      <CustomPersonaModal
+        open={showPersonaModal}
+        onSave={handleCreatePersona}
+        onCancel={() => setShowPersonaModal(false)}
+      />
+      
+      <CustomSegmentModal
+        open={showSegmentModal}
+        onSave={handleCreateSegment}
+        onCancel={() => setShowSegmentModal(false)}
+      />
     </div>
   );
 };
