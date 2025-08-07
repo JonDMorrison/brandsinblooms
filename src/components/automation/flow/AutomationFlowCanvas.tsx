@@ -33,6 +33,7 @@ import { AudienceSelector } from '@/components/crm/AudienceSelector';
 import { useSegmentSelector } from '@/hooks/useSegmentSelector';
 import { Play, Save, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
@@ -213,12 +214,72 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
     }
   }, [onLaunch, automationName, triggerType, nodes, edges, selectedPersonas, selectedSegments, totalAudienceContacts, toast]);
 
-  const handleTestSend = useCallback(() => {
-    toast({
-      title: "Test Send",
-      description: "Test functionality will be implemented soon.",
-    });
-  }, [toast]);
+  const { user } = useAuth();
+
+  const handleTestSend = useCallback(async () => {
+    try {
+      // Check if user is authenticated
+      if (!user?.email) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to send test emails.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Find email nodes in the flow
+      const emailNodes = nodes.filter(node => node.type === 'email' && node.data?.subject && node.data?.body);
+      
+      if (emailNodes.length === 0) {
+        toast({
+          title: "No Email Content",
+          description: "Add at least one email step with content to send a test.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Use the first email node for testing
+      const firstEmailNode = emailNodes[0];
+      const { subject, body } = firstEmailNode.data;
+
+      // Send test email using the existing edge function
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-test-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          email: user.email,
+          subject: subject,
+          content: body,
+          testName: user.user_metadata?.full_name || 'Test User',
+          campaignId: `automation-${automationName?.replace(/\s+/g, '-').toLowerCase()}`
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send test email');
+      }
+
+      const result = await response.json();
+      
+      toast({
+        title: "Test Email Sent! 📧",
+        description: `A test email has been sent to ${user.email}`,
+      });
+    } catch (error) {
+      console.error('Test send error:', error);
+      toast({
+        title: "Test Send Failed",
+        description: error instanceof Error ? error.message : "There was an error sending the test email. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [nodes, automationName, user, toast]);
 
   const handleSaveDraft = useCallback(() => {
     if (onSaveDraft) {
