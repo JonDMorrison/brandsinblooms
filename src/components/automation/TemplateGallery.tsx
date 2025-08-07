@@ -59,10 +59,10 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
           category: 'welcome',
           flow_data: {
             nodes: [
-              { id: 'trigger-1', type: 'trigger', position: { x: 100, y: 100 }, data: { triggerType: 'loyalty_join', label: 'New Customer' } },
-              { id: 'email-1', type: 'email', position: { x: 100, y: 200 }, data: { subject: 'Welcome!', content: 'Welcome to our community!' } },
-              { id: 'delay-1', type: 'delay', position: { x: 100, y: 300 }, data: { delayValue: 1, delayUnit: 'days' } },
-              { id: 'sms-1', type: 'sms', position: { x: 100, y: 400 }, data: { content: 'Thanks for joining! Enjoy 10% off your first order.' } }
+              { id: 'trigger-1', type: 'trigger', position: { x: 50, y: 50 }, data: { triggerType: 'loyalty_join', label: 'New Customer' } },
+              { id: 'email-1', type: 'email', position: { x: 80, y: 280 }, data: { subject: 'Welcome!', content: 'Welcome to our community!' } },
+              { id: 'delay-1', type: 'delay', position: { x: 120, y: 510 }, data: { delayValue: 1, delayUnit: 'days' } },
+              { id: 'sms-1', type: 'sms', position: { x: 150, y: 740 }, data: { content: 'Thanks for joining! Enjoy 10% off your first order.' } }
             ],
             edges: [
               { id: 'e1', source: 'trigger-1', target: 'email-1' },
@@ -80,14 +80,68 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
           category: 'retention',
           flow_data: {
             nodes: [
-              { id: 'trigger-2', type: 'trigger', position: { x: 100, y: 100 }, data: { triggerType: 'cart_abandonment', label: 'Cart Abandoned' } },
-              { id: 'email-2', type: 'email', position: { x: 100, y: 200 }, data: { subject: 'Complete your order', content: 'You left something in your cart...' } }
+              { id: 'trigger-2', type: 'trigger', position: { x: 50, y: 50 }, data: { triggerType: 'cart_abandonment', label: 'Cart Abandoned' } },
+              { id: 'email-2', type: 'email', position: { x: 200, y: 300 }, data: { subject: 'Complete your order', content: 'You left something in your cart...' } },
+              { id: 'delay-2', type: 'delay', position: { x: 350, y: 550 }, data: { delayValue: 24, delayUnit: 'hours' } },
+              { id: 'email-3', type: 'email', position: { x: 500, y: 800 }, data: { subject: 'Last chance - 10% off!', content: 'Don\'t miss out on your items. Complete your order now with 10% off!' } }
             ],
             edges: [
-              { id: 'e4', source: 'trigger-2', target: 'email-2' }
+              { id: 'e4', source: 'trigger-2', target: 'email-2' },
+              { id: 'e5', source: 'email-2', target: 'delay-2' },
+              { id: 'e6', source: 'delay-2', target: 'email-3' }
             ]
           },
           kpi_data: { avg_ctr: 12.8, avg_revenue_per_send: 8.90 },
+          is_active: true
+        },
+        {
+          id: 'loyalty-boost',
+          name: 'Loyalty Boost Campaign',
+          description: 'Re-engage existing customers with personalized offers',
+          category: 'loyalty',
+          flow_data: {
+            nodes: [
+              { id: 'trigger-3', type: 'trigger', position: { x: 100, y: 50 }, data: { triggerType: 'loyalty_tier_upgrade', label: 'Tier Upgrade' } },
+              { id: 'split-1', type: 'split', position: { x: 150, y: 280 }, data: { condition: 'purchase_history', label: 'Purchase History?' } },
+              { id: 'email-4', type: 'email', position: { x: 50, y: 510 }, data: { subject: 'Welcome to VIP!', content: 'Congratulations on reaching VIP status!' } },
+              { id: 'sms-2', type: 'sms', position: { x: 300, y: 510 }, data: { content: 'VIP perks unlocked! Enjoy exclusive benefits.' } },
+              { id: 'delay-3', type: 'delay', position: { x: 175, y: 740 }, data: { delayValue: 3, delayUnit: 'days' } },
+              { id: 'email-5', type: 'email', position: { x: 175, y: 970 }, data: { subject: 'Your VIP rewards', content: 'Here are your exclusive VIP rewards and offers!' } }
+            ],
+            edges: [
+              { id: 'e7', source: 'trigger-3', target: 'split-1' },
+              { id: 'e8', source: 'split-1', target: 'email-4' },
+              { id: 'e9', source: 'split-1', target: 'sms-2' },
+              { id: 'e10', source: 'email-4', target: 'delay-3' },
+              { id: 'e11', source: 'sms-2', target: 'delay-3' },
+              { id: 'e12', source: 'delay-3', target: 'email-5' }
+            ]
+          },
+          kpi_data: { avg_ctr: 18.7, avg_revenue_per_send: 5.20 },
+          is_active: true
+        },
+        {
+          id: 'product-launch',
+          name: 'Product Launch Campaign',
+          description: 'Multi-channel campaign for new product announcements',
+          category: 'promotion',
+          flow_data: {
+            nodes: [
+              { id: 'trigger-4', type: 'trigger', position: { x: 150, y: 50 }, data: { triggerType: 'product_launch', label: 'Product Launch' } },
+              { id: 'email-6', type: 'email', position: { x: 100, y: 280 }, data: { subject: 'Exciting New Product!', content: 'Introducing our latest innovation...' } },
+              { id: 'sms-3', type: 'sms', position: { x: 250, y: 280 }, data: { content: 'New product alert! Check your email for details.' } },
+              { id: 'delay-4', type: 'delay', position: { x: 175, y: 510 }, data: { delayValue: 2, delayUnit: 'days' } },
+              { id: 'email-7', type: 'email', position: { x: 175, y: 740 }, data: { subject: 'Limited time offer!', content: 'Get 20% off our new product for the next 48 hours!' } }
+            ],
+            edges: [
+              { id: 'e13', source: 'trigger-4', target: 'email-6' },
+              { id: 'e14', source: 'trigger-4', target: 'sms-3' },
+              { id: 'e15', source: 'email-6', target: 'delay-4' },
+              { id: 'e16', source: 'sms-3', target: 'delay-4' },
+              { id: 'e17', source: 'delay-4', target: 'email-7' }
+            ]
+          },
+          kpi_data: { avg_ctr: 22.3, avg_revenue_per_send: 12.80 },
           is_active: true
         }
       ];

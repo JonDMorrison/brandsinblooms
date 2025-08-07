@@ -122,6 +122,12 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
         fitView
+        fitViewOptions={{
+          padding: 50,
+          minZoom: 0.5,
+          maxZoom: 1.2,
+          includeHiddenNodes: false
+        }}
         attributionPosition="bottom-left"
         className="bg-background"
         minZoom={0.2}
