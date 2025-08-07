@@ -301,15 +301,15 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         
         {/* Audience Selector Modal */}
         {showAudienceSelector && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[85vh] mx-4 overflow-hidden">
-              <div className="p-6 border-b bg-white">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+              <div className="p-6 border-b bg-white flex-shrink-0">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Users className="h-5 w-5" />
                   Configure Target Audience
                 </h3>
               </div>
-              <div className="overflow-y-auto p-6 bg-white">
+              <div className="flex-1 overflow-y-auto min-h-0">
                 <AudienceSelector
                   selectedPersonas={selectedPersonas}
                   selectedSegments={selectedSegments}
