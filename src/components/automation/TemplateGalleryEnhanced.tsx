@@ -200,19 +200,19 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
       {/* Header */}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto place-items-center min-h-[40vh]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 max-w-4xl mx-auto place-items-center min-h-[30vh] md:min-h-[40vh]">
         <Card 
-          className="cursor-pointer hover:shadow-lg transition-all duration-200 border-2 border-primary/20 h-full min-h-[160px]"
+          className="cursor-pointer hover:shadow-lg transition-all duration-200 border-2 border-primary/20 h-full min-h-[120px] md:min-h-[160px]"
           onClick={() => setShowTemplates(!showTemplates)}
         >
-          <CardContent className="p-6 h-full">
-            <div className="flex items-center gap-4 h-full">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Zap className="w-6 h-6 text-primary" />
+          <CardContent className="p-4 md:p-6 h-full">
+            <div className="flex items-center gap-3 md:gap-4 h-full">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Zap className="w-5 h-5 md:w-6 md:h-6 text-primary" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-lg">Use a Template</h3>
-                <p className="text-muted-foreground">Start with proven garden center automations</p>
+                <h3 className="font-semibold text-base md:text-lg">Use a Template</h3>
+                <p className="text-muted-foreground text-sm md:text-base">Start with proven garden center automations</p>
               </div>
               {showTemplates ? (
                 <ChevronUp className="w-5 h-5 text-muted-foreground" />
@@ -223,15 +223,15 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full min-h-[160px]" onClick={onStartFromScratch}>
-          <CardContent className="p-6 h-full">
-            <div className="flex items-center gap-4 h-full">
-              <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-secondary-foreground" />
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full min-h-[120px] md:min-h-[160px]" onClick={onStartFromScratch}>
+          <CardContent className="p-4 md:p-6 h-full">
+            <div className="flex items-center gap-3 md:gap-4 h-full">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 md:w-6 md:h-6 text-secondary-foreground" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-lg">Start From Scratch</h3>
-                <p className="text-muted-foreground">Build a custom automation with guided steps</p>
+                <h3 className="font-semibold text-base md:text-lg">Start From Scratch</h3>
+                <p className="text-muted-foreground text-sm md:text-base">Build a custom automation with guided steps</p>
               </div>
               <ArrowRight className="w-5 h-5 text-muted-foreground" />
             </div>
