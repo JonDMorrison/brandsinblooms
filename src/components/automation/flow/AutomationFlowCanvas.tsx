@@ -23,6 +23,7 @@ import SplitNode from './nodes/SplitNode';
 import { FloatingToolbar } from './FloatingToolbar';
 import { FlowValidation, FlowStatusBadge } from './FlowValidation';
 import { ReviewLaunchModal } from './ReviewLaunchModal';
+import { NodeEditorDialog } from './NodeEditorDialog';
 import { useAutomationFlow } from '../hooks/useAutomationFlow';
 import { Button } from '@/components/ui/button';
 import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
@@ -89,6 +90,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [isLaunchLoading, setIsLaunchLoading] = useState(false);
+  const [editingNode, setEditingNode] = useState<{id: string; type: string; data: any} | null>(null);
   
   const { toast } = useToast();
 
@@ -246,7 +248,13 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         onConnect={onConnect}
         onNodeClick={handleNodeClick}
         isValidConnection={isValidConnection}
-        nodeTypes={nodeTypes}
+        nodeTypes={{
+          trigger: (props: any) => <TriggerNode {...props} onEdit={(id, type, data) => setEditingNode({id, type, data})} onDelete={deleteNode} />,
+          email: (props: any) => <EmailNode {...props} onEdit={(id, type, data) => setEditingNode({id, type, data})} onDelete={deleteNode} />,
+          sms: (props: any) => <SMSNode {...props} onEdit={(id, type, data) => setEditingNode({id, type, data})} onDelete={deleteNode} />,
+          delay: (props: any) => <DelayNode {...props} onEdit={(id, type, data) => setEditingNode({id, type, data})} onDelete={deleteNode} />,
+          split: (props: any) => <SplitNode {...props} onEdit={(id, type, data) => setEditingNode({id, type, data})} onDelete={deleteNode} />,
+        }}
         fitView
         fitViewOptions={{
           padding: 50,
@@ -301,6 +309,20 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         onLaunch={handleLaunch}
         onTestSend={handleTestSend}
         isLoading={isLaunchLoading}
+      />
+
+      {/* Node Editor Dialog */}
+      <NodeEditorDialog
+        open={!!editingNode}
+        onOpenChange={(open) => !open && setEditingNode(null)}
+        nodeType={editingNode?.type || null}
+        nodeData={editingNode?.data || null}
+        onSave={(data) => {
+          if (editingNode) {
+            updateNode(editingNode.id, data);
+            setEditingNode(null);
+          }
+        }}
       />
     </div>
   );

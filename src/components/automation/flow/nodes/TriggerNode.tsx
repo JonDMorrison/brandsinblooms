@@ -2,18 +2,53 @@ import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Zap, Settings } from 'lucide-react';
+import { Zap, Settings, Trash2 } from 'lucide-react';
 
 export interface TriggerNodeData {
   triggerType: string;
   label: string;
   conditions?: Record<string, any>;
+  [key: string]: unknown;
 }
 
-const TriggerNode: React.FC<NodeProps> = ({ data, selected }) => {
-  const nodeData = (data as unknown) as TriggerNodeData;
+interface TriggerNodeProps {
+  id: string;
+  data: TriggerNodeData;
+  selected?: boolean;
+  onEdit?: (nodeId: string, nodeType: string, nodeData: any) => void;
+  onDelete?: (nodeId: string) => void;
+}
+
+const TriggerNode: React.FC<TriggerNodeProps> = ({ 
+  id, 
+  data, 
+  selected, 
+  onEdit, 
+  onDelete 
+}) => {
+  const nodeData = data as TriggerNodeData;
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.(id, 'trigger', nodeData);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete?.(id);
+  };
+
+  const handleCardClick = () => {
+    onEdit?.(id, 'trigger', nodeData);
+  };
+
   return (
-    <Card className={`min-w-[200px] ${selected ? 'ring-2 ring-primary' : ''}`}>
+    <Card 
+      className={`min-w-[200px] cursor-pointer hover:shadow-md transition-shadow ${
+        selected ? 'ring-2 ring-primary' : ''
+      }`}
+      onClick={handleCardClick}
+    >
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-2">
           <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
@@ -24,7 +59,16 @@ const TriggerNode: React.FC<NodeProps> = ({ data, selected }) => {
               TRIGGER
             </Badge>
           </div>
-          <Settings className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" />
+          <div className="flex gap-1">
+            <Settings 
+              className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" 
+              onClick={handleEdit}
+            />
+            <Trash2 
+              className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-destructive" 
+              onClick={handleDelete}
+            />
+          </div>
         </div>
         
         <div>
