@@ -200,7 +200,6 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
       {/* Main Action Cards - Improved Design */}
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold mb-2">Create Your Automation</h2>
           <p className="text-muted-foreground">Choose how you'd like to get started with your customer engagement</p>
         </div>
         
