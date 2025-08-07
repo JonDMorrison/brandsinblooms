@@ -251,10 +251,20 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
           dataKeys: Object.keys(node.data || {}),
           hasSubject: !!node.data?.subject,
           hasBody: !!node.data?.body,
+          hasContent: !!node.data?.content,
+          hasMessage: !!node.data?.message,
           data: node.data
         });
       });
-      const emailNodes = nodes.filter(node => node.type === 'email' && node.data?.subject && node.data?.body);
+      
+      // Try different field names for email content
+      const emailNodes = nodes.filter(node => {
+        if (node.type !== 'email') return false;
+        const hasSubject = !!node.data?.subject;
+        const hasContent = !!(node.data?.body || node.data?.content || node.data?.message);
+        console.log(`📧 Checking ${node.id}:`, { hasSubject, hasContent, data: node.data });
+        return hasSubject && hasContent;
+      });
       console.log('📧 Found email nodes:', emailNodes.length);
       
       if (emailNodes.length === 0) {
@@ -269,8 +279,9 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
 
       // Use the first email node for testing
       const firstEmailNode = emailNodes[0];
-      const { subject, body } = firstEmailNode.data;
-      console.log('📮 Preparing to send test email:', { subject, bodyLength: typeof body === 'string' ? body.length : 'unknown' });
+      const subject = firstEmailNode.data?.subject;
+      const content = firstEmailNode.data?.body || firstEmailNode.data?.content || firstEmailNode.data?.message;
+      console.log('📮 Preparing to send test email:', { subject, contentLength: typeof content === 'string' ? content.length : 'unknown', content });
 
       // Send test email using the Supabase edge function
       console.log('🚀 Calling send-test-email function...');
@@ -278,7 +289,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         body: {
           email: user.email,
           subject: subject,
-          content: body,
+          content: content,
           testName: user.user_metadata?.full_name || 'Test User',
           campaignId: `automation-${automationName?.replace(/\s+/g, '-').toLowerCase()}`
         }
