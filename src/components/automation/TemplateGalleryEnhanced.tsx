@@ -200,7 +200,7 @@ export const TemplateGalleryEnhanced: React.FC<TemplateGalleryEnhancedProps> = (
       {/* Header */}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto place-items-center min-h-[40vh]">
         <Card 
           className="cursor-pointer hover:shadow-lg transition-all duration-200 border-2 border-primary/20"
           onClick={() => setShowTemplates(!showTemplates)}
