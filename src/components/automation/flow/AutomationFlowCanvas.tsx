@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -93,6 +93,25 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const [editingNode, setEditingNode] = useState<{id: string; type: string; data: any} | null>(null);
   
   const { toast } = useToast();
+
+  // Stable callback for editing nodes
+  const handleEditNode = useCallback((id: string, type: string, data: any) => {
+    setEditingNode({ id, type, data });
+  }, []);
+
+  // Stable callback for deleting nodes
+  const handleDeleteNode = useCallback((id: string) => {
+    deleteNode(id);
+  }, [deleteNode]);
+
+  // Memoized nodeTypes with stable callbacks
+  const memoizedNodeTypes = useMemo(() => ({
+    trigger: (props: any) => <TriggerNode {...props} onEdit={handleEditNode} onDelete={handleDeleteNode} />,
+    email: (props: any) => <EmailNode {...props} onEdit={handleEditNode} onDelete={handleDeleteNode} />,
+    sms: (props: any) => <SMSNode {...props} onEdit={handleEditNode} onDelete={handleDeleteNode} />,
+    delay: (props: any) => <DelayNode {...props} onEdit={handleEditNode} onDelete={handleDeleteNode} />,
+    split: (props: any) => <SplitNode {...props} onEdit={handleEditNode} onDelete={handleDeleteNode} />,
+  }), [handleEditNode, handleDeleteNode]);
 
   // Calculate total audience
   const totalAudienceContacts = selectedSegments.reduce((total, segment) => 
@@ -232,13 +251,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         onConnect={onConnect}
         onNodeClick={handleNodeClick}
         isValidConnection={isValidConnection}
-        nodeTypes={{
-          trigger: (props: any) => <TriggerNode {...props} onEdit={(id, type, data) => setEditingNode({id, type, data})} onDelete={deleteNode} />,
-          email: (props: any) => <EmailNode {...props} onEdit={(id, type, data) => setEditingNode({id, type, data})} onDelete={deleteNode} />,
-          sms: (props: any) => <SMSNode {...props} onEdit={(id, type, data) => setEditingNode({id, type, data})} onDelete={deleteNode} />,
-          delay: (props: any) => <DelayNode {...props} onEdit={(id, type, data) => setEditingNode({id, type, data})} onDelete={deleteNode} />,
-          split: (props: any) => <SplitNode {...props} onEdit={(id, type, data) => setEditingNode({id, type, data})} onDelete={deleteNode} />,
-        }}
+        nodeTypes={memoizedNodeTypes}
         fitView
         fitViewOptions={{
           padding: 50,
