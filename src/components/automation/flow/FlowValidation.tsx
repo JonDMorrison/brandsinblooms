@@ -2,6 +2,8 @@ import React from 'react';
 import { AlertCircle, CheckCircle, Users } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import { Node, Edge } from '@xyflow/react';
 
 interface FlowValidationProps {
@@ -161,29 +163,81 @@ export const FlowStatusBadge: React.FC<FlowValidationProps> = ({
   const validationResults = validateFlow(nodes, edges, selectedAudience);
   const hasErrors = validationResults.some(result => result.type === 'error');
   const hasWarnings = validationResults.some(result => result.type === 'warning');
+  const errors = validationResults.filter(result => result.type === 'error');
+  const warnings = validationResults.filter(result => result.type === 'warning');
 
-  if (hasErrors) {
+  // Ready to launch - no issues
+  if (validationResults.length === 0) {
     return (
-      <Badge variant="destructive" className="gap-1">
-        <AlertCircle className="w-3 h-3" />
-        Needs Fixes
+      <Badge variant="secondary" className="gap-1 bg-green-100 text-green-800 border-green-300">
+        <CheckCircle className="w-3 h-3" />
+        Ready to Launch
       </Badge>
     );
   }
 
-  if (hasWarnings) {
-    return (
-      <Badge variant="secondary" className="gap-1 bg-yellow-100 text-yellow-800 border-yellow-300">
-        <AlertCircle className="w-3 h-3" />
-        Has Warnings
-      </Badge>
-    );
-  }
+  // Has issues - make it clickable with popover
+  const badgeContent = hasErrors ? (
+    <Badge variant="destructive" className="gap-1 cursor-pointer hover:opacity-80">
+      <AlertCircle className="w-3 h-3" />
+      Needs Fixes
+    </Badge>
+  ) : (
+    <Badge variant="secondary" className="gap-1 bg-yellow-100 text-yellow-800 border-yellow-300 cursor-pointer hover:opacity-80">
+      <AlertCircle className="w-3 h-3" />
+      Has Warnings
+    </Badge>
+  );
 
   return (
-    <Badge variant="secondary" className="gap-1 bg-green-100 text-green-800 border-green-300">
-      <CheckCircle className="w-3 h-3" />
-      Ready to Launch
-    </Badge>
+    <Popover>
+      <PopoverTrigger asChild>
+        {badgeContent}
+      </PopoverTrigger>
+      <PopoverContent className="w-80" align="center" side="top">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            <h4 className="font-medium">Validation Issues</h4>
+          </div>
+          
+          {errors.length > 0 && (
+            <div className="space-y-2">
+              <h5 className="text-sm font-medium text-destructive flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Errors ({errors.length})
+              </h5>
+              <div className="space-y-1">
+                {errors.map((error, index) => (
+                  <div key={index} className="text-xs text-destructive bg-destructive/10 p-2 rounded">
+                    {error.message}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {warnings.length > 0 && (
+            <div className="space-y-2">
+              <h5 className="text-sm font-medium text-yellow-700 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Warnings ({warnings.length})
+              </h5>
+              <div className="space-y-1">
+                {warnings.map((warning, index) => (
+                  <div key={index} className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded">
+                    {warning.message}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div className="text-xs text-muted-foreground pt-2 border-t">
+            Fix all errors to enable launching your automation.
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
