@@ -125,10 +125,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Process content with test data
     let processedContent = content;
+    processedContent = processedContent.replace(/\{\{first_name\}\}/g, testName);
+    processedContent = processedContent.replace(/\{\{firstName\}\}/g, testName);
     processedContent = processedContent.replace(/\{firstName\}/g, testName);
+    processedContent = processedContent.replace(/\{\{company_name\}\}/g, 'BloomSuite Test');
     processedContent = processedContent.replace(/\{company_name\}/g, 'BloomSuite Test');
+    processedContent = processedContent.replace(/\{\{unsubscribe_link\}\}/g, 'https://bloomsuite.app/unsubscribe/test');
     processedContent = processedContent.replace(/\{unsubscribe_link\}/g, 'https://bloomsuite.app/unsubscribe/test');
+    processedContent = processedContent.replace(/\{\{company_website\}\}/g, 'bloomsuite.app');
     processedContent = processedContent.replace(/\{company_website\}/g, 'bloomsuite.app');
+    processedContent = processedContent.replace(/\{\{company_address\}\}/g, 'BloomSuite Test Address');
     processedContent = processedContent.replace(/\{company_address\}/g, 'BloomSuite Test Address');
 
     // Add test header to email
