@@ -22,6 +22,7 @@ import DelayNode from './nodes/DelayNode';
 import SplitNode from './nodes/SplitNode';
 import { FloatingToolbar } from './FloatingToolbar';
 import { FlowValidation, FlowStatusBadge } from './FlowValidation';
+import { AIGuidancePanel } from './AIGuidancePanel';
 import { ReviewLaunchModal } from './ReviewLaunchModal';
 import { NodeEditorDialog } from './NodeEditorDialog';
 import { useAutomationFlow } from '../hooks/useAutomationFlow';
@@ -277,12 +278,30 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
       </ReactFlow>
 
       {/* Flow Status and Actions Below Canvas */}
-      <div className="mt-4 flex flex-col items-center gap-3">
+      <div className="mt-4 flex flex-col items-center gap-4">
         <FlowStatusBadge 
           nodes={nodes} 
           edges={edges} 
           selectedAudience={selectedAudience} 
         />
+        
+        {/* AI Guidance Panel - show when not ready to launch */}
+        {!isReadyToLaunch && (
+          <AIGuidancePanel
+            nodes={nodes}
+            hasValidFlow={hasValidFlow}
+            hasAudience={hasAudience}
+            isReadyToLaunch={isReadyToLaunch}
+            onAddNode={handleAddNode}
+            onOpenAudienceSelector={() => {
+              // This will need to be connected to your audience selector
+              toast({
+                title: "Select Audience",
+                description: "Use the Audience Targeting button in the top toolbar to select your audience.",
+              });
+            }}
+          />
+        )}
         
         {hasValidFlow && (
           <div className="flex items-center gap-3">
