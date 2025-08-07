@@ -56,7 +56,9 @@ export const AudienceSelector = ({
   const { personas, loading: personasLoading } = useAllPersonas();
   const { segments, loading: segmentsLoading } = useAllSegments();
 
+  // Wait for both to complete to prevent flashing
   const loading = personasLoading || segmentsLoading;
+  const dataReady = !loading && personas.length >= 0 && segments.length >= 0;
 
   // Filter options based on search
   const filteredPersonas = searchTerm 
@@ -136,13 +138,29 @@ export const AudienceSelector = ({
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-muted rounded w-1/4"></div>
-          <div className="space-y-2">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-12 bg-muted rounded"></div>
-            ))}
+      <div className="p-6 min-h-[600px]">
+        <div className="animate-pulse space-y-6">
+          {/* Search skeleton */}
+          <div className="h-10 bg-muted rounded"></div>
+          
+          {/* Two column layout skeleton */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="h-6 bg-muted rounded w-1/3"></div>
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-16 bg-muted rounded"></div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="h-6 bg-muted rounded w-1/3"></div>
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-16 bg-muted rounded"></div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -150,7 +168,7 @@ export const AudienceSelector = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 min-h-[600px] ${dataReady ? 'animate-fade-in' : ''}`}>
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
