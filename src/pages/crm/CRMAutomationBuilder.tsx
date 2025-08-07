@@ -300,11 +300,6 @@ export const CRMAutomationBuilder = () => {
       {/* Choose Your Starting Point - For New Automations */}
       {showChooseStartingPoint && (
         <Card>
-          <CardHeader>
-            <p className="text-muted-foreground">
-              Start with a proven template designed for garden centers, or build your own automation from scratch
-            </p>
-          </CardHeader>
           <CardContent>
             {showGuidedBuilder ? (
               <GuidedAutomationBuilder
