@@ -1,13 +1,13 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ReviewLaunchModal } from '@/components/automation/flow/ReviewLaunchModal';
 import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
-import { Save } from 'lucide-react';
+import { Save, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDraftAutosave } from '@/hooks/useDraftAutosave';
 import { ConflictBanner } from '@/components/autosave/ConflictBanner';
@@ -25,7 +25,7 @@ export const CRMAutomationCanvasPage: React.FC = () => {
 
   const { toast } = useToast();
   const { user } = useAuth();
-
+  const navigate = useNavigate();
   useEffect(() => {
     document.title = `${automationName} – Automation Canvas`;
     const meta = document.querySelector('meta[name="description"]');
@@ -185,6 +185,14 @@ export const CRMAutomationCanvasPage: React.FC = () => {
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/crm/automations')}
+              className="h-8 w-8 p-0"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
             <h1 className="sr-only">Automation Canvas - {automationName}</h1>
             <Input
               value={automationName}
