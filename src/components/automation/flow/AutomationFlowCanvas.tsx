@@ -22,7 +22,7 @@ import DelayNode from './nodes/DelayNode';
 import SplitNode from './nodes/SplitNode';
 import { FloatingToolbar } from './FloatingToolbar';
 import { FlowValidation, FlowStatusBadge } from './FlowValidation';
-import { AIGuidancePanel } from './AIGuidancePanel';
+import { AIAssistant } from './AIAssistant';
 import { ReviewLaunchModal } from './ReviewLaunchModal';
 import { NodeEditorDialog } from './NodeEditorDialog';
 import { useAutomationFlow } from '../hooks/useAutomationFlow';
@@ -399,17 +399,6 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
           selectedAudience={selectedAudience} 
         />
         
-        {/* AI Guidance Panel - show when not ready to launch */}
-        {!isReadyToLaunch && (
-          <AIGuidancePanel
-            nodes={nodes}
-            hasValidFlow={hasValidFlow}
-            hasAudience={hasAudience}
-            isReadyToLaunch={isReadyToLaunch}
-            onAddNode={handleAddNode}
-            onOpenAudienceSelector={() => setShowAudienceSelector(true)}
-          />
-        )}
         
         {/* Audience Selector Modal */}
         {showAudienceSelector && (
@@ -522,6 +511,14 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             setEditingNode(null);
           }
         }}
+      />
+
+      <AIAssistant
+        nodes={nodes}
+        hasAudience={hasAudience}
+        isReadyToLaunch={isReadyToLaunch}
+        onAddNode={handleAddNode}
+        onOpenAudienceSelector={() => setShowAudienceSelector(true)}
       />
     </div>
   );
