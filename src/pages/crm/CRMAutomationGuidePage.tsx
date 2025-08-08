@@ -33,6 +33,22 @@ export const CRMAutomationGuidePage: React.FC = () => {
     }
   }, []);
 
+  // Normalize builder trigger IDs to backend-accepted categories
+  const mapTriggerType = (id?: string) => {
+    if (!id) return 'manual';
+    const eventTriggers = new Set([
+      'loyalty_join',
+      'first_purchase',
+      'customer_birthday',
+      'big_spender',
+      'abandoned_cart',
+      'review_request',
+      'event_rsvp',
+      'newsletter_opt_in'
+    ]);
+    return eventTriggers.has(id) ? 'event' : 'manual';
+  };
+
   const handleGuideComplete = async (config?: any) => {
     if (!user) {
       toast({
@@ -43,10 +59,19 @@ export const CRMAutomationGuidePage: React.FC = () => {
       return;
     }
     try {
+      const triggerSubtype =
+        config?.trigger ||
+        config?.flow_data?.trigger_type ||
+        config?.flow_data?.nodes?.find((n: any) => n?.type === 'trigger')?.data?.triggerType ||
+        'manual';
+
       const payload: any = {
         name: config?.name || 'Untitled Automation',
-        trigger_type: config?.trigger || config?.flow_data?.trigger_type || 'manual',
-        trigger_conditions: config?.trigger_conditions ?? {},
+        trigger_type: mapTriggerType(triggerSubtype),
+        trigger_conditions: {
+          ...(config?.trigger_conditions ?? {}),
+          subtype: triggerSubtype
+        },
         workflow_steps: config?.flow_data ?? [],
         is_active: false,
         user_id: user.id,
@@ -63,8 +88,8 @@ export const CRMAutomationGuidePage: React.FC = () => {
 
       toast({ title: 'Blueprint ready', description: 'Opening the canvas to continue designing.' });
       navigate(`/crm/automations/${data.id}/canvas`);
-    } catch (err) {
-      console.error('Failed to create automation draft', err);
+    } catch (err: any) {
+      console.error('Failed to create automation draft', err?.message || err, err);
       toast({
         title: 'Could not create automation',
         description: 'Please try again.',
