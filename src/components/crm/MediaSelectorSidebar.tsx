@@ -378,7 +378,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-h-0">
           {/* Search Section */}
           <div className="p-4 space-y-4 border-b border-gray-100">
             <div className="flex gap-2">
@@ -424,7 +424,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
           </div>
 
           {/* Results Section */}
-          <div ref={contentRef} className="flex-1 overflow-y-auto p-4">
+          <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto p-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
