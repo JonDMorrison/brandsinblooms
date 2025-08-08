@@ -354,39 +354,42 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const isReadyToLaunch = hasValidFlow && hasAudience;
 
   return (
-    <div className={`relative w-full h-full ${className}`}>
-
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeClick={handleNodeClick}
-        isValidConnection={isValidConnection}
-        nodeTypes={memoizedNodeTypes}
-        fitView
-        fitViewOptions={{
-          padding: 50,
-          minZoom: 0.5,
-          maxZoom: 1.2,
-          includeHiddenNodes: false
-        }}
-        attributionPosition="bottom-left"
-        className="bg-background"
-        minZoom={0.2}
-        maxZoom={2}
-      >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-        <Controls />
-        <MiniMap 
-          nodeStrokeColor="#374151"
-          nodeColor="#f3f4f6"
-          nodeBorderRadius={8}
-          maskColor="rgba(0, 0, 0, 0.1)"
-          position="top-right"
-        />
-      </ReactFlow>
+    <div className={`relative w-full ${className}`}>
+      <section role="region" aria-label="Automation canvas" className="w-full">
+        <div className="w-full rounded-lg bg-muted/30 h-[60vh] min-h-[420px]">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={handleNodeClick}
+            isValidConnection={isValidConnection}
+            nodeTypes={memoizedNodeTypes}
+            fitView
+            fitViewOptions={{
+              padding: 50,
+              minZoom: 0.5,
+              maxZoom: 1.2,
+              includeHiddenNodes: false
+            }}
+            attributionPosition="bottom-left"
+            className="bg-background"
+            minZoom={0.2}
+            maxZoom={2}
+          >
+            <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
+            <Controls />
+            <MiniMap 
+              nodeStrokeColor="#374151"
+              nodeColor="#f3f4f6"
+              nodeBorderRadius={8}
+              maskColor="rgba(0, 0, 0, 0.1)"
+              position="top-right"
+            />
+          </ReactFlow>
+        </div>
+      </section>
 
       {/* Flow Status and Actions Below Canvas */}
       <div className="mt-4 flex flex-col items-center gap-4">
