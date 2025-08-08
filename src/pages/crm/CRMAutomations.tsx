@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Eye, Edit, Calendar } from "lucide-react";
+import { Plus, Eye, Edit, Calendar, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { DashboardError } from "@/components/dashboard/DashboardError";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Automation {
   id: string;
@@ -22,25 +24,40 @@ const CRMAutomations = () => {
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAutomations();
   }, []);
 
   const fetchAutomations = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const { data, error } = await supabase
+      const baseQuery = supabase
         .from('crm_automations')
         .select('*')
         .order('created_at', { ascending: false });
 
+      // Scope by user if available to prevent cross-tenant leaks
+      const query = user?.id ? baseQuery.eq('user_id', user.id) : baseQuery;
+
+      const timeoutMs = 8000;
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), timeoutMs)
+      );
+
+      const { data, error } = await Promise.race([query, timeoutPromise]) as any;
+
       if (error) throw error;
       setAutomations(data || []);
-    } catch (error) {
-      console.error('Error fetching automations:', error);
+    } catch (err: any) {
+      console.error('Error fetching automations:', err);
+      setError(err?.message || 'Failed to load automations');
       toast({
         title: "Error",
-        description: "Failed to load automations",
+        description: err?.message || "Failed to load automations",
         variant: "destructive",
       });
     } finally {
@@ -90,6 +107,16 @@ const CRMAutomations = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="max-w-6xl mx-auto">
+          <DashboardError onRetry={fetchAutomations} />
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="p-6">
@@ -113,12 +140,18 @@ const CRMAutomations = () => {
               Set up automated workflows to engage your customers
             </p>
           </div>
-          <Link to="/crm/automations/new/guide">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Automation
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={fetchAutomations} aria-label="Refresh automations">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
             </Button>
-          </Link>
+            <Link to="/crm/automations/new/guide">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Automation
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <Card>
