@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ReviewLaunchModal } from '@/components/automation/flow/ReviewLaunchModal';
-import { AutomationCanvas } from '@/components/automation/AutomationCanvas';
-import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
+import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
 import { Save } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -169,19 +168,25 @@ export const CRMAutomationCanvasPage: React.FC = () => {
               <Save className="w-4 h-4" />
               {isSaving ? 'Saving...' : 'Save Draft'}
             </Button>
-            <AudienceTargetingButton
-              selectedPersonas={selectedPersonas}
-              selectedSegments={selectedSegments}
-              onPersonasChange={setSelectedPersonas}
-              onSegmentsChange={setSelectedSegments}
-            />
             <Button onClick={() => setIsReviewOpen(true)} aria-label="Review and launch">Review & Launch</Button>
           </div>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        <AutomationCanvas flowState={flowState} onFlowStateChange={setFlowState} />
+        <AutomationFlowCanvas
+          automationId={automationId}
+          initialFlowState={flowState as any}
+          onSave={(state) => setFlowState(state as any)}
+          onSaveDraft={handleSaveDraft}
+          onReviewLaunch={() => setIsReviewOpen(true)}
+          automationName={automationName}
+          triggerType="manual"
+          selectedPersonas={selectedPersonas}
+          selectedSegments={selectedSegments}
+          onPersonasChange={setSelectedPersonas}
+          onSegmentsChange={setSelectedSegments}
+        />
       </main>
 
       <ReviewLaunchModal
