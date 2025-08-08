@@ -8,6 +8,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple error serializer to improve logging
+const serializeError = (err: unknown) => {
+  try {
+    if (err instanceof Error) {
+      const anyErr = err as any;
+      return {
+        name: anyErr.name,
+        message: anyErr.message,
+        stack: anyErr.stack,
+        code: anyErr.code ?? anyErr.statusCode,
+        response: anyErr.response ?? anyErr.error ?? null,
+      };
+    }
+    return { error: String(err) };
+  } catch {
+    return { error: 'Unknown error' };
+  }
+};
+
 interface TestEmailRequest {
   email?: string;
   subject?: string;
@@ -169,19 +188,51 @@ const handler = async (req: Request): Promise<Response> => {
       emailHeaders['X-Campaign-ID'] = campaignId;
     }
 
-    // Send test email
-    const emailResponse = await resend.emails.send({
-      from: 'BloomSuite Test <noreply@bloomsuite.email>',
-      to: [email],
-      subject: `[TEST] ${subject || 'Email Campaign Preview'}`,
-      html: finalContent,
-      headers: emailHeaders,
-      tags: campaignId ? [`campaign:${campaignId}`, 'type:test'] : ['type:test']
-    });
+    // Send test email with graceful fallback if domain isn't verified
+    let sentId: string | undefined;
+    try {
+      const emailResponse = await resend.emails.send({
+        from: 'BloomSuite Test <noreply@bloomsuite.email>',
+        to: [email],
+        subject: `[TEST] ${subject || 'Email Campaign Preview'}`,
+        html: finalContent,
+        headers: emailHeaders,
+        tags: campaignId ? [`campaign:${campaignId}`, 'type:test'] : ['type:test']
+      });
+      console.log('Resend primary response:', emailResponse);
+      sentId = (emailResponse as any)?.data?.id ?? (emailResponse as any)?.id;
+    } catch (primaryErr) {
+      console.error('Resend primary send error:', serializeError(primaryErr));
 
-    console.log('Resend send-test-email response:', emailResponse);
-
-    const sentId = (emailResponse as any)?.data?.id ?? (emailResponse as any)?.id;
+      // Common cause: unverified sender domain. Try Resend dev domain as fallback.
+      try {
+        const fallbackResponse = await resend.emails.send({
+          from: 'BloomSuite Test <onboarding@resend.dev>',
+          to: [email],
+          subject: `[TEST] ${subject || 'Email Campaign Preview'}`,
+          html: finalContent,
+          headers: emailHeaders,
+          tags: campaignId ? [`campaign:${campaignId}`, 'type:test', 'sender:fallback'] : ['type:test', 'sender:fallback']
+        });
+        console.log('Resend fallback response:', fallbackResponse);
+        sentId = (fallbackResponse as any)?.data?.id ?? (fallbackResponse as any)?.id;
+      } catch (fallbackErr) {
+        console.error('Resend fallback send error:', serializeError(fallbackErr));
+        return new Response(
+          JSON.stringify({ 
+            error: 'Failed to send test email',
+            reason: (fallbackErr as any)?.message ?? 'Unknown error',
+            details: serializeError(fallbackErr),
+            primaryError: serializeError(primaryErr),
+            hint: 'Verify your sending domain in Resend or use a verified from address.'
+          }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    }
 
     if (sentId) {
       console.log(`Campaign test email sent successfully to ${email}, ID: ${sentId}`);
@@ -198,9 +249,9 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     } else {
-      console.error(`Failed to send test email to ${email}`, { emailResponse });
+      console.error(`Failed to send test email to ${email} - unknown ID`);
       return new Response(
-        JSON.stringify({ error: 'Failed to send test email', details: (emailResponse as any)?.error ?? null }),
+        JSON.stringify({ error: 'Failed to send test email' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
