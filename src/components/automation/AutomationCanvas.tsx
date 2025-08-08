@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { AIAssistant } from './flow/AIAssistant';
 
 interface FlowState {
   nodes: any[];
@@ -33,6 +34,14 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({
           <div className="w-full h-full" aria-hidden />
         )}
       </div>
+
+      <AIAssistant
+        nodes={flowState?.nodes || []}
+        hasAudience={false}
+        isReadyToLaunch={false}
+        onAddNode={(type) => console.warn('onAddNode not wired in AutomationCanvas yet:', type)}
+        onOpenAudienceSelector={() => console.warn('onOpenAudienceSelector not wired in AutomationCanvas yet')}
+      />
     </section>
   );
 };
