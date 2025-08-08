@@ -111,17 +111,19 @@ export function useDraftAutosave(opts: UseDraftAutosaveOptions): UseDraftAutosav
           (payload: any) => {
             if (!mounted) return;
             const newVersion = payload?.new?.version as number | undefined;
-            const actor = payload?.new?.user_id;
-            if (newVersion && newVersion > baseVersionRef.current) {
-              baseVersionRef.current = newVersion;
-              onHeadNotice?.({ version: newVersion });
-              // If other user/tab wrote new head, hint to user
-              toast({
-                title: 'Draft updated in another tab',
-                description: 'We will merge your changes on the next save.',
-              });
-              // We don't force-merge here; merge happens on next save through the edge function
-            }
+            const actor = payload?.new?.user_id as string | undefined;
+            const currentUserId = user.user.id as string;
+
+            // Ignore updates from this same user/session and stale versions
+            if (actor === currentUserId) return;
+            if (!newVersion || newVersion <= baseVersionRef.current) return;
+
+            baseVersionRef.current = newVersion;
+            onHeadNotice?.({ version: newVersion });
+            toast({
+              title: 'Draft updated in another tab',
+              description: 'We will merge your changes on the next save.',
+            });
           }
         )
         .subscribe();
@@ -156,10 +158,16 @@ export function useDraftAutosave(opts: UseDraftAutosaveOptions): UseDraftAutosav
 
     const nextVersion = (data as any)?.version as number | undefined;
     const newConflicts = ((data as any)?.conflicts || []) as Conflict[];
+    const mergedContent = (data as any)?.merged_content;
 
     if (nextVersion) {
       baseVersionRef.current = nextVersion;
       setLastSavedAt(Date.now());
+    }
+
+    // Keep local reference in sync with server-merged content
+    if (mergedContent !== undefined) {
+      lastContentRef.current = mergedContent;
     }
 
     if (newConflicts.length > 0) {
@@ -170,6 +178,7 @@ export function useDraftAutosave(opts: UseDraftAutosaveOptions): UseDraftAutosav
       });
       setStatus('merged');
     } else {
+      setConflicts([]);
       setStatus('saved');
     }
   }, [canSave, docId, docType, toast]);

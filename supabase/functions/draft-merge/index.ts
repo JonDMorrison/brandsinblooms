@@ -194,44 +194,51 @@ Deno.serve(async (req: Request) => {
  *    - Else => conflict, prefer local but record it
  */
 function threeWayMerge(base: any, local: any, remote: any, path: string = ""): MergeResult {
-  // Primitives equality
+  // Arrays: treat as atomic sequences (no per-index merge to avoid accidental shuffles)
+  const baseIsArr = Array.isArray(base);
+  const localIsArr = Array.isArray(local);
+  const remoteIsArr = Array.isArray(remote);
+  const allArrays = baseIsArr && localIsArr && remoteIsArr;
+
+  if (allArrays) {
+    if (deepEqual(local, remote)) {
+      return { merged: local, conflicts: [] };
+    }
+    if (deepEqual(base, remote) && !deepEqual(base, local)) {
+      return { merged: local, conflicts: [] };
+    }
+    if (deepEqual(base, local) && !deepEqual(base, remote)) {
+      return { merged: remote, conflicts: [] };
+    }
+    return { merged: local, conflicts: [{ path, base, local, remote }] };
+  }
+
+  // Primitives or mixed types
   if (!isObject(base) && !isObject(local) && !isObject(remote)) {
-    if (equals(local, remote)) {
+    if (deepEqual(local, remote)) {
       return { merged: local, conflicts: [] };
     }
-    // Only local changed
-    if (equals(base, remote) && !equals(base, local)) {
+    if (deepEqual(base, remote) && !deepEqual(base, local)) {
       return { merged: local, conflicts: [] };
     }
-    // Only remote changed
-    if (equals(base, local) && !equals(base, remote)) {
+    if (deepEqual(base, local) && !deepEqual(base, remote)) {
       return { merged: remote, conflicts: [] };
     }
-    // Both changed differently => conflict
-    return {
-      merged: local,
-      conflicts: [{ path, base, local, remote }],
-    };
+    return { merged: local, conflicts: [{ path, base, local, remote }] };
   }
 
-  // If one side is not object, normalize to primitive comparison
+  // If one side is not object (or arrays differ types), treat as atomic
   if (!isObject(base) || !isObject(local) || !isObject(remote)) {
-    // Only local changed
-    if (equals(base, remote) && !equals(base, local)) {
+    if (deepEqual(base, remote) && !deepEqual(base, local)) {
       return { merged: local, conflicts: [] };
     }
-    // Only remote changed
-    if (equals(base, local) && !equals(base, remote)) {
+    if (deepEqual(base, local) && !deepEqual(base, remote)) {
       return { merged: remote, conflicts: [] };
     }
-    // Both changed differently => conflict
-    return {
-      merged: local,
-      conflicts: [{ path, base, local, remote }],
-    };
+    return { merged: local, conflicts: [{ path, base, local, remote }] };
   }
 
-  // All objects: merge keys
+  // All plain objects: merge keys
   const keys = new Set<string>([
     ...Object.keys(base || {}),
     ...Object.keys(local || {}),
@@ -242,29 +249,23 @@ function threeWayMerge(base: any, local: any, remote: any, path: string = ""): M
 
   for (const key of keys) {
     const subPath = path ? `${path}.${key}` : key;
-    const b = base?.[key];
-    const l = local?.[key];
-    const r = remote?.[key];
+    const b = (base as any)?.[key];
+    const l = (local as any)?.[key];
+    const r = (remote as any)?.[key];
 
-    // If equal on both sides, keep either
-    if (equals(l, r)) {
+    if (deepEqual(l, r)) {
       merged[key] = l;
       continue;
     }
-
-    // Only local changed
-    if (equals(b, r) && !equals(b, l)) {
+    if (deepEqual(b, r) && !deepEqual(b, l)) {
       merged[key] = l;
       continue;
     }
-
-    // Only remote changed
-    if (equals(b, l) && !equals(b, r)) {
+    if (deepEqual(b, l) && !deepEqual(b, r)) {
       merged[key] = r;
       continue;
     }
 
-    // Both changed
     const res = threeWayMerge(b, l, r, subPath);
     merged[key] = res.merged;
     if (res.conflicts.length) conflicts = conflicts.concat(res.conflicts);
@@ -277,10 +278,32 @@ function isObject(v: any): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
-function equals(a: any, b: any): boolean {
-  try {
-    return JSON.stringify(a) === JSON.stringify(b);
-  } catch {
-    return a === b;
+function deepEqual(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return a === b;
+  const ta = typeof a;
+  const tb = typeof b;
+  if (ta !== "object" || tb !== "object") return false;
+
+  const aIsArr = Array.isArray(a);
+  const bIsArr = Array.isArray(b);
+  if (aIsArr || bIsArr) {
+    if (!(aIsArr && bIsArr)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], b[i])) return false;
+    }
+    return true;
   }
+
+  const aKeys = Object.keys(a).sort();
+  const bKeys = Object.keys(b).sort();
+  if (aKeys.length !== bKeys.length) return false;
+  for (let i = 0; i < aKeys.length; i++) {
+    if (aKeys[i] !== bKeys[i]) return false;
+  }
+  for (const k of aKeys) {
+    if (!deepEqual(a[k], b[k])) return false;
+  }
+  return true;
 }
