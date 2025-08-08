@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -11,6 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Play, Users, Clock, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReviewLaunchModalProps {
   open: boolean;
@@ -70,6 +74,69 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
     }
   };
   const [testRecipient, setTestRecipient] = useState('');
+  const [activating, setActivating] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Fallback: if parent didn't provide onLaunch, activate directly here
+  const defaultActivate = async () => {
+    if (!user?.id) {
+      toast({ title: 'Not signed in', description: 'Please sign in to continue.', variant: 'destructive' });
+      return;
+    }
+    if (!automation?.name) {
+      toast({ title: 'Missing name', description: 'Please give your automation a name before activating.', variant: 'destructive' });
+      return;
+    }
+    setActivating(true);
+
+    // Fetch tenant_id for RLS
+    const { data: tenantRow, error: tenantError } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single();
+
+    if (tenantError) {
+      console.error('Failed to fetch tenant_id:', tenantError);
+      toast({ title: 'Error', description: 'Could not fetch workspace context.', variant: 'destructive' });
+      setActivating(false);
+      return;
+    }
+
+    const payload: any = {
+      name: automation.name,
+      is_active: true,
+      trigger_type: automation.triggerType || 'manual',
+      trigger_conditions: {},
+      workflow_steps: automation.flowSteps || [],
+      user_id: user.id,
+      tenant_id: tenantRow?.tenant_id,
+    };
+
+    const { error } = await supabase
+      .from('crm_automations')
+      .insert(payload);
+
+    if (error) {
+      console.error('Activation error:', error);
+      toast({ title: 'Activation failed', description: error.message, variant: 'destructive' });
+      setActivating(false);
+      return;
+    }
+
+    toast({ title: 'Activated', description: 'Automation has been activated successfully.' });
+    setActivating(false);
+    onOpenChange(false);
+  };
+
+  const handleActivateClick = () => {
+    if (onLaunch) {
+      onLaunch();
+    } else {
+      defaultActivate();
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -193,23 +260,23 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
               <Button
                 variant="outline"
                 onClick={() => onTestSend(testRecipient?.trim() || undefined)}
-                disabled={isLoading || isTestSending}
+                disabled={isLoading || isTestSending || activating}
               >
                 {isTestSending ? 'Sending...' : 'Send Test'}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={isLoading}
+                disabled={isLoading || activating}
               >
                 Back to Editor
               </Button>
               <Button
-                onClick={onLaunch}
-                disabled={isLoading || automation.flowSteps.length === 0}
+                onClick={handleActivateClick}
+                disabled={isLoading || automation.flowSteps.length === 0 || activating}
                 className="bg-green-600 hover:bg-green-700"
               >
-                {isLoading ? 'Activating...' : 'Activate Automation'}
+                {isLoading || activating ? 'Activating...' : 'Activate Automation'}
               </Button>
             </div>
           </div>
