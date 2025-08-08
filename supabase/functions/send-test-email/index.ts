@@ -179,14 +179,18 @@ const handler = async (req: Request): Promise<Response> => {
       tags: campaignId ? [`campaign:${campaignId}`, 'type:test'] : ['type:test']
     });
 
-    if (emailResponse.id) {
-      console.log(`Campaign test email sent successfully to ${email}, ID: ${emailResponse.id}`);
+    console.log('Resend send-test-email response:', emailResponse);
+
+    const sentId = (emailResponse as any)?.data?.id ?? (emailResponse as any)?.id;
+
+    if (sentId) {
+      console.log(`Campaign test email sent successfully to ${email}, ID: ${sentId}`);
       
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: `Test email sent successfully to ${email}`,
-          emailId: emailResponse.id
+          emailId: sentId
         }),
         { 
           status: 200, 
@@ -194,9 +198,9 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     } else {
-      console.error(`Failed to send test email to ${email}`);
+      console.error(`Failed to send test email to ${email}`, { emailResponse });
       return new Response(
-        JSON.stringify({ error: 'Failed to send test email' }),
+        JSON.stringify({ error: 'Failed to send test email', details: (emailResponse as any)?.error ?? null }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
