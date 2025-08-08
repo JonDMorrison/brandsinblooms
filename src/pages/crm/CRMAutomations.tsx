@@ -158,7 +158,13 @@ const CRMAutomations = () => {
                   {automations.map((automation) => (
                     <TableRow key={automation.id}>
                       <TableCell className="font-medium">
-                        {automation.name}
+                        <Link
+                          to={`/crm/automations/${automation.id}/canvas`}
+                          aria-label={`Edit automation ${automation.name}`}
+                          className="hover:underline"
+                        >
+                          {automation.name}
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
@@ -185,14 +191,26 @@ const CRMAutomations = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
+                          <div className="flex items-center space-x-2">
+                            <Link
+                              to={`/crm/automations/${automation.id}`}
+                              aria-label={`View automation ${automation.name}`}
+                              title="View"
+                            >
+                              <Button variant="ghost" size="sm">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            <Link
+                              to={`/crm/automations/${automation.id}/canvas`}
+                              aria-label={`Edit automation ${automation.name}`}
+                              title="Edit"
+                            >
+                              <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </div>
                       </TableCell>
                     </TableRow>
                   ))}
