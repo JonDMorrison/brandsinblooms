@@ -255,7 +255,7 @@ export const CRMAutomationCanvasPage: React.FC = () => {
         automation={{
           name: automationName,
           triggerType: flowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
-          flowSteps: [],
+          flowSteps: (flowState.nodes || []).filter((n: any) => n.type !== 'trigger'),
           selectedAudience: { personas: selectedPersonas, segments: selectedSegments, totalContacts: 0 },
         }}
         onLaunch={handleActivate}

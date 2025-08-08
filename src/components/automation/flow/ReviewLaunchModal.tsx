@@ -244,17 +244,18 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
           <Separator />
 
           {/* Test recipient + Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 sm:items-end sm:justify-between">
-            <div className="flex-1">
-              <label className="block text-sm text-muted-foreground mb-1">Send test to</label>
-              <Input
-                type="email"
-                inputMode="email"
-                placeholder="you@example.com (defaults to your login email)"
-                value={testRecipient}
-                onChange={(e) => setTestRecipient(e.target.value)}
-              />
-            </div>
+            <div className="flex flex-col sm:flex-row gap-4 sm:items-end sm:justify-between">
+              <div className="flex-1">
+                <label className="block text-sm text-muted-foreground mb-1">Send test to</label>
+                <Input
+                  type="email"
+                  inputMode="email"
+                  placeholder="you@example.com (defaults to your login email)"
+                  value={testRecipient}
+                  onChange={(e) => setTestRecipient(e.target.value)}
+                  aria-label="Test recipient email"
+                />
+              </div>
 
             <div className="flex gap-3 justify-end">
               <Button
@@ -274,7 +275,7 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
               <Button
                 onClick={handleActivateClick}
                 disabled={isLoading || automation.flowSteps.length === 0 || activating}
-                className="bg-green-600 hover:bg-green-700"
+                aria-label="Activate automation"
               >
                 {isLoading || activating ? 'Activating...' : 'Activate Automation'}
               </Button>
