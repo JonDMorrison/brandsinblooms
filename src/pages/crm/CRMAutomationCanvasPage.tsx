@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,9 @@ import { ReviewLaunchModal } from '@/components/automation/flow/ReviewLaunchModa
 import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
 import { Save } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDraftAutosave } from '@/hooks/useDraftAutosave';
+import { ConflictBanner } from '@/components/autosave/ConflictBanner';
+import { AutoSaveIndicator } from '@/components/crm/AutoSaveIndicator';
 
 export const CRMAutomationCanvasPage: React.FC = () => {
   const { id: automationId } = useParams();
@@ -149,6 +153,33 @@ export const CRMAutomationCanvasPage: React.FC = () => {
     }
   };
 
+  // Merge-safe autosave: only if we have a real automationId (UUID)
+  const autosaveEnabled = useMemo(() => Boolean(automationId), [automationId]);
+
+  const { status: autoStatus, lastSavedAt, conflicts, scheduleSave, saveNow, clearConflicts } = useDraftAutosave({
+    docType: 'automation',
+    docId: autosaveEnabled ? automationId! : null,
+    throttleMs: 5000,
+    onHeadNotice: ({ version }) => {
+      console.log('Head changed to version', version);
+    }
+  });
+
+  // Schedule autosave whenever flowState changes
+  useEffect(() => {
+    if (!autosaveEnabled) return;
+    scheduleSave(flowState);
+  }, [autosaveEnabled, flowState, scheduleSave]);
+
+  // Flush autosave on unmount
+  useEffect(() => {
+    return () => {
+      if (autosaveEnabled) {
+        void saveNow(flowState);
+      }
+    };
+  }, [autosaveEnabled, flowState, saveNow]);
+
   return (
     <div className="min-h-[100dvh] flex flex-col">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -163,7 +194,21 @@ export const CRMAutomationCanvasPage: React.FC = () => {
               className="h-9 w-[240px] sm:w-[320px]"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:block">
+              <AutoSaveIndicator
+                status={
+                  autoStatus === 'saving' ? 'saving' :
+                  autoStatus === 'error' ? 'error' : 'saved'
+                }
+                onRetry={() => saveNow(flowState)}
+              />
+              {lastSavedAt && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Last saved {Math.round((Date.now() - lastSavedAt) / 1000)}s ago
+                </div>
+              )}
+            </div>
             <Button variant="outline" onClick={handleSaveDraft} disabled={isSaving} className="flex items-center gap-2" aria-label="Save draft">
               <Save className="w-4 h-4" />
               {isSaving ? 'Saving...' : 'Save Draft'}
@@ -174,6 +219,21 @@ export const CRMAutomationCanvasPage: React.FC = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto">
+        {conflicts.length > 0 && (
+          <div className="max-w-5xl mx-auto p-4">
+            <ConflictBanner
+              conflicts={conflicts}
+              onAcceptMerged={() => clearConflicts()}
+              onDiscardBanner={() => clearConflicts()}
+              onViewDiff={() => {
+                // Simple diff view: log to console for now
+                console.log('Conflicts:', conflicts);
+                toast({ title: 'Conflict details logged', description: 'Open the console to inspect field-level differences.' });
+              }}
+            />
+          </div>
+        )}
+
         <AutomationFlowCanvas
           automationId={automationId}
           initialFlowState={flowState as any}

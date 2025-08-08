@@ -1987,6 +1987,48 @@ export type Database = {
         }
         Relationships: []
       }
+      draft_snapshots: {
+        Row: {
+          conflict_diff: Json | null
+          content: Json
+          content_url: string | null
+          created_at: string
+          doc_id: string
+          doc_type: Database["public"]["Enums"]["draft_doc_type"]
+          id: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          conflict_diff?: Json | null
+          content?: Json
+          content_url?: string | null
+          created_at?: string
+          doc_id: string
+          doc_type: Database["public"]["Enums"]["draft_doc_type"]
+          id?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          conflict_diff?: Json | null
+          content?: Json
+          content_url?: string | null
+          created_at?: string
+          doc_id?: string
+          doc_type?: Database["public"]["Enums"]["draft_doc_type"]
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       email_tracking_events: {
         Row: {
           campaign_id: string
@@ -4074,6 +4116,7 @@ export type Database = {
     Enums: {
       billing_interval: "monthly" | "annual"
       content_status: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED"
+      draft_doc_type: "newsletter" | "automation"
       platform_type: "FB" | "IG_FEED" | "IG_REEL"
       post_mode: "AUTO" | "MANUAL"
       post_status: "QUEUED" | "PUBLISHED" | "ERROR"
@@ -4207,6 +4250,7 @@ export const Constants = {
     Enums: {
       billing_interval: ["monthly", "annual"],
       content_status: ["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED"],
+      draft_doc_type: ["newsletter", "automation"],
       platform_type: ["FB", "IG_FEED", "IG_REEL"],
       post_mode: ["AUTO", "MANUAL"],
       post_status: ["QUEUED", "PUBLISHED", "ERROR"],
