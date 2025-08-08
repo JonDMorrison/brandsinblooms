@@ -1,14 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ReviewLaunchModal } from '@/components/automation/flow/ReviewLaunchModal';
 import { AutomationCanvas } from '@/components/automation/AutomationCanvas';
-import { GuidedAutomationBuilder } from '@/components/automation/GuidedAutomationBuilder';
 import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
 import { Save } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+
+const GuidedAutomationBuilder = lazy(() => import('@/components/automation/GuidedAutomationBuilder').then(m => ({ default: m.GuidedAutomationBuilder })));
 
 export const CRMAutomationBuilder = () => {
   const { id: automationId } = useParams();
@@ -22,6 +25,16 @@ export const CRMAutomationBuilder = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [tenantId, setTenantId] = useState<string | null>(null);
+
+  const isMobile = useIsMobile();
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+
+  const handleGuideComplete = (automationConfig: any) => {
+    if (automationConfig?.name) setAutomationName(automationConfig.name);
+    if (automationConfig?.flow_data) setFlowState(automationConfig.flow_data);
+    toast({ title: 'Blueprint applied', description: 'We prefilled your canvas based on your selections.' });
+    if (isMobile) setIsGuideOpen(false);
+  };
 
   // Load existing automation if editing
   useEffect(() => {
@@ -216,6 +229,13 @@ export const CRMAutomationBuilder = () => {
             <Save className="w-4 h-4" />
             {isSaving ? 'Saving...' : 'Save Draft'}
           </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setIsGuideOpen(true)}
+            className="md:hidden"
+          >
+            Build with Guide
+          </Button>
           <AudienceTargetingButton
             selectedPersonas={selectedPersonas}
             selectedSegments={selectedSegments}
@@ -232,11 +252,13 @@ export const CRMAutomationBuilder = () => {
       </div>
 
       <div className="flex-1 flex">
-        <div className="w-64 border-r p-4">
-          <GuidedAutomationBuilder 
-            onComplete={() => {}}
-            onBack={() => {}}
-          />
+        <div className="hidden md:block md:w-72 border-r p-4 overflow-y-auto">
+          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
+            <GuidedAutomationBuilder 
+              onComplete={handleGuideComplete}
+              onBack={() => {}}
+            />
+          </Suspense>
         </div>
         <div className="flex-1">
           <AutomationCanvas
@@ -245,6 +267,19 @@ export const CRMAutomationBuilder = () => {
           />
         </div>
       </div>
+
+      <Sheet open={isGuideOpen} onOpenChange={setIsGuideOpen}>
+        <SheetContent side="left" className="w-full sm:max-w-md p-0">
+          <SheetHeader className="px-4 py-3 border-b">
+            <SheetTitle>Guided Builder</SheetTitle>
+          </SheetHeader>
+          <div className="h-[calc(100vh-56px)] overflow-y-auto p-4">
+            <Suspense fallback={<div className="p-4 text-muted-foreground">Loading guide...</div>}>
+              <GuidedAutomationBuilder onComplete={handleGuideComplete} onBack={() => setIsGuideOpen(false)} />
+            </Suspense>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <ReviewLaunchModal
         open={isReviewOpen}
