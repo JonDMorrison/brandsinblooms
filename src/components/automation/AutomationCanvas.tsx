@@ -16,18 +16,22 @@ export const AutomationCanvas: React.FC<AutomationCanvasProps> = ({
   onFlowStateChange,
 }) => {
   return (
-    <section role="region" aria-label="Automation canvas" className="h-full w-full p-4 md:p-6">
-      <div className="h-full min-h-[60vh] w-full rounded-lg border border-dashed bg-background flex items-center justify-center">
-        <div className="text-center text-muted-foreground">
-          <p className="mb-3">Start by choosing a goal on the left or add a trigger to begin.</p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onFlowStateChange({ ...flowState })}
-          >
-            Refresh Canvas
-          </Button>
-        </div>
+    <section role="region" aria-label="Automation canvas" className="w-full responsive-padding">
+      <div className="w-full rounded-lg bg-muted/30 flex items-center justify-center min-h-[360px] md:min-h-[520px] max-h-[calc(100vh-220px)]">
+        {flowState?.nodes?.length === 0 && flowState?.edges?.length === 0 ? (
+          <div className="text-center text-muted-foreground">
+            <p className="mb-3">Start by choosing a goal on the left or add a trigger to begin.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onFlowStateChange({ ...flowState })}
+            >
+              Refresh Canvas
+            </Button>
+          </div>
+        ) : (
+          <div className="w-full h-full" aria-hidden />
+        )}
       </div>
     </section>
   );

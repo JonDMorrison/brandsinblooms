@@ -213,7 +213,7 @@ export const CRMAutomationBuilder = () => {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="min-h-[100dvh] flex flex-col">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
@@ -266,7 +266,7 @@ export const CRMAutomationBuilder = () => {
             />
           </Suspense>
         </aside>
-        <main className="flex-1">
+        <main className="flex-1 overflow-y-auto">
           <AutomationCanvas
             flowState={flowState}
             onFlowStateChange={setFlowState}
