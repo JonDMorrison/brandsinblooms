@@ -48,6 +48,12 @@ export const CRMAutomationBuilder = () => {
     fetchTenant();
   }, [user?.id]);
 
+  // Helper to safely validate flow_state from DB
+  type FlowState = { nodes: any[]; edges: any[] };
+  const isFlowState = (value: any): value is FlowState => {
+    return !!value && typeof value === 'object' && Array.isArray((value as any).nodes) && Array.isArray((value as any).edges);
+  };
+
   const loadAutomation = async () => {
     if (!automationId) return;
     
@@ -70,9 +76,12 @@ export const CRMAutomationBuilder = () => {
 
       if (data) {
         setAutomationName(data.name || 'Untitled Automation');
-        // Load flow state if available
-        if (data.flow_state) {
-          setFlowState(data.flow_state);
+        // Load flow state if available and valid
+        const rawFlow = (data as any).flow_state;
+        if (isFlowState(rawFlow)) {
+          setFlowState({ nodes: rawFlow.nodes, edges: rawFlow.edges });
+        } else {
+          console.log('No valid flow_state found on automation record:', rawFlow);
         }
       }
     } catch (error) {
@@ -101,6 +110,8 @@ export const CRMAutomationBuilder = () => {
       workflow_steps: [],
       user_id: user?.id,
       ...(tenantId ? { tenant_id: tenantId } : {}),
+      // Optional: include flow_state when saving
+      // flow_state: currentFlowState,
     };
 
     try {
@@ -151,6 +162,8 @@ export const CRMAutomationBuilder = () => {
       workflow_steps: [],
       user_id: user?.id,
       ...(tenantId ? { tenant_id: tenantId } : {}),
+      // Optional: include flow_state when activating
+      // flow_state: currentFlowState,
     };
 
     try {
@@ -220,7 +233,10 @@ export const CRMAutomationBuilder = () => {
 
       <div className="flex-1 flex">
         <div className="w-64 border-r p-4">
-          <GuidedAutomationBuilder />
+          <GuidedAutomationBuilder 
+            onComplete={() => {}}
+            onBack={() => {}}
+          />
         </div>
         <div className="flex-1">
           <AutomationCanvas
