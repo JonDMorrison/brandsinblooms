@@ -3,6 +3,8 @@ import { Resend } from "npm:resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
+const RESEND_FROM_ADDRESS = Deno.env.get("RESEND_FROM_ADDRESS");
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -188,16 +190,23 @@ const handler = async (req: Request): Promise<Response> => {
       emailHeaders['X-Campaign-ID'] = campaignId;
     }
 
-    // Send test email with graceful fallback if domain isn't verified
+    // Send test email with graceful fallback if domain isn't verified and support custom from
+    const configuredFrom = RESEND_FROM_ADDRESS?.trim();
+    const primaryFrom = configuredFrom
+      ? (configuredFrom.includes('<') ? configuredFrom : `BloomSuite Test <${configuredFrom}>`)
+      : 'BloomSuite Test <noreply@bloomsuite.email>';
+    const fallbackFrom = 'BloomSuite Test <onboarding@resend.dev>';
+
     let sentId: string | undefined;
+    let usedFrom = primaryFrom;
     try {
       const emailResponse = await resend.emails.send({
-        from: 'BloomSuite Test <noreply@bloomsuite.email>',
+        from: primaryFrom,
         to: [email],
         subject: `[TEST] ${subject || 'Email Campaign Preview'}`,
         html: finalContent,
         headers: emailHeaders,
-        tags: campaignId ? [`campaign:${campaignId}`, 'type:test'] : ['type:test']
+        tags: campaignId ? [`campaign:${campaignId}`, 'type:test', 'sender:primary'] : ['type:test', 'sender:primary']
       });
       console.log('Resend primary response:', emailResponse);
       sentId = (emailResponse as any)?.data?.id ?? (emailResponse as any)?.id;
@@ -207,7 +216,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Common cause: unverified sender domain. Try Resend dev domain as fallback.
       try {
         const fallbackResponse = await resend.emails.send({
-          from: 'BloomSuite Test <onboarding@resend.dev>',
+          from: fallbackFrom,
           to: [email],
           subject: `[TEST] ${subject || 'Email Campaign Preview'}`,
           html: finalContent,
@@ -216,6 +225,7 @@ const handler = async (req: Request): Promise<Response> => {
         });
         console.log('Resend fallback response:', fallbackResponse);
         sentId = (fallbackResponse as any)?.data?.id ?? (fallbackResponse as any)?.id;
+        usedFrom = fallbackFrom;
       } catch (fallbackErr) {
         console.error('Resend fallback send error:', serializeError(fallbackErr));
         return new Response(
@@ -224,7 +234,7 @@ const handler = async (req: Request): Promise<Response> => {
             reason: (fallbackErr as any)?.message ?? 'Unknown error',
             details: serializeError(fallbackErr),
             primaryError: serializeError(primaryErr),
-            hint: 'Verify your sending domain in Resend or use a verified from address.'
+            hint: 'Verify your sending domain in Resend or set RESEND_FROM_ADDRESS to a verified sender.'
           }),
           { 
             status: 500, 
@@ -241,7 +251,8 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ 
           success: true, 
           message: `Test email sent successfully to ${email}`,
-          emailId: sentId
+          emailId: sentId,
+          usedFrom
         }),
         { 
           status: 200, 
