@@ -59,8 +59,24 @@ export const CRMAutomationCanvasPage: React.FC = () => {
       if (error) throw error;
       if (data) {
         setAutomationName((data as any).name || 'Untitled Automation');
-        const rawFlow = (data as any).flow_state;
-        if (isFlowState(rawFlow)) setFlowState({ nodes: rawFlow.nodes, edges: rawFlow.edges });
+        const ws = (data as any).workflow_steps;
+        if (isFlowState(ws)) {
+          setFlowState({ nodes: ws.nodes, edges: ws.edges });
+        } else {
+          const subtype = (data as any)?.trigger_conditions?.subtype || (data as any)?.trigger_type || 'manual';
+          const initial: FlowState = {
+            nodes: [
+              {
+                id: 'trigger-1',
+                type: 'trigger',
+                position: { x: 160, y: 80 },
+                data: { label: String(subtype).replace(/_/g, ' '), triggerType: subtype },
+              },
+            ],
+            edges: [],
+          };
+          setFlowState(initial);
+        }
       }
     } catch (e) {
       console.error('Error loading automation:', e);
@@ -77,12 +93,11 @@ export const CRMAutomationCanvasPage: React.FC = () => {
     const payload: any = {
       name: automationName,
       is_active: false,
-      trigger_type: flowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
+      trigger_type: 'manual',
       trigger_conditions: {},
-      workflow_steps: [],
+      workflow_steps: flowState,
       user_id: user?.id,
       ...(tenantId ? { tenant_id: tenantId } : {}),
-      // flow_state: flowState,
     };
     try {
       if (automationId) {
@@ -111,12 +126,11 @@ export const CRMAutomationCanvasPage: React.FC = () => {
     const payload: any = {
       name: automationName,
       is_active: true,
-      trigger_type: flowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
+      trigger_type: 'manual',
       trigger_conditions: {},
-      workflow_steps: [],
+      workflow_steps: flowState,
       user_id: user?.id,
       ...(tenantId ? { tenant_id: tenantId } : {}),
-      // flow_state: flowState,
     };
     try {
       if (automationId) {
