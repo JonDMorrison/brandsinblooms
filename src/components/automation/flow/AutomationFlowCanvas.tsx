@@ -385,7 +385,8 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
               nodeColor="#f3f4f6"
               nodeBorderRadius={8}
               maskColor="rgba(0, 0, 0, 0.1)"
-              position="top-right"
+              position="top-left"
+              style={{ width: 256, height: 160, borderRadius: 8, left: 16, top: 16 }}
             />
           </ReactFlow>
         </div>
