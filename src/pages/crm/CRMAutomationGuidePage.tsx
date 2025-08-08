@@ -67,7 +67,7 @@ export const CRMAutomationGuidePage: React.FC = () => {
 
       const payload: any = {
         name: config?.name || 'Untitled Automation',
-        trigger_type: mapTriggerType(triggerSubtype),
+        trigger_type: 'manual',
         trigger_conditions: {
           ...(config?.trigger_conditions ?? {}),
           subtype: triggerSubtype
