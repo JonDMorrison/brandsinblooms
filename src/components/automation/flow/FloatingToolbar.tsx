@@ -70,7 +70,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   }
 
   return (
-    <div className="absolute left-4 z-50 space-y-3 w-64 top-[calc(1rem+160px+0.75rem)]">
+    <div className="absolute left-4 z-50 space-y-3 w-64 top-[calc(1rem+160px+1rem)]">
       {/* Add Node Toolbar */}
       <Card className="shadow-lg w-full">
         <CardContent className="p-3">
