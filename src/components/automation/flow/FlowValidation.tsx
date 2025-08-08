@@ -178,12 +178,12 @@ export const FlowStatusBadge: React.FC<FlowValidationProps> = ({
 
   // Has issues - make it clickable with popover
   const badgeContent = hasErrors ? (
-    <Badge variant="destructive" className="gap-1 cursor-pointer hover:opacity-80">
+    <Badge variant="destructive" className="gap-1 cursor-pointer hover:opacity-80 fixed bottom-20 right-5 z-50 shadow-lg">
       <AlertCircle className="w-3 h-3" />
       Needs Fixes
     </Badge>
   ) : (
-    <Badge variant="secondary" className="gap-1 bg-yellow-100 text-yellow-800 border-yellow-300 cursor-pointer hover:opacity-80">
+    <Badge variant="secondary" className="gap-1 bg-yellow-100 text-yellow-800 border-yellow-300 cursor-pointer hover:opacity-80 fixed bottom-20 right-5 z-50 shadow-lg">
       <AlertCircle className="w-3 h-3" />
       Has Warnings
     </Badge>
