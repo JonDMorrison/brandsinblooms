@@ -218,8 +218,8 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const { user } = useAuth();
   const [isTestSending, setIsTestSending] = useState(false);
 
-  const handleTestSend = useCallback(async () => {
-    console.log('🧪 Send Test button clicked!', { isTestSending, user: user?.email });
+  const handleTestSend = useCallback(async (recipientEmail?: string) => {
+    console.log('🧪 Send Test button clicked!', { isTestSending, user: user?.email, recipientEmail });
     
     if (isTestSending) {
       console.log('❌ Already sending test, ignoring click');
@@ -283,11 +283,13 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
       const content = firstEmailNode.data?.body || firstEmailNode.data?.content || firstEmailNode.data?.message;
       console.log('📮 Preparing to send test email:', { subject, contentLength: typeof content === 'string' ? content.length : 'unknown', content });
 
+      const targetEmail = (recipientEmail?.trim()) || user.email;
+
       // Send test email using the Supabase edge function
       console.log('🚀 Calling send-test-email function...');
       const { data, error } = await supabase.functions.invoke('send-test-email', {
         body: {
-          email: user.email,
+          email: targetEmail,
           subject: subject,
           content: content,
           testName: user.user_metadata?.full_name || 'Test User',
@@ -299,13 +301,21 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
 
       if (error) {
         console.log('❌ Function returned error:', error);
-        throw new Error(error.message || 'Failed to send test email');
+        try {
+          const server = await (error as any)?.context?.response?.json();
+          console.log('🧾 Server error payload:', server);
+          const reason = server?.reason || server?.error || error.message;
+          const hint = server?.hint ? ` — ${server.hint}` : '';
+          throw new Error(`${reason}${hint}`);
+        } catch (e) {
+          throw new Error((error as any)?.message || 'Failed to send test email');
+        }
       }
       
       console.log('✅ Test email sent successfully!');
       toast({
         title: "Test Email Sent! 📧",
-        description: `A test email has been sent to ${user.email}`,
+        description: `Sent to ${targetEmail}${(data as any)?.usedFrom ? ` — From: ${(data as any).usedFrom}` : ''}`,
       });
     } catch (error) {
       console.error('❌ Test send error:', error);

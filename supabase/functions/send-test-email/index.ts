@@ -206,7 +206,16 @@ const handler = async (req: Request): Promise<Response> => {
         subject: `[TEST] ${subject || 'Email Campaign Preview'}`,
         html: finalContent,
         headers: emailHeaders,
-        tags: campaignId ? [`campaign:${campaignId}`, 'type:test', 'sender:primary'] : ['type:test', 'sender:primary']
+        tags: campaignId
+          ? [
+              { name: 'campaign', value: campaignId },
+              { name: 'type', value: 'test' },
+              { name: 'sender', value: 'primary' }
+            ]
+          : [
+              { name: 'type', value: 'test' },
+              { name: 'sender', value: 'primary' }
+            ]
       });
       console.log('Resend primary response:', emailResponse);
       sentId = (emailResponse as any)?.data?.id ?? (emailResponse as any)?.id;
@@ -221,7 +230,16 @@ const handler = async (req: Request): Promise<Response> => {
           subject: `[TEST] ${subject || 'Email Campaign Preview'}`,
           html: finalContent,
           headers: emailHeaders,
-          tags: campaignId ? [`campaign:${campaignId}`, 'type:test', 'sender:fallback'] : ['type:test', 'sender:fallback']
+          tags: campaignId
+            ? [
+                { name: 'campaign', value: campaignId },
+                { name: 'type', value: 'test' },
+                { name: 'sender', value: 'fallback' }
+              ]
+            : [
+                { name: 'type', value: 'test' },
+                { name: 'sender', value: 'fallback' }
+              ]
         });
         console.log('Resend fallback response:', fallbackResponse);
         sentId = (fallbackResponse as any)?.data?.id ?? (fallbackResponse as any)?.id;

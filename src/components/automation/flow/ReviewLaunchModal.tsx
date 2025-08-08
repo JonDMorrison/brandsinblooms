@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Play, Users, Clock, MessageSquare } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 interface ReviewLaunchModalProps {
   open: boolean;
@@ -25,7 +26,7 @@ interface ReviewLaunchModalProps {
     };
   };
   onLaunch: () => void;
-  onTestSend: () => void;
+  onTestSend: (recipient?: string) => void;
   isLoading?: boolean;
   isTestSending?: boolean;
 }
@@ -68,6 +69,7 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
         return step.type;
     }
   };
+  const [testRecipient, setTestRecipient] = useState('');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,29 +176,42 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
 
           <Separator />
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={onTestSend}
-              disabled={isLoading || isTestSending}
-            >
-              {isTestSending ? 'Sending...' : 'Send Test'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isLoading}
-            >
-              Back to Editor
-            </Button>
-            <Button
-              onClick={onLaunch}
-              disabled={isLoading || automation.flowSteps.length === 0}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isLoading ? 'Activating...' : 'Activate Automation'}
-            </Button>
+          {/* Test recipient + Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 sm:items-end sm:justify-between">
+            <div className="flex-1">
+              <label className="block text-sm text-muted-foreground mb-1">Send test to</label>
+              <Input
+                type="email"
+                inputMode="email"
+                placeholder="you@example.com (defaults to your login email)"
+                value={testRecipient}
+                onChange={(e) => setTestRecipient(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => onTestSend(testRecipient?.trim() || undefined)}
+                disabled={isLoading || isTestSending}
+              >
+                {isTestSending ? 'Sending...' : 'Send Test'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+              >
+                Back to Editor
+              </Button>
+              <Button
+                onClick={onLaunch}
+                disabled={isLoading || automation.flowSteps.length === 0}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isLoading ? 'Activating...' : 'Activate Automation'}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
