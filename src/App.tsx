@@ -23,7 +23,8 @@ import { CRMPersonaAnalyticsPage } from '@/pages/crm/CRMPersonaAnalyticsPage';
 import { CRMAnalyticsPage } from '@/pages/crm/CRMAnalyticsPage';
 import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
 import CRMAutomations from '@/pages/crm/CRMAutomations';
-import { CRMAutomationBuilder } from '@/pages/crm/CRMAutomationBuilder';
+import { CRMAutomationGuidePage } from '@/pages/crm/CRMAutomationGuidePage';
+import { CRMAutomationCanvasPage } from '@/pages/crm/CRMAutomationCanvasPage';
 import Customer360Page from '@/pages/crm/Customer360Page';
 import SegmentBuilderPage from '@/pages/crm/SegmentBuilderPage';
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
@@ -191,17 +192,32 @@ function App() {
             </SidebarLayout>
           </ProtectedRoute>
         } />
-        <Route path="/crm/automations/new" element={
+        <Route path="/crm/automations/new/guide" element={
           <ProtectedRoute>
             <SidebarLayout>
-              <CRMAutomationBuilder />
+              <CRMAutomationGuidePage />
             </SidebarLayout>
           </ProtectedRoute>
         } />
+        <Route path="/crm/automations/new/canvas" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMAutomationCanvasPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/automations/:id/canvas" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMAutomationCanvasPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/automations/new" element={<Navigate to="/crm/automations/new/guide" replace />} />
         <Route path="/crm/automations/:id" element={
           <ProtectedRoute>
             <SidebarLayout>
-              <CRMAutomationBuilder />
+              <CRMAutomationCanvasPage />
             </SidebarLayout>
           </ProtectedRoute>
         } />

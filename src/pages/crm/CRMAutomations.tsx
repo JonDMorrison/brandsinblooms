@@ -113,7 +113,7 @@ const CRMAutomations = () => {
               Set up automated workflows to engage your customers
             </p>
           </div>
-          <Link to="/crm/automations/new">
+          <Link to="/crm/automations/new/guide">
             <Button>
               <Plus className="h-4 w-4 mr-2" />
               Create Automation
@@ -135,7 +135,7 @@ const CRMAutomations = () => {
                 <p className="text-muted-foreground mb-4">
                   Create your first automation to start engaging customers automatically
                 </p>
-                <Link to="/crm/automations/new">
+                <Link to="/crm/automations/new/guide">
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Automation
