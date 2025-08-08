@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Eye, Edit, Calendar, RefreshCw } from "lucide-react";
+import { Plus, Edit, Calendar, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -224,26 +224,15 @@ const CRMAutomations = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Link
-                              to={`/crm/automations/${automation.id}`}
-                              aria-label={`View automation ${automation.name}`}
-                              title="View"
-                            >
-                              <Button variant="ghost" size="sm">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Link
-                              to={`/crm/automations/${automation.id}/canvas`}
-                              aria-label={`Edit automation ${automation.name}`}
-                              title="Edit"
-                            >
-                              <Button variant="ghost" size="sm">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                          </div>
+                          <Link
+                            to={`/crm/automations/${automation.id}/canvas`}
+                            aria-label={`Edit automation ${automation.name}`}
+                            title="Edit"
+                          >
+                            <Button variant="ghost" size="sm">
+                              Edit
+                            </Button>
+                          </Link>
                       </TableCell>
                     </TableRow>
                   ))}
