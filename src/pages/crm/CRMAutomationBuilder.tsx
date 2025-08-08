@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ReviewLaunchModal } from '@/components/automation/flow/ReviewLaunchModal';
 import { AutomationCanvas } from '@/components/automation/AutomationCanvas';
@@ -35,6 +36,10 @@ export const CRMAutomationBuilder = () => {
     toast({ title: 'Blueprint applied', description: 'We prefilled your canvas based on your selections.' });
     if (isMobile) setIsGuideOpen(false);
   };
+
+  useEffect(() => {
+    document.title = `${automationName} – Automation Builder`;
+  }, [automationName]);
 
   // Load existing automation if editing
   useEffect(() => {
@@ -209,63 +214,64 @@ export const CRMAutomationBuilder = () => {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-4">
-          <input
-            type="text"
-            value={automationName}
-            onChange={(e) => setAutomationName(e.target.value)}
-            className="text-xl font-semibold bg-transparent border-none outline-none"
-            placeholder="Automation Name"
-          />
+      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <h1 className="sr-only">Automation Builder - {automationName}</h1>
+            <Input
+              value={automationName}
+              onChange={(e) => setAutomationName(e.target.value)}
+              placeholder="Automation name"
+              aria-label="Automation name"
+              className="h-9 w-[240px] sm:w-[320px]"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleSaveDraft}
+              disabled={isSaving}
+              className="flex items-center gap-2"
+              aria-label="Save draft"
+            >
+              <Save className="w-4 h-4" />
+              {isSaving ? 'Saving...' : 'Save Draft'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setIsGuideOpen(true)}
+              className="md:hidden"
+            >
+              Build with Guide
+            </Button>
+            <AudienceTargetingButton
+              selectedPersonas={selectedPersonas}
+              selectedSegments={selectedSegments}
+              onPersonasChange={setSelectedPersonas}
+              onSegmentsChange={setSelectedSegments}
+            />
+            <Button onClick={() => setIsReviewOpen(true)} aria-label="Review and launch">
+              Review & Launch
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSaveDraft}
-            disabled={isSaving}
-            className="flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            {isSaving ? 'Saving...' : 'Save Draft'}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => setIsGuideOpen(true)}
-            className="md:hidden"
-          >
-            Build with Guide
-          </Button>
-          <AudienceTargetingButton
-            selectedPersonas={selectedPersonas}
-            selectedSegments={selectedSegments}
-            onPersonasChange={setSelectedPersonas}
-            onSegmentsChange={setSelectedSegments}
-          />
-          <Button
-            onClick={() => setIsReviewOpen(true)}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            Review & Launch
-          </Button>
-        </div>
-      </div>
+      </header>
 
       <div className="flex-1 flex">
-        <div className="hidden md:block md:w-72 border-r p-4 overflow-y-auto">
+        <aside className="hidden md:block md:w-72 border-r p-4 overflow-y-auto">
           <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
             <GuidedAutomationBuilder 
               onComplete={handleGuideComplete}
               onBack={() => {}}
             />
           </Suspense>
-        </div>
-        <div className="flex-1">
+        </aside>
+        <main className="flex-1">
           <AutomationCanvas
             flowState={flowState}
             onFlowStateChange={setFlowState}
           />
-        </div>
+        </main>
       </div>
 
       <Sheet open={isGuideOpen} onOpenChange={setIsGuideOpen}>
