@@ -7,41 +7,62 @@
 export const sanitizeHtml = (html: string): string => {
   if (!html) return '';
   
-  // Create a temporary element to parse the HTML
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
   
   // Remove all script tags and their content
-  const scripts = tempDiv.querySelectorAll('script');
-  scripts.forEach(script => script.remove());
+  tempDiv.querySelectorAll('script').forEach((script) => script.remove());
   
-  // Remove dangerous event handlers
+  // Sanitize all elements
   const allElements = tempDiv.querySelectorAll('*');
-  allElements.forEach(element => {
-    // Remove all event handler attributes
-    Array.from(element.attributes).forEach(attr => {
-      if (attr.name.startsWith('on')) {
+  allElements.forEach((element) => {
+    // Remove inline event handlers (on*)
+    Array.from(element.attributes).forEach((attr) => {
+      if (attr.name.toLowerCase().startsWith('on')) {
         element.removeAttribute(attr.name);
       }
     });
-    
-    // Remove dangerous attributes
-    const dangerousAttrs = ['href', 'src', 'action', 'formaction', 'style'];
-    dangerousAttrs.forEach(attr => {
+
+    // Always remove inline styles
+    if (element.hasAttribute('style')) {
+      element.removeAttribute('style');
+    }
+
+    // Restrict anchor tags and media sources
+    if (element.tagName.toLowerCase() === 'a') {
+      const href = element.getAttribute('href') || '';
+      const allowedHref = /^(https?:|mailto:|tel:)/i.test(href);
+      if (!allowedHref) {
+        element.removeAttribute('href');
+      }
+      // Enforce safe link behavior
+      element.setAttribute('rel', 'noopener noreferrer');
+    }
+
+    // Only allow http/https for src attributes
+    if (element.hasAttribute('src')) {
+      const src = element.getAttribute('src') || '';
+      const allowedSrc = /^(https?:)/i.test(src);
+      if (!allowedSrc) {
+        element.removeAttribute('src');
+      }
+    }
+
+    // Remove other dangerous attributes pointing to scripts
+    ['action', 'formaction'].forEach((attr) => {
       if (element.hasAttribute(attr)) {
-        const value = element.getAttribute(attr);
-        if (value && (value.includes('javascript:') || value.includes('data:') || value.includes('vbscript:'))) {
+        const value = element.getAttribute(attr) || '';
+        if (/^(javascript:|data:|vbscript:)/i.test(value)) {
           element.removeAttribute(attr);
         }
       }
     });
   });
   
-  // Remove dangerous tags
+  // Remove dangerous tags entirely
   const dangerousTags = ['iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button'];
-  dangerousTags.forEach(tag => {
-    const elements = tempDiv.querySelectorAll(tag);
-    elements.forEach(el => el.remove());
+  dangerousTags.forEach((tag) => {
+    tempDiv.querySelectorAll(tag).forEach((el) => el.remove());
   });
   
   return tempDiv.innerHTML;

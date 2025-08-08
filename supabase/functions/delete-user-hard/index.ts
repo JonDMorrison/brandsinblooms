@@ -63,12 +63,29 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate caller and restrict to super admins
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const { data: userDataAuth, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !userDataAuth?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const adminEmails = ['jon@getclear.ca', 'jeff@brandsinblooms.com'];
+    const callerEmail = userDataAuth.user.email ?? '';
+    if (!adminEmails.includes(callerEmail)) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const { userId }: HardDeleteRequest = await req.json();
 
     if (!userId) {
       throw new Error('User ID is required');
     }
-
     // Get user email before deletion for confirmation email
     const { data: userData } = await supabase.auth.admin.getUserById(userId);
     const userEmail = userData.user?.email;

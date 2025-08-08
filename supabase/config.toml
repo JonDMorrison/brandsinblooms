@@ -1,5 +1,16 @@
-
 project_id = "udldmkqwnxhdeztyqcau"
 
 [functions.draft-merge]
+verify_jwt = true
+
+[functions.delete-user-hard]
+verify_jwt = true
+
+[functions.customer-portal]
+verify_jwt = true
+
+[functions.regenerate-content-block]
+verify_jwt = true
+
+[functions.sms-processor]
 verify_jwt = true

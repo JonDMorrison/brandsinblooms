@@ -5,14 +5,12 @@
 
 import { SafeHtml } from '@/components/ui/safe-html';
 
-// Remove all console logging in production
 export const removeConsoleLogging = () => {
   if (process.env.NODE_ENV === 'production') {
     console.log = () => {};
-    console.warn = () => {};
-    console.error = () => {};
     console.info = () => {};
     console.debug = () => {};
+    // Keep console.warn and console.error intact in production for monitoring visibility
   }
 };
 
