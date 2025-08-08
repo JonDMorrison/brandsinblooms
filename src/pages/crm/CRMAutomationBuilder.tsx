@@ -13,6 +13,7 @@ import { TemplateGalleryEnhanced } from '@/components/automation/TemplateGallery
 import { GuidedAutomationBuilder } from '@/components/automation/GuidedAutomationBuilder';
 import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
 import { Save } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export const CRMAutomationBuilder = () => {
   const { id: automationId } = useParams();
@@ -32,6 +33,8 @@ export const CRMAutomationBuilder = () => {
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [tenantId, setTenantId] = useState<string | null>(null);
 
   // Load existing automation if editing
   useEffect(() => {
@@ -39,6 +42,24 @@ export const CRMAutomationBuilder = () => {
       loadAutomation();
     }
   }, [automationId]);
+
+  // Fetch tenant ID for RLS-compliant inserts/updates
+  useEffect(() => {
+    const fetchTenant = async () => {
+      if (!user?.id) return;
+      const { data, error } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+      if (!error) {
+        setTenantId(data?.tenant_id ?? null);
+      } else {
+        console.error('Failed to fetch tenant_id:', error);
+      }
+    };
+    fetchTenant();
+  }, [user?.id]);
 
   const loadAutomation = async () => {
     if (!automationId) return;
@@ -98,6 +119,9 @@ export const CRMAutomationBuilder = () => {
         trigger_type: currentFlowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
         trigger_conditions: {},
         workflow_steps: [], // Legacy field, keeping for compatibility
+        flow_state: currentFlowState,
+        user_id: user?.id,
+        ...(tenantId ? { tenant_id: tenantId } : {}),
       };
 
       if (automationId) {
@@ -192,6 +216,8 @@ export const CRMAutomationBuilder = () => {
         trigger_conditions: {},
         workflow_steps: automationData.flowSteps,
         flow_state: automationData.flowState,
+        user_id: user?.id,
+        ...(tenantId ? { tenant_id: tenantId } : {}),
       };
 
       if (automationId) {
