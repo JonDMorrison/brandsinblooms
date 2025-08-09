@@ -12,6 +12,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GeneratedContentModal } from "@/components/create-flow/GeneratedContentModal";
 import { useCreateFlow } from "@/state/useCreateFlow";
+import { useBundlePreviewTitle } from "@/hooks/useBundlePreviewTitle";
 
 const channelLabels: Record<Channel, string> = {
   instagram: 'IG',
@@ -27,7 +28,10 @@ function useQueryParams() {
 }
 
 function getBundleDisplayName(it: { sourceLabel?: string; mode: 'event'|'seasonal'|'custom'; channels?: Channel[]; updatedAt: string }): string {
-  if (it.sourceLabel && it.sourceLabel.trim().length > 0) return it.sourceLabel.trim();
+  const raw = (it.sourceLabel || '').trim();
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw);
+  const isNonTitle = !raw || isUUID || /^untitled$/i.test(raw);
+  if (!isNonTitle) return raw;
   const modeLabel = it.mode === 'event' ? 'Event' : it.mode === 'seasonal' ? 'Seasonal' : 'Custom';
   let channelPart = 'General';
   if (it.channels && it.channels.length > 0) {
@@ -35,6 +39,54 @@ function getBundleDisplayName(it: { sourceLabel?: string; mode: 'event'|'seasona
   }
   const datePart = new Date(it.updatedAt).toLocaleDateString();
   return `${modeLabel} • ${channelPart} • Updated ${datePart}`;
+}
+
+function BundleCard({ it, openBundle, handleDelete }: { it: any; openBundle: (bundleId: string, snapshotId?: string) => void; handleDelete: (bundleId: string) => Promise<any> | void }) {
+  const { title } = useBundlePreviewTitle(it.bundleId);
+  const displayTitle = title || getBundleDisplayName(it);
+  return (
+    <Card key={it.bundleId} className="relative p-3 hover:shadow-md transition cursor-pointer" onClick={(e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-trash]')) return;
+      openBundle(it.bundleId, it.snapshotId);
+    }}>
+      {it.thumbnail ? (
+        <img src={it.thumbnail} alt={`${displayTitle} thumbnail`} className="w-full aspect-video object-cover rounded-lg mb-3" loading="lazy" />
+      ) : (
+        <div className="w-full aspect-video rounded-lg mb-3 bg-muted" />
+      )}
+
+      <button
+        data-trash
+        aria-label="Delete"
+        className="absolute right-3 top-3 p-2 rounded-full bg-background/80 border hover:bg-background"
+        onClick={() => handleDelete(it.bundleId)}
+        title="Delete"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+
+      <div className="text-sm font-semibold truncate" title={displayTitle}>
+        {displayTitle}
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1">
+        <Badge variant="secondary" className="text-xs capitalize">{it.mode}</Badge>
+        {it.channels?.map((ch: Channel) => (
+          <Badge key={ch} variant="outline" className="text-xs">{channelLabels[ch]}</Badge>
+        ))}
+      </div>
+
+      <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between">
+        <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> {it.approvedCount}/{it.totalItems} approved</span>
+        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Updated {new Date(it.updatedAt).toLocaleDateString()}</span>
+      </div>
+
+      <div className="mt-2 text-xs text-primary inline-flex items-center">
+        Open <ChevronRight className="h-3 w-3 ml-1" />
+      </div>
+    </Card>
+  );
 }
 
 export const BundleLibrary = () => {
@@ -148,48 +200,7 @@ export const BundleLibrary = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {items.map((it: any) => (
-              <Card key={it.bundleId} className="relative p-3 hover:shadow-md transition cursor-pointer" onClick={(e) => {
-                // avoid clicking when pressing trash
-                const target = e.target as HTMLElement;
-                if (target.closest('[data-trash]')) return;
-                openBundle(it.bundleId, it.snapshotId);
-              }}>
-                {it.thumbnail ? (
-                  <img src={it.thumbnail} alt={`${getBundleDisplayName(it)} thumbnail`} className="w-full aspect-video object-cover rounded-lg mb-3" loading="lazy" />
-                ) : (
-                  <div className="w-full aspect-video rounded-lg mb-3 bg-muted" />
-                )}
-
-                <button
-                  data-trash
-                  aria-label="Delete"
-                  className="absolute right-3 top-3 p-2 rounded-full bg-background/80 border hover:bg-background"
-                  onClick={() => handleDelete(it.bundleId)}
-                  title="Delete"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-
-                <div className="text-sm font-semibold truncate" title={getBundleDisplayName(it)}>
-                  {getBundleDisplayName(it)}
-                </div>
-
-                <div className="mt-2 flex flex-wrap gap-1">
-                  <Badge variant="secondary" className="text-xs capitalize">{it.mode}</Badge>
-                  {it.channels?.map((ch: Channel) => (
-                    <Badge key={ch} variant="outline" className="text-xs">{channelLabels[ch]}</Badge>
-                  ))}
-                </div>
-
-                <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between">
-                  <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> {it.approvedCount}/{it.totalItems} approved</span>
-                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Updated {new Date(it.updatedAt).toLocaleDateString()}</span>
-                </div>
-
-                <div className="mt-2 text-xs text-primary inline-flex items-center">
-                  Open <ChevronRight className="h-3 w-3 ml-1" />
-                </div>
-              </Card>
+              <BundleCard key={it.bundleId} it={it} openBundle={openBundle} handleDelete={handleDelete} />
             ))}
           </div>
         )}
