@@ -43,13 +43,16 @@ export function useGeneratedBundle(bundleId?: string) {
 
   const update = useMutation({
     mutationFn: async ({ snapshotId, content, versionIncrement = 1 }: { snapshotId: string; content: GeneratedBundle; versionIncrement?: number }) => {
-      const { data, error } = await supabase
-        .from('draft_snapshots' as any)
-        .update({ content, version: (query.data?.version || 1) + versionIncrement })
-        .eq('id', snapshotId)
-        .select()
-        .single();
-      if (error) throw error;
+      // Use merge-safe draft-merge function for content_bundle
+      const { data, error } = await supabase.functions.invoke('draft-merge', {
+        body: {
+          doc_type: 'content_bundle',
+          doc_id: bundleId,
+          base_version: query.data?.version || null,
+          new_content: content,
+        },
+      });
+      if (error) throw error as any;
       return data as any;
     },
     onSuccess: () => {

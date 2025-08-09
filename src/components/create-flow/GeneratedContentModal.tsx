@@ -43,15 +43,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
     }
   };
 
-  const chooseImage = async (index: number) => {
-    try {
-      const item = items[index];
-      const res = await mediaSelector({ prompt: item.title || item.body.slice(0, 80) });
-      setItem(index, { media: { url: res.url, alt: res.alt } });
-    } catch (e: any) {
-      toast({ title: 'Image selection failed', description: e?.message || 'Try again', variant: 'destructive' });
-    }
-  };
+// Removed chooseImage in favor of MediaSelector component usage
 
   const handleClose = () => {
     setBundleIds(null, null);
@@ -105,14 +97,14 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                     />
                   </div>
                   <div className="space-y-2">
-                    <div className="aspect-video bg-muted flex items-center justify-center rounded-md overflow-hidden">
-                      {item.media?.url ? (
-                        <img src={item.media.url} alt={item.media.alt || ''} className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No image selected</span>
-                      )}
-                    </div>
-                    <Button variant="secondary" onClick={() => chooseImage(idx)}>Choose Image</Button>
+                    <MediaSelector
+                      compact
+                      selectedImageUrl={item.media?.url}
+                      contentContext={item.title || item.body}
+                      onImageSelect={(url: string, metadata?: any) =>
+                        setItem(idx, { media: { url, alt: metadata?.alt_text || item.media?.alt } })
+                      }
+                    />
                   </div>
                 </div>
 

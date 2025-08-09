@@ -1,7 +1,7 @@
 /**
  * Edge Function: draft-merge
- * Performs merge-safe autosave for JSON documents (automation/newsletter).
- * - Input: { doc_type: 'newsletter'|'automation', doc_id: uuid, base_version?: number, new_content: any }
+ * Performs merge-safe autosave for JSON documents (automation/newsletter/content_bundle).
+ * - Input: { doc_type: 'newsletter'|'automation'|'content_bundle', doc_id: uuid, base_version?: number, new_content: any }
  * - Output: { ok: true, merged_content, version, conflicts?: Array<{ path: string, base: any, local: any, remote: any }> }
  *
  * Notes:
@@ -18,7 +18,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type DocType = "newsletter" | "automation";
+type DocType = "newsletter" | "automation" | "content_bundle";
 
 type SnapshotRow = {
   id: string;

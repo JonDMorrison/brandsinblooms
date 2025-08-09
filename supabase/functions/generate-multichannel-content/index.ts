@@ -223,7 +223,11 @@ async function generateForChannel(
   switch (channel) {
     case "newsletter": {
       const blocks = generateNewsletterBlocksServer(topic);
-      return { channel: "newsletter", title: topic, blocks, media: null };
+      const body = (blocks || [])
+        .map((b: any) => b?.title || b?.headline || b?.content || b?.body)
+        .filter((s: string) => !!s)
+        .join("\n\n");
+      return { channel: "newsletter", title: topic, body, blocks, media: null };
     }
     case "instagram": {
       const content = await callGenerateContent(supabase, {
