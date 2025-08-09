@@ -9,21 +9,31 @@ interface GenerateInput {
     title: string;
     goal?: "traffic" | "sales" | "awareness";
     tone?: string;
-    channels?: Array<"newsletter" | "instagram" | "facebook" | "video" | "blog">;
     notes?: string;
   };
+  channels: Array<"newsletter" | "instagram" | "facebook" | "video" | "blog">; // required: only generate these
   workspaceId: string;
 }
 
 interface GeneratedItem {
   channel: "newsletter" | "instagram" | "facebook" | "video" | "blog";
   title?: string;
+  // Social
+  caption?: string;
+  hashtags?: string[];
+  // Video
+  script?: string;
+  beats?: string[];
+  // Blog
+  markdown?: string;
+  outline?: string[];
+  // Legacy/body (kept for backward compatibility)
   body?: string;
   summary?: string;
-  hashtags?: string[];
-  ctaSuggestions?: string[];
+  // Media
   media?: { url?: string; alt?: string } | null;
-  blocks?: any[]; // For newsletter: structured blocks compatible with Block Builder
+  // Newsletter blocks for Block Builder
+  blocks?: any[];
 }
 
 const corsHeaders = {
@@ -84,16 +94,14 @@ serve(async (req) => {
     // Resolve context
     const context = await resolveContext(supabase, input);
 
-    // Channels to generate
-    const channels: Array<GeneratedItem["channel"]> = (
-      input.userIdea?.channels || ["newsletter", "instagram", "facebook", "video", "blog"]
-    ) as any;
+// Channels to generate (required)
+const channels: Array<GeneratedItem["channel"]> = (input.channels || []) as any;
 
-    const items: GeneratedItem[] = [];
-    for (const channel of channels) {
-      const item = await generateForChannel(channel, context, input.userIdea?.tone);
-      items.push(item);
-    }
+const items: GeneratedItem[] = [];
+for (const channel of channels) {
+  const item = await generateForChannel(supabase, user.id, channel, context, input.userIdea?.tone);
+  items.push(item);
+}
 
     // Recommended images via existing function
     const queryForImages = buildImageQuery(context);
@@ -204,42 +212,153 @@ async function resolveContext(supabase: any, input: GenerateInput) {
 }
 
 async function generateForChannel(
+  supabase: any,
+  userId: string,
   channel: GeneratedItem["channel"],
   context: any,
   tone?: string,
 ): Promise<GeneratedItem> {
-  const sys = `You are an expert garden retail marketer. Write in a helpful, concise style${
-    tone ? ` with tone: ${tone}` : ""
-  }. Avoid emojis and placeholders.`;
+  const topic = context.title || context.theme || "Garden Center Update";
 
-  const prompts: Record<string, string> = {
-    newsletter: `Write a short newsletter (220-300 words) titled based on: "${
-      context.title || context.theme || "Garden Center Update"
-    }". Include: intro, 2-3 highlights, a clear CTA, and sign-off. Keep it on-brand for a local garden center.`,
-    instagram: `Write an Instagram caption (80-150 words) about: "${
-      context.title || context.theme || "Garden Tip"
-    }" with 5-8 relevant hashtags at the end.`,
-    facebook: `Write a Facebook post (120-220 words) about: "${
-      context.title || context.theme || "Garden Tip"
-    }". Friendly tone, 1-2 paragraphs, plus a CTA. Add 3-5 hashtags.`,
-    video: `Write a short 45-second vertical video script outline about: "${
-      context.title || context.theme || "Garden Tip"
-    }". Use bullets: Hook, 3 key points, CTA line.`,
-    blog: `Write a 400-600 word blog post about: "${
-      context.title || context.theme || "Seasonal Garden Focus"
-    }" with H2 sections and a conclusion with a CTA to visit the store.`,
-  };
+  switch (channel) {
+    case "newsletter": {
+      const blocks = generateNewsletterBlocksServer(topic);
+      return { channel: "newsletter", title: topic, blocks, media: null };
+    }
+    case "instagram": {
+      const content = await callGenerateContent(supabase, {
+        postType: "instagram",
+        campaignTitle: topic,
+        userId,
+        weekDescription: context.description,
+      });
+      return { channel: "instagram", title: topic, caption: content, hashtags: extractHashtags(content), media: null };
+    }
+    case "facebook": {
+      const content = await callGenerateContent(supabase, {
+        postType: "facebook",
+        campaignTitle: topic,
+        userId,
+        weekDescription: context.description,
+      });
+      return { channel: "facebook", title: topic, caption: content, hashtags: extractHashtags(content), media: null };
+    }
+    case "video": {
+      const content = await callGenerateContent(supabase, {
+        postType: "video",
+        campaignTitle: topic,
+        userId,
+        weekDescription: context.description,
+      });
+      return { channel: "video", title: topic, script: content, media: null };
+    }
+    case "blog": {
+      const content = await callGenerateContent(supabase, {
+        postType: "blog",
+        campaignTitle: topic,
+        userId,
+        weekDescription: context.description,
+      });
+      return { channel: "blog", title: topic, markdown: content, media: null };
+    }
+    default:
+      return { channel, title: topic, body: "", media: null } as GeneratedItem;
+  }
+}
 
-  const body = await openAIChat(sys, prompts[channel]);
-  const item: GeneratedItem = {
-    channel,
-    title: context.title,
-    body,
-    hashtags: channel === "instagram" || channel === "facebook" ? extractHashtags(body) : undefined,
-    ctaSuggestions: buildCtas(channel),
-    media: null,
-  };
-  return item;
+async function callGenerateContent(supabase: any, args: { postType: string; campaignTitle: string; userId: string; weekDescription?: string }) {
+  const { data, error } = await supabase.functions.invoke("generate-content", {
+    body: {
+      postType: args.postType,
+      campaignTitle: args.campaignTitle,
+      userId: args.userId,
+      weekDescription: args.weekDescription,
+      enforceCompanyName: true,
+    },
+  });
+  if (error) throw error;
+  return (data as any)?.content as string;
+}
+
+function generateNewsletterBlocksServer(topic: string) {
+  // Mirrors src/services/newsletterBlockGenerator.ts (block-builder variant)
+  const now = Date.now();
+  return [
+    {
+      id: `header_${now}`,
+      type: "header",
+      title: topic,
+      headline: topic,
+      content: "",
+      body: "",
+      imageUrl: "",
+      source: "template",
+      personaTag: "general",
+      layout: "full-width",
+      alignment: "center",
+      textAlign: "center",
+      padding: "large",
+      visible: true,
+      collapsed: false,
+    },
+    {
+      id: `content1_${now}`,
+      type: "image-text",
+      title: "Featured Story",
+      content: "Welcome to this week's newsletter featuring the latest updates and insights.",
+      headline: "Featured Story",
+      body: "Welcome to this week's newsletter featuring the latest updates and insights.",
+      imageUrl: "",
+      ctaText: "",
+      ctaUrl: "",
+      source: "template",
+      personaTag: "general",
+      layout: "image-left",
+      alignment: "left",
+      textAlign: "left",
+      padding: "medium",
+      visible: true,
+      collapsed: false,
+    },
+    {
+      id: `content2_${now}`,
+      type: "image-text",
+      title: "Main Article",
+      content: "This is your main content area. Share your expertise, tips, or latest news here.",
+      headline: "Main Article",
+      body: "This is your main content area. Share your expertise, tips, or latest news here.",
+      imageUrl: "",
+      ctaText: "",
+      ctaUrl: "",
+      source: "template",
+      personaTag: "general",
+      layout: "image-left",
+      alignment: "left",
+      textAlign: "left",
+      padding: "medium",
+      visible: true,
+      collapsed: false,
+    },
+    {
+      id: `content3_${now}`,
+      type: "image-text",
+      title: "Secondary Feature",
+      content: "Add a secondary story or feature that complements your main content.",
+      headline: "Secondary Feature",
+      body: "Add a secondary story or feature that complements your main content.",
+      imageUrl: "",
+      ctaText: "Learn More",
+      ctaUrl: "#",
+      source: "template",
+      personaTag: "general",
+      layout: "image-left",
+      alignment: "left",
+      textAlign: "left",
+      padding: "medium",
+      visible: true,
+      collapsed: false,
+    },
+  ];
 }
 
 function extractHashtags(text: string): string[] {

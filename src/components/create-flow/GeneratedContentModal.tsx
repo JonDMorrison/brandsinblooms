@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import { useGeneratedBundle } from "@/hooks/useGeneratedBundle";
-import { mediaSelector } from "@/utils/mediaSelector";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { MediaSelector } from "@/components/image/MediaSelector";
 
 interface GeneratedContentModalProps {
   open: boolean;
