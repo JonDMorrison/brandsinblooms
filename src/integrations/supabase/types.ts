@@ -4116,7 +4116,7 @@ export type Database = {
     Enums: {
       billing_interval: "monthly" | "annual"
       content_status: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED"
-      draft_doc_type: "newsletter" | "automation"
+      draft_doc_type: "newsletter" | "automation" | "content_bundle"
       platform_type: "FB" | "IG_FEED" | "IG_REEL"
       post_mode: "AUTO" | "MANUAL"
       post_status: "QUEUED" | "PUBLISHED" | "ERROR"
@@ -4250,7 +4250,7 @@ export const Constants = {
     Enums: {
       billing_interval: ["monthly", "annual"],
       content_status: ["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED"],
-      draft_doc_type: ["newsletter", "automation"],
+      draft_doc_type: ["newsletter", "automation", "content_bundle"],
       platform_type: ["FB", "IG_FEED", "IG_REEL"],
       post_mode: ["AUTO", "MANUAL"],
       post_status: ["QUEUED", "PUBLISHED", "ERROR"],
