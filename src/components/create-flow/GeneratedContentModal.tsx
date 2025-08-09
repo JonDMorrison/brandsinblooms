@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import { useGeneratedBundle } from "@/hooks/useGeneratedBundle";
 import { useToast } from "@/hooks/use-toast";
@@ -105,12 +106,14 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                         placeholder="Write a short video script"
                       />
                     ) : item.channel === 'blog' ? (
-                      <textarea
-                        className="w-full min-h-[200px] rounded-md border p-3 text-sm font-mono"
-                        value={item.markdown || ''}
-                        onChange={(e) => setItem(idx, { markdown: e.target.value })}
-                        placeholder="Write blog markdown"
-                      />
+                      <div className="w-full">
+                        <RichTextEditor
+                          content={item.markdown || item.body || ''}
+                          onChange={(html) => setItem(idx, { markdown: html })}
+                          placeholder="Write and format your blog content"
+                          className="w-full"
+                        />
+                      </div>
                     ) : (
                       <textarea
                         className="w-full min-h-[120px] rounded-md border p-3 text-sm"
