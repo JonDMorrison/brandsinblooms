@@ -22,6 +22,7 @@ import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { generateNewsletterBlocks, getFallbackBlocks } from '@/services/newsletterBlockGenerator';
 import { fetchSmartImage } from '@/services/unsplashService';
 import { PersonaSegmentSelector } from './PersonaSegmentSelector';
+import { useGeneratedBundle } from '@/hooks/useGeneratedBundle';
 
 // Helper function to fetch image for blocks with missing images
 const getOrFetchImage = async (contentObj: any, block: any): Promise<string | null> => {
@@ -240,6 +241,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const { toast } = useToast();
   
   const [campaignName, setCampaignName] = useState('');
+  
+  // Prefill from Generated Bundle if provided
+  const bundleIdParam = searchParams.get('bundleId');
+  const { query: bundleQuery } = useGeneratedBundle(bundleIdParam || undefined);
   
   // Get contentTaskId from props or URL parameters
   const urlContentTaskId = searchParams.get('contentTaskId');

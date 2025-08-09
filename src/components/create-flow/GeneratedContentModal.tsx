@@ -30,15 +30,26 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
   };
 
   const approveAll = () => {
-    if (!query.data) return;
-    const allApproved = (query.data.content.items || []).map((it: any) => ({ ...it, _approved: true }));
-    update.mutate({ snapshotId: snapshotId!, content: { ...query.data.content, items: allApproved } });
+    if (!query.data || !snapshotId) return;
+    const confirmed = window.confirm('Approve all items? This will mark every item as approved.');
+    if (!confirmed) return;
+    try {
+      const allApproved = (query.data.content.items || []).map((it: any) => ({ ...it, _approved: true }));
+      update.mutate({ snapshotId, content: { ...query.data.content, items: allApproved } });
+      toast({ title: 'Approved', description: 'All items marked as approved' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e?.message || 'Failed to approve all', variant: 'destructive' });
+    }
   };
 
   const chooseImage = async (index: number) => {
-    const item = items[index];
-    const res = await mediaSelector({ prompt: item.title || item.body.slice(0, 80) });
-    setItem(index, { media: { url: res.url, alt: res.alt } });
+    try {
+      const item = items[index];
+      const res = await mediaSelector({ prompt: item.title || item.body.slice(0, 80) });
+      setItem(index, { media: { url: res.url, alt: res.alt } });
+    } catch (e: any) {
+      toast({ title: 'Image selection failed', description: e?.message || 'Try again', variant: 'destructive' });
+    }
   };
 
   const handleClose = () => {
@@ -55,7 +66,6 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
     toast({ title: 'Opened in Block Builder', description: 'Prefilling newsletter content' });
     navigate(`/crm/campaigns/new?type=newsletter&bundleId=${bundleId}`);
   };
-
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
@@ -64,53 +74,59 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
           <DialogDescription>Edit copy, choose media, then approve.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {items.map((item: any, idx: number) => (
-            <div key={idx} className="rounded-2xl border p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-medium capitalize">{item.channel}</div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs ${item._approved ? 'text-green-600' : 'text-muted-foreground'}`}>{item._approved ? 'Approved' : 'Draft'}</span>
-                  <Button size="sm" variant="outline" onClick={() => setItem(idx, { _approved: !item._approved })}>{item._approved ? 'Unapprove' : 'Approve'}</Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2 space-y-2">
-                  <Input
-                    value={item.title || ''}
-                    onChange={(e) => setItem(idx, { title: e.target.value })}
-                    placeholder="Title (optional)"
-                  />
-                  <textarea
-                    className="w-full min-h-[120px] rounded-md border p-3 text-sm"
-                    value={item.body}
-                    onChange={(e) => setItem(idx, { body: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className="aspect-video bg-muted flex items-center justify-center rounded-md overflow-hidden">
-                    {item.media?.url ? (
-                      <img src={item.media.url} alt={item.media.alt || ''} className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">No image selected</span>
-                    )}
+        {query.isLoading ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">Loading generated content…</div>
+        ) : items.length === 0 ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">No generated items yet.</div>
+        ) : (
+          <div className="space-y-4">
+            {items.map((item: any, idx: number) => (
+              <div key={idx} className="rounded-2xl border p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-medium capitalize">{item.channel}</div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs ${item._approved ? 'text-green-600' : 'text-muted-foreground'}`}>{item._approved ? 'Approved' : 'Draft'}</span>
+                    <Button size="sm" variant="outline" onClick={() => setItem(idx, { _approved: !item._approved })}>{item._approved ? 'Unapprove' : 'Approve'}</Button>
                   </div>
-                  <Button variant="secondary" onClick={() => chooseImage(idx)}>Choose Image</Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2 space-y-2">
+                    <Input
+                      value={item.title || ''}
+                      onChange={(e) => setItem(idx, { title: e.target.value })}
+                      placeholder="Title (optional)"
+                    />
+                    <textarea
+                      className="w-full min-h-[120px] rounded-md border p-3 text-sm"
+                      value={item.body}
+                      onChange={(e) => setItem(idx, { body: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="aspect-video bg-muted flex items-center justify-center rounded-md overflow-hidden">
+                      {item.media?.url ? (
+                        <img src={item.media.url} alt={item.media.alt || ''} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No image selected</span>
+                      )}
+                    </div>
+                    <Button variant="secondary" onClick={() => chooseImage(idx)}>Choose Image</Button>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {item.channel === 'instagram' && <Button size="sm" onClick={() => handoffPublish('instagram')}>Go to Publish Portal</Button>}
+                  {item.channel === 'facebook' && <Button size="sm" onClick={() => handoffPublish('facebook')}>Go to Publish Portal</Button>}
+                  {item.channel === 'newsletter' && <Button size="sm" onClick={handoffNewsletter}>Send to CRM</Button>}
+                  {item.channel === 'blog' && (
+                    <Button size="sm" variant="outline" disabled title="Send to Website – Coming Soon">Send to Website – Coming Soon</Button>
+                  )}
                 </div>
               </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {item.channel === 'instagram' && <Button size="sm" onClick={() => handoffPublish('instagram')}>Go to Publish Portal</Button>}
-                {item.channel === 'facebook' && <Button size="sm" onClick={() => handoffPublish('facebook')}>Go to Publish Portal</Button>}
-                {item.channel === 'newsletter' && <Button size="sm" onClick={handoffNewsletter}>Send to CRM</Button>}
-                {item.channel === 'blog' && (
-                  <Button size="sm" variant="outline" disabled title="Send to Website – Coming Soon">Send to Website – Coming Soon</Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <div className="flex items-center justify-between mt-4">
           <Button variant="outline" onClick={handleClose}>Close</Button>
