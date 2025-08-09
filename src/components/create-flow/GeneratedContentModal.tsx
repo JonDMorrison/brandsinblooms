@@ -90,17 +90,41 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                       onChange={(e) => setItem(idx, { title: e.target.value })}
                       placeholder="Title (optional)"
                     />
-                    <textarea
-                      className="w-full min-h-[120px] rounded-md border p-3 text-sm"
-                      value={item.body}
-                      onChange={(e) => setItem(idx, { body: e.target.value })}
-                    />
+                    {item.channel === 'instagram' || item.channel === 'facebook' ? (
+                      <textarea
+                        className="w-full min-h-[120px] rounded-md border p-3 text-sm"
+                        value={item.caption || ''}
+                        onChange={(e) => setItem(idx, { caption: e.target.value })}
+                        placeholder="Write a caption"
+                      />
+                    ) : item.channel === 'video' ? (
+                      <textarea
+                        className="w-full min-h-[140px] rounded-md border p-3 text-sm"
+                        value={item.script || ''}
+                        onChange={(e) => setItem(idx, { script: e.target.value })}
+                        placeholder="Write a short video script"
+                      />
+                    ) : item.channel === 'blog' ? (
+                      <textarea
+                        className="w-full min-h-[200px] rounded-md border p-3 text-sm font-mono"
+                        value={item.markdown || ''}
+                        onChange={(e) => setItem(idx, { markdown: e.target.value })}
+                        placeholder="Write blog markdown"
+                      />
+                    ) : (
+                      <textarea
+                        className="w-full min-h-[120px] rounded-md border p-3 text-sm"
+                        value={item.body || ''}
+                        onChange={(e) => setItem(idx, { body: e.target.value })}
+                        placeholder="Write newsletter body"
+                      />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <MediaSelector
                       compact
                       selectedImageUrl={item.media?.url}
-                      contentContext={item.title || item.body}
+                      contentContext={item.title || item.caption || item.script || item.markdown || item.body}
                       onImageSelect={(url: string, metadata?: any) =>
                         setItem(idx, { media: { url, alt: metadata?.alt_text || item.media?.alt } })
                       }
