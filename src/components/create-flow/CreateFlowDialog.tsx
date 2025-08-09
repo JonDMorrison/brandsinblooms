@@ -138,10 +138,21 @@ const [networkError, setNetworkError] = useState(false);
       toast({ title: 'Draft bundle ready', description: 'Review and approve your items.' });
     } catch (e: any) {
       console.error(e);
-      if (e?.name === 'FunctionsFetchError' || e?.message?.includes('Failed to fetch')) {
+      const msg = String(e?.message || '');
+      const statusMatch = msg.match(/\b(4\d{2}|5\d{2})\b/);
+      const status = (e?.status || e?.context?.status || (statusMatch ? Number(statusMatch[1]) : undefined)) as number | undefined;
+
+      if (e?.name === 'FunctionsFetchError' || msg.includes('Failed to fetch')) {
         setNetworkError(true);
+        toast({ title: 'AI temporarily unavailable', description: 'Please check your connection and try again.', variant: 'destructive' });
+      } else if (status === 404) {
+        setNetworkError(true);
+        toast({ title: 'Generator not found', description: 'AI generator is not deployed in this environment.', variant: 'destructive' });
+      } else if (status === 401 || status === 403) {
+        toast({ title: 'Authorization required', description: 'Please sign in again and retry.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Generation failed', description: msg || 'Please try again.', variant: 'destructive' });
       }
-      toast({ title: 'Generation failed', description: e?.message || 'Please try again.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
