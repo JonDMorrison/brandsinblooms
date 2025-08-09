@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { AudienceSelector } from '@/components/crm/AudienceSelector';
 import { 
   Users, 
   ShoppingCart, 
@@ -118,6 +119,10 @@ export const GuidedAutomationBuilder: React.FC<GuidedAutomationBuilderProps> = (
   const [selectedGoal, setSelectedGoal] = useState('');
   const [selectedTrigger, setSelectedTrigger] = useState('');
   const [selectedChannels, setSelectedChannels] = useState('');
+  const [audienceType, setAudienceType] = useState<'everyone' | 'persona' | 'segment'>('everyone');
+  const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
+  const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
+  const [showAudienceSelector, setShowAudienceSelector] = useState(false);
 
   const currentGoal = businessGoals.find(g => g.id === selectedGoal);
   const availableTriggers = selectedGoal ? triggers[selectedGoal as keyof typeof triggers] : [];
@@ -180,7 +185,12 @@ export const GuidedAutomationBuilder: React.FC<GuidedAutomationBuilderProps> = (
       flow_data: baseFlow,
       goal: selectedGoal,
       trigger: selectedTrigger,
-      channels: currentChannelPref?.channels || ['email']
+      channels: currentChannelPref?.channels || ['email'],
+      audience: {
+        type: audienceType,
+        personas: selectedPersonas,
+        segments: selectedSegments,
+      }
     };
   };
 
@@ -194,6 +204,7 @@ export const GuidedAutomationBuilder: React.FC<GuidedAutomationBuilderProps> = (
       case 1: return selectedGoal !== '';
       case 2: return selectedTrigger !== '';
       case 3: return selectedChannels !== '';
+      case 4: return audienceType === 'everyone' || selectedPersonas.length > 0 || selectedSegments.length > 0;
       default: return false;
     }
   };
@@ -216,7 +227,7 @@ export const GuidedAutomationBuilder: React.FC<GuidedAutomationBuilderProps> = (
         
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-4">
-          {[1, 2, 3].map((step) => (
+          {[1, 2, 3, 4].map((step) => (
             <div key={step} className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                 step === currentStep 
@@ -227,7 +238,7 @@ export const GuidedAutomationBuilder: React.FC<GuidedAutomationBuilderProps> = (
               }`}>
                 {step < currentStep ? <CheckCircle className="w-4 h-4" /> : step}
               </div>
-              {step < 3 && (
+              {step < 4 && (
                 <ArrowRight className={`w-4 h-4 ${step < currentStep ? 'text-green-500' : 'text-muted-foreground'}`} />
               )}
             </div>
@@ -242,6 +253,7 @@ export const GuidedAutomationBuilder: React.FC<GuidedAutomationBuilderProps> = (
             {currentStep === 1 && "Step 1: What's your goal?"}
             {currentStep === 2 && "Step 2: What triggers this automation?"}
             {currentStep === 3 && "Step 3: How do you want to communicate?"}
+            {currentStep === 4 && "Step 4: Who is this for?"}
           </CardTitle>
         </CardHeader>
         

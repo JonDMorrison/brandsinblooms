@@ -33,6 +33,10 @@ export const CRMAutomationBuilder = () => {
   const handleGuideComplete = (automationConfig: any) => {
     if (automationConfig?.name) setAutomationName(automationConfig.name);
     if (automationConfig?.flow_data) setFlowState(automationConfig.flow_data);
+    if (automationConfig?.audience) {
+      setSelectedPersonas(automationConfig.audience.personas || []);
+      setSelectedSegments(automationConfig.audience.segments || []);
+    }
     toast({ title: 'Blueprint applied', description: 'We prefilled your canvas based on your selections.' });
     if (isMobile) setIsGuideOpen(false);
   };
