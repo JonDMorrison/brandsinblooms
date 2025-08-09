@@ -78,10 +78,22 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
               <div key={idx} className="rounded-2xl border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="font-medium capitalize">{item.channel}</div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs ${item._approved ? 'text-green-600' : 'text-muted-foreground'}`}>{item._approved ? 'Approved' : 'Draft'}</span>
-                    <Button size="sm" variant="outline" onClick={() => setItem(idx, { _approved: !item._approved })}>{item._approved ? 'Unapprove' : 'Approve'}</Button>
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs ${item._approved ? 'text-green-600' : 'text-muted-foreground'}`}>{item._approved ? 'Approved' : 'Draft'}</span>
+                      {!item._approved ? (
+                        <Button size="sm" variant="outline" onClick={() => setItem(idx, { _approved: true })}>
+                          Approve
+                        </Button>
+                      ) : item.channel === 'instagram' || item.channel === 'facebook' ? (
+                        <Button size="sm" onClick={() => handoffPublish(item.channel as 'instagram'|'facebook')}>Post to Social</Button>
+                      ) : item.channel === 'newsletter' ? (
+                        <Button size="sm" onClick={handoffNewsletter}>Send to CRM</Button>
+                      ) : item.channel === 'blog' ? (
+                        <Button size="sm" variant="outline" disabled title="Send to Website – Coming Soon">
+                          Send to Website – Coming Soon
+                        </Button>
+                      ) : null}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -135,14 +147,6 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {item.channel === 'instagram' && <Button size="sm" onClick={() => handoffPublish('instagram')}>Go to Publish Portal</Button>}
-                  {item.channel === 'facebook' && <Button size="sm" onClick={() => handoffPublish('facebook')}>Go to Publish Portal</Button>}
-                  {item.channel === 'newsletter' && <Button size="sm" onClick={handoffNewsletter}>Send to CRM</Button>}
-                  {item.channel === 'blog' && (
-                    <Button size="sm" variant="outline" disabled title="Send to Website – Coming Soon">Send to Website – Coming Soon</Button>
-                  )}
-                </div>
               </div>
             ))}
           </div>
