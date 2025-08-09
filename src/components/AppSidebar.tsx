@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useProFeatures } from "@/hooks/useProFeatures";
 
+
 interface SidebarItem {
   title: string;
   url: string;
@@ -85,6 +86,11 @@ const AppSidebar: React.FC = () => {
       title: "Social Media",
       url: "/social-accounts",
       icon: Send,
+    },
+    {
+      title: "Content Library",
+      url: "/content/library",
+      icon: ClipboardList,
     },
     ...(isPro ? [{
       title: "CRM",

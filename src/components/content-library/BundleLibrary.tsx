@@ -8,6 +8,7 @@ import { useContentLibrary, useDeleteBundle } from "@/hooks/useContentLibrary";
 import type { Channel } from "@/lib/content/libraryTypes";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GeneratedContentModal } from "@/components/create-flow/GeneratedContentModal";
 import { useCreateFlow } from "@/state/useCreateFlow";
@@ -74,10 +75,12 @@ export const BundleLibrary = () => {
       title: 'Deleted',
       description: 'Bundle moved to trash',
       action: (
-        <>
-          {/* Using ToastAction element for Undo */}
-          {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-        </>
+        <ToastAction altText="Undo" onClick={async () => {
+          await del.mutateAsync({ bundleId, deletedAt: null });
+          toast({ title: 'Restored', description: 'Bundle restored' });
+        }}>
+          Undo
+        </ToastAction>
       )
     });
     return t;
@@ -138,7 +141,7 @@ export const BundleLibrary = () => {
                 // avoid clicking when pressing trash
                 const target = e.target as HTMLElement;
                 if (target.closest('[data-trash]')) return;
-                openBundle(it.bundleId, it.snapshot_id);
+                openBundle(it.bundleId, it.snapshotId);
               }}>
                 {it.thumbnail ? (
                   <img src={it.thumbnail} alt={it.sourceLabel || 'Bundle thumbnail'} className="w-full aspect-video object-cover rounded-lg mb-3" loading="lazy" />

@@ -34,6 +34,7 @@ import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
 import SMSRoutes from '@/routes/SMSRoutes';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SidebarLayout } from '@/components/SidebarLayout';
+import ContentLibraryPage from '@/pages/ContentLibraryPage';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
 import { Analytics } from '@vercel/analytics/react';
 import { OverlayManager } from '@/providers/OverlayManager';
@@ -80,13 +81,20 @@ function App() {
             </SidebarLayout>
           </ProtectedRoute>
         } />
-        <Route path="/publish" element={
-          <ProtectedRoute>
-            <SidebarLayout>
-              <PublishPage />
-            </SidebarLayout>
-          </ProtectedRoute>
-        } />
+<Route path="/publish" element={
+  <ProtectedRoute>
+    <SidebarLayout>
+      <PublishPage />
+    </SidebarLayout>
+  </ProtectedRoute>
+} />
+<Route path="/content/library" element={
+  <ProtectedRoute>
+    <SidebarLayout>
+      <ContentLibraryPage />
+    </SidebarLayout>
+  </ProtectedRoute>
+} />
         <Route path="/crm" element={
           <ProtectedRoute>
             <SidebarLayout>

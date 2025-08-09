@@ -40,6 +40,7 @@ export function useContentLibrary(filters: LibraryFilters = {}) {
 
       const items: ContentSummary[] = (data || []).map((row: any) => ({
         bundleId: row.bundle_id,
+        snapshotId: row.snapshot_id,
         mode: row.mode,
         sourceLabel: row.source_label || undefined,
         channels: row.channels || [],
