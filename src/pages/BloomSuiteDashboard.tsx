@@ -18,6 +18,7 @@ import {
   HelpCircle,
   Sparkles
 } from "lucide-react";
+import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 
 export const BloomSuiteDashboard = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export const BloomSuiteDashboard = () => {
   const [showNewsletterDrawer, setShowNewsletterDrawer] = useState(false);
   const [showPostComposer, setShowPostComposer] = useState(false);
   const [showQuickTour, setShowQuickTour] = useState(false);
+  const [showCreateFlow, setShowCreateFlow] = useState(false);
   
   const { data: socialConnections = [], isLoading: loadingConnections } = useConnectedAccounts();
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
@@ -71,6 +73,19 @@ export const BloomSuiteDashboard = () => {
   };
 
   const dashboardActions = [
+    {
+      id: 'create-flow',
+      title: 'Create and Post Something',
+      description: 'Events, holidays, or your own idea—AI will draft everything.',
+      icon: <Sparkles className="w-6 h-6 text-indigo-600" />,
+      gradient: 'from-indigo-50 to-indigo-100',
+      primaryAction: {
+        label: 'Get Started',
+        onClick: () => setShowCreateFlow(true)
+      },
+      status: 'ready' as const,
+      statusMessage: 'AI assistant ready'
+    },
     {
       id: 'newsletter',
       title: 'Send A Newsletter',
@@ -266,6 +281,8 @@ export const BloomSuiteDashboard = () => {
         isOpen={showQuickTour}
         onClose={() => setShowQuickTour(false)}
       />
+
+      <CreateFlowDialog open={showCreateFlow} onOpenChange={setShowCreateFlow} />
     </div>
   );
 };

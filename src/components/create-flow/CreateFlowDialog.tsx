@@ -194,15 +194,12 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
                 <Label>Theme / Title</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Fall Planting Weekend" />
                 <Label>Goal</Label>
-                <Select value={goal} onValueChange={(v: any) => setGoal(v)}>
-                  <SelectTrigger><SelectValue placeholder="Select goal" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="traffic">Traffic</SelectItem>
-                    <SelectItem value="sales">Sales</SelectItem>
-                    <SelectItem value="awareness">Awareness</SelectItem>
-                    <SelectItem value="none">No specific goal</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect value={goal} onChange={(e) => setGoal(e.target.value as any)}>
+                  <option value="traffic">Traffic</option>
+                  <option value="sales">Sales</option>
+                  <option value="awareness">Awareness</option>
+                  <option value="none">No specific goal</option>
+                </NativeSelect>
                 <Label>Tone</Label>
                 <Input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="e.g., Friendly, Expert, Playful" />
               </div>
