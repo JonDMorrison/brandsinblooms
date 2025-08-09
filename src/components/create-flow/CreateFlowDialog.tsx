@@ -23,19 +23,19 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   const {
     selectedPath, setSelectedPath,
     selectedSourceId, setSelectedSourceId,
-    bundleId, snapshotId, setBundleIds
+    bundleId, snapshotId, setBundleIds,
+    channels, setChannels,
   } = useCreateFlow();
 
   const [step, setStep] = useState<1|2>(1);
-const [loading, setLoading] = useState(false);
-const [networkError, setNetworkError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
 
   // Custom idea form state
   const [title, setTitle] = useState("");
   const [goal, setGoal] = useState<'traffic'|'sales'|'awareness'|'none'>("traffic");
   const [tone, setTone] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
-  const [channels, setChannels] = useState({ newsletter: true, instagram: true, facebook: true, video: true, blog: true });
 
   // Event/Seasonal data
   const [events, setEvents] = useState<any[]>([]);
@@ -119,13 +119,13 @@ const [networkError, setNetworkError] = useState(false);
         mode: selectedPath as Mode,
         sourceId: selectedSourceId || undefined,
         workspaceId,
+        channels: (Object.keys(channels).filter((k) => (channels as any)[k]) as any[]),
       };
       if (selectedPath === 'custom') {
         payload.userIdea = {
           title,
           goal: (goal === 'none' ? undefined : goal),
           tone: tone || undefined,
-          channels: (Object.keys(channels).filter((k) => (channels as any)[k]) as any[]),
           notes: notes || undefined,
         };
       }
@@ -215,6 +215,16 @@ const [networkError, setNetworkError] = useState(false);
                   </div>
                 )}
               </div>
+              <div className="pt-2 space-y-2">
+                <Label>Channels</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <ChannelCheckbox name="instagram" label="Instagram" />
+                  <ChannelCheckbox name="facebook" label="Facebook" />
+                  <ChannelCheckbox name="newsletter" label="Newsletter" />
+                  <ChannelCheckbox name="video" label="Short Video" />
+                  <ChannelCheckbox name="blog" label="Blog" />
+                </div>
+              </div>
             </div>
           )}
 
@@ -238,6 +248,16 @@ const [networkError, setNetworkError] = useState(false);
                     <Button variant="secondary" onClick={() => setVisibleHolidays((v) => v + PAGE_SIZE)}>Load more</Button>
                   </div>
                 )}
+              </div>
+              <div className="pt-2 space-y-2">
+                <Label>Channels</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <ChannelCheckbox name="instagram" label="Instagram" />
+                  <ChannelCheckbox name="facebook" label="Facebook" />
+                  <ChannelCheckbox name="newsletter" label="Newsletter" />
+                  <ChannelCheckbox name="video" label="Short Video" />
+                  <ChannelCheckbox name="blog" label="Blog" />
+                </div>
               </div>
             </div>
           )}

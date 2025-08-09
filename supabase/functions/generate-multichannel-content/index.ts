@@ -18,11 +18,12 @@ interface GenerateInput {
 interface GeneratedItem {
   channel: "newsletter" | "instagram" | "facebook" | "video" | "blog";
   title?: string;
-  body: string;
+  body?: string;
   summary?: string;
   hashtags?: string[];
   ctaSuggestions?: string[];
   media?: { url?: string; alt?: string } | null;
+  blocks?: any[]; // For newsletter: structured blocks compatible with Block Builder
 }
 
 const corsHeaders = {
