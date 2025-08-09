@@ -83,6 +83,10 @@ export const BloomSuiteDashboard = () => {
         label: 'Get Started',
         onClick: () => setShowCreateFlow(true)
       },
+      secondaryAction: {
+        label: 'Browse Past Content',
+        onClick: () => navigate('/content/library')
+      },
       status: 'ready' as const,
       statusMessage: 'AI assistant ready'
     },
