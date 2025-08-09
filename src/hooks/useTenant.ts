@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Tenant {
   id: string;
@@ -32,7 +32,7 @@ export const useTenant = () => {
           .from('users')
           .select('tenant_id')
           .eq('id', user.id)
-          .single();
+.maybeSingle();
 
         if (userError) throw userError;
 
@@ -42,7 +42,7 @@ export const useTenant = () => {
             .from('tenants')
             .select('*')
             .eq('id', userData.tenant_id)
-            .single();
+            .maybeSingle();
 
           if (tenantError) throw tenantError;
           setTenant(tenantData);
