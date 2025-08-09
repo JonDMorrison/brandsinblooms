@@ -1993,6 +1993,7 @@ export type Database = {
           content: Json
           content_url: string | null
           created_at: string
+          deleted_at: string | null
           doc_id: string
           doc_type: Database["public"]["Enums"]["draft_doc_type"]
           id: string
@@ -2000,12 +2001,14 @@ export type Database = {
           updated_at: string
           user_id: string
           version: number
+          workspace_id: string | null
         }
         Insert: {
           conflict_diff?: Json | null
           content?: Json
           content_url?: string | null
           created_at?: string
+          deleted_at?: string | null
           doc_id: string
           doc_type: Database["public"]["Enums"]["draft_doc_type"]
           id?: string
@@ -2013,12 +2016,14 @@ export type Database = {
           updated_at?: string
           user_id: string
           version?: number
+          workspace_id?: string | null
         }
         Update: {
           conflict_diff?: Json | null
           content?: Json
           content_url?: string | null
           created_at?: string
+          deleted_at?: string | null
           doc_id?: string
           doc_type?: Database["public"]["Enums"]["draft_doc_type"]
           id?: string
@@ -2026,6 +2031,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           version?: number
+          workspace_id?: string | null
         }
         Relationships: []
       }
@@ -3927,6 +3933,23 @@ export type Database = {
       }
     }
     Views: {
+      content_library_view: {
+        Row: {
+          approved_count: number | null
+          bundle_id: string | null
+          channels: string[] | null
+          created_at: string | null
+          mode: string | null
+          snapshot_id: string | null
+          source_id: string | null
+          source_label: string | null
+          thumbnail: string | null
+          total_items: number | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Relationships: []
+      }
       customer_360_enriched: {
         Row: {
           avg_order_value: number | null
@@ -3987,6 +4010,18 @@ export type Database = {
       admin_delete_user: {
         Args: { target_user_id: string }
         Returns: boolean
+      }
+      bundle_approved_counts: {
+        Args: { j: Json }
+        Returns: Json
+      }
+      bundle_channels: {
+        Args: { j: Json }
+        Returns: string[]
+      }
+      bundle_first_media_url: {
+        Args: { j: Json }
+        Returns: string
       }
       check_email_exists: {
         Args: { email_to_check: string }
