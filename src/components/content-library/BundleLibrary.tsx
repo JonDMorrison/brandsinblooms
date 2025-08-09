@@ -26,6 +26,17 @@ function useQueryParams() {
   return useMemo(() => new URLSearchParams(location.search), [location.search]);
 }
 
+function getBundleDisplayName(it: { sourceLabel?: string; mode: 'event'|'seasonal'|'custom'; channels?: Channel[]; updatedAt: string }): string {
+  if (it.sourceLabel && it.sourceLabel.trim().length > 0) return it.sourceLabel.trim();
+  const modeLabel = it.mode === 'event' ? 'Event' : it.mode === 'seasonal' ? 'Seasonal' : 'Custom';
+  let channelPart = 'General';
+  if (it.channels && it.channels.length > 0) {
+    channelPart = it.channels.length === 1 ? channelLabels[it.channels[0]] : 'Multi-channel';
+  }
+  const datePart = new Date(it.updatedAt).toLocaleDateString();
+  return `${modeLabel} • ${channelPart} • Updated ${datePart}`;
+}
+
 export const BundleLibrary = () => {
   const navigate = useNavigate();
   const params = useQueryParams();
@@ -144,7 +155,7 @@ export const BundleLibrary = () => {
                 openBundle(it.bundleId, it.snapshotId);
               }}>
                 {it.thumbnail ? (
-                  <img src={it.thumbnail} alt={it.sourceLabel || 'Bundle thumbnail'} className="w-full aspect-video object-cover rounded-lg mb-3" loading="lazy" />
+                  <img src={it.thumbnail} alt={`${getBundleDisplayName(it)} thumbnail`} className="w-full aspect-video object-cover rounded-lg mb-3" loading="lazy" />
                 ) : (
                   <div className="w-full aspect-video rounded-lg mb-3 bg-muted" />
                 )}
@@ -159,8 +170,8 @@ export const BundleLibrary = () => {
                   <Trash2 className="h-4 w-4" />
                 </button>
 
-                <div className="text-sm font-semibold truncate" title={it.sourceLabel || 'Untitled bundle'}>
-                  {it.sourceLabel || 'Untitled bundle'}
+                <div className="text-sm font-semibold truncate" title={getBundleDisplayName(it)}>
+                  {getBundleDisplayName(it)}
                 </div>
 
                 <div className="mt-2 flex flex-wrap gap-1">
