@@ -70,9 +70,9 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   }
 
   return (
-    <div className="absolute left-4 z-50 space-y-3 w-64 interactive top-[calc(1rem+160px+0.75rem)] md:top-[calc(1rem+160px+1rem)]">
+    <div className="absolute top-4 left-4 z-50 space-y-3 w-64 interactive">
       {/* Add Node Toolbar */}
-      <Card className="shadow-lg w-full">
+      <Card className="border w-full">
         <CardContent className="p-3">
           <div className="flex items-center gap-2 mb-3">
             <Plus className="w-4 h-4" />
@@ -106,7 +106,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
 
       {/* AI Suggestions */}
       {selectedNodeId && (
-        <Card className="shadow-lg w-full">
+        <Card className="border w-full">
           <CardContent className="p-3">
             <Button
               variant={showAISuggestions ? "default" : "ghost"}
