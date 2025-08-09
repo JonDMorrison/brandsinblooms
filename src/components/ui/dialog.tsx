@@ -31,21 +31,52 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-[50%] top-[50%] z-[60] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-garden-green-light bg-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </DialogPrimitive.Content>
-  </DialogPortal>
-))
+>(({ className, children, ...props }, ref) => {
+  const localRef = React.useRef<React.ElementRef<typeof DialogPrimitive.Content>>(null)
+
+  const mergedRef = React.useCallback((node: React.ElementRef<typeof DialogPrimitive.Content> | null) => {
+    if (!node) return
+    localRef.current = node
+    if (typeof ref === "function") ref(node)
+    else if (ref) (ref as React.MutableRefObject<any>).current = node
+  }, [ref])
+
+  React.useEffect(() => {
+    const node = (localRef.current as unknown as HTMLElement) || null
+    if (!node) return
+
+    const observer = new MutationObserver(() => {
+      if (node.getAttribute("aria-hidden") === "true" || node.getAttribute("data-aria-hidden") === "true") {
+        node.removeAttribute("aria-hidden")
+        node.removeAttribute("data-aria-hidden")
+      }
+    })
+
+    observer.observe(node, { attributes: true, attributeFilter: ["aria-hidden", "data-aria-hidden"] })
+
+    // Ensure the dialog content can receive focus programmatically
+    if (!node.hasAttribute("tabindex")) node.setAttribute("tabindex", "-1")
+
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        ref={mergedRef}
+        tabIndex={-1}
+        className={cn(
+          "fixed left-[50%] top-[50%] z-[60] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-garden-green-light bg-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  )
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({
