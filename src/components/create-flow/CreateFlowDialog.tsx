@@ -41,6 +41,11 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   const [holidays, setHolidays] = useState<any[]>([]);
   const [search, setSearch] = useState("");
 
+  // Pagination (UI-only)
+  const PAGE_SIZE = 12;
+  const [visibleEvents, setVisibleEvents] = useState(PAGE_SIZE);
+  const [visibleHolidays, setVisibleHolidays] = useState(PAGE_SIZE);
+
   useEffect(() => {
     if (!open) {
       setStep(1); setSelectedPath(null); setSelectedSourceId(null);
@@ -50,6 +55,13 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
     }
   }, [open, setSelectedPath, setSelectedSourceId]);
 
+  // Reset pagination when context changes
+  useEffect(() => {
+    setVisibleEvents(PAGE_SIZE);
+    setVisibleHolidays(PAGE_SIZE);
+  }, [search, step, selectedPath]);
+
+  // Fetch data for Events & Seasonal
   useEffect(() => {
     if (step === 2 && selectedPath === 'event') {
       (async () => {
@@ -72,6 +84,19 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       })();
     }
   }, [step, selectedPath]);
+
+  // Derived filtered lists
+  const filteredEvents = useMemo(() => {
+    const term = search.toLowerCase();
+    return events.filter((e) => !term || e.title?.toLowerCase().includes(term));
+  }, [events, search]);
+
+  const filteredHolidays = useMemo(() => {
+    const term = search.toLowerCase();
+    return holidays
+      .flat()
+      .filter((h: any) => !term || (h.title || '').toLowerCase().includes(term));
+  }, [holidays, search]);
 
   const canContinue = useMemo(() => selectedPath !== null, [selectedPath]);
   const canGenerate = useMemo(() => {
@@ -157,15 +182,22 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
             <div className="space-y-3">
               <Input placeholder="Search events" value={search} onChange={(e) => setSearch(e.target.value)} />
               <div className="max-h-80 overflow-y-auto space-y-2">
-                {events
-                  .filter((e) => !search || e.title?.toLowerCase().includes(search.toLowerCase()))
-                  .map((e) => (
-                    <button key={e.id} onClick={() => setSelectedSourceId(e.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===e.id?'ring-1':''}`}>
-                      <div className="font-medium">{e.title}</div>
-                      <div className="text-xs text-muted-foreground">{e.theme || e.description}</div>
-                    </button>
-                  ))}
-                {events.length === 0 && <div className="text-sm text-muted-foreground">No upcoming events. Try Custom Content instead.</div>}
+                {filteredEvents.slice(0, visibleEvents).map((e) => (
+                  <button key={e.id} onClick={() => setSelectedSourceId(e.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===e.id?'ring-1':''}`}>
+                    <div className="font-medium">{e.title}</div>
+                    <div className="text-xs text-muted-foreground">{e.theme || e.description}</div>
+                  </button>
+                ))}
+                {filteredEvents.length === 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    {search ? 'No results for your search.' : 'No upcoming events. Try Custom Content instead.'}
+                  </div>
+                )}
+                {filteredEvents.length > visibleEvents && (
+                  <div className="pt-2">
+                    <Button variant="secondary" onClick={() => setVisibleEvents((v) => v + PAGE_SIZE)}>Load more</Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -174,16 +206,22 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
             <div className="space-y-3">
               <Input placeholder="Search seasonal ideas" value={search} onChange={(e) => setSearch(e.target.value)} />
               <div className="max-h-80 overflow-y-auto space-y-2">
-                {holidays
-                  .flat()
-                  .filter((h: any) => !search || (h.title || '').toLowerCase().includes(search.toLowerCase()))
-                  .map((h: any) => (
-                    <button key={h.id} onClick={() => setSelectedSourceId(h.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===h.id?'ring-1':''}`}>
-                      <div className="font-medium">{h.title}</div>
-                      <div className="text-xs text-muted-foreground">{h.description}</div>
-                    </button>
-                  ))}
-                {holidays.length === 0 && <div className="text-sm text-muted-foreground">No upcoming holidays. Try Custom Content instead.</div>}
+                {filteredHolidays.slice(0, visibleHolidays).map((h: any) => (
+                  <button key={h.id} onClick={() => setSelectedSourceId(h.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===h.id?'ring-1':''}`}>
+                    <div className="font-medium">{h.title}</div>
+                    <div className="text-xs text-muted-foreground">{h.description}</div>
+                  </button>
+                ))}
+                {filteredHolidays.length === 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    {search ? 'No results for your search.' : 'No upcoming holidays. Try Custom Content instead.'}
+                  </div>
+                )}
+                {filteredHolidays.length > visibleHolidays && (
+                  <div className="pt-2">
+                    <Button variant="secondary" onClick={() => setVisibleHolidays((v) => v + PAGE_SIZE)}>Load more</Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
