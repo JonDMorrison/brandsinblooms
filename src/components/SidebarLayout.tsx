@@ -5,6 +5,10 @@ import { TrialBanner } from "@/components/TrialBanner";
 import { UserMenu } from "@/components/UserMenu";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/AppSidebar";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
+import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
+import { useCreateFlow } from "@/state/useCreateFlow";
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -12,6 +16,21 @@ interface SidebarLayoutProps {
 
 export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const { user } = useAuth();
+  const { dialogOpen, setDialogOpen } = useCreateFlow();
+
+  // Keyboard shortcut: press "C" to open Create
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTyping = !!target?.closest('input, textarea, [contenteditable="true"]');
+      if (isTyping) return;
+      if (e.key.toLowerCase() === 'c') {
+        setDialogOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setDialogOpen]);
 
   // Defensive: ensure nothing marks the sidebar wrapper aria-hidden
   useEffect(() => {
@@ -50,7 +69,11 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         
         <main className="flex-1 w-full min-h-screen overflow-auto">
           {/* Fixed UserMenu - always visible in top-right */}
-          <div className="fixed top-6 right-6 z-40">
+          <div className="fixed top-6 right-6 z-40 flex items-center gap-2">
+            <Button size="sm" onClick={() => setDialogOpen(true)}>
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Create
+            </Button>
             <UserMenu />
           </div>
           
@@ -62,6 +85,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           </div>
         </main>
       </div>
+      <CreateFlowDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </SidebarProvider>
   );
 };

@@ -472,8 +472,23 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     const type = searchParams.get('type');
     if (type !== 'newsletter') return;
     if (!bundleIdParam) return;
-    if (blocks.length > 0) return;
     if (bundleQuery.isLoading || !bundleQuery.data) return;
+
+    const prefillKey = `crm-prefill:${bundleIdParam}`;
+    const cleanUrl = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('bundleId');
+      const qs = url.searchParams.toString();
+      window.history.replaceState({}, '', url.pathname + (qs ? `?${qs}` : ''));
+    };
+
+    if (localStorage.getItem(prefillKey) === 'done') {
+      cleanUrl();
+      return;
+    }
+
+    if (blocks.length > 0) return;
+
     try {
       const items = (bundleQuery.data.content?.items || []) as any[];
       const newsletterItem = items.find((i: any) => i.channel === 'newsletter') || items.find((i: any) => i.channel === 'blog') || items[0];
@@ -510,10 +525,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         body
       } as any);
       setBlocks(newBlocks);
+      localStorage.setItem(prefillKey, 'done');
+      toast({ title: 'Newsletter prefilled', description: 'We added content from your bundle.' });
+      cleanUrl();
     } catch (e) {
       console.warn('CRM prefill from bundle failed', e);
     }
-  }, [bundleIdParam, bundleQuery.data, bundleQuery.isLoading, blocks.length, searchParams]);
+  }, [bundleIdParam, bundleQuery.data, bundleQuery.isLoading, blocks.length, searchParams, toast]);
 
   // Check for existing campaign and load session data
   useEffect(() => {

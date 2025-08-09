@@ -7,6 +7,7 @@ import { useGeneratedBundle } from "@/hooks/useGeneratedBundle";
 import { mediaSelector } from "@/utils/mediaSelector";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 interface GeneratedContentModalProps {
   open: boolean;
@@ -130,7 +131,10 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
 
         <div className="flex items-center justify-between mt-4">
           <Button variant="outline" onClick={handleClose}>Close</Button>
-          <Button onClick={approveAll}>Approve All</Button>
+          <Button onClick={approveAll} disabled={update.isPending}>
+            {update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Approve All
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

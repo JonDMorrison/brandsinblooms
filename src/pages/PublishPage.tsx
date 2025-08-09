@@ -76,6 +76,21 @@ const PublishPage = () => {
     const channel = params.get('channel'); // 'instagram' | 'facebook'
     if (!bundleId || prefillDone) return;
 
+    const prefillKey = `publish-prefill:${bundleId}:${channel || 'any'}`;
+    const cleanUrl = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('bundleId');
+      url.searchParams.delete('channel');
+      const qs = url.searchParams.toString();
+      window.history.replaceState({}, '', url.pathname + (qs ? `?${qs}` : ''));
+    };
+
+    if (localStorage.getItem(prefillKey) === 'done') {
+      cleanUrl();
+      setPrefillDone(true);
+      return;
+    }
+
     (async () => {
       try {
         const { data, error } = await supabase
@@ -130,6 +145,9 @@ const PublishPage = () => {
 
         setSelectedContent(newContent);
         setPublishData(prev => prev ? { ...prev, content: [newContent, ...(prev.content || [])] } : { content: [newContent], scheduledPosts: [], socialConnections: [] });
+        setDrawerOpen(true);
+        localStorage.setItem(prefillKey, 'done');
+        cleanUrl();
         setPrefillDone(true);
       } catch (e) {
         console.warn('Publish prefill failed', e);
