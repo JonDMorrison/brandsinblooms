@@ -8,7 +8,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { GeneratedContentModal } from "./GeneratedContentModal";
 
 interface CreateFlowDialogProps {
@@ -27,7 +27,8 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   } = useCreateFlow();
 
   const [step, setStep] = useState<1|2>(1);
-  const [loading, setLoading] = useState(false);
+const [loading, setLoading] = useState(false);
+const [networkError, setNetworkError] = useState(false);
 
   // Custom idea form state
   const [title, setTitle] = useState("");
@@ -107,6 +108,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   const startGenerate = async () => {
     if (!selectedPath) return;
     setLoading(true);
+    setNetworkError(false);
 
     // Get workspace id for current user
     const { data: me } = await supabase.from('users').select('tenant_id').limit(1).single();
@@ -136,6 +138,9 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       toast({ title: 'Draft bundle ready', description: 'Review and approve your items.' });
     } catch (e: any) {
       console.error(e);
+      if (e?.name === 'FunctionsFetchError' || e?.message?.includes('Failed to fetch')) {
+        setNetworkError(true);
+      }
       toast({ title: 'Generation failed', description: e?.message || 'Please try again.', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -265,10 +270,18 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
             ) : (
               <>
                 <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-                <Button disabled={!canGenerate || loading} onClick={startGenerate}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate Content
-                </Button>
+                <div className="flex items-center gap-2">
+                  {networkError && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <AlertCircle className="w-3 h-3" />
+                      AI unavailable
+                    </div>
+                  )}
+                  <Button disabled={!canGenerate || loading} onClick={startGenerate}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Generate Content
+                  </Button>
+                </div>
               </>
             )}
           </DialogFooter>
