@@ -68,7 +68,74 @@ const PublishPage = () => {
   const [showDebugger, setShowDebugger] = useState(false);
   const [metricsRefresh, setMetricsRefresh] = useState(0);
   const [testMode, setTestMode] = useState(false);
+  const [prefillDone, setPrefillDone] = useState(false);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const bundleId = params.get('bundleId');
+    const channel = params.get('channel'); // 'instagram' | 'facebook'
+    if (!bundleId || prefillDone) return;
+
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('draft_snapshots' as any)
+          .select('content')
+          .eq('doc_type', 'content_bundle')
+          .eq('doc_id', bundleId)
+          .order('version', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const bundleData: any = data as any;
+        if (error || !bundleData?.content) {
+          console.warn('Bundle not found for publish prefill', error);
+          return;
+        }
+
+        const items = (bundleData.content.items || []) as any[];
+        const preferred = channel && items.find((it: any) => it.channel === channel);
+        const fallback = items.find((it: any) => it.channel === 'instagram' || it.channel === 'facebook');
+        const item = (preferred as any) || (fallback as any) || items[0];
+        if (!item) return;
+
+        const insertPayload: any = {
+          post_type: item.channel === 'instagram' ? 'instagram' : (item.channel === 'facebook' ? 'facebook' : 'instagram'),
+          ai_output: item.body,
+          image_url: item.media?.url || null,
+          status: 'review'
+        };
+        const { data: inserted, error: insertError } = await supabase
+          .from('content_tasks' as any)
+          .insert(insertPayload)
+          .select('*')
+          .single();
+
+        if (insertError) {
+          console.error('Failed inserting content task from bundle', insertError);
+          return;
+        }
+
+        const insertedRow: any = inserted as any;
+
+        const newContent: GeneratedContent = {
+          id: insertedRow.id,
+          status: ((insertedRow.status || 'REVIEW').toString().toUpperCase()) as any,
+          caption: insertedRow.ai_output || '',
+          mediaUrl: insertedRow.image_url || undefined,
+          platform: insertedRow.post_type,
+          campaignId: insertedRow.campaign_id || undefined,
+          createdAt: insertedRow.created_at
+        };
+
+        setSelectedContent(newContent);
+        setPublishData(prev => prev ? { ...prev, content: [newContent, ...(prev.content || [])] } : { content: [newContent], scheduledPosts: [], socialConnections: [] });
+        setPrefillDone(true);
+      } catch (e) {
+        console.warn('Publish prefill failed', e);
+      }
+    })();
+  }, [prefillDone]);
   // Optimized function to fetch images in background
   const fetchImagesInBackground = useCallback(
     debounce(async (content: GeneratedContent[]) => {

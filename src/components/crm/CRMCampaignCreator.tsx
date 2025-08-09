@@ -467,6 +467,54 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     };
   }, []);
 
+  // Prefill from Generated Bundle (newsletter)
+  useEffect(() => {
+    const type = searchParams.get('type');
+    if (type !== 'newsletter') return;
+    if (!bundleIdParam) return;
+    if (blocks.length > 0) return;
+    if (bundleQuery.isLoading || !bundleQuery.data) return;
+    try {
+      const items = (bundleQuery.data.content?.items || []) as any[];
+      const newsletterItem = items.find((i: any) => i.channel === 'newsletter') || items.find((i: any) => i.channel === 'blog') || items[0];
+      if (!newsletterItem) return;
+      const title = newsletterItem.title || 'Newsletter';
+      const body = newsletterItem.body || '';
+      setCampaignName(title);
+      setSubjectLine(title);
+      setPreheaderText(generatePreheaderText(body, title));
+      const now = Date.now();
+      const newBlocks: ContentBlock[] = [];
+      newBlocks.push({
+        id: `hdr-${now}`,
+        type: 'newsletter-header',
+        source: 'ai',
+        title,
+        subtitle: "This week's highlights",
+        publishDate: new Date().toISOString().split('T')[0],
+        backgroundImageUrl: newsletterItem.media?.url
+      } as any);
+      if (newsletterItem.media?.url) {
+        newBlocks.push({
+          id: `img-${now + 1}`,
+          type: 'image',
+          source: 'ai',
+          imageUrl: newsletterItem.media.url,
+          altText: newsletterItem.media.alt || title
+        } as any);
+      }
+      newBlocks.push({
+        id: `txt-${now + 2}`,
+        type: 'text',
+        source: 'ai',
+        body
+      } as any);
+      setBlocks(newBlocks);
+    } catch (e) {
+      console.warn('CRM prefill from bundle failed', e);
+    }
+  }, [bundleIdParam, bundleQuery.data, bundleQuery.isLoading, blocks.length, searchParams]);
+
   // Check for existing campaign and load session data
   useEffect(() => {
     const checkExistingCampaign = async () => {
