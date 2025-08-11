@@ -46,7 +46,9 @@ export interface BlockRegistryItem<T extends NewsletterBlockType = NewsletterBlo
   RenderComponent: React.FC<{ block: Extract<NewsletterBlock, { type: T }>; isPreview?: boolean }>;
 }
 
-export type NewsletterBlocksRegistry = Record<NewsletterBlockType, BlockRegistryItem<any>>;
+export type NewsletterBlocksRegistry = {
+  [K in NewsletterBlockType]: BlockRegistryItem<K>;
+};
 
 // Shared small editors to keep implementation compact
 const TextInput: React.FC<{
