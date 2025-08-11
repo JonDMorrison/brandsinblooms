@@ -24,13 +24,25 @@ export function useNewsletterDraft({ docId }: UseNewsletterDraftOptions): UseNew
     let mounted = true;
     const load = async () => {
       const { data: user } = await supabase.auth.getUser();
-      if (!user?.user?.id) return;
+      if (!user?.user?.id) {
+        if (mounted && blocks.length === 0) {
+          const { getMagazineA } = await import('../templates/magazine/a');
+          setBlocks(getMagazineA());
+        }
+        return;
+      }
       const { data: userRow } = await supabase
         .from('users')
         .select('tenant_id')
         .eq('id', user.user.id)
         .single();
-      if (!userRow?.tenant_id) return;
+      if (!userRow?.tenant_id) {
+        if (mounted && blocks.length === 0) {
+          const { getMagazineA } = await import('../templates/magazine/a');
+          setBlocks(getMagazineA());
+        }
+        return;
+      }
       const { data } = await supabase
         .from('draft_snapshots')
         .select('content')
@@ -43,8 +55,9 @@ export function useNewsletterDraft({ docId }: UseNewsletterDraftOptions): UseNew
       if (mounted && last?.content?.blocks) {
         setBlocks(last.content.blocks as TNewsletterBlock[]);
       } else if (mounted && blocks.length === 0) {
-        // Seed with simple defaults (empty editor)
-        setBlocks([registry.hero.defaults(), registry.text.defaults(), registry.footer.defaults()]);
+        // Seed with magazine template by default
+        const { getMagazineA } = await import('../templates/magazine/a');
+        setBlocks(getMagazineA());
       }
     };
     load();

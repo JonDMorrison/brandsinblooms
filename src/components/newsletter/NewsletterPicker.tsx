@@ -89,7 +89,8 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   };
 
   const handleSkipToBlank = () => {
-    navigate('/crm/campaigns/new?type=newsletter');
+    const docId = crypto.randomUUID();
+    navigate(`/newsletters/editor/${docId}`);
     onClose();
   };
 
