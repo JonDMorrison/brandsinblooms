@@ -62,21 +62,13 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   const handleContinue = () => {
     if (!selectedIdea || !selectedLayout) return;
 
-    if (selectedLayout === 'block-builder') {
-      // Go to magazine editor with a fresh doc id and template hint
-      const docId = crypto.randomUUID();
-      const params = new URLSearchParams({ ideaId: selectedIdea.id, source: 'picker' });
-      navigate(`/newsletters/editor/${docId}?${params.toString()}`);
-      onClose();
-      return;
-    }
-
-    // Fallback to existing simple flow
+    // Navigate to email builder with template data
     const params = new URLSearchParams({
       templateId: selectedIdea.id,
       layout: selectedLayout,
       source: 'picker'
     });
+    
     navigate(`/crm/campaigns/new?type=newsletter&${params.toString()}`);
     onClose();
   };
@@ -89,8 +81,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   };
 
   const handleSkipToBlank = () => {
-    const docId = crypto.randomUUID();
-    navigate(`/newsletters/editor/${docId}`);
+    navigate('/crm/campaigns/new?type=newsletter');
     onClose();
   };
 

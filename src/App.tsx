@@ -42,7 +42,6 @@ import { QuickTourProvider } from '@/contexts/QuickTourContext';
 import { TourManager } from '@/components/tour/TourManager';
 import POSPage from '@/pages/settings/POSPage';
 import SettingsPage from '@/pages/SettingsPage';
-import { NewsletterEditorPage } from '@/pages/newsletter/NewsletterEditorPage';
 
 // Emergency cleanup - remove any stray inert attributes
 import '@/utils/emergency-cleanup';
@@ -241,13 +240,6 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <NewsletterNewPage />
-            </SidebarLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/newsletters/editor/:id" element={
-          <ProtectedRoute>
-            <SidebarLayout>
-              <NewsletterEditorPage />
             </SidebarLayout>
           </ProtectedRoute>
         } />
