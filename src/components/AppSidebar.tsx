@@ -4,6 +4,7 @@ import {
   Send,
   Calendar,
   ClipboardList,
+  BookOpen,
   Trophy,
   Puzzle,
   Zap,
@@ -91,6 +92,11 @@ const AppSidebar: React.FC = () => {
       title: "Content Library",
       url: "/content/library",
       icon: ClipboardList,
+    },
+    {
+      title: "Newsletter",
+      url: "/newsletters/new",
+      icon: BookOpen,
     },
     ...(isPro ? [{
       title: "CRM",
