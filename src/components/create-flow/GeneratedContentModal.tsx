@@ -139,7 +139,7 @@ item.channel === 'newsletter' ? (
                         />
                         <div className="mt-3 rounded-md border">
                           <EmailPreview
-                            blocks={convertNewsletterToCRM_Direct(item.body || '')}
+                            blocks={Array.isArray(item.blocks) && item.blocks.length ? item.blocks : convertNewsletterToCRM_Direct(item.body || '')}
                             campaignName={item.title || 'Newsletter'}
                             subjectLine={item.title || 'Newsletter'}
                             senderName="Your Garden Center"

@@ -18,18 +18,21 @@ serve(async (req) => {
   }
 
   try {
-    const { 
-      business_name, 
-      theme, 
-      week_focus, 
-      promo_items = [], 
-      tone_note = '',
-      userId,
-      is_holiday = false,
-      holiday_context = '',
-      existingContent = null,
-      personas = []
-    } = await req.json();
+    // Normalize incoming payload keys to be resilient to different callers
+    const incoming = await req.json();
+
+    const business_name = incoming.business_name ?? incoming.businessName ?? undefined;
+    const themeRaw = incoming.theme ?? incoming.campaignTitle ?? incoming.title ?? '';
+    const theme = (typeof themeRaw === 'string' ? themeRaw : String(themeRaw || ''))?.trim() || 'Seasonal Garden';
+    const week_focus = incoming.week_focus ?? incoming.weekDescription ?? incoming.context ?? '';
+    const promo_items = incoming.promo_items ?? incoming.promoItems ?? [];
+    const tone_note = incoming.tone_note ?? incoming.toneNote ?? '';
+    const userId = incoming.userId;
+    const is_holiday = incoming.is_holiday ?? incoming.isHoliday ?? false;
+    const holiday_context = incoming.holiday_context ?? incoming.holidayContext ?? '';
+    const existingContent = incoming.existingContent ?? null;
+    const personas = incoming.personas ?? [];
+
 
     console.log('Generating StoryBrand-enhanced 4-section newsletter:', { 
       business_name, 
