@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { MediaSelector } from "@/components/image/MediaSelector";
+import { EmailPreview } from "@/components/crm/EmailPreview";
+import { convertNewsletterToCRM_Direct } from "@/utils/newsletterToCrmSync";
 
 interface GeneratedContentModalProps {
   open: boolean;
@@ -127,12 +129,32 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                         />
                       </div>
                     ) : (
+item.channel === 'newsletter' ? (
+                      <>
+                        <textarea
+                          className="w-full min-h-[120px] rounded-md border p-3 text-sm"
+                          value={item.body || ''}
+                          onChange={(e) => setItem(idx, { body: e.target.value })}
+                          placeholder="Write newsletter body"
+                        />
+                        <div className="mt-3 rounded-md border">
+                          <EmailPreview
+                            blocks={convertNewsletterToCRM_Direct(item.body || '')}
+                            campaignName={item.title || 'Newsletter'}
+                            subjectLine={item.title || 'Newsletter'}
+                            senderName="Your Garden Center"
+                            senderEmail="newsletter@example.com"
+                          />
+                        </div>
+                      </>
+                    ) : (
                       <textarea
                         className="w-full min-h-[120px] rounded-md border p-3 text-sm"
                         value={item.body || ''}
                         onChange={(e) => setItem(idx, { body: e.target.value })}
-                        placeholder="Write newsletter body"
+                        placeholder="Write body"
                       />
+                    )
                     )}
                   </div>
                   <div className="space-y-2">

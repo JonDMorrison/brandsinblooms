@@ -497,37 +497,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       const body = newsletterItem.body || '';
       setCampaignName(title);
       setSubjectLine(title);
-      setPreheaderText(generatePreheaderText(body, title));
-      const now = Date.now();
-      const newBlocks: ContentBlock[] = [];
-      newBlocks.push({
-        id: `hdr-${now}`,
-        type: 'newsletter-header',
-        source: 'ai',
-        title,
-        subtitle: "This week's highlights",
-        publishDate: new Date().toISOString().split('T')[0],
-        backgroundImageUrl: newsletterItem.media?.url
-      } as any);
-      if (newsletterItem.media?.url) {
-        newBlocks.push({
-          id: `img-${now + 1}`,
-          type: 'image',
-          source: 'ai',
-          imageUrl: newsletterItem.media.url,
-          altText: newsletterItem.media.alt || title
-        } as any);
-      }
-      newBlocks.push({
-        id: `txt-${now + 2}`,
-        type: 'text',
-        source: 'ai',
-        body
-      } as any);
-      setBlocks(newBlocks);
-      localStorage.setItem(prefillKey, 'done');
-      toast({ title: 'Newsletter prefilled', description: 'We added content from your bundle.' });
-      cleanUrl();
+setPreheaderText(generatePreheaderText(body, title));
+
+// Use robust converter to build 4–5 blocks preview from YAML/Markdown
+const result = convertNewsletterToCRM(body, title);
+setBlocks(result.blocks);
+
+localStorage.setItem(prefillKey, 'done');
+toast({ title: 'Newsletter prefilled', description: 'We added content from your bundle.' });
+cleanUrl();
     } catch (e) {
       console.warn('CRM prefill from bundle failed', e);
     }
