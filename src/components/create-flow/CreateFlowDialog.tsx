@@ -129,6 +129,15 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
           notes: notes || undefined,
         };
       }
+      // Pass explicit topic details for seasonal ideas so the generator prioritizes them
+      if (selectedPath === 'seasonal' && selectedSourceId) {
+        const flatHolidays = (Array.isArray(holidays?.[0]) ? (holidays as any[]).flat() : holidays) as any[];
+        const picked = flatHolidays?.find((h: any) => h?.id === selectedSourceId);
+        if (picked) {
+          payload.topicTitle = picked.title;
+          payload.topicDescription = picked.description || picked.previewHtml || '';
+        }
+      }
 
       toast({ title: 'Generating content…', description: 'Creating five items across your channels.' });
       const { data, error } = await supabase.functions.invoke('generate-multichannel-content', { body: payload });

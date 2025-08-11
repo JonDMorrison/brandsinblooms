@@ -11,6 +11,9 @@ interface GenerateInput {
     tone?: string;
     notes?: string;
   };
+  // Optional explicit topic coming from client (e.g., selected seasonal idea)
+  topicTitle?: string;
+  topicDescription?: string;
   channels: Array<"newsletter" | "instagram" | "facebook" | "video" | "blog">; // required: only generate these
   workspaceId: string;
 }
@@ -167,6 +170,16 @@ function buildImageQuery(context: any) {
 }
 
 async function resolveContext(supabase: any, input: GenerateInput) {
+  // Client-specified topic takes priority (e.g., "Summer Care")
+  if (input.topicTitle) {
+    return {
+      title: input.topicTitle,
+      description: input.topicDescription,
+      goal: input.userIdea?.goal,
+      tone: input.userIdea?.tone,
+    };
+  }
+
   if (input.mode === "custom") {
     return {
       title: input.userIdea?.title,
@@ -222,6 +235,20 @@ async function generateForChannel(
 
   switch (channel) {
     case "newsletter": {
+      try {
+        const content = await callGenerateStructuredNewsletter(supabase, {
+          campaignTitle: topic,
+          userId,
+          weekDescription: context.description,
+          toneNote: tone,
+          weekNumber: 0,
+        });
+        if (content) {
+          return { channel: "newsletter", title: topic, body: content, media: null };
+        }
+      } catch (e) {
+        console.warn("[generate-multichannel-content] structured newsletter failed, falling back", e);
+      }
       const blocks = generateNewsletterBlocksServer(topic);
       const body = (blocks || [])
         .map((b: any) => b?.title || b?.headline || b?.content || b?.body)
@@ -278,6 +305,25 @@ async function callGenerateContent(supabase: any, args: { postType: string; camp
       userId: args.userId,
       weekDescription: args.weekDescription,
       enforceCompanyName: true,
+    },
+  });
+  if (error) throw error;
+  return (data as any)?.content as string;
+}
+
+async function callGenerateStructuredNewsletter(
+  supabase: any,
+  args: { campaignTitle: string; userId: string; weekDescription?: string; toneNote?: string; weekNumber?: number; campaignId?: string }
+) {
+  const { data, error } = await supabase.functions.invoke("generate-structured-newsletter", {
+    body: {
+      campaignId: args.campaignId || crypto.randomUUID(),
+      campaignTitle: args.campaignTitle,
+      weekNumber: args.weekNumber ?? 0,
+      userId: args.userId,
+      weekDescription: args.weekDescription,
+      promoItems: [],
+      toneNote: args.toneNote,
     },
   });
   if (error) throw error;
