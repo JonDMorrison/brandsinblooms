@@ -42,7 +42,7 @@ function getBundleDisplayName(it: { sourceLabel?: string; mode: 'event'|'seasona
 }
 
 function BundleCard({ it, openBundle, handleDelete }: { it: any; openBundle: (bundleId: string, snapshotId?: string) => void; handleDelete: (bundleId: string) => Promise<any> | void }) {
-  const { title } = useBundlePreviewTitle(it.bundleId);
+  const { title } = useBundlePreviewTitle(it.bundleId, { includeChannelTag: false });
   const displayTitle = title || getBundleDisplayName(it);
   return (
     <Card key={it.bundleId} className="relative p-3 hover:shadow-md transition cursor-pointer" onClick={(e) => {

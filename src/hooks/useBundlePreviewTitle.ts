@@ -42,7 +42,7 @@ function truncate(s: string, max = 90): string {
   return s.slice(0, max - 1).trimEnd() + '…';
 }
 
-export function useBundlePreviewTitle(bundleId?: string) {
+export function useBundlePreviewTitle(bundleId?: string, opts?: { includeChannelTag?: boolean; maxLength?: number }) {
   const { query } = useGeneratedBundle(bundleId);
 
   const derived = useMemo(() => {
@@ -58,9 +58,12 @@ export function useBundlePreviewTitle(bundleId?: string) {
     // Guard against non-informative titles
     if (!candidate || /^untitled$/i.test(candidate)) return { title: undefined as string | undefined };
 
-    const titled = withChannelTag(candidate, item.channel as Channel);
-    return { title: truncate(titled) };
-  }, [query.data]);
+    const includeTag = opts?.includeChannelTag ?? true;
+    const max = opts?.maxLength ?? 90;
+    const finalTitle = includeTag ? withChannelTag(candidate, item.channel as Channel) : candidate;
+
+    return { title: truncate(finalTitle, max) };
+  }, [query.data, opts?.includeChannelTag, opts?.maxLength]);
 
   return { title: derived.title, isLoading: query.isLoading };
 }
