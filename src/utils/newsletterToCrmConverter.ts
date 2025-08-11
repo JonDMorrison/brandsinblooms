@@ -366,6 +366,12 @@ const convertToEmailHTML = (processed: any): string => {
   return emailHTML;
 };
 
+// Public helper: build inline-styled email HTML from raw newsletter content
+export const buildEmailHtmlFromNewsletter = (content: string, title?: string): string => {
+  const processed = processNewsletterContent(content, title || 'Newsletter');
+  return convertToEmailHTML(processed);
+};
+
 const formatNewsletterForEmail = (content: string): string => {
   let formatted = content;
 
