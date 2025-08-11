@@ -61,7 +61,7 @@ export const NewsletterNewPage: React.FC = () => {
             <Button 
               variant="outline" 
               className="w-full"
-              onClick={() => window.location.href = '/crm/campaigns/new?type=newsletter'}
+              onClick={() => window.location.href = '/newsletters/editor/new'}
             >
               <Plus className="w-4 h-4 mr-2" />
               Start Blank
