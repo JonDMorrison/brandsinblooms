@@ -14,6 +14,18 @@ interface InlineEditableContentProps {
   onTaskUpdate?: () => void;
 }
 
+// Detect if task contains structured (YAML-based) newsletter content
+const isStructuredNewsletter = (task: any): boolean => {
+  const out: string = task?.ai_output || '';
+  const type: string = task?.post_type || '';
+  return (
+    type === 'newsletter' ||
+    out.includes('newsletter_md:') ||
+    out.includes('blocks:') ||
+    (type === 'email' && out.includes('newsletter_md:'))
+  );
+};
+
 export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableContentProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
