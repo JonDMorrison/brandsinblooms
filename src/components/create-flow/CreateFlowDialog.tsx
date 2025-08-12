@@ -11,6 +11,16 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertCircle } from "lucide-react";
 import { GeneratedContentModal } from "./GeneratedContentModal";
 
+// Local helper: format a YYYY-MM-DD string to a readable date
+const formatDate = (d?: string) => {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return String(d);
+  }
+};
+
 interface CreateFlowDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
