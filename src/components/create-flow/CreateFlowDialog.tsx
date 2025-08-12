@@ -12,7 +12,7 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { GeneratedContentModal } from "./GeneratedContentModal";
 
 // Local helper: format a YYYY-MM-DD string to a readable date
-const formatDate = (d?: string) => {
+const fmtLocalDate = (d?: string) => {
   if (!d) return '';
   try {
     return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -303,7 +303,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
                   <button key={h.id} onClick={() => setSelectedSourceId(h.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===h.id?'ring-1':''}`}>
                     <div className="font-medium">{h.title}</div>
                     <div className="text-xs text-muted-foreground">
-                      {h.date ? `${formatDate(h.date)} • ${h.category || 'Holiday'}` : (h.category ? h.category : 'Idea')}
+                      {h.date ? `${fmtLocalDate(h.date)} • ${h.category || 'Holiday'}` : (h.category ? h.category : 'Idea')}
                     </div>
                     {h.description && (
                       <div className="text-xs text-muted-foreground mt-1">{h.description}</div>
