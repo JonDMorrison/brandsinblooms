@@ -78,9 +78,30 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
     }
     if (step === 2 && selectedPath === 'seasonal') {
       (async () => {
-        const { data, error } = await supabase.rpc('fn_get_newsletter_ideas');
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        const threeMonthsFromNow = new Date(today);
+        threeMonthsFromNow.setMonth(today.getMonth() + 3);
+        const threeMonthsStr = threeMonthsFromNow.toISOString().split('T')[0];
+
+        const { data, error } = await supabase
+          .from('holidays')
+          .select('id, holiday_name, holiday_date, description, garden_relevance, category, is_active')
+          .eq('is_active', true)
+          .gte('holiday_date', todayStr)
+          .lte('holiday_date', threeMonthsStr)
+          .order('holiday_date', { ascending: true })
+          .limit(25);
+
         if (!error) {
-          setHolidays((data as any[]) || []);
+          const mapped = (data || []).map((h: any) => ({
+            id: h.id,
+            title: h.holiday_name,
+            description: h.garden_relevance || h.description || '',
+            date: h.holiday_date,
+            category: h.category,
+          }));
+          setHolidays(mapped);
         }
       })();
     }
@@ -95,7 +116,6 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   const filteredHolidays = useMemo(() => {
     const term = search.toLowerCase();
     return holidays
-      .flat()
       .filter((h: any) => !term || (h.title || '').toLowerCase().includes(term));
   }, [holidays, search]);
 
@@ -131,11 +151,10 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       }
       // Pass explicit topic details for seasonal ideas so the generator prioritizes them
       if (selectedPath === 'seasonal' && selectedSourceId) {
-        const flatHolidays = (Array.isArray(holidays?.[0]) ? (holidays as any[]).flat() : holidays) as any[];
-        const picked = flatHolidays?.find((h: any) => h?.id === selectedSourceId);
+        const picked = (holidays as any[])?.find((h: any) => h?.id === selectedSourceId);
         if (picked) {
           payload.topicTitle = picked.title;
-          payload.topicDescription = picked.description || picked.previewHtml || '';
+          payload.topicDescription = picked.description || '';
         }
       }
 
