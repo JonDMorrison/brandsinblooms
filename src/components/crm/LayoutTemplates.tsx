@@ -297,30 +297,18 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
   return (
     <div className={cn('space-y-4', paddingClass, className)}>
       {(block.title || block.headline) && (
-        <h3 className="text-xl font-semibold text-center">{block.title || block.headline}</h3>
+        <h3 className="text-xl font-semibold">{block.title || block.headline}</h3>
       )}
       {(block.content || block.body) && (
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <div 
-              className="text-muted-foreground leading-relaxed"
-              dangerouslySetInnerHTML={{ 
-                __html: parseSimpleMarkdown((block.content || block.body || '').split('\n')[0] || (block.content || block.body || ''))
-              }}
-            />
-          </div>
-          <div className="space-y-2">
-            <div 
-              className="text-muted-foreground leading-relaxed"
-              dangerouslySetInnerHTML={{ 
-                __html: parseSimpleMarkdown((block.content || block.body || '').split('\n')[1] || (block.content || block.body || ''))
-              }}
-            />
-          </div>
-        </div>
+        <div 
+          className="text-muted-foreground leading-relaxed"
+          dangerouslySetInnerHTML={{ 
+            __html: parseSimpleMarkdown(block.content || block.body || '')
+          }}
+        />
       )}
       {(block.ctaText || block.buttonText) && (
-        <div className="text-center">
+        <div>
           <button className="bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90 transition-colors">
             {block.ctaText || block.buttonText}
           </button>

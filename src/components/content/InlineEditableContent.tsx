@@ -192,14 +192,17 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
       {/* Content Area */}
       <div className="space-y-4">
         {isEditing ? (
-          task.post_type === 'newsletter' ? (
-            <NewsletterEditor
-              yamlContent={task.ai_output || ''}
-              onSave={(updatedYaml) => {
-                handleSave(updatedYaml);
-              }}
-              onCancel={handleCancel}
-            />
+          isStructuredNewsletter(task) ? (
+            <>
+              {console.info('[INLINE_EDIT] Using NewsletterEditor for structured newsletter')}
+              <NewsletterEditor
+                yamlContent={task.ai_output || ''}
+                onSave={(updatedYaml) => {
+                  handleSave(updatedYaml);
+                }}
+                onCancel={handleCancel}
+              />
+            </>
           ) : (
             <div className="space-y-2">
               <Textarea

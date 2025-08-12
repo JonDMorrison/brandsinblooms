@@ -61,7 +61,8 @@ export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlo
           source: 'newsletter',
           collapsed: false,
           visible: true,
-          animation: 'fade-in'
+          animation: 'fade-in',
+          layout: 'two-column-right'
         });
       });
       
@@ -106,7 +107,8 @@ export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlo
         source: 'newsletter',
         collapsed: false,
         visible: true,
-        animation: 'fade-in'
+        animation: 'fade-in',
+        layout: 'two-column-right'
       };
     } else if (current && line.trim()) {
       // Add content to current block
@@ -279,7 +281,8 @@ export const convertNewsletterToCRM = (
         source: 'newsletter' as const,
         collapsed: false,
         visible: true,
-        animation: 'fade-in' as const
+        animation: 'fade-in' as const,
+        layout: 'two-column-right' as const
       };
       console.log(`[NEWSLETTER TO CRM] Created ContentBlock ${index + 1}:`, {
         id: contentBlock.id,
@@ -309,7 +312,8 @@ export const convertNewsletterToCRM = (
           source: 'newsletter' as const,
           collapsed: false,
           visible: true,
-          animation: 'fade-in' as const
+          animation: 'fade-in' as const,
+          layout: 'two-column-right' as const
         });
         console.log(`[NEWSLETTER TO CRM] ✅ Created section block: ${section.title}`);
       });
@@ -338,7 +342,8 @@ export const convertNewsletterToCRM = (
               source: 'newsletter' as const,
               collapsed: false,
               visible: true,
-              animation: 'fade-in' as const
+              animation: 'fade-in' as const,
+              layout: 'two-column-right' as const
             });
             console.log(`[NEWSLETTER TO CRM] ✅ Created split block: ${title}`);
           }
@@ -359,7 +364,8 @@ export const convertNewsletterToCRM = (
         source: 'newsletter' as const,
         collapsed: false,
         visible: true,
-        animation: 'fade-in' as const
+        animation: 'fade-in' as const,
+        layout: 'two-column-right' as const
       });
     }
   }

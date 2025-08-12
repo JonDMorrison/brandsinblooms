@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2 } from 'lucide-react';
 import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 interface NewsletterBlock {
   title: string;
@@ -227,12 +227,10 @@ ${yamlStructure.extra_content_ideas.map(idea => `  - "${idea}"`).join('\n')}`;
           </div>
           <div>
             <Label htmlFor="header">Introduction</Label>
-            <Textarea
-              id="header"
-              value={header}
-              onChange={(e) => setHeader(e.target.value)}
+            <RichTextEditor
+              content={header}
+              onChange={setHeader}
               placeholder="Write your newsletter introduction..."
-              className="mt-1 min-h-[100px]"
             />
           </div>
         </CardContent>
@@ -278,12 +276,10 @@ ${yamlStructure.extra_content_ideas.map(idea => `  - "${idea}"`).join('\n')}`;
               </div>
               <div>
                 <Label htmlFor={`body-${index}`}>Content</Label>
-                <Textarea
-                  id={`body-${index}`}
-                  value={block.body}
-                  onChange={(e) => updateBlock(index, 'body', e.target.value)}
+                <RichTextEditor
+                  content={block.body}
+                  onChange={(val) => updateBlock(index, 'body', val)}
                   placeholder="Section content..."
-                  className="mt-1 min-h-[120px]"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
