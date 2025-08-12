@@ -40,6 +40,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   // Event/Seasonal data
   const [events, setEvents] = useState<any[]>([]);
   const [holidays, setHolidays] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<'holidays' | 'curated'>('holidays');
   const [search, setSearch] = useState("");
 
   // Pagination (UI-only)
@@ -80,20 +81,21 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       (async () => {
         const today = new Date();
         const todayStr = today.toISOString().split('T')[0];
-        const threeMonthsFromNow = new Date(today);
-        threeMonthsFromNow.setMonth(today.getMonth() + 3);
-        const threeMonthsStr = threeMonthsFromNow.toISOString().split('T')[0];
+        const sixMonthsFromNow = new Date(today);
+        sixMonthsFromNow.setMonth(today.getMonth() + 6);
+        const sixMonthsStr = sixMonthsFromNow.toISOString().split('T')[0];
 
+        console.info('[CreateFlowDialog] Seasonal fetch: querying holidays', { todayStr, sixMonthsStr });
         const { data, error } = await supabase
           .from('holidays')
           .select('id, holiday_name, holiday_date, description, garden_relevance, category, is_active')
           .eq('is_active', true)
           .gte('holiday_date', todayStr)
-          .lte('holiday_date', threeMonthsStr)
+          .lte('holiday_date', sixMonthsStr)
           .order('holiday_date', { ascending: true })
-          .limit(25);
+          .limit(50);
 
-        if (!error) {
+        if (!error && Array.isArray(data) && data.length > 0) {
           const mapped = (data || []).map((h: any) => ({
             id: h.id,
             title: h.holiday_name,
@@ -102,6 +104,28 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
             category: h.category,
           }));
           setHolidays(mapped);
+          setDataSource('holidays');
+          console.info('[CreateFlowDialog] Seasonal fetch: holidays loaded', { count: mapped.length, sample: mapped.slice(0,3).map((x:any) => `${x.title} (${x.date})`) });
+        } else {
+          console.info('[CreateFlowDialog] Seasonal fetch: holidays empty or error, falling back to curated ideas', { error });
+          const { data: curated, error: curatedError } = await supabase.rpc('fn_get_newsletter_ideas');
+          if (curatedError) {
+            console.error('[CreateFlowDialog] Curated ideas fallback failed', curatedError);
+            setHolidays([]);
+            setDataSource('holidays');
+            return;
+          }
+          const curatedArray = Array.isArray(curated) ? curated : [];
+          const mappedCurated = curatedArray.map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            description: c.description || '',
+            date: undefined,
+            category: c.category || 'curated',
+          }));
+          setHolidays(mappedCurated);
+          setDataSource('curated');
+          console.info('[CreateFlowDialog] Seasonal fetch: using curated fallback', { count: mappedCurated.length });
         }
       })();
     }
@@ -116,7 +140,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   const filteredHolidays = useMemo(() => {
     const term = search.toLowerCase();
     return holidays
-      .filter((h: any) => !term || (h.title || '').toLowerCase().includes(term));
+      .filter((h: any) => !term || (h.title || '').toLowerCase().includes(term) || (h.description || '').toLowerCase().includes(term));
   }, [holidays, search]);
 
   const canContinue = useMemo(() => selectedPath !== null, [selectedPath]);
@@ -259,11 +283,21 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
           {step === 2 && selectedPath === 'seasonal' && (
             <div className="space-y-3">
               <Input placeholder="Search seasonal ideas" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <div className="text-xs text-muted-foreground">
+                {dataSource === 'holidays'
+                  ? `Data source: Holidays (${filteredHolidays.length} found)`
+                  : 'Showing curated ideas (holiday service unavailable)'}
+              </div>
               <div className="max-h-80 overflow-y-auto space-y-2">
                 {filteredHolidays.slice(0, visibleHolidays).map((h: any) => (
                   <button key={h.id} onClick={() => setSelectedSourceId(h.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===h.id?'ring-1':''}`}>
                     <div className="font-medium">{h.title}</div>
-                    <div className="text-xs text-muted-foreground">{h.description}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {h.date ? `${formatDate(h.date)} • ${h.category || 'Holiday'}` : (h.category ? h.category : 'Idea')}
+                    </div>
+                    {h.description && (
+                      <div className="text-xs text-muted-foreground mt-1">{h.description}</div>
+                    )}
                   </button>
                 ))}
                 {filteredHolidays.length === 0 && (
