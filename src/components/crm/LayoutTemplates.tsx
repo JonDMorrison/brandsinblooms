@@ -41,14 +41,21 @@ const getPaddingClass = (padding?: string) => {
   }
 };
 
+// Helper to validate usable image URLs
+const isValidImageUrl = (url?: string) => {
+  if (!url) return false;
+  return /^https?:\/\//i.test(url) || /^data:image\//i.test(url);
+};
+
 // Layout 1: Image Left
 export const Layout1: React.FC<LayoutProps> = ({ block, className, editable, onUpdate }) => {
   return (
     <div className={cn('flex flex-col md:flex-row gap-4 items-center', className)}>
       <div className="md:w-1/2">
-        {block.imageUrl ? (
+        {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
+        {isValidImageUrl(block.imageUrl) ? (
           <img
-            src={block.imageUrl}
+            src={block.imageUrl as string}
             alt={block.altText || block.title || 'Image'}
             className="w-full h-48 object-cover rounded-lg"
           />
@@ -85,9 +92,10 @@ export const Layout2: React.FC<LayoutProps> = ({ block, className, editable, onU
   return (
     <div className={cn('flex flex-col md:flex-row-reverse gap-4 items-center', className)}>
       <div className="md:w-1/2">
-        {block.imageUrl ? (
+        {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
+        {isValidImageUrl(block.imageUrl) ? (
           <img
-            src={block.imageUrl}
+            src={block.imageUrl as string}
             alt={block.altText || block.title || 'Image'}
             className="w-full h-48 object-cover rounded-lg"
           />
@@ -124,9 +132,10 @@ export const Layout3: React.FC<LayoutProps> = ({ block, className, editable, onU
   return (
     <div className={cn('flex flex-col md:flex-row gap-4', className)}>
       <div className="md:w-1/3">
-        {block.imageUrl ? (
+        {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
+        {isValidImageUrl(block.imageUrl) ? (
           <img
-            src={block.imageUrl}
+            src={block.imageUrl as string}
             alt={block.altText || block.title || 'Image'}
             className="w-full h-64 object-cover rounded-lg"
           />
@@ -163,9 +172,10 @@ export const Layout4: React.FC<LayoutProps> = ({ block, className, editable, onU
   return (
     <div className={cn('flex flex-col md:flex-row-reverse gap-4', className)}>
       <div className="md:w-1/3">
-        {block.imageUrl ? (
+        {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
+        {isValidImageUrl(block.imageUrl) ? (
           <img
-            src={block.imageUrl}
+            src={block.imageUrl as string}
             alt={block.altText || block.title || 'Image'}
             className="w-full h-64 object-cover rounded-lg"
           />
@@ -249,9 +259,10 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
   if (block.type === 'image') {
     return (
       <div className={cn('space-y-3', paddingClass, `text-${block.alignment || 'center'}`, className)}>
-        {block.imageUrl ? (
+        {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
+        {isValidImageUrl(block.imageUrl) ? (
           <img
-            src={block.imageUrl}
+            src={block.imageUrl as string}
             alt={block.altText || 'Image'}
             className="max-w-full h-auto rounded-lg mx-auto"
           />
