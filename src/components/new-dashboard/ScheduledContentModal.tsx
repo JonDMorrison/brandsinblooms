@@ -108,7 +108,7 @@ export const ScheduledContentModal = ({
               <Textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                className="min-h-[120px] resize-none"
+                className="min-h-[240px] md:min-h-[320px] resize-y text-sm leading-relaxed"
                 placeholder="Write your content here..."
               />
             </div>

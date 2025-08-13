@@ -108,14 +108,14 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                     />
                     {item.channel === 'instagram' || item.channel === 'facebook' ? (
                       <textarea
-                        className="w-full min-h-[120px] rounded-md border p-3 text-sm"
+                        className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
                         value={item.caption || ''}
                         onChange={(e) => setItem(idx, { caption: e.target.value })}
                         placeholder="Write a caption"
                       />
                     ) : item.channel === 'video' ? (
                       <textarea
-                        className="w-full min-h-[140px] rounded-md border p-3 text-sm"
+                        className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
                         value={item.script || ''}
                         onChange={(e) => setItem(idx, { script: e.target.value })}
                         placeholder="Write a short video script"
@@ -133,7 +133,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
 item.channel === 'newsletter' ? (
                       <>
                         <textarea
-                          className="w-full min-h-[120px] rounded-md border p-3 text-sm"
+                          className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
                           value={item.body || ''}
                           onChange={(e) => setItem(idx, { body: e.target.value })}
                           placeholder="Write newsletter body"
@@ -171,11 +171,11 @@ item.channel === 'newsletter' ? (
                       </>
                     ) : (
                       <textarea
-                        className="w-full min-h-[120px] rounded-md border p-3 text-sm"
-                        value={item.body || ''}
-                        onChange={(e) => setItem(idx, { body: e.target.value })}
-                        placeholder="Write body"
-                      />
+                         className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
+                         value={item.body || ''}
+                         onChange={(e) => setItem(idx, { body: e.target.value })}
+                         placeholder="Write body"
+                       />
                     )
                     )}
                   </div>

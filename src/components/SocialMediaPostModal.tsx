@@ -72,7 +72,7 @@ export const SocialMediaPostModal = ({ isOpen, onClose, platform, content }: Soc
             <Textarea
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
-              className="min-h-[200px] text-sm leading-relaxed resize-none"
+              className="min-h-[240px] md:min-h-[320px] text-sm leading-relaxed resize-y"
               placeholder={`Write your ${platform} post...`}
             />
           </div>
