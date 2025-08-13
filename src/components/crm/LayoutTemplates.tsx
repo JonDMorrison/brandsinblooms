@@ -205,7 +205,7 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
   if (block.type === 'header') {
     return (
       <div 
-        className={cn('relative min-h-[120px] flex items-center justify-center text-white', className)}
+        className={cn('relative min-h-[120px] flex items-center justify-center', className)}
         style={{
           backgroundImage: block.backgroundImageUrl ? `url(${block.backgroundImageUrl})` : undefined,
           backgroundSize: 'cover',
@@ -226,7 +226,7 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
           )}
           style={{ 
             backgroundColor: block.backgroundImageUrl ? 'transparent' : (block.backgroundColor || 'transparent'),
-            color: block.textColor || (block.backgroundImageUrl ? 'white' : 'inherit')
+            color: block.textColor || (block.backgroundImageUrl ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))')
           }}
         >
           {block.headline && (
