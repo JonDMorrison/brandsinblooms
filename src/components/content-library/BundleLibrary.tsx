@@ -63,7 +63,7 @@ function BundleCard({ it, openBundle, handleDelete }: { it: any; openBundle: (bu
         onClick={() => handleDelete(it.bundleId)}
         title="Delete"
       >
-        <Trash2 className="h-4 w-4" />
+        <Trash2 className="h-5 w-5 text-destructive" />
       </button>
 
       <div className="text-sm font-semibold truncate" title={displayTitle}>
