@@ -211,11 +211,6 @@ export const CRMAutomationCanvasPage: React.FC = () => {
                 }
                 onRetry={() => saveNow(flowState)}
               />
-              {lastSavedAt && (
-                <div className="text-xs text-muted-foreground mt-1">
-                  Last saved {Math.round((Date.now() - lastSavedAt) / 1000)}s ago
-                </div>
-              )}
             </div>
             <Button variant="outline" onClick={handleSaveDraft} disabled={isSaving} className="flex items-center gap-2" aria-label="Save draft">
               <Save className="w-4 h-4" />
