@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -4052,30 +4052,30 @@ export type Database = {
         Returns: Json
       }
       generate_campaign_slug: {
-        Args: { campaign_title: string; campaign_id: string }
+        Args: { campaign_id: string; campaign_title: string }
         Returns: string
       }
       get_admin_user_data: {
         Args: Record<PropertyKey, never>
         Returns: {
-          user_id: string
-          email: string
-          created_at: string
           company_name: string
           company_overview: string
+          created_at: string
+          email: string
           location_info: string
-          tokens_balance: number
           onboarding_completed_at: string
+          subscription_end_date: string
           subscription_plan: string
           subscription_status: string
-          subscription_end_date: string
+          tokens_balance: number
+          user_id: string
         }[]
       }
       get_duplicate_merge_suggestions: {
         Args: Record<PropertyKey, never>
         Returns: {
-          email: string
           accounts: Json
+          email: string
           suggested_keep_user_id: string
           suggestion_reason: string
         }[]
@@ -4083,22 +4083,22 @@ export type Database = {
       get_token_balance: {
         Args: { p_user_id: string }
         Returns: {
+          is_trial: boolean
           tokens_balance: number
           tokens_reset_at: string
-          is_trial: boolean
         }[]
       }
       get_user_image_analytics: {
         Args: Record<PropertyKey, never>
         Returns: {
-          source_type: string
-          total_images: number
-          total_usage: number
+          avg_compression_ratio: number
           avg_usage_per_image: number
           optimized_images: number
-          avg_compression_ratio: number
-          total_original_size: number
+          source_type: string
           total_compressed_size: number
+          total_images: number
+          total_original_size: number
+          total_usage: number
         }[]
       }
       increment_image_usage: {
@@ -4114,7 +4114,7 @@ export type Database = {
         Returns: boolean
       }
       refill_tokens: {
-        Args: { p_user_id: string; p_tokens?: number }
+        Args: { p_tokens?: number; p_user_id: string }
         Returns: boolean
       }
       reset_master_admin_account: {
@@ -4131,19 +4131,19 @@ export type Database = {
       }
       spend_tokens: {
         Args: {
-          p_user_id: string
-          p_tokens: number
           p_action_type?: string
-          p_content_type?: string
           p_campaign_id?: string
+          p_content_type?: string
+          p_tokens: number
+          p_user_id: string
         }
         Returns: boolean
       }
       track_image_optimization: {
         Args: {
           asset_id: string
-          original_size_bytes: number
           compressed_size_bytes: number
+          original_size_bytes: number
         }
         Returns: undefined
       }
