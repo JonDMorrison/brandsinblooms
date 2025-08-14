@@ -46,7 +46,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex">
+      <div className="min-h-screen w-full flex bg-[var(--bg-0)]">
         <AppSidebar />
         
         <main className="flex-1 w-full min-h-screen overflow-auto">

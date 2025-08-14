@@ -195,25 +195,25 @@ export const BloomSuiteDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 p-6">
+    <div className="min-h-screen bg-[var(--bg-0)] p-6 page-enter">
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Sparkles className="w-8 h-8 text-yellow-500" />
-            <h1 className="text-4xl font-bold text-gray-900">BloomSuite Dashboard</h1>
+            <div className="h-8 w-8 rounded-lg bg-grad-secondary animate-float" />
+            <h1 className="text-4xl font-heading font-bold text-ink-1">BloomSuite</h1>
           </div>
-          <p className="text-xl text-gray-600 mb-6">
+          <p className="text-xl text-ink-2 mb-6">
             Your complete marketing command center
           </p>
           
           {/* Quick Help Banner */}
-          <div className="rounded-lg p-4 mb-6 max-w-md mx-auto">
-            <p className="text-blue-900 text-sm mb-2">Not sure where to start?</p>
+          <div className="glass grad-border p-4 mb-6 max-w-md mx-auto">
+            <p className="text-ink-2 text-sm mb-2">Not sure where to start?</p>
             <div className="flex gap-2 justify-center">
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 size="sm"
                 onClick={() => setShowQuickTour(true)}
               >
@@ -251,11 +251,11 @@ export const BloomSuiteDashboard = () => {
 
         {/* Quick Stats or Recent Activity could go here */}
         <div className="mt-12 text-center">
-          <p className="text-gray-500 text-sm">
+          <p className="text-ink-2 text-sm">
             Need help? Check out our{' '}
             <button 
               onClick={() => setShowLaunchpad(true)}
-              className="text-blue-600 hover:text-blue-700 underline"
+              className="text-brand-green hover:text-brand-teal underline"
             >
               getting started guide
             </button>

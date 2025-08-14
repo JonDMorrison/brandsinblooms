@@ -26,46 +26,60 @@ html {
 }
 
 :root {
-  /* Enhanced BloomSuite Color Variables */
-  --brand-navy: 48 80 110;         /* #30506E */
-  --brand-teal: 104 190 185;       /* #68BEB9 */
-  --mint-100: 231 250 247;         /* #E7FAF7 - Success backgrounds */
-  --mint-600: 31 168 123;          /* #1FA87B - Success text/badges */
-  --sand-50: 251 249 244;          /* #FBF9F4 - Main page background */
-  --gray-700: 75 85 99;            /* #4B5563 - Body text */
-  
-  /* Enhanced brand tokens */
-  --brand-green: 34 197 94;        /* #22C55E */
-  --brand-blue: 37 99 235;         /* #2563EB */
-  
-  /* Status chip colors */
-  --chip-draft: 156 163 175;       /* #9CA3AF */
-  --chip-generated: 59 130 246;    /* #3B82F6 */
-  --chip-approved: 104 190 185;    /* #68BEB9 */
-  --chip-scheduled: 59 130 246;    /* #3B82F6 */
-  --chip-posted: 104 190 185;      /* #68BEB9 */
-  
-  /* Enhanced gray scale */
-  --gray-50: 248 250 252;          /* #F8FAFC */
-  --gray-100: 241 245 249;         /* #F1F5F9 */
-  --gray-200: 226 232 240;         /* #E2E8F0 */
+  --bg-0: #0A0F12;
+  --bg-1: rgba(255,255,255,0.06);
+  --ink-1: #EAF6F1;
+  --ink-2: #B9C7C0;
 }
 
-/* Premium glass morphism effects */
-.glass-coin {
-  @apply rounded-full bg-teal-500/20 backdrop-blur-sm shadow-inner;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 2px rgba(0, 0, 0, 0.05);
+html, body { 
+  @apply bg-[var(--bg-0)] text-ink-1 font-sans antialiased; 
 }
 
-.glass-coin-enhanced {
-  @apply rounded-full bg-gradient-to-br from-teal-400/30 to-emerald-500/30 backdrop-blur-md;
-  box-shadow: 
-    inset 0 2px 4px rgba(255, 255, 255, 0.2),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
-    0 8px 32px rgba(20, 184, 166, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+/* Glass card utility */
+.glass {
+  background: var(--bg-1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25), 0 8px 30px rgba(0,0,0,0.35);
+  border-radius: 20px;
 }
+
+/* Gradient border utility */
+.grad-border {
+  position: relative;
+}
+.grad-border::before {
+  content: "";
+  position: absolute; inset: 0; padding: 1px; border-radius: 20px;
+  background: linear-gradient(135deg, #20E39A, #2FC1FF, #7A6CFF);
+  -webkit-mask: 
+    linear-gradient(#000 0 0) content-box, 
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.grad-border > * { position: relative; }
+
+/* CTA buttons */
+.btn-primary {
+  @apply relative inline-flex items-center justify-center px-4 py-2 rounded-xl font-medium text-[var(--bg-0)];
+  background-image: linear-gradient(135deg, #20E39A 0%, #2FC1FF 40%, #7A6CFF 100%);
+  transition: transform 180ms cubic-bezier(.22,1,.36,1), box-shadow 180ms ease;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(32,227,154,0.35); }
+.btn-primary:focus-visible { outline: 2px solid rgba(32,227,154,0.65); outline-offset: 2px; }
+
+.btn-ghost {
+  @apply inline-flex items-center px-4 py-2 rounded-xl text-ink-1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.btn-ghost:hover { box-shadow: 0 0 0 1px rgba(255,255,255,0.14) inset; }
+
+/* Page transition */
+.page-enter { opacity: 0; transform: scale(.98); }
+.page-enter-active { opacity: 1; transform: scale(1); transition: opacity 200ms, transform 200ms; }
 
 /* Float animation for the enhanced icon */
 @keyframes float {
@@ -125,8 +139,9 @@ html {
 .tag-sale { @apply bg-orange-200 text-orange-900; }
 .tag-holidays { @apply bg-blue-200 text-blue-900; }
 
-body {
-  @apply bg-sand-50 text-gray-700 leading-relaxed;
+/* Reduce motion support */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
 }
 
 /* Custom shadow utilities */
