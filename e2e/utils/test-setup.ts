@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Test environment configuration
 export const TEST_CONFIG = {
-  supabaseUrl: process.env.VITE_SUPABASE_URL || 'http://localhost:54321',
-  supabaseKey: process.env.VITE_SUPABASE_ANON_KEY || 'test-key',
+  supabaseUrl: 'https://udldmkqwnxhdeztyqcau.supabase.co',
+  supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM',
   testUserEmail: 'test-user@example.com',
   testUserPassword: 'testpassword123',
   testPhoneNumbers: ['6048393258', '6041234567'],
