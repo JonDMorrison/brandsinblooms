@@ -379,8 +379,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             maxZoom={2}
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-            <Controls />
-            <MiniMap 
+            <MiniMap
               nodeStrokeColor="#374151"
               nodeColor="#f3f4f6"
               nodeBorderRadius={8}
