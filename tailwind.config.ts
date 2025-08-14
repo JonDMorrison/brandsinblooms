@@ -46,6 +46,40 @@ export default {
 					0: '#0A0F12',   // page
 					1: 'rgba(255,255,255,0.06)', // glass
 				},
+				// Add missing mint color scale for compatibility
+				mint: {
+					50: '#F0FDF4',
+					100: '#E7FAF7',
+					200: '#BCF5E6',
+					300: '#86EFDB',
+					400: '#4AE0C4',
+					500: '#22D3B0',
+					600: '#1FA87B',
+					700: '#167A5B',
+					800: '#0F5F45',
+					900: '#0A4D36',
+				},
+				// Add missing color utilities for tag classes
+				amber: {
+					200: '#FDE68A',
+					900: '#78350F',
+				},
+				emerald: {
+					200: '#A7F3D0',
+					900: '#064E3B',
+				},
+				purple: {
+					200: '#DDD6FE',
+					900: '#581C87',
+				},
+				orange: {
+					200: '#FED7AA',
+					900: '#9A3412',
+				},
+				blue: {
+					200: '#BFDBFE',
+					900: '#1E3A8A',
+				},
 			},
 			spacing: {
 				'1': '0.25rem',   // 4px
