@@ -11,6 +11,7 @@ interface SidebarLayoutProps {
 }
 
 export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
+  console.log('SidebarLayout rendering - CreateFlowDialog should not be referenced anywhere');
   const { user } = useAuth();
 
   // Defensive: ensure nothing marks the sidebar wrapper aria-hidden
