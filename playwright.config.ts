@@ -9,7 +9,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: [
+    ['html'],
+    ['json', { outputFile: 'e2e/reports/results.json' }],
+    ['junit', { outputFile: 'e2e/reports/results.xml' }]
+  ],
   timeout: 30000,
   expect: {
     timeout: 10000,
@@ -22,6 +26,11 @@ export default defineConfig({
   },
 
   projects: [
+    {
+      name: 'prebeta-suite',
+      testDir: './e2e/suites',
+      use: { ...devices['Desktop Chrome'] },
+    },
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },

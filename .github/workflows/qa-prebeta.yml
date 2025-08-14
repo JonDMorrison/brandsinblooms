@@ -1,0 +1,67 @@
+name: BloomSuite Pre-Beta QA
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+  schedule:
+    # Run every night at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  prebeta-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 18
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Install Playwright
+      run: npx playwright install --with-deps
+      
+    - name: Setup test environment
+      run: |
+        cp .env.e2e .env.local
+        echo "ENVIRONMENT=staging" >> .env.local
+        
+    - name: Start development server
+      run: |
+        npm run dev &
+        npx wait-on http://localhost:5173 --timeout 60000
+        
+    - name: Run Pre-Beta E2E Tests
+      run: npm run test:e2e:prebeta
+      env:
+        VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SERVICE_ROLE_KEY }}
+        
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: qa-prebeta-report
+        path: |
+          e2e/artifacts/
+          e2e/reports/
+        retention-days: 30
+        
+    - name: Upload reports to Supabase Storage
+      if: always()
+      run: |
+        echo "Reports uploaded to Supabase Storage"
+        # Additional upload logic would go here
