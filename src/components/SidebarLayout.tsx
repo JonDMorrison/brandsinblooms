@@ -69,11 +69,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         
         <main className="flex-1 w-full min-h-screen overflow-auto">
           {/* Fixed UserMenu - always visible in top-right */}
-          <div className="fixed top-6 right-6 z-40 flex items-center gap-2">
-            <Button size="sm" onClick={() => setDialogOpen(true)}>
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Create
-            </Button>
+          <div className="fixed top-6 right-6 z-40">
             <UserMenu />
           </div>
           
