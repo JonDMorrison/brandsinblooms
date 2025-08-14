@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Sparkles, Calendar, CalendarPlus } from "lucide-react";
+import { Sparkles, Calendar, CalendarPlus } from "lucide-react";
 import { useState } from "react";
-import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 
 interface QuickActionsSectionProps {
@@ -12,13 +11,7 @@ interface QuickActionsSectionProps {
 export const QuickActionsSection = ({
   onCampaignCreated
 }: QuickActionsSectionProps) => {
-  const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
-
-  const handleNewCampaignCreate = (newCampaign: any) => {
-    setShowNewCampaignDialog(false);
-    onCampaignCreated();
-  };
 
   const handleEventCreated = () => {
     setShowAddEventDialog(false);
@@ -34,14 +27,6 @@ export const QuickActionsSection = ({
   };
 
   const actionItems = [
-    {
-      id: 'new-campaign',
-      icon: PlusCircle,
-      title: 'Create Campaign',
-      description: 'Build themed marketing campaigns',
-      benefit: 'Get 5+ content pieces instantly',
-      onClick: () => setShowNewCampaignDialog(true),
-    },
     {
       id: 'add-event',
       icon: CalendarPlus,
@@ -137,13 +122,7 @@ export const QuickActionsSection = ({
         </CardContent>
       </Card>
 
-      <NewCampaignDialog 
-        open={showNewCampaignDialog} 
-        onOpenChange={setShowNewCampaignDialog} 
-        onCreate={handleNewCampaignCreate} 
-      />
-
-      <AddEventDialog 
+      <AddEventDialog
         open={showAddEventDialog}
         onOpenChange={setShowAddEventDialog}
         onEventCreated={handleEventCreated}
