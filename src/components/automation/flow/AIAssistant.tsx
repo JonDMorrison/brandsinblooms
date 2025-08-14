@@ -66,7 +66,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
         </Button>
       </DrawerTrigger>
 
-      <DrawerContent className="max-w-full md:max-w-md mx-auto">
+      <DrawerContent className="max-w-full md:max-w-md mx-auto bg-background">
         <DrawerHeader>
           <DrawerTitle>AI Assistant</DrawerTitle>
           <DrawerDescription>Guided steps to build your automation</DrawerDescription>
