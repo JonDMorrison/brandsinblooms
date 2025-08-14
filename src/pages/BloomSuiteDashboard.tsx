@@ -195,7 +195,7 @@ export const BloomSuiteDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--bg-0)] p-6 page-enter">
+    <div className="p-6 page-enter">
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}

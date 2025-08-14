@@ -49,7 +49,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       <div className="min-h-screen w-full flex bg-[var(--bg-0)]">
         <AppSidebar />
         
-        <main className="flex-1 w-full min-h-screen overflow-auto">
+        <main className="flex-1 w-full min-h-screen overflow-auto relative">
           {/* Fixed UserMenu - always visible in top-right */}
           <div className="fixed top-6 right-6 z-40">
             <UserMenu />
@@ -58,8 +58,11 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           {/* Trial Banner */}
           <TrialBanner />
           
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            {children}
+          {/* Glassmorphic main content area */}
+          <div className="min-h-[calc(100vh-120px)] mx-4 sm:mx-6 lg:mx-8 mt-6 mb-6 rounded-2xl glass backdrop-blur-xl bg-gradient-to-br from-white/5 via-white/3 to-white/1 border border-white/10 shadow-2xl shadow-black/20">
+            <div className="w-full max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
+              {children}
+            </div>
           </div>
         </main>
       </div>
