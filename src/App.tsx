@@ -42,6 +42,7 @@ import { QuickTourProvider } from '@/contexts/QuickTourContext';
 import { TourManager } from '@/components/tour/TourManager';
 import POSPage from '@/pages/settings/POSPage';
 import SettingsPage from '@/pages/SettingsPage';
+import SMSTestingDemo from '@/pages/SMSTestingDemo';
 
 // Emergency cleanup - remove any stray inert attributes
 import '@/utils/emergency-cleanup';
@@ -233,6 +234,13 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <SMSRoutes />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/demo" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <SMSTestingDemo />
             </SidebarLayout>
           </ProtectedRoute>
         } />
