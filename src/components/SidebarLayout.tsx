@@ -46,25 +46,31 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex bg-[var(--bg-0)]">
-        <AppSidebar />
-        
-        <main className="flex-1 w-full min-h-screen overflow-auto relative">
-          {/* Fixed UserMenu - always visible in top-right */}
-          <div className="fixed top-6 right-6 z-40">
-            <UserMenu />
-          </div>
+      <div className="relative min-h-screen overflow-hidden bg-surface-0 text-ink-1">
+        {/* backdrop layer */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_20%_10%,rgba(32,227,154,0.12),transparent_60%),radial-gradient(50%_50%_at_80%_30%,rgba(122,108,255,0.10),transparent_55%),radial-gradient(40%_40%_at_60%_80%,rgba(47,193,255,0.10),transparent_60%)]" />
+          <div className="absolute -top-24 -left-24 h-[420px] w-[420px] rounded-full bg-grad-secondary opacity-20 blur-3xl" />
+          <div className="absolute -bottom-32 -right-20 h-[380px] w-[380px] rounded-full bg-grad-primary opacity-20 blur-3xl" />
+        </div>
+
+        <div className="relative flex">
+          <aside className="glass grad-border sticky top-0 h-screen w-[260px] shrink-0 p-4">
+            <AppSidebar />
+          </aside>
           
-          {/* Trial Banner */}
-          <TrialBanner />
-          
-          {/* Glassmorphic main content area */}
-          <div className="min-h-[calc(100vh-120px)] mx-4 sm:mx-6 lg:mx-8 mt-6 mb-6 rounded-2xl glass backdrop-blur-xl bg-gradient-to-br from-white/5 via-white/3 to-white/1 border border-white/10 shadow-2xl shadow-black/20">
-            <div className="w-full max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
-              {children}
+          <main className="relative mx-auto w-full max-w-6xl p-6 md:p-10">
+            {/* Fixed UserMenu - always visible in top-right */}
+            <div className="fixed top-6 right-6 z-40">
+              <UserMenu />
             </div>
-          </div>
-        </main>
+            
+            {/* Trial Banner */}
+            <TrialBanner />
+            
+            {children}
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   );

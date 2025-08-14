@@ -194,74 +194,39 @@ export const BloomSuiteDashboard = () => {
     }
   ];
 
+  const cards = [
+    { title: 'Create & Post', desc: 'AI drafts posts for events & promos.', cta: 'Get Started', icon: Sparkles, onClick: () => setShowCreateFlow(true) },
+    { title: 'Send a Newsletter', desc: 'Personalized email with smart scheduling.', cta: 'Create Newsletter', icon: Mail, onClick: () => navigate('/newsletters/new') },
+    { title: 'Build a Campaign', desc: 'Automations with SMS + email sequences.', cta: 'Build Campaign', icon: Megaphone, onClick: () => navigate('/crm/automations/new?mode=quick') },
+    { title: 'Plan Your Calendar', desc: 'Plan content across every channel.', cta: 'Open Calendar', icon: Calendar, onClick: () => navigate('/calendar') },
+    { title: 'Track Progress', desc: 'Engagement, conversions, and ROI.', cta: 'View Analytics', icon: BarChart3, onClick: () => navigate('/analytics') },
+    { title: 'Post on Social', desc: 'Create, schedule, and publish.', cta: 'Create Post', icon: Share2, onClick: () => setShowPostComposer(true) },
+  ];
+
   return (
-    <div className="p-6 page-enter">
-      <div className="max-w-6xl mx-auto">
-        
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="h-8 w-8 rounded-lg bg-grad-secondary animate-float" />
-            <h1 className="text-4xl font-heading font-bold text-ink-1">BloomSuite</h1>
-          </div>
-          <p className="text-xl text-ink-2 mb-6">
-            Your complete marketing command center
-          </p>
-          
-          {/* Quick Help Banner */}
-          <div className="glass grad-border p-4 mb-6 max-w-md mx-auto">
-            <p className="text-ink-2 text-sm mb-2">Not sure where to start?</p>
-            <div className="flex gap-2 justify-center">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setShowQuickTour(true)}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Quick Tour
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowLaunchpad(true)}
-              >
-                <HelpCircle className="w-4 h-4 mr-2" />
-                Get Help
-              </Button>
+    <div className="animate-fadeScaleIn">
+      <h1 className="font-heading text-2xl md:text-3xl">BloomSuite Dashboard</h1>
+      <p className="mt-1 text-ink-2">Your complete marketing command center</p>
+
+      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {cards.map((c) => (
+          <div
+            key={c.title}
+            className="glass grad-border p-5 shadow-elev-2 transition-all duration-base ease-brand hover:-translate-y-0.5 hover:shadow-glow cursor-pointer"
+            onClick={c.onClick}
+          >
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-xl bg-grad-primary animate-pulse-glow flex items-center justify-center">
+                <c.icon className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-heading text-lg">{c.title}</h3>
+                <p className="mt-1 text-sm text-ink-2">{c.desc}</p>
+              </div>
             </div>
+            <button className="btn-primary mt-4">{c.cta}</button>
           </div>
-        </div>
-
-        {/* Dashboard Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {dashboardActions.map((action) => (
-            <DashboardCard
-              key={action.id}
-              title={action.title}
-              description={action.description}
-              icon={action.icon}
-              gradient={action.gradient}
-              primaryAction={action.primaryAction}
-              secondaryAction={action.secondaryAction}
-              status={action.status}
-              statusMessage={action.statusMessage}
-            />
-          ))}
-        </div>
-
-        {/* Quick Stats or Recent Activity could go here */}
-        <div className="mt-12 text-center">
-          <p className="text-ink-2 text-sm">
-            Need help? Check out our{' '}
-            <button 
-              onClick={() => setShowLaunchpad(true)}
-              className="text-brand-green hover:text-brand-teal underline"
-            >
-              getting started guide
-            </button>
-          </p>
-        </div>
-
+        ))}
       </div>
 
       {/* Modals and Drawers */}
