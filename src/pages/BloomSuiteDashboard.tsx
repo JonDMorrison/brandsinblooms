@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { LaunchpadModal } from "@/components/dashboard/LaunchpadModal";
 import { NewsletterTemplateDrawer } from "@/components/dashboard/NewsletterTemplateDrawer";
 import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
@@ -16,7 +15,8 @@ import {
   Share2,
   Globe,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  Leaf
 } from "lucide-react";
 import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 
@@ -194,39 +194,202 @@ export const BloomSuiteDashboard = () => {
     }
   ];
 
-  const cards = [
-    { title: 'Create & Post', desc: 'AI drafts posts for events & promos.', cta: 'Get Started', icon: Sparkles, onClick: () => setShowCreateFlow(true) },
-    { title: 'Send a Newsletter', desc: 'Personalized email with smart scheduling.', cta: 'Create Newsletter', icon: Mail, onClick: () => navigate('/newsletters/new') },
-    { title: 'Build a Campaign', desc: 'Automations with SMS + email sequences.', cta: 'Build Campaign', icon: Megaphone, onClick: () => navigate('/crm/automations/new?mode=quick') },
-    { title: 'Plan Your Calendar', desc: 'Plan content across every channel.', cta: 'Open Calendar', icon: Calendar, onClick: () => navigate('/calendar') },
-    { title: 'Track Progress', desc: 'Engagement, conversions, and ROI.', cta: 'View Analytics', icon: BarChart3, onClick: () => navigate('/analytics') },
-    { title: 'Post on Social', desc: 'Create, schedule, and publish.', cta: 'Create Post', icon: Share2, onClick: () => setShowPostComposer(true) },
+  const dashboardCards = [
+    {
+      title: 'Create & Post',
+      description: 'Events, holidays, or your own idea—AI will draft everything.',
+      icon: Sparkles,
+      gradient: 'from-purple-500 to-pink-500',
+      iconBg: 'bg-purple-500',
+      buttonColor: 'bg-pink-500 hover:bg-pink-600',
+      primaryAction: 'Get Started',
+      secondaryAction: 'Browse Post Content',
+      status: 'Assistant ready',
+      onClick: () => setShowCreateFlow(true),
+      onSecondaryClick: () => navigate('/content/library')
+    },
+    {
+      title: 'Send a Newsletter',
+      description: 'Create and send email campaigns to your customers with personalized content.',
+      icon: Mail,
+      gradient: 'from-blue-500 to-blue-600',
+      iconBg: 'bg-blue-500',
+      buttonColor: 'bg-blue-600 hover:bg-blue-700',
+      primaryAction: 'Create Newsletter',
+      secondaryAction: 'Browse Templates',
+      status: 'Automat ready',
+      onClick: () => navigate('/newsletters/new'),
+      onSecondaryClick: () => setShowNewsletterDrawer(true)
+    },
+    {
+      title: 'Build a Campaign',
+      description: 'Design automated customer journeys with SMS, email sequences.',
+      icon: Megaphone,
+      gradient: 'from-green-500 to-emerald-500',
+      iconBg: 'bg-green-500',
+      buttonColor: 'bg-green-600 hover:bg-green-700',
+      primaryAction: 'Build Campaign',
+      secondaryAction: 'View Automations',
+      status: twilioStatus.statusMessage,
+      onClick: () => navigate('/crm/automations/new?mode=quick'),
+      onSecondaryClick: () => navigate('/crm/automations')
+    },
+    {
+      title: 'Plan Your Content Calendar',
+      description: 'Schedule posts, campaigns, and content across all your marketing channels.',
+      icon: Calendar,
+      gradient: 'from-indigo-500 to-purple-500',
+      iconBg: 'bg-indigo-500',
+      buttonColor: 'bg-purple-600 hover:bg-purple-700',
+      primaryAction: 'Open Calendar',
+      secondaryAction: 'Quick Schedule',
+      status: 'Calendar ready',
+      onClick: () => navigate('/calendar'),
+      onSecondaryClick: () => navigate('/publish')
+    },
+    {
+      title: 'Track Your Progress',
+      description: 'Monitor campaign performance, customer engagement, and ROI.',
+      icon: BarChart3,
+      gradient: 'from-purple-500 to-indigo-500',
+      iconBg: 'bg-purple-500',
+      buttonColor: 'bg-blue-600 hover:bg-blue-700',
+      primaryAction: 'View Analytics',
+      secondaryAction: 'Customer Insights',
+      status: 'Analytics available',
+      onClick: () => navigate('/analytics'),
+      onSecondaryClick: () => navigate('/crm/personas/analytics')
+    },
+    {
+      title: 'Post on Social Media',
+      description: 'Create, schedule, and publish content across all your social media platforms.',
+      icon: Share2,
+      gradient: 'from-teal-500 to-green-500',
+      iconBg: 'bg-teal-500',
+      buttonColor: 'bg-green-600 hover:bg-green-700',
+      primaryAction: 'Create Post',
+      secondaryAction: 'Manage Accounts',
+      status: socialStatus.statusMessage,
+      onClick: () => setShowPostComposer(true),
+      onSecondaryClick: () => navigate('/social-accounts')
+    }
   ];
 
   return (
     <div className="animate-fadeScaleIn">
-      <h1 className="font-heading text-2xl md:text-3xl">BloomSuite Dashboard</h1>
-      <p className="mt-1 text-ink-2">Your complete marketing command center</p>
-
-      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((c) => (
-          <div
-            key={c.title}
-            className="glass grad-border p-5 shadow-elev-2 transition-all duration-base ease-brand hover:-translate-y-0.5 hover:shadow-glow cursor-pointer"
-            onClick={c.onClick}
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Leaf className="w-8 h-8 text-brand-green" />
+          <h1 className="font-heading text-2xl md:text-3xl text-ink-1">BloomSuite Dashboard</h1>
+        </div>
+        <p className="text-ink-2 mb-4">Your complete marketing command center</p>
+        
+        <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="bg-white/5 border-white/10 text-ink-2 hover:bg-white/10"
           >
-            <div className="flex items-start gap-3">
-              <div className="h-9 w-9 rounded-xl bg-grad-primary animate-pulse-glow flex items-center justify-center">
-                <c.icon className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-heading text-lg">{c.title}</h3>
-                <p className="mt-1 text-sm text-ink-2">{c.desc}</p>
+            Not sure where to start?
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="bg-white/5 border-white/10 text-ink-2 hover:bg-white/10"
+          >
+            <HelpCircle className="w-4 h-4 mr-2" />
+            Get Help
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Cards Grid */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+        {dashboardCards.map((card) => (
+          <div
+            key={card.title}
+            className="relative group cursor-pointer"
+            onClick={card.onClick}
+          >
+            <div className={`glass grad-border p-6 h-full transition-all duration-base ease-brand hover:-translate-y-1 hover:shadow-glow relative overflow-hidden`}>
+              {/* Background gradient overlay */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-5 rounded-2xl`} />
+              
+              {/* Content */}
+              <div className="relative z-10">
+                {/* Status badge */}
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs px-2 py-1 bg-white/10 text-ink-2 rounded-full">
+                    {card.status}
+                  </span>
+                </div>
+                
+                {/* Icon and title */}
+                <div className="flex items-start gap-4 mb-4">
+                  <div className={`w-12 h-12 rounded-xl ${card.iconBg} flex items-center justify-center shadow-lg`}>
+                    <card.icon className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-heading text-lg text-ink-1 mb-2">{card.title}</h3>
+                    <p className="text-sm text-ink-2 leading-relaxed">{card.description}</p>
+                  </div>
+                </div>
+                
+                {/* Actions */}
+                <div className="space-y-3">
+                  <button 
+                    className={`w-full px-4 py-2.5 ${card.buttonColor} text-white font-medium rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-lg`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      card.onClick();
+                    }}
+                  >
+                    {card.primaryAction}
+                  </button>
+                  <button 
+                    className="w-full text-sm text-ink-2 hover:text-ink-1 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      card.onSecondaryClick();
+                    }}
+                  >
+                    {card.secondaryAction} →
+                  </button>
+                </div>
               </div>
             </div>
-            <button className="btn-primary mt-4">{c.cta}</button>
           </div>
         ))}
+      </div>
+
+      {/* Bottom Section */}
+      <div className="glass grad-border p-6 rounded-2xl">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center shadow-lg">
+            <Globe className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-heading text-lg text-ink-1 mb-2">Build & Manage Website</h3>
+            <p className="text-sm text-ink-2 mb-4">Use AI to build your site in just minutes. Create stunning, professional websites without any coding knowledge.</p>
+            <div className="flex items-center gap-4">
+              <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl transition-all duration-200">
+                Join the Waitlist
+              </button>
+              <span className="text-sm text-ink-2">Feature coming soon</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Help Section */}
+      <div className="mt-6 text-center">
+        <p className="text-sm text-ink-2">
+          Need help? Check out our{' '}
+          <button className="text-brand-green hover:text-brand-teal transition-colors underline">
+            getting started guide
+          </button>
+        </p>
       </div>
 
       {/* Modals and Drawers */}
