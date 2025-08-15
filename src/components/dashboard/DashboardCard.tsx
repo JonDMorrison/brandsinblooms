@@ -17,7 +17,7 @@ interface DashboardCardProps {
   };
   status?: 'ready' | 'setup-needed' | 'connected';
   statusMessage?: string;
-  gradient?: string;
+  gradient?: string; // Kept for compatibility but not used
 }
 
 export const DashboardCard = ({
@@ -27,15 +27,14 @@ export const DashboardCard = ({
   primaryAction,
   secondaryAction,
   status = 'ready',
-  statusMessage,
-  gradient = "from-blue-50 to-indigo-50"
+  statusMessage
 }: DashboardCardProps) => {
   const getStatusIcon = () => {
     switch (status) {
       case 'connected':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <CheckCircle className="w-4 h-4 icon-green" />;
       case 'setup-needed':
-        return <AlertCircle className="w-4 h-4 text-amber-600" />;
+        return <AlertCircle className="w-4 h-4 text-amber-500" />;
       default:
         return null;
     }
@@ -44,28 +43,28 @@ export const DashboardCard = ({
   const getStatusColor = () => {
     switch (status) {
       case 'connected':
-        return 'text-green-600';
+        return 'icon-green';
       case 'setup-needed':
         return 'text-amber-600';
       default:
-        return 'text-gray-600';
+        return 'text-secondary';
     }
   };
 
   return (
-    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} border border-gray-200 hover:shadow-lg transition-all duration-200 card-interactive`}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-white/50 backdrop-blur-sm">
+    <Card className="glass-card p-6">
+      <CardContent className="p-0">
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-2xl bg-white/40 backdrop-blur-sm border border-white/20">
               {icon}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">{title}</h3>
+              <h3 className="text-primary font-semibold text-lg mb-1">{title}</h3>
               {statusMessage && (
-                <div className="flex items-center gap-1 mt-1">
+                <div className="flex items-center gap-2 mt-1">
                   {getStatusIcon()}
-                  <span className={`text-xs ${getStatusColor()}`}>
+                  <span className={`text-sm ${getStatusColor()}`}>
                     {statusMessage}
                   </span>
                 </div>
@@ -74,28 +73,26 @@ export const DashboardCard = ({
           </div>
         </div>
         
-        <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+        <p className="text-secondary text-sm mb-8 leading-relaxed">
           {description}
         </p>
         
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <Button 
             onClick={primaryAction.onClick}
-            className="w-full group bg-white/80 hover:bg-white text-gray-900 border border-gray-200 hover:border-gray-300"
+            className="btn-primary w-full group flex items-center justify-center gap-2"
           >
             {primaryAction.label}
-            <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+            <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
           </Button>
           
           {secondaryAction && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <button 
               onClick={secondaryAction.onClick}
-              className="text-gray-600 hover:text-gray-900"
+              className="btn-secondary text-center"
             >
               {secondaryAction.label}
-            </Button>
+            </button>
           )}
         </div>
       </CardContent>

@@ -26,32 +26,169 @@ html {
 }
 
 :root {
-  /* Enhanced BloomSuite Color Variables */
-  --brand-navy: 48 80 110;         /* #30506E */
-  --brand-teal: 104 190 185;       /* #68BEB9 */
-  --mint-100: 231 250 247;         /* #E7FAF7 - Success backgrounds */
-  --mint-600: 31 168 123;          /* #1FA87B - Success text/badges */
-  --sand-50: 251 249 244;          /* #FBF9F4 - Main page background */
-  --gray-700: 75 85 99;            /* #4B5563 - Body text */
+  /* Apple-like Glassmorphic Dashboard Colors */
+  --dashboard-bg: 245 247 250;     /* #F5F7FA - Light neutral background */
+  --glass-bg: 255 255 255 0.7;     /* Semi-transparent white for glass effect */
+  --glass-border: 255 255 255 0.2; /* Subtle white border for glass cards */
   
-  /* Enhanced brand tokens */
-  --brand-green: 34 197 94;        /* #22C55E */
-  --brand-blue: 37 99 235;         /* #2563EB */
+  /* Primary action color - Garden Green */
+  --primary-green: 46 125 50;      /* #2E7D32 - Garden green */
+  --primary-green-hover: 37 102 40; /* #256628 - Darker green for hover */
+  --primary-green-disabled: 144 164 174; /* Disabled state */
   
-  /* Status chip colors */
-  --chip-draft: 156 163 175;       /* #9CA3AF */
-  --chip-generated: 59 130 246;    /* #3B82F6 */
-  --chip-approved: 104 190 185;    /* #68BEB9 */
-  --chip-scheduled: 59 130 246;    /* #3B82F6 */
-  --chip-posted: 104 190 185;      /* #68BEB9 */
+  /* Text hierarchy */
+  --text-primary: 30 30 30;        /* #1E1E1E - High contrast charcoal */
+  --text-secondary: 107 114 128;   /* #6B7280 - Muted gray for subtext */
+  --text-accent: 51 51 51;         /* #333333 - Secondary links */
   
-  /* Enhanced gray scale */
-  --gray-50: 248 250 252;          /* #F8FAFC */
-  --gray-100: 241 245 249;         /* #F1F5F9 */
-  --gray-200: 226 232 240;         /* #E2E8F0 */
+  /* Status/accent colors for icons only */
+  --icon-blue: 37 99 235;          /* #2563EB - Calendar */
+  --icon-teal: 20 184 166;         /* #14B8A6 - Newsletter */
+  --icon-green: 34 197 94;         /* #22C55E - Social */
+  --icon-purple: 147 51 234;       /* #9333EA - Analytics */
+  --icon-orange: 249 115 22;       /* #F97316 - Calendar alt */
+  --icon-pink: 236 72 153;         /* #EC4899 - Social alt */
+  
+  /* Glass shadow system */
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.15);
+  
+  /* Legacy variables for compatibility */
+  --brand-navy: 48 80 110;
+  --brand-teal: 104 190 185;
+  --mint-100: 231 250 247;
+  --mint-600: 31 168 123;
+  --sand-50: var(--dashboard-bg);
+  --gray-700: var(--text-secondary);
+  --brand-green: var(--primary-green);
+  --brand-blue: var(--icon-blue);
 }
 
-/* Premium glass morphism effects */
+/* Apple-like Glassmorphic Card System */
+.glass-card {
+  background: rgba(var(--glass-bg));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--glass-border));
+  border-radius: 20px;
+  box-shadow: var(--glass-shadow);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-hover);
+}
+
+.glass-card:active {
+  transform: scale(0.98) translateY(-2px);
+}
+
+/* Primary button styling - Garden Green */
+.btn-primary {
+  background-color: hsl(var(--primary-green));
+  color: white;
+  border-radius: 16px;
+  font-weight: 500;
+  padding: 12px 24px;
+  border: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(var(--primary-green), 0.2);
+}
+
+.btn-primary:hover {
+  background-color: hsl(var(--primary-green-hover));
+  box-shadow: 0 4px 12px rgba(var(--primary-green), 0.3);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  background-color: hsl(var(--primary-green-disabled));
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Secondary action - Text links */
+.btn-secondary {
+  background: none;
+  border: none;
+  color: hsl(var(--text-accent));
+  font-weight: 400;
+  padding: 8px 0;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  color: hsl(var(--primary-green));
+  text-decoration: underline;
+}
+
+/* Typography hierarchy */
+.text-primary {
+  color: hsl(var(--text-primary));
+  font-weight: 600;
+}
+
+.text-secondary {
+  color: hsl(var(--text-secondary));
+  font-weight: 400;
+}
+
+/* Icon color system */
+.icon-blue { color: hsl(var(--icon-blue)); }
+.icon-teal { color: hsl(var(--icon-teal)); }
+.icon-green { color: hsl(var(--icon-green)); }
+.icon-purple { color: hsl(var(--icon-purple)); }
+.icon-orange { color: hsl(var(--icon-orange)); }
+.icon-pink { color: hsl(var(--icon-pink)); }
+
+/* Modal glassmorphic styling */
+.glass-modal {
+  background: rgba(var(--glass-bg));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--glass-border));
+  border-radius: 20px;
+  box-shadow: var(--glass-shadow-hover);
+}
+
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Accessibility - Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .glass-card,
+  .btn-primary,
+  .btn-secondary {
+    transition: none;
+  }
+  
+  .glass-card:hover {
+    transform: none;
+  }
+  
+  .glass-card:active,
+  .btn-primary:active {
+    transform: none;
+  }
+}
+
+/* Focus states for accessibility */
+.glass-card:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+  outline: 2px solid hsl(var(--primary-green));
+  outline-offset: 2px;
+}
+
+/* Legacy styles compatibility */
 .glass-coin {
   @apply rounded-full bg-teal-500/20 backdrop-blur-sm shadow-inner;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -124,10 +261,6 @@ html {
 .tag-decor { @apply bg-purple-200 text-purple-900; }
 .tag-sale { @apply bg-orange-200 text-orange-900; }
 .tag-holidays { @apply bg-blue-200 text-blue-900; }
-
-body {
-  @apply bg-sand-50 text-gray-700 leading-relaxed;
-}
 
 /* Custom shadow utilities */
 .shadow-custom {
