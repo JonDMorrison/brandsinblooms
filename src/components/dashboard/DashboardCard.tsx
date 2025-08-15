@@ -53,45 +53,52 @@ export const DashboardCard = ({
   };
 
   return (
-    <div className="glass grad-border shadow-elev-2 p-5 hover:shadow-glow transition-all duration-base ease-brand hover:-translate-y-0.5 animate-fadeScaleIn">
-      <div className="flex items-start gap-3 mb-4">
-        <div className="h-9 w-9 rounded-xl bg-grad-primary animate-pulse-glow flex items-center justify-center">
-          {icon}
-        </div>
-        <div>
-          <h3 className="font-heading text-lg text-ink-1">{title}</h3>
-          {statusMessage && (
-            <div className="flex items-center gap-1 mt-1">
-              {getStatusIcon()}
-              <span className={`text-xs ${getStatusColor()}`}>
-                {statusMessage}
-              </span>
+    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} border border-gray-200 hover:shadow-lg transition-all duration-200 card-interactive`}>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-white/50 backdrop-blur-sm">
+              {icon}
             </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">{title}</h3>
+              {statusMessage && (
+                <div className="flex items-center gap-1 mt-1">
+                  {getStatusIcon()}
+                  <span className={`text-xs ${getStatusColor()}`}>
+                    {statusMessage}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+          {description}
+        </p>
+        
+        <div className="flex flex-col gap-2">
+          <Button 
+            onClick={primaryAction.onClick}
+            className="w-full group bg-white/80 hover:bg-white text-gray-900 border border-gray-200 hover:border-gray-300"
+          >
+            {primaryAction.label}
+            <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+          </Button>
+          
+          {secondaryAction && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={secondaryAction.onClick}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              {secondaryAction.label}
+            </Button>
           )}
         </div>
-      </div>
-      
-      <p className="text-ink-2 mt-1 mb-6 leading-relaxed">
-        {description}
-      </p>
-      
-      <div className="flex gap-2">
-        <button 
-          className="btn-primary flex-1"
-          onClick={primaryAction.onClick}
-        >
-          {primaryAction.label}
-        </button>
-        
-        {secondaryAction && (
-          <button 
-            className="btn-ghost"
-            onClick={secondaryAction.onClick}
-          >
-            {secondaryAction.label}
-          </button>
-        )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

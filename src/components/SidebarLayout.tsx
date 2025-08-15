@@ -46,36 +46,22 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="relative min-h-screen overflow-hidden bg-surface-0 text-ink-1">
-        {/* Layered background system - correct z-index order */}
-        <div className="bloom-bg"></div>        {/* z-0: base gradients */}
-        <div className="bloom-leaves"></div>     {/* z-1: leaves (visible) */}
-        <div className="bloom-bokeh"></div>      {/* z-2: specks */}
-        <div className="bloom-vignette"></div>   {/* z-3: vignette */}
-
-        <div className="relative z-10 flex">
-          <aside className="glass grad-border sidebar-vignette sticky top-0 h-screen w-[260px] shrink-0 p-4 relative">
-            <div className="flex items-center gap-3 px-2 pt-1 pb-4">
-              <div className="h-8 w-8 rounded-xl bg-grad-secondary animate-float" />
-              <div className="font-heading text-lg">BloomSuite</div>
-            </div>
-            <nav className="mt-2 space-y-1">
-              <AppSidebar />
-            </nav>
-          </aside>
+      <div className="min-h-screen w-full flex">
+        <AppSidebar />
+        
+        <main className="flex-1 w-full min-h-screen overflow-auto">
+          {/* Fixed UserMenu - always visible in top-right */}
+          <div className="fixed top-6 right-6 z-40">
+            <UserMenu />
+          </div>
           
-          <main className="relative mx-auto w-full max-w-6xl p-6 md:p-10 animate-fadeScaleIn">
-            {/* Fixed UserMenu - always visible in top-right */}
-            <div className="fixed top-6 right-6 z-40">
-              <UserMenu />
-            </div>
-            
-            {/* Trial Banner */}
-            <TrialBanner />
-            
+          {/* Trial Banner */}
+          <TrialBanner />
+          
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             {children}
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     </SidebarProvider>
   );

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { LaunchpadModal } from "@/components/dashboard/LaunchpadModal";
 import { NewsletterTemplateDrawer } from "@/components/dashboard/NewsletterTemplateDrawer";
 import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
@@ -15,8 +16,7 @@ import {
   Share2,
   Globe,
   HelpCircle,
-  Sparkles,
-  Leaf
+  Sparkles
 } from "lucide-react";
 import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 
@@ -194,185 +194,74 @@ export const BloomSuiteDashboard = () => {
     }
   ];
 
-  const dashboardCards = [
-    {
-      title: 'Create & Post',
-      description: 'Events, holidays, or your own idea—AI will draft everything.',
-      icon: Sparkles,
-      btnClass: 'btn-pink',
-      blobClass: 'blob-pink',
-      primaryAction: 'Get Started',
-      secondaryAction: 'Browse Post Content',
-      status: 'Assistant ready',
-      onClick: () => setShowCreateFlow(true),
-      onSecondaryClick: () => navigate('/content/library')
-    },
-    {
-      title: 'Send a Newsletter',
-      description: 'Create and send email campaigns to your customers with personalized content.',
-      icon: Mail,
-      btnClass: 'btn-blue',
-      blobClass: 'blob-blue',
-      primaryAction: 'Create Newsletter',
-      secondaryAction: 'Browse Templates',
-      status: 'Email system ready',
-      onClick: () => navigate('/newsletters/new'),
-      onSecondaryClick: () => setShowNewsletterDrawer(true)
-    },
-    {
-      title: 'Build a Campaign',
-      description: 'Design automated customer journeys with SMS, email sequences.',
-      icon: Megaphone,
-      btnClass: 'btn-green',
-      blobClass: 'blob-green',
-      primaryAction: 'Build Campaign',
-      secondaryAction: 'View Automations',
-      status: twilioStatus.statusMessage,
-      onClick: () => navigate('/crm/automations/new?mode=quick'),
-      onSecondaryClick: () => navigate('/crm/automations')
-    },
-    {
-      title: 'Plan Your Content Calendar',
-      description: 'Schedule posts, campaigns, and content across all your marketing channels.',
-      icon: Calendar,
-      btnClass: 'btn-purple',
-      blobClass: 'blob-purple',
-      primaryAction: 'Open Calendar',
-      secondaryAction: 'Quick Schedule',
-      status: 'Calendar ready',
-      onClick: () => navigate('/calendar'),
-      onSecondaryClick: () => navigate('/publish')
-    },
-    {
-      title: 'Track Your Progress',
-      description: 'Monitor campaign performance, customer engagement, and ROI.',
-      icon: BarChart3,
-      btnClass: 'btn-teal',
-      blobClass: 'blob-teal',
-      primaryAction: 'View Analytics',
-      secondaryAction: 'Customer Insights',
-      status: 'Analytics available',
-      onClick: () => navigate('/analytics'),
-      onSecondaryClick: () => navigate('/crm/personas/analytics')
-    },
-    {
-      title: 'Post on Social Media',
-      description: 'Create, schedule, and publish content across all your social media platforms.',
-      icon: Share2,
-      btnClass: 'btn-orange',
-      blobClass: 'blob-orange',
-      primaryAction: 'Create Post',
-      secondaryAction: 'Manage Accounts',
-      status: socialStatus.statusMessage,
-      onClick: () => setShowPostComposer(true),
-      onSecondaryClick: () => navigate('/social-accounts')
-    }
-  ];
-
   return (
-    <div className="animate-fadeScaleIn">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <Leaf className="w-8 h-8 text-brand-green" />
-          <h1 className="font-heading text-3xl md:text-[34px] text-[#EAF6F1]">BloomSuite Dashboard</h1>
-        </div>
-        <p className="text-ink-2 mb-4">Your complete marketing command center</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 p-6">
+      <div className="max-w-6xl mx-auto">
         
-        <div className="flex gap-3">
-          <span className="status-pill">
-            Assistant ready
-          </span>
-          <span className="status-pill">
-            <HelpCircle className="w-3 h-3 mr-1" />
-            Get Help
-          </span>
-        </div>
-      </div>
-
-      {/* Main Cards Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-        {dashboardCards.map((card) => (
-          <div
-            key={card.title}
-            className="card glass grad-border p-5 md:p-6 shadow-elev-2 transition-all duration-base ease-brand hover:-translate-y-0.5 hover:shadow-glow cursor-pointer group card-inner"
-            onClick={card.onClick}
-          >
-            {/* Background gradient overlay removed for cleaner design */}
-            
-            {/* Content */}
-            <div className="relative z-10">
-              {/* Status badge */}
-              <div className="flex items-center justify-between mb-4">
-                <span className="status-pill">
-                  {card.status}
-                </span>
-              </div>
-              
-              {/* Icon and title */}
-              <div className="flex items-start gap-4 mb-4">
-                <div className={`blob ${card.blobClass} flex items-center justify-center shadow-lg`}>
-                  <card.icon className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-heading text-lg text-ink-1 mb-2">{card.title}</h3>
-                  <p className="text-sm text-ink-2 leading-relaxed">{card.description}</p>
-                </div>
-              </div>
-              
-              {/* Actions */}
-              <div className="space-y-3">
-                <button 
-                  className={`btn-pill btn-animate ${card.btnClass} w-full`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    card.onClick();
-                  }}
-                >
-                  {card.primaryAction}
-                </button>
-                <button 
-                  className="btn-ghost w-full text-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    card.onSecondaryClick();
-                  }}
-                >
-                  {card.secondaryAction} →
-                </button>
-              </div>
-            </div>
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Sparkles className="w-8 h-8 text-yellow-500" />
+            <h1 className="text-4xl font-bold text-gray-900">BloomSuite Dashboard</h1>
           </div>
-        ))}
-      </div>
-
-      {/* Bottom Section */}
-      <div className="glass grad-border p-6 rounded-2xl shadow-elev-2 mb-6">
-        <div className="flex items-start gap-4">
-          <div className="h-9 w-9 rounded-xl bg-grad-primary animate-pulse-glow flex items-center justify-center">
-            <Globe className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-heading text-lg text-ink-1 mb-2">Build & Manage Website</h3>
-            <p className="text-sm text-ink-2 mb-4">Use AI to build your site in just minutes. Create stunning, professional websites without any coding knowledge.</p>
-            <div className="flex items-center gap-4">
-              <button className="btn-primary">
-                Join the Waitlist
-              </button>
-              <span className="text-sm text-ink-2">Feature coming soon</span>
+          <p className="text-xl text-gray-600 mb-6">
+            Your complete marketing command center
+          </p>
+          
+          {/* Quick Help Banner */}
+          <div className="rounded-lg p-4 mb-6 max-w-md mx-auto">
+            <p className="text-blue-900 text-sm mb-2">Not sure where to start?</p>
+            <div className="flex gap-2 justify-center">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowQuickTour(true)}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Quick Tour
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowLaunchpad(true)}
+              >
+                <HelpCircle className="w-4 h-4 mr-2" />
+                Get Help
+              </Button>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Help Section */}
-      <div className="mt-6 text-center">
-        <p className="text-sm text-ink-2">
-          Need help? Check out our{' '}
-          <button className="text-brand-green hover:text-brand-teal transition-colors underline">
-            getting started guide
-          </button>
-        </p>
+        {/* Dashboard Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          {dashboardActions.map((action) => (
+            <DashboardCard
+              key={action.id}
+              title={action.title}
+              description={action.description}
+              icon={action.icon}
+              gradient={action.gradient}
+              primaryAction={action.primaryAction}
+              secondaryAction={action.secondaryAction}
+              status={action.status}
+              statusMessage={action.statusMessage}
+            />
+          ))}
+        </div>
+
+        {/* Quick Stats or Recent Activity could go here */}
+        <div className="mt-12 text-center">
+          <p className="text-gray-500 text-sm">
+            Need help? Check out our{' '}
+            <button 
+              onClick={() => setShowLaunchpad(true)}
+              className="text-blue-600 hover:text-blue-700 underline"
+            >
+              getting started guide
+            </button>
+          </p>
+        </div>
+
       </div>
 
       {/* Modals and Drawers */}

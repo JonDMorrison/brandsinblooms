@@ -144,66 +144,72 @@ const AppSidebar: React.FC = () => {
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <div className="h-full">
-      <SidebarMenu>
-        {sidebarItems.map((item) =>
-          item.items ? (
-            <Collapsible key={item.title} defaultOpen={item.items.some(subItem => isActive(subItem.url))}>
-              <SidebarMenuItem>
-                <CollapsibleTrigger asChild>
-                  <SidebarMenuButton className="group w-full text-ink-1 hover:bg-white/5">
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                    <ChevronDown className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                  </SidebarMenuButton>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <SidebarMenuSub>
-                    {item.items.map((subItem) => (
-                      <SidebarMenuSubItem key={subItem.title}>
-                        <SidebarMenuSubButton asChild>
-                          <NavLink 
-                            to={subItem.url} 
-                            className={({ isActive }) => 
-                              `group flex items-center gap-3 rounded-xl px-3 py-2 text-ink-2 transition-all duration-fast ease-brand ${
-                                isActive 
-                                  ? "text-ink-1 ring-1 ring-white/15" 
-                                  : "hover:bg-white/5 hover:text-ink-1"
-                              }`
-                            }
-                          >
-                            <subItem.icon className="h-4 w-4" />
-                            <span>{subItem.title}</span>
-                          </NavLink>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    ))}
-                  </SidebarMenuSub>
-                </CollapsibleContent>
-              </SidebarMenuItem>
-            </Collapsible>
-          ) : (
-            <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="w-full">
-                <NavLink 
-                  to={item.url} 
-                  className={({ isActive }) => 
-                    `group flex items-center gap-3 rounded-xl px-3 py-2 text-ink-2 transition-all duration-fast ease-brand ${
-                      isActive 
-                        ? "text-ink-1 ring-1 ring-white/15" 
-                        : "hover:bg-white/5 hover:text-ink-1"
-                    }`
-                  }
-                >
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.title}</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )
-        )}
-      </SidebarMenu>
-    </div>
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="flex flex-row items-center justify-between p-4">
+        <NavLink to="/" className="font-semibold flex items-center gap-2">
+          <img 
+            src="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png" 
+            alt="BloomSuite Logo" 
+            className="h-6 w-6 flex-shrink-0" 
+          />
+          {!isCollapsed && <span>BloomSuite</span>}
+        </NavLink>
+        <SidebarTrigger className="ml-auto" />
+      </SidebarHeader>
+      
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {sidebarItems.map((item) =>
+                item.items ? (
+                  <Collapsible key={item.title} defaultOpen={item.items.some(subItem => isActive(subItem.url))}>
+                    <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton className="group w-full">
+                            <item.icon className="h-4 w-4" />
+                            {!isCollapsed && <span>{item.title}</span>}
+                            {!isCollapsed && <ChevronDown className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                      {!isCollapsed && (
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.items.map((subItem) => (
+                              <SidebarMenuSubItem key={subItem.title}>
+                                <SidebarMenuSubButton asChild>
+                                  <NavLink to={subItem.url} className={({ isActive }) => isActive ? "bg-accent text-accent-foreground" : ""}>
+                                    <subItem.icon className="h-4 w-4" />
+                                    <span>{subItem.title}</span>
+                                  </NavLink>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      )}
+                    </SidebarMenuItem>
+                  </Collapsible>
+                ) : (
+                  <SidebarMenuItem key={item.title}>
+                     <SidebarMenuButton asChild className="w-full">
+                        <NavLink 
+                          to={item.url} 
+                          className={({ isActive }) => isActive ? "bg-accent text-accent-foreground" : ""}
+                        >
+                         <item.icon className="h-4 w-4" />
+                         {!isCollapsed && <span>{item.title}</span>}
+                       </NavLink>
+                     </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
   );
 };
 

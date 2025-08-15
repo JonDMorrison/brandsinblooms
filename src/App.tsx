@@ -51,7 +51,7 @@ function App() {
   return (
     <OverlayManager>
       <QuickTourProvider>
-        <div className="min-h-screen bg-[var(--bg-0)] text-ink-1">
+        <div className="min-h-screen bg-background">
       <Routes>
         <Route path="/auth" element={<Auth />} />
         <Route path="/onboarding" element={
