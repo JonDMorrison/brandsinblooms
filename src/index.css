@@ -307,6 +307,48 @@ a:hover {
   }
 }
 
+/* Botanical Leaf Background System */
+.botanical-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, 
+    hsl(var(--sand-50)) 0%, 
+    rgba(233, 245, 236, 0.3) 30%, 
+    rgba(233, 245, 236, 0.1) 70%, 
+    hsl(var(--sand-50)) 100%
+  );
+}
+
+.botanical-leaves {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.22;
+  filter: blur(20px) saturate(130%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'%3E%3Cdefs%3E%3ClinearGradient id='tealBlue' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2320E39A'/%3E%3Cstop offset='100%25' stop-color='%232FC1FF'/%3E%3C/linearGradient%3E%3ClinearGradient id='purpleCyan' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%237A6CFF'/%3E%3Cstop offset='100%25' stop-color='%2349CFFF'/%3E%3C/linearGradient%3E%3ClinearGradient id='cyanTeal' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2349CFFF'/%3E%3Cstop offset='100%25' stop-color='%2320E39A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M120 150 C180 120, 220 160, 200 220 C190 280, 140 300, 90 280 C50 250, 60 190, 120 150 Z' fill='url(%23tealBlue)' opacity='0.9'/%3E%3Cpath d='M450 100 C520 80, 580 140, 560 210 C540 270, 480 290, 420 270 C370 240, 380 160, 450 100 Z' fill='url(%23purpleCyan)' opacity='0.8'/%3E%3Cpath d='M750 180 C810 160, 860 200, 840 260 C820 320, 760 340, 700 320 C650 290, 670 220, 750 180 Z' fill='url(%23cyanTeal)' opacity='0.7'/%3E%3Cpath d='M200 450 C270 430, 320 470, 300 530 C280 590, 220 610, 160 590 C110 560, 130 490, 200 450 Z' fill='url(%23tealBlue)' opacity='0.6'/%3E%3Cpath d='M600 380 C670 360, 720 400, 700 460 C680 520, 620 540, 560 520 C510 490, 530 420, 600 380 Z' fill='url(%23purpleCyan)' opacity='0.9'/%3E%3Cpath d='M950 320 C1020 300, 1070 340, 1050 400 C1030 460, 970 480, 910 460 C860 430, 880 360, 950 320 Z' fill='url(%23cyanTeal)' opacity='0.8'/%3E%3C/svg%3E");
+  background-size: 150% 150%;
+  background-position: -10% -10%;
+  background-repeat: no-repeat;
+}
+
+.botanical-vignette {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.03) 100%);
+}
+
 /* Fix dropdown/overlay scroll blocking */
 body[data-scroll-locked] {
   overflow: hidden !important;

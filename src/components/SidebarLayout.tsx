@@ -46,7 +46,13 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex">
+      {/* Botanical Background System */}
+      <div className="botanical-bg">
+        <div className="botanical-leaves"></div>
+        <div className="botanical-vignette"></div>
+      </div>
+      
+      <div className="min-h-screen w-full flex relative z-10">
         <AppSidebar />
         
         <main className="flex-1 w-full min-h-screen overflow-auto">
