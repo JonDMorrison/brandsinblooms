@@ -462,33 +462,36 @@ select:-webkit-autofill:focus {
   position: absolute;
   inset: 0;
   z-index: 0;
+  pointer-events: none;
   background:
     radial-gradient(60% 60% at 20% 10%, rgba(37, 255, 192, 0.12) 0%, transparent 60%),
     radial-gradient(50% 50% at 80% 30%, rgba(165, 122, 255, 0.10) 0%, transparent 55%),
     radial-gradient(40% 40% at 60% 80%, rgba(73, 207, 255, 0.10) 0%, transparent 60%),
     linear-gradient(180deg, #061A1C 0%, #041012 100%);
   background-blend-mode: screen, screen, screen, normal;
-  overflow: hidden;
 }
 
-/* Background vignette for depth */
-.bloom-bg-vignette::after {
-  content: "";
+/* NEW: embedded SVG leaf silhouettes (no asset path needed) */
+.bloom-leaves {
   position: absolute;
   inset: 0;
+  z-index: 1;
   pointer-events: none;
-  background: radial-gradient(120% 100% at 50% 0%, rgba(0,0,0,.30) 0%, transparent 55%),
-              radial-gradient(120% 120% at 50% 100%, rgba(0,0,0,.30) 0%, transparent 60%);
+  opacity: 0.12;
+  filter: blur(28px) saturate(110%);
+  background-repeat: no-repeat;
+  background-size: 140% 140%;
+  background-position: 50% 50%;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'><defs><linearGradient id='g1' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%2320E39A'/><stop offset='100%' stop-color='%232FC1FF'/></linearGradient><linearGradient id='g2' x1='1' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='%237A6CFF'/><stop offset='100%' stop-color='%2349CFFF'/></linearGradient></defs><g opacity='0.65'><path d='M180,180 C320,60 520,80 620,240 C520,220 420,260 340,340 C280,400 220,360 180,180 Z' fill='url(%23g1)'/><path d='M820,520 C940,420 1080,440 1120,560 C1040,560 980,600 900,660 C840,700 780,660 820,520 Z' fill='url(%23g2)'/><path d='M520,640 C600,560 740,560 800,640 C700,640 640,690 560,740 C520,760 500,720 520,640 Z' fill='url(%23g1)' opacity='0.8'/></g></svg>");
 }
 
 /* Bokeh particles effect - CSS-only implementation */
-.bloom-bg::before {
-  content: "";
+.bloom-bokeh {
   position: absolute;
-  top: -20%;
-  left: -20%;
-  width: 140%;
-  height: 140%;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.06;
   background-image: 
     radial-gradient(circle at 15% 25%, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     radial-gradient(circle at 35% 55%, rgba(37, 255, 192, 0.04) 1.5px, transparent 1.5px),
@@ -497,23 +500,28 @@ select:-webkit-autofill:focus {
     radial-gradient(circle at 25% 85%, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     radial-gradient(circle at 75% 45%, rgba(37, 255, 192, 0.03) 1.5px, transparent 1.5px);
   background-size: 200px 200px, 300px 300px, 250px 250px, 180px 180px, 220px 220px, 280px 280px;
-  opacity: 0.06;
   animation: float 20s ease-in-out infinite;
 }
 
-/* Botanical shapes effect - CSS-only implementation */
-.bloom-bg::after {
-  content: "";
+/* Soft vignette to match mockup depth */
+.bloom-vignette {
   position: absolute;
   inset: 0;
-  background-image: 
-    radial-gradient(ellipse 300px 150px at 20% 30%, rgba(32, 227, 154, 0.03) 40%, transparent 70%),
-    radial-gradient(ellipse 200px 400px at 80% 20%, rgba(122, 108, 255, 0.02) 30%, transparent 60%),
-    radial-gradient(ellipse 250px 200px at 60% 80%, rgba(47, 193, 255, 0.025) 35%, transparent 65%);
-  background-size: 600px 400px, 400px 600px, 500px 350px;
-  opacity: 0.07;
-  filter: blur(60px);
-  animation: float 30s ease-in-out infinite reverse;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(0,0,0,.28) 0%, transparent 55%),
+    radial-gradient(120% 120% at 50% 100%, rgba(0,0,0,.28) 0%, transparent 60%);
+}
+
+/* Performance guard */
+@media (prefers-reduced-motion: reduce) {
+  .bloom-bokeh {
+    display: none;
+  }
+  .bloom-leaves {
+    filter: blur(22px);
+  }
 }
 
 /* Sidebar Styling */

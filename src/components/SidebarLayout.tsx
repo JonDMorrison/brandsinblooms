@@ -47,10 +47,13 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   return (
     <SidebarProvider>
       <div className="relative min-h-screen overflow-hidden bg-surface-0 text-ink-1">
-        {/* Sophisticated layered background */}
-        <div className="bloom-bg bloom-bg-vignette"></div>
+        {/* Layered background system - correct z-index order */}
+        <div className="bloom-bg"></div>        {/* z-0: base gradients */}
+        <div className="bloom-leaves"></div>     {/* z-1: leaves (visible) */}
+        <div className="bloom-bokeh"></div>      {/* z-2: specks */}
+        <div className="bloom-vignette"></div>   {/* z-3: vignette */}
 
-        <div className="relative flex">
+        <div className="relative z-10 flex">
           <aside className="glass grad-border sidebar-vignette sticky top-0 h-screen w-[260px] shrink-0 p-4 relative">
             <div className="flex items-center gap-3 px-2 pt-1 pb-4">
               <div className="h-8 w-8 rounded-xl bg-grad-secondary animate-float" />
