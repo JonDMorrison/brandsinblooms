@@ -53,17 +53,17 @@ export const DashboardCard = ({
   };
 
   return (
-    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} border border-gray-200 hover:shadow-lg transition-all duration-200 card-interactive`}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-white/50 backdrop-blur-sm">
+    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} border border-gray-200 rounded-2xl transition-all duration-300 ease-out hover:shadow-[0px_6px_16px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 active:scale-[0.98] active:shadow-[0px_2px_8px_rgba(0,0,0,0.08)] shadow-[0px_4px_12px_rgba(0,0,0,0.08)] card-interactive`}>
+      <CardContent className="p-7">
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-white/50 backdrop-blur-sm">
               {icon}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">{title}</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">{title}</h3>
               {statusMessage && (
-                <div className="flex items-center gap-1 mt-1">
+                <div className="flex items-center gap-2">
                   {getStatusIcon()}
                   <span className={`text-xs ${getStatusColor()}`}>
                     {statusMessage}
@@ -74,14 +74,14 @@ export const DashboardCard = ({
           </div>
         </div>
         
-        <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+        <p className="text-gray-600 text-sm mb-8 leading-relaxed">
           {description}
         </p>
         
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <Button 
             onClick={primaryAction.onClick}
-            className="w-full group bg-white/80 hover:bg-white text-gray-900 border border-gray-200 hover:border-gray-300"
+            className="w-full group bg-white/80 hover:bg-white text-gray-900 border border-gray-200 hover:border-gray-300 rounded-xl h-12"
           >
             {primaryAction.label}
             <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
@@ -92,7 +92,7 @@ export const DashboardCard = ({
               variant="ghost" 
               size="sm" 
               onClick={secondaryAction.onClick}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-gray-600 hover:text-gray-900 h-10"
             >
               {secondaryAction.label}
             </Button>
