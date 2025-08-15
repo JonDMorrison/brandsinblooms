@@ -45,10 +45,10 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const { searchImages, loading: unsplashLoading } = useUnsplash();
   const { uploadAsset } = useContentAssets();
 
-  // Load default suggestions on mount
+  // Load default suggestions on mount and auto-select first image
   useEffect(() => {
     const loadDefaultSuggestions = async () => {
-      if (searchResults.length === 0 && !showingSuggestions) {
+      if (searchResults.length === 0 && !showingSuggestions && !selectedImageUrl) {
         console.log('[MediaSelector] Loading default suggestions...');
         setShowingSuggestions(true);
         const rawQuery = contentContext ? extractImageSummary(contentContext) : 'garden center';
@@ -59,7 +59,27 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           const results = await searchImages(defaultQuery);
           console.log('[MediaSelector] Search results received:', results?.length || 0, 'results');
           console.log('[MediaSelector] First result structure:', results?.[0]);
-          setSearchResults(results.slice(0, 6));
+          
+          const limitedResults = results.slice(0, 6);
+          setSearchResults(limitedResults);
+          
+          // Auto-select the first image if available and no image is currently selected
+          if (limitedResults.length > 0 && !selectedImageUrl) {
+            const firstImage = limitedResults[0];
+            const imageMetadata = {
+              source: 'unsplash',
+              alt_text: firstImage.alt,
+              photographer: firstImage.photographer,
+              photographer_url: firstImage.photographer_url,
+              unsplash_id: firstImage.id,
+              thumb: firstImage.thumb,
+              download_location: firstImage.download_location
+            };
+            
+            console.log('[MediaSelector] Auto-selecting first image:', firstImage.url);
+            setSelectedImageMetadata(imageMetadata);
+            onImageSelect(firstImage.url, imageMetadata);
+          }
         } catch (error) {
           console.error('[MediaSelector] Error loading suggestions:', error);
         }
@@ -67,7 +87,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     };
     
     loadDefaultSuggestions();
-  }, [contentContext, searchImages, searchResults.length, showingSuggestions]);
+  }, [contentContext, searchImages, searchResults.length, showingSuggestions, selectedImageUrl, onImageSelect]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -291,7 +311,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               </span>
             </div>
             <div className="grid grid-cols-3 gap-3 min-h-[200px]">
-              {searchResults.slice(0, 3).map((image, index) => {
+              {searchResults.slice(1, 4).map((image, index) => {
                 console.log('[MediaSelector] Compact - Rendering thumbnail:', index, {
                   id: image.id,
                   thumb: image.thumb,
@@ -346,9 +366,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 );
               })}
             </div>
-            {searchResults.length > 3 && (
+            {searchResults.length > 4 && (
               <p className="text-xs text-gray-500 text-center">
-                Showing 3 of {searchResults.length} results. Click any image to view larger.
+                Showing 3 of {searchResults.length - 1} alternative options.
               </p>
             )}
           </div>
@@ -479,8 +499,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             {showingSuggestions ? 'Suggested Images' : 'Search Results'}
           </h4>
           
-          <div className="grid grid-cols-3 gap-4 min-h-[160px]">
-            {searchResults.slice(0, 3).map((image, index) => {
+           <div className="grid grid-cols-3 gap-4 min-h-[160px]">
+            {searchResults.slice(1, 4).map((image, index) => {
               console.log('[MediaSelector] Browse mode - rendering thumbnail:', index, {
                 id: image.id,
                 thumb: image.thumb,
@@ -530,7 +550,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             })}
           </div>
           
-          {searchResults.length > 3 && (
+          {searchResults.length > 4 && (
             <div className="text-center">
               <Button 
                 variant="outline" 
