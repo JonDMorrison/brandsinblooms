@@ -606,7 +606,13 @@ h1.font-heading {
 }
 
 .modal input, .modal select, .modal textarea {
-  @apply rounded-xl bg-white/6 text-ink-1 placeholder:text-ink-2/60 ring-1 ring-white/10 focus:ring-white/25 px-3 py-2;
+  @apply rounded-xl text-ink-1 ring-1 ring-white/10 focus:ring-white/25 px-3 py-2;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: var(--ink-1);
+}
+
+.modal input::placeholder, .modal select::placeholder, .modal textarea::placeholder {
+  color: rgba(var(--ink-2-rgb), 0.6);
 }
 
 .modal .primary {
