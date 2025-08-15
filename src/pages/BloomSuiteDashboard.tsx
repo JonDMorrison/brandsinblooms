@@ -77,7 +77,8 @@ export const BloomSuiteDashboard = () => {
       id: 'create-flow',
       title: 'Create and Post Something',
       description: 'Events, holidays, or your own idea—AI will draft everything.',
-      icon: <Sparkles className="w-6 h-6 icon-purple" />,
+      icon: <Sparkles className="w-6 h-6 text-indigo-600" />,
+      gradient: 'from-indigo-50 to-indigo-100',
       primaryAction: {
         label: 'Get Started',
         onClick: () => setShowCreateFlow(true)
@@ -93,7 +94,8 @@ export const BloomSuiteDashboard = () => {
       id: 'newsletter',
       title: 'Send A Newsletter',
       description: 'Create and send email campaigns to your customers with personalized content and automated scheduling.',
-      icon: <Mail className="w-6 h-6 icon-teal" />,
+      icon: <Mail className="w-6 h-6 text-blue-600" />,
+      gradient: 'from-blue-50 to-blue-100',
       primaryAction: {
         label: 'Create Newsletter',
         onClick: () => navigate('/newsletters/new')
@@ -109,7 +111,8 @@ export const BloomSuiteDashboard = () => {
       id: 'campaign',
       title: 'Build A Campaign',
       description: 'Design automated customer journeys with SMS, email sequences, and personalized messaging flows.',
-      icon: <Megaphone className="w-6 h-6 icon-green" />,
+      icon: <Megaphone className="w-6 h-6 text-green-600" />,
+      gradient: 'from-green-50 to-green-100',
       primaryAction: {
         label: 'Build Campaign',
         onClick: () => navigate('/crm/automations/new?mode=quick')
@@ -125,7 +128,8 @@ export const BloomSuiteDashboard = () => {
       id: 'calendar',
       title: 'Plan Your Content Calendar',
       description: 'Schedule posts, campaigns, and content across all your marketing channels with visual planning tools.',
-      icon: <Calendar className="w-6 h-6 icon-blue" />,
+      icon: <Calendar className="w-6 h-6 text-orange-600" />,
+      gradient: 'from-orange-50 to-orange-100',
       primaryAction: {
         label: 'Open Calendar',
         onClick: () => navigate('/calendar')
@@ -141,7 +145,8 @@ export const BloomSuiteDashboard = () => {
       id: 'analytics',
       title: 'Track Your Progress',
       description: 'Monitor campaign performance, customer engagement, and ROI across all your marketing efforts.',
-      icon: <BarChart3 className="w-6 h-6 icon-purple" />,
+      icon: <BarChart3 className="w-6 h-6 text-purple-600" />,
+      gradient: 'from-purple-50 to-purple-100',
       primaryAction: {
         label: 'View Analytics',
         onClick: () => navigate('/analytics')
@@ -157,7 +162,8 @@ export const BloomSuiteDashboard = () => {
       id: 'social',
       title: 'Post On Social Media',
       description: 'Create, schedule, and publish content across all your social media platforms with AI assistance.',
-      icon: <Share2 className="w-6 h-6 icon-green" />,
+      icon: <Share2 className="w-6 h-6 text-pink-600" />,
+      gradient: 'from-pink-50 to-pink-100',
       primaryAction: {
         label: 'Create Post',
         onClick: () => setShowPostComposer(true)
@@ -173,7 +179,8 @@ export const BloomSuiteDashboard = () => {
       id: 'website',
       title: 'Build & Manage Website',
       description: 'Use AI to build your site in just minutes. Create stunning, professional websites without any coding knowledge.',
-      icon: <Globe className="w-6 h-6 icon-teal" />,
+      icon: <Globe className="w-6 h-6 text-teal-600" />,
+      gradient: 'from-teal-50 to-teal-100',
       primaryAction: {
         label: 'Join the Waitlist',
         onClick: () => navigate('/website')
@@ -188,30 +195,30 @@ export const BloomSuiteDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'hsl(var(--dashboard-bg))' }}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 p-6">
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <Sparkles className="w-8 h-8 icon-green" />
-            <h1 className="text-4xl font-bold text-primary">BloomSuite Dashboard</h1>
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Sparkles className="w-8 h-8 text-yellow-500" />
+            <h1 className="text-4xl font-bold text-gray-900">BloomSuite Dashboard</h1>
           </div>
-          <p className="text-xl text-secondary mb-8">
+          <p className="text-xl text-gray-600 mb-6">
             Your complete marketing command center
           </p>
           
         </div>
 
         {/* Dashboard Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {dashboardActions.map((action) => (
             <DashboardCard
               key={action.id}
               title={action.title}
               description={action.description}
               icon={action.icon}
-              
+              gradient={action.gradient}
               primaryAction={action.primaryAction}
               secondaryAction={action.secondaryAction}
               status={action.status}
@@ -221,12 +228,12 @@ export const BloomSuiteDashboard = () => {
         </div>
 
         {/* Quick Stats or Recent Activity could go here */}
-        <div className="mt-16 text-center">
-          <p className="text-secondary text-sm">
+        <div className="mt-12 text-center">
+          <p className="text-gray-500 text-sm">
             Need help? Check out our{' '}
             <button 
               onClick={() => setShowLaunchpad(true)}
-              className="btn-secondary"
+              className="text-blue-600 hover:text-blue-700 underline"
             >
               getting started guide
             </button>
