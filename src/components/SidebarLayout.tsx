@@ -47,12 +47,8 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   return (
     <SidebarProvider>
       <div className="relative min-h-screen overflow-hidden bg-surface-0 text-ink-1">
-        {/* backdrop layer */}
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_20%_10%,rgba(32,227,154,0.12),transparent_60%),radial-gradient(50%_50%_at_80%_30%,rgba(122,108,255,0.10),transparent_55%),radial-gradient(40%_40%_at_60%_80%,rgba(47,193,255,0.10),transparent_60%)]" />
-          <div className="absolute -top-24 -left-24 h-[420px] w-[420px] rounded-full bg-grad-secondary opacity-20 blur-3xl" />
-          <div className="absolute -bottom-32 -right-20 h-[380px] w-[380px] rounded-full bg-grad-primary opacity-20 blur-3xl" />
-        </div>
+        {/* Sophisticated layered background */}
+        <div className="bloom-bg"></div>
 
         <div className="relative flex">
           <aside className="glass grad-border sticky top-0 h-screen w-[260px] shrink-0 p-4">
