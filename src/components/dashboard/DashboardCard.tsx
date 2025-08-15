@@ -17,7 +17,6 @@ interface DashboardCardProps {
   };
   status?: 'ready' | 'setup-needed' | 'connected';
   statusMessage?: string;
-  gradient?: string;
 }
 
 export const DashboardCard = ({
@@ -27,8 +26,7 @@ export const DashboardCard = ({
   primaryAction,
   secondaryAction,
   status = 'ready',
-  statusMessage,
-  gradient = "from-blue-50 to-indigo-50"
+  statusMessage
 }: DashboardCardProps) => {
   const getStatusIcon = () => {
     switch (status) {
@@ -53,7 +51,7 @@ export const DashboardCard = ({
   };
 
   return (
-    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} border border-gray-200 rounded-2xl transition-all duration-300 ease-out hover:shadow-[0px_6px_16px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 active:scale-[0.98] active:shadow-[0px_2px_8px_rgba(0,0,0,0.08)] shadow-[0px_4px_12px_rgba(0,0,0,0.08)] card-interactive`}>
+    <Card className={`relative overflow-hidden bg-white border border-gray-200 rounded-2xl transition-all duration-300 ease-out hover:shadow-[0px_6px_16px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 active:scale-[0.98] active:shadow-[0px_2px_8px_rgba(0,0,0,0.08)] shadow-[0px_4px_12px_rgba(0,0,0,0.08)] card-interactive`}>
       <CardContent className="p-7">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-4">

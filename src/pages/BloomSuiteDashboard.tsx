@@ -78,7 +78,7 @@ export const BloomSuiteDashboard = () => {
       title: 'Create and Post Something',
       description: 'Events, holidays, or your own idea—AI will draft everything.',
       icon: <Sparkles className="w-6 h-6 text-indigo-600" />,
-      gradient: 'from-indigo-50 to-indigo-100',
+      
       primaryAction: {
         label: 'Get Started',
         onClick: () => setShowCreateFlow(true)
@@ -95,7 +95,7 @@ export const BloomSuiteDashboard = () => {
       title: 'Send A Newsletter',
       description: 'Create and send email campaigns to your customers with personalized content and automated scheduling.',
       icon: <Mail className="w-6 h-6 text-blue-600" />,
-      gradient: 'from-blue-50 to-blue-100',
+      
       primaryAction: {
         label: 'Create Newsletter',
         onClick: () => navigate('/newsletters/new')
@@ -112,7 +112,7 @@ export const BloomSuiteDashboard = () => {
       title: 'Build A Campaign',
       description: 'Design automated customer journeys with SMS, email sequences, and personalized messaging flows.',
       icon: <Megaphone className="w-6 h-6 text-green-600" />,
-      gradient: 'from-green-50 to-green-100',
+      
       primaryAction: {
         label: 'Build Campaign',
         onClick: () => navigate('/crm/automations/new?mode=quick')
@@ -129,7 +129,7 @@ export const BloomSuiteDashboard = () => {
       title: 'Plan Your Content Calendar',
       description: 'Schedule posts, campaigns, and content across all your marketing channels with visual planning tools.',
       icon: <Calendar className="w-6 h-6 text-orange-600" />,
-      gradient: 'from-orange-50 to-orange-100',
+      
       primaryAction: {
         label: 'Open Calendar',
         onClick: () => navigate('/calendar')
@@ -146,7 +146,7 @@ export const BloomSuiteDashboard = () => {
       title: 'Track Your Progress',
       description: 'Monitor campaign performance, customer engagement, and ROI across all your marketing efforts.',
       icon: <BarChart3 className="w-6 h-6 text-purple-600" />,
-      gradient: 'from-purple-50 to-purple-100',
+      
       primaryAction: {
         label: 'View Analytics',
         onClick: () => navigate('/analytics')
@@ -163,7 +163,7 @@ export const BloomSuiteDashboard = () => {
       title: 'Post On Social Media',
       description: 'Create, schedule, and publish content across all your social media platforms with AI assistance.',
       icon: <Share2 className="w-6 h-6 text-pink-600" />,
-      gradient: 'from-pink-50 to-pink-100',
+      
       primaryAction: {
         label: 'Create Post',
         onClick: () => setShowPostComposer(true)
@@ -180,7 +180,7 @@ export const BloomSuiteDashboard = () => {
       title: 'Build & Manage Website',
       description: 'Use AI to build your site in just minutes. Create stunning, professional websites without any coding knowledge.',
       icon: <Globe className="w-6 h-6 text-teal-600" />,
-      gradient: 'from-teal-50 to-teal-100',
+      
       primaryAction: {
         label: 'Join the Waitlist',
         onClick: () => navigate('/website')
@@ -218,7 +218,7 @@ export const BloomSuiteDashboard = () => {
               title={action.title}
               description={action.description}
               icon={action.icon}
-              gradient={action.gradient}
+              
               primaryAction={action.primaryAction}
               secondaryAction={action.secondaryAction}
               status={action.status}
