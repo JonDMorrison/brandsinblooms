@@ -409,6 +409,6 @@ select:-webkit-autofill:focus {
 
 /* Status pill styling */
 .status-pill {
-  @apply inline-flex items-center rounded-full bg-white/8 px-2.5 py-1 text-xs text-ink-2 ring-1 ring-white/15;
+  @apply inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 text-xs text-ink-2 ring-1 ring-white/20;
 }
 
