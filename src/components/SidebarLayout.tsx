@@ -46,16 +46,8 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      {/* Botanical Background System */}
-      <div className="botanical-bg">
-        <div className="botanical-leaves"></div>
-        <div className="botanical-vignette"></div>
-      </div>
-      
-      <div className="min-h-screen w-full flex relative z-10">
-        <div className="glass-sidebar rounded-r-2xl">
-          <AppSidebar />
-        </div>
+      <div className="min-h-screen w-full flex">
+        <AppSidebar />
         
         <main className="flex-1 w-full min-h-screen overflow-auto">
           {/* Fixed UserMenu - always visible in top-right */}
