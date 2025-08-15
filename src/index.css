@@ -477,12 +477,12 @@ select:-webkit-autofill:focus {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  opacity: 0.12;
-  filter: blur(28px) saturate(110%);
+  opacity: 0.22;
+  filter: blur(20px) saturate(130%);
   background-repeat: no-repeat;
-  background-size: 140% 140%;
-  background-position: 50% 50%;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'><defs><linearGradient id='g1' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%2320E39A'/><stop offset='100%' stop-color='%232FC1FF'/></linearGradient><linearGradient id='g2' x1='1' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='%237A6CFF'/><stop offset='100%' stop-color='%2349CFFF'/></linearGradient></defs><g opacity='0.65'><path d='M180,180 C320,60 520,80 620,240 C520,220 420,260 340,340 C280,400 220,360 180,180 Z' fill='url(%23g1)'/><path d='M820,520 C940,420 1080,440 1120,560 C1040,560 980,600 900,660 C840,700 780,660 820,520 Z' fill='url(%23g2)'/><path d='M520,640 C600,560 740,560 800,640 C700,640 640,690 560,740 C520,760 500,720 520,640 Z' fill='url(%23g1)' opacity='0.8'/></g></svg>");
+  background-size: 150% 150%;
+  background-position: 45% 48%;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'><defs><linearGradient id='g1' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%2320E39A'/><stop offset='100%' stop-color='%232FC1FF'/></linearGradient><linearGradient id='g2' x1='1' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='%237A6CFF'/><stop offset='100%' stop-color='%2349CFFF'/></linearGradient><linearGradient id='g3' x1='0.5' y1='0' x2='0.5' y2='1'><stop offset='0%' stop-color='%2349CFFF'/><stop offset='100%' stop-color='%2320E39A'/></linearGradient></defs><g opacity='0.8'><path d='M180,180 C320,60 520,80 620,240 C520,220 420,260 340,340 C280,400 220,360 180,180 Z' fill='url(%23g1)'/><path d='M820,520 C940,420 1080,440 1120,560 C1040,560 980,600 900,660 C840,700 780,660 820,520 Z' fill='url(%23g2)'/><path d='M520,640 C600,560 740,560 800,640 C700,640 640,690 560,740 C520,760 500,720 520,640 Z' fill='url(%23g1)' opacity='0.9'/><path d='M80,520 C160,440 280,460 340,560 C280,540 220,580 160,640 C120,680 80,640 80,520 Z' fill='url(%23g3)' opacity='0.7'/><path d='M980,180 C1080,120 1160,140 1180,220 C1120,200 1080,240 1040,280 C1000,320 960,280 980,180 Z' fill='url(%23g2)' opacity='0.8'/><path d='M420,120 C520,80 620,100 660,180 C580,160 520,200 460,240 C420,260 400,220 420,120 Z' fill='url(%23g3)' opacity='0.6'/></g></svg>");
 }
 
 /* Bokeh particles effect - CSS-only implementation */
