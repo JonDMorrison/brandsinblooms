@@ -241,7 +241,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { key: 'event', title: 'Seasonal Plant Care Tips', desc: 'Give advice to your customers based on time of year.' },
-                { key: 'seasonal', title: 'Use Seasonal Holidays', desc: 'Choose from upcoming holidays (weekly & annual).' },
+                { key: 'seasonal', title: 'Garden Calendar Moments', desc: 'Choose from upcoming gardening observances, seasonal moments, and plant-related awareness days.' },
                 { key: 'custom', title: 'Post My Own Custom Content', desc: 'Bring your idea—AI drafts content in your voice.' },
               ].map((opt) => (
                 <button
