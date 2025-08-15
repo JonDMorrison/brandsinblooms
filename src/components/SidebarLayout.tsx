@@ -48,10 +48,10 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     <SidebarProvider>
       <div className="relative min-h-screen overflow-hidden bg-surface-0 text-ink-1">
         {/* Sophisticated layered background */}
-        <div className="bloom-bg"></div>
+        <div className="bloom-bg bloom-bg-vignette"></div>
 
         <div className="relative flex">
-          <aside className="glass grad-border sticky top-0 h-screen w-[260px] shrink-0 p-4">
+          <aside className="glass grad-border sidebar-vignette sticky top-0 h-screen w-[260px] shrink-0 p-4 relative">
             <div className="flex items-center gap-3 px-2 pt-1 pb-4">
               <div className="h-8 w-8 rounded-xl bg-grad-secondary animate-float" />
               <div className="font-heading text-lg">BloomSuite</div>

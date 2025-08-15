@@ -275,26 +275,18 @@ export const BloomSuiteDashboard = () => {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <Leaf className="w-8 h-8 text-brand-green" />
-          <h1 className="font-heading text-2xl md:text-3xl text-ink-1">BloomSuite Dashboard</h1>
+          <h1 className="font-heading text-3xl md:text-[34px] text-[#EAF6F1]">BloomSuite Dashboard</h1>
         </div>
         <p className="text-ink-2 mb-4">Your complete marketing command center</p>
         
         <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="bg-white/5 border-white/10 text-ink-2 hover:bg-white/10"
-          >
-            Not sure where to start?
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="bg-white/5 border-white/10 text-ink-2 hover:bg-white/10"
-          >
-            <HelpCircle className="w-4 h-4 mr-2" />
+          <span className="status-pill">
+            Assistant ready
+          </span>
+          <span className="status-pill">
+            <HelpCircle className="w-3 h-3 mr-1" />
             Get Help
-          </Button>
+          </span>
         </div>
       </div>
 
@@ -303,7 +295,7 @@ export const BloomSuiteDashboard = () => {
         {dashboardCards.map((card) => (
           <div
             key={card.title}
-            className="glass grad-border p-5 shadow-elev-2 transition-all duration-base ease-brand hover:-translate-y-0.5 hover:shadow-glow cursor-pointer group"
+            className="card glass grad-border p-5 md:p-6 shadow-elev-2 transition-all duration-base ease-brand hover:-translate-y-0.5 hover:shadow-glow cursor-pointer group card-inner"
             onClick={card.onClick}
           >
             {/* Background gradient overlay removed for cleaner design */}
@@ -319,7 +311,7 @@ export const BloomSuiteDashboard = () => {
               
               {/* Icon and title */}
               <div className="flex items-start gap-4 mb-4">
-                <div className={`${card.blobClass} flex items-center justify-center shadow-lg`}>
+                <div className={`blob ${card.blobClass} flex items-center justify-center shadow-lg`}>
                   <card.icon className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
@@ -331,7 +323,7 @@ export const BloomSuiteDashboard = () => {
               {/* Actions */}
               <div className="space-y-3">
                 <button 
-                  className={`${card.btnClass} w-full`}
+                  className={`btn-pill btn-animate ${card.btnClass} w-full`}
                   onClick={(e) => {
                     e.stopPropagation();
                     card.onClick();

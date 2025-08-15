@@ -165,9 +165,11 @@ const AppSidebar: React.FC = () => {
                           <NavLink 
                             to={subItem.url} 
                             className={({ isActive }) => 
-                              isActive 
-                                ? "bg-white/7 ring-1 ring-white/15 shadow-glow text-ink-1" 
-                                : "text-ink-2 hover:text-ink-1 hover:bg-white/5"
+                              `group flex items-center gap-3 rounded-xl px-3 py-2 text-ink-2 transition-all duration-fast ease-brand ${
+                                isActive 
+                                  ? "text-ink-1 ring-1 ring-white/15" 
+                                  : "hover:bg-white/5 hover:text-ink-1"
+                              }`
                             }
                           >
                             <subItem.icon className="h-4 w-4" />
@@ -182,13 +184,15 @@ const AppSidebar: React.FC = () => {
             </Collapsible>
           ) : (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild className="w-full">
+                  <SidebarMenuButton asChild className="w-full">
                 <NavLink 
                   to={item.url} 
                   className={({ isActive }) => 
-                    isActive 
-                      ? "bg-white/7 ring-1 ring-white/15 shadow-glow text-ink-1" 
-                      : "text-ink-2 hover:text-ink-1 hover:bg-white/5"
+                    `group flex items-center gap-3 rounded-xl px-3 py-2 text-ink-2 transition-all duration-fast ease-brand ${
+                      isActive 
+                        ? "text-ink-1 ring-1 ring-white/15" 
+                        : "hover:bg-white/5 hover:text-ink-1"
+                    }`
                   }
                 >
                   <item.icon className="h-4 w-4" />
