@@ -33,7 +33,7 @@ export const DashboardCard = ({
   const getStatusIcon = () => {
     switch (status) {
       case 'connected':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <CheckCircle className="w-4 h-4 botanical-accent" />;
       case 'setup-needed':
         return <AlertCircle className="w-4 h-4 text-amber-600" />;
       default:
@@ -44,24 +44,24 @@ export const DashboardCard = ({
   const getStatusColor = () => {
     switch (status) {
       case 'connected':
-        return 'text-green-600';
+        return 'botanical-accent';
       case 'setup-needed':
         return 'text-amber-600';
       default:
-        return 'text-gray-600';
+        return 'botanical-muted';
     }
   };
 
   return (
-    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} border border-gray-200 hover:shadow-lg transition-all duration-200 card-interactive`}>
+    <Card className="glass-card rounded-2xl border-0 relative overflow-hidden">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-white/50 backdrop-blur-sm">
+            <div className="p-3 rounded-xl glass botanical-accent-bg">
               {icon}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">{title}</h3>
+              <h3 className="font-semibold botanical-heading">{title}</h3>
               {statusMessage && (
                 <div className="flex items-center gap-1 mt-1">
                   {getStatusIcon()}
@@ -74,14 +74,14 @@ export const DashboardCard = ({
           </div>
         </div>
         
-        <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+        <p className="botanical-text text-sm mb-6 leading-relaxed">
           {description}
         </p>
         
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <Button 
             onClick={primaryAction.onClick}
-            className="w-full group bg-white/80 hover:bg-white text-gray-900 border border-gray-200 hover:border-gray-300"
+            className="w-full group botanical-button-primary rounded-xl"
           >
             {primaryAction.label}
             <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
@@ -92,7 +92,7 @@ export const DashboardCard = ({
               variant="ghost" 
               size="sm" 
               onClick={secondaryAction.onClick}
-              className="text-gray-600 hover:text-gray-900"
+              className="botanical-muted hover:botanical-text rounded-xl"
             >
               {secondaryAction.label}
             </Button>

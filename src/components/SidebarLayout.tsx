@@ -53,7 +53,9 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       </div>
       
       <div className="min-h-screen w-full flex relative z-10">
-        <AppSidebar />
+        <div className="glass-sidebar rounded-r-2xl">
+          <AppSidebar />
+        </div>
         
         <main className="flex-1 w-full min-h-screen overflow-auto">
           {/* Fixed UserMenu - always visible in top-right */}

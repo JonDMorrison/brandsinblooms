@@ -195,37 +195,39 @@ export const BloomSuiteDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Sparkles className="w-8 h-8 text-yellow-500" />
-            <h1 className="text-4xl font-bold text-gray-900">BloomSuite Dashboard</h1>
+            <Sparkles className="w-8 h-8 botanical-accent" />
+            <h1 className="text-4xl font-bold botanical-heading">BloomSuite Dashboard</h1>
           </div>
-          <p className="text-xl text-gray-600 mb-6">
+          <p className="text-xl botanical-text mb-6">
             Your complete marketing command center
           </p>
           
           {/* Quick Help Banner */}
-          <div className="rounded-lg p-4 mb-6 max-w-md mx-auto">
-            <p className="text-blue-900 text-sm mb-2">Not sure where to start?</p>
-            <div className="flex gap-2 justify-center">
+          <div className="glass rounded-2xl p-6 mb-8 max-w-md mx-auto">
+            <p className="botanical-subheading text-sm mb-3">Not sure where to start?</p>
+            <div className="flex gap-3 justify-center">
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => setShowQuickTour(true)}
+                className="glass border-green-200 hover:bg-green-50"
               >
-                <Sparkles className="w-4 h-4 mr-2" />
+                <Sparkles className="w-4 h-4 mr-2 botanical-accent" />
                 Quick Tour
               </Button>
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => setShowLaunchpad(true)}
+                className="glass border-green-200 hover:bg-green-50"
               >
-                <HelpCircle className="w-4 h-4 mr-2" />
+                <HelpCircle className="w-4 h-4 mr-2 botanical-accent" />
                 Get Help
               </Button>
             </div>
