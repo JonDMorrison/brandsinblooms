@@ -56,10 +56,16 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
         <div className="relative flex">
           <aside className="glass grad-border sticky top-0 h-screen w-[260px] shrink-0 p-4">
-            <AppSidebar />
+            <div className="flex items-center gap-3 px-2 pt-1 pb-4">
+              <div className="h-8 w-8 rounded-xl bg-grad-secondary animate-float" />
+              <div className="font-heading text-lg">BloomSuite</div>
+            </div>
+            <nav className="mt-2 space-y-1">
+              <AppSidebar />
+            </nav>
           </aside>
           
-          <main className="relative mx-auto w-full max-w-6xl p-6 md:p-10">
+          <main className="relative mx-auto w-full max-w-6xl p-6 md:p-10 animate-fadeScaleIn">
             {/* Fixed UserMenu - always visible in top-right */}
             <div className="fixed top-6 right-6 z-40">
               <UserMenu />

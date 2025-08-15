@@ -309,54 +309,52 @@ export const BloomSuiteDashboard = () => {
         {dashboardCards.map((card) => (
           <div
             key={card.title}
-            className="relative group cursor-pointer"
+            className="glass grad-border p-5 shadow-elev-2 transition-all duration-base ease-brand hover:-translate-y-0.5 hover:shadow-glow cursor-pointer group"
             onClick={card.onClick}
           >
-            <div className={`glass grad-border p-6 h-full transition-all duration-base ease-brand hover:-translate-y-1 hover:shadow-glow relative overflow-hidden`}>
-              {/* Background gradient overlay */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-5 rounded-2xl`} />
+            {/* Background gradient overlay */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-5 rounded-2xl pointer-events-none`} />
+            
+            {/* Content */}
+            <div className="relative z-10">
+              {/* Status badge */}
+              <div className="flex items-center justify-between mb-4">
+                <span className="status-pill">
+                  {card.status}
+                </span>
+              </div>
               
-              {/* Content */}
-              <div className="relative z-10">
-                {/* Status badge */}
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs px-2 py-1 bg-white/10 text-ink-2 rounded-full">
-                    {card.status}
-                  </span>
+              {/* Icon and title */}
+              <div className="flex items-start gap-4 mb-4">
+                <div className={`h-9 w-9 rounded-xl bg-grad-primary animate-pulse-glow flex items-center justify-center shadow-lg`}>
+                  <card.icon className="w-5 h-5 text-white" />
                 </div>
-                
-                {/* Icon and title */}
-                <div className="flex items-start gap-4 mb-4">
-                  <div className={`w-12 h-12 rounded-xl ${card.iconBg} flex items-center justify-center shadow-lg`}>
-                    <card.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-heading text-lg text-ink-1 mb-2">{card.title}</h3>
-                    <p className="text-sm text-ink-2 leading-relaxed">{card.description}</p>
-                  </div>
+                <div className="flex-1">
+                  <h3 className="font-heading text-lg text-ink-1 mb-2">{card.title}</h3>
+                  <p className="text-sm text-ink-2 leading-relaxed">{card.description}</p>
                 </div>
-                
-                {/* Actions */}
-                <div className="space-y-3">
-                  <button 
-                    className={`w-full px-4 py-2.5 ${card.buttonColor} text-white font-medium rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-lg`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      card.onClick();
-                    }}
-                  >
-                    {card.primaryAction}
-                  </button>
-                  <button 
-                    className="w-full text-sm text-ink-2 hover:text-ink-1 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      card.onSecondaryClick();
-                    }}
-                  >
-                    {card.secondaryAction} →
-                  </button>
-                </div>
+              </div>
+              
+              {/* Actions */}
+              <div className="space-y-3">
+                <button 
+                  className="btn-primary w-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    card.onClick();
+                  }}
+                >
+                  {card.primaryAction}
+                </button>
+                <button 
+                  className="btn-ghost w-full text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    card.onSecondaryClick();
+                  }}
+                >
+                  {card.secondaryAction} →
+                </button>
               </div>
             </div>
           </div>
@@ -364,16 +362,16 @@ export const BloomSuiteDashboard = () => {
       </div>
 
       {/* Bottom Section */}
-      <div className="glass grad-border p-6 rounded-2xl">
+      <div className="glass grad-border p-6 rounded-2xl shadow-elev-2 mb-6">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center shadow-lg">
-            <Globe className="w-6 h-6 text-white" />
+          <div className="h-9 w-9 rounded-xl bg-grad-primary animate-pulse-glow flex items-center justify-center">
+            <Globe className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1">
             <h3 className="font-heading text-lg text-ink-1 mb-2">Build & Manage Website</h3>
             <p className="text-sm text-ink-2 mb-4">Use AI to build your site in just minutes. Create stunning, professional websites without any coding knowledge.</p>
             <div className="flex items-center gap-4">
-              <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl transition-all duration-200">
+              <button className="btn-primary">
                 Join the Waitlist
               </button>
               <span className="text-sm text-ink-2">Feature coming soon</span>
