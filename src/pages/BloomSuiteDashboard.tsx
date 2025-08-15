@@ -208,28 +208,6 @@ export const BloomSuiteDashboard = () => {
             Your complete marketing command center
           </p>
           
-          {/* Quick Help Banner */}
-          <div className="rounded-lg p-4 mb-6 max-w-md mx-auto">
-            <p className="text-blue-900 text-sm mb-2">Not sure where to start?</p>
-            <div className="flex gap-2 justify-center">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowQuickTour(true)}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Quick Tour
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowLaunchpad(true)}
-              >
-                <HelpCircle className="w-4 h-4 mr-2" />
-                Get Help
-              </Button>
-            </div>
-          </div>
         </div>
 
         {/* Dashboard Cards Grid */}
