@@ -323,7 +323,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
               </div>
               <div className="pt-2 space-y-2">
                 <Label>Channels</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <ChannelCheckbox name="instagram" label="Instagram" />
                   <ChannelCheckbox name="facebook" label="Facebook" />
                   <ChannelCheckbox name="newsletter" label="Newsletter" />
