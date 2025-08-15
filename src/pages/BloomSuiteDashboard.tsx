@@ -199,9 +199,8 @@ export const BloomSuiteDashboard = () => {
       title: 'Create & Post',
       description: 'Events, holidays, or your own idea—AI will draft everything.',
       icon: Sparkles,
-      gradient: 'from-purple-500 to-pink-500',
-      iconBg: 'bg-purple-500',
-      buttonColor: 'bg-pink-500 hover:bg-pink-600',
+      btnClass: 'btn-pink',
+      blobClass: 'blob-pink',
       primaryAction: 'Get Started',
       secondaryAction: 'Browse Post Content',
       status: 'Assistant ready',
@@ -212,12 +211,11 @@ export const BloomSuiteDashboard = () => {
       title: 'Send a Newsletter',
       description: 'Create and send email campaigns to your customers with personalized content.',
       icon: Mail,
-      gradient: 'from-blue-500 to-blue-600',
-      iconBg: 'bg-blue-500',
-      buttonColor: 'bg-blue-600 hover:bg-blue-700',
+      btnClass: 'btn-blue',
+      blobClass: 'blob-blue',
       primaryAction: 'Create Newsletter',
       secondaryAction: 'Browse Templates',
-      status: 'Automat ready',
+      status: 'Email system ready',
       onClick: () => navigate('/newsletters/new'),
       onSecondaryClick: () => setShowNewsletterDrawer(true)
     },
@@ -225,9 +223,8 @@ export const BloomSuiteDashboard = () => {
       title: 'Build a Campaign',
       description: 'Design automated customer journeys with SMS, email sequences.',
       icon: Megaphone,
-      gradient: 'from-green-500 to-emerald-500',
-      iconBg: 'bg-green-500',
-      buttonColor: 'bg-green-600 hover:bg-green-700',
+      btnClass: 'btn-green',
+      blobClass: 'blob-green',
       primaryAction: 'Build Campaign',
       secondaryAction: 'View Automations',
       status: twilioStatus.statusMessage,
@@ -238,9 +235,8 @@ export const BloomSuiteDashboard = () => {
       title: 'Plan Your Content Calendar',
       description: 'Schedule posts, campaigns, and content across all your marketing channels.',
       icon: Calendar,
-      gradient: 'from-indigo-500 to-purple-500',
-      iconBg: 'bg-indigo-500',
-      buttonColor: 'bg-purple-600 hover:bg-purple-700',
+      btnClass: 'btn-purple',
+      blobClass: 'blob-purple',
       primaryAction: 'Open Calendar',
       secondaryAction: 'Quick Schedule',
       status: 'Calendar ready',
@@ -251,9 +247,8 @@ export const BloomSuiteDashboard = () => {
       title: 'Track Your Progress',
       description: 'Monitor campaign performance, customer engagement, and ROI.',
       icon: BarChart3,
-      gradient: 'from-purple-500 to-indigo-500',
-      iconBg: 'bg-purple-500',
-      buttonColor: 'bg-blue-600 hover:bg-blue-700',
+      btnClass: 'btn-teal',
+      blobClass: 'blob-teal',
       primaryAction: 'View Analytics',
       secondaryAction: 'Customer Insights',
       status: 'Analytics available',
@@ -264,9 +259,8 @@ export const BloomSuiteDashboard = () => {
       title: 'Post on Social Media',
       description: 'Create, schedule, and publish content across all your social media platforms.',
       icon: Share2,
-      gradient: 'from-teal-500 to-green-500',
-      iconBg: 'bg-teal-500',
-      buttonColor: 'bg-green-600 hover:bg-green-700',
+      btnClass: 'btn-orange',
+      blobClass: 'blob-orange',
       primaryAction: 'Create Post',
       secondaryAction: 'Manage Accounts',
       status: socialStatus.statusMessage,
@@ -312,8 +306,7 @@ export const BloomSuiteDashboard = () => {
             className="glass grad-border p-5 shadow-elev-2 transition-all duration-base ease-brand hover:-translate-y-0.5 hover:shadow-glow cursor-pointer group"
             onClick={card.onClick}
           >
-            {/* Background gradient overlay */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-5 rounded-2xl pointer-events-none`} />
+            {/* Background gradient overlay removed for cleaner design */}
             
             {/* Content */}
             <div className="relative z-10">
@@ -326,7 +319,7 @@ export const BloomSuiteDashboard = () => {
               
               {/* Icon and title */}
               <div className="flex items-start gap-4 mb-4">
-                <div className={`h-9 w-9 rounded-xl bg-grad-primary animate-pulse-glow flex items-center justify-center shadow-lg`}>
+                <div className={`${card.blobClass} flex items-center justify-center shadow-lg`}>
                   <card.icon className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
@@ -338,7 +331,7 @@ export const BloomSuiteDashboard = () => {
               {/* Actions */}
               <div className="space-y-3">
                 <button 
-                  className="btn-primary w-full"
+                  className={`${card.btnClass} w-full`}
                   onClick={(e) => {
                     e.stopPropagation();
                     card.onClick();

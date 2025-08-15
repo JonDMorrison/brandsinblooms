@@ -412,3 +412,48 @@ select:-webkit-autofill:focus {
   @apply inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 text-xs text-ink-2 ring-1 ring-white/20;
 }
 
+/* Per-feature gradient buttons */
+.btn-pink {
+  @apply relative inline-flex items-center justify-center px-4 py-2 rounded-xl font-medium text-white bg-grad-pink;
+  transition: transform 180ms cubic-bezier(.22,1,.36,1), box-shadow 180ms ease;
+}
+.btn-pink:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,114,188,0.35); }
+
+.btn-blue {
+  @apply relative inline-flex items-center justify-center px-4 py-2 rounded-xl font-medium text-white bg-grad-blue;
+  transition: transform 180ms cubic-bezier(.22,1,.36,1), box-shadow 180ms ease;
+}
+.btn-blue:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(90,200,250,0.35); }
+
+.btn-green {
+  @apply relative inline-flex items-center justify-center px-4 py-2 rounded-xl font-medium text-white bg-grad-green;
+  transition: transform 180ms cubic-bezier(.22,1,.36,1), box-shadow 180ms ease;
+}
+.btn-green:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(32,227,154,0.35); }
+
+.btn-purple {
+  @apply relative inline-flex items-center justify-center px-4 py-2 rounded-xl font-medium text-white bg-grad-purple;
+  transition: transform 180ms cubic-bezier(.22,1,.36,1), box-shadow 180ms ease;
+}
+.btn-purple:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(167,123,255,0.35); }
+
+.btn-orange {
+  @apply relative inline-flex items-center justify-center px-4 py-2 rounded-xl font-medium text-white bg-grad-orange;
+  transition: transform 180ms cubic-bezier(.22,1,.36,1), box-shadow 180ms ease;
+}
+.btn-orange:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,182,108,0.35); }
+
+.btn-teal {
+  @apply relative inline-flex items-center justify-center px-4 py-2 rounded-xl font-medium text-white bg-grad-teal;
+  transition: transform 180ms cubic-bezier(.22,1,.36,1), box-shadow 180ms ease;
+}
+.btn-teal:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(52,229,197,0.35); }
+
+/* Per-feature icon blobs */
+.blob-pink { @apply h-9 w-9 rounded-xl bg-grad-pink animate-pulse-glow; }
+.blob-blue { @apply h-9 w-9 rounded-xl bg-grad-blue animate-pulse-glow; }
+.blob-green { @apply h-9 w-9 rounded-xl bg-grad-green animate-pulse-glow; }
+.blob-purple { @apply h-9 w-9 rounded-xl bg-grad-purple animate-pulse-glow; }
+.blob-orange { @apply h-9 w-9 rounded-xl bg-grad-orange animate-pulse-glow; }
+.blob-teal { @apply h-9 w-9 rounded-xl bg-grad-teal animate-pulse-glow; }
+

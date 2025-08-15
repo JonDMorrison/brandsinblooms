@@ -108,7 +108,7 @@ export const NewsletterTemplateDrawer = ({ isOpen, onClose }: NewsletterTemplate
             
             {selectedTemplate === template.id && (
               <Button 
-                className="btn-primary w-full mt-3"
+                className="btn-blue w-full mt-3"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleSelectTemplate(template.id);

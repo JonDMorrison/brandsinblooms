@@ -136,6 +136,13 @@ export default {
 			backgroundImage: {
 				'grad-primary': 'linear-gradient(135deg, #20E39A 0%, #2FC1FF 40%, #7A6CFF 100%)',
 				'grad-secondary': 'linear-gradient(135deg, #86F7C5 0%, #66E0D9 50%, #A77BFF 100%)',
+				// Per-feature gradients
+				'grad-pink': 'linear-gradient(135deg, #FF72BC 0%, #FF8D8D 50%, #FFAF70 100%)',
+				'grad-blue': 'linear-gradient(135deg, #5AC8FA 0%, #2FC1FF 50%, #7A6CFF 100%)',
+				'grad-green': 'linear-gradient(135deg, #20E39A 0%, #34D3C5 50%, #66E0D9 100%)',
+				'grad-purple': 'linear-gradient(135deg, #A77BFF 0%, #C26CFF 50%, #FF7AD1 100%)',
+				'grad-orange': 'linear-gradient(135deg, #FFB86C 0%, #FF9B70 50%, #FF7AD1 100%)',
+				'grad-teal': 'linear-gradient(135deg, #34E5C5 0%, #2FD3FF 50%, #5AC8FA 100%)',
 			},
 			transitionTimingFunction: {
 				brand: 'cubic-bezier(.22,1,.36,1)', // gentle springy

@@ -203,7 +203,7 @@ export const PostComposerModal = ({ isOpen, onClose }: PostComposerModalProps) =
         <Button variant="outline" onClick={onClose} className="btn-ghost">
           Cancel
         </Button>
-        <Button onClick={handleCreatePost} className="btn-primary">
+        <Button onClick={handleCreatePost} className="btn-orange">
           Open Full Composer
         </Button>
       </div>
