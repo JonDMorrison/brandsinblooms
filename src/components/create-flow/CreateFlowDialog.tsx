@@ -240,7 +240,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
           {step === 1 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { key: 'event', title: 'Promote an Event', desc: 'Pick an in-store event and generate ready-to-post content.' },
+                { key: 'event', title: 'Seasonal Plant Care Tips', desc: 'Give advice to your customers based on time of year.' },
                 { key: 'seasonal', title: 'Use Seasonal Holidays', desc: 'Choose from upcoming holidays (weekly & annual).' },
                 { key: 'custom', title: 'Post My Own Custom Content', desc: 'Bring your idea—AI drafts content in your voice.' },
               ].map((opt) => (
