@@ -368,4 +368,5 @@ select:-webkit-autofill:focus {
 /* Botanical Sidebar Styling */
 @import './styles/botanical-sidebar.css';
 @import './styles/sidebar-overrides.css';
+@import './styles/nuclear-botanical-override.css';
 
