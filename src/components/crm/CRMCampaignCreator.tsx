@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, ArrowLeft } from 'lucide-react';
+import { Loader2, Mail, ArrowLeft, Users } from 'lucide-react';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
 import { EmailPreview } from './campaign-composer/EmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
@@ -21,8 +21,8 @@ import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { generateNewsletterBlocks, getFallbackBlocks } from '@/services/newsletterBlockGenerator';
 import { fetchSmartImage } from '@/services/unsplashService';
-import { PersonaSegmentSelector } from './PersonaSegmentSelector';
 import { useGeneratedBundle } from '@/hooks/useGeneratedBundle';
+import { CampaignSetupWizard } from './campaign-setup/CampaignSetupWizard';
 
 // Helper function to fetch image for blocks with missing images
 const getOrFetchImage = async (contentObj: any, block: any): Promise<string | null> => {
@@ -267,6 +267,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [existingCampaignId, setExistingCampaignId] = useState<string | null>(null);
   const [loadingExistingCampaign, setLoadingExistingCampaign] = useState(false);
   const [generatingBlocks, setGeneratingBlocks] = useState<Set<string>>(new Set());
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
 
   // Footer and company data
   const { footerSettings } = useFooterSettings();
@@ -1633,6 +1634,15 @@ cleanUrl();
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowSetupWizard(true)}>
+            <Users className="h-4 w-4 mr-2" />
+            Audience
+            {(selectedPersonas.length > 0 || selectedSegments.length > 0) && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary text-primary-foreground rounded">
+                {selectedPersonas.length + selectedSegments.length}
+              </span>
+            )}
+          </Button>
           <Button variant="outline" onClick={() => setShowPreview(true)}>
             Preview
           </Button>
@@ -1728,15 +1738,14 @@ cleanUrl();
         </CardContent>
        </Card>
 
-       {/* Persona & Segment Targeting */}
-       <PersonaSegmentSelector
+       {/* Campaign Setup Wizard */}
+       <CampaignSetupWizard
+         open={showSetupWizard}
+         onClose={() => setShowSetupWizard(false)}
          selectedPersonas={selectedPersonas}
          selectedSegments={selectedSegments}
          onPersonasChange={setSelectedPersonas}
          onSegmentsChange={setSelectedSegments}
-         maxPersonas={3}
-         maxSegments={5}
-         showCombinedAudience={true}
        />
 
        {/* Email Content Builder - Full Width */}
