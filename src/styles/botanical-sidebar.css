@@ -1,0 +1,298 @@
+/* ===== BOTANICAL SIDEBAR THEME ===== */
+
+/* Base Sidebar Container */
+[data-sidebar="sidebar"] {
+  /* Soft vertical gradient background */
+  background: linear-gradient(180deg, #FDFCFB 0%, #F3F8F4 100%);
+  
+  /* Glass effect with semi-transparent white layer */
+  position: relative;
+  overflow: hidden;
+}
+
+[data-sidebar="sidebar"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 1;
+}
+
+[data-sidebar="sidebar"]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Botanical Leaf Pattern Overlay */
+[data-sidebar="sidebar"] .botanical-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.04;
+  z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M20 20c15-8 35-8 50 0 8 15 8 35 0 50-15 8-35 8-50 0-8-15-8-35 0-50zm25 10c-8 4-12 12-10 20 2 8 10 12 18 10 8-2 12-10 10-18-2-8-10-12-18-10z' transform='rotate(45 60 60)' filter='blur(1px)'/%3E%3Cpath d='M80 80c10-5 22-5 32 0 5 10 5 22 0 32-10 5-22 5-32 0-5-10-5-22 0-32zm16 6c-5 2-8 8-6 13 2 5 8 8 13 6 5-2 8-8 6-13-2-5-8-8-13-6z' transform='rotate(-30 96 96)' filter='blur(0.8px)'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 120px 120px;
+  background-repeat: repeat;
+  filter: blur(2px);
+}
+
+/* Ensure all content is above overlays */
+[data-sidebar="sidebar"] > * {
+  position: relative;
+  z-index: 3;
+}
+
+/* ===== NAVIGATION ITEMS ===== */
+
+/* Default navigation item styling */
+[data-sidebar="menu-button"] {
+  color: #1E1E1E !important;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  position: relative;
+}
+
+[data-sidebar="menu-button"] svg {
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+/* Hover state with 6% green tint */
+[data-sidebar="menu-button"]:hover {
+  background-color: rgba(46, 125, 50, 0.06) !important;
+  color: #1E1E1E !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+[data-sidebar="menu-button"]:hover svg {
+  opacity: 1;
+}
+
+/* Active item with pill style and stronger green tint */
+[data-sidebar="menu-button"][data-active="true"],
+.bg-accent {
+  background-color: rgba(46, 125, 50, 0.12) !important;
+  color: #256628 !important;
+  border-radius: 9999px !important;
+  font-weight: 600;
+}
+
+[data-sidebar="menu-button"][data-active="true"] svg,
+.bg-accent svg {
+  color: #256628 !important;
+  opacity: 1;
+}
+
+/* Focus state for keyboard navigation */
+[data-sidebar="menu-button"]:focus-visible {
+  outline: 2px solid #2E7D32;
+  outline-offset: 2px;
+  border-radius: 24px;
+}
+
+/* Sub-menu items */
+[data-sidebar="menu-sub"] [data-sidebar="menu-button"] {
+  padding-left: 2rem;
+  font-size: 0.875rem;
+  margin-left: 8px;
+}
+
+/* ===== SECTION HEADERS & DIVIDERS ===== */
+
+/* Section labels styling */
+[data-sidebar="group-label"] {
+  color: #6B7280 !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+  margin-bottom: 8px;
+  padding: 8px 0;
+}
+
+/* Dividers between sections */
+[data-sidebar="separator"] {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  height: 1px;
+  margin: 16px 8px;
+}
+
+/* ===== BADGES & COUNTERS ===== */
+
+.sidebar-badge {
+  background-color: #2E7D32 !important;
+  color: #FFFFFF !important;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  min-width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-notification-dot {
+  background-color: #2E7D32;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+/* ===== COLLAPSED MODE ===== */
+
+/* Icon centering in collapsed mode */
+[data-state="collapsed"] [data-sidebar="menu-button"] {
+  justify-content: center;
+  padding: 8px;
+}
+
+[data-state="collapsed"] [data-sidebar="menu-button"] svg {
+  margin: 0;
+}
+
+/* Tooltip styling for collapsed mode */
+.sidebar-tooltip {
+  background: linear-gradient(180deg, #FDFCFB 0%, #F3F8F4 100%);
+  color: #1E1E1E;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== CUSTOM SCROLLBAR ===== */
+
+[data-sidebar="content"]::-webkit-scrollbar {
+  width: 6px;
+}
+
+[data-sidebar="content"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-sidebar="content"]::-webkit-scrollbar-thumb {
+  background: rgba(46, 125, 50, 0.25);
+  border-radius: 8px;
+}
+
+[data-sidebar="content"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(46, 125, 50, 0.4);
+}
+
+/* ===== SIDEBAR HEADER ===== */
+
+[data-sidebar="header"] {
+  position: relative;
+  z-index: 4;
+  padding: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-sidebar="header"] .font-semibold {
+  color: #1E1E1E !important;
+  font-weight: 700;
+}
+
+/* Logo styling */
+[data-sidebar="header"] img {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* ===== SIDEBAR FOOTER ===== */
+
+[data-sidebar="footer"] {
+  position: relative;
+  z-index: 4;
+  padding: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: auto;
+}
+
+/* ===== TRIGGER BUTTON ===== */
+
+[data-sidebar="trigger"] {
+  color: #1E1E1E !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  backdrop-filter: blur(8px);
+}
+
+[data-sidebar="trigger"]:hover {
+  background: rgba(46, 125, 50, 0.06) !important;
+  border-color: rgba(46, 125, 50, 0.2) !important;
+}
+
+/* ===== FLOATING VARIANT ENHANCEMENTS ===== */
+
+[data-variant="floating"] [data-sidebar="sidebar"] {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* ===== MOBILE ADJUSTMENTS ===== */
+
+@media (max-width: 768px) {
+  [data-sidebar="sidebar"] {
+    border-radius: 0;
+  }
+  
+  [data-mobile="true"] [data-sidebar="sidebar"] {
+    background: linear-gradient(180deg, #FDFCFB 0%, #F3F8F4 100%);
+  }
+}
+
+/* ===== ACCESSIBILITY ENHANCEMENTS ===== */
+
+/* Ensure proper contrast for all text */
+[data-sidebar="sidebar"] * {
+  color: inherit;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  [data-sidebar="menu-button"] {
+    border: 1px solid transparent;
+  }
+  
+  [data-sidebar="menu-button"]:hover {
+    border-color: #2E7D32;
+  }
+  
+  [data-sidebar="menu-button"][data-active="true"] {
+    border-color: #256628;
+    background-color: rgba(46, 125, 50, 0.2) !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  [data-sidebar="menu-button"],
+  [data-sidebar="menu-button"] svg,
+  [data-sidebar="trigger"] {
+    transition: none;
+  }
+}
