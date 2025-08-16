@@ -91,8 +91,32 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
             // Parse the AI response and update the block
             const parsedContent = parseAIContent(contentResponse.content, block.type);
             
+            // Validate content quality before applying
+            const isContentValid = validateContentQuality(parsedContent, topic);
+            if (!isContentValid) {
+              console.warn(`Block ${i}: Content quality failed, retrying...`);
+              // Retry with more specific prompt
+              const retryPrompt = createRetryPrompt(block, topic, tone, customInstructions, i);
+              const retryResponse = await generateEmailContent({
+                prompt: retryPrompt,
+                type: 'email_block',
+                postType: 'newsletter', 
+                personas: selectedPersonas
+              });
+              
+              if (retryResponse?.content) {
+                const retryParsed = parseAIContent(retryResponse.content, block.type);
+                if (validateContentQuality(retryParsed, topic)) {
+                  Object.assign(parsedContent, retryParsed);
+                }
+              }
+            }
+
             const enhancedBlock: ContentBlock = {
               ...block,
+              // Update both display fields AND data fields
+              title: parsedContent.headline || block.title,
+              content: parsedContent.body || block.content,
               headline: parsedContent.headline || block.headline,
               body: parsedContent.body || block.body,
               ctaText: parsedContent.ctaText || block.ctaText,
@@ -443,4 +467,70 @@ const generatePreheaderText = (topic: string, tone: string): string => {
   ];
   
   return preheaders[Math.floor(Math.random() * preheaders.length)];
+};
+
+// Quality validation function
+const validateContentQuality = (content: any, topic: string): boolean => {
+  const { headline, body } = content;
+  
+  // Check minimum length requirements
+  if (!headline || headline.length < 10 || !body || body.length < 50) {
+    return false;
+  }
+  
+  // Check for generic phrases that should be avoided
+  const genericPhrases = [
+    'latest updates and insights',
+    'this week\'s newsletter',
+    'welcome to this week',
+    'share your expertise',
+    'tips or latest news',
+    'your main content area',
+    'keep it engaging',
+    'valuable for your readers',
+    'thank you for reading',
+    'continued support',
+    'take action now',
+    'discover what we have'
+  ];
+  
+  const combinedText = (headline + ' ' + body).toLowerCase();
+  const hasGenericContent = genericPhrases.some(phrase => 
+    combinedText.includes(phrase.toLowerCase())
+  );
+  
+  if (hasGenericContent) {
+    return false;
+  }
+  
+  // Check if content mentions the topic
+  const topicKeywords = topic.toLowerCase().split(' ');
+  const mentionsTopic = topicKeywords.some(keyword => 
+    combinedText.includes(keyword.toLowerCase())
+  );
+  
+  return mentionsTopic;
+};
+
+// Retry prompt with more specific instructions
+const createRetryPrompt = (
+  block: ContentBlock,
+  topic: string,
+  tone: string,
+  customInstructions: string,
+  blockIndex: number
+): string => {
+  const basePrompt = createBlockPrompt(block, topic, tone, customInstructions, blockIndex);
+  
+  return basePrompt + `
+
+CRITICAL RETRY REQUIREMENTS:
+- DO NOT use generic newsletter language like "latest updates", "this week's newsletter", or "welcome to"
+- MUST mention "${topic}" specifically in both headline and body content
+- Provide SPECIFIC, ACTIONABLE information about ${topic}
+- Include concrete tips, techniques, or advice related to ${topic}
+- Write content that garden center customers would find immediately useful
+- Be specific about timing, care instructions, or product recommendations for ${topic}
+
+This is a retry - the previous content was too generic. Make it much more specific and valuable.`;
 };
