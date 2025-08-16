@@ -82,7 +82,8 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
           
           const contentResponse = await generateEmailContent({
             prompt: blockPrompt,
-            type: 'newsletter',
+            type: 'email_block',
+            postType: 'newsletter',
             personas: selectedPersonas
           });
 
@@ -105,7 +106,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
                 const imageKeywords = createImageKeywords(topic, i);
                 console.log(`🖼️ Fetching image with keywords: ${imageKeywords}`);
                 
-                const imageData = await fetchSmartImage(imageKeywords, topic);
+                const imageData = await fetchSmartImage(imageKeywords, topic, topic.toLowerCase().includes('hydrangea'));
                 if (imageData?.url) {
                   enhancedBlock.imageUrl = imageData.url;
                   enhancedBlock.altText = imageData.alt || `${topic} - ${parsedContent.headline}`;
@@ -362,8 +363,8 @@ const parseAIContent = (content: string, blockType: string) => {
       return {
         headline: parsed.headline || parsed.title || '',
         body: parsed.body || parsed.content || '',
-        ctaText: parsed.ctaText || parsed.buttonText || '',
-        ctaUrl: parsed.ctaUrl || parsed.buttonUrl || '#'
+        ctaText: parsed.ctaText || parsed.cta_text || parsed.buttonText || '',
+        ctaUrl: parsed.ctaUrl || parsed.cta_url || parsed.buttonUrl || '#'
       };
     }
     
@@ -397,6 +398,17 @@ const parseAIContent = (content: string, blockType: string) => {
 const createImageKeywords = (topic: string, blockIndex: number): string => {
   // Create specific image search terms based on the topic and section
   const topicKeywords = topic.toLowerCase();
+  
+  // Force hydrangea-specific keywords if topic contains hydrangea
+  if (topicKeywords.includes('hydrangea')) {
+    const hydrangeaSectionKeywords = {
+      0: 'hydrangea featured summer garden', // Featured Story
+      1: 'hydrangea care tips pruning', // Main Article  
+      2: 'hydrangea garden center display varieties', // Secondary Feature
+      3: 'hydrangea healthy plants blooming' // Call to Action
+    };
+    return hydrangeaSectionKeywords[blockIndex] || 'hydrangea summer garden';
+  }
   
   const sectionKeywords = {
     0: 'featured beautiful', // Featured Story
