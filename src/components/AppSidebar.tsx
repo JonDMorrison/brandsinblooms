@@ -144,12 +144,12 @@ const AppSidebar: React.FC = () => {
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <Sidebar collapsible="icon">
-      {/* Botanical pattern overlay */}
-      <div className="botanical-pattern" />
-      
+    <Sidebar collapsible="icon" className="botanical-sidebar">      
       <SidebarHeader className="flex flex-row items-center justify-between p-4">
-        <NavLink to="/" className="font-semibold flex items-center gap-2">
+        {/* Botanical pattern overlay */}
+        <div className="botanical-pattern absolute inset-0 pointer-events-none" />
+        
+        <NavLink to="/" className="font-semibold flex items-center gap-2 relative z-10">
           <img 
             src="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png" 
             alt="BloomSuite Logo" 
@@ -157,7 +157,7 @@ const AppSidebar: React.FC = () => {
           />
           {!isCollapsed && <span>BloomSuite</span>}
         </NavLink>
-        <SidebarTrigger className="ml-auto" />
+        <SidebarTrigger className="ml-auto relative z-10" />
       </SidebarHeader>
       
       <SidebarContent>

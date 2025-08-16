@@ -1,15 +1,19 @@
 /* ===== BOTANICAL SIDEBAR THEME ===== */
 
-/* Base Sidebar Container */
+/* Base Sidebar Container - Higher specificity to override bg-sidebar */
+.group\/sidebar-wrapper [data-sidebar="sidebar"],
+[data-sidebar="sidebar"].bg-sidebar,
 [data-sidebar="sidebar"] {
-  /* Soft vertical gradient background */
-  background: linear-gradient(180deg, #FDFCFB 0%, #F3F8F4 100%);
+  /* Soft vertical gradient background - force override */
+  background: linear-gradient(180deg, #FDFCFB 0%, #F3F8F4 100%) !important;
   
   /* Glass effect with semi-transparent white layer */
-  position: relative;
-  overflow: hidden;
+  position: relative !important;
+  overflow: hidden !important;
 }
 
+.group\/sidebar-wrapper [data-sidebar="sidebar"]::before,
+[data-sidebar="sidebar"].bg-sidebar::before,
 [data-sidebar="sidebar"]::before {
   content: '';
   position: absolute;
@@ -20,8 +24,11 @@
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
   z-index: 1;
+  pointer-events: none;
 }
 
+.group\/sidebar-wrapper [data-sidebar="sidebar"]::after,
+[data-sidebar="sidebar"].bg-sidebar::after,
 [data-sidebar="sidebar"]::after {
   content: '';
   position: absolute;
@@ -36,6 +43,8 @@
 }
 
 /* Botanical Leaf Pattern Overlay */
+.group\/sidebar-wrapper [data-sidebar="sidebar"] .botanical-pattern,
+[data-sidebar="sidebar"].bg-sidebar .botanical-pattern,
 [data-sidebar="sidebar"] .botanical-pattern {
   position: absolute;
   top: 0;
@@ -48,9 +57,12 @@
   background-size: 120px 120px;
   background-repeat: repeat;
   filter: blur(2px);
+  pointer-events: none;
 }
 
 /* Ensure all content is above overlays */
+.group\/sidebar-wrapper [data-sidebar="sidebar"] > *,
+[data-sidebar="sidebar"].bg-sidebar > *,
 [data-sidebar="sidebar"] > * {
   position: relative;
   z-index: 3;
@@ -58,45 +70,59 @@
 
 /* ===== NAVIGATION ITEMS ===== */
 
-/* Default navigation item styling */
-[data-sidebar="menu-button"] {
+/* Default navigation item styling - Higher specificity */
+.group\/sidebar-wrapper [data-sidebar="menu-button"],
+[data-sidebar="menu-button"],
+.sidebar-menu-button {
   color: #1E1E1E !important;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  border-radius: 8px;
-  position: relative;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  border-radius: 8px !important;
+  position: relative !important;
 }
 
-[data-sidebar="menu-button"] svg {
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
+.group\/sidebar-wrapper [data-sidebar="menu-button"] svg,
+[data-sidebar="menu-button"] svg,
+.sidebar-menu-button svg {
+  opacity: 0.8 !important;
+  transition: opacity 0.2s ease !important;
 }
 
 /* Hover state with 6% green tint */
-[data-sidebar="menu-button"]:hover {
+.group\/sidebar-wrapper [data-sidebar="menu-button"]:hover,
+[data-sidebar="menu-button"]:hover,
+.sidebar-menu-button:hover {
   background-color: rgba(46, 125, 50, 0.06) !important;
   color: #1E1E1E !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+  transform: translateY(-1px) !important;
 }
 
-[data-sidebar="menu-button"]:hover svg {
-  opacity: 1;
+.group\/sidebar-wrapper [data-sidebar="menu-button"]:hover svg,
+[data-sidebar="menu-button"]:hover svg,
+.sidebar-menu-button:hover svg {
+  opacity: 1 !important;
 }
 
 /* Active item with pill style and stronger green tint */
+.group\/sidebar-wrapper [data-sidebar="menu-button"][data-active="true"],
 [data-sidebar="menu-button"][data-active="true"],
-.bg-accent {
+.sidebar-menu-button[data-active="true"],
+.bg-accent,
+.text-accent-foreground {
   background-color: rgba(46, 125, 50, 0.12) !important;
   color: #256628 !important;
   border-radius: 9999px !important;
-  font-weight: 600;
+  font-weight: 600 !important;
 }
 
+.group\/sidebar-wrapper [data-sidebar="menu-button"][data-active="true"] svg,
 [data-sidebar="menu-button"][data-active="true"] svg,
-.bg-accent svg {
+.sidebar-menu-button[data-active="true"] svg,
+.bg-accent svg,
+.text-accent-foreground svg {
   color: #256628 !important;
-  opacity: 1;
+  opacity: 1 !important;
 }
 
 /* Focus state for keyboard navigation */
