@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, ArrowLeft, Users } from 'lucide-react';
+import { Loader2, Mail, ArrowLeft, Users, Sparkles } from 'lucide-react';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
 import { EmailPreview } from './campaign-composer/EmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
@@ -23,6 +23,7 @@ import { generateNewsletterBlocks, getFallbackBlocks } from '@/services/newslett
 import { fetchSmartImage } from '@/services/unsplashService';
 import { useGeneratedBundle } from '@/hooks/useGeneratedBundle';
 import { CampaignSetupWizard } from './campaign-setup/CampaignSetupWizard';
+import { AIWriterDialog } from './ai-writer/AIWriterDialog';
 
 // Helper function to fetch image for blocks with missing images
 const getOrFetchImage = async (contentObj: any, block: any): Promise<string | null> => {
@@ -268,6 +269,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [loadingExistingCampaign, setLoadingExistingCampaign] = useState(false);
   const [generatingBlocks, setGeneratingBlocks] = useState<Set<string>>(new Set());
   const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const [showAIWriter, setShowAIWriter] = useState(false);
 
   // Footer and company data
   const { footerSettings } = useFooterSettings();
@@ -443,6 +445,32 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
     return attemptSave();
   }, [existingCampaignId, isAutoSaving, toast]);
+
+  // Handler for AI-generated content
+  const handleAIContentGenerated = async (aiData: {
+    campaignName: string;
+    subjectLine: string;
+    preheaderText: string;
+    blocks: ContentBlock[];
+  }) => {
+    console.log('🤖 AI content generated:', aiData);
+    
+    // Update campaign fields
+    setCampaignName(aiData.campaignName);
+    setSubjectLine(aiData.subjectLine);
+    setPreheaderText(aiData.preheaderText);
+    setBlocks(aiData.blocks);
+    
+    // If we have an existing campaign, trigger auto-save
+    if (existingCampaignId) {
+      debouncedAutoSave({
+        blocks: aiData.blocks,
+        campaign_name: aiData.campaignName,
+        subject_line: aiData.subjectLine,
+        preheader: aiData.preheaderText
+      });
+    }
+  };
 
   const debouncedAutoSave = useCallback((campaignData: {
     blocks: ContentBlock[];
@@ -1634,6 +1662,13 @@ cleanUrl();
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Only show Write with AI for new campaigns */}
+          {!existingCampaignId && (
+            <Button variant="outline" onClick={() => setShowAIWriter(true)}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Write with AI
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setShowSetupWizard(true)}>
             <Users className="h-4 w-4 mr-2" />
             Audience
@@ -1799,6 +1834,13 @@ cleanUrl();
         onClose={() => setShowPreview(false)}
         subject={subjectLine}
         content={generateEmailHTML()}
+      />
+
+      {/* AI Writer Dialog */}
+      <AIWriterDialog
+        open={showAIWriter}
+        onOpenChange={setShowAIWriter}
+        onContentGenerated={handleAIContentGenerated}
       />
     </div>
   );
