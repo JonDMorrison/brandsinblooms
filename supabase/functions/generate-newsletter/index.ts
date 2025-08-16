@@ -93,27 +93,33 @@ async function generateNewsletterFromTasks(tasks: any[], campaign: any) {
   const campaignTitle = campaign?.title || 'This Week\'s Garden Focus';
   const campaignTheme = campaign?.theme || 'Seasonal Gardening';
 
-  // Create newsletter prompt
-  const prompt = `Create a professional garden center newsletter with the following content:
+  // Create cohesive newsletter prompt using StoryBrand framework
+  const prompt = `Create a professional StoryBrand-driven garden center newsletter using the following narrative structure:
 
 CAMPAIGN: ${campaignTitle}
 THEME: ${campaignTheme}
 
-AVAILABLE CONTENT:
+NARRATIVE STRUCTURE - Each section must build on the previous:
+1. PROBLEM IDENTIFICATION: Open with the main gardening challenge gardeners face with "${campaignTitle}"
+2. SOLUTION INTRODUCTION: Position the garden center as the guide with expertise 
+3. ACTION PLAN: Provide specific, actionable steps gardeners can take
+4. SUCCESS VISION: Paint a vivid picture of their garden transformation
+
+AVAILABLE CONTENT TO WEAVE INTO NARRATIVE:
 ${Object.entries(contentByType).map(([type, tasks]: [string, any[]]) => 
-  `${type.toUpperCase()}:\n${tasks.map(task => `- ${task.ai_output?.substring(0, 200)}...`).join('\n')}`
+  `${type.toUpperCase()} INSIGHTS:\n${tasks.map(task => `- ${task.ai_output?.substring(0, 200)}...`).join('\n')}`
 ).join('\n\n')}
 
-Please create a cohesive newsletter that:
-1. Has an engaging subject line
-2. Opens with a warm greeting
-3. Organizes the content into logical sections
-4. Maintains a friendly, expert tone
-5. Includes calls-to-action where appropriate
-6. Ends with contact information
-7. **CRITICAL: Uses exactly two spaces after every sentence ending (period, question mark, exclamation mark) throughout the entire newsletter**
+CRITICAL REQUIREMENTS:
+1. Create sections that flow logically and build on each other
+2. Each section should advance the gardener's journey from challenge to success
+3. Use transitional phrases between sections for narrative cohesion
+4. Focus entirely on "${campaignTitle}" - no generic seasonal advice
+5. **CRITICAL: Uses exactly two spaces after every sentence ending (period, question mark, exclamation mark) throughout the entire newsletter**
+6. Write in flowing paragraphs only - no bullet points or numbered lists
+7. Position customer as hero, garden center as guide
 
-Format as structured content with clear sections.  Ensure proper sentence spacing throughout.`;
+Format as a cohesive narrative newsletter with clear section transitions.  Ensure proper sentence spacing throughout.`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',

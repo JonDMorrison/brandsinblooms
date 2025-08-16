@@ -15,12 +15,12 @@ export function buildContentPrompt(
   const city = locationParts[0] || 'your city';
   const region = locationParts[1] || locationParts[0] || 'your region';
 
-  // Map content type to specific parameters
+  // Map content type to specific parameters - Updated for newsletter section cohesion
   const contentFormatMap = {
     instagram: { format: 'Instagram post', wordCount: '60-120', cta: 'visit our garden center' },
     facebook: { format: 'Facebook post', wordCount: '100-200', cta: 'stop by for expert advice' },
     blog: { format: 'blog article', wordCount: '400-600', cta: 'schedule a consultation' },
-    newsletter: { format: 'email newsletter', wordCount: '300-400', cta: 'visit this weekend' },
+    newsletter: { format: 'newsletter section', wordCount: '80-100', cta: 'visit for expert guidance' },
     video: { format: 'natural teaching content', wordCount: '200-250 words', cta: 'come in for supplies' }
   };
 
@@ -191,23 +191,30 @@ EXCELLENCE MARKERS:
 
     case 'newsletter':
       return `
-Newsletter Excellence → 300-400 words, seasonal gardening guidance
+Newsletter Section Excellence → 80-100 words, cohesive section building
 
-QUALITY STRUCTURE:
-• Subject: Seasonal benefit that creates urgency
-• Character: Subscriber gardeners' current seasonal needs
-• Problem: This month's gardening challenges + desire for success
-• Guide: ${companyName}'s seasonal expertise and local knowledge
-• Plan: Multiple seasonal tips with specific plant recommendations
-• Success: Vision of subscribers' seasonal garden achievements
-• CTA: Weekend visit invitation with seasonal urgency
+CRITICAL: You are creating ONE SECTION of a larger newsletter that MUST connect seamlessly with other sections.
+
+NARRATIVE COHESION REQUIREMENTS:
+• This section builds on previous sections and sets up the next
+• Use transitional phrases like "Building on this..." or "Now that you've..."
+• Reference the overall campaign theme: "${campaignTitle}"
+• Each section should advance the gardener's journey from problem to solution
+
+SECTION STRUCTURE:
+• Character: Position gardener as hero facing specific challenge related to "${campaignTitle}"
+• Problem: Address one specific aspect of the campaign theme
+• Guide: Show ${companyName}'s expertise for this particular challenge
+• Plan: Provide 2-3 actionable steps in flowing paragraph form
+• Success: Paint picture of success for this specific aspect
+• CTA: Natural invitation tied to this section's focus
 
 EXCELLENCE MARKERS:
-- Organized in scannable seasonal sections
-- Includes this month's specific plant care priorities
-- References local seasonal conditions and opportunities
-- Provides multiple actionable tips for immediate implementation
-- Creates anticipation for seasonal garden center visit`;
+- References campaign theme "${campaignTitle}" explicitly
+- Connects to overall newsletter narrative (not standalone)
+- Provides specific, actionable advice for one aspect of the theme
+- Uses transitional language to create flow between sections
+- Sounds like part of a cohesive story, not isolated content`;
 
     case 'video':
       return `
