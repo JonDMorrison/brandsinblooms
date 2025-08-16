@@ -163,7 +163,10 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar variant="inset">
+    <Sidebar variant="inset" className="botanical-sidebar">
+      {/* Botanical pattern overlay covering entire sidebar */}
+      <div className="botanical-pattern absolute inset-0 pointer-events-none" />
+      
       <SidebarHeader>
         <div className="flex items-center gap-2 px-4 py-2">
           <div className="font-bold text-xl">Bloom</div>
