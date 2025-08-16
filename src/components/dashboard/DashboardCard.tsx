@@ -79,8 +79,7 @@ export const DashboardCard = ({
         <div className="flex flex-col gap-3">
           <Button 
             onClick={primaryAction.onClick}
-            variant="outline"
-            className="w-full group bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-300 hover:border-gray-400 rounded-xl h-12 shadow-sm hover:shadow-md transition-all duration-200"
+            className="w-full group bg-white/80 hover:bg-white text-gray-900 border border-gray-200 hover:border-gray-300 rounded-xl h-12"
           >
             {primaryAction.label}
             <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
@@ -91,7 +90,7 @@ export const DashboardCard = ({
               variant="ghost" 
               size="sm" 
               onClick={secondaryAction.onClick}
-              className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 h-10 transition-colors duration-200"
+              className="text-gray-600 hover:text-gray-900 h-10"
             >
               {secondaryAction.label}
             </Button>

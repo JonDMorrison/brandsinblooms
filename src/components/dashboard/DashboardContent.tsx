@@ -458,8 +458,8 @@ export const DashboardContent = ({
   return (
     <ContentGenerationProvider>
       <ProgressiveDashboardShell>
-        <div className="w-full overflow-x-hidden dashboard-background">
-          <div className="space-y-4 p-4 md:p-6 w-full dashboard-container">
+        <div className="w-full overflow-x-hidden bg-gray-50">
+          <div className="space-y-4 p-4 md:p-6 w-full">
           {/* Quickstart Checklist - only show after social connection */}
           {showQuickstartChecklist && (
             <QuickstartChecklist

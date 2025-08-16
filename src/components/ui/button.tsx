@@ -6,19 +6,19 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98] micro-bounce",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98] micro-bounce",
   {
     variants: {
       variant: {
-        default: "btn-primary", // Garden green primary button
+        default: "bg-brand-teal text-white hover:brightness-95 shadow-sm",
         destructive:
           "bg-destructive text-destructive-foreground hover:brightness-95 shadow-sm",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "border border-brand-teal bg-background text-brand-teal hover:bg-brand-teal hover:text-white",
         secondary:
-          "btn-secondary", // Text-only secondary actions
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "link-secondary", // Steel blue text links
+          "bg-gray-100 text-brand-navy hover:bg-gray-200",
+        ghost: "text-brand-navy hover:bg-gray-100",
+        link: "text-brand-teal underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",

@@ -1,6 +1,0 @@
-/* prove CSS is loaded */
-.botanical-sidebar[data-style-test="on"]{ outline:2px solid magenta !important; }
-/* win against forced backgrounds */
-.botanical-sidebar.bg-white,
-.botanical-sidebar.bg-sidebar,
-.botanical-sidebar[class*="bg-"]{ background:none !important; }
