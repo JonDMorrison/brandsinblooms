@@ -144,44 +144,10 @@ const AppSidebar: React.FC = () => {
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <Sidebar 
-      collapsible="icon" 
-      className="botanical-sidebar"
-      style={{
-        background: 'linear-gradient(180deg, #FDFCFB 0%, #F3F8F4 100%)',
-        position: 'relative',
-        isolation: 'isolate'
-      }}
-    >
-      {/* Botanical overlay covering entire sidebar */}
-      <div 
-        className="botanical-overlay pointer-events-none" 
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          inset: '0',
-          zIndex: 0,
-          background: 'rgba(255,255,255,0.85)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.2)'
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            inset: '0',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232E7D32' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            backgroundRepeat: 'no-repeat',
-            backgroundSize: '160% 160%',
-            backgroundPosition: '20% 0%',
-            opacity: 1,
-            filter: 'blur(1px)'
-          }}
-        />
-      </div>
+    <Sidebar collapsible="icon" className="botanical-sidebar relative overflow-hidden" data-style-test="on">
+      <div className="botanical-overlay pointer-events-none" aria-hidden="true"></div>
       
-      <SidebarHeader className="flex flex-row items-center justify-between p-4" style={{ position: 'relative', zIndex: 1 }}>
+      <SidebarHeader className="flex flex-row items-center justify-between p-4">
         <NavLink to="/" className="font-semibold flex items-center gap-2 relative z-10">
           <img 
             src="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png" 
@@ -193,7 +159,7 @@ const AppSidebar: React.FC = () => {
         <SidebarTrigger className="ml-auto relative z-10" />
       </SidebarHeader>
       
-      <SidebarContent style={{ position: 'relative', zIndex: 1 }}>
+      <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
