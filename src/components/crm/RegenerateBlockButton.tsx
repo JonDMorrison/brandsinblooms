@@ -26,10 +26,16 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
     setRegenerating(true);
     
     try {
+      const topic = campaignName || block.title || 'Newsletter';
+      const prompt = `Create email content for a garden center newsletter about "${topic}". 
+Return JSON with keys: title, content, cta_text, cta_url. 
+Make the copy specific, actionable, and valuable for garden center customers.
+Write in a professional tone with practical advice they can use immediately.`;
+
       const payload = {
-        topic: campaignName || block.title || 'Newsletter',
-        blockType: block.type,
-        tone: 'professional'
+        prompt,
+        type: 'email_block',
+        postType: 'newsletter'
       };
 
       console.log('[AI] regenerate block invoke:', { blockId: block.id, payload });

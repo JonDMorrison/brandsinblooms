@@ -528,11 +528,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               return block;
             }
             
+            const blockPrompt = createBlockPrompt(block, topic.trim(), '', blocks.indexOf(block));
             const payload = {
-              topic: topic.trim(),
-              blockType: block.type,
-              tone: 'professional',
-              blockIndex: blocks.indexOf(block)
+              prompt: blockPrompt,
+              type: 'email_block',
+              postType: 'newsletter'
             };
             
             console.log('[AI] auto-enhance invoke for block:', { blockId: block.id, payload });

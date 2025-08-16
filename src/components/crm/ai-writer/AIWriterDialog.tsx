@@ -77,13 +77,12 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
         }
 
         try {
-          // Call edge function directly for structured response
+          // Build proper prompt and call edge function  
+          const blockPrompt = createBlockPrompt(block, topic.trim(), tone, customInstructions.trim(), i);
           const payload = {
-            topic: topic.trim(),
-            blockType: block.type,
-            tone: tone,
-            blockIndex: i,
-            customInstructions: customInstructions.trim() || undefined
+            prompt: blockPrompt,
+            type: 'email_block',
+            postType: 'newsletter'
           };
 
           console.log('[AI] Invoking generate-email-content for block:', { blockId: block.id, payload });
