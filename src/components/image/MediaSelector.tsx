@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { extractImageSummary } from '@/utils/imageContentSummary';
 import { validateImageQuery } from '@/utils/dynamicImageSearch';
+import { getRelevantFallbacks, formatFallbackImages } from '@/services/gardenCenterFallbacks';
 
 interface MediaSelectorProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
@@ -45,6 +46,41 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const { searchImages, loading: unsplashLoading } = useUnsplash();
   const { uploadAsset } = useContentAssets();
 
+  // Helper to normalize fallback images to expected shape
+  const normalizeFallbacks = (formatted: any[]) => formatted.map(img => ({
+    id: img.id,
+    url: img.download_url,
+    thumb_url: img.thumb_url,
+    alt: img.alt,
+    photographer: img.photographer,
+    photographer_url: undefined,
+    download_location: undefined,
+    source: 'fallback',
+  }));
+
+  // Ensure at least 4 results for proper grid display
+  const supplementWithFallbacks = (results: any[], query: string) => {
+    if (results.length >= 4) return results.slice(0, 6);
+    
+    const deficit = 4 - results.length;
+    console.log(`[MediaSelector] Need ${deficit} more images, supplementing with fallbacks`);
+    
+    const fallbacks = getRelevantFallbacks(query, deficit);
+    const formatted = formatFallbackImages(fallbacks, query);
+    const normalized = normalizeFallbacks(formatted);
+    
+    // Combine and deduplicate by id
+    const combined = [...results];
+    normalized.forEach(fallback => {
+      if (!combined.find(img => img.id === fallback.id)) {
+        combined.push(fallback);
+      }
+    });
+    
+    console.log(`[MediaSelector] Supplemented results: ${results.length} original + ${normalized.length} fallbacks = ${combined.length} total`);
+    return combined.slice(0, 6);
+  };
+
   // Load default suggestions on mount and auto-select first image
   useEffect(() => {
     const loadDefaultSuggestions = async () => {
@@ -60,12 +96,12 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           console.log('[MediaSelector] Search results received:', results?.length || 0, 'results');
           console.log('[MediaSelector] First result structure:', results?.[0]);
           
-          const limitedResults = results.slice(0, 6);
-          setSearchResults(limitedResults);
+          const finalResults = supplementWithFallbacks(results, defaultQuery);
+          setSearchResults(finalResults);
           
           // Auto-select the first image if available and no image is currently selected
-          if (limitedResults.length > 0 && !selectedImageUrl) {
-            const firstImage = limitedResults[0];
+          if (finalResults.length > 0 && !selectedImageUrl) {
+            const firstImage = finalResults[0];
             const imageMetadata = {
               source: 'unsplash',
               alt_text: firstImage.alt,
@@ -100,7 +136,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     try {
       const results = await searchImages(cleanQuery);
       console.log('[MediaSelector] Search completed, found:', results?.length || 0, 'results');
-      setSearchResults(results);
+      const finalResults = supplementWithFallbacks(results, cleanQuery);
+      setSearchResults(finalResults);
     } catch (error) {
       console.error('[MediaSelector] Search error:', error);
     }
