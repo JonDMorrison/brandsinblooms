@@ -63,7 +63,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
         throw new Error('Failed to generate base newsletter structure');
       }
 
-      // Step 2: Enhance content with AI for each block
+      // Step 2: Enhance content with AI for each block using edge function
       const enhancedBlocks: ContentBlock[] = [];
       
       for (let i = 0; i < baseBlocks.length; i++) {
@@ -77,81 +77,58 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
         }
 
         try {
-          // Generate enhanced content for this block
-          const blockPrompt = createBlockPrompt(block, topic, tone, customInstructions, i);
-          
-          const contentResponse = await generateEmailContent({
-            prompt: blockPrompt,
-            type: 'email_block',
-            postType: 'newsletter',
-            personas: selectedPersonas
+          // Call edge function directly for structured response
+          const payload = {
+            topic: topic.trim(),
+            blockType: block.type,
+            tone: tone,
+            blockIndex: i,
+            customInstructions: customInstructions.trim() || undefined
+          };
+
+          console.log('[AI] Invoking generate-email-content for block:', { blockId: block.id, payload });
+          const { data, error } = await supabase.functions.invoke('generate-email-content', { 
+            body: payload 
           });
-
-          if (contentResponse?.content) {
-            // Parse the AI response and update the block
-            const parsedContent = parseAIContent(contentResponse.content, block.type);
-            
-            // Validate content quality before applying
-            const isContentValid = validateContentQuality(parsedContent, topic);
-            if (!isContentValid) {
-              console.warn(`Block ${i}: Content quality failed, retrying...`);
-              // Retry with more specific prompt
-              const retryPrompt = createRetryPrompt(block, topic, tone, customInstructions, i);
-              const retryResponse = await generateEmailContent({
-                prompt: retryPrompt,
-                type: 'email_block',
-                postType: 'newsletter', 
-                personas: selectedPersonas
-              });
-              
-              if (retryResponse?.content) {
-                const retryParsed = parseAIContent(retryResponse.content, block.type);
-                if (validateContentQuality(retryParsed, topic)) {
-                  Object.assign(parsedContent, retryParsed);
-                }
-              }
-            }
-
-            const enhancedBlock: ContentBlock = {
-              ...block,
-              // Update both display fields AND data fields
-              title: parsedContent.headline || block.title,
-              content: parsedContent.body || block.content,
-              headline: parsedContent.headline || block.headline,
-              body: parsedContent.body || block.body,
-              ctaText: parsedContent.ctaText || block.ctaText,
-              ctaUrl: parsedContent.ctaUrl || block.ctaUrl
-            };
-
-            // Step 3: Fetch relevant image for each content block
-            if (block.type === 'image-text') {
-              try {
-                // Create topic-specific image search terms
-                const imageKeywords = createImageKeywords(topic, i);
-                console.log(`🖼️ Fetching image with keywords: ${imageKeywords}`);
-                
-                const imageData = await fetchSmartImage(imageKeywords, topic, topic.toLowerCase().includes('hydrangea'));
-                if (imageData?.url) {
-                  enhancedBlock.imageUrl = imageData.url;
-                  enhancedBlock.altText = imageData.alt || `${topic} - ${parsedContent.headline}`;
-                } else {
-                  // Fallback to topic-only search
-                  const fallbackImage = await fetchSmartImage(topic, 'gardening');
-                  if (fallbackImage?.url) {
-                    enhancedBlock.imageUrl = fallbackImage.url;
-                    enhancedBlock.altText = fallbackImage.alt || topic;
-                  }
-                }
-              } catch (error) {
-                console.warn('Failed to fetch image for block:', error);
-              }
-            }
-
-            enhancedBlocks.push(enhancedBlock);
-          } else {
-            // Fallback to original block if AI generation fails
+          
+          console.log('[AI] generate-email-content response:', { blockId: block.id, error, data });
+          
+          if (error) {
+            console.warn(`Failed to generate content for block ${i}:`, error);
             enhancedBlocks.push(block);
+            continue;
           }
+
+          // Use structured mapping instead of parsing
+          const { normalizeAIResponse, applyAIToBlock } = await import('@/lib/newsletter/aiMapping');
+          const normalizedAI = normalizeAIResponse(data);
+          const enhancedBlock = applyAIToBlock(block, normalizedAI);
+
+          // Step 3: Fetch relevant image for each content block
+          if (block.type === 'image-text') {
+            try {
+              // Create topic-specific image search terms
+              const imageKeywords = createImageKeywords(topic, i);
+              console.log(`🖼️ Fetching image with keywords: ${imageKeywords}`);
+              
+              const imageData = await fetchSmartImage(imageKeywords, topic, topic.toLowerCase().includes('hydrangea'));
+              if (imageData?.url) {
+                enhancedBlock.imageUrl = imageData.url;
+                enhancedBlock.altText = imageData.alt || `${topic} - ${enhancedBlock.title || enhancedBlock.headline}`;
+              } else {
+                // Fallback to topic-only search
+                const fallbackImage = await fetchSmartImage(topic, 'gardening');
+                if (fallbackImage?.url) {
+                  enhancedBlock.imageUrl = fallbackImage.url;
+                  enhancedBlock.altText = fallbackImage.alt || topic;
+                }
+              }
+            } catch (error) {
+              console.warn('Failed to fetch image for block:', error);
+            }
+          }
+
+          enhancedBlocks.push(enhancedBlock);
         } catch (error) {
           console.warn(`Failed to enhance block ${i}:`, error);
           enhancedBlocks.push(block);

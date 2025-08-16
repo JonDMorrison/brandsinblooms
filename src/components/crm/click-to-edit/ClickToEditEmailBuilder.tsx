@@ -21,13 +21,15 @@ interface ClickToEditEmailBuilderProps {
   onBlocksChange: (blocks: ContentBlock[]) => void;
   onOpenAddModal?: (afterIndex?: number) => void;
   generatingBlocks?: Set<string>;
+  campaignName?: string;
 }
 
 export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = ({
   blocks,
   onBlocksChange,
   onOpenAddModal,
-  generatingBlocks = new Set()
+  generatingBlocks = new Set(),
+  campaignName
 }) => {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
@@ -250,6 +252,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
             block={block}
             index={index}
             onUpdate={updateBlock}
+            campaignName={campaignName}
             onRemove={removeBlock}
             onDuplicate={duplicateBlock}
             onMove={moveBlock}

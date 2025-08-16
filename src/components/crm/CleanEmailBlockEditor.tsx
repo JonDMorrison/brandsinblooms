@@ -8,11 +8,13 @@ import { ClickToEditEmailBuilder } from './click-to-edit/ClickToEditEmailBuilder
 import { FooterBlock } from './click-to-edit/blocks/FooterBlock';
 import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
 import { mediaSelector } from '@/utils/mediaSelector';
+import { RegenerateBlockButton } from './RegenerateBlockButton';
 
 interface CleanEmailBlockEditorProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
   generatingBlocks?: Set<string>;
+  campaignName?: string;
 }
 
 // Enhanced mapping function to convert layout types to block types and configurations
@@ -156,7 +158,8 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
 export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   blocks,
   onBlocksChange,
-  generatingBlocks = new Set()
+  generatingBlocks = new Set(),
+  campaignName
 }) => {
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -417,6 +420,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         }}
         onOpenAddModal={openAddModal}
         generatingBlocks={generatingBlocks}
+        campaignName={campaignName}
       />
 
       {/* Empty State */}

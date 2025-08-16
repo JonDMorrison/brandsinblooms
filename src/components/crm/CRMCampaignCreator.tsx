@@ -496,6 +496,99 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     };
   }, []);
 
+  // Auto-enhance new newsletters without templates
+  const [enhancing, setEnhancing] = useState(false);
+  
+  useEffect(() => {
+    const route = searchParams;
+    const isNewNewsletter = 
+      route.get('type') === 'newsletter' &&
+      !route.get('templateId') &&
+      !route.get('contentTaskId') &&
+      !existingCampaignId &&
+      blocks.length > 0 &&
+      !enhancing;
+    
+    if (!isNewNewsletter) return;
+    
+    let cancelled = false;
+    
+    async function enhanceAll() {
+      console.log('[AI] Auto-enhance: starting for new newsletter');
+      setEnhancing(true);
+      
+      const topic = campaignName || 
+        blocks.find((b) => b.title || b.headline)?.title || 
+        'Weekly Gardening Tips';
+      
+      try {
+        const enhanced = await Promise.allSettled(
+          blocks.map(async (block) => {
+            if (block.type === 'header' || block.type === 'divider') {
+              return block;
+            }
+            
+            const payload = {
+              topic: topic.trim(),
+              blockType: block.type,
+              tone: 'professional',
+              blockIndex: blocks.indexOf(block)
+            };
+            
+            console.log('[AI] auto-enhance invoke for block:', { blockId: block.id, payload });
+            const { data, error } = await supabase.functions.invoke('generate-email-content', { 
+              body: payload 
+            });
+            
+            console.log('[AI] auto-enhance response:', { blockId: block.id, error, data });
+            
+            if (error) return block;
+            
+            const { normalizeAIResponse, applyAIToBlock } = await import('@/lib/newsletter/aiMapping');
+            const normalizedAI = normalizeAIResponse(data);
+            return applyAIToBlock(block, normalizedAI);
+          })
+        );
+        
+        const enhancedBlocks = enhanced.map((result, i) => 
+          result.status === 'fulfilled' ? result.value : blocks[i]
+        );
+        
+        if (!cancelled) {
+          setBlocks(enhancedBlocks);
+          const contentCount = enhancedBlocks.filter(b => (b.body || b.content)?.length).length;
+          
+          console.log('[AI] Auto-enhance: completed');
+          toast({
+            title: "AI Enhancement Complete",
+            description: `Generated ${contentCount} blocks with AI content`,
+          });
+        }
+      } catch (error) {
+        console.error('[AI] Auto-enhance failed:', error);
+        if (!cancelled) {
+          toast({
+            title: "Auto-enhancement failed",
+            description: "Manual content editing is still available",
+            variant: "destructive"
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          setEnhancing(false);
+        }
+      }
+    }
+    
+    // Delay to ensure blocks have fully loaded
+    const timer = setTimeout(enhanceAll, 1000);
+    
+    return () => { 
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchParams, existingCampaignId, blocks.length, campaignName, enhancing, supabase, toast]);
+
   // Prefill from Generated Bundle (newsletter)
   useEffect(() => {
     const type = searchParams.get('type');

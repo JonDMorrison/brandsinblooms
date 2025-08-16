@@ -9,6 +9,7 @@ import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
 import { BlockLoadingOverlay } from './BlockLoadingOverlay';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
+import { RegenerateBlockButton } from '../RegenerateBlockButton';
 
 interface ClickToEditBlockProps {
   block: ContentBlock;
@@ -20,6 +21,7 @@ interface ClickToEditBlockProps {
   canMoveUp: boolean;
   canMoveDown: boolean;
   isGenerating?: boolean;
+  campaignName?: string;
   children: {
     preview: React.ReactNode;
     editor: React.ReactNode;
@@ -36,6 +38,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   canMoveUp,
   canMoveDown,
   isGenerating = false,
+  campaignName,
   children
 }) => {
   const [localBlock, setLocalBlock] = useState<ContentBlock>(block);
@@ -167,14 +170,25 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
       {/* New Block Edit Toolbar - only show for non-contextual blocks */}
       {block.type !== 'header' && (
-        <BlockEditToolbar
-          editMode={editMode}
-          onModeChange={handleModeChange}
-          onDuplicate={() => onDuplicate(block)}
-          onDelete={() => onRemove(block.id)}
-          className="opacity-0 group-hover:opacity-100"
-          showImageButton={false} // Hide since we use contextual buttons
-        />
+        <>
+          <BlockEditToolbar
+            editMode={editMode}
+            onModeChange={handleModeChange}
+            onDuplicate={() => onDuplicate(block)}
+            onDelete={() => onRemove(block.id)}
+            className="opacity-0 group-hover:opacity-100"
+            showImageButton={false} // Hide since we use contextual buttons
+          />
+          
+          {/* Regenerate AI Button - positioned slightly lower */}
+          <div className="absolute top-12 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-40">
+            <RegenerateBlockButton
+              block={localBlock}
+              campaignName={campaignName}
+              onUpdate={(updatedBlock) => handleLocalUpdate(updatedBlock)}
+            />
+          </div>
+        </>
       )}
 
       <Card
