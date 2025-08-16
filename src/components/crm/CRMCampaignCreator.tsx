@@ -1652,16 +1652,15 @@ cleanUrl();
       </div>
       
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="space-y-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             {existingCampaignId ? 'Edit Email Campaign' : 'Create Email Campaign'}
           </h1>
-          <div className="flex items-center gap-3">
-            <p className="text-muted-foreground">Build and customize your email campaign</p>
-          </div>
+          <p className="text-muted-foreground">Build and customize your email campaign</p>
         </div>
-        <div className="flex items-center gap-2 mt-3">
+        
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Only show Write with AI for new campaigns */}
           {!existingCampaignId && (
             <Button variant="outline" onClick={() => setShowAIWriter(true)}>
