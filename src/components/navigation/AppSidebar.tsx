@@ -163,9 +163,9 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar variant="inset" className="botanical-sidebar">
-      {/* Botanical pattern overlay covering entire sidebar */}
-      <div className="botanical-pattern absolute inset-0 pointer-events-none" />
+    <Sidebar variant="inset" className="botanical-sidebar relative overflow-hidden">
+      {/* Botanical overlay as first child covering entire sidebar */}
+      <div className="botanical-overlay pointer-events-none" aria-hidden="true"></div>
       
       <SidebarHeader>
         <div className="flex items-center gap-2 px-4 py-2">

@@ -1,13 +1,11 @@
 /* NUCLEAR SIDEBAR OVERRIDES - Force botanical theme */
 
-/* Override any existing sidebar background classes */
-.sidebar,
-.bg-sidebar,
-[class*="bg-sidebar"],
-.peer[data-sidebar="sidebar"],
-.botanical-sidebar [data-sidebar="sidebar"],
-div[data-sidebar="sidebar"] {
-  background: linear-gradient(180deg, #FDFCFB 0%, #F3F8F4 100%) !important;
+/* win over utility backgrounds if present */
+.botanical-sidebar,
+.botanical-sidebar.bg-white,
+.botanical-sidebar.bg-sidebar,
+.botanical-sidebar[class*="bg-"] {
+  background: none !important; /* the overlay provides it */
   position: relative !important;
   overflow: hidden !important;
 }
