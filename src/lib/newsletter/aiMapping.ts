@@ -20,17 +20,68 @@ export interface NormalizedAIResponse {
  * Normalizes AI response from edge function to consistent format
  */
 export function normalizeAIResponse(response: AIResponse): NormalizedAIResponse {
+  console.log('[AI Mapping] Raw response:', response);
+  
   if (typeof response === 'string') {
-    // Legacy fallback: treat as body content only
+    // Check if the string contains JSON (possibly wrapped in markdown code fences)
+    const jsonMatch = response.match(/```json\s*(\{[\s\S]*?\})\s*```/) || 
+                     response.match(/```\s*(\{[\s\S]*?\})\s*```/) ||
+                     response.match(/(\{[\s\S]*\})/);
+    
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[1].trim());
+        console.log('[AI Mapping] Parsed embedded JSON:', parsed);
+        
+        // Convert content to HTML paragraphs if it's plain text
+        if (parsed.content && typeof parsed.content === 'string') {
+          parsed.content = parsed.content
+            .split('\n\n')
+            .filter(p => p.trim())
+            .map(p => `<p>${p.trim()}</p>`)
+            .join('');
+        }
+        
+        return {
+          title: parsed.title,
+          content: parsed.content,
+          cta_text: parsed.cta_text,
+          cta_url: parsed.cta_url,
+          image_url: parsed.image_url
+        };
+      } catch (e) {
+        console.warn('[AI Mapping] Failed to parse embedded JSON:', e);
+      }
+    }
+    
+    // Legacy fallback: treat as body content only, convert to HTML
+    const htmlContent = response
+      .split('\n\n')
+      .filter(p => p.trim())
+      .map(p => `<p>${p.trim()}</p>`)
+      .join('');
+      
     return { 
       title: undefined, 
-      content: response, 
+      content: htmlContent, 
       cta_text: undefined, 
       cta_url: undefined,
       image_url: undefined
     };
   }
-  return response || {};
+  
+  // Handle structured response - ensure content is HTML
+  const result = response || {};
+  if (result.content && typeof result.content === 'string' && !result.content.includes('<')) {
+    result.content = result.content
+      .split('\n\n')
+      .filter(p => p.trim())
+      .map(p => `<p>${p.trim()}</p>`)
+      .join('');
+  }
+  
+  console.log('[AI Mapping] Normalized response:', result);
+  return result;
 }
 
 /**

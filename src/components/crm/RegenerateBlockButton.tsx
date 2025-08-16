@@ -28,7 +28,8 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
     try {
       const topic = campaignName || block.title || 'Newsletter';
       const prompt = `Create email content for a garden center newsletter about "${topic}". 
-Return JSON with keys: title, content, cta_text, cta_url. 
+Return ONLY a JSON object with keys: title, content, cta_text, cta_url. 
+Do not use markdown code fences or any additional text outside the JSON.
 Make the copy specific, actionable, and valuable for garden center customers.
 Write in a professional tone with practical advice they can use immediately.`;
 

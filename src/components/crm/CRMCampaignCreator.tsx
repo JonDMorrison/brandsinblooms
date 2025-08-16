@@ -186,7 +186,10 @@ const createBlockPrompt = (
     ${postTypeInstructions[postType]}
     
     Write engaging, actionable content that would interest garden center customers.
-    Make this content specifically about ${subtopic} within the broader ${baseTheme} theme.`;
+    Make this content specifically about ${subtopic} within the broader ${baseTheme} theme.
+    
+    IMPORTANT: Return ONLY a JSON object with keys: title, content, cta_text, cta_url.
+    Do not use markdown code fences, backticks, or any additional text outside the JSON.`;
 };
 
 // Generate appropriate preheader text based on content and campaign name
