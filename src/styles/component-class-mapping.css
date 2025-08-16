@@ -1,0 +1,93 @@
+/* Component Class Mapping for Dashboard Color System */
+
+/* ===== APPLY CARD TINTS BASED ON CONTENT TYPE ===== */
+
+/* Content Creation Components */
+.weekly-card,
+.custom-campaign-card,
+.blog-generator-card,
+[data-content-type="creation"],
+[class*="content-creation"] {
+  @apply card-glass-base;
+  background: rgba(244, 240, 255, 0.06) !important;
+}
+
+/* Analytics & Calendar Components */
+.analytics-card,
+.calendar-card,
+.metrics-card,
+.stats-card,
+[data-content-type="analytics"],
+[data-content-type="calendar"],
+[class*="analytics"],
+[class*="calendar"] {
+  @apply card-glass-base;
+  background: rgba(241, 245, 249, 0.06) !important;
+}
+
+/* Campaign & Social Components */
+.campaign-card,
+.social-card,
+.publish-card,
+.seasonal-card,
+[data-content-type="campaign"],
+[data-content-type="social"],
+[class*="campaign"],
+[class*="social"] {
+  @apply card-glass-base;
+  background: rgba(240, 253, 244, 0.06) !important;
+}
+
+/* ===== APPLY TEXT COLORS ===== */
+.dashboard-container h1,
+.dashboard-container h2,
+.dashboard-container h3,
+.dashboard-container h4,
+.dashboard-container h5,
+.dashboard-container h6 {
+  color: #1E1E1E !important;
+}
+
+.dashboard-container p,
+.dashboard-container span:not([class*="icon"]),
+.dashboard-container div:not([class*="bg-"]) {
+  color: #475569 !important;
+}
+
+/* ===== APPLY ICON COLORS ===== */
+/* Newsletter/Email Icons */
+[class*="newsletter"] svg,
+[class*="email"] svg,
+[data-icon-type="newsletter"] {
+  color: #7C3AED !important;
+}
+
+/* Calendar Icons */
+[class*="calendar"] svg,
+[class*="schedule"] svg,
+[data-icon-type="calendar"] {
+  color: #0EA5E9 !important;
+}
+
+/* Analytics Icons */
+[class*="analytics"] svg,
+[class*="metrics"] svg,
+[class*="stats"] svg,
+[data-icon-type="analytics"] {
+  color: #059669 !important;
+}
+
+/* Social Icons */
+[class*="social"] svg,
+[class*="share"] svg,
+[data-icon-type="social"] {
+  color: #DC2626 !important;
+}
+
+/* ===== ENHANCED CARD COMPONENT STYLING ===== */
+.apple-card-content,
+.enhanced-apple-card {
+  @apply card-glass-base;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}

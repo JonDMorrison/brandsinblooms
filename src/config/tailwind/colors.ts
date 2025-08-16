@@ -119,19 +119,19 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     900: '#0F172A',   
   },
   
-  // Updated primary colors using brand palette
+  // Updated primary colors using garden green
   primary: {
-    DEFAULT: '#68BEB9', // Brand teal-mint
-    50: '#F0FFFE',
-    100: '#E1FFFE',
-    200: '#C3FFFC',
-    300: '#A5FFFA',
-    400: '#87DFD8',
-    500: '#68BEB9',
-    600: '#5AA8A3',
-    700: '#4C928D',
-    800: '#3E7C77',
-    900: '#306661',
+    DEFAULT: '#2E7D32', // Garden green for primary buttons
+    50: '#E8F5E8',
+    100: '#C8E6C9',
+    200: '#A5D6A7',
+    300: '#81C784',
+    400: '#66BB6A',
+    500: '#2E7D32',
+    600: '#256628',
+    700: '#1B5E20',
+    800: '#2E7D32',
+    900: '#1B5E20',
     foreground: '#FFFFFF'
   },
   secondary: {
@@ -195,14 +195,27 @@ export const colors: Config["theme"]["extend"]["colors"] = {
   },
   // Semantic color system - clean with brand colors
   surface: {
-    primary: '#FFFFFF',
+    primary: 'rgba(255, 255, 255, 0.95)', // Glass effect
     secondary: '#F8FAFC',
     tertiary: '#F1F5F9',
   },
   text: {
-    primary: '#3E5A6B', // Brand steel-blue for headings
-    secondary: '#475569',
+    primary: '#1E1E1E', // High contrast headings
+    secondary: '#475569', // Body text
     tertiary: '#64748B',
     inverse: '#FFFFFF',
+  },
+  // Dashboard card tints
+  'card-tint': {
+    content: 'rgba(244, 240, 255, 0.06)', // Soft lavender
+    analytics: 'rgba(241, 245, 249, 0.06)', // Soft blue-gray
+    campaign: 'rgba(240, 253, 244, 0.06)', // Soft green
+  },
+  // Icon accent colors
+  'icon-accent': {
+    newsletter: '#7C3AED', // Purple
+    calendar: '#0EA5E9', // Blue
+    analytics: '#059669', // Green
+    social: '#DC2626', // Red
   }
 };

@@ -9,6 +9,9 @@
     /* Apple-inspired font smoothing */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Dashboard background gradient */
+    background: linear-gradient(135deg, #FDFCFB 0%, #F3F8F4 100%);
+    min-height: 100vh;
   }
 
   /* Enhanced form controls with Apple styling */

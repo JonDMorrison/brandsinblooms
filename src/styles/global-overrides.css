@@ -11,3 +11,5 @@
 @import './overrides/button-visibility-fixes.css';
 @import './overrides/chat-widget-removal.css';
 @import './overrides/nuclear-color-override.css';
+@import './dashboard-color-system.css';
+@import './component-class-mapping.css';
