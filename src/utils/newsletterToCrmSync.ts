@@ -1,6 +1,6 @@
 import { parseNewsletterYAML, StructuredNewsletter, extractNewsletterSections } from './newsletterUtils';
 import { processNewsletterContent } from './newsletterContentProcessor';
-import { ContentBlock } from '@/types/emailBuilder';
+import { ContentBlock, BlockType, BlockLayout } from '@/types/emailBuilder';
 import yaml from 'js-yaml';
 
 export interface NewsletterToCRMConversion {
@@ -47,14 +47,23 @@ export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlo
       
       // Convert YAML blocks to ContentBlocks
       parsed.blocks.forEach((b: any, i: number) => {
+        const hasImage = (typeof b.image_url === 'string' && (/^https?:\/\//i.test(b.image_url) || /^data:image\//i.test(b.image_url)));
+        const hasText = !!(b.title || b.body || b.content);
+        
+        // Use image-text type for blocks with both text and images
+        const blockType = hasImage && hasText ? 'image-text' : 'text';
+        const blockLayout = hasImage && hasText ? 'image-right' : 'two-column-right';
+        
         parsedBlocks.push({
           id: `block-${i}`,
-          type: 'text',
+          type: blockType,
           title: b.title || '',
-          content: b.body || b.content || '',
+          headline: b.title || '', // For image-text blocks
+          body: b.body || b.content || '', // For image-text blocks
+          content: b.body || b.content || '', // For text blocks
           ctaText: b.cta || '',
           ctaUrl: b.link || '',
-          imageUrl: (typeof b.image_url === 'string' && (/^https?:\/\//i.test(b.image_url) || /^data:image\//i.test(b.image_url))) ? b.image_url : undefined,
+          imageUrl: hasImage ? b.image_url : undefined,
           altText: b.alt_text || '',
           alignment: 'left',
           padding: 'medium',
@@ -62,7 +71,7 @@ export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlo
           collapsed: false,
           visible: true,
           animation: 'fade-in',
-          layout: 'two-column-right'
+          layout: blockLayout
         });
       });
       
@@ -99,9 +108,11 @@ export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlo
       if (current) parsedBlocks.push(current);
       current = {
         id: `block-${parsedBlocks.length + 1}`,
-        type: 'text',
+        type: 'text', // Will be updated to image-text if images are found
         title: line.replace('## ', '').trim(),
+        headline: line.replace('## ', '').trim(), // For potential image-text blocks
         content: '',
+        body: '', // For potential image-text blocks
         alignment: 'left',
         padding: 'medium',
         source: 'newsletter',
@@ -113,6 +124,7 @@ export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlo
     } else if (current && line.trim()) {
       // Add content to current block
       current.content = (current.content || '') + (current.content ? '\n' : '') + line.trim();
+      current.body = current.content; // Keep body in sync for image-text blocks
     }
   }
 
@@ -269,20 +281,29 @@ export const convertNewsletterToCRM = (
   if (processedNewsletter.blocks && processedNewsletter.blocks.length > 0) {
     console.log('[NEWSLETTER TO CRM] Converting', processedNewsletter.blocks.length, 'newsletter blocks to ContentBlocks');
     processedNewsletter.blocks.forEach((block, index) => {
-      const contentBlock = {
+      const hasImage = (typeof block.image_url === 'string' && (/^https?:\/\//i.test(block.image_url) || /^data:image\//i.test(block.image_url)));
+      const hasText = !!(block.title || block.body);
+      
+      // Use image-text type for blocks with both text and images
+      const blockType: BlockType = hasImage && hasText ? 'image-text' : 'text';
+      const blockLayout: BlockLayout = hasImage && hasText ? 'image-right' : 'two-column-right';
+      
+      const contentBlock: ContentBlock = {
         id: `content-${Date.now()}-${index}`,
-        type: 'text' as const,
+        type: blockType,
         title: block.title,
-        content: block.body,
-        imageUrl: (typeof block.image_url === 'string' && (/^https?:\/\//i.test(block.image_url) || /^data:image\//i.test(block.image_url))) ? block.image_url : undefined,
+        headline: block.title, // For image-text blocks
+        body: block.body, // For image-text blocks
+        content: block.body, // For text blocks
+        imageUrl: hasImage ? block.image_url : undefined,
         altText: block.alt_text,
-        alignment: 'left' as const,
-        padding: 'medium' as const,
-        source: 'newsletter' as const,
+        alignment: 'left',
+        padding: 'medium',
+        source: 'newsletter',
         collapsed: false,
         visible: true,
-        animation: 'fade-in' as const,
-        layout: 'two-column-right' as const
+        animation: 'fade-in',
+        layout: blockLayout
       };
       console.log(`[NEWSLETTER TO CRM] Created ContentBlock ${index + 1}:`, {
         id: contentBlock.id,

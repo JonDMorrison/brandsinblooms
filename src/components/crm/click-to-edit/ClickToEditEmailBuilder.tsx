@@ -160,6 +160,10 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'header':
         return <HeaderBlock {...props} isPreview={false} />;
       case 'text':
+        // Use ImageTextBlock for text blocks that have images (from newsletter conversion)
+        if (block.imageUrl && (block.layout === 'two-column-right' || block.layout === 'image-right')) {
+          return <ImageTextBlock {...props} isPreview={false} />;
+        }
         return <TextBlock {...props} isPreview={false} />;
       case 'image':
         return <ImageBlock {...props} isPreview={false} />;
@@ -188,6 +192,10 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'header':
         return <HeaderBlock {...props} isPreview={true} />;
       case 'text':
+        // Use ImageTextBlock for text blocks that have images (from newsletter conversion)
+        if (block.imageUrl && (block.layout === 'two-column-right' || block.layout === 'image-right')) {
+          return <ImageTextBlock {...props} isPreview={true} />;
+        }
         return <TextBlock {...props} isPreview={true} />;
       case 'image':
         return <ImageBlock {...props} isPreview={true} />;

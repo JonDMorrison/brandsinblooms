@@ -65,9 +65,17 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
           {/* Headline */}
           <SafeHtml 
             content={(() => {
-              const headline = (typeof block.content === 'object' && block.content && (block.content as any).headline) || 
-                               block.headline || 
-                               'Add headline';
+              // Handle both object-style content and direct properties
+              let headline;
+              if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
+                headline = (block.content as any).headline;
+              } else if (block.headline) {
+                headline = block.headline;
+              } else if (block.title) {
+                headline = block.title; // Fallback for newsletter conversion
+              } else {
+                headline = 'Add headline';
+              }
               return typeof headline === 'string' ? headline : String(headline || 'Add headline');
             })()}
             type="newsletter"
@@ -77,9 +85,17 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
           {/* Body text */}
           <SafeHtml 
             content={(() => {
-              const body = (typeof block.content === 'object' && block.content && (block.content as any).body) || 
-                           block.body || 
-                           'Add body text';
+              // Handle both object-style content and direct properties
+              let body;
+              if (typeof block.content === 'object' && block.content && (block.content as any).body) {
+                body = (block.content as any).body;
+              } else if (block.body) {
+                body = block.body;
+              } else if (typeof block.content === 'string') {
+                body = block.content; // Fallback for newsletter conversion
+              } else {
+                body = 'Add body text';
+              }
               return typeof body === 'string' ? body : String(body || 'Add body text');
             })()}
             type="newsletter"
