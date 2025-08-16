@@ -98,14 +98,24 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
               ctaUrl: parsedContent.ctaUrl || block.ctaUrl
             };
 
-            // Step 3: Fetch relevant image if this is an image-text block
-            if (block.type === 'image-text' && parsedContent.headline) {
+            // Step 3: Fetch relevant image for each content block
+            if (block.type === 'image-text') {
               try {
-                console.log(`🖼️ Fetching image for: ${parsedContent.headline}`);
-                const imageData = await fetchSmartImage(parsedContent.headline, topic);
+                // Create topic-specific image search terms
+                const imageKeywords = createImageKeywords(topic, i);
+                console.log(`🖼️ Fetching image with keywords: ${imageKeywords}`);
+                
+                const imageData = await fetchSmartImage(imageKeywords, topic);
                 if (imageData?.url) {
                   enhancedBlock.imageUrl = imageData.url;
-                  enhancedBlock.altText = imageData.alt || parsedContent.headline;
+                  enhancedBlock.altText = imageData.alt || `${topic} - ${parsedContent.headline}`;
+                } else {
+                  // Fallback to topic-only search
+                  const fallbackImage = await fetchSmartImage(topic, 'gardening');
+                  if (fallbackImage?.url) {
+                    enhancedBlock.imageUrl = fallbackImage.url;
+                    enhancedBlock.altText = fallbackImage.alt || topic;
+                  }
                 }
               } catch (error) {
                 console.warn('Failed to fetch image for block:', error);
@@ -277,58 +287,126 @@ const createBlockPrompt = (
     educational: 'Use an instructional tone that teaches and guides readers step-by-step.'
   };
 
-  const blockTypeInstructions = {
-    'text': 'Create informative text content that provides value to the reader.',
-    'image-text': 'Create a compelling headline and descriptive text that would pair well with an image.',
-    'button': 'Create a strong call-to-action with motivating text and clear next steps.',
-    'quote': 'Create an inspiring quote or testimonial related to the topic.',
-    'header': 'Create a compelling header title.',
-    'divider': 'This is a visual divider, no content needed.'
+  // Map block positions to newsletter sections
+  const sectionMapping = {
+    0: 'Featured Story',
+    1: 'Main Article', 
+    2: 'Secondary Feature',
+    3: 'Call to Action'
   };
 
-  return `Create content for a ${block.type} block in a newsletter about "${topic}".
+  const sectionName = sectionMapping[blockIndex] || `Section ${blockIndex + 1}`;
+  
+  const sectionInstructions = {
+    'Featured Story': {
+      headline: 'Create an attention-grabbing headline that highlights the most important aspect of this topic',
+      body: 'Write 4-5 sentences that introduce the topic, explain why it\'s important now, and give readers a preview of what they\'ll learn. Make it engaging and informative.',
+      length: '100-150 words'
+    },
+    'Main Article': {
+      headline: 'Create an informative headline that promises practical value',
+      body: 'Write detailed content with 6-8 sentences covering key techniques, best practices, and actionable advice. Include specific tips that garden center customers can immediately apply.',
+      length: '150-200 words'
+    },
+    'Secondary Feature': {
+      headline: 'Create a compelling headline for a supporting topic or related tip',
+      body: 'Write 3-4 sentences that complement the main article with additional insights, related products, or seasonal considerations.',
+      length: '80-120 words'
+    },
+    'Call to Action': {
+      headline: 'Create an action-oriented headline that motivates engagement',
+      body: 'Write 2-3 sentences that encourage readers to take a specific action, whether visiting the garden center, trying a technique, or learning more.',
+      length: '50-80 words'
+    }
+  };
 
-Block Position: ${blockIndex + 1}
-Block Type: ${block.type}
-Current Title: ${block.headline || block.title || ''}
-Current Content: ${block.body || block.content || ''}
+  const section = sectionInstructions[sectionName] || sectionInstructions['Featured Story'];
+
+  return `You are writing the "${sectionName}" section for a professional garden center newsletter about "${topic}".
+
+SECTION REQUIREMENTS:
+- ${section.headline}
+- ${section.body}
+- Target length: ${section.length}
+- Make content specific to ${topic} with practical, actionable advice
+- Include relevant seasonal timing, care instructions, or product recommendations
+- Write for garden center customers (both beginners and experienced gardeners)
 
 TONE: ${toneInstructions[tone] || toneInstructions.professional}
-BLOCK PURPOSE: ${blockTypeInstructions[block.type] || 'Create relevant content for this section.'}
 
-${customInstructions ? `CUSTOM REQUIREMENTS: ${customInstructions}` : ''}
+${customInstructions ? `ADDITIONAL REQUIREMENTS: ${customInstructions}` : ''}
 
-Please provide content in this JSON format:
+CRITICAL: Return ONLY a valid JSON object with this exact format:
 {
-  "headline": "Compelling headline or title",
-  "body": "Main content text (2-3 sentences for image-text blocks, longer for text blocks)",
-  "ctaText": "Call-to-action button text (if applicable)",
-  "ctaUrl": "#" 
+  "headline": "Specific headline about ${topic}",
+  "body": "Detailed, informative content about ${topic} (${section.length})",
+  "ctaText": "${sectionName === 'Call to Action' ? 'Visit Our Garden Center' : ''}",
+  "ctaUrl": "${sectionName === 'Call to Action' ? '#' : ''}"
 }
 
-Make the content specific to ${topic} and ensure it's valuable for garden center customers.`;
+Make sure the content is rich, specific, and valuable - not generic gardening advice.`;
 };
 
 const parseAIContent = (content: string, blockType: string) => {
   try {
-    // Try to parse as JSON first
-    const parsed = JSON.parse(content);
-    return {
-      headline: parsed.headline || parsed.title || '',
-      body: parsed.body || parsed.content || '',
-      ctaText: parsed.ctaText || parsed.buttonText || '',
-      ctaUrl: parsed.ctaUrl || parsed.buttonUrl || '#'
-    };
-  } catch {
-    // Fallback to plain text parsing
+    // Clean the content and try to extract JSON
+    let cleanContent = content.trim();
+    
+    // Remove any markdown code blocks
+    cleanContent = cleanContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    
+    // Find JSON object in the response
+    const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        headline: parsed.headline || parsed.title || '',
+        body: parsed.body || parsed.content || '',
+        ctaText: parsed.ctaText || parsed.buttonText || '',
+        ctaUrl: parsed.ctaUrl || parsed.buttonUrl || '#'
+      };
+    }
+    
+    throw new Error('No JSON found');
+  } catch (error) {
+    console.warn('Failed to parse AI content as JSON:', error);
+    
+    // More robust fallback parsing
     const lines = content.split('\n').filter(line => line.trim());
+    const headline = lines.find(line => 
+      line.includes('headline') || 
+      line.includes('title') || 
+      (!line.includes(':') && line.length > 10 && line.length < 100)
+    ) || lines[0] || '';
+    
+    const bodyLines = lines.filter(line => 
+      !line.includes('headline') && 
+      !line.includes('title') && 
+      line.length > 20
+    );
+    
     return {
-      headline: lines[0] || '',
-      body: lines.slice(1).join('\n') || content,
+      headline: headline.replace(/["'{}:]/g, '').replace(/headline|title/g, '').trim(),
+      body: bodyLines.join(' ').replace(/["'{}:]/g, '').trim() || content,
       ctaText: blockType === 'button' ? 'Learn More' : '',
       ctaUrl: '#'
     };
   }
+};
+
+const createImageKeywords = (topic: string, blockIndex: number): string => {
+  // Create specific image search terms based on the topic and section
+  const topicKeywords = topic.toLowerCase();
+  
+  const sectionKeywords = {
+    0: 'featured beautiful', // Featured Story
+    1: 'care growing tips', // Main Article  
+    2: 'garden center display', // Secondary Feature
+    3: 'healthy plants garden' // Call to Action
+  };
+  
+  const sectionModifier = sectionKeywords[blockIndex] || 'gardening';
+  return `${topicKeywords} ${sectionModifier}`;
 };
 
 const generateSubjectLine = (topic: string, tone: string): string => {
