@@ -451,7 +451,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             
             const { normalizeAIResponse, applyAIToBlock } = await import('@/lib/newsletter/aiMapping');
             const normalizedAI = normalizeAIResponse(data);
-            return applyAIToBlock(block, normalizedAI);
+            let updatedBlock = applyAIToBlock(block, normalizedAI);
+            
+            // Defensive handling for placeholder titles
+            if (updatedBlock.title === 'AI Generated Content' || !updatedBlock.title) {
+              updatedBlock.title = normalizedAI.title || topic.trim() || 'Newsletter Content';
+            }
+            if (updatedBlock.headline === 'AI Generated Content' || !updatedBlock.headline) {
+              updatedBlock.headline = normalizedAI.title || topic.trim() || 'Newsletter Content';
+            }
+            
+            return updatedBlock;
           })
         );
         
@@ -460,13 +470,31 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         );
         
         if (!cancelled) {
-          setBlocks(enhancedBlocks);
-          const contentCount = enhancedBlocks.filter(b => (b.body || b.content)?.length).length;
+          // Apply image fallback for blocks that need images
+          const blocksWithImages = await Promise.all(
+            enhancedBlocks.map(async (block) => {
+              if ((block.type === 'image-text' || block.type === 'hero') && !block.imageUrl) {
+                const imageQuery = block.title || block.headline || campaignName || 'garden';
+                try {
+                  const imageData = await fetchSmartImage(imageQuery, '', true);
+                  if (imageData?.url) {
+                    return { ...block, imageUrl: imageData.url, altText: imageData.alt };
+                  }
+                } catch (error) {
+                  console.warn('Failed to fetch fallback image for block:', block.id, error);
+                }
+              }
+              return block;
+            })
+          );
+          
+          setBlocks(blocksWithImages);
+          const contentCount = blocksWithImages.filter(b => (b.body || b.content)?.length).length;
           
           console.log('[AI] Auto-enhance: completed');
           toast({
             title: "AI Enhancement Complete",
-            description: `Generated ${contentCount} blocks with AI content`,
+            description: `Generated ${contentCount} blocks with AI content and images`,
           });
         }
       } catch (error) {

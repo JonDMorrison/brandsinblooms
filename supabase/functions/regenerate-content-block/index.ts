@@ -64,12 +64,16 @@ Format as JSON with keys: regenerated_block, variations, performance_prediction`
       throw new Error(data.error?.message || 'OpenAI API error');
     }
 
-    const aiResponse = data.choices[0].message.content;
+    let aiResponse = data.choices[0].message.content;
+    
+    // Clean up code fences and extract JSON
+    aiResponse = aiResponse.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     
     let parsedResponse;
     try {
       parsedResponse = JSON.parse(aiResponse);
     } catch {
+      // If parsing fails, wrap in expected structure
       parsedResponse = {
         regenerated_block: {
           ...block_data,

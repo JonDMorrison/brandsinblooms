@@ -85,7 +85,10 @@ Format your response as JSON with these keys:
       throw new Error(data.error?.message || 'OpenAI API error');
     }
 
-    const aiResponse = data.choices[0].message.content;
+    let aiResponse = data.choices[0].message.content;
+    
+    // Clean up code fences and extract JSON
+    aiResponse = aiResponse.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     
     // Try to parse JSON response, fallback to plain text if needed
     let parsedResponse;

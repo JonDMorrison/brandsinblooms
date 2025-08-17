@@ -264,16 +264,23 @@ NARRATIVE ARC REQUIREMENT: Each block should serve a distinct purpose in the ove
     }
 
     const data = await response.json();
-    const generatedText = data.choices[0].message.content;
+    let generatedText = data.choices[0].message.content;
+
+    // Clean up code fences and extract JSON
+    generatedText = generatedText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
     // Try to parse as JSON, fallback to plain text
     let result;
     try {
       result = JSON.parse(generatedText);
     } catch {
-      // If not JSON, create structured response
+      // If not JSON, create structured response with meaningful title
+      const fallbackTitle = campaignTitle && campaignTitle !== 'Newsletter Campaign' 
+        ? `${campaignTitle} Tips`
+        : 'Garden Care Tips';
+      
       result = {
-        title: 'AI Generated Content',
+        title: fallbackTitle,
         content: generatedText,
         cta_text: 'Learn More',
         cta_url: '#'
