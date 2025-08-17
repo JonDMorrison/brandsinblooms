@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ContentBlock } from '@/types/emailBuilder';
 import { normalizeAIResponse, applyAIToBlock } from '@/lib/newsletter/aiMapping';
+import { createBlockPrompt } from '@/utils/blockPromptBuilder';
 
 interface RegenerateBlockButtonProps {
   block: ContentBlock;
@@ -33,8 +34,18 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
       const topic = campaignName || block.title || 'Newsletter';
       const previousBlocks = allBlocks.slice(0, blockIndex).filter(b => b.type !== 'header' && b.type !== 'divider');
 
+      // Use the enhanced block prompt builder
+      const enhancedPrompt = createBlockPrompt(
+        block,
+        topic,
+        '',
+        blockIndex,
+        previousBlocks,
+        allBlocks.length
+      );
+
       const payload = {
-        prompt: `Regenerate content for: ${topic}`,
+        prompt: enhancedPrompt,
         type: 'email_block',
         postType: 'newsletter',
         campaignTitle: topic,

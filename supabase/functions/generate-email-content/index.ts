@@ -117,6 +117,32 @@ SPECIFIC SUBTOPIC: ${subtopic}
 CONTEXT: This is block ${blockIndex + 1} of ${totalBlocks} focusing on roses.`;
       }
       
+      if (lowerTitle.includes('fall')) {
+        const fallSubtopics = [
+          'Fall planting opportunities and timing',
+          'Preparing gardens for winter dormancy',
+          'Fall harvest and preservation techniques',
+          'Seasonal color plants and decorating',
+          'Fall garden cleanup and maintenance',
+          'Bulb planting for spring blooms',
+          'Winterizing garden tools and equipment',
+          'Fall fertilizing and soil preparation'
+        ];
+        const subtopic = fallSubtopics[blockIndex % fallSubtopics.length];
+        return `
+CAMPAIGN FOCUS: Fall Gardening Preparation
+SPECIFIC SUBTOPIC: ${subtopic}
+CONTEXT: This is block ${blockIndex + 1} of ${totalBlocks} in a comprehensive fall gardening newsletter.
+
+FALL GARDENING PRIORITIES:
+- Timing is critical for fall planting success
+- Focus on preparation for winter dormancy
+- Emphasize spring preparation activities
+- Highlight seasonal color and harvest opportunities
+- Address tool maintenance and storage
+- Cover soil preparation for next season`;
+      }
+      
       return `
 CAMPAIGN FOCUS: ${title}
 CONTEXT: This is block ${blockIndex + 1} of ${totalBlocks} in the campaign.
@@ -126,18 +152,46 @@ ${campaignContext ? `ADDITIONAL CONTEXT: ${campaignContext}` : ''}`;
     // Build narrative context from previous blocks
     const getPreviousBlocksContext = (): string => {
       if (!previousBlocks || previousBlocks.length === 0) {
-        return '';
+        return '\nNARRATIVE POSITION: This is the first content block. Set the tone and introduce the main theme.';
       }
       
-      const previousContent = previousBlocks
-        .map((block, idx) => `Block ${idx + 1}: ${block.title || 'Untitled'} - ${(block.content || block.body || '').substring(0, 100)}...`)
+      // Extract key topics from previous blocks
+      const previousTopics = previousBlocks
+        .map(block => {
+          const title = block.title || block.headline || '';
+          const content = (block.content || block.body || '').substring(0, 150);
+          return `"${title}": ${content}`;
+        })
         .join('\n');
       
+      // Extract keywords to avoid repetition
+      const allPreviousText = previousBlocks
+        .map(block => `${block.title || ''} ${block.content || block.body || ''}`)
+        .join(' ')
+        .toLowerCase();
+      
+      const commonKeywords = [
+        'prepare', 'preparation', 'essential', 'perfect time', 'tips', 'guide', 
+        'plants', 'garden', 'care', 'ensure', 'season', 'now is', 'visit us'
+      ];
+      
+      const overusedPhrases = commonKeywords.filter(phrase => 
+        (allPreviousText.match(new RegExp(phrase, 'g')) || []).length >= 2
+      );
+      
       return `
-PREVIOUS BLOCKS IN THIS NEWSLETTER:
-${previousContent}
+PREVIOUS BLOCKS COVERED:
+${previousTopics}
 
-NARRATIVE FLOW REQUIREMENT: Build upon the previous content to create a cohesive story. Avoid repeating information already covered. Each block should add new value while maintaining thematic consistency.`;
+CONTENT DIFFERENTIATION REQUIREMENTS:
+- NEVER repeat the main topic focus of previous blocks
+- This block MUST cover a completely different aspect of the theme
+- Block position: ${blockIndex + 1} of ${totalBlocks} (${blockIndex === 0 ? 'opening' : blockIndex === totalBlocks - 1 ? 'closing' : 'middle'})
+- Avoid overused phrases: ${overusedPhrases.join(', ')}
+- Use completely different opening sentences and approaches
+- Build narrative progression: ${blockIndex === 0 ? 'introduce theme' : blockIndex < totalBlocks - 1 ? 'develop and expand' : 'conclude with action'}
+
+NARRATIVE ARC REQUIREMENT: Each block should serve a distinct purpose in the overall story while maintaining thematic unity.`;
     };
 
     const campaignSpecificContext = getCampaignSpecificContext(campaignTitle);
@@ -169,13 +223,15 @@ NARRATIVE FLOW REQUIREMENT: Build upon the previous content to create a cohesive
          
          CRITICAL: Write in the ${postType} content style throughout. This affects tone, structure, and formatting.` : ''}
          
-         CONTENT REQUIREMENTS:
-         - Mention specific plant varieties, techniques, or products when relevant
-         - Include actionable advice readers can implement immediately  
-         - Use seasonal timing and urgency appropriate for the current context
-         - Avoid generic phrases like "latest updates" or "this week's newsletter"
-         - Each block must add unique value and avoid repetition with previous blocks
-         - Maintain consistent voice and expertise throughout the campaign
+          CONTENT REQUIREMENTS:
+          - Focus ONLY on the specified subtopic - do NOT cover topics from previous blocks
+          - Mention specific plant varieties, techniques, or products when relevant
+          - Include actionable advice readers can implement immediately  
+          - Use seasonal timing and urgency appropriate for the current context
+          - COMPLETELY AVOID these overused openings: "As we [season]...", "It's time to...", "Perfect time to...", "[Season] is here..."
+          - Start with unique, engaging hooks that haven't been used in previous blocks
+          - Each block must serve a distinct narrative purpose (introduction, development, or conclusion)
+          - Maintain consistent voice while covering COMPLETELY DIFFERENT aspects of the theme
          
          Return your response as JSON with these fields:
          - title: A compelling, specific headline (max 60 characters) that mentions the key topic
