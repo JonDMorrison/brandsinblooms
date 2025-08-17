@@ -1756,7 +1756,7 @@ cleanUrl();
           <p className="text-muted-foreground">Build and customize your email campaign</p>
         </div>
         
-        <div className="flex items-center gap-2 flex-wrap justify-start md:justify-end">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Only show Write with AI for new campaigns */}
           {!existingCampaignId && (
             <Button variant="outline" onClick={() => setShowAIWriter(true)}>
