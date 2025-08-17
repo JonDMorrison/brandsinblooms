@@ -86,17 +86,18 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
           <SafeHtml 
             content={(() => {
               // Handle both object-style content and direct properties
-              let body;
+              // Prioritize non-empty content
+              let body = '';
+              
               if (typeof block.content === 'object' && block.content && (block.content as any).body) {
                 body = (block.content as any).body;
-              } else if (block.body) {
+              } else if (block.body && block.body.trim()) {
                 body = block.body;
-              } else if (typeof block.content === 'string') {
-                body = block.content; // Fallback for newsletter conversion
-              } else {
-                body = 'Add body text';
+              } else if (typeof block.content === 'string' && block.content.trim()) {
+                body = block.content;
               }
-              return typeof body === 'string' ? body : String(body || 'Add body text');
+              
+              return body || 'Add body text';
             })()}
             type="newsletter"
             className="text-muted-foreground"

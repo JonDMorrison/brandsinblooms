@@ -192,12 +192,26 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       return;
     }
 
-    // Check if blocks actually changed (comparing IDs instead of full JSON)
-    const currentIds = internalBlocks.map(b => b.id).sort().join(',');
-    const newIds = blocks.map(b => b.id).sort().join(',');
+    // Create content signatures to detect meaningful changes
+    const createContentSignature = (block: ContentBlock) => {
+      const title = block.title || block.headline || '';
+      const content = block.content || block.body || '';
+      const imageUrl = block.imageUrl || '';
+      const buttonText = block.buttonText || block.ctaText || '';
+      const buttonUrl = block.buttonUrl || block.ctaUrl || '';
+      const visible = block.visible !== false;
+      return `${block.id}:${block.type}:${title}:${content.slice(0, 50)}:${imageUrl}:${buttonText}:${buttonUrl}:${visible}`;
+    };
+
+    const currentSignature = internalBlocks.map(createContentSignature).sort().join('|');
+    const newSignature = blocks.map(createContentSignature).sort().join('|');
     
-    if (currentIds !== newIds || !hydrationComplete) {
-      console.log("🔄 Syncing blocks - parent has:", blocks.length, "internal has:", internalBlocks.length);
+    if (currentSignature !== newSignature || !hydrationComplete) {
+      console.log("🔄 Syncing blocks - content changed. Parent:", blocks.length, "Internal:", internalBlocks.length);
+      console.log("📋 Content signatures differ:", {
+        current: currentSignature.slice(0, 100) + '...',
+        new: newSignature.slice(0, 100) + '...'
+      });
       
       // Create deep copy to prevent reference issues
       const hydratedBlocks = blocks.map(block => {

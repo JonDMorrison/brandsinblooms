@@ -33,7 +33,11 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
           fontFamily: block.fontFamily || 'inherit'
         }}
         dangerouslySetInnerHTML={{ 
-          __html: block.content || '<p>Add text content</p>' 
+          __html: (() => {
+            // Prioritize non-empty content from either field
+            const content = block.content || block.body || '';
+            return content || '<p>Add text content</p>';
+          })()
         }}
       />
     </div>
