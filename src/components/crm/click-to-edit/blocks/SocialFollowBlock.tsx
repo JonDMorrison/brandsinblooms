@@ -22,6 +22,8 @@ interface SocialPlatform {
 }
 
 export const SocialFollowBlock: React.FC<SocialFollowBlockProps> = ({ block, onUpdate, isPreview }) => {
+  const headline = block.headline || '';
+  const body = block.body || '';
   const socialLinks = block.socialLinks || {
     facebook: { enabled: false, url: '' },
     twitter: { enabled: false, url: '' },
@@ -75,6 +77,16 @@ export const SocialFollowBlock: React.FC<SocialFollowBlockProps> = ({ block, onU
         alignment === 'center' && "text-center",
         alignment === 'right' && "text-right"
       )}>
+        {headline && (
+          <h3 className="text-xl font-semibold mb-2 text-foreground">
+            {headline}
+          </h3>
+        )}
+        {body && (
+          <div className="mb-4 text-muted-foreground leading-relaxed">
+            {body}
+          </div>
+        )}
         <div className={cn(
           "flex gap-4",
           alignment === 'center' && "justify-center",
@@ -104,6 +116,27 @@ export const SocialFollowBlock: React.FC<SocialFollowBlockProps> = ({ block, onU
 
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="headline">Headline</Label>
+          <Input
+            id="headline"
+            value={headline}
+            onChange={(e) => onUpdate({ headline: e.target.value })}
+            placeholder="Enter headline (optional)"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="body">Body Text</Label>
+          <Input
+            id="body"
+            value={body}
+            onChange={(e) => onUpdate({ body: e.target.value })}
+            placeholder="Enter body text (optional)"
+          />
+        </div>
+      </div>
+
       <div className="space-y-4">
         <Label>Social Platforms</Label>
         {Object.entries(platforms).map(([platform, { icon: Icon, label }]) => (

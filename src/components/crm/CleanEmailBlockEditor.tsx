@@ -217,8 +217,10 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       const hydratedBlocks = blocks.map(block => {
         const hydratedBlock = {
           ...block,
-          // Ensure all required fields are present with fallbacks
-          title: block.title || block.headline || 'Untitled',
+          // Normalize field names for consistency across the app
+          headline: block.headline || block.heading || block.title || '',
+          body: block.body || block.content || '',
+          title: block.title || block.headline || block.heading || 'Untitled',
           content: block.content || block.body || '',
           imageUrl: block.imageUrl || '',
           altText: block.altText || '',

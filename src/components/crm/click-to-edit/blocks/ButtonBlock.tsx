@@ -14,6 +14,8 @@ interface ButtonBlockProps {
 }
 
 export const ButtonBlock: React.FC<ButtonBlockProps> = ({ block, onUpdate, isPreview }) => {
+  const headline = block.headline || '';
+  const body = block.body || '';
   const buttonText = block.buttonText || 'Click Here';
   const buttonUrl = block.buttonUrl || '#';
   const alignment = block.textAlign || 'center';
@@ -41,6 +43,16 @@ export const ButtonBlock: React.FC<ButtonBlockProps> = ({ block, onUpdate, isPre
         alignment === 'center' && "text-center",
         alignment === 'right' && "text-right"
       )}>
+        {headline && (
+          <h3 className="text-xl font-semibold mb-2 text-foreground">
+            {headline}
+          </h3>
+        )}
+        {body && (
+          <div className="mb-4 text-muted-foreground leading-relaxed">
+            {body}
+          </div>
+        )}
         <Button
           asChild
           className={cn(
@@ -62,6 +74,27 @@ export const ButtonBlock: React.FC<ButtonBlockProps> = ({ block, onUpdate, isPre
 
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="headline">Headline</Label>
+          <Input
+            id="headline"
+            value={headline}
+            onChange={(e) => onUpdate({ headline: e.target.value })}
+            placeholder="Enter headline (optional)"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="body">Body Text</Label>
+          <Input
+            id="body"
+            value={body}
+            onChange={(e) => onUpdate({ body: e.target.value })}
+            placeholder="Enter body text (optional)"
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="buttonText">Button Text</Label>
