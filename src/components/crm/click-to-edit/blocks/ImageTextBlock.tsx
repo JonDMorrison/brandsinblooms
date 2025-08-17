@@ -124,21 +124,33 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
             />
           )}
           
-          {block.imageUrl ? (
-            <img 
-              src={block.imageUrl}
-              alt={block.altText || 'Content image'}
-              className="w-full h-auto rounded-lg"
-              onClick={(e) => e.stopPropagation()} // Prevent parent click handler
-            />
-          ) : (
-            <div 
-              className="w-full h-48 bg-muted rounded-lg flex items-center justify-center"
-              onClick={(e) => e.stopPropagation()} // Prevent parent click handler
-            >
-              <span className="text-muted-foreground">Click Edit Image to add</span>
-            </div>
-          )}
+          {(() => {
+            // Derive image source from multiple possible locations
+            const imageSrc = block.imageUrl || 
+                           (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) || 
+                           '';
+            
+            return imageSrc ? (
+              <img 
+                src={imageSrc}
+                alt={block.altText || 'Content image'}
+                className="w-full h-auto rounded-lg"
+                onClick={(e) => e.stopPropagation()} // Prevent parent click handler
+              />
+            ) : (
+              <div 
+                className="w-full h-48 bg-muted rounded-lg flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onModeChange) {
+                    handleModeClick('image', e);
+                  }
+                }}
+              >
+                <span className="text-muted-foreground">Click to add image</span>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

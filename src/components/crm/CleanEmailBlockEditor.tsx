@@ -222,8 +222,13 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           body: block.body || block.content || '',
           title: block.title || block.headline || block.heading || 'Untitled',
           content: block.content || block.body || '',
-          imageUrl: block.imageUrl || '',
-          altText: block.altText || '',
+          // Lift nested imageUrl to top level if missing at top level
+          imageUrl: block.imageUrl || 
+                   (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) || 
+                   '',
+          altText: block.altText || 
+                  (typeof block.content === 'object' && block.content && (block.content as any).altText) || 
+                  '',
           buttonText: block.buttonText || block.ctaText || '',
           buttonUrl: block.buttonUrl || block.ctaUrl || '',
           visible: block.visible !== false,

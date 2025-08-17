@@ -718,9 +718,25 @@ cleanUrl();
                 // Find all blocks that need images (limit to first 3)
                 const imageBlocks = crmBlocks
                   .map((block, index) => ({ block, index }))
-                  .filter(({ block }) => 
-                    (block.type === 'image' || block.type === 'image-text' || block.type === 'header') && !block.imageUrl
-                  )
+                  .filter(({ block }) => {
+                    // Original logic for image and image-text blocks
+                    const hasImageType = (block.type === 'image' || block.type === 'image-text' || block.type === 'header');
+                    
+                    // New logic for image-centric layouts
+                    const hasImageCentricLayout = block.layout && (
+                      block.layout === 'image-left' || 
+                      block.layout === 'image-right' || 
+                      block.layout === 'two-column-left' || 
+                      block.layout === 'two-column-right'
+                    );
+                    
+                    // Check if block has text content but no image
+                    const hasTextContent = (block.title || block.headline || block.content || block.body);
+                    const needsImage = !block.imageUrl && 
+                                     !(typeof block.content === 'object' && block.content && (block.content as any).imageUrl);
+                    
+                    return (hasImageType || (hasImageCentricLayout && hasTextContent)) && needsImage;
+                  })
                   .slice(0, 3);
                 
                 console.log(`📸 [Images] Found ${imageBlocks.length} blocks needing images`);
