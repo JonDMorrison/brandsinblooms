@@ -134,12 +134,14 @@ const getSubtopicForBlock = (campaignTitle: string, blockIndex: number): string 
   return genericSubtopics[blockIndex % genericSubtopics.length];
 };
 
-// Enhanced block prompt creation with post-type variety
+// Enhanced block prompt creation with post-type variety and cross-block awareness
 const createBlockPrompt = (
   block: ContentBlock, 
   campaignTitle: string, 
   campaignDescription: string, 
-  blockIndex: number
+  blockIndex: number,
+  previousBlocks: ContentBlock[] = [],
+  totalBlocks: number = 1
 ): string => {
   const postType = POST_TYPE_ROTATION[blockIndex % POST_TYPE_ROTATION.length];
   const subtopic = getSubtopicForBlock(campaignTitle, blockIndex);
@@ -218,8 +220,7 @@ const generatePreheaderText = (content: string, campaignName: string): string =>
   if (lowerContent.includes('care') || lowerCampaign.includes('care')) {
     return 'Expert care tips for thriving plants and gardens';
   }
-  
-  // Seasonal defaults
+
   if (lowerContent.includes('summer')) {
     return 'Summer gardening tips to keep your plants thriving in the heat';
   }
@@ -229,6 +230,22 @@ const generatePreheaderText = (content: string, campaignName: string): string =>
   }
   
   return 'Expert gardening tips delivered to your inbox';
+};
+
+// Auto-fill header with campaign title for new newsletters
+const autoFillHeaderTitle = (blocks: ContentBlock[], campaignTitle: string): ContentBlock[] => {
+  if (!campaignTitle || campaignTitle === 'Newsletter Campaign') return blocks;
+  
+  return blocks.map(block => {
+    if (block.type === 'header' && (!block.title || block.title === 'Campaign Title' || block.title === '')) {
+      return {
+        ...block,
+        title: campaignTitle,
+        headline: campaignTitle
+      };
+    }
+    return block;
+  });
 };
 
 interface CRMCampaignCreatorProps {
@@ -531,11 +548,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               return block;
             }
             
-            const blockPrompt = createBlockPrompt(block, topic.trim(), '', blocks.indexOf(block));
+            const currentIndex = blocks.indexOf(block);
+            const previousBlocks = blocks.slice(0, currentIndex).filter(b => b.type !== 'header' && b.type !== 'divider');
+            
             const payload = {
-              prompt: blockPrompt,
+              prompt: `Create newsletter content for: ${topic.trim()}`,
               type: 'email_block',
-              postType: 'newsletter'
+              postType: 'newsletter',
+              campaignTitle: topic.trim(),
+              campaignContext: '',
+              blockIndex: currentIndex,
+              previousBlocks,
+              totalBlocks: blocks.length
             };
             
             console.log('[AI] auto-enhance invoke for block:', { blockId: block.id, payload });
@@ -698,19 +722,22 @@ cleanUrl();
                       return block;
                     }
 
-                    // Create topic-specific prompt for this block
-                    const blockPrompt = createBlockPrompt(block, selectedIdea.title || 'Newsletter Campaign', selectedIdea.description || '', index);
-                    
                     try {
                       console.log(`🔄 Generating AI content for block ${index + 1}: ${block.type}`);
                       
                       const postType = POST_TYPE_ROTATION[index % POST_TYPE_ROTATION.length];
+                      const previousBlocks = crmBlocks.slice(0, index).filter(b => b.type !== 'header' && b.type !== 'divider');
                       
                       const response = await supabase.functions.invoke('generate-email-content', {
                         body: { 
-                          prompt: blockPrompt,
+                          prompt: `Create newsletter content for: ${selectedIdea.title}`,
                           type: 'email_block',
-                          postType: postType
+                          postType: postType,
+                          campaignTitle: selectedIdea.title || 'Newsletter Campaign',
+                          campaignContext: selectedIdea.description || '',
+                          blockIndex: index,
+                          previousBlocks,
+                          totalBlocks: crmBlocks.length
                         }
                       });
 
@@ -745,7 +772,7 @@ cleanUrl();
                 );
 
                 console.log(`✅ Enhanced ${enhancedBlocks.length} blocks with AI content`);
-                crmBlocks = enhancedBlocks;
+                crmBlocks = autoFillHeaderTitle(enhancedBlocks, selectedIdea.title || 'Newsletter Campaign');
                 
               } catch (enhancementError) {
                 console.error('❌ Block enhancement failed, using template blocks:', enhancementError);

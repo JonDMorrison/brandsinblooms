@@ -14,7 +14,18 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, persona, type, personas = [], postType } = await req.json();
+    const { 
+      prompt, 
+      persona, 
+      type, 
+      personas = [], 
+      postType,
+      campaignTitle = '',
+      campaignContext = '',
+      blockIndex = 0,
+      previousBlocks = [],
+      totalBlocks = 1
+    } = await req.json();
 
     // Get OpenAI API key
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -65,6 +76,73 @@ serve(async (req) => {
       `\n\nAudience insights: This campaign is targeted toward the following customer personas: ${formattedPersonas}. Write with empathy and clarity to resonate with these profiles. Ensure relevance, tone, and examples match their goals and challenges.` : 
       personaContext;
 
+    // Create campaign context for enhanced prompts
+    const getCampaignSpecificContext = (title: string): string => {
+      const lowerTitle = title.toLowerCase();
+      
+      if (lowerTitle.includes('hydrangea')) {
+        const hydrangeaSubtopics = [
+          'August planting and site selection for hydrangeas',
+          'Soil pH testing and color management techniques', 
+          'Late summer pruning guidelines by hydrangea type',
+          'Watering and fertilizing during August heat',
+          'Preparing hydrangeas for fall blooming season'
+        ];
+        const subtopic = hydrangeaSubtopics[blockIndex % hydrangeaSubtopics.length];
+        
+        return `
+CAMPAIGN FOCUS: August Hydrangea Care Month
+SPECIFIC SUBTOPIC: ${subtopic}
+CONTEXT: This is block ${blockIndex + 1} of ${totalBlocks} in a cohesive newsletter about hydrangea care in August.
+
+KEY INFORMATION FOR AUGUST HYDRANGEAS:
+- Peak deadheading and pruning time
+- Color management through soil pH (acidic = blue, alkaline = pink)
+- Heat stress prevention and proper watering
+- Late summer feeding for next year's blooms
+- Variety selection for different garden zones`;
+      }
+      
+      if (lowerTitle.includes('rose')) {
+        const roseSubtopics = [
+          'August rose care and disease prevention',
+          'Late summer pruning and deadheading techniques',
+          'Rose varieties for continuous blooming',
+          'Soil preparation for fall rose planting'
+        ];
+        const subtopic = roseSubtopics[blockIndex % roseSubtopics.length];
+        return `
+CAMPAIGN FOCUS: Rose Care and Management
+SPECIFIC SUBTOPIC: ${subtopic}
+CONTEXT: This is block ${blockIndex + 1} of ${totalBlocks} focusing on roses.`;
+      }
+      
+      return `
+CAMPAIGN FOCUS: ${title}
+CONTEXT: This is block ${blockIndex + 1} of ${totalBlocks} in the campaign.
+${campaignContext ? `ADDITIONAL CONTEXT: ${campaignContext}` : ''}`;
+    };
+
+    // Build narrative context from previous blocks
+    const getPreviousBlocksContext = (): string => {
+      if (!previousBlocks || previousBlocks.length === 0) {
+        return '';
+      }
+      
+      const previousContent = previousBlocks
+        .map((block, idx) => `Block ${idx + 1}: ${block.title || 'Untitled'} - ${(block.content || block.body || '').substring(0, 100)}...`)
+        .join('\n');
+      
+      return `
+PREVIOUS BLOCKS IN THIS NEWSLETTER:
+${previousContent}
+
+NARRATIVE FLOW REQUIREMENT: Build upon the previous content to create a cohesive story. Avoid repeating information already covered. Each block should add new value while maintaining thematic consistency.`;
+    };
+
+    const campaignSpecificContext = getCampaignSpecificContext(campaignTitle);
+    const narrativeContext = getPreviousBlocksContext();
+
     // Get post-type specific instructions
     const getPostTypeInstructions = (postType: string): string => {
       const instructions = {
@@ -83,16 +161,27 @@ serve(async (req) => {
          Create compelling, actionable email content blocks that drive engagement and conversions.
          ${personaInsights}
          
+         ${campaignSpecificContext}
+         ${narrativeContext}
+         
          ${postType ? `CONTENT STYLE: ${postType.toUpperCase()}
          STYLE INSTRUCTIONS: ${getPostTypeInstructions(postType)}
          
          CRITICAL: Write in the ${postType} content style throughout. This affects tone, structure, and formatting.` : ''}
          
+         CONTENT REQUIREMENTS:
+         - Mention specific plant varieties, techniques, or products when relevant
+         - Include actionable advice readers can implement immediately  
+         - Use seasonal timing and urgency appropriate for the current context
+         - Avoid generic phrases like "latest updates" or "this week's newsletter"
+         - Each block must add unique value and avoid repetition with previous blocks
+         - Maintain consistent voice and expertise throughout the campaign
+         
          Return your response as JSON with these fields:
-         - title: A compelling headline (max 60 characters)
-         - content: Main body content (2-3 paragraphs, engaging and informative)
+         - title: A compelling, specific headline (max 60 characters) that mentions the key topic
+         - content: Main body content (2-3 paragraphs, engaging and informative with specific details)
          - cta_text: Call-to-action button text (max 25 characters)
-         - cta_url: Suggested URL path (can be placeholder like "/shop/tools")
+         - cta_url: Suggested URL path (can be placeholder like "/shop/hydrangeas" or "/care-guides")
          
          Make it conversion-focused, seasonally appropriate, and valuable to garden enthusiasts.`
       : `You are a helpful content generator. Create content based on the user's request.${personaInsights}`;

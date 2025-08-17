@@ -259,6 +259,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
             canMoveUp={index > 0}
             canMoveDown={index < blocks.length - 1}
             isGenerating={generatingBlocks.has(block.id)}
+            allBlocks={blocks}
           >
             {{
               preview: renderBlockPreview(block),

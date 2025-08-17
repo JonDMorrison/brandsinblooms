@@ -10,12 +10,16 @@ interface RegenerateBlockButtonProps {
   block: ContentBlock;
   campaignName?: string;
   onUpdate: (updatedBlock: ContentBlock) => void;
+  allBlocks?: ContentBlock[];
+  blockIndex?: number;
 }
 
 export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
   block,
   campaignName,
-  onUpdate
+  onUpdate,
+  allBlocks = [],
+  blockIndex = 0
 }) => {
   const [regenerating, setRegenerating] = useState(false);
   const { toast } = useToast();
@@ -27,16 +31,17 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
     
     try {
       const topic = campaignName || block.title || 'Newsletter';
-      const prompt = `Create email content for a garden center newsletter about "${topic}". 
-Return ONLY a JSON object with keys: title, content, cta_text, cta_url. 
-Do not use markdown code fences or any additional text outside the JSON.
-Make the copy specific, actionable, and valuable for garden center customers.
-Write in a professional tone with practical advice they can use immediately.`;
+      const previousBlocks = allBlocks.slice(0, blockIndex).filter(b => b.type !== 'header' && b.type !== 'divider');
 
       const payload = {
-        prompt,
+        prompt: `Regenerate content for: ${topic}`,
         type: 'email_block',
-        postType: 'newsletter'
+        postType: 'newsletter',
+        campaignTitle: topic,
+        campaignContext: '',
+        blockIndex,
+        previousBlocks,
+        totalBlocks: allBlocks.length
       };
 
       console.log('[AI] regenerate block invoke:', { blockId: block.id, payload });

@@ -22,6 +22,7 @@ interface ClickToEditBlockProps {
   canMoveDown: boolean;
   isGenerating?: boolean;
   campaignName?: string;
+  allBlocks?: ContentBlock[];
   children: {
     preview: React.ReactNode;
     editor: React.ReactNode;
@@ -39,6 +40,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   canMoveDown,
   isGenerating = false,
   campaignName,
+  allBlocks = [],
   children
 }) => {
   const [localBlock, setLocalBlock] = useState<ContentBlock>(block);
@@ -186,6 +188,8 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
               block={localBlock}
               campaignName={campaignName}
               onUpdate={(updatedBlock) => handleLocalUpdate(updatedBlock)}
+              allBlocks={allBlocks}
+              blockIndex={index}
             />
           </div>
         </>
