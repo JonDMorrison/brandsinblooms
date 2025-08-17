@@ -1,7 +1,54 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildCompanyContext, buildNewsletterPrompt } from '../generate-newsletter/prompt-builder.ts';
+
+// Inline interfaces and functions to avoid cross-function imports
+interface CompanyProfile {
+  company_name?: string;
+  company_overview?: string;
+  brand_voice?: string;
+  tone_of_writing?: string;
+  target_audience?: string;
+  ideal_customer?: string;
+  unique_selling_points?: string;
+  company_values?: string;
+  seasonal_focus?: string;
+  specializations?: string;
+  location_info?: string;
+}
+
+const buildCompanyContext = (companyProfile: CompanyProfile | null): string => {
+  if (companyProfile) {
+    return `
+COMPANY PROFILE:
+Company Name: ${companyProfile.company_name || 'Garden Center'}
+Overview: ${companyProfile.company_overview || ''}
+Brand Voice: ${companyProfile.brand_voice || ''}
+Tone of Writing: ${companyProfile.tone_of_writing || ''}
+Target Audience: ${companyProfile.target_audience || ''}
+Ideal Customer: ${companyProfile.ideal_customer || ''}
+Unique Selling Points: ${companyProfile.unique_selling_points || ''}
+Company Values: ${companyProfile.company_values || ''}
+Seasonal Focus: ${companyProfile.seasonal_focus || ''}
+Specializations: ${companyProfile.specializations || ''}
+Location Info: ${companyProfile.location_info || ''}
+
+REGIONAL NEWSLETTER FOCUS:
+- Use the Location Info to create content highly specific to their geographic region and climate
+- Reference local growing seasons, weather patterns, and gardening calendars specific to their area
+- Include region-appropriate plant recommendations and gardening advice
+- Consider local hardiness zones, frost dates, and seasonal timing for their specific location
+- Address regional gardening challenges (drought, humidity, snow, heat, soil conditions, local pests)
+- Reference local gardening culture, preferences, and community events when appropriate
+- Use seasonal timing advice that's accurate for their specific climate zone
+- Include locally-relevant tips that would resonate with gardeners in their specific region
+
+IMPORTANT: Use this company information to personalize the newsletter with highly location-specific content that reflects their specific geographic region, local climate, and regional gardening conditions.
+`;
+  } else {
+    return '';
+  }
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
