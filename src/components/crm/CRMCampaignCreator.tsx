@@ -1377,15 +1377,15 @@ cleanUrl();
       switch (block.type) {
         case 'header':
           const headerAlign = block.textAlign || 'center';
-          const headerOpacity = block.colorOverlayOpacity !== undefined ? block.colorOverlayOpacity / 100 : 0.5;
+          const headerOpacity = block.backgroundOpacity || 0.4;
           html += `
             <div style="position: relative; text-align: ${headerAlign}; padding: 40px 20px; margin: 20px 0; border-radius: 8px; overflow: hidden;
                         ${block.backgroundImageUrl ? `background-image: url(${block.backgroundImageUrl}); background-size: cover; background-position: center;` : ''}
-                        ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : 'background: linear-gradient(135deg, #22c55e, #16a34a);'}">
-              ${block.backgroundColor && block.backgroundImageUrl ? `<div style="position: absolute; inset: 0; background-color: ${block.backgroundColor}; opacity: ${headerOpacity};"></div>` : ''}
-              <div style="position: relative; z-index: 10; color: ${block.textColor || 'white'};">
-                <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || 'white'};">${block.headline || 'Your Headline Here'}</h1>
-                ${block.body ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || 'white'};">${block.body}</div>` : ''}
+                        ${!block.backgroundImageUrl ? `background-color: ${block.backgroundColor || '#1f2937'};` : ''}">
+              ${block.backgroundImageUrl ? `<div style="position: absolute; inset: 0; background-color: ${block.backgroundColor || '#000000'}; opacity: ${headerOpacity};"></div>` : ''}
+              <div style="position: relative; z-index: 10;">
+                <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline || 'Your Headline Here'}</h1>
+                ${block.body ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.body}</div>` : ''}
               </div>
             </div>
           `;

@@ -71,28 +71,34 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
         </CardHeader>
         <CardContent className="p-0">
           <div 
-            className="relative min-h-[120px] flex items-center justify-center text-white"
+            className="relative min-h-[120px] flex items-center justify-center"
             style={{
               backgroundImage: block.backgroundImageUrl ? `url(${block.backgroundImageUrl})` : undefined,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
+              backgroundColor: block.backgroundImageUrl ? 'transparent' : (block.backgroundColor || '#1f2937'),
             }}
           >
             {block.backgroundImageUrl && (
               <div 
-                className="absolute inset-0 bg-black"
-                style={{ opacity: block.backgroundOpacity || 0.4 }}
+                className="absolute inset-0"
+                style={{ 
+                  backgroundColor: block.backgroundColor || '#000000',
+                  opacity: block.backgroundOpacity || 0.4 
+                }}
               />
             )}
             <div 
               className={`relative z-10 p-6 text-${block.alignment || 'center'} w-full`}
-              style={{ backgroundColor: block.backgroundImageUrl ? 'transparent' : (block.backgroundColor || '#1f2937') }}
+              style={{ 
+                color: block.textColor || '#ffffff'
+              }}
             >
-              <h1 className="text-2xl font-bold mb-2">
+              <h1 className="text-2xl font-bold mb-2" style={{ color: block.textColor || '#ffffff' }}>
                 {block.headline || 'Your Header Title'}
               </h1>
               {block.body && (
-                <div className="text-sm opacity-90 leading-relaxed">
+                <div className="text-sm opacity-90 leading-relaxed" style={{ color: block.textColor || '#ffffff' }}>
                   {block.body}
                 </div>
               )}
@@ -136,6 +142,17 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
             ]}
           />
         </div>
+
+        <div>
+          <Label htmlFor="textColor">Text Color</Label>
+          <Input
+            id="textColor"
+            type="color"
+            value={block.textColor || '#ffffff'}
+            onChange={(e) => updateField('textColor', e.target.value)}
+            className="h-10 w-full"
+          />
+        </div>
       </div>
 
       {/* Advanced Options */}
@@ -175,7 +192,9 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="opacity">Background Opacity</Label>
+            <Label htmlFor="opacity">
+              {block.backgroundImageUrl ? 'Overlay Opacity' : 'Background Opacity'}
+            </Label>
             <div className="px-3">
               <Slider
                 value={[block.backgroundOpacity || 0.4]}
@@ -187,7 +206,7 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
               />
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {Math.round((block.backgroundOpacity || 0.4) * 100)}% {block.backgroundImageUrl ? 'overlay' : 'opacity'}
+              {Math.round((block.backgroundOpacity || 0.4) * 100)}% {block.backgroundImageUrl ? 'overlay darkness' : 'background opacity'}
             </div>
           </div>
 
