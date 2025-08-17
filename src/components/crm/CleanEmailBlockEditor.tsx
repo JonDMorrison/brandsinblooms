@@ -423,28 +423,6 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         campaignName={campaignName}
       />
 
-      {/* Empty State */}
-      {internalBlocks.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Plus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-medium mb-2">Start building your email</h3>
-            <p className="text-muted-foreground mb-4">
-              Choose from professional layouts to create engaging content blocks.
-            </p>
-            <Button 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('Choose Layout button clicked');
-                openAddModal();
-              }}
-            >
-              Choose Layout
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Block Layout Modal */}
       <BlockLayoutModal
