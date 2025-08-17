@@ -71,7 +71,48 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
     return baseBlock;
   });
   
-  console.log(`[NewsletterInit] Generated ${blocks.length} blocks for "${topic}" (layout: ${layout})`);
+  // For block-builder layout, ensure minimum of 5 blocks (1 header + 4 content)
+  if (layout === 'block-builder') {
+    const MIN_CONTENT_BLOCKS = 4;
+    const headerBlocks = blocks.filter(b => b.type === 'header');
+    const contentBlocks = blocks.filter(b => b.type !== 'header');
+    
+    if (contentBlocks.length < MIN_CONTENT_BLOCKS) {
+      const missingCount = MIN_CONTENT_BLOCKS - contentBlocks.length;
+      const defaultTitles = ['Featured Story', 'Main Article', 'Seasonal Spotlight', 'Tips & How-To'];
+      
+      console.log(`[NewsletterInit] Adding ${missingCount} blocks to reach minimum ${MIN_CONTENT_BLOCKS} content blocks`);
+      
+      for (let i = 0; i < missingCount; i++) {
+        const titleIndex = contentBlocks.length + i;
+        const title = defaultTitles[titleIndex] || `Content Section ${titleIndex + 1}`;
+        
+        const newBlock: ContentBlock = {
+          id: `block_${Date.now()}_${blocks.length + i}`,
+          type: 'image-text',
+          title: title,
+          content: '',
+          headline: title,
+          body: '',
+          imageUrl: '',
+          ctaText: '',
+          ctaUrl: '',
+          source: 'newsletter',
+          personaTag: 'general',
+          layout: 'image-left',
+          alignment: 'left',
+          textAlign: 'left',
+          padding: 'medium',
+          visible: true,
+          collapsed: false
+        };
+        
+        blocks.push(newBlock);
+      }
+    }
+  }
+  
+  console.log(`[NewsletterInit] Final block count after template conversion: ${blocks.length} blocks for "${topic}" (layout: ${layout})`);
   return blocks;
 };
 
