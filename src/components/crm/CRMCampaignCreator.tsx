@@ -566,6 +566,11 @@ cleanUrl();
     }
   }, [bundleIdParam, bundleQuery.data, bundleQuery.isLoading, blocks.length, searchParams, toast]);
 
+  // Guard flags to prevent multiple processing runs
+  const processedTemplateRef = useRef<string | null>(null);
+  const processedExistingCampaignRef = useRef<string | null>(null);
+  const processedContentTaskRef = useRef<string | null>(null);
+
   // Check for existing campaign and load session data
   useEffect(() => {
     const checkExistingCampaign = async () => {
@@ -577,7 +582,16 @@ cleanUrl();
       const source = searchParams.get('source');
       
       if (templateId && source === 'picker') {
+        // Guard: Only process template once
+        const templateKey = `${templateId}-${layout}-${source}`;
+        if (processedTemplateRef.current === templateKey) {
+          console.log('🚫 Template already processed, skipping:', templateKey);
+          return;
+        }
+        
         console.log('🎨 Processing newsletter template:', { templateId, layout });
+        processedTemplateRef.current = templateKey;
+        
         try {
           setLoading(true);
           
@@ -814,7 +828,14 @@ cleanUrl();
         console.log('🔍 CRMCampaignCreator: Checking campaign slug', { campaignSlug, isValidUUID });
         
         if (isValidUUID) {
+          // Guard: Only process existing campaign once
+          if (processedExistingCampaignRef.current === campaignSlug) {
+            console.log('🚫 Existing campaign already processed, skipping:', campaignSlug);
+            return;
+          }
+          
           console.log('🔄 Loading existing campaign by UUID:', campaignSlug);
+          processedExistingCampaignRef.current = campaignSlug;
           setLoadingExistingCampaign(true);
           try {
             await loadExistingCampaign(campaignSlug);
@@ -839,6 +860,13 @@ cleanUrl();
 
       const contentTaskId = finalContentTaskId;
       if (!contentTaskId) return;
+
+      // Guard: Only process content task once
+      if (processedContentTaskRef.current === contentTaskId) {
+        console.log('🚫 Content task already processed, skipping:', contentTaskId);
+        return;
+      }
+      processedContentTaskRef.current = contentTaskId;
 
       setLoadingExistingCampaign(true);
       try {
@@ -883,7 +911,7 @@ cleanUrl();
     };
 
     checkExistingCampaign();
-  }, [searchParams, finalContentTaskId, campaignSlug, converting, blocks.length]);
+  }, [searchParams.get('templateId'), searchParams.get('layout'), searchParams.get('source'), finalContentTaskId, campaignSlug]);
 
   // Additional useEffect to monitor blocks changes
   useEffect(() => {

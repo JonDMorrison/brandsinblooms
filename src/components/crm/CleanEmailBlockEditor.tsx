@@ -407,8 +407,8 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     onBlocksChange(newBlocks);
   };
 
-  // Show loading only when blocks are being loaded but hydration isn't complete
-  const isInitialLoading = (blocks.length > 0 && !hydrationComplete) || (blocks.length > 0 && internalBlocks.length === 0);
+  // Show loading only during initial load, not for subsequent updates
+  const isInitialLoading = blocks.length === 0 || (!hydrationComplete && internalBlocks.length === 0);
   if (isInitialLoading) {
     console.log("🔄 Showing loading state - parent blocks:", blocks.length, "internal:", internalBlocks.length, "hydration:", hydrationComplete);
     return (
@@ -416,7 +416,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         <Card>
           <CardContent className="py-8 text-center">
             <div className="animate-spin h-8 w-8 mx-auto mb-4 border-2 border-primary border-t-transparent rounded-full"></div>
-            <p className="text-muted-foreground">Hydrating content blocks...</p>
+            <p className="text-muted-foreground">Loading email builder...</p>
           </CardContent>
         </Card>
       </div>
