@@ -692,75 +692,68 @@ cleanUrl();
             
             setBlocks(crmBlocks);
             
-            // Generate and auto-fill images based on heroQuery and block content
-            if (selectedIdea.heroQuery && crmBlocks.length > 0) {
-              setTimeout(async () => {
-                try {
-                  console.log('🖼️ Fetching images for newsletter blocks...');
-                  
-                  // Find all blocks that need images
-                  const imageBlocks = crmBlocks
-                    .map((block, index) => ({ block, index }))
-                    .filter(({ block }) => 
-                      block.type === 'image' || block.type === 'image-text' || block.type === 'header'
-                    );
-                  
-                  if (imageBlocks.length > 0) {
-                    // Fetch hero image for the first image block
-                    const { data: heroImageData } = await supabase.functions.invoke('get-unsplash-image', {
-                      body: { query: selectedIdea.heroQuery }
-                    });
+            // Always generate and auto-fill images for template-picked newsletters
+            setTimeout(async () => {
+              try {
+                console.log('🖼️ Fetching images for newsletter blocks...');
+                
+                // Generate primary search query (prefer heroQuery, fallback to title/description)
+                const primaryQuery = selectedIdea.heroQuery || selectedIdea.title || selectedIdea.description || 'garden';
+                console.log(`🔍 Using primary query: "${primaryQuery}"`);
+                
+                // Find all blocks that need images (limit to first 3)
+                const imageBlocks = crmBlocks
+                  .map((block, index) => ({ block, index }))
+                  .filter(({ block }) => 
+                    (block.type === 'image' || block.type === 'image-text' || block.type === 'header') && !block.imageUrl
+                  )
+                  .slice(0, 3);
+                
+                console.log(`📸 [Images] Found ${imageBlocks.length} blocks needing images`);
+                
+                for (let i = 0; i < imageBlocks.length; i++) {
+                  try {
+                    const blockInfo = imageBlocks[i];
                     
-                    if (heroImageData?.urls?.regular && imageBlocks[0]) {
+                    // Use primary query for first block, variations for others
+                    let searchQuery = primaryQuery;
+                    if (i === 1) searchQuery = `${primaryQuery} gardening plants`;
+                    if (i === 2) searchQuery = `${primaryQuery} garden tools tips`;
+                    
+                    console.log(`🔍 Fetching image ${i + 1} for block ${blockInfo.index} with query: "${searchQuery}"`);
+                    
+                    const imageData = await fetchSmartImage(searchQuery, '', true);
+                    
+                    if (imageData?.url) {
                       setBlocks(prev => prev.map((block, index) => 
-                        index === imageBlocks[0].index
+                        index === blockInfo.index
                           ? { 
                               ...block, 
-                              imageUrl: heroImageData.urls.regular, 
-                              altText: heroImageData.alt_description || selectedIdea.title 
+                              imageUrl: imageData.url, 
+                              altText: imageData.alt || `${selectedIdea.title} content` 
                             }
                           : block
                       ));
-                      console.log(`🖼️ Applied hero image to block ${imageBlocks[0].index}`);
+                      console.log(`✅ Applied image to block ${blockInfo.index}`);
+                    } else {
+                      console.warn(`⚠️ No image data returned for block ${blockInfo.index}`);
                     }
                     
-                    // Fetch additional images for other image blocks
-                    if (imageBlocks.length > 1) {
-                      for (let i = 1; i < Math.min(imageBlocks.length, 3); i++) {
-                        try {
-                          const blockInfo = imageBlocks[i];
-                          const searchQuery = `${selectedIdea.title} gardening plants garden center`;
-                          
-                          const { data: blockImageData } = await supabase.functions.invoke('get-unsplash-image', {
-                            body: { query: searchQuery }
-                          });
-                          
-                          if (blockImageData?.urls?.regular) {
-                            setBlocks(prev => prev.map((block, index) => 
-                              index === blockInfo.index
-                                ? { 
-                                    ...block, 
-                                    imageUrl: blockImageData.urls.regular, 
-                                    altText: blockImageData.alt_description || `${selectedIdea.title} content` 
-                                  }
-                                : block
-                            ));
-                            console.log(`🖼️ Applied additional image to block ${blockInfo.index}`);
-                          }
-                          
-                          // Add delay between requests to avoid rate limiting
-                          await new Promise(resolve => setTimeout(resolve, 500));
-                        } catch (error) {
-                          console.error(`Failed to fetch image for block ${i}:`, error);
-                        }
-                      }
+                    // Add delay between requests to avoid rate limiting
+                    if (i < imageBlocks.length - 1) {
+                      await new Promise(resolve => setTimeout(resolve, 500));
                     }
+                  } catch (error) {
+                    console.error(`Failed to fetch image for block ${i}:`, error);
                   }
-                } catch (error) {
-                  console.error('Failed to fetch newsletter images:', error);
                 }
-              }, 1500); // Increased delay to let AI content load first
-            }
+                
+                console.log(`📸 [Images] Applied fallback images: ${imageBlocks.length} of ${crmBlocks.filter(b => b.type === 'image-text' || b.type === 'header').length} image blocks`);
+                
+              } catch (error) {
+                console.error('Failed to fetch newsletter images:', error);
+              }
+            }, 1500); // Increased delay to let AI content load first
             
             toast({
               title: "Template Applied",
