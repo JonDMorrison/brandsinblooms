@@ -40,10 +40,28 @@
     user-select: none;
   }
   
-  /* Scroll behavior */
+  /* Enhanced scroll behavior */
   .scroll-container {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: auto;
+    /* Ensure scrolling works on mobile */
+    overscroll-behavior: contain;
+    /* Prevent scroll from affecting parent */
+    isolation: isolate;
+  }
+  
+  /* Force scrollable areas to be properly scrollable */
+  .scroll-container::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scroll-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
   }
   
   /* Pull to refresh */

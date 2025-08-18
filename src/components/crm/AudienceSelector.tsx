@@ -12,6 +12,7 @@ import { CustomSegmentModal } from "./segments/CustomSegmentModal";
 import { useAllPersonas } from "@/hooks/useAllPersonas";
 import { useAllSegments } from "@/hooks/useAllSegments";
 import { toast } from "@/utils/toast";
+import { useScrollGuard } from "@/hooks/useScrollGuard";
 
 interface Persona {
   id: string;
@@ -53,6 +54,9 @@ export const AudienceSelector = ({
   const [showSegmentModal, setShowSegmentModal] = useState(false);
   const [isStableLoading, setIsStableLoading] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
+  
+  // Prevent scroll locks from persisting
+  useScrollGuard();
 
   // Use existing hooks
   const { personas, loading: personasLoading } = useAllPersonas();
@@ -289,7 +293,7 @@ export const AudienceSelector = ({
             </Button>
           </div>
           
-          <div className="space-y-2 max-h-80 overflow-y-auto border border-border rounded-lg p-3">
+          <div className="space-y-2 max-h-80 overflow-y-auto scroll-container border border-border rounded-lg p-3">
             {filteredPersonas.map((persona) => {
               const isSelected = isPersonaSelected(persona.id);
               const isDisabled = !isSelected && selectedPersonas.length >= maxPersonas;
@@ -368,7 +372,7 @@ export const AudienceSelector = ({
             </Button>
           </div>
           
-          <div className="space-y-2 max-h-80 overflow-y-auto border border-border rounded-lg p-3">
+          <div className="space-y-2 max-h-80 overflow-y-auto scroll-container border border-border rounded-lg p-3">
             {filteredSegments.map((segment) => {
               const mappedSegment: Segment = {
                 id: segment.id,
