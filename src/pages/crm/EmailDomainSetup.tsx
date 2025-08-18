@@ -27,6 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { EmailSendingHelpPanel } from '@/components/crm/email/EmailSendingHelpPanel';
 
 interface DNSRecord {
   type: string;
@@ -48,6 +49,8 @@ const EmailDomainSetup = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [dnsRecords, setDnsRecords] = useState<DNSRecord[]>([]);
   const [emailAuthStatus, setEmailAuthStatus] = useState<'pending' | 'verified' | 'failed'>('pending');
+  const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [isRequestingSetup, setIsRequestingSetup] = useState(false);
 
   useEffect(() => {
     loadCurrentSettings();
@@ -210,11 +213,36 @@ const EmailDomainSetup = () => {
       });
 
       if (error) {
-        // Check if it's a configuration error
-        if (error.message?.includes('RESEND_API_KEY')) {
+        throw error;
+      }
+      
+      toast({ title: 'Success', description: 'Test email sent! Check your inbox.' });
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      toast({ title: 'Error', description: 'Failed to send test email. Please try again.', variant: 'destructive' });
+    }
+  };
+
+  const requestAutomatedSetup = async () => {
+    if (!validateEmail(senderEmail)) {
+      toast({ title: 'Error', description: 'Please enter a valid email address', variant: 'destructive' });
+      return;
+    }
+
+    setIsRequestingSetup(true);
+    const emailDomain = senderEmail.split('@')[1];
+
+    try {
+      const { data, error } = await supabase.functions.invoke('provision-email-domain', {
+        body: { domain: emailDomain, senderEmail }
+      });
+
+      if (error) {
+        // Handle specific error cases
+        if (error.message?.includes('not configured')) {
           toast({ 
-            title: 'Configuration Required', 
-            description: 'Please add RESEND_API_KEY in Supabase Edge Functions → Secrets to send emails.',
+            title: 'Service Configuration Required', 
+            description: 'Our team needs to configure automated setup. Please use manual DNS setup or contact support.',
             variant: 'destructive'
           });
         } else {
@@ -222,11 +250,25 @@ const EmailDomainSetup = () => {
         }
         return;
       }
+
+      toast({ 
+        title: '🎉 Success!', 
+        description: 'Your domain has been automatically configured for email sending!'
+      });
       
-      toast({ title: 'Success', description: 'Test email sent! Check your inbox.' });
+      // Reload the settings to reflect the changes
+      await loadCurrentSettings();
+      setCurrentStep(4);
+      
     } catch (error) {
-      console.error('Error sending test email:', error);
-      toast({ title: 'Error', description: 'Failed to send test email. Please try again.', variant: 'destructive' });
+      console.error('Error requesting automated setup:', error);
+      toast({ 
+        title: 'Setup Failed', 
+        description: 'Automated setup failed. Please try manual DNS configuration or contact support.',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsRequestingSetup(false);
     }
   };
 
@@ -463,27 +505,28 @@ const EmailDomainSetup = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {!senderConfig?.isVerified ? (
-              <Alert className="border-orange-200 bg-orange-50">
-                <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <AlertDescription className="text-orange-800">
+              <Alert className="border-blue-200 bg-blue-50">
+                <AlertTriangle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
                   <div className="space-y-3">
-                    <p className="font-medium">Email Service Configuration Required</p>
+                    <p className="font-medium">Email Sending Setup Options</p>
                     <p className="text-sm">
-                      To send campaigns, you need to configure your email service. Choose one option:
+                      BloomSuite can send emails immediately using our shared service, or you can set up your custom domain for professional branding.
                     </p>
-                    <div className="space-y-2 text-sm">
-                      <p><strong>Option 1 (Recommended):</strong> Set up your custom domain below for professional branding</p>
-                      <p><strong>Option 2:</strong> Add <code className="bg-orange-100 px-1 rounded">RESEND_API_KEY</code> in Supabase Edge Functions → Secrets for quick setup</p>
-                    </div>
-                    <div className="mt-3">
-                      <a 
-                        href="https://supabase.com/dashboard/project/udldmkqwnxhdeztyqcau/settings/functions" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-orange-700 underline hover:text-orange-900"
+                    <div className="flex gap-3 mt-3">
+                      <button
+                        onClick={requestAutomatedSetup}
+                        disabled={!senderEmail || isRequestingSetup}
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        → Configure API Key in Supabase
-                      </a>
+                        {isRequestingSetup ? '⏳ Setting up...' : '⚡ Request Automated Setup'}
+                      </button>
+                      <button
+                        onClick={() => setShowHelpPanel(true)}
+                        className="px-3 py-2 border border-blue-300 text-blue-700 text-sm rounded-lg hover:bg-blue-50 transition-colors"
+                      >
+                        📚 Learn How Sending Works
+                      </button>
                     </div>
                   </div>
                 </AlertDescription>
@@ -576,6 +619,12 @@ const EmailDomainSetup = () => {
           </Button>
         </div>
       </div>
+
+      {/* Help Panel */}
+      <EmailSendingHelpPanel 
+        isOpen={showHelpPanel} 
+        onClose={() => setShowHelpPanel(false)} 
+      />
     </div>
   );
 };
