@@ -263,9 +263,9 @@ const EmailDomainSetup = () => {
           )}
         </Button>
         <Button variant="outline" asChild>
-          <Link to="/crm">
+          <Link to="/settings">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to CRM
+            Back to Settings
           </Link>
         </Button>
       </div>
@@ -428,6 +428,15 @@ const EmailDomainSetup = () => {
           </Link>
         </Button>
       </div>
+      
+      <div className="flex justify-center">
+        <Button variant="ghost" asChild>
+          <Link to="/settings">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Settings
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 
@@ -520,7 +529,23 @@ const EmailDomainSetup = () => {
 
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle className="text-xl">{getStepTitle()}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl">{getStepTitle()}</CardTitle>
+              {(currentStep === 2 || currentStep === 4) && (
+                <Button
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    setSenderEmail('');
+                    setDomain('');
+                    setCurrentStep(1);
+                  }}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  Change domain
+                </Button>
+              )}
+            </div>
             <div className="flex space-x-2">
               {[1, 2, 4].map((step) => (
                 <div
