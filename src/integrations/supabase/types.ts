@@ -1987,6 +1987,30 @@ export type Database = {
         }
         Relationships: []
       }
+      domain_activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          domain_id: string
+          id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          domain_id: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          domain_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       domain_connect_sessions: {
         Row: {
           completed_at: string | null
@@ -2159,6 +2183,7 @@ export type Database = {
           id: string
           is_active: boolean
           last_sync_at: string | null
+          oauth_connected: boolean | null
           provider_config: Json
           provider_type: string
           tenant_id: string
@@ -2170,6 +2195,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_sync_at?: string | null
+          oauth_connected?: boolean | null
           provider_config?: Json
           provider_type: string
           tenant_id: string
@@ -2181,11 +2207,57 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_sync_at?: string | null
+          oauth_connected?: boolean | null
           provider_config?: Json
           provider_type?: string
           tenant_id?: string
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      domain_setup_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          domain_id: string
+          error_message: string | null
+          id: string
+          progress: number | null
+          provider_integration_id: string | null
+          records_to_create: Json
+          results: Json | null
+          setup_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          domain_id: string
+          error_message?: string | null
+          id?: string
+          progress?: number | null
+          provider_integration_id?: string | null
+          records_to_create?: Json
+          results?: Json | null
+          setup_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          domain_id?: string
+          error_message?: string | null
+          id?: string
+          progress?: number | null
+          provider_integration_id?: string | null
+          records_to_create?: Json
+          results?: Json | null
+          setup_type?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2199,6 +2271,7 @@ export type Database = {
           certificate_issued_at: string | null
           created_at: string
           desired_state: Json
+          dns_provider: string | null
           dns_status: string
           domain: string
           domain_connect_supported: boolean | null
@@ -2207,9 +2280,11 @@ export type Database = {
           id: string
           is_primary: boolean
           last_checked_at: string | null
+          last_setup_at: string | null
           path_prefix: string | null
           provider_credentials: Json | null
           provider_type: string | null
+          setup_type: string | null
           status: string
           tenant_id: string
           tls_status: string
@@ -2227,6 +2302,7 @@ export type Database = {
           certificate_issued_at?: string | null
           created_at?: string
           desired_state?: Json
+          dns_provider?: string | null
           dns_status?: string
           domain: string
           domain_connect_supported?: boolean | null
@@ -2235,9 +2311,11 @@ export type Database = {
           id?: string
           is_primary?: boolean
           last_checked_at?: string | null
+          last_setup_at?: string | null
           path_prefix?: string | null
           provider_credentials?: Json | null
           provider_type?: string | null
+          setup_type?: string | null
           status?: string
           tenant_id: string
           tls_status?: string
@@ -2255,6 +2333,7 @@ export type Database = {
           certificate_issued_at?: string | null
           created_at?: string
           desired_state?: Json
+          dns_provider?: string | null
           dns_status?: string
           domain?: string
           domain_connect_supported?: boolean | null
@@ -2263,9 +2342,11 @@ export type Database = {
           id?: string
           is_primary?: boolean
           last_checked_at?: string | null
+          last_setup_at?: string | null
           path_prefix?: string | null
           provider_credentials?: Json | null
           provider_type?: string | null
+          setup_type?: string | null
           status?: string
           tenant_id?: string
           tls_status?: string
@@ -2956,6 +3037,33 @@ export type Database = {
           id?: string
           used_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          provider: string
+          state: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          provider: string
+          state: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          provider?: string
+          state?: string
+          tenant_id?: string
         }
         Relationships: []
       }
