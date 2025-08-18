@@ -139,15 +139,51 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               />
             ) : (
               <div 
-                className="w-full h-48 bg-muted rounded-lg flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onModeChange) {
-                    handleModeClick('image', e);
-                  }
-                }}
+                className="w-full h-48 bg-muted rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors p-4"
               >
-                <span className="text-muted-foreground">Click to add image</span>
+                <span className="text-muted-foreground mb-3">Click to add image</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onModeChange) {
+                        handleModeClick('image', e);
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-background border border-border rounded hover:bg-muted transition-colors"
+                  >
+                    Browse
+                  </button>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      // Auto-pick image based on content
+                      const headline = (() => {
+                        if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
+                          return (block.content as any).headline;
+                        } else if (block.headline) {
+                          return block.headline;
+                        } else if (block.title) {
+                          return block.title;
+                        }
+                        return 'garden plants';
+                      })();
+                      
+                      const { fetchSmartImage } = await import('@/services/unsplashService');
+                      const imageData = await fetchSmartImage(headline, '', true);
+                      
+                      if (imageData?.url && onUpdate) {
+                        onUpdate({
+                          imageUrl: imageData.url,
+                          altText: imageData.alt
+                        });
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                  >
+                    Auto-pick
+                  </button>
+                </div>
               </div>
             );
           })()}

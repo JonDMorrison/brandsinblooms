@@ -39,12 +39,28 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
               <span className="text-sm text-muted-foreground">💡 This content would look great with an image</span>
             </div>
             <button
-              onClick={() => {
-                // Convert to image-text layout and trigger auto-image fetch
-                onUpdate({ 
-                  layout: 'image-right',
-                  type: 'image-text'
-                });
+              onClick={async () => {
+                // Convert to image-text layout and auto-fetch image
+                const content = block.title || block.content || block.body || 'garden plants';
+                
+                try {
+                  const { fetchSmartImage } = await import('@/services/unsplashService');
+                  const imageData = await fetchSmartImage(content, '', true);
+                  
+                  onUpdate({ 
+                    layout: 'image-right',
+                    type: 'image-text',
+                    imageUrl: imageData?.url || '',
+                    altText: imageData?.alt || 'Content image'
+                  });
+                } catch (error) {
+                  console.error('Failed to fetch image:', error);
+                  // Fallback: convert without image
+                  onUpdate({ 
+                    layout: 'image-right',
+                    type: 'image-text'
+                  });
+                }
               }}
               className="text-xs px-3 py-1 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
