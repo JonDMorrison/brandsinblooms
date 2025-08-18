@@ -1987,6 +1987,151 @@ export type Database = {
         }
         Relationships: []
       }
+      domain_dns_records: {
+        Row: {
+          applied: boolean
+          created_at: string
+          desired: boolean
+          domain_id: string
+          error: string | null
+          id: string
+          last_checked_at: string | null
+          name: string
+          priority: number | null
+          record_type: string
+          ttl: number | null
+          updated_at: string
+          value: string
+          verified: boolean
+        }
+        Insert: {
+          applied?: boolean
+          created_at?: string
+          desired?: boolean
+          domain_id: string
+          error?: string | null
+          id?: string
+          last_checked_at?: string | null
+          name: string
+          priority?: number | null
+          record_type: string
+          ttl?: number | null
+          updated_at?: string
+          value: string
+          verified?: boolean
+        }
+        Update: {
+          applied?: boolean
+          created_at?: string
+          desired?: boolean
+          domain_id?: string
+          error?: string | null
+          id?: string
+          last_checked_at?: string | null
+          name?: string
+          priority?: number | null
+          record_type?: string
+          ttl?: number | null
+          updated_at?: string
+          value?: string
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domain_dns_records_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      domain_events: {
+        Row: {
+          created_at: string
+          data: Json
+          domain_id: string
+          event_type: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          domain_id: string
+          event_type: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          domain_id?: string
+          event_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domain_events_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      domains: {
+        Row: {
+          created_at: string
+          desired_state: Json
+          dns_status: string
+          domain: string
+          id: string
+          is_primary: boolean
+          last_checked_at: string | null
+          path_prefix: string | null
+          status: string
+          tenant_id: string
+          tls_status: string
+          type: string
+          updated_at: string
+          user_id: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          desired_state?: Json
+          dns_status?: string
+          domain: string
+          id?: string
+          is_primary?: boolean
+          last_checked_at?: string | null
+          path_prefix?: string | null
+          status?: string
+          tenant_id: string
+          tls_status?: string
+          type: string
+          updated_at?: string
+          user_id?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          desired_state?: Json
+          dns_status?: string
+          domain?: string
+          id?: string
+          is_primary?: boolean
+          last_checked_at?: string | null
+          path_prefix?: string | null
+          status?: string
+          tenant_id?: string
+          tls_status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string | null
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       draft_snapshots: {
         Row: {
           conflict_diff: Json | null
@@ -2034,6 +2179,74 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: []
+      }
+      email_senders: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          dkim_host: string | null
+          dkim_value: string | null
+          dmarc_value: string | null
+          domain_id: string | null
+          error: string | null
+          id: string
+          last_verified_at: string | null
+          provider: string
+          provider_domain_id: string | null
+          sender_email: string
+          spf_value: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          dkim_host?: string | null
+          dkim_value?: string | null
+          dmarc_value?: string | null
+          domain_id?: string | null
+          error?: string | null
+          id?: string
+          last_verified_at?: string | null
+          provider?: string
+          provider_domain_id?: string | null
+          sender_email: string
+          spf_value?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          dkim_host?: string | null
+          dkim_value?: string | null
+          dmarc_value?: string | null
+          domain_id?: string | null
+          error?: string | null
+          id?: string
+          last_verified_at?: string | null
+          provider?: string
+          provider_domain_id?: string | null
+          sender_email?: string
+          spf_value?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_senders_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "domains"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_tracking_events: {
         Row: {

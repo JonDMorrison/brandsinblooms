@@ -12,7 +12,8 @@ import {
   Plug2,
   CheckCircle2,
   AlertCircle,
-  Settings
+  Settings,
+  Globe
 } from 'lucide-react';
 
 // Import existing components
@@ -26,6 +27,7 @@ import { POSSetupWizard } from '@/components/crm/pos/POSSetupWizard';
 import { usePOSConnection } from '@/hooks/usePOSConnection';
 import { useConnectedAccounts } from '@/components/dashboard/ConnectedAccountChecker';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
+import { useDomains } from '@/hooks/useDomains';
 import { Link } from 'react-router-dom';
 
 export const SettingsHub = () => {
@@ -36,6 +38,12 @@ export const SettingsHub = () => {
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
   const { data: socialConnections = [], isLoading: socialLoading } = useConnectedAccounts();
   const { senderConfig, loading: senderLoading } = useSenderConfiguration();
+  const { domains, emailSenders, loading: domainsLoading } = useDomains();
+
+  // Calculate domain/email status
+  const activeDomains = domains.filter(d => d.status === 'active');
+  const verifiedSenders = emailSenders.filter(s => s.verified);
+  const hasDomainSetup = activeDomains.length > 0 || verifiedSenders.length > 0;
 
   const settingsTabs = [
     {
@@ -111,7 +119,7 @@ export const SettingsHub = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {/* POS Connection Status */}
               <div 
                 className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
@@ -166,16 +174,42 @@ export const SettingsHub = () => {
                 )}
               </div>
 
-              {/* Email & Sender Status */}
+              {/* Domains & Email Status */}
+              <Link 
+                to="/domains"
+                className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                role="button"
+                aria-label="Domains and email configuration"
+              >
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  <span className="text-sm font-medium">Domains & Email</span>
+                </div>
+                {domainsLoading ? (
+                  <Badge variant="outline">Checking...</Badge>
+                ) : hasDomainSetup ? (
+                  <Badge variant="default" className="bg-green-100 text-green-800">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Configured
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Setup Required
+                  </Badge>
+                )}
+              </Link>
+
+              {/* Legacy Email & Sender Status */}
               <Link 
                 to="/crm/settings/email-auth"
                 className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
                 role="button"
-                aria-label="Email and sender configuration"
+                aria-label="Legacy email and sender configuration"
               >
                 <div className="flex items-center gap-2">
                   <Settings className="h-4 w-4" />
-                  <span className="text-sm font-medium">Email & Sender</span>
+                  <span className="text-sm font-medium">Legacy Email</span>
                 </div>
                 {senderLoading ? (
                   <Badge variant="outline">Checking...</Badge>
