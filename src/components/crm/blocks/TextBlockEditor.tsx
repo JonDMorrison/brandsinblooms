@@ -28,7 +28,7 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
   const [showPreview, setShowPreview] = useState(false);
   const [activeTab, setActiveTab] = useState('content');
   
-  const hasImageLayout = ['two-column-right', 'two-column-left', 'image-60-40', 'image-70-30', 'image-overlay', 'image-background'].includes(block.layout || '');
+  const hasImageLayout = ['two-column-right', 'two-column-left', 'image-left', 'image-right', 'image-60-40', 'image-70-30', 'image-overlay', 'image-background'].includes(block.layout || '');
 
   const getLayoutDisplayName = (layout: BlockLayout) => {
     const layoutNames = {
@@ -233,6 +233,8 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
                 { value: 'full-width', label: 'Full Width' },
                 { value: 'two-column-left', label: 'Image Left' },
                 { value: 'two-column-right', label: 'Image Right' },
+                { value: 'image-left', label: 'Image Left (Alt)' },
+                { value: 'image-right', label: 'Image Right (Alt)' },
                 { value: 'image-60-40', label: '60/40 Split' },
                 { value: 'image-70-30', label: '70/30 Split' },
                 { value: 'image-overlay', label: 'Text Overlay' },
