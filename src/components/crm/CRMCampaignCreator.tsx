@@ -1735,10 +1735,10 @@ cleanUrl();
     }
 
     // Check if audience is selected
-    if (selectedPersonas.length === 0 && selectedSegments.length === 0) {
+    if (selectedSegments.length === 0) {
       toast({
         title: "Audience required",
-        description: "Please select personas or segments in the Audience section before sending.",
+        description: "Please select customer segments in the Audience section before sending.",
         variant: "destructive"
       });
       return;
@@ -1751,99 +1751,64 @@ cleanUrl();
     }
 
     // Proceed with sending
-    await performSendCampaign();
+    await proceedWithSending();
   };
 
-  const performSendCampaign = async () => {
+  const proceedWithSending = async () => {
     try {
       setSending(true);
       
-      if (existingCampaignId) {
-        // For existing campaigns: auto-save first, then mark as sent
-        await autoSaveCampaign({
-          blocks,
-          campaign_name: campaignName,
-          subject_line: subjectLine,
-          preheader: preheaderText
-        });
+      const campaignData: CampaignData = {
+        name: campaignName,
+        subject: subjectLine,
+        sender_name: senderConfig?.displayName || 'Garden Center',
+        sender_email: senderConfig?.senderEmail || 'noreply@bloomsuite.email',
+        content: generateEmailHTML(),
+        preheader: preheaderText,
+        segments: selectedSegments,
+        schedule: { type: 'immediate' },
+        content_blocks: blocks
+      };
 
-        // Update status to sent
-        const { error } = await supabase
-          .from('crm_campaigns')
-          .update({
-            status: 'sent',
-            sent_at: new Date().toISOString()
-          })
-          .eq('id', existingCampaignId);
+      // First save as draft, then send immediately
+      const campaign = await saveCampaignAsDraft(campaignData);
+      
+      // Now invoke the edge function to actually send the emails
+      console.log('🚀 Invoking send-email-campaign for campaign:', campaign.id);
+      const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-email-campaign', {
+        body: { campaignId: campaign.id }
+      });
 
-        if (error) throw error;
-
-        toast({
-          title: "Campaign Sent!",
-          description: "Your email campaign has been sent successfully."
-        });
-      } else {
-        // For new campaigns: build campaign data and send
-        const campaignBlocks = blocks.map((block, index) => ({
-          type: block.type,
-          content: {
-            title: block.title || block.headline,
-            content: block.content || block.body,
-            headline: block.headline,
-            body: block.body,
-            alignment: block.alignment,
-            layout: block.layout,
-            imageUrl: block.imageUrl,
-            altText: block.altText,
-            buttonText: block.buttonText,
-            buttonUrl: block.buttonUrl,
-            visible: block.visible,
-            collapsed: block.collapsed
-          },
-          order_index: index,
-          source: block.source || 'manual',
-          persona_tag: block.personaTag
-        }));
-
-        const campaignData: CampaignData = {
-          name: campaignName,
-          subject: subjectLine,
-          sender_name: senderConfig?.displayName || companyInfo?.name || 'Campaign Sender',
-          sender_email: senderConfig?.senderEmail || 'noreply@example.com',
-          content: generateEmailHTML(),
-          preheader: preheaderText,
-          segments: [
-            ...selectedPersonas.map(p => ({ id: p.id, name: p.name, customer_count: 0 })),
-            ...selectedSegments.map(s => ({ id: s.id, name: s.name, customer_count: s.customer_count || 0 }))
-          ],
-          schedule: {
-            type: 'immediate'
-          },
-          content_blocks: campaignBlocks,
-          newsletter_sync: finalContentTaskId ? {
-            source_task_id: finalContentTaskId,
-            sync_status: 'synced',
-            original_blocks_count: blocks.length
-          } : undefined
-        };
-
-        const result = await sendCampaign(campaignData);
-        
-        toast({
-          title: "Campaign Sent!",
-          description: "Your email campaign has been sent successfully."
-        });
+      if (sendError) {
+        console.error('Send error:', sendError);
+        throw new Error(sendError.message || 'Failed to send campaign');
       }
 
-      // Navigate back to campaigns list
-      navigate('/crm/campaigns');
-      
-    } catch (error) {
-      console.error('❌ Error sending campaign:', error);
+      console.log('✅ Campaign sent successfully:', sendResult);
       
       toast({
-        title: "Send Error",
-        description: error instanceof Error ? error.message : "Failed to send campaign. Please try again.",
+        title: "Campaign sent!",
+        description: `Your campaign "${campaignName}" has been sent to ${sendResult?.metrics?.sent || 0} customers. View analytics to see delivery progress.`
+      });
+
+      // Navigate to campaign analytics instead of campaigns list
+      navigate(`/crm/campaigns/${campaign.id}/analytics`);
+
+    } catch (error: any) {
+      console.error('Error sending campaign:', error);
+      
+      let errorMessage = "There was an error sending your campaign. Please try again.";
+      if (error.message?.includes('Email service not configured')) {
+        errorMessage = "Email service not configured. Please set up your domain or add RESEND_API_KEY.";
+      } else if (error.message?.includes('no segment selected')) {
+        errorMessage = "Please select an audience segment before sending.";
+      } else if (error.message?.includes('No customers found')) {
+        errorMessage = "No customers found in the selected segment with valid email addresses.";
+      }
+      
+      toast({
+        title: "Send failed",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -1908,8 +1873,9 @@ cleanUrl();
           />
           
           <SenderConfigurationBanner 
-            show={showConfigBanner && !senderConfig?.isVerified}
+            show={showConfigBanner}
             onDismiss={() => setShowConfigBanner(false)}
+            senderConfig={senderConfig}
           />
         </div>
         
@@ -2118,7 +2084,7 @@ cleanUrl();
         onClose={() => setShowSenderConfirmation(false)}
         onConfirm={() => {
           setShowSenderConfirmation(false);
-          performSendCampaign();
+          proceedWithSending();
         }}
         senderConfig={senderConfig}
         campaignName={campaignName}

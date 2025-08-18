@@ -84,22 +84,76 @@ serve(async (req) => {
       // Continue with fallback sender if profile not found
     }
 
-    if (!campaign.segment_id) {
-      return new Response(
-        JSON.stringify({ error: 'Campaign has no segment selected' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
+    // Get customers based on campaign audience targeting
+    let customers = [];
+    let customersError = null;
 
-    // Get customers from the segment
-    const { data: customers, error: customersError } = await supabase
-      .from('crm_customers')
-      .select('id, first_name, last_name, email')
-      .not('email', 'is', null)
-      .not('email', 'eq', '');
+    // Check if campaign has a single segment_id or multiple segments via campaign_segments
+    if (campaign.segment_id) {
+      // Single segment targeting
+      console.log(`Targeting single segment: ${campaign.segment_id}`);
+      const { data: segmentCustomers, error } = await supabase
+        .from('customer_segments')
+        .select(`
+          crm_customers (
+            id, first_name, last_name, email
+          )
+        `)
+        .eq('segment_id', campaign.segment_id);
+
+      if (error) {
+        customersError = error;
+      } else {
+        customers = segmentCustomers
+          ?.map(sc => sc.crm_customers)
+          .filter(c => c && c.email && c.email.trim() !== '') || [];
+      }
+    } else {
+      // Multiple segments targeting via campaign_segments table
+      console.log(`Checking for multiple segment targeting...`);
+      const { data: campaignSegments, error: segError } = await supabase
+        .from('campaign_segments')
+        .select('segment_id')
+        .eq('campaign_id', campaignId);
+
+      if (segError) {
+        customersError = segError;
+      } else if (campaignSegments && campaignSegments.length > 0) {
+        console.log(`Targeting ${campaignSegments.length} segments:`, campaignSegments.map(cs => cs.segment_id));
+        
+        // Get customers from all linked segments and dedupe by email
+        const { data: multiSegmentCustomers, error } = await supabase
+          .from('customer_segments')
+          .select(`
+            crm_customers (
+              id, first_name, last_name, email
+            )
+          `)
+          .in('segment_id', campaignSegments.map(cs => cs.segment_id));
+
+        if (error) {
+          customersError = error;
+        } else {
+          // Deduplicate customers by email
+          const customerMap = new Map();
+          multiSegmentCustomers?.forEach(sc => {
+            const customer = sc.crm_customers;
+            if (customer && customer.email && customer.email.trim() !== '' && !customerMap.has(customer.email)) {
+              customerMap.set(customer.email, customer);
+            }
+          });
+          customers = Array.from(customerMap.values());
+        }
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'Campaign has no segments selected' }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    }
 
     if (customersError) {
       console.error('Error fetching customers:', customersError);

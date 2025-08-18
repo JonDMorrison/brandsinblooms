@@ -7,13 +7,18 @@ import { Link } from 'react-router-dom';
 interface SenderConfigurationBannerProps {
   show: boolean;
   onDismiss?: () => void;
+  senderConfig?: {
+    isVerified: boolean;
+  };
 }
 
 export const SenderConfigurationBanner: React.FC<SenderConfigurationBannerProps> = ({
   show,
-  onDismiss
+  onDismiss,
+  senderConfig
 }) => {
-  if (!show) return null;
+  // Don't show banner if sender is already verified or if explicitly hidden
+  if (!show || senderConfig?.isVerified) return null;
 
   return (
     <Alert className="border-orange-200 bg-orange-50 mb-6">

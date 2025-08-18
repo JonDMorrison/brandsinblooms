@@ -156,8 +156,19 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
       }
     }
 
-    // Link segments to campaign using the new campaign_segments table
-    if (campaignData.segments.length > 0) {
+    // Handle segment linking - single segment vs multiple segments
+    if (campaignData.segments.length === 1) {
+      // Single segment - store directly on campaign
+      const { error: updateError } = await supabase
+        .from('crm_campaigns')
+        .update({ segment_id: campaignData.segments[0].id })
+        .eq('id', campaign.id);
+
+      if (updateError) {
+        console.error('Error setting single segment:', updateError);
+      }
+    } else if (campaignData.segments.length > 1) {
+      // Multiple segments - use campaign_segments table
       const segmentLinks = campaignData.segments.map(segment => ({
         campaign_id: campaign.id,
         segment_id: segment.id
@@ -187,15 +198,31 @@ export const sendCampaign = async (campaignData: CampaignData) => {
     // First save as draft
     const campaign = await saveCampaignAsDraft(campaignData);
 
-    // Update status based on schedule
-    let status = 'sent';
+    // For immediate sends, invoke the edge function directly
+    if (campaignData.schedule.type === 'immediate') {
+      console.log('🚀 Sending campaign immediately via edge function:', campaign.id);
+      
+      const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-email-campaign', {
+        body: { campaignId: campaign.id }
+      });
+
+      if (sendError) {
+        console.error('Edge function send error:', sendError);
+        throw new Error(sendError.message || 'Failed to send campaign via email service');
+      }
+
+      console.log('✅ Campaign sent successfully via edge function:', sendResult);
+      toast.success(`Campaign "${campaignData.name}" sent to ${sendResult?.metrics?.sent || 0} customers!`);
+      return campaign;
+    }
+
+    // For scheduled campaigns, just update the status
+    let status = 'scheduled';
     let scheduled_at = null;
 
     if (campaignData.schedule.type === 'scheduled' && campaignData.schedule.send_at) {
-      status = 'scheduled';
       scheduled_at = campaignData.schedule.send_at;
     } else if (campaignData.schedule.type === 'optimal') {
-      status = 'scheduled';
       // Set optimal time (e.g., next Tuesday at 10 AM)
       const optimalTime = new Date();
       optimalTime.setDate(optimalTime.getDate() + (2 - optimalTime.getDay() + 7) % 7);
@@ -203,13 +230,12 @@ export const sendCampaign = async (campaignData: CampaignData) => {
       scheduled_at = optimalTime.toISOString();
     }
 
-    // Update campaign status
+    // Update campaign status for scheduled sends
     const { error: updateError } = await supabase
       .from('crm_campaigns')
       .update({
         status,
-        scheduled_at,
-        sent_at: status === 'sent' ? new Date().toISOString() : null
+        scheduled_at
       })
       .eq('id', campaign.id);
 
@@ -222,11 +248,7 @@ export const sendCampaign = async (campaignData: CampaignData) => {
       has_source_content: !!campaignData.source_content_id
     });
 
-    const message = status === 'sent' 
-      ? `Campaign "${campaignData.name}" sent successfully!`
-      : `Campaign "${campaignData.name}" scheduled successfully!`;
-    
-    toast.success(message);
+    toast.success(`Campaign "${campaignData.name}" scheduled successfully!`);
     return campaign;
 
   } catch (error) {

@@ -152,6 +152,19 @@ export default function CRMCampaignDetail() {
         </div>
         <div className="flex items-center space-x-2">
           {getStatusBadge(campaign.status)}
+        {campaign.status === 'sent' && (
+          <Button 
+            variant="default" 
+            size="sm" 
+            asChild
+            className="ml-4"
+          >
+            <Link to={`/crm/campaigns/${campaign.id}/analytics`}>
+              <TrendingUp className="h-4 w-4 mr-2" />
+              View Analytics
+            </Link>
+          </Button>
+        )}
           <Button variant="outline" asChild>
             <Link to={`/crm/campaigns/new?duplicate=${campaign.id}`}>
               <Copy className="h-4 w-4 mr-2" />
