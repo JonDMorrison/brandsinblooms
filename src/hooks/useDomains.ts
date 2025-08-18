@@ -65,7 +65,7 @@ export const useDomains = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDomains(data || []);
+      setDomains((data || []) as Domain[]);
     } catch (error) {
       console.error('Error fetching domains:', error);
     }
@@ -80,7 +80,7 @@ export const useDomains = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setEmailSenders(data || []);
+      setEmailSenders((data || []) as EmailSender[]);
     } catch (error) {
       console.error('Error fetching email senders:', error);
     } finally {
