@@ -43,6 +43,7 @@ import { TourManager } from '@/components/tour/TourManager';
 import POSPage from '@/pages/settings/POSPage';
 import SettingsPage from '@/pages/SettingsPage';
 import SMSTestingDemo from '@/pages/SMSTestingDemo';
+import EmailDomainSetup from '@/pages/crm/EmailDomainSetup';
 
 // Emergency cleanup - remove any stray inert attributes
 import '@/utils/emergency-cleanup';
@@ -309,6 +310,20 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <POSPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/settings/email-auth" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <EmailDomainSetup />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/settings/email-auth" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <EmailDomainSetup />
             </SidebarLayout>
           </ProtectedRoute>
         } />

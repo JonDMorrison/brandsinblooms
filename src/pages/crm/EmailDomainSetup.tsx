@@ -207,11 +207,24 @@ const EmailDomainSetup = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's a configuration error
+        if (error.message?.includes('RESEND_API_KEY')) {
+          toast({ 
+            title: 'Configuration Required', 
+            description: 'Please add RESEND_API_KEY in Supabase Edge Functions → Secrets to send emails.',
+            variant: 'destructive'
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
+      
       toast({ title: 'Success', description: 'Test email sent! Check your inbox.' });
     } catch (error) {
       console.error('Error sending test email:', error);
-      toast({ title: 'Error', description: 'Failed to send test email.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to send test email. Please try again.', variant: 'destructive' });
     }
   };
 
@@ -262,9 +275,29 @@ const EmailDomainSetup = () => {
       <Alert>
         <Shield className="h-4 w-4" />
         <AlertDescription>
-          Add these DNS records to your domain provider (GoDaddy, Namecheap, Cloudflare, etc.) to verify ownership and improve email deliverability.
+          Add these DNS records to your domain provider to verify ownership and improve email deliverability.
+          <div className="mt-3 space-y-2">
+            <p><strong>Common providers:</strong></p>
+            <div className="flex flex-wrap gap-2">
+              <a href="https://www.godaddy.com/help/manage-dns-680" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">GoDaddy DNS</a>
+              <span className="text-gray-300">•</span>
+              <a href="https://www.namecheap.com/support/knowledgebase/article.aspx/319/2237/how-can-i-set-up-an-a-address-record-for-my-domain/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">Namecheap DNS</a>
+              <span className="text-gray-300">•</span>
+              <a href="https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-dns-records/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">Cloudflare DNS</a>
+            </div>
+          </div>
         </AlertDescription>
       </Alert>
+
+      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+        <h4 className="font-medium text-blue-800 mb-2">💡 Quick Tips</h4>
+        <ul className="text-sm text-blue-700 space-y-1">
+          <li>• <strong>SPF:</strong> If you already have an SPF record, add <code>include:resend.email</code> to your existing record instead of creating a new one</li>
+          <li>• <strong>DKIM:</strong> The CNAME host must match exactly - don't include your domain twice</li>
+          <li>• <strong>Propagation:</strong> DNS changes typically take 5-30 minutes, but can take up to 24-48 hours</li>
+          <li>• Use <a href="https://dnschecker.org" target="_blank" rel="noopener noreferrer" className="underline">DNSChecker.org</a> to verify your records globally</li>
+        </ul>
+      </div>
 
       <div className="space-y-4">
         {dnsRecords.map((record, index) => (
@@ -327,7 +360,8 @@ const EmailDomainSetup = () => {
       <Alert>
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
-          <strong>Note:</strong> DNS changes can take up to 24 hours to propagate. Most providers update within 1-2 hours.
+          <strong>Troubleshooting:</strong> If verification fails, wait 5-30 minutes for DNS propagation and try again. 
+          Check that you don't have duplicate SPF records (only one per domain is allowed).
         </AlertDescription>
       </Alert>
 
@@ -371,12 +405,13 @@ const EmailDomainSetup = () => {
       </div>
 
       <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-        <h4 className="font-medium text-green-800 mb-2">What's next?</h4>
+        <h4 className="font-medium text-green-800 mb-2">✅ What's now enabled</h4>
         <ul className="text-sm text-green-700 space-y-1 text-left">
-          <li>• Your email campaigns will now use your custom domain</li>
-          <li>• Recipients will see your business email instead of a generic sender</li>
-          <li>• Improved email deliverability and lower spam rates</li>
-          <li>• Professional branding in all customer communications</li>
+          <li>• Campaigns sent from <strong>{senderEmail}</strong></li>
+          <li>• Professional branding (no "via BloomSuite" messages)</li>
+          <li>• Improved email deliverability and inbox placement</li>
+          <li>• Lower spam folder placement</li>
+          <li>• Full DKIM/SPF authentication for trust</li>
         </ul>
       </div>
 
@@ -443,7 +478,10 @@ const EmailDomainSetup = () => {
           </CardContent>
         </Card>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center space-y-4">
+          <div className="text-sm text-muted-foreground">
+            <p><strong>Need help?</strong> DNS setup can be tricky. Contact support if you get stuck.</p>
+          </div>
           <Button variant="ghost" asChild>
             <Link to="/crm">
               <ArrowLeft className="h-4 w-4 mr-2" />

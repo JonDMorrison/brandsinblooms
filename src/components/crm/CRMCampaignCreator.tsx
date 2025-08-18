@@ -26,6 +26,16 @@ import { fetchSmartImage } from '@/services/unsplashService';
 import { useGeneratedBundle } from '@/hooks/useGeneratedBundle';
 import { CampaignSetupWizard } from './campaign-setup/CampaignSetupWizard';
 import { AIWriterDialog } from './ai-writer/AIWriterDialog';
+import { SenderConfigurationBanner } from './SenderConfigurationBanner';
+import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
+import { 
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 
 // Helper function to fetch image for blocks with missing images
 const getOrFetchImage = async (contentObj: any, block: any): Promise<string | null> => {
@@ -172,6 +182,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [showAIWriter, setShowAIWriter] = useState(false);
   const [sending, setSending] = useState(false);
   const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
+  const [showConfigBanner, setShowConfigBanner] = useState(true);
 
   // Sender configuration for domain verification
   const { senderConfig, loading: loadingSenderConfig } = useSenderConfiguration();
@@ -1853,6 +1864,25 @@ cleanUrl();
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
+      {/* Breadcrumb Navigation */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/crm">CRM</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/crm/campaigns">Campaigns</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>
+              {existingCampaignId ? 'Edit Campaign' : 'New Campaign'}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      
       {/* Back Button */}
       <div>
         <Button variant="ghost" size="sm" onClick={() => navigate('/crm/campaigns')}>
@@ -1868,6 +1898,19 @@ cleanUrl();
             {existingCampaignId ? 'Edit Email Campaign' : 'Create Email Campaign'}
           </h1>
           <p className="text-muted-foreground">Build and customize your email campaign</p>
+        </div>
+
+        {/* Sender Status and Configuration Banner */}
+        <div className="space-y-4">
+          <SenderStatusIndicator 
+            senderConfig={senderConfig} 
+            showDetailedAlert={!senderConfig?.isVerified}
+          />
+          
+          <SenderConfigurationBanner 
+            show={showConfigBanner && !senderConfig?.isVerified}
+            onDismiss={() => setShowConfigBanner(false)}
+          />
         </div>
         
         <div className="flex items-center gap-2 flex-wrap">
@@ -1906,7 +1949,7 @@ cleanUrl();
           
           <Button 
             onClick={handleSendCampaign} 
-            disabled={loading || sending || loadingSenderConfig}
+            disabled={loading || sending || loadingSenderConfig || !campaignName || !subjectLine || blocks.length === 0}
           >
             {sending ? (
               <>
@@ -2079,7 +2122,7 @@ cleanUrl();
         }}
         senderConfig={senderConfig}
         campaignName={campaignName}
-        recipientCount={selectedPersonas.length + selectedSegments.length}
+        recipientCount={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || 0), 0)}
       />
     </div>
   );
