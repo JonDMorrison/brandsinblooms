@@ -1,6 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -15,36 +14,30 @@ import ContentLibraryPage from '@/pages/ContentLibraryPage';
 import SettingsPage from '@/pages/SettingsPage';
 import DomainsPage from '@/pages/DomainsPage';
 
-const queryClient = new QueryClient();
-
 function App() {
   return (
-    <Router>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <div className="min-h-screen bg-background text-foreground">
-            <div className="flex">
-              <NavLayout />
-              <main className="flex-1">
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/campaigns" element={<SocialMediaPage />} />
-                  <Route path="/crm" element={<CRMDashboardPage />} />
-                  <Route path="/sms" element={<SMSTestingDemo />} />
-                  <Route path="/crm/campaigns" element={<CRMCampaignsPage />} />
-                  <Route path="/analytics" element={<AnalyticsPage />} />
-                  <Route path="/assets" element={<ContentLibraryPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/domains" element={<DomainsPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </main>
-            </div>
-            <Toaster />
-          </div>
-        </AuthProvider>
-      </QueryClientProvider>
-    </Router>
+    <AuthProvider>
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="flex">
+          <NavLayout />
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/campaigns" element={<SocialMediaPage />} />
+              <Route path="/crm" element={<CRMDashboardPage />} />
+              <Route path="/sms" element={<SMSTestingDemo />} />
+              <Route path="/crm/campaigns" element={<CRMCampaignsPage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/assets" element={<ContentLibraryPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/domains" element={<DomainsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+        </div>
+        <Toaster />
+      </div>
+    </AuthProvider>
   );
 }
 
