@@ -13,12 +13,14 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Clock,
-  Zap
+  Zap,
+  Settings
 } from 'lucide-react';
 import { useDomains } from '@/hooks/useDomains';
 import { QuickStartCard } from './QuickStartCard';
 import { AddDomainWizard } from './AddDomainWizard';
 import { EmailSendersTab } from './EmailSendersTab';
+import { ProviderIntegrationsTab } from './ProviderIntegrationsTab';
 import { useTenant } from '@/hooks/useTenant';
 import { toast } from 'sonner';
 
@@ -159,7 +161,7 @@ export const DomainsHub = () => {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-3 h-auto p-2">
+          <TabsList className="grid w-full grid-cols-4 h-auto p-2">
             <TabsTrigger value="overview" className="flex flex-col gap-2 p-4">
               <Globe className="h-5 w-5" />
               <span className="text-xs font-medium">Overview</span>
@@ -171,6 +173,10 @@ export const DomainsHub = () => {
             <TabsTrigger value="email" className="flex flex-col gap-2 p-4">
               <Mail className="h-5 w-5" />
               <span className="text-xs font-medium">Email</span>
+            </TabsTrigger>
+            <TabsTrigger value="integrations" className="flex flex-col gap-2 p-4">
+              <Settings className="h-5 w-5" />
+              <span className="text-xs font-medium">DNS Providers</span>
             </TabsTrigger>
           </TabsList>
 
@@ -357,6 +363,10 @@ export const DomainsHub = () => {
 
           <TabsContent value="email" className="space-y-6">
             <EmailSendersTab emailSenders={emailSenders} />
+          </TabsContent>
+
+          <TabsContent value="integrations" className="space-y-6">
+            <ProviderIntegrationsTab />
           </TabsContent>
         </Tabs>
 

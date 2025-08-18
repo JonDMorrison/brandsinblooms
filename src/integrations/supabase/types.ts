@@ -1987,6 +1987,48 @@ export type Database = {
         }
         Relationships: []
       }
+      domain_connect_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          domain_id: string
+          expires_at: string
+          id: string
+          params: Json
+          registrar_name: string | null
+          session_token: string
+          status: string
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          domain_id: string
+          expires_at?: string
+          id?: string
+          params?: Json
+          registrar_name?: string | null
+          session_token: string
+          status?: string
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          domain_id?: string
+          expires_at?: string
+          id?: string
+          params?: Json
+          registrar_name?: string | null
+          session_token?: string
+          status?: string
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       domain_dns_records: {
         Row: {
           applied: boolean
@@ -2078,16 +2120,96 @@ export type Database = {
           },
         ]
       }
+      domain_health_checks: {
+        Row: {
+          check_type: string
+          checked_at: string
+          created_at: string
+          details: Json
+          domain_id: string
+          id: string
+          response_time_ms: number | null
+          status: string
+        }
+        Insert: {
+          check_type: string
+          checked_at?: string
+          created_at?: string
+          details?: Json
+          domain_id: string
+          id?: string
+          response_time_ms?: number | null
+          status: string
+        }
+        Update: {
+          check_type?: string
+          checked_at?: string
+          created_at?: string
+          details?: Json
+          domain_id?: string
+          id?: string
+          response_time_ms?: number | null
+          status?: string
+        }
+        Relationships: []
+      }
+      domain_provider_integrations: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          provider_config: Json
+          provider_type: string
+          tenant_id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          provider_config?: Json
+          provider_type: string
+          tenant_id: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          provider_config?: Json
+          provider_type?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       domains: {
         Row: {
+          acme_challenge_response: string | null
+          acme_challenge_token: string | null
+          acme_challenge_type: string | null
+          auto_dns_enabled: boolean | null
+          certificate_expires_at: string | null
+          certificate_issued_at: string | null
           created_at: string
           desired_state: Json
           dns_status: string
           domain: string
+          domain_connect_supported: boolean | null
+          domain_connect_template_id: string | null
+          health_check_frequency: number | null
           id: string
           is_primary: boolean
           last_checked_at: string | null
           path_prefix: string | null
+          provider_credentials: Json | null
+          provider_type: string | null
           status: string
           tenant_id: string
           tls_status: string
@@ -2097,14 +2219,25 @@ export type Database = {
           verified_at: string | null
         }
         Insert: {
+          acme_challenge_response?: string | null
+          acme_challenge_token?: string | null
+          acme_challenge_type?: string | null
+          auto_dns_enabled?: boolean | null
+          certificate_expires_at?: string | null
+          certificate_issued_at?: string | null
           created_at?: string
           desired_state?: Json
           dns_status?: string
           domain: string
+          domain_connect_supported?: boolean | null
+          domain_connect_template_id?: string | null
+          health_check_frequency?: number | null
           id?: string
           is_primary?: boolean
           last_checked_at?: string | null
           path_prefix?: string | null
+          provider_credentials?: Json | null
+          provider_type?: string | null
           status?: string
           tenant_id: string
           tls_status?: string
@@ -2114,14 +2247,25 @@ export type Database = {
           verified_at?: string | null
         }
         Update: {
+          acme_challenge_response?: string | null
+          acme_challenge_token?: string | null
+          acme_challenge_type?: string | null
+          auto_dns_enabled?: boolean | null
+          certificate_expires_at?: string | null
+          certificate_issued_at?: string | null
           created_at?: string
           desired_state?: Json
           dns_status?: string
           domain?: string
+          domain_connect_supported?: boolean | null
+          domain_connect_template_id?: string | null
+          health_check_frequency?: number | null
           id?: string
           is_primary?: boolean
           last_checked_at?: string | null
           path_prefix?: string | null
+          provider_credentials?: Json | null
+          provider_type?: string | null
           status?: string
           tenant_id?: string
           tls_status?: string
