@@ -28,6 +28,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { EmailSendingHelpPanel } from '@/components/crm/email/EmailSendingHelpPanel';
+import { DomainConnectWizard } from '@/components/domains/DomainConnectWizard';
 
 interface DNSRecord {
   type: string;
@@ -51,6 +52,7 @@ const EmailDomainSetup = () => {
   const [emailAuthStatus, setEmailAuthStatus] = useState<'pending' | 'verified' | 'failed'>('pending');
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [isRequestingSetup, setIsRequestingSetup] = useState(false);
+  const [showDomainConnect, setShowDomainConnect] = useState(false);
 
   useEffect(() => {
     loadCurrentSettings();
@@ -314,24 +316,75 @@ const EmailDomainSetup = () => {
     </div>
   );
 
+  const handleDomainConnectComplete = async () => {
+    // After successful Domain Connect, verify the records
+    setShowDomainConnect(false);
+    await verifyDNSRecords();
+  };
+
   const renderStep2 = () => (
     <div className="space-y-6">
-      <Alert>
-        <Shield className="h-4 w-4" />
-        <AlertDescription>
-          Add these DNS records to your domain provider to verify ownership and improve email deliverability.
-          <div className="mt-3 space-y-2">
-            <p><strong>Common providers:</strong></p>
-            <div className="flex flex-wrap gap-2">
-              <a href="https://www.godaddy.com/help/manage-dns-680" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">GoDaddy DNS</a>
-              <span className="text-gray-300">•</span>
-              <a href="https://www.namecheap.com/support/knowledgebase/article.aspx/319/2237/how-can-i-set-up-an-a-address-record-for-my-domain/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">Namecheap DNS</a>
-              <span className="text-gray-300">•</span>
-              <a href="https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-dns-records/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">Cloudflare DNS</a>
+      {/* Domain Connect Option */}
+      {!showDomainConnect && (
+        <Alert className="border-green-200 bg-green-50">
+          <Shield className="h-4 w-4 text-green-600" />
+          <AlertDescription>
+            <div className="space-y-4">
+              <p className="font-medium text-green-800">⚡ Try Automatic Setup First</p>
+              <p className="text-sm text-green-700">
+                If your domain is registered with GoDaddy, Namecheap, Google Domains, or other Domain Connect providers, 
+                we can set up your DNS records automatically with just a few clicks.
+              </p>
+              <Button 
+                onClick={() => setShowDomainConnect(true)}
+                className="bg-green-600 hover:bg-green-700"
+                size="sm"
+              >
+                🚀 Try Automatic Setup (GoDaddy, Namecheap, etc.)
+              </Button>
             </div>
-          </div>
-        </AlertDescription>
-      </Alert>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Domain Connect Wizard */}
+      {showDomainConnect && (
+        <div className="space-y-4">
+          <DomainConnectWizard 
+            domain={domain}
+            templateId="email_auth"
+            onComplete={handleDomainConnectComplete}
+          />
+          <Button 
+            variant="outline" 
+            onClick={() => setShowDomainConnect(false)}
+            size="sm"
+            className="w-full"
+          >
+            Use Manual DNS Setup Instead
+          </Button>
+        </div>
+      )}
+
+      {/* Manual DNS Setup */}
+      {!showDomainConnect && (
+        <>
+          <Alert>
+            <Shield className="h-4 w-4" />
+            <AlertDescription>
+              Add these DNS records to your domain provider to verify ownership and improve email deliverability.
+              <div className="mt-3 space-y-2">
+                <p><strong>Common providers:</strong></p>
+                <div className="flex flex-wrap gap-2">
+                  <a href="https://www.godaddy.com/help/manage-dns-680" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">GoDaddy DNS</a>
+                  <span className="text-gray-300">•</span>
+                  <a href="https://www.namecheap.com/support/knowledgebase/article.aspx/319/2237/how-can-i-set-up-an-a-address-record-for-my-domain/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">Namecheap DNS</a>
+                  <span className="text-gray-300">•</span>
+                  <a href="https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-dns-records/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">Cloudflare DNS</a>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
 
       <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
         <h4 className="font-medium text-blue-800 mb-2">💡 Quick Tips</h4>
@@ -409,25 +462,36 @@ const EmailDomainSetup = () => {
         </AlertDescription>
       </Alert>
 
-      <div className="flex space-x-3">
-        <Button 
-          onClick={verifyDNSRecords}
-          disabled={isVerifying}
-          className="flex-1"
-        >
-          {isVerifying ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Checking DNS Records...
-            </>
-          ) : (
-            'Verify DNS Records'
-          )}
-        </Button>
-        <Button variant="outline" onClick={() => setCurrentStep(1)}>
-          Back
-        </Button>
-      </div>
+          <div className="flex space-x-3">
+            <Button 
+              onClick={verifyDNSRecords}
+              disabled={isVerifying}
+              className="flex-1"
+            >
+              {isVerifying ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Checking DNS Records...
+                </>
+              ) : (
+                'Verify DNS Records'
+              )}
+            </Button>
+            <Button variant="outline" onClick={() => setCurrentStep(1)}>
+              Back
+            </Button>
+          </div>
+        </>
+      )}
+
+      {/* Back button for both modes */}
+      {showDomainConnect && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => setCurrentStep(1)}>
+            Back
+          </Button>
+        </div>
+      )}
     </div>
   );
 

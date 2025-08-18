@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface DomainConnectWizardProps {
   domain: string;
+  templateId?: string;
   onComplete?: () => void;
 }
 
@@ -21,6 +22,7 @@ interface Step {
 
 export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ 
   domain, 
+  templateId = 'landing_page',
   onComplete 
 }) => {
   const { toast } = useToast();
@@ -66,8 +68,14 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
       const { data, error } = await supabase.functions.invoke('domain-connect', {
         body: {
           domain,
-          templateId: 'landing_page',
-          params: {
+          templateId,
+          params: templateId === 'email_auth' ? {
+            // Email auth specific params
+            spf_record: 'v=spf1 include:resend.email ~all',
+            dkim_host: `selector1._domainkey.${domain}`,
+            dkim_value: 'selector1.domainkey.resend.email'
+          } : {
+            // Landing page params
             host: '@',
             target: 'pages.bloomsuite.app'
           }
