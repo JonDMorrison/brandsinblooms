@@ -19,6 +19,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { useToast } from '@/hooks/use-toast';
 import {
   Tooltip,
@@ -39,6 +40,7 @@ const EmailDomainSetup = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { senderConfig } = useSenderConfiguration();
   const [currentStep, setCurrentStep] = useState(1);
   const [senderEmail, setSenderEmail] = useState('');
   const [domain, setDomain] = useState('');
@@ -441,6 +443,65 @@ const EmailDomainSetup = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/30 to-cyan-50/30">
       <div className="container mx-auto p-6 max-w-4xl">
+        
+        {/* About Sending Information */}
+        <Card className="mb-8 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-800">
+              <Mail className="h-5 w-5" />
+              About Email Sending
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!senderConfig?.isVerified ? (
+              <Alert className="border-orange-200 bg-orange-50">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800">
+                  <div className="space-y-3">
+                    <p className="font-medium">Email Service Configuration Required</p>
+                    <p className="text-sm">
+                      To send campaigns, you need to configure your email service. Choose one option:
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <p><strong>Option 1 (Recommended):</strong> Set up your custom domain below for professional branding</p>
+                      <p><strong>Option 2:</strong> Add <code className="bg-orange-100 px-1 rounded">RESEND_API_KEY</code> in Supabase Edge Functions → Secrets for quick setup</p>
+                    </div>
+                    <div className="mt-3">
+                      <a 
+                        href="https://supabase.com/dashboard/project/udldmkqwnxhdeztyqcau/settings/functions" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-orange-700 underline hover:text-orange-900"
+                      >
+                        → Configure API Key in Supabase
+                      </a>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert className="border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  <p><strong>Sending via Custom Domain:</strong> Your campaigns will be sent from <strong>{senderConfig.senderEmail || senderEmail}</strong> with professional branding and improved deliverability.</p>
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-800 mb-2">🔄 Current Sending Method</h4>
+              {senderConfig?.isVerified ? (
+                <p className="text-sm text-blue-700">
+                  <strong>Custom Domain:</strong> Professional sending from your verified domain with full authentication.
+                </p>
+              ) : (
+                <p className="text-sm text-blue-700">
+                  <strong>Shared Domain:</strong> Campaigns are sent via BloomSuite's shared sending domain until you complete domain setup or add API key.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
         <div className="text-center space-y-4 mb-8">
           <div className="flex items-center justify-center space-x-3">
             <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl">

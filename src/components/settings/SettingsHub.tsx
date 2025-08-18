@@ -25,6 +25,8 @@ import { POSSetupWizard } from '@/components/crm/pos/POSSetupWizard';
 // Import hooks for status checking
 import { usePOSConnection } from '@/hooks/usePOSConnection';
 import { useConnectedAccounts } from '@/components/dashboard/ConnectedAccountChecker';
+import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
+import { Link } from 'react-router-dom';
 
 export const SettingsHub = () => {
   const [activeTab, setActiveTab] = useState('connections');
@@ -33,6 +35,7 @@ export const SettingsHub = () => {
   // Status hooks
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
   const { data: socialConnections = [], isLoading: socialLoading } = useConnectedAccounts();
+  const { senderConfig, loading: senderLoading } = useSenderConfiguration();
 
   const settingsTabs = [
     {
@@ -163,14 +166,31 @@ export const SettingsHub = () => {
                 )}
               </div>
 
-              {/* Integrations Status */}
-              <div className="flex items-center justify-between p-3 border rounded-lg">
+              {/* Email & Sender Status */}
+              <Link 
+                to="/crm/settings/email-auth"
+                className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                role="button"
+                aria-label="Email and sender configuration"
+              >
                 <div className="flex items-center gap-2">
-                  <Link2 className="h-4 w-4" />
-                  <span className="text-sm font-medium">Integrations</span>
+                  <Settings className="h-4 w-4" />
+                  <span className="text-sm font-medium">Email & Sender</span>
                 </div>
-                <Badge variant="outline">Coming Soon</Badge>
-              </div>
+                {senderLoading ? (
+                  <Badge variant="outline">Checking...</Badge>
+                ) : senderConfig?.isVerified ? (
+                  <Badge variant="default" className="bg-green-100 text-green-800">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Domain Verified
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Setup Required
+                  </Badge>
+                )}
+              </Link>
             </div>
           </CardContent>
         </Card>

@@ -26,7 +26,6 @@ import { fetchSmartImage } from '@/services/unsplashService';
 import { useGeneratedBundle } from '@/hooks/useGeneratedBundle';
 import { CampaignSetupWizard } from './campaign-setup/CampaignSetupWizard';
 import { AIWriterDialog } from './ai-writer/AIWriterDialog';
-import { SenderConfigurationBanner } from './SenderConfigurationBanner';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
 import { 
   Breadcrumb,
@@ -182,7 +181,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [showAIWriter, setShowAIWriter] = useState(false);
   const [sending, setSending] = useState(false);
   const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
-  const [showConfigBanner, setShowConfigBanner] = useState(true);
+  
 
   // Sender configuration for domain verification
   const { senderConfig, loading: loadingSenderConfig } = useSenderConfiguration();
@@ -1870,12 +1869,6 @@ cleanUrl();
           <SenderStatusIndicator 
             senderConfig={senderConfig} 
             showDetailedAlert={!senderConfig?.isVerified}
-          />
-          
-          <SenderConfigurationBanner 
-            show={showConfigBanner}
-            onDismiss={() => setShowConfigBanner(false)}
-            senderConfig={senderConfig}
           />
         </div>
         
