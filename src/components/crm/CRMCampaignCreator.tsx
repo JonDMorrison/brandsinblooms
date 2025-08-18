@@ -7,13 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, ArrowLeft, Users, Sparkles } from 'lucide-react';
+import { Loader2, Mail, ArrowLeft, Users, Sparkles, Send } from 'lucide-react';
+import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
+import { SharedSenderConfirmationModal } from './campaigns/SharedSenderConfirmationModal';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
 import { EmailPreview } from './campaign-composer/EmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
 import { convertNewsletterToCRM } from '@/utils/newsletterToCrmSync';
 import { supabase } from '@/integrations/supabase/client';
-import { saveCampaignAsDraft, CampaignData } from '@/utils/crmCampaignService';
+import { saveCampaignAsDraft, sendCampaign, CampaignData } from '@/utils/crmCampaignService';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
 import { generateFooterHTML } from '@/utils/emailFooterRenderer';
 import { getDefaultTokenData } from '@/utils/emailTokenProcessor';
@@ -168,6 +170,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [generatingBlocks, setGeneratingBlocks] = useState<Set<string>>(new Set());
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [showAIWriter, setShowAIWriter] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
+
+  // Sender configuration for domain verification
+  const { senderConfig, loading: loadingSenderConfig } = useSenderConfiguration();
 
   // Footer and company data
   const { footerSettings } = useFooterSettings();
@@ -1696,6 +1703,143 @@ cleanUrl();
     }
   };
 
+  const handleSendCampaign = async () => {
+    // Validate required fields
+    if (!campaignName.trim()) {
+      toast({
+        title: "Campaign name required",
+        description: "Please enter a campaign name before sending.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!subjectLine.trim()) {
+      toast({
+        title: "Subject line required", 
+        description: "Please enter a subject line before sending.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if audience is selected
+    if (selectedPersonas.length === 0 && selectedSegments.length === 0) {
+      toast({
+        title: "Audience required",
+        description: "Please select personas or segments in the Audience section before sending.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check sender configuration
+    if (!senderConfig?.isVerified) {
+      setShowSenderConfirmation(true);
+      return;
+    }
+
+    // Proceed with sending
+    await performSendCampaign();
+  };
+
+  const performSendCampaign = async () => {
+    try {
+      setSending(true);
+      
+      if (existingCampaignId) {
+        // For existing campaigns: auto-save first, then mark as sent
+        await autoSaveCampaign({
+          blocks,
+          campaign_name: campaignName,
+          subject_line: subjectLine,
+          preheader: preheaderText
+        });
+
+        // Update status to sent
+        const { error } = await supabase
+          .from('crm_campaigns')
+          .update({
+            status: 'sent',
+            sent_at: new Date().toISOString()
+          })
+          .eq('id', existingCampaignId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Campaign Sent!",
+          description: "Your email campaign has been sent successfully."
+        });
+      } else {
+        // For new campaigns: build campaign data and send
+        const campaignBlocks = blocks.map((block, index) => ({
+          type: block.type,
+          content: {
+            title: block.title || block.headline,
+            content: block.content || block.body,
+            headline: block.headline,
+            body: block.body,
+            alignment: block.alignment,
+            layout: block.layout,
+            imageUrl: block.imageUrl,
+            altText: block.altText,
+            buttonText: block.buttonText,
+            buttonUrl: block.buttonUrl,
+            visible: block.visible,
+            collapsed: block.collapsed
+          },
+          order_index: index,
+          source: block.source || 'manual',
+          persona_tag: block.personaTag
+        }));
+
+        const campaignData: CampaignData = {
+          name: campaignName,
+          subject: subjectLine,
+          sender_name: senderConfig?.displayName || companyInfo?.name || 'Campaign Sender',
+          sender_email: senderConfig?.senderEmail || 'noreply@example.com',
+          content: generateEmailHTML(),
+          preheader: preheaderText,
+          segments: [
+            ...selectedPersonas.map(p => ({ id: p.id, name: p.name, customer_count: 0 })),
+            ...selectedSegments.map(s => ({ id: s.id, name: s.name, customer_count: s.customer_count || 0 }))
+          ],
+          schedule: {
+            type: 'immediate'
+          },
+          content_blocks: campaignBlocks,
+          newsletter_sync: finalContentTaskId ? {
+            source_task_id: finalContentTaskId,
+            sync_status: 'synced',
+            original_blocks_count: blocks.length
+          } : undefined
+        };
+
+        const result = await sendCampaign(campaignData);
+        
+        toast({
+          title: "Campaign Sent!",
+          description: "Your email campaign has been sent successfully."
+        });
+      }
+
+      // Navigate back to campaigns list
+      navigate('/crm/campaigns');
+      
+    } catch (error) {
+      console.error('❌ Error sending campaign:', error);
+      
+      toast({
+        title: "Send Error",
+        description: error instanceof Error ? error.message : "Failed to send campaign. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (converting) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -1746,7 +1890,7 @@ cleanUrl();
           <Button variant="outline" onClick={() => setShowPreview(true)}>
             Preview
           </Button>
-          <Button onClick={handleSave} disabled={loading}>
+          <Button onClick={handleSave} disabled={loading || sending} variant="outline">
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1756,6 +1900,23 @@ cleanUrl();
               <>
                 <Mail className="h-4 w-4 mr-2" />
                 {existingCampaignId ? 'Update Campaign' : 'Save Campaign'}
+              </>
+            )}
+          </Button>
+          
+          <Button 
+            onClick={handleSendCampaign} 
+            disabled={loading || sending || loadingSenderConfig}
+          >
+            {sending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                Send Campaign
               </>
             )}
           </Button>
@@ -1906,6 +2067,19 @@ cleanUrl();
         open={showAIWriter}
         onOpenChange={setShowAIWriter}
         onContentGenerated={handleAIContentGenerated}
+      />
+
+      {/* Sender Confirmation Modal */}
+      <SharedSenderConfirmationModal
+        isOpen={showSenderConfirmation}
+        onClose={() => setShowSenderConfirmation(false)}
+        onConfirm={() => {
+          setShowSenderConfirmation(false);
+          performSendCampaign();
+        }}
+        senderConfig={senderConfig}
+        campaignName={campaignName}
+        recipientCount={selectedPersonas.length + selectedSegments.length}
       />
     </div>
   );
