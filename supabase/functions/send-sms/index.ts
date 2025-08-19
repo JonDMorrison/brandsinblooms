@@ -1,192 +1,137 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
-interface TwilioResponse {
-  sid?: string
-  status?: string
-  error_code?: string
-  message?: string
-  fallback_used?: boolean
-}
-
-async function detectCarrier(phoneNumber: string): Promise<{ supportsMms: boolean }> {
-  // Simple carrier detection - in production use a proper service
-  const cleanNumber = phoneNumber.replace(/[^\d+]/g, '')
-  
-  // VoIP and known problematic patterns
-  const unsupportedPatterns = [
-    /^(\+1)?6[0-9]{9}$/, // Many Google Voice numbers
-    /^(\+1)?8[0-9]{9}$/, // Some 8xx VoIP numbers
-  ]
-  
-  for (const pattern of unsupportedPatterns) {
-    if (pattern.test(cleanNumber)) {
-      return { supportsMms: false }
-    }
-  }
-  
-  // International numbers - be conservative
-  if (!cleanNumber.startsWith('+1') && cleanNumber.length !== 10) {
-    return { supportsMms: false }
-  }
-  
-  // Default: assume MMS support for US numbers
-  return { supportsMms: true }
-}
-
-async function createFallbackMessage(body: string, mediaUrls: string[]): Promise<string> {
-  if (!mediaUrls || mediaUrls.length === 0) return body
-  
-  const imageText = mediaUrls.length === 1 
-    ? 'View image: ' 
-    : `View ${mediaUrls.length} images: `
-  
-  // Simple URL shortening - in production use proper service
-  const shortUrl = mediaUrls[0].length > 50 
-    ? mediaUrls[0].substring(0, 47) + '...'
-    : mediaUrls[0]
-  
-  return `${body}\n\n${imageText}${shortUrl}`
-}
-
-async function sendTwilioSMS(to: string, body: string, mediaUrls?: string[]): Promise<TwilioResponse> {
-  const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
-  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
-  const phoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER')
-
-  if (!accountSid || !authToken || !phoneNumber) {
-    throw new Error('Missing Twilio configuration')
-  }
-
-  // Check carrier MMS support and apply fallback if needed
-  const carrierInfo = await detectCarrier(to)
-  let finalBody = body
-  let finalMediaUrls = mediaUrls
-
-  if (mediaUrls && mediaUrls.length > 0 && !carrierInfo.supportsMms) {
-    console.log(`Carrier doesn't support MMS for ${to}, using fallback`)
-    finalBody = await createFallbackMessage(body, mediaUrls)
-    finalMediaUrls = [] // Remove media for SMS-only fallback
-  }
-
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
-  
-  const formData = new FormData()
-  formData.append('From', phoneNumber)
-  formData.append('To', to)
-  formData.append('Body', finalBody)
-  
-  // Support multiple media URLs (up to 3 for MMS) if carrier supports it
-  if (finalMediaUrls && finalMediaUrls.length > 0) {
-    const validUrls = finalMediaUrls.filter(url => url && url.trim()).slice(0, 3)
-    validUrls.forEach(url => {
-      formData.append('MediaUrl', url)
-    })
-  }
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`)
-    },
-    body: formData
-  })
-
-  const result = await response.json()
-  
-  if (!response.ok) {
-    console.error('Twilio API error:', result)
-    return {
-      error_code: result.code?.toString() || 'UNKNOWN_ERROR',
-      message: result.message || 'Failed to send SMS'
-    }
-  }
-
-  console.log(`SMS sent successfully to ${to} - SID: ${result.sid}`)
-  return {
-    sid: result.sid,
-    status: result.status,
-    fallback_used: finalMediaUrls?.length !== mediaUrls?.length // Indicate if fallback was used
-  }
-}
-
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { to, body, mediaUrl, mediaUrls, skipOptOutCheck = false } = await req.json()
+    const { to, body, mediaUrl, mediaUrls } = await req.json();
 
     if (!to || !body) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: to, body' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400
+        JSON.stringify({ error: 'Phone number and message body are required' }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
-      )
+      );
     }
 
-    // Pre-flight opt-out check (unless explicitly skipped for keyword responses)
-    if (!skipOptOutCheck) {
-      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      const supabase = createClient(supabaseUrl, supabaseKey)
+    console.log(`Sending SMS to ${to}: ${body.substring(0, 50)}...`);
 
-      const cleanedPhone = to.replace(/^\+?1?/, '').replace(/\D/g, '')
-      
-      const { data: customer } = await supabase
-        .from('crm_customers')
-        .select('opt_out, sms_opt_in')
-        .eq('phone', cleanedPhone)
-        .single()
+    // Initialize Supabase client for logging
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
 
-      if (customer && (customer.opt_out || !customer.sms_opt_in)) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Message blocked: recipient has opted out',
-            error_code: 451,
-            details: `Number ${to} is opted out of SMS communications`
-          }),
-          { 
-            status: 451, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        )
-      }
+    // Get Twilio credentials
+    const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+    const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
+
+    if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
+      return new Response(
+        JSON.stringify({ error: 'Twilio credentials not configured' }), 
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
-    console.log(`Sending SMS to ${to}`)
+    // Prepare Twilio API request
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
+    const auth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
-    // Support both single mediaUrl (legacy) and multiple mediaUrls (new)
-    const finalMediaUrls = mediaUrls || (mediaUrl ? [mediaUrl] : [])
-    const result = await sendTwilioSMS(to, body, finalMediaUrls)
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('To', to);
+    formData.append('From', twilioPhoneNumber);
+    formData.append('Body', body);
 
-    return new Response(
-      JSON.stringify(result),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: result.error_code ? 400 : 200
-      }
-    )
-
-  } catch (error) {
-    console.error('Send SMS error:', error)
+    // Add media URLs if provided (for MMS)
+    const allMediaUrls = [];
+    if (mediaUrl) allMediaUrls.push(mediaUrl);
+    if (mediaUrls && Array.isArray(mediaUrls)) allMediaUrls.push(...mediaUrls);
     
+    allMediaUrls.forEach(url => {
+      formData.append('MediaUrl', url);
+    });
+
+    // Send SMS via Twilio
+    const twilioResponse = await fetch(twilioUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+      },
+      body: formData
+    });
+
+    const twilioData = await twilioResponse.json();
+
+    if (!twilioResponse.ok) {
+      console.error('Twilio API Error:', twilioData);
+      return new Response(
+        JSON.stringify({
+          error: 'Failed to send SMS',
+          details: twilioData.message || 'Unknown Twilio error'
+        }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    console.log('SMS sent successfully:', twilioData.sid);
+
+    // Log the SMS send (optional - for test messages we might not want to log)
+    try {
+      await supabase.from('sms_messages').insert({
+        phone: to,
+        content: body,
+        status: 'sent',
+        twilio_sid: twilioData.sid,
+        media_urls: allMediaUrls.length > 0 ? allMediaUrls : null,
+        sent_at: new Date().toISOString()
+      });
+    } catch (logError) {
+      console.warn('Failed to log SMS send:', logError);
+      // Don't fail the request if logging fails
+    }
+
     return new Response(
       JSON.stringify({
-        error_code: 'INTERNAL_ERROR',
-        message: error.message
-      }),
+        sid: twilioData.sid,
+        status: twilioData.status,
+        message: 'SMS sent successfully'
+      }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500
       }
-    )
+    );
+
+  } catch (error) {
+    console.error('Error in send-sms function:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Internal server error',
+        message: error.message
+      }), 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
-})
+});

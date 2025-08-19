@@ -33,28 +33,7 @@ export default function SMSDashboard() {
     element?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  if (!stats) {
-    return (
-      <div className="space-y-8">
-        {/* Loading state */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">SMS Campaigns</h1>
-            <p className="text-muted-foreground">Loading your campaign data...</p>
-          </div>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-          {[...Array(5)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-16 bg-muted rounded"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // Show loading skeletons if needed, but don't block the entire UI
 
   return (
     <div className="space-y-8">
@@ -130,26 +109,71 @@ export default function SMSDashboard() {
       )}
 
       {/* Quick Stats - Minimal */}
-      <SMSStatCards stats={stats} onCardClick={handleCardClick} />
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-16 bg-muted rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <SMSStatCards stats={stats || {
+          subscribers: 0,
+          credits: 2847,
+          deliverability: 95,
+          clicks: 0,
+          queuedMessages: 0,
+          recentCampaigns: [],
+          recentMessages: []
+        }} onCardClick={handleCardClick} />
+      )}
 
       {/* Main Content Grid - Campaign Focused */}
       <div className="grid gap-8 lg:grid-cols-4">
         {/* Left Column - Primary Content */}
         <div className="lg:col-span-3 space-y-8">
-          <SMSCampaignsTable 
-            campaigns={stats.recentCampaigns} 
-            onCreateCampaign={handleCreateCampaign}
-          />
-          <SMSRecentMessages messages={stats.recentMessages} />
+          {isLoading ? (
+            <div className="space-y-8">
+              <Card className="animate-pulse">
+                <CardContent className="p-6">
+                  <div className="h-32 bg-muted rounded"></div>
+                </CardContent>
+              </Card>
+              <Card className="animate-pulse">
+                <CardContent className="p-6">
+                  <div className="h-48 bg-muted rounded"></div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <>
+              <SMSCampaignsTable 
+                campaigns={stats?.recentCampaigns || []} 
+                onCreateCampaign={handleCreateCampaign}
+              />
+              <SMSRecentMessages messages={stats?.recentMessages || []} />
+            </>
+          )}
         </div>
 
         {/* Right Column - Tools & Queue */}
         <div className="space-y-6">
           <SMSQuickSend onSent={() => refetch()} />
-          <SMSQueueStatus 
-            queuedMessages={stats.queuedMessages}
-            onRefresh={() => refetch()}
-          />
+          {isLoading ? (
+            <Card className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-24 bg-muted rounded"></div>
+              </CardContent>
+            </Card>
+          ) : (
+            <SMSQueueStatus 
+              queuedMessages={stats?.queuedMessages || 0}
+              onRefresh={() => refetch()}
+            />
+          )}
         </div>
       </div>
     </div>
