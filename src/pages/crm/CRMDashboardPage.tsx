@@ -1,16 +1,28 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Users, Target, TrendingUp, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { BarChart3, Users, Target, TrendingUp, RefreshCw, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCRMDashboardMetrics } from '@/hooks/useCRMDashboardMetrics';
+import { useCRMTimeSeriesMetrics } from '@/hooks/useCRMTimeSeriesMetrics';
+import { useCRMCampaignPerformance } from '@/hooks/useCRMCampaignPerformance';
+import { MetricCard } from '@/components/crm/analytics/MetricCard';
+import { CRMFilterBar } from '@/components/crm/CRMFilterBar';
+import { CRMTimeSeriesChart } from '@/components/crm/analytics/CRMTimeSeriesChart';
+import { CRMSegmentsSummary } from '@/components/crm/segments/CRMSegmentsSummary';
+import { CRMCampaignPerformance } from '@/components/crm/campaigns/CRMCampaignPerformance';
+import { CRMRecentActivity } from '@/components/crm/CRMRecentActivity';
+
+type TimeFilter = '7d' | '30d' | 'all';
+type SegmentFilter = 'all' | 'high-value' | 'new-customers' | 'loyalty-members';
+type ChannelFilter = 'all' | 'email' | 'sms' | 'social';
 
 export const CRMDashboardPage: React.FC = () => {
-  const { data: metrics, isLoading, refetch } = useCRMDashboardMetrics();
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('30d');
+  const [segmentFilter, setSegmentFilter] = useState<SegmentFilter>('all');
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
 
-  const formatGrowth = (growth: number) => {
-    const sign = growth >= 0 ? '+' : '';
-    return `${sign}${growth.toFixed(1)}%`;
-  };
+  const { data: metrics, isLoading, refetch } = useCRMDashboardMetrics();
+  const { metrics: timeSeriesMetrics, loading: timeSeriesLoading } = useCRMTimeSeriesMetrics(timeFilter);
+  const { campaigns, loading: campaignsLoading } = useCRMCampaignPerformance(timeFilter, channelFilter);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -21,32 +33,54 @@ export const CRMDashboardPage: React.FC = () => {
     }).format(amount);
   };
 
+  const getTrend = (growth: number): 'up' | 'down' | 'flat' => {
+    if (growth > 1) return 'up';
+    if (growth < -1) return 'down';
+    return 'flat';
+  };
+
+  const handleResetFilters = () => {
+    setTimeFilter('30d');
+    setSegmentFilter('all');
+    setChannelFilter('all');
+  };
+
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
-        <h1 className="text-3xl font-bold">CRM Dashboard</h1>
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">CRM Dashboard</h1>
+          <div className="h-9 bg-muted animate-pulse rounded w-24"></div>
+        </div>
+        
+        <div className="h-16 bg-muted animate-pulse rounded-lg"></div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div className="h-4 bg-muted animate-pulse rounded w-24"></div>
-                <div className="h-4 w-4 bg-muted animate-pulse rounded"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 bg-muted animate-pulse rounded w-20 mb-2"></div>
-                <div className="h-3 bg-muted animate-pulse rounded w-32"></div>
-              </CardContent>
-            </Card>
+            <div key={i} className="h-32 bg-muted animate-pulse rounded-lg"></div>
           ))}
+        </div>
+        
+        <div className="h-96 bg-muted animate-pulse rounded-lg"></div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="h-80 bg-muted animate-pulse rounded-lg"></div>
+          <div className="h-80 bg-muted animate-pulse rounded-lg"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">CRM Dashboard</h1>
+        <div>
+          <h1 className="text-3xl font-bold">CRM Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Comprehensive insights into your customer relationships and campaign performance
+          </p>
+        </div>
         <Button
           onClick={() => refetch()}
           variant="outline"
@@ -57,69 +91,72 @@ export const CRMDashboardPage: React.FC = () => {
           Refresh
         </Button>
       </div>
-      
+
+      {/* Filters */}
+      <CRMFilterBar
+        timeFilter={timeFilter}
+        segmentFilter={segmentFilter}
+        channelFilter={channelFilter}
+        onTimeFilterChange={setTimeFilter}
+        onSegmentFilterChange={setSegmentFilter}
+        onChannelFilterChange={setChannelFilter}
+        onResetFilters={handleResetFilters}
+      />
+
+      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics?.totalCustomers?.toLocaleString() || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatGrowth(metrics?.totalCustomersGrowth || 0)} from last month
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics?.activeCampaigns || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatGrowth(metrics?.activeCampaignsGrowth || 0)} from last month
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics?.conversionRate || 0}%</div>
-            <p className="text-xs text-muted-foreground">
-              {formatGrowth(metrics?.conversionRateGrowth || 0)} from last month
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(metrics?.totalRevenue || 0)}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatGrowth(metrics?.totalRevenueGrowth || 0)} from last month
-            </p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Total Customers"
+          value={metrics?.totalCustomers?.toLocaleString() || '0'}
+          icon={<Users className="w-5 h-5" />}
+          description="Active customer base"
+          trend={getTrend(metrics?.totalCustomersGrowth || 0)}
+        />
+        <MetricCard
+          title="Active Campaigns"
+          value={metrics?.activeCampaigns?.toString() || '0'}
+          icon={<Target className="w-5 h-5" />}
+          description="Currently running"
+          trend={getTrend(metrics?.activeCampaignsGrowth || 0)}
+        />
+        <MetricCard
+          title="Conversion Rate"
+          value={`${metrics?.conversionRate || 0}%`}
+          icon={<TrendingUp className="w-5 h-5" />}
+          description="Average across channels"
+          trend={getTrend(metrics?.conversionRateGrowth || 0)}
+        />
+        <MetricCard
+          title="Revenue"
+          value={formatCurrency(timeSeriesMetrics?.totalRevenue || metrics?.totalRevenue || 0)}
+          icon={<BarChart3 className="w-5 h-5" />}
+          description={`Last ${timeFilter === '7d' ? '7 days' : timeFilter === '30d' ? '30 days' : 'all time'}`}
+          trend={getTrend(timeSeriesMetrics?.revenueGrowth || metrics?.totalRevenueGrowth || 0)}
+        />
       </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Welcome to CRM Dashboard</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Manage your customer relationships, track campaigns, and analyze performance metrics all in one place.</p>
-        </CardContent>
-      </Card>
+
+      {/* Performance Chart */}
+      <CRMTimeSeriesChart 
+        data={timeSeriesMetrics?.data || []} 
+        loading={timeSeriesLoading}
+      />
+
+      {/* Bottom Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column */}
+        <div className="space-y-6">
+          <CRMSegmentsSummary />
+          <CRMRecentActivity />
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-6">
+          <CRMCampaignPerformance 
+            campaigns={campaigns} 
+            loading={campaignsLoading}
+          />
+        </div>
+      </div>
     </div>
   );
 };
