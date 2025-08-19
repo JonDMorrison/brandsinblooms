@@ -21,6 +21,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log(`📋 Incoming request: ${req.method} ${req.url}`);
+    console.log(`📋 Headers:`, Object.fromEntries(req.headers.entries()));
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -50,6 +53,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const { tenantId, domain, reportEmail }: CreateDomainRequest = await req.json();
+    
+    console.log(`📝 Request body:`, { tenantId, domain, reportEmail });
 
     if (!tenantId || !domain) {
       return new Response(
@@ -82,11 +87,15 @@ const handler = async (req: Request): Promise<Response> => {
     const resend = new Resend(resendApiKey);
 
     try {
+      console.log(`🔍 Attempting to create domain in Resend: ${domain}`);
+      
       // Create the domain in Resend
       const domainResult = await resend.domains.create({ 
         name: domain,
         region: 'us-east-1' // or your preferred region
       });
+      
+      console.log(`📝 Resend API response:`, JSON.stringify(domainResult, null, 2));
       
       if (domainResult.error) {
         console.error('❌ Failed to create domain in Resend:', domainResult.error);
@@ -113,10 +122,12 @@ const handler = async (req: Request): Promise<Response> => {
           report_email: validatedReportEmail,
           error: null
         }, {
-          onConflict: 'tenant_id,domain'
+          onConflict: 'unique_tenant_domain'
         })
         .select()
         .single();
+
+      console.log(`📝 Database upsert result:`, { emailDomain, domainError });
 
       if (domainError) {
         console.error('❌ Failed to insert email domain:', domainError);
