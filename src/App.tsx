@@ -8,6 +8,7 @@ import { SidebarLayout } from '@/components/SidebarLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicRoute } from '@/components/PublicRoute';
 import { AuthPage } from '@/components/auth/AuthPage';
+import { SmartRootRoute } from '@/components/SmartRootRoute';
 import { DataProviderWrapper } from '@/components/DataProviderWrapper';
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewslettersPage } from '@/pages/NewslettersPage';
@@ -35,7 +36,7 @@ function App() {
               <AuthPage />
             </PublicRoute>
           } />
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<SmartRootRoute />} />
           
           {/* Protected routes with sidebar */}
           <Route path="/dashboard" element={

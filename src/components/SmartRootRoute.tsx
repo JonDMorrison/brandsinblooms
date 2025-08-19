@@ -28,8 +28,15 @@ export const SmartRootRoute = () => {
     console.log('🏠 SmartRootRoute state:', {
       hasUser: !!user,
       loading,
-      currentPath: window.location.pathname
+      currentPath: window.location.pathname,
+      willRedirect: !!user && !loading
     });
+    
+    if (user && !loading) {
+      console.log('✅ Authenticated user detected, should redirect to /dashboard');
+    } else if (!user && !loading) {
+      console.log('👤 No user, showing landing page');
+    }
   }, [user, loading]);
 
   // Don't render anything while loading - let GlobalLoadingOverlay handle it
