@@ -52,9 +52,21 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { tenantId, domain, reportEmail }: CreateDomainRequest = await req.json();
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log(`📝 Raw request body:`, requestBody);
+    } catch (parseError) {
+      console.error('❌ Failed to parse request body:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { tenantId, domain, reportEmail }: CreateDomainRequest = requestBody;
     
-    console.log(`📝 Request body:`, { tenantId, domain, reportEmail });
+    console.log(`📝 Parsed request:`, { tenantId, domain, reportEmail });
 
     if (!tenantId || !domain) {
       return new Response(
