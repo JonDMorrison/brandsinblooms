@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Send, Zap } from 'lucide-react';
+import { Send, Zap, Image, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { twilioClient } from '@/lib/sms/twilioClient';
+import { ImageUploader } from '@/lib/image/imageUploader';
 
 interface SMSQuickSendProps {
   onSent: () => void;
@@ -16,6 +17,36 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (500KB limit for MMS)
+    if (file.size > 500 * 1024) {
+      toast.error('Image must be smaller than 500KB for MMS');
+      return;
+    }
+
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setImagePreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,25 +58,40 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
 
     setSending(true);
     try {
-      const { error } = await supabase.functions.invoke('send-sms', {
-        body: {
-          to: phone,
-          message: message,
-          test: true // Mark as test message
-        }
+      let mediaUrls: string[] = [];
+
+      // Upload image if present
+      if (imageFile) {
+        setUploading(true);
+        const uploader = new ImageUploader('media-mms');
+        const result = await uploader.uploadProcessedImage(
+          imageFile, 
+          imageFile.name, 
+          '-mms-test'
+        );
+        mediaUrls = [result.publicUrl!];
+        setUploading(false);
+      }
+
+      // Send SMS using TwilioClient
+      await twilioClient.sendSMS({
+        to: phone,
+        body: message,
+        mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
       });
 
-      if (error) throw error;
-
-      toast.success('Test message sent successfully!');
+      toast.success(imageFile ? 'Test MMS sent successfully!' : 'Test SMS sent successfully!');
       setPhone('');
       setMessage('');
+      setImageFile(null);
+      setImagePreview(null);
       onSent();
     } catch (error) {
       console.error('Error sending SMS:', error);
       toast.error('Failed to send message');
     } finally {
       setSending(false);
+      setUploading(false);
     }
   };
 
@@ -100,13 +146,59 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
             </div>
           </div>
 
+          {/* Image Upload for MMS */}
+          <div>
+            <Label>Image (Optional)</Label>
+            <div className="mt-1">
+              {imagePreview ? (
+                <div className="relative">
+                  <img 
+                    src={imagePreview} 
+                    alt="MMS Preview" 
+                    className="w-full h-32 object-cover rounded-lg border"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleRemoveImage}
+                    className="absolute top-2 right-2"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center">
+                  <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Add image for MMS (max 500KB)
+                  </p>
+                  <label>
+                    <Button type="button" variant="outline" size="sm" asChild>
+                      <span>Select Image</span>
+                    </Button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              PNG, JPG, GIF supported. Images will be compressed if needed.
+            </p>
+          </div>
+
           <Button 
             type="submit" 
-            disabled={sending || !phone || !message}
+            disabled={sending || uploading || !phone || !message}
             className="w-full"
           >
             <Send className="h-4 w-4 mr-2" />
-            {sending ? 'Sending...' : 'Send Test Message'}
+            {uploading ? 'Uploading...' : sending ? 'Sending...' : imageFile ? 'Send Test MMS' : 'Send Test SMS'}
           </Button>
         </form>
       </CardContent>

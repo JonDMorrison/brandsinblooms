@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { SettingsIcon, PlusIcon, RefreshCw, Smartphone } from 'lucide-react';
+import { SettingsIcon, PlusIcon, RefreshCw, Smartphone, Zap, CheckCircle } from 'lucide-react';
 import { useTwilioSetup } from '@/components/dashboard/TwilioSetupChecker';
 import { useSMSStats } from '@/hooks/useSMSStats';
 import { SMSStatCards } from '@/components/sms/SMSStatCards';
@@ -11,6 +11,7 @@ import { SMSCampaignsTable } from '@/components/sms/SMSCampaignsTable';
 import { SMSRecentMessages } from '@/components/sms/SMSRecentMessages';
 import { SMSQueueStatus } from '@/components/sms/SMSQueueStatus';
 import { SMSQuickSend } from '@/components/sms/SMSQuickSend';
+import { SMSSetupWizard } from '@/components/sms/SMSSetupWizard';
 
 export default function SMSDashboard() {
   const navigate = useNavigate();
@@ -38,8 +39,8 @@ export default function SMSDashboard() {
         {/* Loading state */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">SMS Command Center</h1>
-            <p className="text-muted-foreground">Loading your SMS analytics...</p>
+            <h1 className="text-3xl font-bold tracking-tight">SMS Campaigns</h1>
+            <p className="text-muted-foreground">Loading your campaign data...</p>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
@@ -60,20 +61,28 @@ export default function SMSDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">SMS Command Center</h1>
+          <h1 className="text-3xl font-bold tracking-tight">SMS Campaigns</h1>
           <p className="text-muted-foreground">
-            Real-time SMS marketing dashboard and controls
+            Create and manage your SMS marketing campaigns
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => refetch()}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          {twilioSetup?.isSetup ? (
+            <Badge variant="outline" className="text-green-600 border-green-200">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              SMS Ready
+            </Badge>
+          ) : (
+            <SMSSetupWizard
+              trigger={
+                <Button variant="outline" size="sm">
+                  <Zap className="h-4 w-4 mr-2" />
+                  Setup Wizard
+                </Button>
+              }
+              onComplete={() => window.location.reload()}
+            />
+          )}
           <Button
             variant="outline"
             onClick={() => navigate('/sms/automations')}
@@ -81,9 +90,9 @@ export default function SMSDashboard() {
             <SettingsIcon className="h-4 w-4 mr-2" />
             Automations
           </Button>
-          <Button onClick={handleCreateCampaign}>
+          <Button onClick={handleCreateCampaign} size="lg">
             <PlusIcon className="h-4 w-4 mr-2" />
-            New Campaign
+            Create Campaign
           </Button>
         </div>
       </div>
@@ -97,27 +106,36 @@ export default function SMSDashboard() {
               <span>SMS Setup Required</span>
             </CardTitle>
             <CardDescription className="text-orange-700">
-              Configure Twilio credentials to enable SMS functionality
+              Complete SMS setup to start creating campaigns
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex items-center gap-3">
+            <SMSSetupWizard
+              trigger={
+                <Button className="bg-orange-600 hover:bg-orange-700">
+                  <Zap className="h-4 w-4 mr-2" />
+                  Start Setup Wizard
+                </Button>
+              }
+              onComplete={() => window.location.reload()}
+            />
             <Button 
+              variant="outline"
               onClick={() => navigate('/dashboard/integrations')}
-              className="bg-orange-600 hover:bg-orange-700"
             >
-              Complete Setup
+              Manual Setup
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Stats Cards */}
+      {/* Quick Stats - Minimal */}
       <SMSStatCards stats={stats} onCardClick={handleCardClick} />
 
-      {/* Main Content Grid */}
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Left Column - Campaigns and Messages */}
-        <div className="lg:col-span-2 space-y-8">
+      {/* Main Content Grid - Campaign Focused */}
+      <div className="grid gap-8 lg:grid-cols-4">
+        {/* Left Column - Primary Content */}
+        <div className="lg:col-span-3 space-y-8">
           <SMSCampaignsTable 
             campaigns={stats.recentCampaigns} 
             onCreateCampaign={handleCreateCampaign}
@@ -125,13 +143,13 @@ export default function SMSDashboard() {
           <SMSRecentMessages messages={stats.recentMessages} />
         </div>
 
-        {/* Right Column - Queue and Quick Send */}
-        <div className="space-y-8">
+        {/* Right Column - Tools & Queue */}
+        <div className="space-y-6">
+          <SMSQuickSend onSent={() => refetch()} />
           <SMSQueueStatus 
             queuedMessages={stats.queuedMessages}
             onRefresh={() => refetch()}
           />
-          <SMSQuickSend onSent={() => refetch()} />
         </div>
       </div>
     </div>
