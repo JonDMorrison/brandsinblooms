@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { EmailDomainWizard } from './EmailDomainWizard';
 import { EmailDomainDetails } from './EmailDomainDetails';
-import { useEmailDomains } from '@/hooks/useEmailDomains';
+import { useEmailDomains, EmailDomain } from '@/hooks/useEmailDomains';
 import { toast } from 'sonner';
 
 export const EmailDomainsList = () => {
@@ -24,6 +24,21 @@ export const EmailDomainsList = () => {
   const [showWizard, setShowWizard] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [verifyingDomains, setVerifyingDomains] = useState<Set<string>>(new Set());
+
+  const getProviderBadge = (domain: EmailDomain) => {
+    if (domain.is_sandbox) {
+      return <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">Sandbox</Badge>;
+    }
+    
+    switch (domain.provider) {
+      case 'cloudflare':
+        return <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">Cloudflare</Badge>;
+      case 'domain_connect':
+        return <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">Domain Connect</Badge>;
+      default:
+        return <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-800">Manual</Badge>;
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -123,36 +138,33 @@ export const EmailDomainsList = () => {
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    {getStatusIcon(domain.status)}
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{domain.domain}</span>
-                        {getStatusBadge(domain.status)}
-                        {domain.is_sandbox && (
-                          <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 flex items-center gap-1">
-                            <TestTube className="w-3 h-3" />
-                            SANDBOX
-                          </Badge>
-                        )}
-                        {domain.env === 'dev' && !domain.is_sandbox && (
-                          <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">
-                            DEV
-                          </Badge>
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                      domain.is_sandbox ? 'bg-purple-100' : 'bg-blue-100'
+                    }`}>
+                      {getStatusIcon(domain.status)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {domain.domain}
+                        </p>
+                        {getProviderBadge(domain)}
+                        {domain.env === 'dev' && (
+                          <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800">DEV</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 mt-1">
-                        <span className="text-sm text-gray-600">
-                          {domain.env === 'dev' ? 'Development' : 'Production'} • Created {new Date(domain.created_at).toLocaleDateString()}
-                        </span>
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <span>Status: {getStatusBadge(domain.status)}</span>
+                        <span>Added {new Date(domain.created_at).toLocaleDateString()}</span>
                         {domain.report_email && (
-                          <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
                             <Mail className="w-3 h-3" />
-                            Reports to: {domain.report_email}
+                            Reports: {domain.report_email}
                           </div>
                         )}
                       </div>
                       {domain.error && (
-                        <p className="text-sm text-red-600 mt-1">{domain.error}</p>
+                        <p className="text-xs text-red-600 mt-1">{domain.error}</p>
                       )}
                     </div>
                   </div>

@@ -21,6 +21,8 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
   const [domain, setDomain] = useState('');
   const [reportEmail, setReportEmail] = useState('');
   const [useSandbox, setUseSandbox] = useState(false);
+  const [provider, setProvider] = useState<'cloudflare' | 'domain_connect' | 'manual'>('manual');
+  const [cloudflareToken, setCloudflareToken] = useState('');
   const [sandboxConfig, setSandboxConfig] = useState<any>({ enabled: false });
   const [loading, setLoading] = useState(false);
 
@@ -44,6 +46,8 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
     setDomain('');
     setReportEmail('');
     setUseSandbox(false);
+    setProvider('manual');
+    setCloudflareToken('');
     setLoading(false);
   };
 
@@ -55,11 +59,15 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
   const handleNext = () => {
     if (step === 1 && (useSandbox || domain.trim())) {
       setStep(2);
+    } else if (step === 2) {
+      setStep(3);
     }
   };
 
   const handleBack = () => {
-    if (step === 2) {
+    if (step === 3) {
+      setStep(2);
+    } else if (step === 2) {
       setStep(1);
     }
   };
@@ -72,10 +80,17 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
 
     try {
       setLoading(true);
+      const providerAuth = provider === 'cloudflare' && cloudflareToken ? 
+        { cloudflareToken } : undefined;
+        
+      const finalProvider = useSandbox ? 'cloudflare' : provider;
+      
       await createEmailDomain(
         useSandbox ? undefined : domain.trim(), 
         reportEmail.trim() || undefined,
-        useSandbox
+        useSandbox,
+        finalProvider,
+        providerAuth
       );
       handleClose();
     } catch (error: any) {
@@ -115,6 +130,12 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
               step >= 2 ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
             }`}>
               2
+            </div>
+            <div className={`flex-1 h-0.5 ${step >= 3 ? 'bg-green-200' : 'bg-gray-200'}`} />
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+              step >= 3 ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+            }`}>
+              3
             </div>
           </div>
 
@@ -185,7 +206,127 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
             </div>
           )}
 
-          {step === 2 && (
+          {step === 2 && !useSandbox && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Provider Selection</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Choose how you want to apply DNS records for your domain.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="grid gap-3">
+                  {/* Domain Connect Option */}
+                  <div 
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      provider === 'domain_connect' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setProvider('domain_connect')}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        name="provider"
+                        checked={provider === 'domain_connect'}
+                        onChange={() => setProvider('domain_connect')}
+                        className="text-blue-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">Automatic Setup (Domain Connect)</div>
+                        <div className="text-sm text-gray-600">
+                          Works with GoDaddy, Namecheap, and other major registrars
+                        </div>
+                        <Badge variant="secondary" className="mt-1 text-xs bg-green-100 text-green-800">
+                          Recommended
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cloudflare Option */}
+                  <div 
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      provider === 'cloudflare' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setProvider('cloudflare')}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        name="provider"
+                        checked={provider === 'cloudflare'}
+                        onChange={() => setProvider('cloudflare')}
+                        className="text-blue-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">Cloudflare API</div>
+                        <div className="text-sm text-gray-600">
+                          If your domain uses Cloudflare for DNS
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {provider === 'cloudflare' && (
+                      <div className="mt-3 pl-6">
+                        <Label htmlFor="cfToken" className="text-sm">Cloudflare API Token</Label>
+                        <Input
+                          id="cfToken"
+                          type="password"
+                          placeholder="Your Cloudflare API token with Zone:Edit permissions"
+                          value={cloudflareToken}
+                          onChange={(e) => setCloudflareToken(e.target.value)}
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Create one at: Cloudflare Dashboard → My Profile → API Tokens
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Manual Option */}
+                  <div 
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      provider === 'manual' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setProvider('manual')}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        name="provider"
+                        checked={provider === 'manual'}
+                        onChange={() => setProvider('manual')}
+                        className="text-blue-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">Manual DNS Setup</div>
+                        <div className="text-sm text-gray-600">
+                          I'll add the DNS records myself
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" onClick={handleBack}>
+                  Back
+                </Button>
+                <Button 
+                  onClick={handleNext}
+                  disabled={provider === 'cloudflare' && !cloudflareToken.trim()}
+                  className="flex items-center gap-2"
+                >
+                  Next <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {(step === 2 && useSandbox) || step === 3 ? (
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-semibold mb-2">DMARC Reports</h3>
@@ -220,15 +361,25 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
                   <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
                   <div className="text-xs text-amber-800">
                     <p className="font-medium mb-1">Next Steps:</p>
-                    <p>After creating the domain, you'll need to add DNS records to your domain provider to verify ownership and enable email sending.</p>
+                    {useSandbox ? (
+                      <p>Your sandbox domain will be ready immediately with automatic DNS setup!</p>
+                    ) : provider === 'domain_connect' ? (
+                      <p>After creating the domain, you'll be redirected to your registrar to authorize DNS changes.</p>
+                    ) : provider === 'cloudflare' ? (
+                      <p>DNS records will be applied automatically to your Cloudflare zone.</p>
+                    ) : (
+                      <p>After creating the domain, you'll need to add DNS records to your domain provider manually.</p>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button variant="outline" onClick={handleBack}>
-                  Back
-                </Button>
+                {!useSandbox && (
+                  <Button variant="outline" onClick={handleBack}>
+                    Back
+                  </Button>
+                )}
                 <Button 
                   onClick={handleSubmit} 
                   disabled={loading}
@@ -238,7 +389,7 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
                 </Button>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

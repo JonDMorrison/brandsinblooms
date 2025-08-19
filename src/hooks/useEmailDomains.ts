@@ -9,11 +9,13 @@ export interface EmailDomain {
   tenant_id: string;
   domain: string;
   resend_domain_id?: string;
+  provider?: 'domain_connect' | 'cloudflare' | 'manual';
   status: 'pending' | 'verifying' | 'active' | 'error';
-  error?: string;
-  report_email?: string;
   env?: 'prod' | 'dev';
   is_sandbox?: boolean;
+  error?: string;
+  report_email?: string;
+  last_error?: string;
   created_at: string;
   updated_at: string;
 }
@@ -103,7 +105,13 @@ export const useEmailDomains = () => {
     }
   };
 
-  const createEmailDomain = async (domain?: string, reportEmail?: string, useSandbox?: boolean) => {
+  const createEmailDomain = async (
+    domain?: string, 
+    reportEmail?: string, 
+    useSandbox?: boolean,
+    provider?: 'cloudflare' | 'domain_connect' | 'manual',
+    providerAuth?: { cloudflareToken?: string }
+  ) => {
     if (!tenant?.id) return null;
 
     try {
@@ -112,16 +120,19 @@ export const useEmailDomains = () => {
           tenantId: tenant.id,
           domain,
           reportEmail,
-          useSandbox
+          useSandbox,
+          provider,
+          providerAuth
         }
       });
 
       if (error) throw error;
       
-      toast.success(useSandbox 
+      const message = data?.message || (useSandbox 
         ? "Sandbox domain created successfully! DNS records have been applied automatically."
-        : "Your email domain has been set up successfully."
-      );
+        : "Your email domain has been set up successfully.");
+      
+      toast.success(message);
       
       await fetchEmailDomains();
       return data;
@@ -145,10 +156,10 @@ export const useEmailDomains = () => {
 
       if (error) throw error;
       
-      const isSuccess = data.ok || data.status === 'active';
+      const isSuccess = data?.ok || data?.status === 'active';
       
       toast[isSuccess ? 'success' : 'warning'](
-        data.message || (isSuccess 
+        data?.message || (isSuccess 
           ? "Domain is now active and ready to send emails"
           : "Some DNS records are still pending verification")
       );
@@ -160,6 +171,36 @@ export const useEmailDomains = () => {
       toast.error(error.message || 'Failed to verify email domain');
       throw error;
     }
+  };
+
+  // Auto-poll verification status
+  const pollVerification = async (domainId: string, maxAttempts = 10) => {
+    let attempts = 0;
+    const pollInterval = 90000; // 90 seconds
+    
+    const poll = async (): Promise<any> => {
+      if (attempts >= maxAttempts) {
+        console.log('Max verification attempts reached');
+        return null;
+      }
+      
+      attempts++;
+      try {
+        const result = await verifyEmailDomain(domainId);
+        
+        if (result?.ok || result?.status === 'active') {
+          return result;
+        }
+        
+        // Continue polling if not successful
+        setTimeout(poll, pollInterval);
+      } catch (error) {
+        console.error('Polling verification failed:', error);
+        return null;
+      }
+    };
+    
+    return poll();
   };
 
   const updateEmailDomain = async (domainId: string, updates: Partial<EmailDomain>) => {
@@ -212,6 +253,7 @@ export const useEmailDomains = () => {
     loading,
     createEmailDomain,
     verifyEmailDomain,
+    pollVerification,
     updateEmailDomain,
     deleteEmailDomain,
     getDomainRecords,
