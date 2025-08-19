@@ -101,6 +101,16 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       console.log(`🔍 Attempting to create domain in Resend: ${domain}`);
       
+      // First, try to delete the domain if it exists
+      try {
+        console.log(`🧹 Checking if domain ${domain} already exists in Resend...`);
+        const deleteResult = await resend.domains.remove(domain);
+        console.log(`🧹 Delete attempt result:`, deleteResult);
+      } catch (deleteError) {
+        console.log(`🧹 Domain ${domain} doesn't exist or couldn't be deleted:`, deleteError.message);
+        // This is fine, the domain probably doesn't exist
+      }
+      
       // Create the domain in Resend
       const domainResult = await resend.domains.create({ 
         name: domain,
