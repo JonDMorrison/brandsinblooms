@@ -33,8 +33,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         
         {/* Enhanced Typography */}
         <h1 className="text-6xl md:text-7xl font-bold text-gray-900 mb-8 leading-tight tracking-tight apple-fade-in-stagger">
-          Complete Marketing Suite for
-          <span className="block text-[#47B881] mt-2">Garden Centers</span>
+          Complete Marketing Suite for <span className="text-[#47B881]">Garden Centers</span>
         </h1>
         
         <p className="text-xl md:text-2xl text-[#6B7280] mb-14 max-w-4xl mx-auto leading-relaxed apple-body-enhanced">
