@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 
 import { AuthProvider } from '@/contexts/AuthContext';
 import { NavLayout } from '@/components/layout/NavLayout';
+import { AuthPage } from '@/components/auth/AuthPage';
 import Index from '@/pages/Index';
 import SocialMediaPage from '@/pages/SocialMediaPage';
 import { CRMDashboardPage } from '@/pages/crm/CRMDashboardPage';
@@ -22,6 +23,7 @@ function App() {
           <NavLayout />
           <main className="flex-1">
             <Routes>
+              <Route path="/auth" element={<AuthPage />} />
               <Route path="/" element={<Index />} />
               <Route path="/campaigns" element={<SocialMediaPage />} />
               <Route path="/crm" element={<CRMDashboardPage />} />
