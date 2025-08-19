@@ -69,7 +69,7 @@ export const NewsletterTemplateDrawer = ({ isOpen, onClose }: NewsletterTemplate
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-[600px] sm:w-[700px] bg-background border-l shadow-xl">
+      <SheetContent className="w-[600px] sm:w-[700px] bg-white border-l shadow-2xl">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Mail className="w-5 h-5" />
