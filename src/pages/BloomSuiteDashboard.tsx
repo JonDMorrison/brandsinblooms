@@ -7,6 +7,7 @@ import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
 import { PostComposerModal } from "@/components/dashboard/PostComposerModal";
 import { useConnectedAccounts, getConnectionStatus } from "@/components/dashboard/ConnectedAccountChecker";
 import { useTwilioSetup, getTwilioStatus } from "@/components/dashboard/TwilioSetupChecker";
+import { getDynamicIcon } from "@/components/dashboard/DynamicIcons";
 import { Button } from "@/components/ui/button";
 import { 
   Mail, 
@@ -173,7 +174,8 @@ export const BloomSuiteDashboard = () => {
         onClick: () => navigate('/social-accounts')
       },
       status: socialStatus.status,
-      statusMessage: socialStatus.statusMessage
+      statusMessage: socialStatus.statusMessage,
+      connectionCount: socialConnections.length
     },
     {
       id: 'website',
@@ -229,6 +231,9 @@ export const BloomSuiteDashboard = () => {
                 statusMessage={action.statusMessage}
                 variant="botanical"
                 accent={accent}
+                cardId={action.id}
+                dynamicIcon={getDynamicIcon(action.id, action.status, (action as any).connectionCount)}
+                hasPendingAction={action.status === 'pending'}
               />
             );
           })}
