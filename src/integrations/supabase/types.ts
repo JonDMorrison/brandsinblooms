@@ -2405,6 +2405,118 @@ export type Database = {
         }
         Relationships: []
       }
+      email_dns_checks: {
+        Row: {
+          check_name: string
+          checked_at: string | null
+          details: Json | null
+          email_domain_id: string
+          id: string
+          ok: boolean
+        }
+        Insert: {
+          check_name: string
+          checked_at?: string | null
+          details?: Json | null
+          email_domain_id: string
+          id?: string
+          ok: boolean
+        }
+        Update: {
+          check_name?: string
+          checked_at?: string | null
+          details?: Json | null
+          email_domain_id?: string
+          id?: string
+          ok?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_dns_checks_email_domain_id_fkey"
+            columns: ["email_domain_id"]
+            isOneToOne: false
+            referencedRelation: "email_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_dns_records: {
+        Row: {
+          created_at: string | null
+          email_domain_id: string
+          id: string
+          name: string
+          purpose: string
+          required: boolean
+          type: string
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          email_domain_id: string
+          id?: string
+          name: string
+          purpose: string
+          required?: boolean
+          type: string
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          email_domain_id?: string
+          id?: string
+          name?: string
+          purpose?: string
+          required?: boolean
+          type?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_dns_records_email_domain_id_fkey"
+            columns: ["email_domain_id"]
+            isOneToOne: false
+            referencedRelation: "email_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_domains: {
+        Row: {
+          created_at: string | null
+          domain: string
+          error: string | null
+          id: string
+          report_email: string | null
+          resend_domain_id: string | null
+          status: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          domain: string
+          error?: string | null
+          id?: string
+          report_email?: string | null
+          resend_domain_id?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          domain?: string
+          error?: string | null
+          id?: string
+          report_email?: string | null
+          resend_domain_id?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       email_senders: {
         Row: {
           created_at: string
