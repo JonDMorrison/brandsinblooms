@@ -5,7 +5,7 @@ export const NewsletterIllustration = ({ className = "" }: { className?: string 
   <svg 
     viewBox="0 0 120 120" 
     className={`absolute bottom-0 right-0 w-32 h-32 ${className}`}
-    style={{ opacity: 0.08 }}
+    style={{ opacity: 0.15 }}
   >
     <g fill="currentColor">
       {/* Paper stack */}
@@ -25,7 +25,7 @@ export const CampaignIllustration = ({ className = "" }: { className?: string })
   <svg 
     viewBox="0 0 120 120" 
     className={`absolute bottom-0 right-0 w-32 h-32 ${className}`}
-    style={{ opacity: 0.08 }}
+    style={{ opacity: 0.15 }}
   >
     <g fill="currentColor" stroke="currentColor" strokeWidth="2">
       {/* Flow nodes */}
@@ -55,7 +55,7 @@ export const CalendarIllustration = ({ className = "" }: { className?: string })
   <svg 
     viewBox="0 0 120 120" 
     className={`absolute bottom-0 right-0 w-32 h-32 ${className}`}
-    style={{ opacity: 0.08 }}
+    style={{ opacity: 0.15 }}
   >
     <g fill="currentColor">
       {/* Calendar frame */}
@@ -85,7 +85,7 @@ export const AnalyticsIllustration = ({ className = "" }: { className?: string }
   <svg 
     viewBox="0 0 120 120" 
     className={`absolute bottom-0 right-0 w-32 h-32 ${className}`}
-    style={{ opacity: 0.08 }}
+    style={{ opacity: 0.15 }}
   >
     <g fill="currentColor" stroke="currentColor" strokeWidth="2">
       {/* Chart bars */}
@@ -113,7 +113,7 @@ export const SocialIllustration = ({ className = "" }: { className?: string }) =
   <svg 
     viewBox="0 0 120 120" 
     className={`absolute bottom-0 right-0 w-32 h-32 ${className}`}
-    style={{ opacity: 0.08 }}
+    style={{ opacity: 0.15 }}
   >
     <g fill="currentColor" stroke="currentColor" strokeWidth="2">
       {/* Central node */}
@@ -139,7 +139,7 @@ export const CreateIllustration = ({ className = "" }: { className?: string }) =
   <svg 
     viewBox="0 0 120 120" 
     className={`absolute bottom-0 right-0 w-32 h-32 ${className}`}
-    style={{ opacity: 0.08 }}
+    style={{ opacity: 0.15 }}
   >
     <g fill="currentColor" stroke="currentColor" strokeWidth="2">
       {/* Pencil */}
@@ -164,7 +164,7 @@ export const WebsiteIllustration = ({ className = "" }: { className?: string }) 
   <svg 
     viewBox="0 0 120 120" 
     className={`absolute bottom-0 right-0 w-32 h-32 ${className}`}
-    style={{ opacity: 0.08 }}
+    style={{ opacity: 0.15 }}
   >
     <g fill="currentColor" stroke="currentColor" strokeWidth="2">
       {/* Globe */}
