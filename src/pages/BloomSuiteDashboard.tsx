@@ -99,7 +99,10 @@ export const BloomSuiteDashboard = () => {
       
       primaryAction: {
         label: 'Create Newsletter',
-        onClick: () => navigate('/newsletters/new')
+        onClick: () => {
+          console.log('Newsletter button clicked - navigating to:', '/crm/campaigns/new?type=newsletter');
+          navigate('/crm/campaigns/new?type=newsletter');
+        }
       },
       secondaryAction: {
         label: 'Browse Templates',
