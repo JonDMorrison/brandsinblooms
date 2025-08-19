@@ -2442,30 +2442,42 @@ export type Database = {
       }
       email_dns_records: {
         Row: {
+          applied_at: string | null
+          applied_automatically: boolean | null
+          applied_provider: string | null
           created_at: string | null
           email_domain_id: string
           id: string
           name: string
+          provider_record_id: string | null
           purpose: string
           required: boolean
           type: string
           value: string
         }
         Insert: {
+          applied_at?: string | null
+          applied_automatically?: boolean | null
+          applied_provider?: string | null
           created_at?: string | null
           email_domain_id: string
           id?: string
           name: string
+          provider_record_id?: string | null
           purpose: string
           required?: boolean
           type: string
           value: string
         }
         Update: {
+          applied_at?: string | null
+          applied_automatically?: boolean | null
+          applied_provider?: string | null
           created_at?: string | null
           email_domain_id?: string
           id?: string
           name?: string
+          provider_record_id?: string | null
           purpose?: string
           required?: boolean
           type?: string
@@ -2485,8 +2497,10 @@ export type Database = {
         Row: {
           created_at: string | null
           domain: string
+          env: Database["public"]["Enums"]["email_env"] | null
           error: string | null
           id: string
+          is_sandbox: boolean | null
           report_email: string | null
           resend_domain_id: string | null
           status: string
@@ -2496,8 +2510,10 @@ export type Database = {
         Insert: {
           created_at?: string | null
           domain: string
+          env?: Database["public"]["Enums"]["email_env"] | null
           error?: string | null
           id?: string
+          is_sandbox?: boolean | null
           report_email?: string | null
           resend_domain_id?: string | null
           status?: string
@@ -2507,8 +2523,10 @@ export type Database = {
         Update: {
           created_at?: string | null
           domain?: string
+          env?: Database["public"]["Enums"]["email_env"] | null
           error?: string | null
           id?: string
+          is_sandbox?: boolean | null
           report_email?: string | null
           resend_domain_id?: string | null
           status?: string
@@ -4729,6 +4747,7 @@ export type Database = {
       billing_interval: "monthly" | "annual"
       content_status: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED"
       draft_doc_type: "newsletter" | "automation" | "content_bundle"
+      email_env: "prod" | "dev"
       platform_type: "FB" | "IG_FEED" | "IG_REEL"
       post_mode: "AUTO" | "MANUAL"
       post_status: "QUEUED" | "PUBLISHED" | "ERROR"
@@ -4863,6 +4882,7 @@ export const Constants = {
       billing_interval: ["monthly", "annual"],
       content_status: ["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED"],
       draft_doc_type: ["newsletter", "automation", "content_bundle"],
+      email_env: ["prod", "dev"],
       platform_type: ["FB", "IG_FEED", "IG_REEL"],
       post_mode: ["AUTO", "MANUAL"],
       post_status: ["QUEUED", "PUBLISHED", "ERROR"],
