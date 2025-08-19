@@ -93,6 +93,95 @@ html {
   background: linear-gradient(135deg, #FCFEFD 0%, #F9FBFA 50%, #F1F4F3 100%);
 }
 
+/* Botanical dashboard card gradients */
+.botanical-gradient-sage {
+  background: linear-gradient(135deg, rgba(248, 250, 252, 1) 0%, rgba(236, 253, 245, 0.8) 50%, rgba(209, 250, 229, 0.6) 100%);
+}
+
+.botanical-gradient-mint {
+  background: linear-gradient(135deg, rgba(240, 253, 244, 1) 0%, rgba(220, 252, 231, 0.9) 50%, rgba(187, 247, 208, 0.7) 100%);
+}
+
+.botanical-gradient-forest {
+  background: linear-gradient(135deg, rgba(241, 245, 249, 1) 0%, rgba(226, 232, 240, 0.8) 50%, rgba(203, 213, 225, 0.6) 100%);
+}
+
+.botanical-gradient-earth {
+  background: linear-gradient(135deg, rgba(251, 249, 244, 1) 0%, rgba(247, 243, 232, 0.9) 50%, rgba(240, 230, 209, 0.7) 100%);
+}
+
+/* Botanical accent strips */
+.botanical-accent-sage {
+  position: relative;
+}
+
+.botanical-accent-sage::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #22C55E 0%, #68BEB9 50%, #16A34A 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+.botanical-accent-mint::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #10B981 0%, #06D6A0 50%, #059669 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+.botanical-accent-forest::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #15803D 0%, #059669 50%, #14532D 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+.botanical-accent-earth::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #A87354 0%, #C09970 50%, #78271C 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+/* Botanical icon badges */
+.botanical-icon-badge {
+  @apply relative p-3 rounded-xl backdrop-blur-sm;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  box-shadow: 
+    0 4px 20px rgba(34, 197, 94, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.botanical-icon-badge::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, #22C55E, #68BEB9);
+  border-radius: 50%;
+  border: 2px solid white;
+  opacity: 0.8;
+}
+
 /* CTA button chevron animation */
 .cta-chevron {
   transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);

@@ -17,6 +17,8 @@ interface DashboardCardProps {
   };
   status?: 'ready' | 'setup-needed' | 'connected';
   statusMessage?: string;
+  variant?: 'default' | 'botanical';
+  accent?: 'sage' | 'mint' | 'forest' | 'earth';
 }
 
 export const DashboardCard = ({
@@ -26,7 +28,9 @@ export const DashboardCard = ({
   primaryAction,
   secondaryAction,
   status = 'ready',
-  statusMessage
+  statusMessage,
+  variant = 'default',
+  accent = 'sage'
 }: DashboardCardProps) => {
   const getStatusIcon = () => {
     switch (status) {
@@ -50,12 +54,27 @@ export const DashboardCard = ({
     }
   };
 
+  const getVariantClasses = () => {
+    if (variant === 'botanical') {
+      const gradientClass = `botanical-gradient-${accent}`;
+      const accentClass = accent !== 'sage' ? `botanical-accent-${accent}` : 'botanical-accent-sage';
+      return `${gradientClass} ${accentClass}`;
+    }
+    return 'bg-white';
+  };
+
+  const getIconClasses = () => {
+    return variant === 'botanical' 
+      ? 'botanical-icon-badge' 
+      : 'p-3 rounded-xl bg-white/50 backdrop-blur-sm';
+  };
+
   return (
-    <Card className={`relative overflow-hidden bg-white border border-gray-200 rounded-2xl transition-all duration-300 ease-out hover:shadow-[0px_6px_16px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 active:scale-[0.98] active:shadow-[0px_2px_8px_rgba(0,0,0,0.08)] shadow-[0px_4px_12px_rgba(0,0,0,0.08)] card-interactive`}>
+    <Card className={`relative overflow-hidden border border-gray-200/60 rounded-2xl transition-all duration-300 ease-out hover:shadow-[0px_8px_24px_rgba(34,197,94,0.15)] hover:-translate-y-1 active:scale-[0.98] active:shadow-[0px_2px_8px_rgba(0,0,0,0.08)] shadow-[0px_6px_20px_rgba(0,0,0,0.08)] card-interactive ${getVariantClasses()}`}>
       <CardContent className="p-7">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-white/50 backdrop-blur-sm">
+            <div className={getIconClasses()}>
               {icon}
             </div>
             <div>
@@ -79,7 +98,11 @@ export const DashboardCard = ({
         <div className="flex flex-col gap-3">
           <Button 
             onClick={primaryAction.onClick}
-            className="w-full group bg-white/80 hover:bg-white text-gray-900 border border-gray-200 hover:border-gray-300 rounded-xl h-12"
+            className={`w-full group rounded-xl h-12 font-medium transition-all duration-200 ${
+              variant === 'botanical' 
+                ? 'bg-gradient-to-r from-brand-green to-brand-teal hover:from-green-600 hover:to-teal-600 text-white shadow-md hover:shadow-lg' 
+                : 'bg-white/80 hover:bg-white text-gray-900 border border-gray-200 hover:border-gray-300'
+            }`}
           >
             {primaryAction.label}
             <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />

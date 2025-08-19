@@ -212,19 +212,26 @@ export const BloomSuiteDashboard = () => {
 
         {/* Dashboard Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {dashboardActions.map((action) => (
-            <DashboardCard
-              key={action.id}
-              title={action.title}
-              description={action.description}
-              icon={action.icon}
-              
-              primaryAction={action.primaryAction}
-              secondaryAction={action.secondaryAction}
-              status={action.status}
-              statusMessage={action.statusMessage}
-            />
-          ))}
+          {dashboardActions.map((action, index) => {
+            // Define botanical accents for variety
+            const botanicalAccents = ['sage', 'mint', 'forest', 'earth'] as const;
+            const accent = botanicalAccents[index % botanicalAccents.length];
+            
+            return (
+              <DashboardCard
+                key={action.id}
+                title={action.title}
+                description={action.description}
+                icon={action.icon}
+                primaryAction={action.primaryAction}
+                secondaryAction={action.secondaryAction}
+                status={action.status}
+                statusMessage={action.statusMessage}
+                variant="botanical"
+                accent={accent}
+              />
+            );
+          })}
         </div>
 
         {/* Quick Stats or Recent Activity could go here */}
