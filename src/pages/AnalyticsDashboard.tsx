@@ -36,13 +36,13 @@ const AnalyticsDashboard = () => {
           <div>
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <p className="text-2xl font-bold">{value}</p>
-            <p className={`text-sm ${trend === 'up' ? 'text-green-600' : 'text-red-600'} flex items-center gap-1`}>
+            <p className={`text-sm ${trend === 'up' ? 'text-[hsl(var(--brand-teal))]' : 'text-red-600'} flex items-center gap-1`}>
               <TrendingUp className={`w-3 h-3 ${trend === 'down' ? 'rotate-180' : ''}`} />
               {change}
             </p>
           </div>
-          <div className={`p-3 rounded-full ${trend === 'up' ? 'bg-emerald-50' : 'bg-amber-50'}`}>
-            <Icon className={`w-6 h-6 ${trend === 'up' ? 'text-emerald-600' : 'text-amber-600'}`} />
+          <div className={`p-3 rounded-full ${trend === 'up' ? 'bg-slate-50' : 'bg-slate-100'}`}>
+            <Icon className={`w-6 h-6 ${trend === 'up' ? 'text-[hsl(var(--brand-teal))]' : 'text-[hsl(var(--brand-navy))]'}`} />
           </div>
         </div>
       </CardContent>

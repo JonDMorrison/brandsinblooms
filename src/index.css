@@ -34,9 +34,13 @@ html {
   --sand-50: 251 249 244;          /* #FBF9F4 - Main page background */
   --gray-700: 75 85 99;            /* #4B5563 - Body text */
   
-  /* Enhanced brand tokens */
-  --brand-green: 34 197 94;        /* #22C55E */
-  --brand-blue: 37 99 235;         /* #2563EB */
+  /* Enhanced brand tokens - HSL format for proper CSS variable usage */
+  --brand-teal: 174 63% 57%;       /* #68BEB9 - Teal mint */
+  --brand-navy: 210 24% 27%;       /* #3E5A6B - Steel blue */
+  --brand-blue: 220 70% 50%;       /* Professional blue accent */
+  --brand-green: var(--brand-teal); /* Alias for consistency */
+  --brand-success: var(--brand-teal); /* Success states */
+  --brand-warning: var(--brand-navy); /* Warning states */
   
   /* Status chip colors */
   --chip-draft: 156 163 175;       /* #9CA3AF */

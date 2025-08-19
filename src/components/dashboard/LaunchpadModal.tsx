@@ -32,7 +32,7 @@ const quickStartOptions = [
     title: 'Post on Social Media',
     description: 'Share content across your social channels',
     icon: <Share2 className="w-5 h-5" />,
-    color: 'from-purple-50 to-purple-100'
+    color: 'from-slate-50 to-slate-100'
   },
   {
     id: 'campaign',

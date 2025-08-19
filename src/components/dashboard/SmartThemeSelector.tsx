@@ -17,16 +17,16 @@ export const SmartThemeSelector = () => {
   };
 
   return (
-    <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
+    <Card className="border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100">
       <CardContent className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 items-center">
           {/* Left Column - Enhanced Icon */}
           <div className="flex justify-center md:justify-start">
             <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center shadow-lg">
-                <Sparkles className="w-8 h-8 text-purple-600 animate-pulse" />
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center shadow-lg">
+                <Sparkles className="w-8 h-8 animate-pulse" style={{ color: 'hsl(var(--brand-teal))' }} />
               </div>
-              <div className="absolute inset-0 rounded-full bg-purple-600/10 animate-ping"></div>
+              <div className="absolute inset-0 rounded-full animate-ping" style={{ backgroundColor: 'hsl(var(--brand-teal) / 0.1)' }}></div>
             </div>
           </div>
           

@@ -151,7 +151,7 @@ export const PostComposerModal = ({ isOpen, onClose }: PostComposerModalProps) =
 
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Instagram className="w-5 h-5 text-pink-600" />
+                  <Instagram className="w-5 h-5" style={{ color: 'hsl(var(--brand-teal))' }} />
                   <div>
                     <Label className="text-sm font-medium">Instagram</Label>
                     <p className="text-xs text-muted-foreground">Share to your feed</p>

@@ -45,7 +45,7 @@ const tourSteps = [
     id: 'campaign',
     title: 'Automate Customer Welcomes',
     description: 'Set up automated welcome messages for new customers',
-    icon: <Megaphone className="w-8 h-8 text-green-600" />,
+    icon: <Megaphone className="w-8 h-8" style={{ color: 'hsl(var(--brand-teal))' }} />,
     action: 'Build Automation',
     route: '/crm/automations/new?mode=quick',
     tips: [
@@ -58,7 +58,7 @@ const tourSteps = [
     id: 'calendar',
     title: 'Plan Holiday Content',
     description: 'Schedule seasonal campaigns and promotions',
-    icon: <Calendar className="w-8 h-8 text-orange-600" />,
+    icon: <Calendar className="w-8 h-8" style={{ color: 'hsl(var(--brand-navy))' }} />,
     action: 'Open Calendar',
     route: '/calendar',
     tips: [
@@ -71,7 +71,7 @@ const tourSteps = [
     id: 'social',
     title: 'Post with One Click',
     description: 'Share beautiful content across all your social platforms',
-    icon: <Share2 className="w-8 h-8 text-pink-600" />,
+    icon: <Share2 className="w-8 h-8" style={{ color: 'hsl(var(--brand-teal))' }} />,
     action: 'Create Post',
     route: '/publish',
     tips: [
@@ -84,7 +84,7 @@ const tourSteps = [
     id: 'analytics',
     title: 'Track Your Results',
     description: 'See how your campaigns are performing',
-    icon: <BarChart3 className="w-8 h-8 text-purple-600" />,
+    icon: <BarChart3 className="w-8 h-8" style={{ color: 'hsl(var(--brand-navy))' }} />,
     action: 'View Analytics',
     route: '/analytics',
     tips: [

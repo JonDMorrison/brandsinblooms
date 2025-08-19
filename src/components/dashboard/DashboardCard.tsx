@@ -35,9 +35,9 @@ export const DashboardCard = ({
   const getStatusIcon = () => {
     switch (status) {
       case 'connected':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <CheckCircle className="w-4 h-4" style={{ color: 'hsl(var(--brand-teal))' }} />;
       case 'setup-needed':
-        return <AlertCircle className="w-4 h-4 text-amber-600" />;
+        return <AlertCircle className="w-4 h-4" style={{ color: 'hsl(var(--brand-navy))' }} />;
       default:
         return null;
     }
@@ -46,9 +46,9 @@ export const DashboardCard = ({
   const getStatusColor = () => {
     switch (status) {
       case 'connected':
-        return 'text-green-600';
+        return 'text-[hsl(var(--brand-teal))]';
       case 'setup-needed':
-        return 'text-amber-600';
+        return 'text-[hsl(var(--brand-navy))]';
       default:
         return 'text-gray-600';
     }

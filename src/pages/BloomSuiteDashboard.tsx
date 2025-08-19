@@ -145,7 +145,7 @@ export const BloomSuiteDashboard = () => {
       id: 'analytics',
       title: 'Track Your Progress',
       description: 'Monitor campaign performance, customer engagement, and ROI across all your marketing efforts.',
-      icon: <BarChart3 className="w-6 h-6 text-purple-600" />,
+      icon: <BarChart3 className="w-6 h-6" style={{ color: 'hsl(var(--brand-navy))' }} />,
       
       primaryAction: {
         label: 'View Analytics',
@@ -162,7 +162,7 @@ export const BloomSuiteDashboard = () => {
       id: 'social',
       title: 'Post On Social Media',
       description: 'Create, schedule, and publish content across all your social media platforms with AI assistance.',
-      icon: <Share2 className="w-6 h-6 text-pink-600" />,
+      icon: <Share2 className="w-6 h-6" style={{ color: 'hsl(var(--brand-teal))' }} />,
       
       primaryAction: {
         label: 'Create Post',
