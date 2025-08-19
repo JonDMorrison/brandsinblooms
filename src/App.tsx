@@ -19,11 +19,21 @@ import SocialMediaPage from '@/pages/SocialMediaPage';
 import { CRMDashboardPage } from '@/pages/crm/CRMDashboardPage';
 import SMSTestingDemo from '@/pages/SMSTestingDemo';
 import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
+import { CRMCustomersPage } from '@/pages/crm/CRMCustomersPage';
+import { CRMSegmentsPage } from '@/pages/crm/CRMSegmentsPage';
+import { CRMPersonasPage } from '@/pages/crm/CRMPersonasPage';
+import AddCustomer from '@/pages/crm/AddCustomer';
+import CRMAnalytics from '@/pages/crm/CRMAnalytics';
+import CRMAutomations from '@/pages/crm/CRMAutomations';
 import AnalyticsPage from '@/pages/AnalyticsPage';
 import ContentLibraryPage from '@/pages/ContentLibraryPage';
 import SettingsPage from '@/pages/SettingsPage';
 import DomainsPage from '@/pages/DomainsPage';
 import CalendarPage from '@/pages/CalendarPage';
+import AccountPage from '@/pages/AccountPage';
+import ProfilePage from '@/pages/ProfilePage';
+import IntegrationsPage from '@/pages/IntegrationsPage';
+import SupportPage from '@/pages/SupportPage';
 
 function App() {
   return (
@@ -99,17 +109,24 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
-          <Route path="/crm/*" element={
+          <Route path="/crm" element={
             <ProtectedRoute>
               <SidebarLayout>
                 <CRMDashboardPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
-          <Route path="/sms" element={
+          <Route path="/crm/customers" element={
             <ProtectedRoute>
               <SidebarLayout>
-                <SMSTestingDemo />
+                <CRMCustomersPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/customers/new" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <AddCustomer />
               </SidebarLayout>
             </ProtectedRoute>
           } />
@@ -117,6 +134,41 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <CRMCampaignsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/segments" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMSegmentsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/personas" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMPersonasPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/analytics" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMAnalytics />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/automations" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMAutomations />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/sms" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <SMSTestingDemo />
               </SidebarLayout>
             </ProtectedRoute>
           } />
@@ -145,6 +197,48 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <DomainsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/social-accounts" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <SocialMediaPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/newsletters/new" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <NewslettersPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <IntegrationsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <ProfilePage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/account" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <AccountPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/support" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <SupportPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />

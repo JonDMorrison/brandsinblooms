@@ -162,6 +162,10 @@ export function AppSidebar() {
     return location.pathname.startsWith(url);
   };
 
+  const isGroupActive = (items: SidebarItem[]) => {
+    return items.some(item => isItemActive(item.url));
+  };
+
   return (
     <Sidebar variant="inset">
       <SidebarHeader>
@@ -170,38 +174,42 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {sidebarGroups.map((group, groupIndex) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => {
-                  const isActive = isItemActive(item.url);
-                  return (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={isActive}
-                        className="group"
-                      >
-                        <Link to={item.url}>
-                          <item.icon className="w-4 h-4" />
-                          <span>{item.title}</span>
-                          {item.badge && (
-                            <Badge variant="secondary" className="ml-auto">
-                              {item.badge}
-                            </Badge>
-                          )}
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-            {groupIndex < sidebarGroups.length - 1 && <SidebarSeparator />}
-          </SidebarGroup>
-        ))}
+        {sidebarGroups.map((group, groupIndex) => {
+          const isExpanded = isGroupActive(group.items);
+          return (
+            <SidebarGroup key={group.label}>
+              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => {
+                    const isActive = isItemActive(item.url);
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton 
+                          asChild 
+                          isActive={isActive}
+                          className="group"
+                          data-testid={`sidebar-link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                        >
+                          <Link to={item.url}>
+                            <item.icon className="w-4 h-4" />
+                            <span>{item.title}</span>
+                            {item.badge && (
+                              <Badge variant="secondary" className="ml-auto">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+              {groupIndex < sidebarGroups.length - 1 && <SidebarSeparator />}
+            </SidebarGroup>
+          );
+        })}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
