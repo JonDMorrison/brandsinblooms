@@ -101,34 +101,45 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       console.log(`🔍 Attempting to create domain in Resend: ${domain}`);
       
-      // First, try to delete the domain if it exists
-      try {
-        console.log(`🧹 Checking if domain ${domain} already exists in Resend...`);
-        const deleteResult = await resend.domains.remove(domain);
-        console.log(`🧹 Delete attempt result:`, deleteResult);
-      } catch (deleteError) {
-        console.log(`🧹 Domain ${domain} doesn't exist or couldn't be deleted:`, deleteError.message);
-        // This is fine, the domain probably doesn't exist
-      }
-      
-      // Create the domain in Resend
+      // Create the domain in Resend (Resend will handle duplicates gracefully)
       const domainResult = await resend.domains.create({ 
         name: domain,
-        region: 'us-east-1' // or your preferred region
+        region: 'us-east-1'
       });
       
       console.log(`📝 Resend API response:`, JSON.stringify(domainResult, null, 2));
       
       if (domainResult.error) {
         console.error('❌ Failed to create domain in Resend:', domainResult.error);
-        return new Response(
-          JSON.stringify({ 
-            error: 'Failed to create domain',
-            message: 'Unable to set up domain in email service. Please try again or contact support.',
-            details: domainResult.error
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        
+        // Handle specific Resend error cases
+        if (domainResult.error.message?.includes('already exists')) {
+          console.log('⚠️ Domain already exists, attempting to retrieve existing domain info');
+          // Try to get the existing domain
+          try {
+            const existingDomain = await resend.domains.get(domain);
+            if (existingDomain.data) {
+              console.log('✅ Using existing domain:', existingDomain.data);
+              // Use the existing domain data instead
+              domainResult.data = existingDomain.data;
+              domainResult.error = null;
+            }
+          } catch (getError) {
+            console.error('❌ Could not retrieve existing domain:', getError);
+          }
+        }
+        
+        // If we still have an error after trying to handle it
+        if (domainResult.error) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Failed to create domain',
+              message: `Unable to set up domain in email service: ${domainResult.error.message || 'Unknown error'}`,
+              details: domainResult.error
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
 
       console.log(`✅ Domain created successfully in Resend:`, domainResult.data);
