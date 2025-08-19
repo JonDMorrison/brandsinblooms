@@ -180,7 +180,6 @@ export const QuickPublishModal = ({
             <Button 
               onClick={handlePublish}
               disabled={!selectedPlatform || isPublishing || socialConnections.length === 0}
-              className="bg-green-600 hover:bg-green-700 text-white"
             >
               {isPublishing ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

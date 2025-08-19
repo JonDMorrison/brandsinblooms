@@ -152,7 +152,7 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
         <div className="flex justify-start">
           <Button 
             onClick={onGetStarted}
-            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 px-8 py-3 text-lg"
+            className="flex items-center gap-2 px-8 py-3 text-lg"
           >
             Review Your Garden Center Content
             <ArrowRight className="w-5 h-5" />

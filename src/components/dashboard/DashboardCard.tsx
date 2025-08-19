@@ -55,18 +55,11 @@ export const DashboardCard = ({
   };
 
   const getVariantClasses = () => {
-    if (variant === 'botanical') {
-      const gradientClass = `botanical-gradient-${accent}`;
-      const accentClass = accent !== 'sage' ? `botanical-accent-${accent}` : 'botanical-accent-sage';
-      return `${gradientClass} ${accentClass}`;
-    }
     return 'bg-white';
   };
 
   const getIconClasses = () => {
-    return variant === 'botanical' 
-      ? 'botanical-icon-badge' 
-      : 'p-3 rounded-xl bg-white/50 backdrop-blur-sm';
+    return 'p-3 rounded-xl bg-white/50 backdrop-blur-sm';
   };
 
   return (
@@ -98,11 +91,7 @@ export const DashboardCard = ({
         <div className="flex flex-col gap-3">
           <Button 
             onClick={primaryAction.onClick}
-            className={`w-full group rounded-xl h-12 font-medium transition-all duration-200 ${
-              variant === 'botanical' 
-                ? 'bg-gradient-to-r from-brand-green to-brand-teal hover:from-green-600 hover:to-teal-600 text-white shadow-md hover:shadow-lg' 
-                : 'bg-white/80 hover:bg-white text-gray-900 border border-gray-200 hover:border-gray-300'
-            }`}
+            className="w-full group rounded-xl h-12 font-medium transition-all duration-200"
           >
             {primaryAction.label}
             <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
