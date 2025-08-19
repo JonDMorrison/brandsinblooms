@@ -7,19 +7,19 @@ export const TestimonialsSection = () => {
     {
       name: "Sarah Chen",
       business: "Bloom & Grow Nursery",
-      quote: "BloomSuite transformed our social media presence completely. We went from posting randomly to having a cohesive, professional marketing strategy that actually drives sales.",
+      quote: "BloomSuite's CRM and automation features have revolutionized how we connect with customers. Our follow-up campaigns run automatically, and sales have increased 40% since we started using the platform.",
       rating: 5
     },
     {
       name: "Mike Rodriguez",
       business: "Garden Valley Center",
-      quote: "The time savings alone made this worth it. What used to take me hours every week now happens automatically, and the content quality is better than what I was creating myself.",
+      quote: "The AI content generation is incredible – it creates social posts, emails, and blog articles that sound exactly like our brand voice. The analytics dashboard shows we're reaching 3x more customers than before.",
       rating: 5
     },
     {
       name: "Emma Thompson",
       business: "Green Thumb Gardens",
-      quote: "Our email open rates doubled since using BloomSuite. The seasonal content suggestions are spot-on and our customers love the plant care tips we share.",
+      quote: "Having all our marketing tools in one place – social planning, email campaigns, customer management, and analytics – has saved us 15 hours per week. The ROI tracking shows exactly which campaigns drive sales.",
       rating: 5
     }
   ];

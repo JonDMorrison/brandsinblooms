@@ -11,11 +11,11 @@ export const PricingPreviewSection = ({ onSeePricing }: PricingPreviewSectionPro
     <section className="py-12 px-6 bg-white">
       <div className="max-w-4xl mx-auto text-center">
         <h2 className="text-2xl font-semibold mb-4 text-gray-900">
-          Simple Pricing. Big Value.
+          Complete Marketing Suite. One Simple Price.
         </h2>
         
         <p className="text-base text-[#6B7280] mb-10">
-          Tools like this usually cost thousands. We made it affordable for every garden center.
+          Get AI content creation, CRM, automation, analytics, social planning, email marketing, and more – all for less than what other tools charge for just one feature.
         </p>
         
         <Button 

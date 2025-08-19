@@ -1,49 +1,70 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { LandingPageIcon } from "./LandingPageIcon";
-import { Calendar, Sparkles, TrendingUp, Leaf, Clock, Star } from "lucide-react";
+import { Calendar, Sparkles, TrendingUp, Leaf, Clock, Star, Users, Zap, Globe } from "lucide-react";
 
 export const BenefitsSection = () => {
   const benefits = [
     {
-      icon: Calendar,
-      title: "Year-Round Content Planning",
-      description: "Never run out of seasonal content ideas. Our AI creates marketing calendars that align with gardening seasons and holidays.",
+      icon: Sparkles,
+      title: "AI Content Generation",
+      description: "Create professional social media posts, email campaigns, and blog articles in seconds with AI that understands your garden center.",
       bg: "#E9F5EC",
       iconColor: "#47B881"
     },
     {
-      icon: Sparkles,
-      title: "Brand Voice Consistency",
-      description: "All content matches your unique tone and style, maintaining brand consistency across every platform and campaign.",
+      icon: Users,
+      title: "Customer Management (CRM)",
+      description: "Track customer interactions, preferences, and purchase history. Build stronger relationships with personalized communication.",
       bg: "#FEF3C7",
       iconColor: "#F4C430"
     },
     {
-      icon: TrendingUp,
-      title: "Data-Driven Optimization",
-      description: "Track what works best for your audience and automatically optimize future content for maximum engagement.",
+      icon: Calendar,
+      title: "Social Media Planning",
+      description: "Plan, schedule, and manage all your social media content across platforms with our visual content calendar.",
       bg: "#FDF2F2",
       iconColor: "#F28C8C"
     },
     {
-      icon: Leaf,
-      title: "Plant Care Expertise Built-In",
-      description: "Our AI understands gardening, so every piece of content includes valuable plant care tips and seasonal advice.",
+      icon: Zap,
+      title: "Marketing Automation",
+      description: "Set up automated email sequences, welcome series, and follow-up campaigns that nurture customers automatically.",
+      bg: "#E0F2FE",
+      iconColor: "#0EA5E9"
+    },
+    {
+      icon: Globe,
+      title: "Platform Integrations",
+      description: "Connect with Facebook, Instagram, Mailchimp, and more. Manage everything from one central dashboard.",
+      bg: "#F3E8FF",
+      iconColor: "#8B5CF6"
+    },
+    {
+      icon: TrendingUp,
+      title: "Advanced Analytics",
+      description: "Track campaign performance, customer engagement, ROI, and sales attribution with comprehensive reporting.",
+      bg: "#FEF7ED",
+      iconColor: "#EA580C"
+    },
+    {
+      icon: Star,
+      title: "Content Library",
+      description: "Access hundreds of pre-made templates, seasonal campaigns, and plant care content ready to customize and use.",
       bg: "#E9F5EC",
       iconColor: "#47B881"
     },
     {
-      icon: Clock,
-      title: "Save 10+ Hours Weekly",
-      description: "Automate your entire content creation process and focus on what you do best - helping customers grow amazing gardens.",
+      icon: Leaf,
+      title: "Email Marketing",
+      description: "Create beautiful newsletters, promotional campaigns, and plant care tips that drive sales and customer loyalty.",
       bg: "#FEF3C7",
       iconColor: "#F4C430"
     },
     {
-      icon: Star,
-      title: "Multi-Platform Ready",
-      description: "One campaign creates content for Facebook, Instagram, email newsletters, blogs, and more - all perfectly formatted.",
+      icon: Clock,
+      title: "Blog Management",
+      description: "Generate SEO-optimized blog posts about plant care, seasonal gardening tips, and product spotlights to drive organic traffic.",
       bg: "#FDF2F2",
       iconColor: "#F28C8C"
     }

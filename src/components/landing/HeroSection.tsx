@@ -33,12 +33,12 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         
         {/* Enhanced Typography */}
         <h1 className="text-6xl md:text-7xl font-bold text-gray-900 mb-8 leading-tight tracking-tight apple-fade-in-stagger">
-          Effortless Marketing for
+          Complete Marketing Suite for
           <span className="block text-[#47B881] mt-2">Garden Centers</span>
         </h1>
         
         <p className="text-xl md:text-2xl text-[#6B7280] mb-14 max-w-4xl mx-auto leading-relaxed apple-body-enhanced">
-          Transform your marketing in under a minute. Get personalized weekly content for social media, newsletters, blogs, and email campaigns — all perfectly tailored to your garden center's unique voice and seasonal needs.
+          The only marketing platform built specifically for garden centers. Get AI-powered content creation, customer management, automated campaigns, social media planning, email marketing, blog management, and powerful analytics — all in one place.
         </p>
         
         {/* Enhanced feature highlights with new color palette */}
@@ -51,7 +51,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               animated={true}
               containerClassName="apple-icon-container bg-[#E9F5EC] border-[#47B881]/30 text-[#47B881]"
             />
-            <span className="text-base text-[#6B7280] font-medium apple-caption-enhanced">Plant Care Focus</span>
+            <span className="text-base text-[#6B7280] font-medium apple-caption-enhanced">AI Content Creation</span>
           </div>
           <div className="flex flex-col items-center gap-3 apple-fade-in-stagger" style={{animationDelay: '0.2s'}}>
             <LandingPageIcon 
@@ -61,7 +61,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               animated={true}
               containerClassName="apple-icon-container bg-[#FEF3C7] border-[#F4C430]/30 text-[#D97706]"
             />
-            <span className="text-base text-[#6B7280] font-medium apple-caption-enhanced">Seasonal Content</span>
+            <span className="text-base text-[#6B7280] font-medium apple-caption-enhanced">Smart Automation</span>
           </div>
           <div className="flex flex-col items-center gap-3 apple-fade-in-stagger" style={{animationDelay: '0.3s'}}>
             <LandingPageIcon 
@@ -71,7 +71,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               animated={true}
               containerClassName="apple-icon-container bg-[#FDF2F2] border-[#F28C8C]/30 text-[#DC2626]"
             />
-            <span className="text-base text-[#6B7280] font-medium apple-caption-enhanced">Growth Focused</span>
+            <span className="text-base text-[#6B7280] font-medium apple-caption-enhanced">Complete Analytics</span>
           </div>
         </div>
         

@@ -41,11 +41,11 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
         </div>
         
         <h2 className="text-3xl md:text-5xl font-bold mb-6 leading-tight text-black">
-          Ready to Save Hours Every Week?
+          Transform Your Garden Center's Marketing Today
         </h2>
         
         <p className="text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed text-black opacity-90">
-          Join garden centers who've transformed their marketing and are growing their business effortlessly. Try it free and watch your marketing take care of itself.
+          Join hundreds of garden centers using BloomSuite to automate their marketing, increase sales, and grow their business. Get AI content creation, CRM, automation, analytics, and more in one powerful platform.
         </p>
         
         {/* Enhanced button with nature-inspired styling */}
