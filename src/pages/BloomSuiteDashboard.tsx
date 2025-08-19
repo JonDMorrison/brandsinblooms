@@ -233,7 +233,7 @@ export const BloomSuiteDashboard = () => {
                 accent={accent}
                 cardId={action.id}
                 dynamicIcon={getDynamicIcon(action.id, action.status, (action as any).connectionCount)}
-                hasPendingAction={action.status === 'pending'}
+                hasPendingAction={false}
               />
             );
           })}

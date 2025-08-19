@@ -97,14 +97,14 @@ export const DashboardCard = ({
       
       {/* Background Illustration */}
       {IllustrationComponent && (
-        <div className="absolute inset-0 text-[hsl(var(--brand-teal))] transition-opacity duration-300 group-hover:opacity-[0.25] pointer-events-none">
+        <div className="absolute inset-0 text-[hsl(var(--brand-teal))] opacity-10 transition-opacity duration-300 group-hover:opacity-15 pointer-events-none z-0">
           <IllustrationComponent className="transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
         </div>
       )}
       
       {/* Custom accent illustration */}
       {accentIllustration && (
-        <div className="absolute bottom-0 right-0 opacity-[0.15] transition-opacity duration-300 group-hover:opacity-[0.25] pointer-events-none text-[hsl(var(--brand-teal))]">
+        <div className="absolute bottom-0 right-0 opacity-10 transition-opacity duration-300 group-hover:opacity-15 pointer-events-none text-[hsl(var(--brand-teal))] z-0">
           {accentIllustration}
         </div>
       )}
