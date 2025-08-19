@@ -175,10 +175,16 @@ export const RealAnalyticsData = () => {
                 {Object.values(latestMetrics).map((metric) => {
                   const Icon = getMetricIcon(metric.metric_type);
                   
-                  // Calculate trend (this is simplified - in production you'd compare with previous period)
-                  const trend = Math.random() > 0.5 ? 
-                    Math.floor(Math.random() * 20) : 
-                    -Math.floor(Math.random() * 15);
+                  // Calculate trend by comparing with previous metrics of same type
+                  const currentValue = metric.metric_value;
+                  const previousMetrics = platformMetrics.filter(m => 
+                    m.metric_type === metric.metric_type && 
+                    new Date(m.date_collected) < new Date(metric.date_collected)
+                  ).sort((a, b) => new Date(b.date_collected).getTime() - new Date(a.date_collected).getTime());
+                  
+                  const previousValue = previousMetrics[0]?.metric_value || currentValue;
+                  const trend = previousValue > 0 ? 
+                    Math.round(((currentValue - previousValue) / previousValue) * 100) : 0;
 
                   return (
                     <div key={metric.metric_type} className="p-4 border rounded-lg">

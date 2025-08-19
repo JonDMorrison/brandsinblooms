@@ -1,57 +1,42 @@
 
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
+import { AnalyticsPeriodSelector } from "@/components/analytics/AnalyticsPeriodSelector";
 import { Button } from "@/components/ui/button";
-import { BarChart3, TrendingUp, Users, Clock, Download, RefreshCw } from "lucide-react";
-import { useState, useEffect } from "react";
+import { BarChart3, TrendingUp, Users, Clock, Download, RefreshCw, Loader2 } from "lucide-react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAnalyticsOverview } from "@/hooks/useAnalyticsOverview";
+import { toast } from "sonner";
 
 const AnalyticsPage = () => {
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState(30);
+  const [syncing, setSyncing] = useState(false);
+  const { totalViews, engagementRate, clicks, conversions, growth, loading, error, refetch } = useAnalyticsOverview(selectedPeriod);
 
-  // Mock stats for demonstration
-  const [stats, setStats] = useState({
-    totalViews: 12500,
-    engagement: 87,
-    conversions: 156,
-    growth: 23
-  });
-
-  const fetchData = async () => {
+  const handleSyncAnalytics = async () => {
     try {
-      setLoading(true);
+      setSyncing(true);
+      toast.info("Syncing analytics data...");
       
-      const { data: campaignsData } = await supabase
-        .from('campaigns')
-        .select('*')
-        .order('start_date', { ascending: true });
-
-      const { data: tasksData } = await supabase
-        .from('content_tasks')
-        .select('*')
-        .order('scheduled_date', { ascending: true });
-
-      setCampaigns(campaignsData || []);
-      setTasks(tasksData || []);
+      const { error } = await supabase.functions.invoke('sync-analytics');
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Refresh the analytics data after sync
+      await refetch();
+      toast.success("Analytics data synced successfully");
     } catch (error) {
-      console.error('Error fetching analytics data:', error);
+      console.error('Error syncing analytics:', error);
+      toast.error("Failed to sync analytics data");
     } finally {
-      setLoading(false);
+      setSyncing(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const handleExportData = () => {
-    console.log('Exporting analytics data...');
-    // Implementation for data export
-  };
-
-  const handleRefresh = () => {
-    fetchData();
+    toast.info("Export feature coming soon");
   };
 
   return (
@@ -67,36 +52,69 @@ const AnalyticsPage = () => {
             Track your marketing performance and insights
           </p>
           
-          {/* Quick stats */}
-          <div className="flex items-center gap-6 mt-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="font-medium">{stats.totalViews.toLocaleString()}</span> total views
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Clock className="w-4 h-4 text-blue-600" />
-              <span className="font-medium">{stats.engagement}%</span> engagement
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Users className="w-4 h-4 text-purple-600" />
-              <span className="font-medium">{stats.conversions}</span> conversions
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <BarChart3 className="w-4 h-4 text-orange-600" />
-              <span className="font-medium">+{stats.growth}%</span> growth
-            </div>
+          {/* Period Selector */}
+          <div className="mt-4">
+            <AnalyticsPeriodSelector 
+              selectedPeriod={selectedPeriod} 
+              onPeriodChange={setSelectedPeriod} 
+            />
           </div>
+          
+          {/* Quick stats */}
+          {loading ? (
+            <div className="flex items-center gap-6 mt-4">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading analytics...
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex items-center gap-6 mt-4">
+              <div className="flex items-center gap-2 text-sm text-red-600">
+                <BarChart3 className="w-4 h-4" />
+                Error loading analytics data
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-6 mt-4">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+                <span className="font-medium">{totalViews.toLocaleString()}</span> total views
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Clock className="w-4 h-4 text-blue-600" />
+                <span className="font-medium">{engagementRate}%</span> engagement
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Users className="w-4 h-4 text-purple-600" />
+                <span className="font-medium">{clicks}</span> clicks
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <BarChart3 className="w-4 h-4 text-orange-600" />
+                <span className="font-medium">{conversions}</span> conversions
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+                <span className="font-medium">{growth >= 0 ? '+' : ''}{growth}%</span> growth
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-3">
           <Button
-            onClick={handleRefresh}
+            onClick={handleSyncAnalytics}
             variant="outline"
+            disabled={syncing}
             className="flex items-center gap-2 hover:bg-blue-50 border-blue-200 text-blue-700"
             size="lg"
           >
-            <RefreshCw className="w-5 h-5" />
-            Refresh Data
+            {syncing ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-5 h-5" />
+            )}
+            Sync Analytics
           </Button>
           
           <Button
