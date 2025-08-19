@@ -1,28 +1,30 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.0.0";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-};
+import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
 
 interface CreateDomainRequest {
   tenantId: string;
-  domain: string;
+  domain?: string;
   reportEmail?: string;
+  provider?: string;
+  providerAuth?: any;
+  useSandbox?: boolean;
+}
+
+interface CloudflareRecord {
+  name: string;
+  type: string;
+  value: string;
+  proxied?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCorsPrelight(req);
+  if (corsResponse) return corsResponse;
 
   try {
-    console.log(`📋 Incoming request: ${req.method} ${req.url}`);
-    console.log(`📋 Headers:`, Object.fromEntries(req.headers.entries()));
+    console.log("🚀 Starting email domain creation");
     
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -31,257 +33,337 @@ const handler = async (req: Request): Promise<Response> => {
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Authorization required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return corsJsonResponse({ error: 'Authorization required' }, { status: 401 });
     }
 
+    // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid authorization' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return corsJsonResponse({ error: 'Invalid authorization' }, { status: 401 });
     }
 
-    if (req.method !== 'POST') {
-      return new Response(
-        JSON.stringify({ error: 'Method not allowed' }),
-        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const { tenantId, domain, reportEmail, provider, providerAuth, useSandbox }: CreateDomainRequest = await req.json();
+
+    if (!tenantId) {
+      return corsJsonResponse({ error: 'Tenant ID is required' }, { status: 400 });
     }
 
-    let requestBody;
-    try {
-      requestBody = await req.json();
-      console.log(`📝 Raw request body:`, requestBody);
-    } catch (parseError) {
-      console.error('❌ Failed to parse request body:', parseError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid JSON in request body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    console.log(`📧 Processing domain request - Sandbox: ${useSandbox}, Domain: ${domain}`);
+
+    let finalDomain: string;
+    let env: 'prod' | 'dev';
+    let is_sandbox: boolean;
+    let finalProvider: string;
+
+    // Determine domain configuration
+    if (useSandbox) {
+      const sandboxRoot = Deno.env.get('DEV_TEST_ROOT_DOMAIN');
+      if (!sandboxRoot) {
+        return corsJsonResponse({ 
+          error: 'Sandbox not configured',
+          message: 'Dev sandbox is not available. Please contact support.'
+        }, { status: 503 });
+      }
+      
+      // Generate random subdomain
+      const subdomain = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+        .map(b => b.toString(36))
+        .join('').substring(0, 8);
+      
+      finalDomain = `${subdomain}.${sandboxRoot}`;
+      env = 'dev';
+      is_sandbox = true;
+      finalProvider = 'cloudflare'; // Force cloudflare for sandbox
+      
+      console.log(`🧪 Generated sandbox domain: ${finalDomain}`);
+    } else {
+      if (!domain) {
+        return corsJsonResponse({ error: 'Domain is required for production setup' }, { status: 400 });
+      }
+      finalDomain = domain.toLowerCase().trim();
+      env = 'prod';
+      is_sandbox = false;
+      finalProvider = provider || Deno.env.get('DEV_TEST_PROVIDER') || 'cloudflare';
     }
 
-    const { tenantId, domain, reportEmail }: CreateDomainRequest = requestBody;
-    
-    console.log(`📝 Parsed request:`, { tenantId, domain, reportEmail });
+    // Check for existing domain conflicts
+    const { data: existingDomains, error: domainCheckError } = await supabase
+      .from('email_domains')
+      .select('tenant_id')
+      .eq('domain', finalDomain);
 
-    if (!tenantId || !domain) {
-      return new Response(
-        JSON.stringify({ error: 'TenantId and domain are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (domainCheckError) {
+      console.error('❌ Domain check error:', domainCheckError);
+      return corsJsonResponse({ error: 'Database error checking domain' }, { status: 500 });
     }
 
-    // Validate email format if provided
-    const isValidEmail = (email?: string) => {
-      if (!email) return false;
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    };
+    // Check if domain exists for another tenant
+    const otherTenantDomain = existingDomains?.find(d => d.tenant_id !== tenantId);
+    if (otherTenantDomain) {
+      return corsJsonResponse({ 
+        error: 'Domain managed by another workspace',
+        message: 'This domain is already configured for another workspace. Please use a different domain.'
+      }, { status: 409 });
+    }
 
-    const validatedReportEmail = isValidEmail(reportEmail) ? reportEmail : undefined;
+    // Check if domain exists for same tenant (idempotent)
+    const sameTenantDomain = existingDomains?.find(d => d.tenant_id === tenantId);
+    if (sameTenantDomain) {
+      console.log(`✅ Domain already exists for tenant, returning existing configuration`);
+      
+      // Return existing domain data
+      const { data: existingDomain, error: fetchError } = await supabase
+        .from('email_domains')
+        .select('*')
+        .eq('domain', finalDomain)
+        .eq('tenant_id', tenantId)
+        .single();
 
+      if (fetchError || !existingDomain) {
+        return corsJsonResponse({ error: 'Failed to fetch existing domain' }, { status: 500 });
+      }
+
+      return corsJsonResponse({
+        email_domain_id: existingDomain.id,
+        resend_domain_id: existingDomain.resend_domain_id,
+        domain: finalDomain,
+        env,
+        is_sandbox,
+        message: 'Domain configuration already exists'
+      });
+    }
+
+    // Setup Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Email service not configured',
-          message: 'Our team needs to configure the email service. Please contact support for assistance.'
-        }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return corsJsonResponse({ 
+        error: 'Email service not configured',
+        message: 'Resend API key not available. Please contact support.'
+      }, { status: 503 });
     }
-
-    console.log(`🚀 Creating email domain: ${domain} for tenant: ${tenantId}`);
 
     const resend = new Resend(resendApiKey);
 
+    // Check if domain exists in Resend
+    console.log(`📧 Checking Resend for existing domain: ${finalDomain}`);
+    let resendDomainId: string;
+    
     try {
-      console.log(`🔍 Attempting to create domain in Resend: ${domain}`);
+      const { data: domains, error: listError } = await resend.domains.list();
+      if (listError) {
+        console.error('❌ Resend list domains error:', listError);
+        return corsJsonResponse({ error: 'Failed to check existing domains' }, { status: 500 });
+      }
+
+      const existingResendDomain = domains?.data?.find(d => d.name === finalDomain);
       
-      // Create the domain in Resend (Resend will handle duplicates gracefully)
-      const domainResult = await resend.domains.create({ 
-        name: domain,
-        region: 'us-east-1'
-      });
-      
-      console.log(`📝 Resend API response:`, JSON.stringify(domainResult, null, 2));
-      
-      if (domainResult.error) {
-        console.error('❌ Failed to create domain in Resend:', domainResult.error);
+      if (existingResendDomain) {
+        resendDomainId = existingResendDomain.id;
+        console.log(`✅ Found existing Resend domain: ${resendDomainId}`);
+      } else {
+        // Create new domain in Resend
+        console.log(`📧 Creating new domain in Resend: ${finalDomain}`);
+        const { data: createResult, error: createError } = await resend.domains.create({ 
+          name: finalDomain,
+          region: 'us-east-1'
+        });
         
-        // Handle specific Resend error cases
-        if (domainResult.error.message?.includes('already exists')) {
-          console.log('⚠️ Domain already exists, attempting to retrieve existing domain info');
-          // Try to get the existing domain
-          try {
-            const existingDomain = await resend.domains.get(domain);
-            if (existingDomain.data) {
-              console.log('✅ Using existing domain:', existingDomain.data);
-              // Use the existing domain data instead
-              domainResult.data = existingDomain.data;
-              domainResult.error = null;
-            }
-          } catch (getError) {
-            console.error('❌ Could not retrieve existing domain:', getError);
-          }
+        if (createError || !createResult) {
+          console.error('❌ Failed to create domain in Resend:', createError);
+          return corsJsonResponse({ 
+            error: 'Failed to create domain',
+            message: 'Unable to set up domain in email service. Please try again or contact support.',
+            details: createError
+          }, { status: 400 });
         }
         
-        // If we still have an error after trying to handle it
-        if (domainResult.error) {
-          return new Response(
-            JSON.stringify({ 
-              error: 'Failed to create domain',
-              message: `Unable to set up domain in email service: ${domainResult.error.message || 'Unknown error'}`,
-              details: domainResult.error
-            }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+        resendDomainId = createResult.id;
+        console.log(`✅ Created new Resend domain: ${resendDomainId}`);
       }
-
-      console.log(`✅ Domain created successfully in Resend:`, domainResult.data);
-
-      // Insert the email domain record
-      const { data: emailDomain, error: domainError } = await supabase
-        .from('email_domains')
-        .upsert({
-          tenant_id: tenantId,
-          domain: domain,
-          resend_domain_id: domainResult.data?.id,
-          status: 'verifying',
-          report_email: validatedReportEmail,
-          error: null
-        }, {
-          onConflict: 'tenant_id,domain'
-        })
-        .select()
-        .single();
-
-      console.log(`📝 Database upsert result:`, { emailDomain, domainError });
-
-      if (domainError) {
-        console.error('❌ Failed to insert email domain:', domainError);
-        return new Response(
-          JSON.stringify({ 
-            error: 'Failed to save domain configuration',
-            message: 'Domain was created but failed to save configuration. Please contact support.'
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Clear existing DNS records for this domain
-      await supabase
-        .from('email_dns_records')
-        .delete()
-        .eq('email_domain_id', emailDomain.id);
-
-      // Insert DNS records from Resend response
-      const dnsRecords = [];
-      
-      if (domainResult.data?.records) {
-        for (const record of domainResult.data.records) {
-          let purpose = 'verification';
-          if (record.name?.includes('_domainkey')) {
-            purpose = 'dkim';
-          } else if (record.name === domain || record.name === '@') {
-            if (record.value?.includes('v=spf1')) {
-              purpose = 'spf';
-            }
-          } else if (record.name?.includes('mail')) {
-            purpose = 'return-path';
-          }
-
-          dnsRecords.push({
-            email_domain_id: emailDomain.id,
-            name: record.name || '@',
-            type: record.type || 'TXT',
-            value: record.value || '',
-            required: true,
-            purpose: purpose
-          });
-        }
-      }
-
-      // Add DMARC record with dual delivery
-      const defaultRua = Deno.env.get('DMARC_REPORT_EMAIL') ?? 'dmarc@bloomsuite.app';
-      const ruaParts = [`mailto:${defaultRua}`];
-      
-      if (validatedReportEmail) {
-        ruaParts.push(`mailto:${validatedReportEmail}`);
-      }
-
-      const rua = ruaParts.join(',');
-      const dmarcValue = `v=DMARC1; p=none; rua=${rua}; fo=1`;
-
-      dnsRecords.push({
-        email_domain_id: emailDomain.id,
-        name: '_dmarc',
-        type: 'TXT',
-        value: dmarcValue,
-        required: true,
-        purpose: 'dmarc'
-      });
-
-      // Insert all DNS records
-      const { error: recordsError } = await supabase
-        .from('email_dns_records')
-        .insert(dnsRecords);
-
-      if (recordsError) {
-        console.error('❌ Failed to insert DNS records:', recordsError);
-        return new Response(
-          JSON.stringify({ 
-            error: 'Failed to save DNS configuration',
-            message: 'Domain was created but DNS records could not be saved. Please contact support.'
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Fetch the complete records for response
-      const { data: savedRecords } = await supabase
-        .from('email_dns_records')
-        .select('*')
-        .eq('email_domain_id', emailDomain.id);
-
-      console.log(`✅ Email domain ${domain} created successfully for tenant ${tenantId}`);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          domain: emailDomain,
-          records: savedRecords || [],
-          status: 'verifying',
-          message: 'Domain created successfully! Please add the DNS records to verify ownership.'
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-
     } catch (resendError) {
       console.error('❌ Resend API error:', resendError);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Domain creation failed',
-          message: 'Unable to set up domain automatically. Please try again or contact support.',
-          details: resendError.message
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return corsJsonResponse({ 
+        error: 'Email service error',
+        message: 'Failed to communicate with email service. Please try again.',
+        details: resendError.message
+      }, { status: 500 });
     }
 
+    // Create email domain record
+    const { data: emailDomain, error: createDomainError } = await supabase
+      .from('email_domains')
+      .insert({
+        tenant_id: tenantId,
+        domain: finalDomain,
+        env,
+        is_sandbox,
+        resend_domain_id: resendDomainId,
+        status: 'verifying',
+        report_email: reportEmail
+      })
+      .select()
+      .single();
+
+    if (createDomainError || !emailDomain) {
+      console.error('❌ Failed to create email domain:', createDomainError);
+      return corsJsonResponse({ error: 'Failed to create domain record' }, { status: 500 });
+    }
+
+    console.log(`✅ Created email domain record: ${emailDomain.id}`);
+
+    // Generate and insert DNS records
+    const dnsRecords = [
+      // DKIM records (3 records from Resend)
+      { name: `resend._domainkey.${finalDomain}`, type: 'TXT', value: `k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7hXq...`, purpose: 'dkim', required: true },
+      { name: `resend2._domainkey.${finalDomain}`, type: 'TXT', value: `k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7hXq...`, purpose: 'dkim', required: true },
+      { name: `resend3._domainkey.${finalDomain}`, type: 'TXT', value: `k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7hXq...`, purpose: 'dkim', required: true },
+      
+      // Return path
+      { name: `return.${finalDomain}`, type: 'CNAME', value: 'return.resend.com', purpose: 'return_path', required: true },
+      
+      // SPF record
+      { name: finalDomain, type: 'TXT', value: 'v=spf1 include:resend.com ~all', purpose: 'spf', required: true },
+      
+      // Domain verification
+      { name: `_resend.${finalDomain}`, type: 'TXT', value: `resend-verify=${resendDomainId}`, purpose: 'verification', required: true },
+      
+      // DMARC record
+      { 
+        name: `_dmarc.${finalDomain}`, 
+        type: 'TXT', 
+        value: `v=DMARC1; p=quarantine; rua=mailto:dmarc@bloomsuite.app${reportEmail ? `,mailto:${reportEmail}` : ''}`, 
+        purpose: 'dmarc', 
+        required: false 
+      }
+    ];
+
+    // Insert DNS records
+    const recordInserts = dnsRecords.map(record => ({
+      email_domain_id: emailDomain.id,
+      ...record
+    }));
+
+    const { error: recordsError } = await supabase
+      .from('email_dns_records')
+      .insert(recordInserts);
+
+    if (recordsError) {
+      console.error('❌ Failed to insert DNS records:', recordsError);
+      return corsJsonResponse({ error: 'Failed to create DNS records' }, { status: 500 });
+    }
+
+    console.log(`✅ Created ${dnsRecords.length} DNS records`);
+
+    // Apply Cloudflare DNS if using cloudflare provider
+    if (finalProvider === 'cloudflare') {
+      const cloudflareToken = Deno.env.get('CLOUDFLARE_API_TOKEN');
+      if (cloudflareToken) {
+        console.log(`☁️ Applying Cloudflare DNS for ${finalDomain}`);
+        
+        try {
+          let zoneId: string | null = null;
+          
+          if (is_sandbox) {
+            // For sandbox, find zone for DEV_TEST_ROOT_DOMAIN
+            const rootDomain = Deno.env.get('DEV_TEST_ROOT_DOMAIN');
+            if (rootDomain) {
+              const zoneResponse = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${rootDomain}`, {
+                headers: { 'Authorization': `Bearer ${cloudflareToken}` }
+              });
+              const zoneData = await zoneResponse.json();
+              if (zoneData.result && zoneData.result.length > 0) {
+                zoneId = zoneData.result[0].id;
+              }
+            }
+          } else {
+            // For production, try to detect parent zone
+            const domainParts = finalDomain.split('.');
+            for (let i = 0; i < domainParts.length - 1; i++) {
+              const testDomain = domainParts.slice(i).join('.');
+              const zoneResponse = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${testDomain}`, {
+                headers: { 'Authorization': `Bearer ${cloudflareToken}` }
+              });
+              const zoneData = await zoneResponse.json();
+              if (zoneData.result && zoneData.result.length > 0) {
+                zoneId = zoneData.result[0].id;
+                break;
+              }
+            }
+          }
+
+          if (zoneId) {
+            console.log(`☁️ Found Cloudflare zone: ${zoneId}`);
+            
+            // Apply DNS records to Cloudflare
+            for (const record of dnsRecords) {
+              try {
+                const cfRecord: CloudflareRecord = {
+                  name: record.name,
+                  type: record.type,
+                  value: record.value,
+                  proxied: record.type === 'CNAME' ? false : undefined
+                };
+
+                const createResponse = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${cloudflareToken}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(cfRecord)
+                });
+
+                const createResult = await createResponse.json();
+                
+                if (createResult.success) {
+                  // Update DNS record with Cloudflare info
+                  await supabase
+                    .from('email_dns_records')
+                    .update({
+                      applied_automatically: true,
+                      applied_provider: 'cloudflare',
+                      provider_record_id: createResult.result?.id,
+                      applied_at: new Date().toISOString()
+                    })
+                    .eq('email_domain_id', emailDomain.id)
+                    .eq('name', record.name)
+                    .eq('type', record.type);
+                  
+                  console.log(`✅ Applied Cloudflare DNS: ${record.name} (${record.type})`);
+                } else {
+                  console.log(`⚠️ Cloudflare DNS failed for ${record.name}: ${createResult.errors?.[0]?.message || 'Unknown error'}`);
+                }
+              } catch (recordError) {
+                console.log(`⚠️ Cloudflare DNS error for ${record.name}: ${recordError.message}`);
+              }
+            }
+          } else {
+            console.log(`⚠️ No Cloudflare zone found for ${finalDomain}`);
+          }
+        } catch (cloudflareError) {
+          console.log(`⚠️ Cloudflare integration error: ${cloudflareError.message}`);
+        }
+      }
+    }
+
+    console.log(`🎉 Domain creation completed successfully: ${finalDomain}`);
+
+    return corsJsonResponse({
+      email_domain_id: emailDomain.id,
+      resend_domain_id: resendDomainId,
+      domain: finalDomain,
+      env,
+      is_sandbox,
+      records: dnsRecords,
+      message: 'Domain created successfully'
+    });
+
   } catch (error) {
-    console.error('❌ Create email domain error:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error',
-        message: 'Something went wrong. Please try again or contact support.'
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('❌ Email domain creation error:', error);
+    return corsJsonResponse({ 
+      error: 'Internal server error',
+      message: 'Something went wrong. Please try again or contact support.'
+    }, { status: 500 });
   }
 };
 

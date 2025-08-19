@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Globe, Mail, ArrowRight } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { AlertCircle, Globe, Mail, ArrowRight, TestTube } from 'lucide-react';
 import { useEmailDomains } from '@/hooks/useEmailDomains';
 import { toast } from 'sonner';
 
@@ -14,16 +16,34 @@ interface EmailDomainWizardProps {
 }
 
 export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps) => {
-  const { createEmailDomain } = useEmailDomains();
+  const { createEmailDomain, getSandboxConfig } = useEmailDomains();
   const [step, setStep] = useState(1);
   const [domain, setDomain] = useState('');
   const [reportEmail, setReportEmail] = useState('');
+  const [useSandbox, setUseSandbox] = useState(false);
+  const [sandboxConfig, setSandboxConfig] = useState<any>({ enabled: false });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      loadSandboxConfig();
+    }
+  }, [open]);
+
+  const loadSandboxConfig = async () => {
+    try {
+      const config = await getSandboxConfig();
+      setSandboxConfig(config);
+    } catch (error) {
+      console.error('Failed to load sandbox config:', error);
+    }
+  };
 
   const handleReset = () => {
     setStep(1);
     setDomain('');
     setReportEmail('');
+    setUseSandbox(false);
     setLoading(false);
   };
 
@@ -33,7 +53,7 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
   };
 
   const handleNext = () => {
-    if (step === 1 && domain.trim()) {
+    if (step === 1 && (useSandbox || domain.trim())) {
       setStep(2);
     }
   };
@@ -45,22 +65,31 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
   };
 
   const handleSubmit = async () => {
-    if (!domain.trim()) {
+    if (!useSandbox && !domain.trim()) {
       toast.error('Domain is required');
       return;
     }
 
     try {
       setLoading(true);
-      await createEmailDomain(domain.trim(), reportEmail.trim() || undefined);
-      toast.success('Email domain created successfully! Please add the DNS records to verify ownership.');
+      await createEmailDomain(
+        useSandbox ? undefined : domain.trim(), 
+        reportEmail.trim() || undefined,
+        useSandbox
+      );
       handleClose();
     } catch (error: any) {
       console.error('Error creating domain:', error);
-      toast.error(error.message || 'Failed to create email domain');
+      // Toast is handled in the hook
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateSandboxPreview = () => {
+    if (!sandboxConfig.rootDomain) return '';
+    const randomId = Math.random().toString(36).substring(2, 10);
+    return `${randomId}.${sandboxConfig.rootDomain}`;
   };
 
   return (
@@ -98,19 +127,48 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="domain">Domain *</Label>
-                <Input
-                  id="domain"
-                  placeholder="e.g., mail.yourdomain.com"
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  className="w-full"
-                />
-                <p className="text-xs text-gray-500">
-                  Use a subdomain like "mail.yourdomain.com" for better deliverability
-                </p>
-              </div>
+              {sandboxConfig.enabled && (
+                <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Checkbox
+                      id="sandbox"
+                      checked={useSandbox}
+                      onCheckedChange={(checked) => setUseSandbox(checked as boolean)}
+                    />
+                    <Label htmlFor="sandbox" className="text-sm font-medium flex items-center gap-2">
+                      <TestTube className="w-4 h-4" />
+                      Use sandbox test domain instead
+                    </Label>
+                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">TEST</Badge>
+                  </div>
+                  {useSandbox && (
+                    <div className="mt-2 p-2 bg-white rounded border text-xs text-gray-600">
+                      <div className="font-mono bg-gray-100 px-2 py-1 rounded text-xs mb-1">
+                        Preview: {generateSandboxPreview()}
+                      </div>
+                      <p className="text-blue-700">
+                        ✨ DNS records will be applied automatically for instant testing
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!useSandbox && (
+                <div className="space-y-2">
+                  <Label htmlFor="domain">Domain *</Label>
+                  <Input
+                    id="domain"
+                    placeholder="e.g., mail.yourdomain.com"
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Use a subdomain like "mail.yourdomain.com" for better deliverability
+                  </p>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-4">
                 <Button variant="outline" onClick={handleClose}>
@@ -118,7 +176,7 @@ export const EmailDomainWizard = ({ open, onOpenChange }: EmailDomainWizardProps
                 </Button>
                 <Button 
                   onClick={handleNext} 
-                  disabled={!domain.trim()}
+                  disabled={!useSandbox && !domain.trim()}
                   className="flex items-center gap-2"
                 >
                   Next <ArrowRight className="w-4 h-4" />

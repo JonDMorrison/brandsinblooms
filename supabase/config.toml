@@ -17,3 +17,12 @@ verify_jwt = true
 
 [functions.generate-multichannel-content]
 verify_jwt = false
+
+[functions.email-domain-create]
+verify_jwt = true
+
+[functions.email-domain-verify]
+verify_jwt = true
+
+[functions.domain-sandbox-config]
+verify_jwt = false
