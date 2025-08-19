@@ -122,7 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
           report_email: validatedReportEmail,
           error: null
         }, {
-          onConflict: 'unique_tenant_domain'
+          onConflict: 'tenant_id,domain'
         })
         .select()
         .single();
