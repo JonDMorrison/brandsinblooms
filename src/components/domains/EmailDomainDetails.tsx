@@ -13,7 +13,8 @@ import {
   RefreshCw,
   Edit,
   Save,
-  X
+  X,
+  TestTube
 } from 'lucide-react';
 import { useEmailDomains, EmailDomain, EmailDnsRecord, EmailDnsCheck } from '@/hooks/useEmailDomains';
 import { toast } from 'sonner';
@@ -148,25 +149,38 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Domain Info */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Domain</Label>
-              <p className="text-sm">{domain.domain}</p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Status</Label>
-              <p className="text-sm">{domain.status}</p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Created</Label>
-              <p className="text-sm">{new Date(domain.created_at).toLocaleString()}</p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Last Updated</Label>
-              <p className="text-sm">{new Date(domain.updated_at).toLocaleString()}</p>
-            </div>
-          </div>
+           {/* Domain Info */}
+           <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+             <div>
+               <Label className="text-sm font-medium text-gray-700">Domain</Label>
+               <p className="text-sm">{domain.domain}</p>
+             </div>
+             <div>
+               <Label className="text-sm font-medium text-gray-700">Status</Label>
+               <div className="flex items-center gap-2">
+                 <p className="text-sm">{domain.status}</p>
+                 {domain.is_sandbox && (
+                   <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 flex items-center gap-1">
+                     <TestTube className="w-3 h-3" />
+                     SANDBOX
+                   </Badge>
+                 )}
+                 {domain.env === 'dev' && !domain.is_sandbox && (
+                   <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">
+                     DEV
+                   </Badge>
+                 )}
+               </div>
+             </div>
+             <div>
+               <Label className="text-sm font-medium text-gray-700">Environment</Label>
+               <p className="text-sm">{domain.env === 'dev' ? 'Development' : 'Production'}</p>
+             </div>
+             <div>
+               <Label className="text-sm font-medium text-gray-700">Created</Label>
+               <p className="text-sm">{new Date(domain.created_at).toLocaleString()}</p>
+             </div>
+           </div>
 
           {/* DMARC Report Email */}
           <div className="space-y-3">
@@ -256,28 +270,39 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
                       key={record.id}
                       className="border rounded-lg p-4 space-y-3"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline" className="uppercase">
-                            {record.purpose}
-                          </Badge>
-                          <Badge variant="outline">
-                            {record.type}
-                          </Badge>
-                          {status !== undefined && (
-                            <div className="flex items-center gap-1">
-                              {status ? (
-                                <CheckCircle className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <AlertCircle className="w-4 h-4 text-red-600" />
-                              )}
-                              <span className={`text-xs ${status ? 'text-green-600' : 'text-red-600'}`}>
-                                {status ? 'Verified' : 'Not Found'}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                         <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                             <Badge variant="outline" className="uppercase">
+                               {record.purpose}
+                             </Badge>
+                             <Badge variant="outline">
+                               {record.type}
+                             </Badge>
+                             {record.applied_automatically && (
+                               <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 flex items-center gap-1">
+                                 <CheckCircle className="w-3 h-3" />
+                                 Auto-Applied
+                               </Badge>
+                             )}
+                             {status !== undefined && (
+                               <div className="flex items-center gap-1">
+                                 {status ? (
+                                   <CheckCircle className="w-4 h-4 text-green-600" />
+                                 ) : (
+                                   <AlertCircle className="w-4 h-4 text-red-600" />
+                                 )}
+                                 <span className={`text-xs ${status ? 'text-green-600' : 'text-red-600'}`}>
+                                   {status ? 'Verified' : 'Not Found'}
+                                 </span>
+                               </div>
+                             )}
+                           </div>
+                           {record.applied_provider && (
+                             <Badge variant="outline" className="text-xs">
+                               {record.applied_provider}
+                             </Badge>
+                           )}
+                         </div>
 
                       <div className="grid gap-2">
                         <div>
@@ -310,11 +335,16 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
                               <Copy className="w-4 h-4" />
                             </Button>
                           </div>
-                          {record.value.length > 60 && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Click copy to get the full value
-                            </p>
-                          )}
+                           {record.value.length > 60 && (
+                             <p className="text-xs text-gray-500 mt-1">
+                               Click copy to get the full value
+                             </p>
+                           )}
+                           {record.applied_automatically && record.applied_at && (
+                             <p className="text-xs text-green-600 mt-1">
+                               ✅ Applied automatically on {new Date(record.applied_at).toLocaleString()}
+                             </p>
+                           )}
                         </div>
                       </div>
                     </div>
@@ -324,20 +354,35 @@ export const EmailDomainDetails = ({ domainId, open, onOpenChange }: EmailDomain
             )}
           </div>
 
-          {domain.status !== 'active' && (
-            <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-              <div className="flex gap-2">
-                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-amber-800">
-                  <p className="font-medium mb-1">Setup Required</p>
-                  <p>
-                    Add these DNS records to your domain provider's DNS settings, then click "Verify DNS" 
-                    to complete the setup. It may take up to 48 hours for DNS changes to propagate.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+           {domain.status !== 'active' && !domain.is_sandbox && (
+             <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+               <div className="flex gap-2">
+                 <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                 <div className="text-sm text-amber-800">
+                   <p className="font-medium mb-1">Setup Required</p>
+                   <p>
+                     Add these DNS records to your domain provider's DNS settings, then click "Verify DNS" 
+                     to complete the setup. It may take up to 48 hours for DNS changes to propagate.
+                   </p>
+                 </div>
+               </div>
+             </div>
+           )}
+
+           {domain.is_sandbox && (
+             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+               <div className="flex gap-2">
+                 <TestTube className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                 <div className="text-sm text-blue-800">
+                   <p className="font-medium mb-1">Sandbox Domain</p>
+                   <p>
+                     This is a test domain with DNS records applied automatically. 
+                     Perfect for testing email functionality without manual DNS configuration.
+                   </p>
+                 </div>
+               </div>
+             </div>
+           )}
 
           <div className="flex justify-end">
             <Button variant="outline" onClick={() => onOpenChange(false)}>

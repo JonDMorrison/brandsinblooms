@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,7 +25,11 @@ export interface EmailDnsRecord {
   type: 'TXT' | 'CNAME';
   value: string;
   required: boolean;
-  purpose: 'dkim' | 'spf' | 'return-path' | 'verification' | 'dmarc';
+  purpose: 'dkim' | 'spf' | 'return_path' | 'verification' | 'dmarc';
+  applied_automatically?: boolean;
+  applied_provider?: string;
+  provider_record_id?: string;
+  applied_at?: string;
   created_at: string;
 }
 

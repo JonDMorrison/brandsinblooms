@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,8 @@ import {
   Clock,
   ExternalLink,
   Mail,
-  RefreshCw
+  RefreshCw,
+  TestTube
 } from 'lucide-react';
 import { EmailDomainWizard } from './EmailDomainWizard';
 import { EmailDomainDetails } from './EmailDomainDetails';
@@ -54,14 +54,10 @@ export const EmailDomainsList = () => {
       setVerifyingDomains(prev => new Set(prev).add(domainId));
       const result = await verifyEmailDomain(domainId);
       
-      if (result.allVerified) {
-        toast.success('Domain verification completed successfully!');
-      } else {
-        toast.warning('Some DNS records are not yet configured correctly. Please check your DNS settings.');
-      }
+      // Toast is handled in the hook
     } catch (error: any) {
       console.error('Error verifying domain:', error);
-      toast.error(error.message || 'Failed to verify domain');
+      // Toast is handled in the hook
     } finally {
       setVerifyingDomains(prev => {
         const newSet = new Set(prev);
@@ -132,10 +128,21 @@ export const EmailDomainsList = () => {
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{domain.domain}</span>
                         {getStatusBadge(domain.status)}
+                        {domain.is_sandbox && (
+                          <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 flex items-center gap-1">
+                            <TestTube className="w-3 h-3" />
+                            SANDBOX
+                          </Badge>
+                        )}
+                        {domain.env === 'dev' && !domain.is_sandbox && (
+                          <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">
+                            DEV
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-4 mt-1">
                         <span className="text-sm text-gray-600">
-                          Created {new Date(domain.created_at).toLocaleDateString()}
+                          {domain.env === 'dev' ? 'Development' : 'Production'} • Created {new Date(domain.created_at).toLocaleDateString()}
                         </span>
                         {domain.report_email && (
                           <div className="flex items-center gap-1 text-sm text-gray-600">
