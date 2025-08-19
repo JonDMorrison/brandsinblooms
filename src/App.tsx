@@ -8,6 +8,7 @@ import { SidebarLayout } from '@/components/SidebarLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicRoute } from '@/components/PublicRoute';
 import { AuthPage } from '@/components/auth/AuthPage';
+import { DataProviderWrapper } from '@/components/DataProviderWrapper';
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewslettersPage } from '@/pages/NewslettersPage';
 import { TemplatesPage } from '@/pages/TemplatesPage';
@@ -40,7 +41,9 @@ function App() {
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <SidebarLayout>
-                <BloomSuiteDashboard />
+                <DataProviderWrapper>
+                  <BloomSuiteDashboard />
+                </DataProviderWrapper>
               </SidebarLayout>
             </ProtectedRoute>
           } />
@@ -82,7 +85,9 @@ function App() {
           <Route path="/calendar" element={
             <ProtectedRoute>
               <SidebarLayout>
-                <CalendarPage />
+                <DataProviderWrapper>
+                  <CalendarPage />
+                </DataProviderWrapper>
               </SidebarLayout>
             </ProtectedRoute>
           } />

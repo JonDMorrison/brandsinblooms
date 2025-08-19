@@ -7,7 +7,7 @@ import { CompleteLandingPage } from '@/components/landing/CompleteLandingPage';
 import { EmergencyAuthReset } from '@/components/EmergencyAuthReset';
 
 export const SmartRootRoute = () => {
-  const { user, loading, authError, isInLimboState } = useAuth();
+  const { user, loading } = useAuth();
   const { setLoading, clearLoading } = useLoading();
 
   // Manage auth loading state in the global loading context
@@ -28,11 +28,9 @@ export const SmartRootRoute = () => {
     console.log('🏠 SmartRootRoute state:', {
       hasUser: !!user,
       loading,
-      authError,
-      isInLimboState,
       currentPath: window.location.pathname
     });
-  }, [user, loading, authError, isInLimboState]);
+  }, [user, loading]);
 
   // Don't render anything while loading - let GlobalLoadingOverlay handle it
   if (loading) {
