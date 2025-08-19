@@ -64,33 +64,72 @@ const AppSidebar: React.FC = () => {
   const sidebarItems: SidebarItem[] = [
     {
       title: "Dashboard",
-      url: "/",
+      url: "/dashboard",
       icon: LayoutDashboard,
     },
     {
-      title: "Company Profile",
-      url: "/profile",
+      title: "Campaigns",
+      url: "/campaigns",
+      icon: Send,
+      items: [
+        {
+          title: "Newsletters",
+          url: "/newsletters",
+          icon: Mail,
+        },
+        {
+          title: "SMS/MMS",
+          url: "/sms",
+          icon: Send,
+        },
+        {
+          title: "Social Media",
+          url: "/campaigns",
+          icon: Send,
+        },
+      ],
+    },
+    {
+      title: "Automations",
+      url: "/crm/automations",
+      icon: Zap,
+    },
+    {
+      title: "Contacts",
+      url: "/crm/customers",
+      icon: Users,
+    },
+    {
+      title: "Content",
+      url: "/content",
+      icon: ClipboardList,
+      items: [
+        {
+          title: "Media Library",
+          url: "/content/library",
+          icon: ClipboardList,
+        },
+        {
+          title: "Templates",
+          url: "/templates",
+          icon: ClipboardList,
+        },
+      ],
+    },
+    {
+      title: "Website",
+      url: "/website",
       icon: Building2,
     },
     {
-      title: "Publish Portal",
-      url: "/publish",
-      icon: Send,
+      title: "Analytics",
+      url: "/analytics",
+      icon: BarChart3,
     },
     {
       title: "Calendar",
       url: "/calendar",
       icon: Calendar,
-    },
-    {
-      title: "Social Media",
-      url: "/social-accounts",
-      icon: Send,
-    },
-    {
-      title: "Content Library",
-      url: "/content/library",
-      icon: ClipboardList,
     },
     ...(isPro ? [{
       title: "CRM",
@@ -118,11 +157,6 @@ const AppSidebar: React.FC = () => {
           icon: Target,
         },
         {
-          title: "Persona Analytics",
-          url: "/crm/personas/analytics",
-          icon: BarChart3,
-        },
-        {
           title: "Campaign Analytics",
           url: "/crm/analytics",
           icon: BarChart3,
@@ -146,7 +180,7 @@ const AppSidebar: React.FC = () => {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="flex flex-row items-center justify-between p-4">
-        <NavLink to="/" className="font-semibold flex items-center gap-2">
+        <NavLink to="/dashboard" className="font-semibold flex items-center gap-2">
           <img 
             src="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png" 
             alt="BloomSuite Logo" 
@@ -159,7 +193,7 @@ const AppSidebar: React.FC = () => {
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Main Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {sidebarItems.map((item) =>

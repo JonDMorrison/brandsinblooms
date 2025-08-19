@@ -31,7 +31,7 @@ export const useRedirectIfAuthenticated = () => {
     // If user is authenticated and on any public route, redirect to dashboard
     if (user && publicRoutes.includes(location.pathname)) {
       console.log('✅ User authenticated on public route, redirecting to dashboard');
-      navigate("/app", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [user, loading, location.pathname, navigate, isInLimboState, authError]);
 

@@ -1,13 +1,9 @@
 
 import React, { useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLoading } from '@/contexts/LoadingContext';
 import { CompleteLandingPage } from '@/components/landing/CompleteLandingPage';
-import { Homepage } from '@/components/Homepage';
-import { SidebarLayout } from '@/components/SidebarLayout';
-import { OnboardingGuard } from '@/components/OnboardingGuard';
-import { HomepageErrorBoundary } from '@/components/homepage/HomepageErrorBoundary';
-import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
 import { EmergencyAuthReset } from '@/components/EmergencyAuthReset';
 
 export const SmartRootRoute = () => {
@@ -43,19 +39,11 @@ export const SmartRootRoute = () => {
     return null;
   }
 
-  // Show dashboard for authenticated users, comprehensive landing page for guests
+  // Show landing page for unauthenticated users, redirect authenticated users to dashboard
   return (
     <>
       {user ? (
-        <ContentGenerationProvider>
-          <HomepageErrorBoundary>
-            <SidebarLayout>
-              <OnboardingGuard>
-                <Homepage />
-              </OnboardingGuard>
-            </SidebarLayout>
-          </HomepageErrorBoundary>
-        </ContentGenerationProvider>
+        <Navigate to="/dashboard" replace />
       ) : (
         <CompleteLandingPage />
       )}

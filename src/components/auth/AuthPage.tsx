@@ -34,7 +34,7 @@ export const AuthPage = () => {
         toast.error(error.message);
       } else if (data.user) {
         toast.success('Signed in successfully!');
-        navigate('/app');
+        navigate('/dashboard');
       }
     } catch (error) {
       toast.error('An unexpected error occurred');
@@ -59,7 +59,7 @@ export const AuthPage = () => {
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/app`
+          emailRedirectTo: `${window.location.origin}/dashboard`
         }
       });
 
@@ -68,7 +68,7 @@ export const AuthPage = () => {
       } else if (data.user) {
         if (data.user.email_confirmed_at) {
           toast.success('Account created successfully!');
-          navigate('/app');
+          navigate('/dashboard');
         } else {
           toast.success('Please check your email to confirm your account');
         }
