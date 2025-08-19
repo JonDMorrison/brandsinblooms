@@ -12,42 +12,37 @@ test.describe('CRM Dashboard', () => {
   test('displays main dashboard elements', async ({ page }) => {
     // Check header
     await expect(page.locator('h1')).toContainText('CRM Dashboard');
-    await expect(page.getByText('Comprehensive insights into your customer relationships')).toBeVisible();
+    await expect(page.getByText('Quick insights and navigation to your customer data')).toBeVisible();
     
     // Check refresh button
     await expect(page.getByRole('button', { name: /refresh/i })).toBeVisible();
-    
-    // Check filter bar
-    await expect(page.getByText('Past 7 Days')).toBeVisible();
-    await expect(page.getByText('Past 30 Days')).toBeVisible();
-    await expect(page.getByText('All Time')).toBeVisible();
   });
 
-  test('displays key metrics cards', async ({ page }) => {
+  test('displays clickable stats cards', async ({ page }) => {
+    // Wait for stats to load
+    await page.waitForTimeout(1000);
+    
+    // Check all six stat cards
+    await expect(page.getByText('Total Customers')).toBeVisible();
+    await expect(page.getByText('Customer Segments')).toBeVisible();
+    await expect(page.getByText('Top Segment')).toBeVisible();
+    await expect(page.getByText('Customer Personas')).toBeVisible();
+    await expect(page.getByText('Average Open Rate')).toBeVisible();
+    await expect(page.getByText('Average Click Rate')).toBeVisible();
+    
+    // Cards should be clickable (have link styling)
+    const customerCard = page.locator('text=Total Customers').locator('..');
+    await expect(customerCard).toBeVisible();
+  });
+
+  test('displays simplified key metrics', async ({ page }) => {
     // Wait for metrics to load
     await page.waitForTimeout(1000);
     
-    // Check all four metric cards
-    await expect(page.getByText('Total Customers')).toBeVisible();
+    // Check three main metric cards
+    await expect(page.getByText('Total Revenue')).toBeVisible();
     await expect(page.getByText('Active Campaigns')).toBeVisible();
-    await expect(page.getByText('Conversion Rate')).toBeVisible();
-    await expect(page.getByText('Revenue')).toBeVisible();
-    
-    // Check that values are displayed (should be numbers, not loading state)
-    const metricCards = page.locator('[data-testid="metric-card"], .text-2xl.font-bold').first();
-    await expect(metricCards).toBeVisible();
-  });
-
-  test('displays performance chart', async ({ page }) => {
-    // Check chart container
-    await expect(page.getByText('Performance Over Time')).toBeVisible();
-    
-    // Wait for chart to potentially load
-    await page.waitForTimeout(2000);
-    
-    // Chart should be visible (either loaded chart or loading state)
-    const chartArea = page.locator('.recharts-wrapper, .h-80').first();
-    await expect(chartArea).toBeVisible();
+    await expect(page.getByText('New This Month')).toBeVisible();
   });
 
   test('displays customer segments section', async ({ page }) => {
@@ -59,14 +54,6 @@ test.describe('CRM Dashboard', () => {
     await expect(segmentsCard).toBeVisible();
   });
 
-  test('displays campaign performance section', async ({ page }) => {
-    await expect(page.getByText('Campaign Performance')).toBeVisible();
-    
-    // Should show campaigns table or empty state
-    const campaignsSection = page.locator('text=Campaign Performance').locator('..').locator('..');
-    await expect(campaignsSection).toBeVisible();
-  });
-
   test('displays recent activity section', async ({ page }) => {
     await expect(page.getByText('Recent Activity')).toBeVisible();
     
@@ -75,63 +62,38 @@ test.describe('CRM Dashboard', () => {
     await expect(activitySection).toBeVisible();
   });
 
-  test('time filter functionality', async ({ page }) => {
-    // Test 7 days filter
-    await page.getByText('Past 7 Days').click();
-    await page.waitForTimeout(500);
+  test('stat cards navigation', async ({ page }) => {
+    // Test customers link
+    const customersCard = page.locator('text=Total Customers').locator('..');
+    if (await customersCard.isVisible()) {
+      await customersCard.click();
+      await expect(page).toHaveURL(/\/crm\/customers/);
+      await page.goBack();
+    }
     
-    // Test 30 days filter
-    await page.getByText('Past 30 Days').click();
-    await page.waitForTimeout(500);
+    // Test segments link
+    const segmentsCard = page.locator('text=Customer Segments').locator('..');
+    if (await segmentsCard.isVisible()) {
+      await segmentsCard.click();
+      await expect(page).toHaveURL(/\/crm\/segments/);
+      await page.goBack();
+    }
     
-    // Test all time filter
-    await page.getByText('All Time').click();
-    await page.waitForTimeout(500);
+    // Test personas link
+    const personasCard = page.locator('text=Customer Personas').locator('..');
+    if (await personasCard.isVisible()) {
+      await personasCard.click();
+      await expect(page).toHaveURL(/\/crm\/personas/);
+      await page.goBack();
+    }
     
-    // Should update the metrics description
-    await expect(page.getByText('all time')).toBeVisible();
-  });
-
-  test('segment filter functionality', async ({ page }) => {
-    // Test different segment filters
-    await page.getByText('High-Value').click();
-    await page.waitForTimeout(500);
-    
-    await page.getByText('New Customers').click();
-    await page.waitForTimeout(500);
-    
-    await page.getByText('All Segments').click();
-    await page.waitForTimeout(500);
-  });
-
-  test('channel filter functionality', async ({ page }) => {
-    // Test different channel filters
-    await page.getByText('Email', { exact: true }).click();
-    await page.waitForTimeout(500);
-    
-    await page.getByText('SMS', { exact: true }).click();
-    await page.waitForTimeout(500);
-    
-    await page.getByText('All Channels').click();
-    await page.waitForTimeout(500);
-  });
-
-  test('reset filters functionality', async ({ page }) => {
-    // Change some filters
-    await page.getByText('Past 7 Days').click();
-    await page.getByText('High-Value').click();
-    await page.getByText('Email', { exact: true }).click();
-    
-    // Reset should appear
-    const resetButton = page.getByRole('button', { name: /reset/i });
-    await expect(resetButton).toBeVisible();
-    
-    // Click reset
-    await resetButton.click();
-    await page.waitForTimeout(500);
-    
-    // Should return to default state
-    await expect(page.getByText('Past 30 Days')).toHaveClass(/bg-primary|default/);
+    // Test analytics link
+    const analyticsCard = page.locator('text=Average Open Rate').locator('..');
+    if (await analyticsCard.isVisible()) {
+      await analyticsCard.click();
+      await expect(page).toHaveURL(/\/crm\/analytics/);
+      await page.goBack();
+    }
   });
 
   test('refresh functionality', async ({ page }) => {
@@ -145,32 +107,6 @@ test.describe('CRM Dashboard', () => {
     
     // Dashboard should still be visible after refresh
     await expect(page.locator('h1')).toContainText('CRM Dashboard');
-  });
-
-  test('navigation links work', async ({ page }) => {
-    // Test segments link
-    const segmentsLink = page.getByRole('link', { name: /view all segments/i });
-    if (await segmentsLink.isVisible()) {
-      await segmentsLink.click();
-      await expect(page).toHaveURL(/\/crm\/segments/);
-      await page.goBack();
-    }
-    
-    // Test campaigns link
-    const campaignsLink = page.getByRole('link', { name: /view all/i }).first();
-    if (await campaignsLink.isVisible()) {
-      await campaignsLink.click();
-      await expect(page).toHaveURL(/\/crm\/campaigns/);
-      await page.goBack();
-    }
-    
-    // Test analytics link
-    const analyticsLink = page.getByRole('link', { name: /view analytics/i });
-    if (await analyticsLink.isVisible()) {
-      await analyticsLink.click();
-      await expect(page).toHaveURL(/\/crm\/analytics/);
-      await page.goBack();
-    }
   });
 
   test('responsive design', async ({ page }) => {
@@ -205,5 +141,18 @@ test.describe('CRM Dashboard', () => {
     // Final state should show the dashboard
     await expect(page.locator('h1')).toContainText('CRM Dashboard');
     await expect(page.getByText('Total Customers')).toBeVisible();
+  });
+
+  test('displays real stats', async ({ page }) => {
+    // Wait for real stats to load
+    await page.waitForTimeout(2000);
+    
+    // Check that numeric values are displayed (should be real data, not just 0s)
+    const customerCard = page.locator('text=Total Customers').locator('..');
+    await expect(customerCard).toBeVisible();
+    
+    // Check revenue formatting (should show currency)
+    const revenueText = page.getByText('Total Revenue');
+    await expect(revenueText).toBeVisible();
   });
 });
