@@ -192,7 +192,7 @@ export const CalendarHeader = ({
             </Button>
           </div>
 
-          {/* Filters and Search */}
+          {/* Search Only */}
           {filters && onFiltersChange && (
             <div className="flex items-center gap-2">
               <div className="relative">
@@ -213,46 +213,82 @@ export const CalendarHeader = ({
               >
                 {filters.showPublished ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </Button>
-
-              {filterOptions && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8">
-                      <Filter className="w-4 h-4 mr-1" />
-                      Filters
-                      {(filters.types.length < filterOptions.types.length || 
-                        filters.platforms.length > 0 || 
-                        filters.statuses.length > 0) && (
-                        <Badge variant="secondary" className="ml-1 h-4 text-xs">
-                          Active
-                        </Badge>
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    {filterOptions.types.map(type => (
-                      <DropdownMenuCheckboxItem
-                        key={type}
-                        checked={filters.types.includes(type)}
-                        onCheckedChange={(checked) => {
-                          const newTypes = checked 
-                            ? [...filters.types, type]
-                            : filters.types.filter(t => t !== type);
-                          onFiltersChange({ ...filters, types: newTypes });
-                        }}
-                      >
-                        {type.replace('_', ' ')}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
             </div>
           )}
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex gap-2">
+        {/* Bulk Action Buttons - only show when tasks are selected */}
+        {selectedTasksCount > 0 && (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBulkComplete}
+              disabled={bulkCompleteLoading}
+              className="h-9 px-4 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 transition-colors duration-200"
+            >
+              {bulkCompleteLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-emerald-500 border-t-transparent"></div>
+              ) : (
+                <CheckCircle className="w-4 h-4 mr-2" />
+              )}
+              Complete ({selectedTasksCount})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBulkDelete}
+              disabled={bulkDeleteLoading}
+              className="h-9 px-4 text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors duration-200"
+            >
+              {bulkDeleteLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
+              ) : (
+                <XCircle className="w-4 h-4 mr-2" />
+              )}
+              Delete ({selectedTasksCount})
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Action Buttons Row */}
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
+        <div className="flex items-center gap-2">
+          {filters && onFiltersChange && filterOptions && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-slate-600">
+                  <Filter className="w-4 h-4 mr-1" />
+                  Filters
+                  {(filters.types.length < filterOptions.types.length || 
+                    filters.platforms.length > 0 || 
+                    filters.statuses.length > 0) && (
+                    <Badge variant="secondary" className="ml-1 h-4 text-xs">
+                      Active
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {filterOptions.types.map(type => (
+                  <DropdownMenuCheckboxItem
+                    key={type}
+                    checked={filters.types.includes(type)}
+                    onCheckedChange={(checked) => {
+                      const newTypes = checked 
+                        ? [...filters.types, type]
+                        : filters.types.filter(t => t !== type);
+                      onFiltersChange({ ...filters, types: newTypes });
+                    }}
+                  >
+                    {type.replace('_', ' ')}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           {onShowThemesReference && (
             <Button
               variant="outline"
@@ -264,6 +300,7 @@ export const CalendarHeader = ({
               Weekly Themes
             </Button>
           )}
+
           {onTogglePlanningPanel && (
             <Button
               variant="outline"
@@ -275,6 +312,7 @@ export const CalendarHeader = ({
               Planning
             </Button>
           )}
+
           {onCreateEvent && (
             <Button
               variant="outline"
@@ -286,6 +324,7 @@ export const CalendarHeader = ({
               Promote Event
             </Button>
           )}
+
           {onCreateCampaign && (
             <Button
               size="sm"
@@ -295,38 +334,6 @@ export const CalendarHeader = ({
               <Plus className="w-4 h-4 mr-1" />
               Create Campaign
             </Button>
-          )}
-          {selectedTasksCount > 0 && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onBulkComplete}
-                disabled={bulkCompleteLoading}
-                className="h-9 px-4 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 transition-colors duration-200"
-              >
-                {bulkCompleteLoading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-emerald-500 border-t-transparent"></div>
-                ) : (
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                )}
-                Complete ({selectedTasksCount})
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onBulkDelete}
-                disabled={bulkDeleteLoading}
-                className="h-9 px-4 text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors duration-200"
-              >
-                {bulkDeleteLoading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
-                ) : (
-                  <XCircle className="w-4 h-4 mr-2" />
-                )}
-                Delete ({selectedTasksCount})
-              </Button>
-            </>
           )}
         </div>
       </div>
