@@ -128,18 +128,6 @@ export const CalendarHeader = ({
               Today
             </Button>
             
-            {onRefresh && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRefresh}
-                disabled={isRefreshing}
-                className="h-9 px-3 hover:bg-slate-50 text-slate-700 font-medium transition-colors duration-200"
-                title="Force refresh data"
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
-            )}
 
           </div>
 
