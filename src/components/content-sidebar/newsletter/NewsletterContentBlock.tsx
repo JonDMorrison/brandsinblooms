@@ -115,6 +115,8 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
           contentContext={smartSearchContext}
           className="aspect-[4/3]"
           buttonText="Choose Block Image"
+          mode="modal"
+          compact
         />
       </div>
     </div>
