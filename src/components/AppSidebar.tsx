@@ -118,7 +118,7 @@ const AppSidebar: React.FC = () => {
     },
     {
       title: "Website",
-      url: "/website",
+      url: "/website/app",
       icon: Building2,
     },
     {

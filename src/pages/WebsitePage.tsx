@@ -34,7 +34,10 @@ export const WebsitePage = () => {
                 Soon you'll be able to create beautiful, professional websites in minutes 
                 using our AI assistant.
               </p>
-              <Button className="w-full" disabled>
+              <Button 
+                className="w-full"
+                onClick={() => window.open('/website', '_blank')}
+              >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Join the Waitlist
               </Button>

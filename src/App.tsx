@@ -14,6 +14,7 @@ import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewslettersPage } from '@/pages/NewslettersPage';
 import { TemplatesPage } from '@/pages/TemplatesPage';
 import { WebsitePage } from '@/pages/WebsitePage';
+import { WebsiteWaitlistPage } from '@/pages/WebsiteWaitlistPage';
 import Index from '@/pages/Index';
 import SocialMediaPage from '@/pages/SocialMediaPage';
 import { CRMDashboardPage } from '@/pages/crm/CRMDashboardPage';
@@ -73,7 +74,19 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
+          {/* Public website landing page */}
           <Route path="/website" element={
+            <PublicRoute>
+              <WebsiteWaitlistPage />
+            </PublicRoute>
+          } />
+          <Route path="/website/waitlist" element={
+            <PublicRoute>
+              <WebsiteWaitlistPage />
+            </PublicRoute>
+          } />
+          {/* Protected website builder */}
+          <Route path="/website/app" element={
             <ProtectedRoute>
               <SidebarLayout>
                 <WebsitePage />
