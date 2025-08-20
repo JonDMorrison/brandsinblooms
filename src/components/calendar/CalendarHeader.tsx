@@ -296,7 +296,7 @@ export const CalendarHeader = ({
               onClick={onTogglePlanningPanel}
               className={`h-8 px-3 ${showPlanningPanel ? 'text-blue-700 bg-blue-50' : 'text-slate-600'} hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200`}
             >
-              <Filter className="w-4 h-4 mr-1" />
+              <Calendar className="w-4 h-4 mr-1" />
               Planning
             </Button>
           )}
