@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Lightbulb, Calendar, Filter } from 'lucide-react';
-import { WeeklyThemeGenerator } from '@/components/theme-generation/WeeklyThemeGenerator';
 import { CalendarPlanningFilters } from './CalendarPlanningFilters';
 import { CalendarHolidaysList } from './CalendarHolidaysList';
+import { MASTER_WEEKLY_THEMES } from '@/data/masterWeeklyThemes';
 
 interface CalendarPlanningPanelProps {
   filters: any;
@@ -58,19 +58,33 @@ export const CalendarPlanningPanel = ({
             <TabsContent value="ideas" className="h-full m-0 p-4">
               <ScrollArea className="h-full">
                 <div className="space-y-4">
-                  <Card className="border-dashed border-2 border-primary/20">
+                  <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm text-primary flex items-center gap-2">
                         <Lightbulb className="w-4 h-4" />
-                        Theme Generator
+                        Weekly Themes (52 Ideas)
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <WeeklyThemeGenerator 
-                        onThemesGenerated={(themes) => {
-                          // Handle theme generation completion
-                        }}
-                      />
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {MASTER_WEEKLY_THEMES.map((theme) => (
+                          <div 
+                            key={theme.week_number} 
+                            className="p-2 bg-slate-50 rounded-lg border hover:bg-slate-100 transition-colors cursor-pointer"
+                            onClick={() => onThemeSchedule(theme, new Date())}
+                          >
+                            <div className="text-xs font-medium text-slate-700">
+                              Week {theme.week_number}
+                            </div>
+                            <div className="text-sm font-semibold text-slate-900">
+                              {theme.title}
+                            </div>
+                            <div className="text-xs text-slate-600 mt-1">
+                              {theme.seasonal_focus}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </CardContent>
                   </Card>
 
