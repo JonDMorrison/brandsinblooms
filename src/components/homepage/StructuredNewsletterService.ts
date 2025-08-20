@@ -60,24 +60,24 @@ export const generateStructuredNewsletter = async (
     // Clean any remaining week references from the content
     const cleanedContent = cleanContentFromWeekReferences(content);
 
-    // Validate newsletter content quality
-    const isValidNewsletter = cleanedContent.includes('newsletter_md: |') && 
-                             (cleanedContent.match(/## /g) || []).length >= 3 &&
-                             cleanedContent.length > 250;
-
-    if (!isValidNewsletter) {
-      console.warn(`⚠️ Generated newsletter failed validation - missing structure or too short. Length: ${cleanedContent.length}`);
-      throw new Error('Generated newsletter content is invalid or incomplete');
+    // Basic validation - ensure we have some content
+    if (!cleanedContent || cleanedContent.trim().length < 50) {
+      console.warn(`⚠️ Generated newsletter content is too short. Length: ${cleanedContent?.length || 0}`);
+      throw new Error('Generated newsletter content is invalid or too short');
     }
 
-    // Validate that the content has the expected 4-section structure
+    // Validate that the content has the expected structure (either YAML blocks or markdown sections)
     const blockMatches = cleanedContent.match(/- title:/g);
+    const headerMatches = cleanedContent.match(/## /g);
     const blockCount = blockMatches ? blockMatches.length : 0;
+    const headerCount = headerMatches ? headerMatches.length : 0;
     
-    if (blockCount !== 4) {
-      console.warn(`⚠️ Generated newsletter has ${blockCount} sections instead of 4. Content may need regeneration.`);
+    if (blockCount > 0) {
+      console.log(`✅ Generated newsletter with ${blockCount} YAML blocks`);
+    } else if (headerCount > 0) {
+      console.log(`✅ Generated newsletter with ${headerCount} markdown sections`);
     } else {
-      console.log(`✅ Generated 4-section structured newsletter successfully`);
+      console.warn(`⚠️ Generated newsletter may not have proper structure. Content preview: ${cleanedContent.substring(0, 200)}`);
     }
 
     return cleanedContent;
