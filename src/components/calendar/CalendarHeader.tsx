@@ -80,11 +80,9 @@ export const CalendarHeader = ({
   };
 
   return (
-    <div className="relative bg-white border border-slate-200 rounded-2xl shadow-lg px-6 py-4 mb-6" style={{ contain: 'layout style paint' }}>
-      
-      <div className="relative flex items-center justify-between">
+    <div className="bg-white border border-border rounded-xl px-4 py-3 shadow-sm">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent">Calendar</h2>
           
           {/* Navigation Controls */}
           <div className="flex items-center gap-3">

@@ -1,5 +1,6 @@
 import { CalendarView } from "@/components/CalendarView";
 import { BackfillCampaigns } from "@/components/calendar/BackfillCampaigns";
+import { PageHeader } from "@/components/common/PageHeader";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -98,95 +99,50 @@ const CalendarPage = () => {
   // Use stats from hook instead of calculating here
 
   return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 p-6 space-y-8">
-        {/* Modern Gradient Header Section */}
-        <div className="relative bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden p-8">
-          {/* Decorative Background Pattern */}
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-full blur-3xl"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
-              <Calendar className="w-64 h-64 text-blue-400" />
-            </div>
-          </div>
-          
-          {/* Header Content */}
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-3 mb-2">
-                <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
-                  <Calendar className="w-8 h-8 text-white" />
-                </div>
-              </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent flex items-center gap-3">
-                Campaign Calendar
-                {isRefreshing && (
-                  <div className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full flex items-center gap-1">
-                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                    Syncing
-                  </div>
-                )}
-              </h1>
-              <p className="text-lg text-slate-600 max-w-2xl leading-relaxed">
-                Plan, schedule, and track your marketing campaigns {isCached && <span className="text-sm text-green-600">(Cached)</span>}
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="relative group">
-                <Button
-                  onClick={() => setShowAddEventDialog(true)}
-                  variant="outline"
-                  size="lg"
-                  className="flex items-center gap-2 bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-teal-200 shadow-sm transition-colors duration-200"
-                >
-                  <CalendarPlus className="w-5 h-5" />
-                  Promote Event
-                </Button>
-              </div>
-              
-              <div className="relative group">
-                <Button
-                  onClick={() => setShowNewCampaignModal(true)}
-                  size="lg"
-                  className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white hover:shadow-lg transition-colors duration-200 shadow-sm"
-                >
-                  <PlusCircle className="w-5 h-5" />
-                  Create Campaign
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Calendar Content */}
-        <div className="space-y-6">
-          {/* Backfill Component */}
-          {shouldShowBackfill && !showBackfill && (
-            <BackfillCampaigns 
-              currentCampaignCount={campaigns.length}
-              onBackfillComplete={handleBackfillComplete}
-            />
-          )}
-          
-          <CalendarView 
-            onDataUpdate={refetch}
+    <div className="min-h-screen bg-background">
+      <PageHeader
+        title="Campaign Calendar"
+        description="Plan, schedule, and track your marketing campaigns"
+        secondaryAction={{
+          label: 'Promote Event',
+          icon: CalendarPlus,
+          variant: 'outline',
+          onClick: () => setShowAddEventDialog(true)
+        }}
+        primaryAction={{
+          label: 'Create Campaign',
+          icon: PlusCircle,
+          onClick: () => setShowNewCampaignModal(true)
+        }}
+      />
+      
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Backfill Component */}
+        {shouldShowBackfill && !showBackfill && (
+          <BackfillCampaigns 
+            currentCampaignCount={campaigns.length}
+            onBackfillComplete={handleBackfillComplete}
           />
-        </div>
-
-        {/* Quick Action Modals */}
-        <AddEventDialog 
-          open={showAddEventDialog}
-          onOpenChange={setShowAddEventDialog}
-          onEventCreated={handleEventCreated}
-        />
-
-        <NewCampaignModal 
-          open={showNewCampaignModal}
-          onOpenChange={setShowNewCampaignModal}
-          onCampaignCreated={handleCampaignCreated}
+        )}
+        
+        <CalendarView 
+          onDataUpdate={refetch}
         />
       </div>
+
+      {/* Quick Action Modals */}
+      <AddEventDialog 
+        open={showAddEventDialog}
+        onOpenChange={setShowAddEventDialog}
+        onEventCreated={handleEventCreated}
+      />
+
+      <NewCampaignModal 
+        open={showNewCampaignModal}
+        onOpenChange={setShowNewCampaignModal}
+        onCampaignCreated={handleCampaignCreated}
+      />
+    </div>
   );
 };
 

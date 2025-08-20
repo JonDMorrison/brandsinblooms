@@ -409,84 +409,6 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
               campaigns={rawData.campaigns}
               tasks={rawData.tasks}
               newsletters={rawData.newsletters}
-              currentDate={currentDate}
-              viewMode={viewMode}
-              onTaskClick={handleTaskClick}
-              onTaskLongPress={handleTaskLongPress}
-              onCampaignClick={handleCampaignClick}
-              onNewsletterClick={handleNewsletterClick}
-              onDateClick={(date) => {
-                setSelectedDateForQuickAdd(date);
-                setQuickAddOpen(true);
-              }}
-              selectedTasks={selectedTasks}
-              onDrop={handleDrop}
-              isTaskSelected={isTaskSelected}
-              isDragging={isDragging}
-              draggedTask={draggedTask}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            />
-          )}
-        </div>
-        {showPlanningPanel && (
-          <CalendarPlanningPanel
-            filters={filters}
-            onFiltersChange={updateFilters}
-            filterOptions={filterOptions}
-            onThemeSchedule={() => {}}
-            onHolidayAction={handleHolidayGenerate}
-          />
-        )}
-      </div>
-
-      <QuickAddSheet
-        isOpen={quickAddOpen}
-        onClose={() => setQuickAddOpen(false)}
-        selectedDate={selectedDateForQuickAdd}
-        onCreateSocialPost={handleCreateSocialPost}
-        onCreateNewsletter={(date) => {
-          setSelectedDateForNewsletter(date);
-          setNewsletterMode('create');
-          setNewsletterModalOpen(true);
-        }}
-        onCreateEvent={handleCreateEvent}
-        onCreateTask={handleCreateTask}
-      />
-
-      <CalendarHeader
-        viewMode={viewMode}
-        currentDate={currentDate}
-        selectedTasksCount={selectedTasks.length}
-        bulkCompleteLoading={bulkCompleteLoading}
-        bulkDeleteLoading={bulkDeleteLoading}
-        showPlanningPanel={showPlanningPanel}
-        filters={filters}
-        filterOptions={filterOptions}
-        onPrevious={goToPrevious}
-        onNext={goToNext}
-        onToday={goToToday}
-        onViewModeChange={handleViewModeChange}
-        onBulkComplete={handleBulkComplete}
-        onBulkDelete={handleBulkDelete}
-        onFiltersChange={updateFilters}
-        onCreateEvent={() => handleCreateEvent(new Date())}
-        onCreateCampaign={() => navigate('/campaigns/new')}
-        onTogglePlanningPanel={togglePlanningPanel}
-      />
-      
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1">
-          {viewMode === 'list' ? (
-            <CalendarListView 
-              events={events}
-              onEventClick={handleEventClick}
-            />
-          ) : (
-            <CalendarGrid
-              campaigns={rawData.campaigns}
-              tasks={rawData.tasks}
-              newsletters={rawData.newsletters}
               scheduledPosts={rawData.scheduledPosts}
               holidays={rawData.holidays}
               unifiedEvents={events}
@@ -517,24 +439,8 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
             filters={filters}
             onFiltersChange={updateFilters}
             filterOptions={filterOptions}
-            onThemeSchedule={(theme, date) => {
-              // Handle theme scheduling
-              toast({
-                title: "Theme Scheduled",
-                description: `${theme.title} scheduled for ${format(date, 'MMMM d, yyyy')}`,
-              });
-            }}
-            onHolidayAction={(holiday, action) => {
-              if (action === 'generate') {
-                handleHolidayGenerate(holiday);
-              } else if (action === 'schedule') {
-                // Handle holiday scheduling
-                toast({
-                  title: "Holiday Scheduled",
-                  description: `Content scheduled for ${holiday.holiday_name}`,
-                });
-              }
-            }}
+            onThemeSchedule={() => {}}
+            onHolidayAction={handleHolidayGenerate}
           />
         )}
       </div>
