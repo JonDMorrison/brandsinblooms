@@ -1,20 +1,52 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, ChevronLeft, ChevronRight, Calendar, CalendarDays, Plus, Megaphone } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { 
+  CheckCircle, 
+  XCircle, 
+  ChevronLeft, 
+  ChevronRight, 
+  Calendar, 
+  CalendarDays, 
+  Plus, 
+  Megaphone, 
+  Filter,
+  Search,
+  List,
+  Eye,
+  EyeOff
+} from 'lucide-react';
 import { format } from 'date-fns';
 
 interface CalendarHeaderProps {
-  viewMode: 'month' | 'week';
+  viewMode: 'month' | 'week' | 'list';
   currentDate: Date;
   selectedTasksCount: number;
   bulkCompleteLoading: boolean;
   bulkDeleteLoading: boolean;
+  filters?: {
+    types: string[];
+    platforms: string[];
+    statuses: string[];
+    showPublished: boolean;
+    searchQuery: string;
+  };
+  filterOptions?: {
+    types: string[];
+    platforms: string[];
+    statuses: string[];
+  };
   onPrevious: () => void;
   onNext: () => void;
   onToday: () => void;
-  onViewModeChange: (mode: 'month' | 'week') => void;
+  onViewModeChange: (mode: 'month' | 'week' | 'list') => void;
   onBulkComplete: () => void;
   onBulkDelete: () => void;
+  onFiltersChange?: (filters: any) => void;
+  onCreateEvent?: () => void;
+  onCreateCampaign?: () => void;
 }
 
 export const CalendarHeader = ({
@@ -23,12 +55,17 @@ export const CalendarHeader = ({
   selectedTasksCount,
   bulkCompleteLoading,
   bulkDeleteLoading,
+  filters,
+  filterOptions,
   onPrevious,
   onNext,
   onToday,
   onViewModeChange,
   onBulkComplete,
-  onBulkDelete
+  onBulkDelete,
+  onFiltersChange,
+  onCreateEvent,
+  onCreateCampaign
 }: CalendarHeaderProps) => {
   const getDisplayTitle = () => {
     if (viewMode === 'month') {
@@ -87,7 +124,7 @@ export const CalendarHeader = ({
               variant="ghost"
               size="sm"
               onClick={() => onViewModeChange('month')}
-              className={`h-8 px-4 text-sm font-medium transition-colors duration-200 ${
+              className={`h-8 px-3 text-sm font-medium transition-colors duration-200 ${
                 viewMode === 'month' 
                   ? 'bg-white text-blue-700 border border-blue-200' 
                   : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
@@ -95,14 +132,14 @@ export const CalendarHeader = ({
               role="tab"
               aria-selected={viewMode === 'month'}
             >
-              <Calendar className="w-4 h-4 mr-2" />
+              <Calendar className="w-4 h-4 mr-1" />
               Month
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onViewModeChange('week')}
-              className={`h-8 px-4 text-sm font-medium transition-colors duration-200 ${
+              className={`h-8 px-3 text-sm font-medium transition-colors duration-200 ${
                 viewMode === 'week' 
                   ? 'bg-white text-blue-700 border border-blue-200' 
                   : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
@@ -110,29 +147,108 @@ export const CalendarHeader = ({
               role="tab"
               aria-selected={viewMode === 'week'}
             >
-              <CalendarDays className="w-4 h-4 mr-2" />
+              <CalendarDays className="w-4 h-4 mr-1" />
               Week
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onViewModeChange('list')}
+              className={`h-8 px-3 text-sm font-medium transition-colors duration-200 ${
+                viewMode === 'list' 
+                  ? 'bg-white text-blue-700 border border-blue-200' 
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
+              }`}
+              role="tab"
+              aria-selected={viewMode === 'list'}
+            >
+              <List className="w-4 h-4 mr-1" />
+              List
+            </Button>
           </div>
+
+          {/* Filters and Search */}
+          {filters && onFiltersChange && (
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search content..."
+                  value={filters.searchQuery}
+                  onChange={(e) => onFiltersChange({ ...filters, searchQuery: e.target.value })}
+                  className="pl-9 w-48 h-8"
+                />
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onFiltersChange({ ...filters, showPublished: !filters.showPublished })}
+                className={`h-8 px-3 ${filters.showPublished ? 'text-blue-700' : 'text-muted-foreground'}`}
+              >
+                {filters.showPublished ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              </Button>
+
+              {filterOptions && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8">
+                      <Filter className="w-4 h-4 mr-1" />
+                      Filters
+                      {(filters.types.length < filterOptions.types.length || 
+                        filters.platforms.length > 0 || 
+                        filters.statuses.length > 0) && (
+                        <Badge variant="secondary" className="ml-1 h-4 text-xs">
+                          Active
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {filterOptions.types.map(type => (
+                      <DropdownMenuCheckboxItem
+                        key={type}
+                        checked={filters.types.includes(type)}
+                        onCheckedChange={(checked) => {
+                          const newTypes = checked 
+                            ? [...filters.types, type]
+                            : filters.types.filter(t => t !== type);
+                          onFiltersChange({ ...filters, types: newTypes });
+                        }}
+                      >
+                        {type.replace('_', ' ')}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          )}
         </div>
         
         {/* Action Buttons */}
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 px-4 text-blue-700 hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200"
-          >
-            <Megaphone className="w-4 h-4 mr-2" />
-            Promote Event
-          </Button>
-          <Button
-            size="sm"
-            className="h-9 px-4 transition-colors duration-200"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Campaign
-          </Button>
+        <div className="flex gap-2">
+          {onCreateEvent && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCreateEvent}
+              className="h-8 px-3 text-blue-700 hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200"
+            >
+              <Megaphone className="w-4 h-4 mr-1" />
+              Promote Event
+            </Button>
+          )}
+          {onCreateCampaign && (
+            <Button
+              size="sm"
+              onClick={onCreateCampaign}
+              className="h-8 px-3 transition-colors duration-200"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Create Campaign
+            </Button>
+          )}
           {selectedTasksCount > 0 && (
             <>
               <Button

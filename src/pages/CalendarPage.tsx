@@ -170,8 +170,6 @@ const CalendarPage = () => {
           )}
           
           <CalendarView 
-            campaigns={campaigns} 
-            tasks={tasks}
             onDataUpdate={refetch}
           />
         </div>

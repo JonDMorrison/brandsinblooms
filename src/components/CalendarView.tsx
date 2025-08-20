@@ -2,11 +2,15 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
 import { CalendarHeader } from './calendar/CalendarHeader';
+import { CalendarPlanningPanel } from './calendar/CalendarPlanningPanel';
+import { QuickAddSheet } from './calendar/QuickAddSheet';
 import { NewsletterSchedulingModal } from './calendar/NewsletterSchedulingModal';
 import { NewsletterEditDrawer } from './calendar/NewsletterEditDrawer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useUnifiedCalendarData } from '@/hooks/useUnifiedCalendarData';
 import { useNewsletterCalendar } from '@/hooks/useNewsletterCalendar';
+import { useSeasonalHolidays } from '@/hooks/useSeasonalHolidays';
 import { supabase } from '@/integrations/supabase/client';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
@@ -17,32 +21,41 @@ import { Mail, Filter, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
-export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
-  campaigns: any[];
-  tasks: any[];
+export const CalendarView = React.memo(({ onDataUpdate }: {
   onDataUpdate: () => void;
 }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Newsletter management
+  // Unified calendar data
   const {
-    newsletters,
-    loading: newslettersLoading,
+    events,
+    eventsByDate,
+    getEventsForDate,
+    filters,
+    updateFilters,
+    filterOptions,
+    loading,
+    refetch,
+    rawData
+  } = useUnifiedCalendarData();
+
+  // Individual hooks for specific actions
+  const {
     createNewsletter,
     updateNewsletter,
     deleteNewsletter,
     duplicateNewsletter,
-    getNewslettersForDate
   } = useNewsletterCalendar();
+
+  const { generateHolidayContent } = useSeasonalHolidays();
 
   // Route state management for persistence between page navigations
   const { saveState, getState, updateState } = useRouteState({
     selectedTasks: [],
     viewMode: 'month',
     currentDate: new Date().toISOString(),
-    showNewsletters: true,
-    newsletterFilters: []
+    showPlanningPanel: false
   }, { disableScrollTracking: true });
 
   // Initialize state from saved route state
@@ -50,19 +63,20 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
   const [selectedTasks, setSelectedTasks] = useState<string[]>(savedState.selectedTasks || []);
   const [bulkCompleteLoading, setBulkCompleteLoading] = useState(false);
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<'month' | 'week'>(savedState.viewMode || 'month');
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'list'>(savedState.viewMode || 'month');
   const [currentDate, setCurrentDate] = useState<Date>(
     savedState.currentDate ? new Date(savedState.currentDate) : new Date()
   );
-  
-  // Newsletter-specific state
-  const [showNewsletters, setShowNewsletters] = useState<boolean>(savedState.showNewsletters ?? true);
+  const [showPlanningPanel, setShowPlanningPanel] = useState<boolean>(savedState.showPlanningPanel ?? false);
+  // Modal state
   const [selectedTaskForModal, setSelectedTaskForModal] = useState<any>(null);
   const [selectedCampaignForModal, setSelectedCampaignForModal] = useState<any>(null);
   const [contentModalOpen, setContentModalOpen] = useState(false);
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   
-  // Newsletter modals
+  // Quick add and newsletter modals
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [selectedDateForQuickAdd, setSelectedDateForQuickAdd] = useState<Date | null>(null);
   const [newsletterModalOpen, setNewsletterModalOpen] = useState(false);
   const [newsletterDrawerOpen, setNewsletterDrawerOpen] = useState(false);
   const [selectedNewsletter, setSelectedNewsletter] = useState<any>(null);
@@ -70,7 +84,10 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
   const [newsletterMode, setNewsletterMode] = useState<'create' | 'edit'>('create');
 
   // Use the drag and drop hook with proper handlers
-  const { isDragging, draggedTask, handleDragStart, handleDragEnd, handleDrop } = useDragAndDrop(onDataUpdate);
+  const { isDragging, draggedTask, handleDragStart, handleDragEnd, handleDrop } = useDragAndDrop(() => {
+    refetch();
+    onDataUpdate();
+  });
 
   // Navigation functions - memoized for performance with state persistence
   const goToPrevious = useCallback(() => {
@@ -98,17 +115,17 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
   }, [updateState]);
 
   // Save view mode changes to route state
-  const handleViewModeChange = useCallback((newViewMode: 'month' | 'week') => {
+  const handleViewModeChange = useCallback((newViewMode: 'month' | 'week' | 'list') => {
     setViewMode(newViewMode);
     updateState('viewMode', newViewMode);
   }, [updateState]);
 
-  // Save newsletter visibility state
-  const toggleNewsletterVisibility = useCallback(() => {
-    const newValue = !showNewsletters;
-    setShowNewsletters(newValue);
-    updateState('showNewsletters', newValue);
-  }, [showNewsletters, updateState]);
+  // Toggle planning panel
+  const togglePlanningPanel = useCallback(() => {
+    const newValue = !showPlanningPanel;
+    setShowPlanningPanel(newValue);
+    updateState('showPlanningPanel', newValue);
+  }, [showPlanningPanel, updateState]);
 
   // Task selection and bulk operations with state persistence
   const toggleTaskSelection = useCallback((taskId: string) => {
@@ -268,16 +285,19 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
       
       <div className="flex-1 overflow-hidden">
         <CalendarGrid
-          campaigns={campaigns}
-          tasks={tasks}
-          newsletters={showNewsletters ? newsletters : []}
+          campaigns={rawData.campaigns}
+          tasks={rawData.tasks}
+          newsletters={rawData.newsletters}
           currentDate={currentDate}
-          viewMode={viewMode}
+          viewMode={viewMode === 'list' ? 'month' : viewMode}
           onTaskClick={handleTaskClick}
           onTaskLongPress={handleTaskLongPress}
           onCampaignClick={handleCampaignClick}
           onNewsletterClick={handleNewsletterClick}
-          onDateClick={handleDateClick}
+          onDateClick={(date) => {
+            setSelectedDateForQuickAdd(date);
+            setQuickAddOpen(true);
+          }}
           selectedTasks={selectedTasks}
           onDrop={handleDrop}
           isTaskSelected={isTaskSelected}

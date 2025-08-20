@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 // Removed sonner import - using global toast replacement
 import { format } from 'date-fns';
+import { UnifiedCalendarEvent } from './useUnifiedCalendarData';
 
 interface Task {
   id: string;
@@ -17,42 +18,100 @@ interface Task {
 
 export const useDragAndDrop = (onTaskUpdate: () => void) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const [draggedItem, setDraggedItem] = useState<UnifiedCalendarEvent | Task | null>(null);
 
-  const handleDragStart = (task: Task) => {
+  const handleDragStart = (item: UnifiedCalendarEvent | Task) => {
     setIsDragging(true);
-    setDraggedTask(task);
+    setDraggedItem(item);
   };
 
   const handleDragEnd = () => {
     setIsDragging(false);
-    setDraggedTask(null);
+    setDraggedItem(null);
   };
 
   const handleDrop = async (targetDate: Date) => {
-    if (!draggedTask) return;
+    if (!draggedItem) return;
 
     const newDateString = format(targetDate, 'yyyy-MM-dd');
     
-    // Don't update if dropping on the same date
-    if (draggedTask.scheduled_date === newDateString) {
-      handleDragEnd();
-      return;
-    }
-
     try {
-      const { error } = await supabase
-        .from('content_tasks')
-        .update({ scheduled_date: newDateString })
-        .eq('id', draggedTask.id);
+      // Handle unified calendar events
+      if ('type' in draggedItem) {
+        const event = draggedItem as UnifiedCalendarEvent;
+        
+        // Don't update if dropping on the same date
+        const currentDateString = format(event.date, 'yyyy-MM-dd');
+        if (currentDateString === newDateString) {
+          handleDragEnd();
+          return;
+        }
 
-      if (error) throw error;
+        switch (event.type) {
+          case 'task':
+            await supabase
+              .from('content_tasks')
+              .update({ scheduled_date: newDateString })
+              .eq('id', event.id);
+            break;
 
-      toast.success(`Content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`);
+          case 'scheduled_post':
+            // Update publish_at while preserving time
+            const currentDate = new Date(event.meta.publish_at);
+            const targetDateTime = new Date(targetDate);
+            targetDateTime.setHours(currentDate.getHours(), currentDate.getMinutes(), currentDate.getSeconds());
+            
+            await supabase
+              .from('scheduled_posts')
+              .update({ publish_at: targetDateTime.toISOString() })
+              .eq('id', event.id);
+            break;
+
+          case 'newsletter':
+            // Update scheduled_at for newsletters
+            await supabase
+              .from('crm_campaigns')
+              .update({ scheduled_at: newDateString })
+              .eq('id', event.id);
+            break;
+
+          case 'event':
+            // Update campaign start_date
+            await supabase
+              .from('campaigns')
+              .update({ start_date: newDateString })
+              .eq('id', event.id);
+            break;
+
+          case 'holiday':
+            // Holidays can't be rescheduled
+            toast.info('Holidays cannot be rescheduled');
+            handleDragEnd();
+            return;
+        }
+
+        toast.success(`${event.type} rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`);
+      } else {
+        // Handle legacy task format
+        const task = draggedItem as Task;
+        
+        if (task.scheduled_date === newDateString) {
+          handleDragEnd();
+          return;
+        }
+
+        await supabase
+          .from('content_tasks')
+          .update({ scheduled_date: newDateString })
+          .eq('id', task.id);
+
+        toast.success(`Content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`);
+      }
+
       onTaskUpdate();
     } catch (error) {
-      console.error('Error updating task date:', error);
-      toast.error('Failed to reschedule content');
+      console.error('Error updating item date:', error);
+      toast.error('Failed to reschedule item');
     } finally {
       handleDragEnd();
     }
@@ -60,7 +119,8 @@ export const useDragAndDrop = (onTaskUpdate: () => void) => {
 
   return {
     isDragging,
-    draggedTask,
+    draggedTask: draggedItem, // Keep legacy name for compatibility
+    draggedItem,
     handleDragStart,
     handleDragEnd,
     handleDrop
