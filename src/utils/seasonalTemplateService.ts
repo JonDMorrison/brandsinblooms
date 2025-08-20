@@ -26,14 +26,26 @@ export const getSeasonalTemplates = async (weekNumber?: number): Promise<Seasona
 
     if (error) throw error;
     
-    // Deduplicate by title to prevent duplicate content
-    const seenTitles = new Set<string>();
-    const deduplicated = (data || []).filter(template => {
-      if (seenTitles.has(template.title)) {
-        return false;
+    console.info('[seasonalTemplateService] Raw data from DB:', (data || []).length, 'records');
+    
+    // More robust deduplication with detailed logging
+    const seenTitles = new Map<string, SeasonalTemplate>();
+    const deduplicated: SeasonalTemplate[] = [];
+    
+    (data || []).forEach(template => {
+      const normalizedTitle = template.title.trim().toLowerCase();
+      if (!seenTitles.has(normalizedTitle)) {
+        seenTitles.set(normalizedTitle, template);
+        deduplicated.push(template);
+      } else {
+        console.warn('[seasonalTemplateService] Filtered duplicate:', template.title, `Week ${template.week_number}`, 'vs existing Week', seenTitles.get(normalizedTitle)?.week_number);
       }
-      seenTitles.add(template.title);
-      return true;
+    });
+    
+    console.info('[seasonalTemplateService] Deduplication complete:', {
+      original: (data || []).length,
+      deduplicated: deduplicated.length,
+      removed: (data || []).length - deduplicated.length
     });
     
     return deduplicated;

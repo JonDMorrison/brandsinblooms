@@ -92,13 +92,25 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
         console.info('[CreateFlowDialog] Seasonal fetch: loading weekly themes');
         try {
           const themes = await getSeasonalTemplates();
-          // Ensure no duplicates at component level as well
-          const uniqueThemes = themes.filter((theme, index, array) => 
-            array.findIndex(t => t.title === theme.title) === index
-          );
-          console.info('[CreateFlowDialog] Weekly themes loaded and deduplicated', { 
+          console.info('[CreateFlowDialog] Raw themes from service:', themes.length, themes.slice(0, 3));
+          
+          // More robust deduplication using Map to track by title
+          const uniqueThemesMap = new Map();
+          themes.forEach(theme => {
+            const key = theme.title.trim().toLowerCase();
+            if (!uniqueThemesMap.has(key)) {
+              uniqueThemesMap.set(key, theme);
+            } else {
+              console.warn('[CreateFlowDialog] Duplicate theme found and filtered:', theme.title, `Week ${theme.week_number}`);
+            }
+          });
+          
+          const uniqueThemes = Array.from(uniqueThemesMap.values()).sort((a, b) => a.week_number - b.week_number);
+          
+          console.info('[CreateFlowDialog] Themes after deduplication:', { 
             originalCount: themes.length, 
             uniqueCount: uniqueThemes.length,
+            duplicatesRemoved: themes.length - uniqueThemes.length,
             sampleTitles: uniqueThemes.slice(0, 5).map(t => `${t.title} (Week ${t.week_number})`)
           });
           setWeeklyThemes(uniqueThemes);
