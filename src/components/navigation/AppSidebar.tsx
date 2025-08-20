@@ -23,8 +23,7 @@ import {
   Palette,
   Share2,
   BookOpen,
-  User,
-  Flower2
+  User
 } from 'lucide-react';
 import {
   Sidebar,
@@ -175,7 +174,11 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center justify-between px-4 py-2 h-12">
           <Link to="/" className="flex items-center gap-2">
-            <Flower2 className="h-5 w-5 text-primary" />
+            <img 
+              src="/lovable-uploads/4e4d6a04-896e-4cad-97dd-dd0cbfb802f6.png" 
+              alt="BloomSuite Logo" 
+              className="h-6 w-6" 
+            />
             {state !== "collapsed" && (
               <span className="font-bold text-xl tracking-tight">BloomSuite</span>
             )}
