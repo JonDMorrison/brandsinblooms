@@ -141,11 +141,6 @@ export const CalendarHeader = ({
               </Button>
             )}
 
-            {lastUpdated && (
-              <div className="text-xs text-gray-500 px-2 py-1 bg-gray-50 rounded-md">
-                Updated {new Date(lastUpdated).toLocaleTimeString()}
-              </div>
-            )}
           </div>
 
           {/* View Toggle */}
