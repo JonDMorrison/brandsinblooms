@@ -7,13 +7,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, Users, MessageSquare, Send, CheckCircle, User, Target } from 'lucide-react';
+import { Calendar, Users, MessageSquare, Send, CheckCircle, User, Target, Eye, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { useCRMPersonas } from '@/hooks/useCRMPersonas';
 import { toast } from 'sonner';
 import { SMSComposer } from './SMSComposer';
+import { RecipientsPreview } from './RecipientsPreview';
 
 interface CRMSegment {
   id: string;
@@ -67,6 +68,7 @@ export const SMSCampaignWizard: React.FC = () => {
   const [targetCustomers, setTargetCustomers] = useState<CRMCustomer[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingSegments, setLoadingSegments] = useState(true);
+  const [showRecipientsPreview, setShowRecipientsPreview] = useState(false);
 
   // Load segments and customers
   useEffect(() => {
@@ -134,7 +136,8 @@ export const SMSCampaignWizard: React.FC = () => {
         .from('crm_customers')
         .select('*')
         .eq('tenant_id', tenant.id)
-        .eq('sms_opt_in', true);
+        .eq('sms_opt_in', true)
+        .not('phone', 'is', null); // Require phone number for SMS
 
       // If "All SMS Subscribers" is not selected, apply filtering
       if (!selectAllSubscribers) {
@@ -150,7 +153,10 @@ export const SMSCampaignWizard: React.FC = () => {
           
           if (segmentCustomers && segmentCustomers.length > 0) {
             const customerIds = segmentCustomers.map(sc => sc.customer_id);
-            conditions.push(`id.in.(${customerIds.join(',')})`);
+            query = query.in('id', customerIds);
+          } else {
+            setTargetCustomers([]);
+            return;
           }
         }
 
@@ -160,16 +166,54 @@ export const SMSCampaignWizard: React.FC = () => {
             .filter(p => selectedPersonas.includes(p.id))
             .map(p => p.persona_name);
           
-          // Filter by persona_id or persona name fallback
-          const personaCondition = `or(persona_id.in.(${selectedPersonas.join(',')}),persona.in.("${selectedPersonaNames.join('","')}"))`;
-          conditions.push(personaCondition);
+          // Use OR condition for persona matching
+          query = query.or(`persona_id.in.(${selectedPersonas.join(',')}),persona.in.("${selectedPersonaNames.join('","')}")`);
         }
 
-        // Apply conditions (OR logic - customers matching any segment OR any persona)
-        if (conditions.length > 0) {
-          query = query.or(conditions.join(','));
-        } else if (selectedSegments.length > 0 || selectedPersonas.length > 0) {
-          // If we have selections but no valid conditions, return empty
+        // If both segments and personas are selected, we need to intersect them
+        if (selectedSegments.length > 0 && selectedPersonas.length > 0) {
+          // This is more complex - we need to fetch both sets and intersect
+          const segmentQuery = supabase
+            .from('crm_customers')
+            .select('*')
+            .eq('tenant_id', tenant.id)
+            .eq('sms_opt_in', true)
+            .not('phone', 'is', null);
+
+          // Get segment customers
+          const { data: segmentCustomers } = await supabase
+            .from('customer_segments')
+            .select('customer_id')
+            .in('segment_id', selectedSegments);
+
+          if (segmentCustomers && segmentCustomers.length > 0) {
+            const customerIds = segmentCustomers.map(sc => sc.customer_id);
+            const { data: allCustomers, error } = await segmentQuery
+              .in('id', customerIds)
+              .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            // Filter by personas
+            const selectedPersonaNames = personas
+              .filter(p => selectedPersonas.includes(p.id))
+              .map(p => p.persona_name);
+
+            const filteredCustomers = (allCustomers || []).filter(customer =>
+              selectedPersonas.includes(customer.persona_id || '') ||
+              selectedPersonaNames.includes(customer.persona || '')
+            );
+
+            setTargetCustomers(filteredCustomers);
+            return;
+          } else {
+            setTargetCustomers([]);
+            return;
+          }
+        }
+
+        // No selections means no results when not using "All Subscribers"
+        if (selectedSegments.length === 0 && selectedPersonas.length === 0) {
           setTargetCustomers([]);
           return;
         }
@@ -178,7 +222,13 @@ export const SMSCampaignWizard: React.FC = () => {
       const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
-      setTargetCustomers(data || []);
+      
+      // Filter out customers without valid phone numbers
+      const validCustomers = (data || []).filter(customer => 
+        customer.phone && customer.phone.trim().length > 0
+      );
+      
+      setTargetCustomers(validCustomers);
     } catch (error) {
       console.error('Error calculating target customers:', error);
       setTargetCustomers([]);
@@ -392,7 +442,19 @@ export const SMSCampaignWizard: React.FC = () => {
 
                   {/* Targeting Summary */}
                   <div className="p-4 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-2">Selected Targeting</h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">Selected Targeting</h4>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowRecipientsPreview(true)}
+                        className="text-xs"
+                        disabled={targetCustomers.length === 0}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View Recipients
+                      </Button>
+                    </div>
                     <div className="space-y-1">
                       {selectedSegments.length > 0 && (
                         <p className="text-sm">
@@ -404,9 +466,22 @@ export const SMSCampaignWizard: React.FC = () => {
                           <strong>Personas:</strong> {getSelectedPersonaNames().join(', ')}
                         </p>
                       )}
-                      <p className="text-sm font-medium">
-                        Estimated reach: {targetCustomers.length} customers
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">
+                          Estimated reach: {targetCustomers.length} customers
+                        </p>
+                        {targetCustomers.length === 0 && (selectedSegments.length > 0 || selectedPersonas.length > 0) && (
+                          <div className="flex items-center gap-1 text-amber-600">
+                            <AlertCircle className="h-3 w-3" />
+                            <span className="text-xs">No eligible recipients</span>
+                          </div>
+                        )}
+                      </div>
+                      {targetCustomers.length === 0 && (selectedSegments.length > 0 || selectedPersonas.length > 0) && (
+                        <p className="text-xs text-muted-foreground">
+                          Recipients need SMS opt-in and valid phone numbers
+                        </p>
+                      )}
                     </div>
                   </div>
                 </>
@@ -570,7 +645,7 @@ export const SMSCampaignWizard: React.FC = () => {
             <Button
               onClick={() => setCurrentStep(prev => prev + 1)}
               disabled={
-                (currentStep === 1 && (!campaignName.trim() || !canProceedFromStep1())) ||
+                (currentStep === 1 && (!campaignName.trim() || !canProceedFromStep1() || targetCustomers.length === 0)) ||
                 (currentStep === 2 && !message.trim())
               }
             >
@@ -597,6 +672,13 @@ export const SMSCampaignWizard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Recipients Preview Dialog */}
+      <RecipientsPreview
+        isOpen={showRecipientsPreview}
+        onClose={() => setShowRecipientsPreview(false)}
+        customers={targetCustomers}
+      />
     </div>
   );
 };
