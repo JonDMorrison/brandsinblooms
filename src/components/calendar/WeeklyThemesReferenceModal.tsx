@@ -21,9 +21,14 @@ import {
   Calendar,
   CheckCircle2,
   XCircle,
-  Clock
+  Clock,
+  Download,
+  Database,
+  Shield
 } from 'lucide-react';
-import { format, getISOWeek, startOfYear, addWeeks } from 'date-fns';
+import { format } from 'date-fns';
+import { getCurrentWeekNumber, getWeekDateRange, getDateForWeek } from '@/utils/dateUtils';
+import { MASTER_WEEKLY_THEMES } from '@/data/masterWeeklyThemes';
 
 interface MasterTemplate {
   id: string;
@@ -68,7 +73,29 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
   }>({ open: false, title: '', description: '', action: () => {} });
 
   // Get current week for highlighting
-  const currentWeek = getISOWeek(new Date());
+  const currentWeek = getCurrentWeekNumber();
+
+  // Admin check - simple email check (could be enhanced with proper role system)
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminActions, setShowAdminActions] = useState(false);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const adminEmails = ['jon@getclear.ca', 'jeff@brandsinblooms.com']; // Add your admin emails
+        if (user && adminEmails.includes(user.email || '')) {
+          setIsAdmin(true);
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    };
+    
+    if (open) {
+      checkAdminStatus();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -116,16 +143,13 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
     template.seasonal_focus.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Get week date range
-  const getWeekDateRange = (weekNumber: number) => {
-    const year = new Date().getFullYear();
-    const firstWeek = startOfYear(new Date(year, 0, 1));
-    const weekStart = addWeeks(firstWeek, weekNumber - 1);
-    const weekEnd = addWeeks(weekStart, 1);
+  // Get week date range using dateUtils
+  const getWeekDateRangeFormatted = (weekNumber: number) => {
+    const { startDate, endDate } = getWeekDateRange(weekNumber, new Date().getFullYear());
     
     return {
-      start: format(weekStart, 'MMM d'),
-      end: format(weekEnd, 'MMM d')
+      start: format(startDate, 'MMM d'),
+      end: format(endDate, 'MMM d')
     };
   };
 
@@ -192,7 +216,7 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
 
   // Create missing campaign
   const handleCreateCampaign = async (masterTemplate: MasterTemplate) => {
-    const { start } = getWeekDateRange(masterTemplate.week_number);
+    const { start } = getWeekDateRangeFormatted(masterTemplate.week_number);
     
     setConfirmDialog({
       open: true,
@@ -200,9 +224,7 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
       description: `Create a new campaign for Week ${masterTemplate.week_number} (${start}) with theme "${masterTemplate.theme}"?`,
       action: async () => {
         try {
-          const year = new Date().getFullYear();
-          const firstWeek = startOfYear(new Date(year, 0, 1));
-          const weekStart = addWeeks(firstWeek, masterTemplate.week_number - 1);
+          const weekStartDate = getDateForWeek(masterTemplate.week_number);
           const sanitizedTheme = masterTemplate.theme.replace(/\s*-\s*Week\s+\d+/i, '').trim();
 
           const { error } = await supabase
@@ -212,7 +234,7 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
               title: sanitizedTheme,
               theme: masterTemplate.theme,
               description: masterTemplate.content_ideas,
-              start_date: format(weekStart, 'yyyy-MM-dd'),
+              start_date: format(weekStartDate, 'yyyy-MM-dd'),
               status: 'draft'
             });
 
@@ -232,6 +254,101 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
             description: "Failed to create campaign",
             variant: "destructive"
           });
+        }
+      }
+    });
+  };
+
+  // Admin functions
+  const exportCurrentMasterTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('master_campaign_templates')
+        .select('*')
+        .order('week_number');
+
+      if (error) throw error;
+
+      const csv = [
+        ['week_number', 'title', 'theme', 'seasonal_focus', 'content_ideas', 'prompt'].join(','),
+        ...(data || []).map(row => [
+          row.week_number,
+          `"${row.title}"`,
+          `"${row.theme || ''}"`,
+          `"${row.seasonal_focus || ''}"`,
+          `"${row.content_ideas || ''}"`,
+          `"${row.prompt || ''}"`
+        ].join(','))
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `master-templates-backup-${format(new Date(), 'yyyy-MM-dd-HHmm')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export Complete",
+        description: `Exported ${data?.length || 0} master templates`,
+      });
+    } catch (error) {
+      console.error('Error exporting templates:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export master templates",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const replaceMasterTemplates = async () => {
+    setConfirmDialog({
+      open: true,
+      title: "Replace Master Templates",
+      description: `This will replace all ${masterTemplates.length} existing master templates with ${MASTER_WEEKLY_THEMES.length} curated seasonal themes. Current templates will be exported first. Continue?`,
+      action: async () => {
+        try {
+          setLoading(true);
+
+          // First export current templates as backup
+          await exportCurrentMasterTemplates();
+
+          // Delete existing master templates
+          const { error: deleteError } = await supabase
+            .from('master_campaign_templates')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+          if (deleteError) throw deleteError;
+
+          // Insert curated templates
+          const { error: insertError } = await supabase
+            .from('master_campaign_templates')
+            .insert(MASTER_WEEKLY_THEMES);
+
+          if (insertError) throw insertError;
+
+          toast({
+            title: "Master Templates Updated",
+            description: `Successfully replaced with ${MASTER_WEEKLY_THEMES.length} curated seasonal themes`,
+          });
+
+          // Refresh data
+          await fetchData();
+          onUpdate?.();
+        } catch (error) {
+          console.error('Error replacing templates:', error);
+          toast({
+            title: "Update Failed",
+            description: "Failed to update master templates",
+            variant: "destructive"
+          });
+        } finally {
+          setLoading(false);
         }
       }
     });
@@ -272,6 +389,48 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Admin Actions */}
+            {isAdmin && (
+              <div className="border-b pb-4 mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="h-4 w-4 text-orange-600" />
+                  <span className="font-medium text-orange-800">Admin Actions</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdminActions(!showAdminActions)}
+                    className="ml-auto"
+                  >
+                    {showAdminActions ? 'Hide' : 'Show'}
+                  </Button>
+                </div>
+                
+                {showAdminActions && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportCurrentMasterTemplates}
+                      className="flex items-center gap-1"
+                    >
+                      <Download className="h-3 w-3" />
+                      Export Current
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={replaceMasterTemplates}
+                      className="flex items-center gap-1 text-orange-600 border-orange-200 hover:bg-orange-50"
+                      disabled={loading}
+                    >
+                      <Database className="h-3 w-3" />
+                      Replace with Curated Themes
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -322,7 +481,7 @@ export const WeeklyThemesReferenceModal: React.FC<WeeklyThemesReferenceModalProp
                 ) : (
                   filteredTemplates.map((template) => {
                     const status = getWeekStatus(template);
-                    const dateRange = getWeekDateRange(template.week_number);
+                    const dateRange = getWeekDateRangeFormatted(template.week_number);
                     const isCurrentWeek = template.week_number === currentWeek;
 
                     return (

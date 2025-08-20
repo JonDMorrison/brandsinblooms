@@ -7,6 +7,8 @@ import { Upload, FileText, CheckCircle, Database, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
+import { getDateForWeek } from "@/utils/dateUtils";
+import { useToast } from "@/hooks/use-toast";
 // Removed sonner import - using global toast replacement
 import { Badge } from "@/components/ui/badge";
 import * as XLSX from 'xlsx';
@@ -29,6 +31,7 @@ interface ParsedMasterTemplate {
 export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateImportDialogProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedMasterTemplate[]>([]);
@@ -147,9 +150,16 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
         
         setParsedData(parsed);
         setPreviewMode(true);
-        toast.success(`Found ${parsed.length} templates in your file`);
+        toast({
+          title: "Success",
+          description: `Found ${parsed.length} templates in your file`,
+        });
       } catch (error) {
-        toast.error('Failed to parse file. Please check the format.');
+        toast({
+          title: "Error",
+          description: "Failed to parse file. Please check the format.",
+          variant: "destructive",
+        });
         console.error('File parsing error:', error);
       }
     }
@@ -170,7 +180,10 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
         throw error;
       }
 
-      toast.success(`Successfully imported ${data.length} master templates`);
+      toast({
+        title: "Success",
+        description: `Successfully imported ${data.length} master templates`,
+      });
       setOpen(false);
       setFile(null);
       setParsedData([]);
@@ -178,7 +191,11 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
       onImportComplete?.();
     } catch (error: any) {
       console.error('Import error:', error);
-      toast.error(`Failed to import templates: ${error.message}`);
+      toast({
+        title: "Error", 
+        description: `Failed to import templates: ${error.message}`,
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -186,7 +203,11 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
 
   const handleCopyToCampaigns = async () => {
     if (!user) {
-      toast.error('Please log in to copy templates');
+      toast({
+        title: "Error",
+        description: "Please log in to copy templates",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -206,7 +227,11 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
       }
 
       if (!templates || templates.length === 0) {
-        toast.error('No master templates found to copy');
+        toast({
+          title: "Error",
+          description: "No master templates found to copy",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -217,7 +242,7 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
         theme: template.theme,
         prompt: template.prompt,
         description: template.content_ideas,
-        start_date: new Date(Date.now() + (template.week_number - 1) * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        start_date: getDateForWeek(template.week_number).toISOString().split('T')[0],
         user_id: tenant?.id ? null : user.id, // Set user_id only if not in tenant mode
         tenant_id: tenant?.id || null, // Set tenant_id if in tenant mode
         created_by_user_id: user.id // Always track who created it
@@ -235,11 +260,18 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
       const createdCount = insertedCampaigns?.length || 0;
       console.log('MasterTemplateImportDialog: Successfully created', createdCount, 'campaigns');
       
-      toast.success(`Successfully created ${createdCount} campaigns from master templates`);
+      toast({
+        title: "Success",
+        description: `Successfully created ${createdCount} campaigns from master templates`,
+      });
       onImportComplete?.();
     } catch (error: any) {
       console.error('Copy error:', error);
-      toast.error(`Failed to copy templates: ${error.message}`);
+      toast({
+        title: "Error",
+        description: `Failed to copy templates: ${error.message}`,
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }

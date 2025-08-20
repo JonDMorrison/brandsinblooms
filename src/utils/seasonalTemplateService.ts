@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { getCurrentWeekNumber } from '@/utils/dateUtils';
 
 export interface SeasonalTemplate {
   id: string;
@@ -72,12 +73,4 @@ export const getCurrentSeasonalTemplate = async (): Promise<SeasonalTemplate | n
     console.error('Error fetching current seasonal template:', error);
     return null;
   }
-};
-
-const getCurrentWeekNumber = (): number => {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 1);
-  const diff = now.getTime() - start.getTime();
-  const oneWeek = 1000 * 60 * 60 * 24 * 7;
-  return Math.ceil(diff / oneWeek);
 };
