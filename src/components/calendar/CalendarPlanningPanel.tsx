@@ -73,9 +73,6 @@ export const CalendarPlanningPanel = ({
                             className="p-2 bg-slate-50 rounded-lg border hover:bg-slate-100 transition-colors cursor-pointer"
                             onClick={() => onThemeSchedule(theme, new Date())}
                           >
-                            <div className="text-xs font-medium text-slate-700">
-                              Week {theme.week_number}
-                            </div>
                             <div className="text-sm font-semibold text-slate-900">
                               {theme.title}
                             </div>
