@@ -26,8 +26,10 @@ export const useGlobalCalendarData = () => {
     loading,
     error,
     refreshData,
+    invalidateCache,
     isCached,
-    isRefreshing
+    isRefreshing,
+    lastUpdated
   } = useGlobalData();
 
   // Calculate stats using useMemo for performance
@@ -55,6 +57,11 @@ export const useGlobalCalendarData = () => {
     refreshData(true);
   }, [refreshData]);
 
+  const hardRefresh = useCallback(() => {
+    invalidateCache();
+    refreshData(true);
+  }, [invalidateCache, refreshData]);
+
   return {
     campaigns: campaigns as Campaign[],
     tasks: tasks as Task[],
@@ -62,7 +69,9 @@ export const useGlobalCalendarData = () => {
     error,
     stats,
     refetch,
+    hardRefresh,
     isCached,
-    isRefreshing
+    isRefreshing,
+    lastUpdated
   };
 };

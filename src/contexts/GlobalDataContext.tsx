@@ -265,9 +265,23 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       )
       .subscribe();
 
+    // Subscribe to master template changes to invalidate cache
+    const templateSubscription = supabase
+      .channel('global-templates-channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'master_campaign_templates' },
+        () => {
+          // Mark cache as stale and trigger background refresh
+          setCachedData(prev => prev ? { ...prev, isStale: true } : null);
+          fetchData(false);
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(campaignSubscription);
       supabase.removeChannel(taskSubscription);
+      supabase.removeChannel(templateSubscription);
     };
   }, [user, fetchData]);
 

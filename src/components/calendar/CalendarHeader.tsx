@@ -16,7 +16,8 @@ import {
   Search,
   List,
   Eye,
-  EyeOff
+  EyeOff,
+  RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -27,6 +28,8 @@ interface CalendarHeaderProps {
   bulkCompleteLoading: boolean;
   bulkDeleteLoading: boolean;
   showPlanningPanel?: boolean;
+  isRefreshing?: boolean;
+  lastUpdated?: number | null;
   filters?: {
     types: string[];
     platforms: string[];
@@ -50,6 +53,7 @@ interface CalendarHeaderProps {
   onCreateCampaign?: () => void;
   onTogglePlanningPanel?: () => void;
   onShowThemesReference?: () => void;
+  onRefresh?: () => void;
 }
 
 export const CalendarHeader = ({
@@ -59,6 +63,8 @@ export const CalendarHeader = ({
   bulkCompleteLoading,
   bulkDeleteLoading,
   showPlanningPanel,
+  isRefreshing,
+  lastUpdated,
   filters,
   filterOptions,
   onPrevious,
@@ -71,7 +77,8 @@ export const CalendarHeader = ({
   onCreateEvent,
   onCreateCampaign,
   onTogglePlanningPanel,
-  onShowThemesReference
+  onShowThemesReference,
+  onRefresh
 }: CalendarHeaderProps) => {
   const getDisplayTitle = () => {
     if (viewMode === 'month') {
@@ -120,6 +127,25 @@ export const CalendarHeader = ({
             >
               Today
             </Button>
+            
+            {onRefresh && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="h-9 px-3 hover:bg-slate-50 text-slate-700 font-medium transition-colors duration-200"
+                title="Force refresh data"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
+
+            {lastUpdated && (
+              <div className="text-xs text-gray-500 px-2 py-1 bg-gray-50 rounded-md">
+                Updated {new Date(lastUpdated).toLocaleTimeString()}
+              </div>
+            )}
           </div>
 
           {/* View Toggle */}

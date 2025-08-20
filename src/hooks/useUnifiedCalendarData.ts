@@ -27,7 +27,7 @@ interface CalendarFilters {
 }
 
 export const useUnifiedCalendarData = () => {
-  const { campaigns, tasks, loading: globalLoading, refetch } = useGlobalCalendarData();
+  const { campaigns, tasks, loading: globalLoading, refetch, isRefreshing, lastUpdated } = useGlobalCalendarData();
   const { scheduledPosts, loading: postsLoading } = useScheduledPosts();
   const { newsletters, loading: newslettersLoading } = useNewsletterCalendar();
   const { allHolidays, loading: holidaysLoading } = useSeasonalHolidays();
@@ -249,6 +249,8 @@ export const useUnifiedCalendarData = () => {
     filterOptions,
     loading,
     refetch,
+    isRefreshing,
+    lastUpdated,
   // Individual data sources for specific needs
   rawData: {
     campaigns,

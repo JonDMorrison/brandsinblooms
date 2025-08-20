@@ -46,7 +46,9 @@ export const CalendarView = React.memo(({
     filterOptions,
     loading,
     refetch,
-    rawData
+    rawData,
+    isRefreshing,
+    lastUpdated
   } = useUnifiedCalendarData();
 
   // Individual hooks for specific actions
@@ -388,6 +390,11 @@ export const CalendarView = React.memo(({
     return selectedTasks.includes(task.id);
   }, [selectedTasks]);
 
+  // Auto-refresh on component mount to ensure fresh data
+  useEffect(() => {
+    refetch();
+  }, []);
+
   return (
     <div className="h-full flex flex-col space-y-4">
       <CalendarHeader
@@ -397,6 +404,8 @@ export const CalendarView = React.memo(({
         bulkCompleteLoading={bulkCompleteLoading}
         bulkDeleteLoading={bulkDeleteLoading}
         showPlanningPanel={showPlanningPanel}
+        isRefreshing={isRefreshing}
+        lastUpdated={lastUpdated}
         filters={filters}
         filterOptions={filterOptions}
         onPrevious={goToPrevious}
@@ -410,6 +419,7 @@ export const CalendarView = React.memo(({
         onCreateCampaign={() => navigate('/campaigns/new')}
         onTogglePlanningPanel={togglePlanningPanel}
         onShowThemesReference={() => setThemesReferenceModalOpen(true)}
+        onRefresh={refetch}
       />
 
       <div className="flex-1 flex overflow-hidden">
