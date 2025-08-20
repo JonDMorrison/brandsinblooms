@@ -188,7 +188,7 @@ export const BloomSuiteDashboard = () => {
       
       primaryAction: {
         label: 'Join the Waitlist',
-        onClick: () => window.open('/website', '_blank')
+        onClick: () => navigate('/website')
       },
       secondaryAction: {
         label: 'Learn More',

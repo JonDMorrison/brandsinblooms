@@ -75,16 +75,8 @@ function App() {
             </ProtectedRoute>
           } />
           {/* Public website landing page */}
-          <Route path="/website" element={
-            <PublicRoute>
-              <WebsiteWaitlistPage />
-            </PublicRoute>
-          } />
-          <Route path="/website/waitlist" element={
-            <PublicRoute>
-              <WebsiteWaitlistPage />
-            </PublicRoute>
-          } />
+          <Route path="/website" element={<WebsiteWaitlistPage />} />
+          <Route path="/website/waitlist" element={<WebsiteWaitlistPage />} />
           {/* Protected website builder */}
           <Route path="/website/app" element={
             <ProtectedRoute>
