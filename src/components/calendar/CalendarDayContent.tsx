@@ -90,7 +90,10 @@ export const CalendarDayContent = ({
                           holidays.length + 
                           Math.min(scheduledPosts.length, 2);
   const totalItems = campaigns.length + tasks.length + newsletters.length + holidays.length + scheduledPosts.length;
-  const hasMoreItems = totalItems > totalItemsShown;
+  const hasMoreItems = (campaigns.length > maxCampaignsToShow) || 
+                       (tasks.length > maxTasksToShow) || 
+                       (newsletters.length > maxNewslettersToShow) || 
+                       (scheduledPosts.length > 2);
 
   return (
     <div className="space-y-1.5">
