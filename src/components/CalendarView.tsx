@@ -24,8 +24,14 @@ import { Mail, Filter, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
-export const CalendarView = React.memo(({ onDataUpdate }: {
+export const CalendarView = React.memo(({ 
+  onDataUpdate,
+  showWeeklyThemesModal,
+  onCloseWeeklyThemesModal 
+}: {
   onDataUpdate: () => void;
+  showWeeklyThemesModal?: boolean;
+  onCloseWeeklyThemesModal?: () => void;
 }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -537,8 +543,14 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
 
       {/* Weekly Themes Reference Modal */}
       <WeeklyThemesReferenceModal
-        open={themesReferenceModalOpen}
-        onOpenChange={setThemesReferenceModalOpen}
+        open={showWeeklyThemesModal || themesReferenceModalOpen}
+        onOpenChange={(open) => {
+          if (showWeeklyThemesModal && onCloseWeeklyThemesModal) {
+            onCloseWeeklyThemesModal();
+          } else {
+            setThemesReferenceModalOpen(open);
+          }
+        }}
         onUpdate={onDataUpdate}
       />
     </div>

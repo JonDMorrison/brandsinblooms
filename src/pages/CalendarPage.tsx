@@ -39,6 +39,9 @@ const CalendarPage = () => {
     refetch();
   };
 
+  // Weekly themes modal state
+  const [showWeeklyThemesModal, setShowWeeklyThemesModal] = useState(false);
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 flex items-center justify-center">
@@ -107,12 +110,7 @@ const CalendarPage = () => {
           label: 'Weekly Themes',
           icon: Calendar,
           variant: 'outline',
-          onClick: () => {
-            const calendarView = document.querySelector('[data-calendar-view]') as any;
-            if (calendarView && calendarView.showThemesReference) {
-              calendarView.showThemesReference();
-            }
-          }
+          onClick: () => setShowWeeklyThemesModal(true)
         }}
         primaryAction={{
           label: 'Create Campaign',
@@ -132,6 +130,8 @@ const CalendarPage = () => {
         
         <CalendarView 
           onDataUpdate={refetch}
+          showWeeklyThemesModal={showWeeklyThemesModal}
+          onCloseWeeklyThemesModal={() => setShowWeeklyThemesModal(false)}
         />
       </div>
 
