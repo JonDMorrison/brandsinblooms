@@ -10,6 +10,7 @@ import { useCreateFlow } from "@/state/useCreateFlow";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertCircle } from "lucide-react";
 import { GeneratedContentModal } from "./GeneratedContentModal";
+import { getSeasonalTemplates, type SeasonalTemplate } from "@/utils/seasonalTemplateService";
 
 // Local helper: format a YYYY-MM-DD string to a readable date
 const fmtLocalDate = (d?: string) => {
@@ -49,14 +50,13 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
 
   // Event/Seasonal data
   const [events, setEvents] = useState<any[]>([]);
-  const [holidays, setHolidays] = useState<any[]>([]);
-  const [dataSource, setDataSource] = useState<'holidays' | 'curated'>('holidays');
+  const [weeklyThemes, setWeeklyThemes] = useState<SeasonalTemplate[]>([]);
   const [search, setSearch] = useState("");
 
   // Pagination (UI-only)
   const PAGE_SIZE = 12;
   const [visibleEvents, setVisibleEvents] = useState(PAGE_SIZE);
-  const [visibleHolidays, setVisibleHolidays] = useState(PAGE_SIZE);
+  const [visibleWeeklyThemes, setVisibleWeeklyThemes] = useState(PAGE_SIZE);
 
   useEffect(() => {
     if (!open) {
@@ -70,7 +70,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   // Reset pagination when context changes
   useEffect(() => {
     setVisibleEvents(PAGE_SIZE);
-    setVisibleHolidays(PAGE_SIZE);
+    setVisibleWeeklyThemes(PAGE_SIZE);
   }, [search, step, selectedPath]);
 
   // Fetch data for Events & Seasonal
@@ -89,53 +89,14 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
     }
     if (step === 2 && selectedPath === 'seasonal') {
       (async () => {
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        const sixMonthsFromNow = new Date(today);
-        sixMonthsFromNow.setMonth(today.getMonth() + 6);
-        const sixMonthsStr = sixMonthsFromNow.toISOString().split('T')[0];
-
-        console.info('[CreateFlowDialog] Seasonal fetch: querying holidays', { todayStr, sixMonthsStr });
-        const { data, error } = await supabase
-          .from('holidays')
-          .select('id, holiday_name, holiday_date, description, garden_relevance, category, is_active')
-          .eq('is_active', true)
-          .gte('holiday_date', todayStr)
-          .lte('holiday_date', sixMonthsStr)
-          .order('holiday_date', { ascending: true })
-          .limit(50);
-
-        if (!error && Array.isArray(data) && data.length > 0) {
-          const mapped = (data || []).map((h: any) => ({
-            id: h.id,
-            title: h.holiday_name,
-            description: h.garden_relevance || h.description || '',
-            date: h.holiday_date,
-            category: h.category,
-          }));
-          setHolidays(mapped);
-          setDataSource('holidays');
-          console.info('[CreateFlowDialog] Seasonal fetch: holidays loaded', { count: mapped.length, sample: mapped.slice(0,3).map((x:any) => `${x.title} (${x.date})`) });
-        } else {
-          console.info('[CreateFlowDialog] Seasonal fetch: holidays empty or error, falling back to curated ideas', { error });
-          const { data: curated, error: curatedError } = await supabase.rpc('fn_get_newsletter_ideas');
-          if (curatedError) {
-            console.error('[CreateFlowDialog] Curated ideas fallback failed', curatedError);
-            setHolidays([]);
-            setDataSource('holidays');
-            return;
-          }
-          const curatedArray = Array.isArray(curated) ? curated : [];
-          const mappedCurated = curatedArray.map((c: any) => ({
-            id: c.id,
-            title: c.title,
-            description: c.description || '',
-            date: undefined,
-            category: c.category || 'curated',
-          }));
-          setHolidays(mappedCurated);
-          setDataSource('curated');
-          console.info('[CreateFlowDialog] Seasonal fetch: using curated fallback', { count: mappedCurated.length });
+        console.info('[CreateFlowDialog] Seasonal fetch: loading weekly themes');
+        try {
+          const themes = await getSeasonalTemplates();
+          console.info('[CreateFlowDialog] Weekly themes loaded', { count: themes.length });
+          setWeeklyThemes(themes);
+        } catch (error) {
+          console.error('[CreateFlowDialog] Failed to load weekly themes', error);
+          setWeeklyThemes([]);
         }
       })();
     }
@@ -147,11 +108,11 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
     return events.filter((e) => !term || e.title?.toLowerCase().includes(term));
   }, [events, search]);
 
-  const filteredHolidays = useMemo(() => {
+  const filteredWeeklyThemes = useMemo(() => {
     const term = search.toLowerCase();
-    return holidays
-      .filter((h: any) => !term || (h.title || '').toLowerCase().includes(term) || (h.description || '').toLowerCase().includes(term));
-  }, [holidays, search]);
+    return weeklyThemes
+      .filter((theme) => !term || theme.title.toLowerCase().includes(term) || (theme.theme || '').toLowerCase().includes(term) || (theme.content_ideas || '').toLowerCase().includes(term));
+  }, [weeklyThemes, search]);
 
   const canContinue = useMemo(() => selectedPath !== null, [selectedPath]);
   const canGenerate = useMemo(() => {
@@ -185,10 +146,10 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       }
       // Pass explicit topic details for seasonal ideas so the generator prioritizes them
       if (selectedPath === 'seasonal' && selectedSourceId) {
-        const picked = (holidays as any[])?.find((h: any) => h?.id === selectedSourceId);
+        const picked = weeklyThemes.find((theme) => theme.id === selectedSourceId);
         if (picked) {
-          payload.topicTitle = picked.title;
-          payload.topicDescription = picked.description || '';
+          payload.topicTitle = `Week ${picked.week_number}: ${picked.title}`;
+          payload.topicDescription = picked.theme || picked.content_ideas || '';
         }
       }
 
@@ -241,7 +202,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { key: 'event', title: 'Seasonal Plant Care Tips', desc: 'Give advice to your customers based on time of year.' },
-                { key: 'seasonal', title: 'Garden Calendar Moments', desc: 'Choose from upcoming gardening observances, seasonal moments, and plant-related awareness days.' },
+                { key: 'seasonal', title: 'Weekly Garden Themes', desc: 'Choose from 52 weekly gardening themes designed for year-round content.' },
                 { key: 'custom', title: 'Post My Own Custom Content', desc: 'Bring your idea—AI drafts content in your voice.' },
               ].map((opt) => (
                 <button
@@ -292,32 +253,30 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
 
           {step === 2 && selectedPath === 'seasonal' && (
             <div className="space-y-3">
-              <Input placeholder="Search seasonal ideas" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="Search weekly themes" value={search} onChange={(e) => setSearch(e.target.value)} />
               <div className="text-xs text-muted-foreground">
-                {dataSource === 'holidays'
-                  ? `Data source: Holidays (${filteredHolidays.length} found)`
-                  : 'Showing curated ideas (holiday service unavailable)'}
+                52 weekly themes available ({filteredWeeklyThemes.length} shown)
               </div>
               <div className="max-h-80 overflow-y-auto space-y-2">
-                {filteredHolidays.slice(0, visibleHolidays).map((h: any) => (
-                  <button key={h.id} onClick={() => setSelectedSourceId(h.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===h.id?'ring-1':''}`}>
-                    <div className="font-medium">{h.title}</div>
+                {filteredWeeklyThemes.slice(0, visibleWeeklyThemes).map((theme) => (
+                  <button key={theme.id} onClick={() => setSelectedSourceId(theme.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===theme.id?'ring-1':''}`}>
+                    <div className="font-medium">Week {theme.week_number}: {theme.title}</div>
                     <div className="text-xs text-muted-foreground">
-                      {h.date ? `${fmtLocalDate(h.date)} • ${h.category || 'Holiday'}` : (h.category ? h.category : 'Idea')}
+                      {theme.theme || 'Weekly theme'}
                     </div>
-                    {h.description && (
-                      <div className="text-xs text-muted-foreground mt-1">{h.description}</div>
+                    {theme.content_ideas && (
+                      <div className="text-xs text-muted-foreground mt-1">{theme.content_ideas}</div>
                     )}
                   </button>
                 ))}
-                {filteredHolidays.length === 0 && (
+                {filteredWeeklyThemes.length === 0 && (
                   <div className="text-sm text-muted-foreground">
-                    {search ? 'No results for your search.' : 'No upcoming holidays. Try Custom Content instead.'}
+                    {search ? 'No results for your search.' : 'No weekly themes available. Try Custom Content instead.'}
                   </div>
                 )}
-                {filteredHolidays.length > visibleHolidays && (
+                {filteredWeeklyThemes.length > visibleWeeklyThemes && (
                   <div className="pt-2">
-                    <Button variant="secondary" onClick={() => setVisibleHolidays((v) => v + PAGE_SIZE)}>Load more</Button>
+                    <Button variant="secondary" onClick={() => setVisibleWeeklyThemes((v) => v + PAGE_SIZE)}>Load more</Button>
                   </div>
                 )}
               </div>
