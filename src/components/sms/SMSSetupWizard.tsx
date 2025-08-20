@@ -27,13 +27,6 @@ export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onCompl
 
   const steps = [
     {
-      id: 'connect',
-      title: 'Connect Twilio',
-      description: 'Link your Twilio account for SMS functionality',
-      icon: Smartphone,
-      completed: true // Assume this is completed if wizard is accessible
-    },
-    {
       id: 'test',
       title: 'Test SMS',
       description: 'Send a test message to verify everything works',
@@ -63,8 +56,8 @@ export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onCompl
       });
       
       toast.success('Test message sent successfully!');
-      steps[1].completed = true;
-      setCurrentStep(2);
+      steps[0].completed = true;
+      setCurrentStep(1);
     } catch (error) {
       console.error('Test SMS failed:', error);
       toast.error('Failed to send test message. Please check your phone number.');
@@ -122,23 +115,11 @@ export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onCompl
       case 0:
         return (
           <div className="space-y-4">
-            <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg border border-green-200">
-              <CheckCircle className="h-6 w-6 text-green-600" />
-              <div>
-                <p className="font-medium text-green-900">Twilio Connected</p>
-                <p className="text-sm text-green-700">Your Twilio credentials are configured and ready</p>
-              </div>
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
+              <p className="text-xs text-blue-800">
+                <strong>Note:</strong> SMS connectivity is managed by Bloomsuite and is already configured for your account.
+              </p>
             </div>
-            <Button onClick={() => setCurrentStep(1)} className="w-full">
-              <ArrowRight className="h-4 w-4 mr-2" />
-              Continue to Testing
-            </Button>
-          </div>
-        );
-
-      case 1:
-        return (
-          <div className="space-y-4">
             <div>
               <Label htmlFor="test-phone">Test Phone Number</Label>
               <Input
@@ -164,7 +145,7 @@ export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onCompl
           </div>
         );
 
-      case 2:
+      case 1:
         return (
           <div className="space-y-4">
             <div className="space-y-3">
