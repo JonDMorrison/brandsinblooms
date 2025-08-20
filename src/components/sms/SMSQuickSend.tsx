@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Send, Zap, Image, X, CheckCircle, Loader2 } from 'lucide-react';
+import { Send, Zap, Image, X, CheckCircle, Loader2, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { twilioClient } from '@/lib/sms/twilioClient';
 import { ImageUploader } from '@/lib/image/imageUploader';
 import { ImageProcessor, getOptimalFormat } from '@/lib/image/imageProcessor';
+import { ImageSelectButton } from '@/components/image';
+import { trackUnsplashDownload } from '@/lib/unsplashAttribution';
 
 interface SMSQuickSendProps {
   onSent: () => void;
@@ -23,6 +25,9 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
   const [uploading, setUploading] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
   const [imageStatus, setImageStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  // External image state
+  const [externalImageUrl, setExternalImageUrl] = useState<string | null>(null);
+  const [externalImageMetadata, setExternalImageMetadata] = useState<any>(null);
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -97,6 +102,22 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
     setImagePreview(null);
     setImageStatus('idle');
     setProcessingImage(false);
+    // Also clear external image
+    setExternalImageUrl(null);
+    setExternalImageMetadata(null);
+  };
+
+  const handleExternalImageSelect = async (imageUrl: string, metadata?: any) => {
+    // Clear local image if external is selected
+    setImageFile(null);
+    setImagePreview(null);
+    setImageStatus('idle');
+    setProcessingImage(false);
+    
+    // Set external image
+    setExternalImageUrl(imageUrl);
+    setExternalImageMetadata(metadata);
+    toast.success('Unsplash image selected for MMS');
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -111,7 +132,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
     try {
       let mediaUrls: string[] = [];
 
-      // Upload image if present
+      // Handle image - either local file or external URL
       if (imageFile) {
         setUploading(true);
         const uploader = new ImageUploader('media-mms');
@@ -122,6 +143,17 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
         );
         mediaUrls = [result.publicUrl!];
         setUploading(false);
+      } else if (externalImageUrl) {
+        mediaUrls = [externalImageUrl];
+        
+        // Track Unsplash download if it's an Unsplash image
+        if (externalImageMetadata?.id) {
+          try {
+            await trackUnsplashDownload(externalImageMetadata.id);
+          } catch (error) {
+            console.warn('Failed to track Unsplash download:', error);
+          }
+        }
       }
 
       // Send SMS using TwilioClient
@@ -131,11 +163,14 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
       });
 
-      toast.success(imageFile ? 'Test MMS sent successfully!' : 'Test SMS sent successfully!');
+      const hasImage = imageFile || externalImageUrl;
+      toast.success(hasImage ? 'Test MMS sent successfully!' : 'Test SMS sent successfully!');
       setPhone('');
       setMessage('');
       setImageFile(null);
       setImagePreview(null);
+      setExternalImageUrl(null);
+      setExternalImageMetadata(null);
       onSent();
     } catch (error) {
       console.error('Error sending SMS:', error);
@@ -225,10 +260,10 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
               )}
             </div>
             <div className="mt-1">
-              {imagePreview ? (
+              {(imagePreview || externalImageUrl) ? (
                 <div className="relative">
                   <img 
-                    src={imagePreview} 
+                    src={imagePreview || externalImageUrl || ''} 
                     alt="MMS Preview" 
                     className={`w-full h-32 object-cover rounded-lg border transition-opacity ${
                       processingImage ? 'opacity-50' : 'opacity-100'
@@ -254,6 +289,12 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                       {Math.round(imageFile.size / 1024)}KB
                     </div>
                   )}
+                  {externalImageUrl && (
+                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
+                      <Globe className="h-3 w-3" />
+                      <span>Unsplash</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center">
@@ -270,17 +311,27 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                       <p className="text-sm text-muted-foreground mb-2">
                         Add image for MMS (max 500KB)
                       </p>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-                          input?.click();
-                        }}
-                      >
-                        Select Image
-                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+                            input?.click();
+                          }}
+                        >
+                          Select Image
+                        </Button>
+                        <span className="text-xs text-muted-foreground">or</span>
+                        <ImageSelectButton
+                          onImageSelect={handleExternalImageSelect}
+                          contentContext={message || "MMS image"}
+                          buttonText="Browse Free Images"
+                          mode="modal"
+                          compact
+                        />
+                      </div>
                       <input
                         type="file"
                         accept="image/jpeg,image/jpg,image/png,image/gif"
@@ -293,7 +344,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              JPG, PNG, and GIF only. Large images are automatically optimized for MMS.
+              Upload your own image or browse free images from Unsplash. Large images are automatically optimized for MMS.
             </p>
           </div>
 
@@ -303,7 +354,10 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
             className="w-full"
           >
             <Send className="h-4 w-4 mr-2" />
-            {processingImage ? 'Processing Image...' : uploading ? 'Uploading Image...' : sending ? 'Sending...' : imageFile ? 'Send Test MMS' : 'Send Test SMS'}
+            {processingImage ? 'Processing Image...' : 
+             uploading ? 'Uploading Image...' : 
+             sending ? 'Sending...' : 
+             (imageFile || externalImageUrl) ? 'Send Test MMS' : 'Send Test SMS'}
           </Button>
         </form>
       </CardContent>
