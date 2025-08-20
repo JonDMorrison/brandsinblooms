@@ -8,6 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Circle, Smartphone, TestTube, Shield, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { twilioClient } from '@/lib/sms/twilioClient';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface SMSSetupWizardProps {
   trigger: React.ReactNode;
@@ -15,6 +18,8 @@ interface SMSSetupWizardProps {
 }
 
 export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onComplete }) => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [testPhone, setTestPhone] = useState('');
@@ -68,10 +73,48 @@ export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onCompl
     }
   };
 
-  const handleComplete = () => {
-    toast.success('SMS setup completed! You can now create campaigns.');
-    setOpen(false);
-    onComplete();
+  const handleComplete = async () => {
+    if (!user) return;
+
+    try {
+      // Get current feature flags first
+      const { data: currentProfile } = await supabase
+        .from('company_profiles')
+        .select('feature_flags')
+        .eq('user_id', user.id)
+        .single();
+
+      const currentFlags = (currentProfile?.feature_flags as any) || {};
+
+      // Mark SMS setup as completed in the database
+      const { error } = await supabase
+        .from('company_profiles')
+        .update({
+          feature_flags: {
+            ...currentFlags,
+            sms_setup_completed: true,
+            sms_test_number: testPhone,
+            sms_compliance_configured: true
+          }
+        })
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Failed to update setup status:', error);
+        toast.error('Failed to save setup completion. Please try again.');
+        return;
+      }
+
+      // Invalidate the Twilio setup query to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['twilio-setup'] });
+      
+      toast.success('SMS setup completed! You can now create campaigns.');
+      setOpen(false);
+      onComplete();
+    } catch (error) {
+      console.error('Setup completion error:', error);
+      toast.error('Failed to complete setup. Please try again.');
+    }
   };
 
   const renderStep = () => {

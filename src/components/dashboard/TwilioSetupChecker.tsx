@@ -10,23 +10,20 @@ export const useTwilioSetup = () => {
     queryFn: async () => {
       if (!user) return { isSetup: false, hasCredentials: false };
       
-      // Check if user has any SMS campaigns or automations
-      const { data: smsData } = await supabase
-        .from('crm_automations')
-        .select('id')
+      // Check if SMS setup has been completed via the setup wizard
+      const { data: profileData } = await supabase
+        .from('company_profiles')
+        .select('feature_flags')
         .eq('user_id', user.id)
-        .contains('steps', [{ type: 'sms' }])
-        .limit(1);
+        .single();
 
-      // For now, we'll assume Twilio is setup if they have SMS automations
-      // In a real implementation, you'd check environment variables or settings
-      const hasCredentials = Boolean(smsData && smsData.length > 0);
+      const isSetupCompleted = (profileData?.feature_flags as any)?.sms_setup_completed === true;
       
       return {
-        isSetup: hasCredentials,
-        hasCredentials,
-        statusMessage: hasCredentials 
-          ? 'SMS campaigns ready' 
+        isSetup: isSetupCompleted,
+        hasCredentials: isSetupCompleted,
+        statusMessage: isSetupCompleted 
+          ? 'SMS Ready' 
           : 'SMS setup needed for campaigns'
       };
     },
