@@ -205,7 +205,6 @@ const formatContentForDisplay = (rawContent: string) => {
 };
 
 export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId, campaignTitle }: SocialMediaPostPreviewProps) => {
-  console.log('[SocialMediaPostPreview] Rendering for task:', contentTaskId, 'postType:', postType);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
@@ -411,8 +410,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                 contentContext={content}
                 compact={true}
                 className="h-full"
-                instanceId={`social-media-${contentTaskId}-${postType}`}
-                autoSelectFirst={false}
               />
             ) : (
               <div className="h-48 bg-gray-100 rounded-lg flex items-center justify-center">
