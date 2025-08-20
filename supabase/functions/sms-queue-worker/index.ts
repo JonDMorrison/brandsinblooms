@@ -1,9 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
 
 interface TwilioConfig {
   accountSid: string
@@ -35,9 +31,8 @@ async function sendSMS(config: TwilioConfig, to: string, body: string, mediaUrl?
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
+  const corsResponse = handleCorsPrelight(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const supabase = createClient(
@@ -83,7 +78,8 @@ Deno.serve(async (req) => {
         const result = await sendSMS(
           twilioConfig,
           message.phone,
-          message.content
+          message.content,
+          message.media_url
         )
 
         if (result.error_code) {
@@ -136,32 +132,20 @@ Deno.serve(async (req) => {
 
     console.log(`SMS Queue Worker completed. Processed: ${processed}, Sent: ${sent}, Failed: ${failed}`)
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        processed,
-        sent,
-        failed,
-        message: `Processed ${processed} SMS messages`
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      }
-    )
+    return corsJsonResponse({
+      success: true,
+      processed,
+      sent,
+      failed,
+      message: `Processed ${processed} SMS messages`
+    })
 
   } catch (error) {
     console.error('SMS Queue Worker error:', error)
     
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500
-      }
-    )
+    return corsJsonResponse({
+      success: false,
+      error: error.message
+    }, { status: 500 })
   }
 })

@@ -18,6 +18,7 @@ import Index from '@/pages/Index';
 import SocialMediaPage from '@/pages/SocialMediaPage';
 import { CRMDashboardPage } from '@/pages/crm/CRMDashboardPage';
 import SMSTestingDemo from '@/pages/SMSTestingDemo';
+import SMSRoutes from '@/routes/SMSRoutes';
 import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
 import { CRMCustomersPage } from '@/pages/crm/CRMCustomersPage';
 import { CRMSegmentsPage } from '@/pages/crm/CRMSegmentsPage';
@@ -165,7 +166,14 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
-          <Route path="/sms" element={
+          <Route path="/sms/*" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <SMSRoutes />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/sms/test" element={
             <ProtectedRoute>
               <SidebarLayout>
                 <SMSTestingDemo />
