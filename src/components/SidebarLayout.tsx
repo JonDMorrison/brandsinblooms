@@ -3,7 +3,7 @@ import { ReactNode, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { TrialBanner } from "@/components/TrialBanner";
 import { UserMenu } from "@/components/UserMenu";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 
 interface SidebarLayoutProps {
@@ -46,12 +46,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex">
-        {/* Global header with SidebarTrigger */}
-        <div className="fixed top-4 left-4 z-50">
-          <SidebarTrigger />
-        </div>
-        
+      <div className="min-h-screen w-full flex">        
         <AppSidebar />
         
         <main className="flex-1 w-full min-h-screen overflow-auto">
