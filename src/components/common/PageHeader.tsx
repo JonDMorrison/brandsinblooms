@@ -41,26 +41,6 @@ export const PageHeader = ({
           
           <div className="flex items-center gap-3">
             {rightSlot}
-            {secondaryAction && (
-              <Button
-                variant={secondaryAction.variant || 'outline'}
-                onClick={secondaryAction.onClick}
-                className="flex items-center gap-2"
-              >
-                {secondaryAction.icon && <secondaryAction.icon className="w-4 h-4" />}
-                {secondaryAction.label}
-              </Button>
-            )}
-            {primaryAction && (
-              <Button
-                variant={primaryAction.variant || 'default'}
-                onClick={primaryAction.onClick}
-                className="flex items-center gap-2"
-              >
-                {primaryAction.icon && <primaryAction.icon className="w-4 h-4" />}
-                {primaryAction.label}
-              </Button>
-            )}
           </div>
         </div>
       </div>
