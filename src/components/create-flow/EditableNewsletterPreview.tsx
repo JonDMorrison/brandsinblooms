@@ -118,38 +118,72 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
 
         {/* Newsletter Blocks */}
         <div className="space-y-12">
-          {processedNewsletter.blocks.length > 0 ? (
-            processedNewsletter.blocks.map((block, index) => {
-              // Convert processed block to NewsletterContentBlock format
-              const newsletterBlock = {
-                title: block.title || block.headline || `Section ${index + 1}`,
-                body: block.body || block.content || '',
-                cta: block.cta || block.ctaText || '',
-                link: block.link || '',
-                image_prompt: block.image_prompt || '',
-                alt_text: block.alt_text || block.altText || ''
-              };
+          {(() => {
+            // Render structured blocks if they exist
+            if (processedNewsletter.blocks.length > 0) {
+              return processedNewsletter.blocks.map((block, index) => {
+                const newsletterBlock = {
+                  title: block.title || block.headline || `Section ${index + 1}`,
+                  body: block.body || block.content || '',
+                  cta: block.cta || block.ctaText || '',
+                  link: block.link || '',
+                  image_prompt: block.image_prompt || '',
+                  alt_text: block.alt_text || block.altText || ''
+                };
 
-              return (
-                <div key={index} className="border-b border-slate-100 last:border-b-0 pb-12 last:pb-0">
-                  <NewsletterContentBlock
-                    block={newsletterBlock}
-                    index={index}
-                    isStructuredNewsletter={processedNewsletter.isStructured}
-                    images={images}
-                    imageErrors={imageErrors}
-                    loadingImages={loadingImages}
-                    onImageSelect={handleImageSelect}
-                    selectedImages={selectedImages}
-                  />
-                </div>
-              );
-            })
-          ) : (
-            <div className="text-center py-8 text-slate-500">
-              <p>Click edit to add newsletter content</p>
-            </div>
-          )}
+                return (
+                  <div key={index} className="border-b border-slate-100 last:border-b-0 pb-12 last:pb-0">
+                    <NewsletterContentBlock
+                      block={newsletterBlock}
+                      index={index}
+                      isStructuredNewsletter={processedNewsletter.isStructured}
+                      images={images}
+                      imageErrors={imageErrors}
+                      loadingImages={loadingImages}
+                      onImageSelect={handleImageSelect}
+                      selectedImages={selectedImages}
+                    />
+                  </div>
+                );
+              });
+            }
+            
+            // Render unstructured sections if no structured blocks
+            if (processedNewsletter.unstructuredSections && processedNewsletter.unstructuredSections.length > 0) {
+              return processedNewsletter.unstructuredSections.map((section, index) => {
+                const newsletterBlock = {
+                  title: section.title || `Section ${index + 1}`,
+                  body: section.content || '',
+                  cta: '',
+                  link: '',
+                  image_prompt: section.image_prompt || '',
+                  alt_text: ''
+                };
+
+                return (
+                  <div key={`unstructured-${index}`} className="border-b border-slate-100 last:border-b-0 pb-12 last:pb-0">
+                    <NewsletterContentBlock
+                      block={newsletterBlock}
+                      index={index}
+                      isStructuredNewsletter={false}
+                      images={images}
+                      imageErrors={imageErrors}
+                      loadingImages={loadingImages}
+                      onImageSelect={handleImageSelect}
+                      selectedImages={selectedImages}
+                    />
+                  </div>
+                );
+              });
+            }
+
+            // Show empty state only if no content at all
+            return (
+              <div className="text-center py-8 text-slate-500">
+                <p>Click edit to add newsletter content</p>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Newsletter Footer */}
