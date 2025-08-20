@@ -8,6 +8,7 @@ import { QuickAddSheet } from './calendar/QuickAddSheet';
 import { DayEventsModal } from './calendar/DayEventsModal';
 import { NewsletterSchedulingModal } from './calendar/NewsletterSchedulingModal';
 import { NewsletterEditDrawer } from './calendar/NewsletterEditDrawer';
+import { WeeklyThemesReferenceModal } from './calendar/WeeklyThemesReferenceModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useUnifiedCalendarData } from '@/hooks/useUnifiedCalendarData';
@@ -88,6 +89,9 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
   // Day events modal state
   const [dayEventsModalOpen, setDayEventsModalOpen] = useState(false);
   const [selectedDateForEvents, setSelectedDateForEvents] = useState<Date | null>(null);
+  
+  // Weekly themes reference modal state
+  const [themesReferenceModalOpen, setThemesReferenceModalOpen] = useState(false);
 
   // Use the drag and drop hook with proper handlers
   const { isDragging, draggedTask, handleDragStart, handleDragEnd, handleDrop } = useDragAndDrop(() => {
@@ -399,6 +403,7 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
         onCreateEvent={() => handleCreateEvent(new Date())}
         onCreateCampaign={() => navigate('/campaigns/new')}
         onTogglePlanningPanel={togglePlanningPanel}
+        onShowThemesReference={() => setThemesReferenceModalOpen(true)}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -528,6 +533,13 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
         date={selectedDateForEvents}
         events={events}
         onEventClick={handleEventClick}
+      />
+
+      {/* Weekly Themes Reference Modal */}
+      <WeeklyThemesReferenceModal
+        open={themesReferenceModalOpen}
+        onOpenChange={setThemesReferenceModalOpen}
+        onUpdate={onDataUpdate}
       />
     </div>
   );

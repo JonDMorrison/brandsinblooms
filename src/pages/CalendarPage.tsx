@@ -104,10 +104,15 @@ const CalendarPage = () => {
         title="Campaign Calendar"
         description="Plan, schedule, and track your marketing campaigns"
         secondaryAction={{
-          label: 'Promote Event',
-          icon: CalendarPlus,
+          label: 'Weekly Themes',
+          icon: Calendar,
           variant: 'outline',
-          onClick: () => setShowAddEventDialog(true)
+          onClick: () => {
+            const calendarView = document.querySelector('[data-calendar-view]') as any;
+            if (calendarView && calendarView.showThemesReference) {
+              calendarView.showThemesReference();
+            }
+          }
         }}
         primaryAction={{
           label: 'Create Campaign',

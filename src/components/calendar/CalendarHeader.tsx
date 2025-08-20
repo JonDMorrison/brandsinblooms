@@ -49,6 +49,7 @@ interface CalendarHeaderProps {
   onCreateEvent?: () => void;
   onCreateCampaign?: () => void;
   onTogglePlanningPanel?: () => void;
+  onShowThemesReference?: () => void;
 }
 
 export const CalendarHeader = ({
@@ -69,7 +70,8 @@ export const CalendarHeader = ({
   onFiltersChange,
   onCreateEvent,
   onCreateCampaign,
-  onTogglePlanningPanel
+  onTogglePlanningPanel,
+  onShowThemesReference
 }: CalendarHeaderProps) => {
   const getDisplayTitle = () => {
     if (viewMode === 'month') {
@@ -230,6 +232,17 @@ export const CalendarHeader = ({
         
         {/* Action Buttons */}
         <div className="flex gap-2">
+          {onShowThemesReference && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onShowThemesReference}
+              className="h-8 px-3 text-slate-600 hover:bg-slate-50 hover:border-slate-200 transition-colors duration-200"
+            >
+              <Calendar className="w-4 h-4 mr-1" />
+              Weekly Themes
+            </Button>
+          )}
           {onTogglePlanningPanel && (
             <Button
               variant="outline"
