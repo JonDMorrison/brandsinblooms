@@ -17,7 +17,8 @@ import {
   List,
   Eye,
   EyeOff,
-  RefreshCw
+  RefreshCw,
+  Star
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -284,7 +285,7 @@ export const CalendarHeader = ({
               onClick={onShowThemesReference}
               className="h-8 px-3 text-slate-600 hover:bg-slate-50 hover:border-slate-200 transition-colors duration-200"
             >
-              <Calendar className="w-4 h-4 mr-1" />
+              <Star className="w-4 h-4 mr-1" />
               Weekly Themes
             </Button>
           )}
