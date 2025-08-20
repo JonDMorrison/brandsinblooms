@@ -1,7 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { showToast } from "@/utils/toastUtils";
-import { generateContentInParallel } from "./ParallelContentGenerator";
 
 export const useContentGeneration = () => {
   const autoGenerateAllContent = async (campaignId: string, campaignTitle: string, existingTasks: any[], userId: string) => {
@@ -62,13 +61,96 @@ export const useContentGeneration = () => {
       // Show progress toast
       showToast.info(`Generating content for ${tasksNeedingContent.length} tasks...`);
 
-      // Use parallel generation for much faster content creation
-      const result = await generateContentInParallel(
-        campaignId, 
-        campaignTitle, 
-        tasksNeedingContent, 
-        userId
-      );
+      // Use multichannel generation to avoid duplicates and ensure consistency
+      const { data: tenantData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', userId)
+        .single();
+
+      if (!tenantData?.tenant_id) {
+        showToast.error('Unable to verify workspace access');
+        return false;
+      }
+
+      // Generate content using multichannel function
+      const { data: generatedBundle, error: generateError } = await supabase.functions.invoke('generate-multichannel-content', {
+        body: {
+          mode: 'custom',
+          userIdea: {
+            title: campaignTitle,
+            notes: `Generate content for existing campaign: ${campaignTitle}`
+          },
+          channels: ['newsletter', 'instagram', 'facebook', 'video', 'blog'],
+          workspaceId: tenantData.tenant_id
+        }
+      });
+
+      if (generateError) {
+        console.error('❌ Error generating multichannel content:', generateError);
+        showToast.error(`Failed to generate content: ${generateError.message}`);
+        return false;
+      }
+
+      // Update existing tasks with generated content
+      let updatedCount = 0;
+      const failedTypes = [];
+
+      for (const task of tasksNeedingContent) {
+        try {
+          const matchingContent = generatedBundle.items?.find(item => 
+            (item.channel === 'blog' && task.post_type === 'blog') ||
+            (item.channel === task.post_type)
+          );
+
+          if (matchingContent) {
+            let contentToSave = '';
+            
+            if (task.post_type === 'newsletter') {
+              contentToSave = matchingContent.body || '';
+            } else if (task.post_type === 'video') {
+              contentToSave = matchingContent.script || '';
+            } else if (task.post_type === 'blog') {
+              contentToSave = matchingContent.markdown || matchingContent.body || '';
+            } else {
+              contentToSave = matchingContent.caption || matchingContent.body || '';
+            }
+
+            if (contentToSave) {
+              const { error: updateError } = await supabase
+                .from('content_tasks')
+                .update({ 
+                  ai_output: contentToSave,
+                  status: 'review'
+                })
+                .eq('id', task.id);
+
+              if (updateError) {
+                console.error(`❌ Error updating ${task.post_type} task:`, updateError);
+                failedTypes.push(task.post_type);
+              } else {
+                console.log(`✅ Updated ${task.post_type} task ${task.id}`);
+                updatedCount++;
+              }
+            } else {
+              console.warn(`⚠️ No content generated for ${task.post_type}`);
+              failedTypes.push(task.post_type);
+            }
+          } else {
+            console.warn(`⚠️ No matching content found for ${task.post_type}`);
+            failedTypes.push(task.post_type);
+          }
+        } catch (error) {
+          console.error(`❌ Error processing ${task.post_type} task:`, error);
+          failedTypes.push(task.post_type);
+        }
+      }
+
+      const result = {
+        success: updatedCount > 0,
+        generatedCount: updatedCount,
+        failedTypes
+      };
       
       if (result.success) {
         showToast.success(`Successfully generated ${result.generatedCount} content pieces! ${result.failedTypes.length > 0 ? `${result.failedTypes.length} failed.` : ''}`);
