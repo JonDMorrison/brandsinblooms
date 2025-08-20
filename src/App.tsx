@@ -37,6 +37,7 @@ import AccountPage from '@/pages/AccountPage';
 import ProfilePage from '@/pages/ProfilePage';
 import IntegrationsPage from '@/pages/IntegrationsPage';
 import SupportPage from '@/pages/SupportPage';
+import PricingPage from '@/pages/PricingPage';
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
               <OnboardingPage />
             </ProtectedRoute>
           } />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/" element={<SmartRootRoute />} />
           
           {/* Protected routes with sidebar */}
