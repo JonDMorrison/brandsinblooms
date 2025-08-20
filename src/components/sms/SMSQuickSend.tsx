@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Send, Zap, Image, X, CheckCircle, Loader2, Globe, Upload } from 'lucide-react';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Send, Zap, Image, X, CheckCircle, Loader2, Globe, Upload, Maximize2, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { twilioClient } from '@/lib/sms/twilioClient';
 import { ImageUploader } from '@/lib/image/imageUploader';
@@ -31,6 +32,9 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
   // Drag and drop state
   const [isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Image preview controls
+  const [objectFit, setObjectFit] = useState<'contain' | 'cover'>('contain');
+  const [showFullScreen, setShowFullScreen] = useState(false);
 
   const processFile = async (file: File) => {
     // Clear external image if local file is selected
@@ -296,40 +300,92 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
             </div>
 
             {(imagePreview || externalImageUrl) ? (
-              <div className="relative">
-                <img 
-                  src={imagePreview || externalImageUrl || ''} 
-                  alt="MMS Preview" 
-                  className={`w-full h-32 object-cover rounded-lg border transition-opacity ${
-                    processingImage ? 'opacity-50' : 'opacity-100'
-                  }`}
-                />
-                {processingImage && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
-                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+              <div className="space-y-3">
+                {/* Image Controls */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setObjectFit(objectFit === 'contain' ? 'cover' : 'contain')}
+                      className="h-8 text-xs"
+                      aria-pressed={objectFit === 'cover'}
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      {objectFit === 'contain' ? 'Fill' : 'Fit'}
+                    </Button>
+                    <Dialog open={showFullScreen} onOpenChange={setShowFullScreen}>
+                      <DialogTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                        >
+                          <Maximize2 className="h-3 w-3 mr-1" />
+                          View Full
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[90vh] p-2">
+                        <div className="flex items-center justify-center h-full">
+                          <img 
+                            src={imagePreview || externalImageUrl || ''} 
+                            alt="MMS Preview - Full Size" 
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
-                )}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleRemoveImage}
-                  className="absolute top-2 right-2"
-                  disabled={processingImage}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-                {imageFile && (
-                  <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                    {Math.round(imageFile.size / 1024)}KB
-                  </div>
-                )}
-                {externalImageUrl && (
-                  <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
-                    <Globe className="h-3 w-3" />
-                    <span>Unsplash</span>
-                  </div>
-                )}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleRemoveImage}
+                    className="h-8"
+                    disabled={processingImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Image Preview */}
+                <div className="relative">
+                  <img 
+                    src={imagePreview || externalImageUrl || ''} 
+                    alt="MMS Preview" 
+                    className={`w-full h-40 sm:h-52 md:h-64 rounded-lg border bg-muted transition-opacity cursor-zoom-in ${
+                      objectFit === 'contain' ? 'object-contain' : 'object-cover'
+                    } ${processingImage ? 'opacity-50' : 'opacity-100'}`}
+                    onClick={() => setShowFullScreen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setShowFullScreen(true);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label="Click to view full size image"
+                  />
+                  {processingImage && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
+                      <Loader2 className="h-6 w-6 animate-spin text-white" />
+                    </div>
+                  )}
+                  {imageFile && (
+                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                      {Math.round(imageFile.size / 1024)}KB
+                    </div>
+                  )}
+                  {externalImageUrl && (
+                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
+                      <Globe className="h-3 w-3" />
+                      <span>Unsplash</span>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div 
