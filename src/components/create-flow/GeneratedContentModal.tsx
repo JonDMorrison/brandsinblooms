@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { MediaSelector } from "@/components/image/MediaSelector";
 import { EmailPreview } from "@/components/crm/EmailPreview";
+import { EditableNewsletterPreview } from "./EditableNewsletterPreview";
 import { convertNewsletterToCRM_Direct } from "@/utils/newsletterToCrmSync";
 import { buildEmailHtmlFromNewsletter } from "@/utils/newsletterToCrmConverter";
 import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
@@ -221,47 +222,16 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                           className="w-full"
                         />
                       </div>
-                    ) : (
-                      item.channel === 'newsletter' ? (
-                        <>
-                          <textarea
-                            className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
-                            value={sanitizeWeekNumbers(item.body || '')}
-                            onChange={(e) => editItem(idx, { body: e.target.value })}
-                            placeholder="Write newsletter body"
-                          />
-                          <div className="mt-3 rounded-md border">
-                            <EmailPreview
-                              blocks={Array.isArray(item.blocks) && item.blocks.length ? item.blocks : convertNewsletterToCRM_Direct(item.body || '')}
-                              campaignName={item.title || 'Newsletter'}
-                              subjectLine={item.title || 'Newsletter'}
-                              senderName="Your Garden Center"
-                              senderEmail="newsletter@example.com"
-                            />
-                          </div>
-                          <div className="mt-3">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs text-muted-foreground">Email HTML (read-only)</span>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  const html = buildEmailHtmlFromNewsletter(item.body || '', item.title || 'Newsletter');
-                                  navigator.clipboard.writeText(html);
-                                  toast({ title: 'Copied HTML to clipboard' });
-                                }}
-                              >
-                                Copy HTML
-                              </Button>
-                            </div>
-                            <textarea
-                              className="w-full min-h-[160px] rounded-md border p-3 text-xs font-mono"
-                              readOnly
-                              value={buildEmailHtmlFromNewsletter(item.body || '', item.title || 'Newsletter')}
-                            />
-                          </div>
-                        </>
-                      ) : (
+                     ) : (
+                       item.channel === 'newsletter' ? (
+                         <EditableNewsletterPreview
+                           content={sanitizeWeekNumbers(item.body || '')}
+                           title={item.title || 'Newsletter'}
+                           onChange={(content) => editItem(idx, { body: content })}
+                           onSave={() => handleSaveItem(idx)}
+                           className="w-full"
+                         />
+                       ) : (
                         <textarea
                           className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
                           value={sanitizeWeekNumbers(item.body || '')}
