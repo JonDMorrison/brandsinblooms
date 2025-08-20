@@ -313,17 +313,6 @@ export const CalendarHeader = ({
             </Button>
           )}
 
-          {onCreateEvent && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCreateEvent}
-              className="h-8 px-3 text-blue-700 hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200"
-            >
-              <Megaphone className="w-4 h-4 mr-1" />
-              Promote Event
-            </Button>
-          )}
 
           {onCreateCampaign && (
             <Button
