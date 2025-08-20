@@ -42,7 +42,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
     channels, setChannels,
   } = useCreateFlow();
 
-  const [step, setStep] = useState<1|2>(1);
+  const [step, setStep] = useState<1|2|3>(1);
   const [loading, setLoading] = useState(false);
   const [networkError, setNetworkError] = useState(false);
 
@@ -146,11 +146,15 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       .sort((a, b) => new Date(a.holiday_date).getTime() - new Date(b.holiday_date).getTime());
   }, [allHolidays, search]);
 
-  const canContinue = useMemo(() => selectedPath !== null, [selectedPath]);
-  const canGenerate = useMemo(() => {
+  const canContinueFromStep1 = useMemo(() => selectedPath !== null, [selectedPath]);
+  const canContinueFromStep2 = useMemo(() => {
     if (selectedPath === 'custom') return title.trim().length > 2;
     return !!selectedSourceId;
   }, [selectedPath, title, selectedSourceId]);
+  const canGenerate = useMemo(() => {
+    const hasChannels = Object.values(channels).some(Boolean);
+    return canContinueFromStep2 && hasChannels;
+  }, [canContinueFromStep2, channels]);
 
   const startGenerate = async () => {
     if (!selectedPath) return;
@@ -233,8 +237,16 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>What do you want to post about?</DialogTitle>
-            <DialogDescription>Events, holidays, or your own idea—AI will draft everything.</DialogDescription>
+            <DialogTitle>
+              {step === 1 && "What do you want to post about?"}
+              {step === 2 && "Choose your topic"}
+              {step === 3 && "Select your channels"}
+            </DialogTitle>
+            <DialogDescription>
+              {step === 1 && "Events, holidays, or your own idea—AI will draft everything."}
+              {step === 2 && "Pick a specific theme, holiday, or describe your custom idea."}
+              {step === 3 && "Choose which types of content to create for your campaign."}
+            </DialogDescription>
           </DialogHeader>
 
           {step === 1 && (
@@ -293,16 +305,6 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
                   </div>
                 )}
               </div>
-              <div className="pt-2 space-y-2">
-                <Label>Channels</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <ChannelCheckbox name="instagram" label="Instagram" />
-                  <ChannelCheckbox name="facebook" label="Facebook" />
-                  <ChannelCheckbox name="newsletter" label="Newsletter" />
-                  <ChannelCheckbox name="video" label="Short Video" />
-                  <ChannelCheckbox name="blog" label="Blog" />
-                </div>
-              </div>
             </div>
           )}
 
@@ -335,58 +337,81 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
                   </div>
                 )}
               </div>
-              <div className="pt-2 space-y-2">
-                <Label>Channels</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <ChannelCheckbox name="instagram" label="Instagram" />
-                  <ChannelCheckbox name="facebook" label="Facebook" />
-                  <ChannelCheckbox name="newsletter" label="Newsletter" />
-                  <ChannelCheckbox name="video" label="Short Video" />
-                  <ChannelCheckbox name="blog" label="Blog" />
-                </div>
-              </div>
             </div>
           )}
 
           {step === 2 && selectedPath === 'custom' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <Label>Theme / Title</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Fall Planting Weekend" />
-                <Label>Goal</Label>
-                <NativeSelect value={goal} onChange={(e) => setGoal(e.target.value as any)}>
-                  <option value="traffic">Traffic</option>
-                  <option value="sales">Sales</option>
-                  <option value="awareness">Awareness</option>
-                  <option value="none">No specific goal</option>
-                </NativeSelect>
-                <Label>Tone</Label>
-                <Input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="e.g., Friendly, Expert, Playful" />
-              </div>
-              <div className="space-y-3">
-                <Label>Channels</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <ChannelCheckbox name="instagram" label="Instagram" />
-                  <ChannelCheckbox name="facebook" label="Facebook" />
-                  <ChannelCheckbox name="newsletter" label="Newsletter" />
-                  <ChannelCheckbox name="video" label="Short Video" />
-                  <ChannelCheckbox name="blog" label="Blog" />
+            <div className="space-y-3">
+              <Label>Theme / Title</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Fall Planting Weekend" />
+              <Label>Goal</Label>
+              <NativeSelect value={goal} onChange={(e) => setGoal(e.target.value as any)}>
+                <option value="traffic">Traffic</option>
+                <option value="sales">Sales</option>
+                <option value="awareness">Awareness</option>
+                <option value="none">No specific goal</option>
+              </NativeSelect>
+              <Label>Tone</Label>
+              <Input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="e.g., Friendly, Expert, Playful" />
+              <Label className="mt-2">Notes (optional)</Label>
+              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Context, promos, links…" />
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label>Select the types of content to create:</Label>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setChannels({ newsletter: true, instagram: true, facebook: true, video: true, blog: true })}
+                  >
+                    Select All
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setChannels({ newsletter: false, instagram: false, facebook: false, video: false, blog: false })}
+                  >
+                    Deselect All
+                  </Button>
                 </div>
-                <Label className="mt-2">Notes (optional)</Label>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Context, promos, links…" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <ChannelCheckbox name="instagram" label="Instagram Post" />
+                  <ChannelCheckbox name="facebook" label="Facebook Post" />
+                  <ChannelCheckbox name="newsletter" label="Newsletter Section" />
+                </div>
+                <div className="space-y-3">
+                  <ChannelCheckbox name="video" label="Short Video Script" />
+                  <ChannelCheckbox name="blog" label="Blog Article" />
+                </div>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                AI will create content tailored for each selected platform. You can review and edit everything before publishing.
               </div>
             </div>
           )}
 
           <DialogFooter className="mt-4">
-            {step === 1 ? (
+            {step === 1 && (
               <>
                 <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button disabled={!canContinue} onClick={() => setStep(2)}>Continue</Button>
+                <Button disabled={!canContinueFromStep1} onClick={() => setStep(2)}>Continue</Button>
               </>
-            ) : (
+            )}
+            {step === 2 && (
               <>
                 <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+                <Button disabled={!canContinueFromStep2} onClick={() => setStep(3)}>Continue</Button>
+              </>
+            )}
+            {step === 3 && (
+              <>
+                <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
                 <div className="flex items-center gap-2">
                   {networkError && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
