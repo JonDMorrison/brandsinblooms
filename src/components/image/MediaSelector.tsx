@@ -36,7 +36,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     hasSelectedImage: !!selectedImageUrl,
     selectedImageUrl,
     contentContext,
-    compact
+    compact,
+    renderContext: `MediaSelector-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   });
 
   const [searchQuery, setSearchQuery] = useState('');

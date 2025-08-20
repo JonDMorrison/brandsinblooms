@@ -205,6 +205,7 @@ const formatContentForDisplay = (rawContent: string) => {
 };
 
 export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId, campaignTitle }: SocialMediaPostPreviewProps) => {
+  console.log('[SocialMediaPostPreview] Rendering for task:', contentTaskId, 'postType:', postType);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
