@@ -3,12 +3,14 @@ import { SimplifiedOnboardingFlow } from "@/components/onboarding/SimplifiedOnbo
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { EnhancedErrorBoundary } from "@/components/onboarding/EnhancedErrorBoundary";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
 const OnboardingPage = () => {
   const { user, loading } = useAuth();
+  const { isCompleted, isLoading: onboardingLoading } = useOnboardingStatus();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,6 +22,14 @@ const OnboardingPage = () => {
       navigate('/auth', { replace: true });
     }
   }, [user, loading, navigate]);
+
+  // Redirect to dashboard if onboarding is already complete
+  useEffect(() => {
+    if (!loading && !onboardingLoading && user && isCompleted) {
+      console.log('✅ OnboardingPage: Onboarding already complete, redirecting to dashboard');
+      navigate('/', { replace: true });
+    }
+  }, [user, loading, onboardingLoading, isCompleted, navigate]);
 
   const handleOnboardingComplete = (data: any) => {
     console.log('✅ OnboardingPage: Onboarding completed for user:', user?.id, 'data:', data);
@@ -46,8 +56,8 @@ const OnboardingPage = () => {
     }
   };
 
-  // Show loading while auth is being determined
-  if (loading) {
+  // Show loading while auth or onboarding status is being determined
+  if (loading || onboardingLoading) {
     console.log('⏳ OnboardingPage: Showing loading state');
     return (
       <div className="min-h-screen bg-garden-background flex items-center justify-center">
