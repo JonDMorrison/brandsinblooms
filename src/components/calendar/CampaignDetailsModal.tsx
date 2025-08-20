@@ -36,13 +36,21 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
   // Calculate the actual week number from the campaign's start_date
   const actualWeekNumber = dateToWeekNumber(new Date(campaign.start_date));
 
+  // Utility function to sanitize theme text
+  const sanitizeTheme = (theme: string) => {
+    return theme.replace(/\s*-\s*Week\s+\d+/i, '').trim();
+  };
+
   const handleThemeUpdate = async (newTheme: string, newDescription?: string) => {
     try {
+      const sanitizedTheme = sanitizeTheme(newTheme);
+      
       const { data, error } = await supabase
         .from('campaigns')
         .update({ 
           theme: newTheme, 
-          description: newDescription 
+          description: newDescription,
+          title: sanitizedTheme // Update title to match sanitized theme
         })
         .eq('id', campaign.id.toString())
         .select()
@@ -53,7 +61,8 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
       const updatedCampaign = {
         ...campaign,
         theme: newTheme,
-        description: newDescription
+        description: newDescription,
+        title: sanitizedTheme
       };
 
       onUpdate(updatedCampaign);
@@ -99,7 +108,7 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <DialogTitle className="text-2xl font-bold text-gray-900 leading-tight">
-                {campaign.title}
+                {campaign.theme ? sanitizeTheme(campaign.theme) : campaign.title}
               </DialogTitle>
               <div className="flex items-center gap-4">
                 {getStatusBadge()}
