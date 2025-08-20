@@ -231,7 +231,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>What do you want to post about?</DialogTitle>
             <DialogDescription>Events, holidays, or your own idea—AI will draft everything.</DialogDescription>
