@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-// Removed sonner import - using global toast replacement
+import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ContentTaskItem } from '@/components/content/ContentTaskItem';
 import { FileText, Sparkles } from 'lucide-react';
@@ -44,6 +44,7 @@ export const HolidayContentViewer = ({
 }: HolidayContentViewerProps) => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen && holidayId) {
@@ -68,13 +69,21 @@ export const HolidayContentViewer = ({
 
       if (error) {
         console.error('Error fetching holiday content:', error);
-        toast.error('Failed to load holiday content');
+        toast({
+          title: "Error",
+          description: "Failed to load holiday content",
+          variant: "destructive"
+        });
       } else {
         setTasks(data || []);
       }
     } catch (error) {
       console.error('Exception fetching holiday content:', error);
-      toast.error('Failed to load holiday content');
+      toast({
+        title: "Error",
+        description: "Failed to load holiday content",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }

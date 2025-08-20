@@ -56,6 +56,7 @@ interface CalendarDayContentProps {
   onTaskClick?: (task: Task) => void;
   onTaskLongPress?: (task: Task) => void;
   onNewsletterClick?: (newsletter: Newsletter) => void;
+  onHolidayClick?: (holiday: any) => void;
   isTaskSelected?: (task: Task) => boolean;
   onDragStart?: (task: Task) => void;
   onDragEnd?: () => void;
@@ -75,6 +76,7 @@ export const CalendarDayContent = ({
   onTaskClick,
   onTaskLongPress,
   onNewsletterClick,
+  onHolidayClick,
   isTaskSelected,
   onDragStart,
   onDragEnd,
@@ -101,13 +103,17 @@ export const CalendarDayContent = ({
       {holidays.length > 0 && (
         <div className="space-y-1">
           {holidays.map((holiday) => (
-            <div
+            <button
               key={holiday.id}
-              className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-md truncate border-l-2 border-amber-500"
-              title={`Holiday: ${holiday.holiday_name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onHolidayClick?.(holiday);
+              }}
+              className="w-full text-left text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-md truncate border-l-2 border-amber-500 hover:bg-amber-200 transition-colors duration-200 cursor-pointer"
+              title={`Click to view content for ${holiday.holiday_name}`}
             >
               🎉 {holiday.holiday_name}
-            </div>
+            </button>
           ))}
         </div>
       )}

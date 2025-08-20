@@ -18,6 +18,7 @@ interface CalendarGridProps {
   onTaskLongPress?: (task: any) => void;
   onCampaignClick: (campaign: any) => void;
   onNewsletterClick: (newsletter: any) => void;
+  onHolidayClick?: (holiday: any) => void;
   onEventClick?: (event: UnifiedCalendarEvent) => void;
   onDateClick: (date: Date) => void;
   selectedTasks: any[];
@@ -43,6 +44,7 @@ export const CalendarGrid = React.memo(({
   onTaskLongPress,
   onCampaignClick,
   onNewsletterClick,
+  onHolidayClick,
   onEventClick,
   onDateClick,
   selectedTasks,
@@ -226,6 +228,7 @@ export const CalendarGrid = React.memo(({
               onTaskLongPress={onTaskLongPress}
               onCampaignClick={onCampaignClick}
               onNewsletterClick={onNewsletterClick}
+              onHolidayClick={onHolidayClick}
               onDateClick={onDateClick}
               isCurrentMonth={isCurrentMonth}
               isToday={isToday}

@@ -9,6 +9,7 @@ import { DayEventsModal } from './calendar/DayEventsModal';
 import { NewsletterSchedulingModal } from './calendar/NewsletterSchedulingModal';
 import { NewsletterEditDrawer } from './calendar/NewsletterEditDrawer';
 import { WeeklyThemesReferenceModal } from './calendar/WeeklyThemesReferenceModal';
+import { HolidayContentViewer } from './dashboard/seasonal-holidays/HolidayContentViewer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useUnifiedCalendarData } from '@/hooks/useUnifiedCalendarData';
@@ -97,7 +98,18 @@ export const CalendarView = React.memo(({
   // Day events modal state
   const [dayEventsModalOpen, setDayEventsModalOpen] = useState(false);
   const [selectedDateForEvents, setSelectedDateForEvents] = useState<Date | null>(null);
-  
+
+  // Holiday content viewer state
+  const [holidayContentViewer, setHolidayContentViewer] = useState<{
+    isOpen: boolean;
+    holidayId: string | null;
+    holidayName: string;
+  }>({
+    isOpen: false,
+    holidayId: null,
+    holidayName: ''
+  });
+
   // Weekly themes reference modal state
   const [themesReferenceModalOpen, setThemesReferenceModalOpen] = useState(false);
 
@@ -257,10 +269,27 @@ export const CalendarView = React.memo(({
         });
         break;
       case 'holiday':
-        // Handle holiday content generation
-        handleHolidayGenerate(event.meta);
+        // Open holiday content viewer instead of generating
+        handleHolidayClick(event.meta);
         break;
     }
+  };
+
+  // Holiday click handler
+  const handleHolidayClick = (holiday: any) => {
+    setHolidayContentViewer({
+      isOpen: true,
+      holidayId: holiday.id,
+      holidayName: holiday.holiday_name
+    });
+  };
+
+  const handleHolidayContentViewerClose = () => {
+    setHolidayContentViewer({
+      isOpen: false,
+      holidayId: null,
+      holidayName: ''
+    });
   };
 
   // Holiday content generation
@@ -444,6 +473,7 @@ export const CalendarView = React.memo(({
               onTaskLongPress={handleTaskLongPress}
               onCampaignClick={handleCampaignClick}
               onNewsletterClick={handleNewsletterClick}
+              onHolidayClick={handleHolidayClick}
               onEventClick={handleEventClick}
               onDateClick={handleDateClick}
               selectedTasks={selectedTasks}
@@ -562,6 +592,18 @@ export const CalendarView = React.memo(({
           }
         }}
         onUpdate={onDataUpdate}
+      />
+
+      {/* Holiday Content Viewer */}
+      <HolidayContentViewer
+        holidayId={holidayContentViewer.holidayId || ''}
+        holidayName={holidayContentViewer.holidayName}
+        isOpen={holidayContentViewer.isOpen}
+        onClose={handleHolidayContentViewerClose}
+        onTaskUpdate={() => {
+          refetch();
+          onDataUpdate();
+        }}
       />
     </div>
   );

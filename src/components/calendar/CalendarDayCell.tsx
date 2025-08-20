@@ -57,6 +57,7 @@ interface CalendarDayCellProps {
   onTaskClick?: (task: Task) => void;
   onTaskLongPress?: (task: Task) => void;
   onNewsletterClick?: (newsletter: Newsletter) => void;
+  onHolidayClick?: (holiday: any) => void;
   onDateClick?: (date: Date) => void;
   selectionMode?: boolean;
   selectedCampaigns?: Campaign[];
@@ -85,6 +86,7 @@ export const CalendarDayCell = React.memo(({
   onTaskClick,
   onTaskLongPress,
   onNewsletterClick,
+  onHolidayClick,
   onDateClick,
   selectionMode = false,
   selectedCampaigns = [],
@@ -164,6 +166,7 @@ export const CalendarDayCell = React.memo(({
           onTaskClick={onTaskClick}
           onTaskLongPress={onTaskLongPress}
           onNewsletterClick={onNewsletterClick}
+          onHolidayClick={onHolidayClick}
           isTaskSelected={isTaskSelected}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
