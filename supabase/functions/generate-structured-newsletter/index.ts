@@ -129,6 +129,7 @@ ${isRestructuring ? '• Task: Restructure existing content into proper YAML for
 6. **NEVER use bullet points (•) or numbered lists (1., 2., 3.)** - write in flowing paragraphs only.
 7. **NEVER use the phrase "Green Thumbs"** or any variation.
 8. **MANDATORY: Verify proper sentence spacing before finalizing - every sentence must end with exactly two spaces before the next sentence.**
+9. **CRITICAL WEEK NUMBER RESTRICTION: Never mention "Week" followed by any number or "weekly" references in any context.**
 
 # STORYBRAND FRAMEWORK FOR EACH SECTION
 Each section must incorporate StoryBrand elements:
@@ -396,11 +397,39 @@ Template to follow: ${yamlTemplate}`
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    let yamlContent = data.choices[0].message.content;
 
-    // Extract YAML from response
-    const yamlMatch = content.match(/```yaml\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
-    const yamlContent = yamlMatch ? yamlMatch[1] : content;
+    // CRITICAL: Sanitize week numbers from generated YAML content
+    const originalYaml = yamlContent;
+    
+    // Apply comprehensive week number sanitization
+    yamlContent = yamlContent
+      // Remove basic week patterns
+      .replace(/Week\s+\d+\s*[-:]\s*/gi, '')
+      .replace(/Week\s+\d+(?!\s*\w)/gi, '')
+      .replace(/Week\s+#?\d+/gi, '')
+      // Remove weekly patterns  
+      .replace(/Weekly\s*[-:]\s*/gi, '')
+      .replace(/This\s+Week\s*[-:]\s*/gi, '')
+      // Remove seasonal focus patterns with weeks
+      .replace(/Seasonal\s+\w+\s+Focus\s*[-:]?\s*Week\s+\d+/gi, '')
+      // Clean up formatting
+      .replace(/^[-:\s,]+|[-:\s,]+$/gm, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    
+    // Log if sanitization occurred
+    if (yamlContent !== originalYaml) {
+      console.warn(`🚨 Week number sanitization applied to newsletter generation for theme: ${theme}`);
+    }
+
+    // Clean up YAML formatting
+    yamlContent = yamlContent
+      .replace(/```yaml\s*/gi, '')
+      .replace(/```\s*$/gi, '')
+      .trim();
+
+    console.log('StoryBrand newsletter generated successfully with theme focus and week sanitization');
 
     // Validate content for StoryBrand compliance and theme alignment
     const validation = validateStoryBrandContent(yamlContent);
@@ -425,19 +454,10 @@ Template to follow: ${yamlTemplate}`
 
     console.log(`Generated StoryBrand 4-section newsletter successfully for ${contentType}`);
 
-    return new Response(JSON.stringify({
-      success: true,
-      yamlContent: yamlContent, // Keep existing field name for compatibility
-      content: yamlContent,     // Also provide as content for flexibility
-      meta: {
-        campaign_id: null, // Will be set when associated with campaign
-        source: isRestructuring ? "content_restructure" : "weekly_theme",
-        crm_enabled: true,
-        linked_theme: theme,
-        generated_at: new Date().toISOString(),
-        content_type: isRestructuring ? "restructured_newsletter" : contentType,
-        restructured: isRestructuring
-      }
+    return new Response(JSON.stringify({ 
+      yamlContent,
+      theme: theme,
+      focus: contextualFocus 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

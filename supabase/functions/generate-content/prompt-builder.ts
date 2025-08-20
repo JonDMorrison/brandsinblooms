@@ -1,4 +1,6 @@
 
+import { addWeekNumberRestrictionsToPrompt } from './week-sanitizer.ts';
+
 export function buildContentPrompt(
   postType: string, 
   campaignTitle: string, 
@@ -104,7 +106,7 @@ Content should be immediately ready for publication and sound authentically help
 
   return `${storyBrandPrompt}
 ${formatGuidelines}
-${qualityAssurancePrompt}`;
+${addWeekNumberRestrictionsToPrompt(qualityAssurancePrompt)}`;
 }
 
 function getFormatGuidelines(postType: string, companyName: string): string {

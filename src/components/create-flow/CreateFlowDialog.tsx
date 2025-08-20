@@ -8,6 +8,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import { useToast } from "@/hooks/use-toast";
+import { sanitizeCampaignTitle } from "@/utils/weekNumberSanitizer";
 import { Loader2, AlertCircle } from "lucide-react";
 import { GeneratedContentModal } from "./GeneratedContentModal";
 import { getSeasonalTemplates, type SeasonalTemplate } from "@/utils/seasonalTemplateService";
@@ -98,7 +99,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
             currentWeek,
             originalCount: themes.length, 
             uniqueCount: sortedThemes.length,
-            sampleTitles: sortedThemes.slice(0, 5).map(t => `${t.title} (Week ${t.week_number})`)
+            sampleTitles: sortedThemes.slice(0, 5).map(t => sanitizeCampaignTitle(t.title))
           });
           setEvents(sortedThemes);
         } catch (error) {
@@ -140,7 +141,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
             originalCount: themes.length, 
             uniqueCount: sortedThemes.length,
             duplicatesRemoved: themes.length - sortedThemes.length,
-            sampleTitles: sortedThemes.slice(0, 5).map(t => `${t.title} (Week ${t.week_number})`)
+            sampleTitles: sortedThemes.slice(0, 5).map(t => sanitizeCampaignTitle(t.title))
           });
           setWeeklyThemes(sortedThemes);
         } catch (error) {
@@ -274,7 +275,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
               <div className="max-h-80 overflow-y-auto space-y-2">
                 {filteredEvents.slice(0, visibleEvents).map((e) => (
                   <button key={e.id} onClick={() => setSelectedSourceId(e.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===e.id?'ring-1':''}`}>
-                    <div className="font-medium">{e.title}</div>
+                    <div className="font-medium">{sanitizeCampaignTitle(e.title)}</div>
                     <div className="text-xs text-muted-foreground">{e.theme || e.content_ideas}</div>
                   </button>
                 ))}
@@ -311,7 +312,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
               <div className="max-h-80 overflow-y-auto space-y-2">
                 {filteredWeeklyThemes.slice(0, visibleWeeklyThemes).map((theme) => (
                   <button key={theme.id} onClick={() => setSelectedSourceId(theme.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===theme.id?'ring-1':''}`}>
-                    <div className="font-medium">{theme.title}</div>
+                    <div className="font-medium">{sanitizeCampaignTitle(theme.title)}</div>
                     <div className="text-xs text-muted-foreground">
                       {theme.theme || 'Weekly theme'}
                     </div>

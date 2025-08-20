@@ -1,7 +1,8 @@
 
 import { ValidationResult } from '../types/contentGeneration';
+import { validateNoWeekNumbers, sanitizeWeekNumbers } from './weekNumberSanitizer';
 
-// Comprehensive validation - including emojis and formatting
+// Comprehensive validation - including emojis, formatting, and week numbers
 export const FORBIDDEN_PATTERNS = [
   /\[company\s*name\]/gi,
   /\[garden\s*center\s*name\]/gi,
@@ -157,6 +158,12 @@ export function cleanVideoScript(content: string): string {
 export function validateContent(content: string): ValidationResult {
   const issues: string[] = [];
   
+  // Check for week number violations FIRST
+  const weekValidation = validateNoWeekNumbers(content);
+  if (!weekValidation.isValid) {
+    issues.push(...weekValidation.issues);
+  }
+  
   // Check for all forbidden patterns including emojis
   FORBIDDEN_PATTERNS.forEach((pattern, index) => {
     if (pattern.test(content)) {
@@ -205,5 +212,24 @@ export function validateContent(content: string): ValidationResult {
   return {
     isValid: issues.length === 0,
     issues
+  };
+}
+
+/**
+ * Enhanced validation that applies sanitization and then validates
+ */
+export function validateAndSanitizeContent(content: string): {
+  sanitized: string;
+  validation: ValidationResult;
+} {
+  // First sanitize week numbers
+  const sanitized = sanitizeWeekNumbers(content);
+  
+  // Then validate the sanitized content
+  const validation = validateContent(sanitized);
+  
+  return {
+    sanitized,
+    validation
   };
 }

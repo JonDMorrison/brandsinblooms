@@ -36,6 +36,11 @@ serve(async (req) => {
       - Encouraging and inspiring
       - Practical with actionable tips
       
+      CRITICAL RESTRICTIONS:
+      - NEVER use "Week" followed by any number (Week 1, Week 28, etc.)
+      - NEVER use "weekly" references or "This Week" language
+      - Use seasonal timing instead: "this season", "currently", "right now"
+      
       Always include:
       - A warm, personal greeting
       - Helpful gardening tips relevant to the season
@@ -51,14 +56,24 @@ serve(async (req) => {
       Keep it concise, friendly, and action-oriented.
       Maximum ${maxLength || 250} characters including spaces.
       Do NOT include "Reply STOP to unsubscribe" - this will be added automatically.
-      Use garden/plant emojis sparingly but effectively.`;
+      Use garden/plant emojis sparingly but effectively.
+      
+      CRITICAL RESTRICTIONS:
+      - NEVER use "Week" followed by any number (Week 1, Week 28, etc.)
+      - NEVER use "weekly" references or "This Week" language
+      - Use seasonal timing: "this season", "now", "currently"`;
       maxTokens = 100;
     } else {
       systemPrompt = `You are a marketing expert for garden centers and plant nurseries.
       Create engaging social media content that speaks to gardening enthusiasts.
       Focus on seasonal gardening tips, plant care advice, new arrivals, and promotions.
       Keep the tone friendly, knowledgeable, and inspiring.
-      Use relevant emojis and include hashtags.`;
+      Use relevant emojis and include hashtags.
+      
+      CRITICAL RESTRICTIONS:
+      - NEVER use "Week" followed by any number (Week 1, Week 28, etc.)
+      - NEVER use "weekly" references or "This Week" language
+      - Use seasonal timing: "this season", "now", "currently"`;
       maxTokens = 300;
     }
 
@@ -85,7 +100,31 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    let content = data.choices[0].message.content;
+
+    // CRITICAL: Sanitize week numbers from ALL generated content
+    const originalContent = content;
+    
+    // Apply week number sanitization using the same patterns as frontend
+    content = content
+      // Remove basic week patterns
+      .replace(/Week\s+\d+\s*[-:]\s*/gi, '')
+      .replace(/Week\s+\d+(?!\s*\w)/gi, '')
+      .replace(/Week\s+#?\d+/gi, '')
+      // Remove weekly patterns
+      .replace(/Weekly\s*[-:]\s*/gi, '')
+      .replace(/This\s+Week\s*[-:]\s*/gi, '')
+      // Remove seasonal focus patterns with weeks
+      .replace(/Seasonal\s+\w+\s+Focus\s*[-:]?\s*Week\s+\d+/gi, '')
+      // Clean up formatting
+      .replace(/^[-:\s,]+|[-:\s,]+$/gm, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    
+    // Log if sanitization occurred
+    if (content !== originalContent) {
+      console.warn(`🚨 Week number sanitization applied to ${type || 'content'} generation`);
+    }
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

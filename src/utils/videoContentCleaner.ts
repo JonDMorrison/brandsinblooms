@@ -1,5 +1,6 @@
 
 import { VIDEO_SCENE_PATTERNS, cleanVideoScript } from './contentValidation';
+import { sanitizeWeekNumbers } from './weekNumberSanitizer';
 
 export function cleanVideoContent(content: string): string {
   if (!content) return content;
@@ -11,6 +12,9 @@ export function cleanVideoContent(content: string): string {
   
   // First pass: Remove all scene information
   let cleaned = cleanVideoScript(content);
+  
+  // CRITICAL: Remove all week number references
+  cleaned = sanitizeWeekNumbers(cleaned);
   
   // Second pass: Additional specific cleaning for video content
   cleaned = cleaned

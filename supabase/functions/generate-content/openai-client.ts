@@ -1,5 +1,6 @@
 
 import { validateContent } from './validation.ts';
+import { sanitizeWeekNumbers, validateNoWeekNumbers } from './week-sanitizer.ts';
 
 export async function generateContentWithValidation(prompt: string, openAIApiKey: string, contentType?: string, maxAttempts: number = 3) {
   console.log(`🚀 OPTIMIZED: Starting content generation with max ${maxAttempts} attempts`);
@@ -147,17 +148,27 @@ Apply ALL quality guidelines above strictly. Focus on natural, conversational ga
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    let content = data.choices[0].message.content;
+    
+    // CRITICAL: Sanitize week numbers from generated content
+    content = sanitizeWeekNumbers(content);
     
     console.log(`Generated content attempt ${attemptNumber}:`, content.substring(0, 200));
     
-    // Validate the generated content
+    // Validate the generated content (including week number check)
     const validation = validateContent(content, contentType);
+    const weekValidation = validateNoWeekNumbers(content);
+    
+    // Combine all validation issues
+    const allIssues = [...validation.issues];
+    if (!weekValidation.isValid) {
+      allIssues.push(...weekValidation.issues);
+    }
     
     return {
       content,
-      isValid: validation.isValid,
-      issues: validation.issues
+      isValid: validation.isValid && weekValidation.isValid,
+      issues: allIssues
     };
 }
 
@@ -176,6 +187,9 @@ function attemptBasicCleanup(content: string): string {
   
   // Remove any emojis that might have slipped through
   cleaned = cleaned.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
+  
+  // CRITICAL: Remove any week number references that slipped through
+  cleaned = sanitizeWeekNumbers(cleaned);
   
   // Fix sentence spacing - ensure exactly two spaces after sentence endings
   cleaned = cleaned.replace(/([.!?])\s+([A-Z])/g, '$1  $2');

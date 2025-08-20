@@ -6,6 +6,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.38.0';
 import { corsHeaders } from './constants.ts';
 import { buildContentPrompt } from './prompt-builder.ts';
 import { generateContentWithValidation } from './openai-client.ts';
+import { sanitizeWeekNumbers, logWeekNumberViolation } from './week-sanitizer.ts';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -79,8 +80,16 @@ serve(async (req) => {
 
     console.log(`Generated high-quality content successfully after ${result.attempts} attempts`);
 
+    // Sanitize the final content to ensure no week numbers
+    const sanitizedContent = sanitizeWeekNumbers(result.content);
+    
+    // Log any week number violations that were found and removed
+    if (sanitizedContent !== result.content) {
+      logWeekNumberViolation(result.content, `${postType} generation for ${campaignTitle}`);
+    }
+
     return new Response(JSON.stringify({ 
-      content: result.content,
+      content: sanitizedContent,
       generationAttempts: result.attempts,
       validationPassed: true
     }), {

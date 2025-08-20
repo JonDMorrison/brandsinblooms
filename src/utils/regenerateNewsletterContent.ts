@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
 
 export async function regenerateNewsletterContent(
   contentTaskId: string,
@@ -42,11 +43,14 @@ export async function regenerateNewsletterContent(
       throw new Error('No YAML content received from generation function');
     }
 
+    // CRITICAL: Sanitize week numbers from regenerated content  
+    const sanitizedContent = sanitizeWeekNumbers(data.yamlContent);
+
     // Update the content task with the new structured content
     const { error: updateError } = await supabase
       .from('content_tasks')
       .update({
-        ai_output: data.yamlContent,
+        ai_output: sanitizedContent,
         status: 'completed'
       })
       .eq('id', contentTaskId);
@@ -56,7 +60,7 @@ export async function regenerateNewsletterContent(
       throw updateError;
     }
 
-    return data.yamlContent;
+    return sanitizedContent;
   } catch (error) {
     console.error('Error in regenerateNewsletterContent:', error);
     throw error;
