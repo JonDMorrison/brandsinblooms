@@ -206,7 +206,6 @@ export const BloomSuiteDashboard = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Sparkles className="w-8 h-8 text-yellow-500" />
             <h1 className="text-4xl font-bold text-gray-900">BloomSuite Dashboard</h1>
           </div>
           <p className="text-xl text-gray-600 mb-6">
