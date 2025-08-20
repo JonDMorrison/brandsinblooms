@@ -49,6 +49,8 @@ interface CalendarDayCellProps {
   campaigns: Campaign[];
   tasks?: Task[];
   newsletters?: Newsletter[];
+  holidays?: any[];
+  scheduledPosts?: any[];
   isCurrentMonth: boolean;
   isToday: boolean;
   onCampaignClick?: (campaign: Campaign) => void;
@@ -75,6 +77,8 @@ export const CalendarDayCell = React.memo(({
   campaigns,
   tasks = [],
   newsletters = [],
+  holidays = [],
+  scheduledPosts = [],
   isCurrentMonth,
   isToday,
   onCampaignClick,
@@ -150,6 +154,8 @@ export const CalendarDayCell = React.memo(({
           campaigns={campaigns}
           tasks={tasks}
           newsletters={newsletters}
+          holidays={holidays}
+          scheduledPosts={scheduledPosts}
           selectionMode={selectionMode}
           selectedCampaigns={selectedCampaigns}
           isPastDate={isPastDate}

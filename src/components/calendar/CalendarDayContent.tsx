@@ -46,6 +46,8 @@ interface CalendarDayContentProps {
   campaigns: Campaign[];
   tasks: Task[];
   newsletters?: Newsletter[];
+  holidays?: any[];
+  scheduledPosts?: any[];
   selectionMode?: boolean;
   selectedCampaigns?: Campaign[];
   isPastDate: boolean;
@@ -63,6 +65,8 @@ export const CalendarDayContent = ({
   campaigns,
   tasks,
   newsletters = [],
+  holidays = [],
+  scheduledPosts = [],
   selectionMode = true,
   selectedCampaigns = [],
   isPastDate,
@@ -82,12 +86,44 @@ export const CalendarDayContent = ({
   
   const totalItemsShown = Math.min(campaigns.length, maxCampaignsToShow) + 
                           Math.min(tasks.length, maxTasksToShow) + 
-                          Math.min(newsletters.length, maxNewslettersToShow);
-  const totalItems = campaigns.length + tasks.length + newsletters.length;
+                          Math.min(newsletters.length, maxNewslettersToShow) +
+                          holidays.length + 
+                          Math.min(scheduledPosts.length, 2);
+  const totalItems = campaigns.length + tasks.length + newsletters.length + holidays.length + scheduledPosts.length;
   const hasMoreItems = totalItems > totalItemsShown;
 
   return (
     <div className="space-y-1.5">
+      {/* Holidays - display first and prominently */}
+      {holidays.length > 0 && (
+        <div className="space-y-1">
+          {holidays.map((holiday) => (
+            <div
+              key={holiday.id}
+              className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-md truncate border-l-2 border-amber-500"
+              title={`Holiday: ${holiday.holiday_name}`}
+            >
+              🎉 {holiday.holiday_name}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Scheduled Posts */}
+      {scheduledPosts.length > 0 && (
+        <div className="space-y-1">
+          {scheduledPosts.slice(0, 2).map((post) => (
+            <div
+              key={post.id}
+              className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-md truncate border-l-2 border-blue-500"
+              title={`${post.platform || 'Post'} at ${post.publish_at ? new Date(post.publish_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}`}
+            >
+              📱 {post.platform || 'Post'} {post.publish_at ? new Date(post.publish_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Campaigns - only show those that start on this date */}
       {campaigns.length > 0 && (
         <CalendarCampaignList

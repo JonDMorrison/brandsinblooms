@@ -29,23 +29,22 @@ export const useSeasonalHolidays = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch holidays with client-side expired filtering - fetch up to 20 for pagination
+  // Fetch holidays for the full year to show annual holidays
   const fetchHolidays = useCallback(async () => {
     try {
-      console.log('Fetching seasonal holidays...');
+      console.log('Fetching seasonal holidays for full year...');
       
       const today = new Date();
-      const threeMonthsFromNow = new Date();
-      threeMonthsFromNow.setMonth(today.getMonth() + 3);
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(today.getFullYear() + 1);
 
       const { data, error } = await supabase
         .from('holidays')
         .select('*')
         .eq('is_active', true)
         .gte('holiday_date', today.toISOString().split('T')[0])
-        .lte('holiday_date', threeMonthsFromNow.toISOString().split('T')[0])
-        .order('holiday_date', { ascending: true })
-        .limit(20); // Fetch up to 20 for pagination
+        .lte('holiday_date', oneYearFromNow.toISOString().split('T')[0])
+        .order('holiday_date', { ascending: true });
 
       if (error) {
         console.error('Error fetching holidays:', error);

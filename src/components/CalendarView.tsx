@@ -5,6 +5,7 @@ import { CalendarHeader } from './calendar/CalendarHeader';
 import { CalendarPlanningPanel } from './calendar/CalendarPlanningPanel';
 import { CalendarListView } from './calendar/CalendarListView';
 import { QuickAddSheet } from './calendar/QuickAddSheet';
+import { DayEventsModal } from './calendar/DayEventsModal';
 import { NewsletterSchedulingModal } from './calendar/NewsletterSchedulingModal';
 import { NewsletterEditDrawer } from './calendar/NewsletterEditDrawer';
 import { Button } from '@/components/ui/button';
@@ -83,6 +84,10 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
   const [selectedNewsletter, setSelectedNewsletter] = useState<any>(null);
   const [selectedDateForNewsletter, setSelectedDateForNewsletter] = useState<Date | null>(null);
   const [newsletterMode, setNewsletterMode] = useState<'create' | 'edit'>('create');
+  
+  // Day events modal state
+  const [dayEventsModalOpen, setDayEventsModalOpen] = useState(false);
+  const [selectedDateForEvents, setSelectedDateForEvents] = useState<Date | null>(null);
 
   // Use the drag and drop hook with proper handlers
   const { isDragging, draggedTask, handleDragStart, handleDragEnd, handleDrop } = useDragAndDrop(() => {
@@ -325,10 +330,9 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
   };
 
   const handleDateClick = (date: Date) => {
-    // Open newsletter creation modal for selected date
-    setSelectedDateForNewsletter(date);
-    setNewsletterMode('create');
-    setNewsletterModalOpen(true);
+    // Open day events modal to show all events for this date
+    setSelectedDateForEvents(date);
+    setDayEventsModalOpen(true);
   };
 
   // Newsletter action handlers
@@ -420,10 +424,7 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
               onCampaignClick={handleCampaignClick}
               onNewsletterClick={handleNewsletterClick}
               onEventClick={handleEventClick}
-              onDateClick={(date) => {
-                setSelectedDateForQuickAdd(date);
-                setQuickAddOpen(true);
-              }}
+              onDateClick={handleDateClick}
               selectedTasks={selectedTasks}
               onDrop={handleDrop}
               isTaskSelected={isTaskSelected}
@@ -516,6 +517,18 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
           }}
         />
       )}
+
+      {/* Day Events Modal */}
+      <DayEventsModal
+        isOpen={dayEventsModalOpen}
+        onClose={() => {
+          setDayEventsModalOpen(false);
+          setSelectedDateForEvents(null);
+        }}
+        date={selectedDateForEvents}
+        events={events}
+        onEventClick={handleEventClick}
+      />
     </div>
   );
 });

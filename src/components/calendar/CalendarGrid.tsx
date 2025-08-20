@@ -3,7 +3,6 @@ import React from 'react';
 import { CalendarDayCell } from './CalendarDayCell';
 import { addDays, startOfWeek, startOfMonth, endOfMonth, isSameMonth, format } from 'date-fns';
 import { UnifiedCalendarEvent } from '@/hooks/useUnifiedCalendarData';
-import { filterSeasonallyAlignedCampaigns } from '@/utils/seasonalAlignment';
 
 interface CalendarGridProps {
   campaigns: any[];
@@ -72,15 +71,16 @@ export const CalendarGrid = React.memo(({
   const campaignsByDate = React.useMemo(() => {
     const map = new Map<string, any[]>();
     
-    // Filter out seasonally misaligned campaigns first
-    const alignedCampaigns = filterSeasonallyAlignedCampaigns(campaigns);
-    
-    alignedCampaigns.forEach(campaign => {
+    campaigns.forEach(campaign => {
       if (!campaign.start_date) {
         return;
       }
       
-      const dateKey = format(new Date(campaign.start_date), 'yyyy-MM-dd');
+      // Normalize campaign display date to the Monday of the week for weekly themes
+      const campaignDate = new Date(campaign.start_date);
+      const mondayOfWeek = startOfWeek(campaignDate, { weekStartsOn: 1 });
+      const dateKey = format(mondayOfWeek, 'yyyy-MM-dd');
+      
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
       }
@@ -143,6 +143,40 @@ export const CalendarGrid = React.memo(({
     return map;
   }, [newsletters]);
 
+  // Create a map of date strings to holidays for efficient lookup
+  const holidaysByDate = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    
+    holidays.forEach(holiday => {
+      if (!holiday.holiday_date) return;
+      
+      const dateKey = format(new Date(holiday.holiday_date), 'yyyy-MM-dd');
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey)!.push(holiday);
+    });
+    
+    return map;
+  }, [holidays]);
+
+  // Create a map of date strings to scheduled posts for efficient lookup
+  const scheduledPostsByDate = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    
+    scheduledPosts.forEach(post => {
+      if (!post.publish_at) return;
+      
+      const dateKey = format(new Date(post.publish_at), 'yyyy-MM-dd');
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey)!.push(post);
+    });
+    
+    return map;
+  }, [scheduledPosts]);
+
   const days = generateDays;
   const gridCols = viewMode === 'week' ? 'grid-cols-7' : 'grid-cols-7';
   const dayHeight = viewMode === 'week' ? 'h-full' : 'min-h-[120px]';
@@ -169,10 +203,12 @@ export const CalendarGrid = React.memo(({
         {days.map((date) => {
           const dateKey = format(date, 'yyyy-MM-dd');
           
-          // Get campaigns, tasks, and newsletters for this specific date only
+          // Get campaigns, tasks, newsletters, holidays, and scheduled posts for this specific date only
           const dayCampaigns = campaignsByDate.get(dateKey) || [];
           const dayTasks = tasksByDate.get(dateKey) || [];
           const dayNewsletters = newslettersByDate.get(dateKey) || [];
+          const dayHolidays = holidaysByDate.get(dateKey) || [];
+          const dayScheduledPosts = scheduledPostsByDate.get(dateKey) || [];
 
           const isCurrentMonth = viewMode === 'week' || isSameMonth(date, currentDate);
           const isToday = date.toDateString() === new Date().toDateString();
@@ -184,6 +220,8 @@ export const CalendarGrid = React.memo(({
               campaigns={dayCampaigns}
               tasks={dayTasks}
               newsletters={dayNewsletters}
+              holidays={dayHolidays}
+              scheduledPosts={dayScheduledPosts}
               onTaskClick={onTaskClick}
               onTaskLongPress={onTaskLongPress}
               onCampaignClick={onCampaignClick}
