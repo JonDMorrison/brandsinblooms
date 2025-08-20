@@ -52,13 +52,23 @@ export const generateStructuredNewsletter = async (
       throw new Error(`Structured newsletter generation failed: ${error.message || 'Unknown error'}`);
     }
 
-    const content = data?.content;
+    const content = data?.yamlContent;
     if (!content) {
       throw new Error('No structured newsletter content returned');
     }
 
     // Clean any remaining week references from the content
     const cleanedContent = cleanContentFromWeekReferences(content);
+
+    // Validate newsletter content quality
+    const isValidNewsletter = cleanedContent.includes('newsletter_md: |') && 
+                             (cleanedContent.match(/## /g) || []).length >= 3 &&
+                             cleanedContent.length > 250;
+
+    if (!isValidNewsletter) {
+      console.warn(`⚠️ Generated newsletter failed validation - missing structure or too short. Length: ${cleanedContent.length}`);
+      throw new Error('Generated newsletter content is invalid or incomplete');
+    }
 
     // Validate that the content has the expected 4-section structure
     const blockMatches = cleanedContent.match(/- title:/g);

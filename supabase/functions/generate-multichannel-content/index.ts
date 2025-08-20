@@ -255,12 +255,43 @@ async function generateForChannel(
       } catch (e) {
         console.warn("[generate-multichannel-content] structured newsletter failed, falling back", e);
       }
+      // Robust server-side fallback with proper newsletter structure
+      const fallbackContent = `newsletter_md: |
+  # ${topic} Newsletter
+  *Expert gardening insights for ${topic.toLowerCase()} success*
+
+  ## Transform Your Garden with ${topic} Expertise
+  Many gardeners struggle to know the best approach for ${topic.toLowerCase()}.  At your local garden center, our experts understand this challenge and have solutions ready to help you succeed.
+
+  ## Discover Professional ${topic} Solutions  
+  Our team has years of experience helping customers achieve their ${topic.toLowerCase()} goals.  We provide personalized advice and premium supplies to ensure your garden thrives throughout the season.
+
+  ## Prevent Common ${topic} Problems
+  Don't let common mistakes derail your ${topic.toLowerCase()} success.  Our knowledgeable staff can guide you through proper techniques and timing to avoid costly setbacks.
+
+  ## Plan Your ${topic} Success Story
+  Picture your garden flourishing with the right ${topic.toLowerCase()} approach.  Visit us today to create your personalized action plan and get started on your journey to gardening success.
+
+blocks:
+  - title: "Transform Your Garden with ${topic} Expertise"
+    body: "Many gardeners struggle to know the best approach for ${topic.toLowerCase()}.  At your local garden center, our experts understand this challenge and have solutions ready to help you succeed."
+    cta: "Get ${topic.toLowerCase()} guidance"
+    link: "#"
+  - title: "Discover Professional ${topic} Solutions"
+    body: "Our team has years of experience helping customers achieve their ${topic.toLowerCase()} goals.  We provide personalized advice and premium supplies to ensure your garden thrives throughout the season."
+    cta: "Shop ${topic.toLowerCase()} supplies"
+    link: "#"
+  - title: "Prevent Common ${topic} Problems"
+    body: "Don't let common mistakes derail your ${topic.toLowerCase()} success.  Our knowledgeable staff can guide you through proper techniques and timing to avoid costly setbacks."
+    cta: "Learn ${topic.toLowerCase()} tips"
+    link: "#"
+  - title: "Plan Your ${topic} Success Story"
+    body: "Picture your garden flourishing with the right ${topic.toLowerCase()} approach.  Visit us today to create your personalized action plan and get started on your journey to gardening success."
+    cta: "Start planning"
+    link: "#"`;
+      
       const blocks = generateNewsletterBlocksServer(topic);
-      const body = (blocks || [])
-        .map((b: any) => b?.title || b?.headline || b?.content || b?.body)
-        .filter((s: string) => !!s)
-        .join("\n\n");
-      return { channel: "newsletter", title: topic, body, blocks, media: null };
+      return { channel: "newsletter", title: topic, body: fallbackContent, blocks, media: null };
     }
     case "instagram": {
       const content = await callGenerateContent(supabase, {
@@ -333,7 +364,7 @@ async function callGenerateStructuredNewsletter(
     },
   });
   if (error) throw error;
-  return (data as any)?.content as string;
+  return (data as any)?.yamlContent as string;
 }
 
 function generateNewsletterBlocksServer(topic: string) {

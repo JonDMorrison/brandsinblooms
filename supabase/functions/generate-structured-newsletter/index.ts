@@ -288,7 +288,7 @@ newsletter_md: |
   [Write 2-3 sentences about upcoming opportunities, painting picture of future garden success.]
 
   ---
-  Transform your garden with **${businessName}** 🌿
+  Transform your garden with **${businessName}**
 blocks:
   - title: "${headlines.h1}"
     body: "[StoryBrand content: specific to ${theme} theme in paragraph form]"
@@ -415,7 +415,9 @@ Template to follow: ${yamlTemplate}`
       .replace(/Seasonal\s+\w+\s+Focus\s*[-:]?\s*Week\s+\d+/gi, '')
       // Clean up formatting
       .replace(/^[-:\s,]+|[-:\s,]+$/gm, '')
-      .replace(/\s{2,}/g, ' ')
+      // Normalize line endings without collapsing intentional spacing
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
       .trim();
     
     // Log if sanitization occurred
