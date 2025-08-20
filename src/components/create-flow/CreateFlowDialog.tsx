@@ -77,14 +77,23 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   useEffect(() => {
     if (step === 2 && selectedPath === 'event') {
       (async () => {
-        const today = new Date().toISOString().slice(0,10);
-        const { data } = await supabase
-          .from('campaigns')
-          .select('id,title,start_date,theme,description')
-          .gte('start_date', today)
-          .order('start_date', { ascending: true })
-          .limit(25);
-        setEvents(data || []);
+        console.info('[CreateFlowDialog] Event fetch: loading master templates for events');
+        try {
+          // Use master templates instead of user campaigns for events too
+          const themes = await getSeasonalTemplates();
+          const uniqueThemes = themes.filter((theme, index, array) => 
+            array.findIndex(t => t.title.trim().toLowerCase() === theme.title.trim().toLowerCase()) === index
+          );
+          console.info('[CreateFlowDialog] Event themes loaded and deduplicated', { 
+            originalCount: themes.length, 
+            uniqueCount: uniqueThemes.length,
+            sampleTitles: uniqueThemes.slice(0, 5).map(t => `${t.title} (Week ${t.week_number})`)
+          });
+          setEvents(uniqueThemes);
+        } catch (error) {
+          console.error('[CreateFlowDialog] Failed to load event themes', error);
+          setEvents([]);
+        }
       })();
     }
     if (step === 2 && selectedPath === 'seasonal') {
@@ -125,7 +134,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   // Derived filtered lists
   const filteredEvents = useMemo(() => {
     const term = search.toLowerCase();
-    return events.filter((e) => !term || e.title?.toLowerCase().includes(term));
+    return events.filter((e) => !term || e.title?.toLowerCase().includes(term) || (e.theme || '').toLowerCase().includes(term) || (e.content_ideas || '').toLowerCase().includes(term));
   }, [events, search]);
 
   const filteredWeeklyThemes = useMemo(() => {
@@ -164,9 +173,11 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
           notes: notes || undefined,
         };
       }
-      // Pass explicit topic details for seasonal ideas so the generator prioritizes them
-      if (selectedPath === 'seasonal' && selectedSourceId) {
-        const picked = weeklyThemes.find((theme) => theme.id === selectedSourceId);
+      // Pass explicit topic details for both event and seasonal paths
+      if ((selectedPath === 'seasonal' || selectedPath === 'event') && selectedSourceId) {
+        const picked = selectedPath === 'seasonal' 
+          ? weeklyThemes.find((theme) => theme.id === selectedSourceId)
+          : events.find((theme) => theme.id === selectedSourceId);
         if (picked) {
           payload.topicTitle = `Week ${picked.week_number}: ${picked.title}`;
           payload.topicDescription = picked.theme || picked.content_ideas || '';
@@ -239,17 +250,17 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
 
           {step === 2 && selectedPath === 'event' && (
             <div className="space-y-3">
-              <Input placeholder="Search events" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="Search themes" value={search} onChange={(e) => setSearch(e.target.value)} />
               <div className="max-h-80 overflow-y-auto space-y-2">
                 {filteredEvents.slice(0, visibleEvents).map((e) => (
                   <button key={e.id} onClick={() => setSelectedSourceId(e.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===e.id?'ring-1':''}`}>
-                    <div className="font-medium">{e.title}</div>
-                    <div className="text-xs text-muted-foreground">{e.theme || e.description}</div>
+                    <div className="font-medium">Week {e.week_number}: {e.title}</div>
+                    <div className="text-xs text-muted-foreground">{e.theme || e.content_ideas}</div>
                   </button>
                 ))}
                 {filteredEvents.length === 0 && (
                   <div className="text-sm text-muted-foreground">
-                    {search ? 'No results for your search.' : 'No upcoming events. Try Custom Content instead.'}
+                    {search ? 'No results for your search.' : 'No themes available. Try Custom Content instead.'}
                   </div>
                 )}
                 {filteredEvents.length > visibleEvents && (
