@@ -13,6 +13,8 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { GeneratedContentModal } from "./GeneratedContentModal";
 import { getSeasonalTemplates, type SeasonalTemplate } from "@/utils/seasonalTemplateService";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
+import { differenceInDays } from "date-fns";
 
 // Local helper: format a YYYY-MM-DD string to a readable date
 const fmtLocalDate = (d?: string) => {
@@ -29,7 +31,7 @@ interface CreateFlowDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type Mode = 'event'|'seasonal'|'custom';
+type Mode = 'seasonal'|'holiday'|'custom';
 
 export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) {
   const { toast } = useToast();
@@ -50,15 +52,17 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   const [tone, setTone] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
 
-  // Event/Seasonal data
-  const [events, setEvents] = useState<any[]>([]);
+  // Seasonal and Holiday data
   const [weeklyThemes, setWeeklyThemes] = useState<SeasonalTemplate[]>([]);
   const [search, setSearch] = useState("");
 
+  // Holiday data hook
+  const { allHolidays } = useSeasonalHolidays();
+
   // Pagination (UI-only)
   const PAGE_SIZE = 12;
-  const [visibleEvents, setVisibleEvents] = useState(PAGE_SIZE);
   const [visibleWeeklyThemes, setVisibleWeeklyThemes] = useState(PAGE_SIZE);
+  const [visibleHolidays, setVisibleHolidays] = useState(PAGE_SIZE);
 
   useEffect(() => {
     if (!open) {
@@ -71,43 +75,12 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
 
   // Reset pagination when context changes
   useEffect(() => {
-    setVisibleEvents(PAGE_SIZE);
     setVisibleWeeklyThemes(PAGE_SIZE);
+    setVisibleHolidays(PAGE_SIZE);
   }, [search, step, selectedPath]);
 
-  // Fetch data for Events & Seasonal
+  // Fetch data for Seasonal 
   useEffect(() => {
-    if (step === 2 && selectedPath === 'event') {
-      (async () => {
-        console.info('[CreateFlowDialog] Event fetch: loading master templates for events');
-        try {
-          // Use master templates instead of user campaigns for events too
-          const themes = await getSeasonalTemplates();
-          const uniqueThemes = themes.filter((theme, index, array) => 
-            array.findIndex(t => t.title.trim().toLowerCase() === theme.title.trim().toLowerCase()) === index
-          );
-          
-          // Sort by proximity to current week for better relevance
-          const currentWeek = getCurrentWeekNumber();
-          const sortedThemes = uniqueThemes.sort((a, b) => {
-            const aDistance = Math.min(Math.abs(a.week_number - currentWeek), Math.abs((a.week_number + 52) - currentWeek), Math.abs(a.week_number - (currentWeek + 52)));
-            const bDistance = Math.min(Math.abs(b.week_number - currentWeek), Math.abs((b.week_number + 52) - currentWeek), Math.abs(b.week_number - (currentWeek + 52)));
-            return aDistance - bDistance;
-          });
-          
-          console.info('[CreateFlowDialog] Event themes loaded and deduplicated', { 
-            currentWeek,
-            originalCount: themes.length, 
-            uniqueCount: sortedThemes.length,
-            sampleTitles: sortedThemes.slice(0, 5).map(t => sanitizeCampaignTitle(t.title))
-          });
-          setEvents(sortedThemes);
-        } catch (error) {
-          console.error('[CreateFlowDialog] Failed to load event themes', error);
-          setEvents([]);
-        }
-      })();
-    }
     if (step === 2 && selectedPath === 'seasonal') {
       (async () => {
         console.info('[CreateFlowDialog] Seasonal fetch: loading weekly themes');
@@ -153,16 +126,25 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   }, [step, selectedPath]);
 
   // Derived filtered lists
-  const filteredEvents = useMemo(() => {
-    const term = search.toLowerCase();
-    return events.filter((e) => !term || e.title?.toLowerCase().includes(term) || (e.theme || '').toLowerCase().includes(term) || (e.content_ideas || '').toLowerCase().includes(term));
-  }, [events, search]);
-
   const filteredWeeklyThemes = useMemo(() => {
     const term = search.toLowerCase();
     return weeklyThemes
       .filter((theme) => !term || theme.title.toLowerCase().includes(term) || (theme.theme || '').toLowerCase().includes(term) || (theme.content_ideas || '').toLowerCase().includes(term));
   }, [weeklyThemes, search]);
+
+  const filteredHolidays = useMemo(() => {
+    const term = search.toLowerCase();
+    const now = new Date();
+    const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    
+    return allHolidays
+      .filter(holiday => {
+        const holidayDate = new Date(holiday.holiday_date);
+        return holidayDate >= now && holidayDate <= oneYearFromNow;
+      })
+      .filter((holiday) => !term || holiday.holiday_name.toLowerCase().includes(term) || (holiday.description || '').toLowerCase().includes(term) || (holiday.garden_relevance || '').toLowerCase().includes(term))
+      .sort((a, b) => new Date(a.holiday_date).getTime() - new Date(b.holiday_date).getTime());
+  }, [allHolidays, search]);
 
   const canContinue = useMemo(() => selectedPath !== null, [selectedPath]);
   const canGenerate = useMemo(() => {
@@ -194,14 +176,19 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
           notes: notes || undefined,
         };
       }
-      // Pass explicit topic details for both event and seasonal paths
-      if ((selectedPath === 'seasonal' || selectedPath === 'event') && selectedSourceId) {
-        const picked = selectedPath === 'seasonal' 
-          ? weeklyThemes.find((theme) => theme.id === selectedSourceId)
-          : events.find((theme) => theme.id === selectedSourceId);
+      // Pass explicit topic details for seasonal and holiday paths
+      if (selectedPath === 'seasonal' && selectedSourceId) {
+        const picked = weeklyThemes.find((theme) => theme.id === selectedSourceId);
         if (picked) {
           payload.topicTitle = `Week ${picked.week_number}: ${picked.title}`;
           payload.topicDescription = picked.theme || picked.content_ideas || '';
+        }
+      }
+      if (selectedPath === 'holiday' && selectedSourceId) {
+        const picked = allHolidays.find((holiday) => holiday.id === selectedSourceId);
+        if (picked) {
+          payload.topicTitle = picked.holiday_name;
+          payload.topicDescription = picked.garden_relevance || picked.description || '';
         }
       }
 
@@ -253,9 +240,9 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
           {step === 1 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { key: 'event', title: 'Seasonal Plant Care Tips', desc: 'Give advice to your customers based on time of year.' },
-                { key: 'seasonal', title: 'Weekly Garden Themes', desc: 'Choose from 52 weekly gardening themes designed for year-round content.' },
-                { key: 'custom', title: 'Post My Own Custom Content', desc: 'Bring your idea—AI drafts content in your voice.' },
+                { key: 'seasonal', title: 'Seasonal Themes & Care Tips', desc: 'Choose from 52 weekly themes and seasonal care tips.' },
+                { key: 'holiday', title: 'Holidays', desc: 'Pick from upcoming annual holidays—AI drafts your posts.' },
+                { key: 'custom', title: 'Custom Idea', desc: 'Bring your idea—AI drafts content in your voice.' },
               ].map((opt) => (
                 <button
                   key={opt.key}
@@ -269,30 +256,46 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
             </div>
           )}
 
-          {step === 2 && selectedPath === 'event' && (
+          {step === 2 && selectedPath === 'holiday' && (
             <div className="space-y-3">
-              <Input placeholder="Search themes" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="Search holidays" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <div className="text-xs text-muted-foreground">
+                Upcoming holidays ({filteredHolidays.length} shown)
+              </div>
               <div className="max-h-80 overflow-y-auto space-y-2">
-                {filteredEvents.slice(0, visibleEvents).map((e) => (
-                  <button key={e.id} onClick={() => setSelectedSourceId(e.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===e.id?'ring-1':''}`}>
-                    <div className="font-medium">{sanitizeCampaignTitle(e.title)}</div>
-                    <div className="text-xs text-muted-foreground">{e.theme || e.content_ideas}</div>
-                  </button>
-                ))}
-                {filteredEvents.length === 0 && (
+                {filteredHolidays.slice(0, visibleHolidays).map((holiday) => {
+                  const daysUntil = differenceInDays(new Date(holiday.holiday_date), new Date());
+                  return (
+                    <button key={holiday.id} onClick={() => setSelectedSourceId(holiday.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===holiday.id?'ring-1':''}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium">{holiday.holiday_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {fmtLocalDate(holiday.holiday_date)}
+                          {daysUntil < 14 && daysUntil > 0 && (
+                            <span className="ml-2 inline-block px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">Urgent</span>
+                          )}
+                        </div>
+                      </div>
+                      {holiday.garden_relevance && (
+                        <div className="text-xs text-muted-foreground mt-1">{holiday.garden_relevance}</div>
+                      )}
+                    </button>
+                  );
+                })}
+                {filteredHolidays.length === 0 && (
                   <div className="text-sm text-muted-foreground">
-                    {search ? 'No results for your search.' : 'No themes available. Try Custom Content instead.'}
+                    {search ? 'No holidays match your search.' : 'No upcoming holidays found. Try Custom Content instead.'}
                   </div>
                 )}
-                {filteredEvents.length > visibleEvents && (
+                {filteredHolidays.length > visibleHolidays && (
                   <div className="pt-2">
-                    <Button variant="secondary" onClick={() => setVisibleEvents((v) => v + PAGE_SIZE)}>Load more</Button>
+                    <Button variant="secondary" onClick={() => setVisibleHolidays((v) => v + PAGE_SIZE)}>Load more</Button>
                   </div>
                 )}
               </div>
               <div className="pt-2 space-y-2">
                 <Label>Channels</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <ChannelCheckbox name="instagram" label="Instagram" />
                   <ChannelCheckbox name="facebook" label="Facebook" />
                   <ChannelCheckbox name="newsletter" label="Newsletter" />

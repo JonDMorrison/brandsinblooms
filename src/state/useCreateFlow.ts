@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type CreatePath = 'event' | 'seasonal' | 'custom' | null;
+export type CreatePath = 'seasonal' | 'holiday' | 'custom' | null;
 
 type Channel = 'newsletter'|'instagram'|'facebook'|'video'|'blog';
 

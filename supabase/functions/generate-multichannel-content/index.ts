@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 interface GenerateInput {
-  mode: "event" | "seasonal" | "custom";
+  mode: "seasonal" | "holiday" | "custom";
   sourceId?: string;
   userIdea?: {
     title: string;
@@ -189,14 +189,20 @@ async function resolveContext(supabase: any, input: GenerateInput) {
     };
   }
 
-  if (input.mode === "event" && input.sourceId) {
+  if (input.mode === "holiday" && input.sourceId) {
     const { data } = await supabase
-      .from("campaigns")
-      .select("id,title,theme,description")
+      .from("seasonal_holidays")
+      .select("id,holiday_name,description,garden_relevance")
       .eq("id", input.sourceId)
       .limit(1)
       .maybeSingle();
-    if (data) return data;
+    if (data) {
+      return {
+        id: data.id,
+        title: data.holiday_name,
+        description: data.garden_relevance || data.description,
+      };
+    }
   }
 
   if (input.mode === "seasonal" && input.sourceId) {
