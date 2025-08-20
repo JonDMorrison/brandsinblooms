@@ -254,28 +254,13 @@ async function generateForChannel(
         }
       } catch (e) {
         console.warn("[generate-multichannel-content] structured newsletter failed, falling back", e);
-        // Generate basic newsletter content as fallback
-        const fallbackContent = `# ${topic}
-
-Welcome to this edition focused on ${topic.toLowerCase()}. As your trusted garden center partner, we're here to help you succeed with expert advice and quality plants.
-
-## Expert Garden Guidance
-
-When it comes to ${topic.toLowerCase()}, timing and technique make all the difference. Our experienced team has helped thousands of gardeners achieve beautiful results through every season.
-
-## Quality Plants & Supplies
-
-Visit us to discover our carefully selected plants and professional-grade supplies. Everything you need for successful ${topic.toLowerCase()} is here waiting for you.
-
-## Your Garden Success Story
-
-Transform your outdoor space with confidence. Stop by this week for personalized advice and see how we can help make your garden dreams a reality.
-
-Visit us today and let's grow something amazing together!`;
-        
-        const blocks = generateNewsletterBlocksServer(topic);
-        return { channel: "newsletter", title: topic, body: fallbackContent, blocks, media: null };
       }
+      const blocks = generateNewsletterBlocksServer(topic);
+      const body = (blocks || [])
+        .map((b: any) => b?.title || b?.headline || b?.content || b?.body)
+        .filter((s: string) => !!s)
+        .join("\n\n");
+      return { channel: "newsletter", title: topic, body, blocks, media: null };
     }
     case "instagram": {
       const content = await callGenerateContent(supabase, {

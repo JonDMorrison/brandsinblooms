@@ -288,7 +288,7 @@ newsletter_md: |
   [Write 2-3 sentences about upcoming opportunities, painting picture of future garden success.]
 
   ---
-  Transform your garden with **${businessName}**
+  Transform your garden with **${businessName}** 🌿
 blocks:
   - title: "${headlines.h1}"
     body: "[StoryBrand content: specific to ${theme} theme in paragraph form]"
@@ -563,15 +563,6 @@ function validateThemeAlignment(content: string, theme: string): {
   } else if (lowerTheme.includes('tree')) {
     const treeTerms = ['tree', 'arborist', 'pruning', 'trunk', 'branches'];
     hasThemeContent = treeTerms.some(term => lowerContent.includes(term));
-  } else if (lowerTheme.includes('fall') || lowerTheme.includes('autumn')) {
-    const fallTerms = ['fall', 'autumn', 'winter', 'cool', 'transition', 'preparation', 'seasonal', 'planting', 'soil'];
-    hasThemeContent = fallTerms.some(term => lowerContent.includes(term));
-  } else if (lowerTheme.includes('spring')) {
-    const springTerms = ['spring', 'planting', 'soil', 'early', 'preparation', 'garden'];
-    hasThemeContent = springTerms.some(term => lowerContent.includes(term));
-  } else if (lowerTheme.includes('summer')) {
-    const summerTerms = ['summer', 'heat', 'water', 'watering', 'hot', 'protection'];
-    hasThemeContent = summerTerms.some(term => lowerContent.includes(term));
   } else {
     // For other themes, check if theme name appears in content
     hasThemeContent = lowerContent.includes(lowerTheme.split(' ')[0]) || 
@@ -608,20 +599,6 @@ function validateThemeAlignment(content: string, theme: string): {
     } else if (lowerTheme.includes('vegetarian') && (headlineText.includes('vegetable') || headlineText.includes('plant'))) {
       themeRelevantHeadlines++;
     } else if (lowerTheme.includes('tree') && headlineText.includes('tree')) {
-      themeRelevantHeadlines++;
-    } else if ((lowerTheme.includes('fall') || lowerTheme.includes('autumn')) && 
-               (headlineText.includes('fall') || headlineText.includes('autumn') || 
-                headlineText.includes('winter') || headlineText.includes('transition') ||
-                headlineText.includes('cool') || headlineText.includes('preparation') ||
-                headlineText.includes('seasonal') || headlineText.includes('planting'))) {
-      themeRelevantHeadlines++;
-    } else if (lowerTheme.includes('spring') && 
-               (headlineText.includes('spring') || headlineText.includes('planting') || 
-                headlineText.includes('early') || headlineText.includes('soil'))) {
-      themeRelevantHeadlines++;
-    } else if (lowerTheme.includes('summer') && 
-               (headlineText.includes('summer') || headlineText.includes('heat') || 
-                headlineText.includes('water') || headlineText.includes('hot'))) {
       themeRelevantHeadlines++;
     }
   });
