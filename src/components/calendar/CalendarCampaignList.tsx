@@ -26,8 +26,8 @@ export const CalendarCampaignList = ({
   selectedCampaigns = [],
   onCampaignClick,
 }: CalendarCampaignListProps) => {
-  // Campaigns are now pre-filtered by CalendarGrid, so no need for deduplication
-  
+  // Sort campaigns by ID descending to show newest first, then show only 1
+  const sortedCampaigns = [...campaigns].sort((a, b) => b.id - a.id);
 
   const isCampaignSelected = (campaign: Campaign) => {
     return selectedCampaigns.some(c => c.id === campaign.id);
@@ -40,10 +40,10 @@ export const CalendarCampaignList = ({
     }
   };
 
-  // Show up to 2 campaigns per day to maintain clean UI
+  // Show only 1 campaign per day to avoid duplicates
   return (
     <>
-      {campaigns.slice(0, 2).map((campaign) => {
+      {sortedCampaigns.slice(0, 1).map((campaign) => {
         const isSelected = isCampaignSelected(campaign);
         
         return (

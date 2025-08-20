@@ -80,7 +80,7 @@ export const CalendarDayContent = ({
   onDragEnd,
 }: CalendarDayContentProps) => {
   // Calculate how many items we can show based on available space
-  const maxCampaignsToShow = 2;
+  const maxCampaignsToShow = 1;
   const maxTasksToShow = campaigns.length > 0 ? 2 : 3;
   const maxNewslettersToShow = 2;
   
