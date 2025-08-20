@@ -6,6 +6,7 @@ import { Lightbulb, Calendar, Filter } from 'lucide-react';
 import { CalendarPlanningFilters } from './CalendarPlanningFilters';
 import { CalendarHolidaysList } from './CalendarHolidaysList';
 import { MASTER_WEEKLY_THEMES } from '@/data/masterWeeklyThemes';
+import { getCurrentWeekNumber } from '@/utils/dateUtils';
 
 interface CalendarPlanningPanelProps {
   filters: any;
@@ -27,6 +28,13 @@ export const CalendarPlanningPanel = ({
   onHolidayAction
 }: CalendarPlanningPanelProps) => {
   const [activeTab, setActiveTab] = useState('ideas');
+
+  // Get current week number and reorder themes to start from current week
+  const currentWeek = getCurrentWeekNumber();
+  const reorderedThemes = [
+    ...MASTER_WEEKLY_THEMES.slice(currentWeek - 1),
+    ...MASTER_WEEKLY_THEMES.slice(0, currentWeek - 1)
+  ];
 
   return (
     <div className="w-80 bg-background border-l border-border">
@@ -67,7 +75,7 @@ export const CalendarPlanningPanel = ({
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {MASTER_WEEKLY_THEMES.map((theme) => (
+                        {reorderedThemes.map((theme) => (
                           <div 
                             key={theme.week_number} 
                             className="p-2 bg-slate-50 rounded-lg border hover:bg-slate-100 transition-colors cursor-pointer"
