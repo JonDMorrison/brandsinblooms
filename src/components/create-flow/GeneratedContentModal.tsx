@@ -12,6 +12,7 @@ import { MediaSelector } from "@/components/image/MediaSelector";
 import { EmailPreview } from "@/components/crm/EmailPreview";
 import { convertNewsletterToCRM_Direct } from "@/utils/newsletterToCrmSync";
 import { buildEmailHtmlFromNewsletter } from "@/utils/newsletterToCrmConverter";
+import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
 
 interface GeneratedContentModalProps {
   open: boolean;
@@ -193,28 +194,28 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2 space-y-2">
                     <Input
-                      value={item.title || ''}
+                      value={sanitizeWeekNumbers(item.title || '')}
                       onChange={(e) => editItem(idx, { title: e.target.value })}
                       placeholder="Title (optional)"
                     />
                     {item.channel === 'instagram' || item.channel === 'facebook' ? (
                       <textarea
                         className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
-                        value={item.caption || ''}
+                        value={sanitizeWeekNumbers(item.caption || '')}
                         onChange={(e) => editItem(idx, { caption: e.target.value })}
                         placeholder="Write a caption"
                       />
                     ) : item.channel === 'video' ? (
                       <textarea
                         className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
-                        value={item.script || ''}
+                        value={sanitizeWeekNumbers(item.script || '')}
                         onChange={(e) => editItem(idx, { script: e.target.value })}
                         placeholder="Write a short video script"
                       />
                     ) : item.channel === 'blog' ? (
                       <div className="w-full">
                         <RichTextEditor
-                          content={item.markdown || item.body || ''}
+                          content={sanitizeWeekNumbers(item.markdown || item.body || '')}
                           onChange={(html) => editItem(idx, { markdown: html })}
                           placeholder="Write and format your blog content"
                           className="w-full"
@@ -225,7 +226,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                         <>
                           <textarea
                             className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
-                            value={item.body || ''}
+                            value={sanitizeWeekNumbers(item.body || '')}
                             onChange={(e) => editItem(idx, { body: e.target.value })}
                             placeholder="Write newsletter body"
                           />
@@ -263,7 +264,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                       ) : (
                         <textarea
                           className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
-                          value={item.body || ''}
+                          value={sanitizeWeekNumbers(item.body || '')}
                           onChange={(e) => editItem(idx, { body: e.target.value })}
                           placeholder="Write body"
                         />
