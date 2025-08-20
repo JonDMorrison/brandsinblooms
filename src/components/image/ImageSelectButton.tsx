@@ -101,7 +101,8 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
           ) : (
             <Button 
               variant="outline" 
-              className="w-full h-32 border-2 border-dashed border-primary/30 hover:border-primary/50 bg-surface-primary/20 hover:bg-surface-primary/30 text-text-secondary hover:text-text-primary transition-all duration-200"
+              size="sm"
+              className="w-full border-2 border-dashed border-primary/30 hover:border-primary/50 bg-surface-primary/20 hover:bg-surface-primary/30 text-text-secondary hover:text-text-primary transition-all duration-200"
             >
               <div className="flex flex-col items-center gap-2">
                 <ImageIcon className="w-6 h-6" />
