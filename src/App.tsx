@@ -10,7 +10,7 @@ import { PublicRoute } from '@/components/PublicRoute';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { SmartRootRoute } from '@/components/SmartRootRoute';
 import { DataProviderWrapper } from '@/components/DataProviderWrapper';
-import OnboardingPage from '@/pages/OnboardingPage';
+import OnboardingPage from '@/pages/OnboardingPage'; // Force refresh
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewslettersPage } from '@/pages/NewslettersPage';
 import { TemplatesPage } from '@/pages/TemplatesPage';
