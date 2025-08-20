@@ -3,6 +3,7 @@ import React from 'react';
 import { CalendarDayCell } from './CalendarDayCell';
 import { addDays, startOfWeek, startOfMonth, endOfMonth, isSameMonth, format } from 'date-fns';
 import { UnifiedCalendarEvent } from '@/hooks/useUnifiedCalendarData';
+import { filterSeasonallyAlignedCampaigns } from '@/utils/seasonalAlignment';
 
 interface CalendarGridProps {
   campaigns: any[];
@@ -71,7 +72,10 @@ export const CalendarGrid = React.memo(({
   const campaignsByDate = React.useMemo(() => {
     const map = new Map<string, any[]>();
     
-    campaigns.forEach(campaign => {
+    // Filter out seasonally misaligned campaigns first
+    const alignedCampaigns = filterSeasonallyAlignedCampaigns(campaigns);
+    
+    alignedCampaigns.forEach(campaign => {
       if (!campaign.start_date) {
         return;
       }
