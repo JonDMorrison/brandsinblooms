@@ -13,20 +13,7 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
   const { isCompleted, isLoading: onboardingLoading, error: onboardingError } = useOnboardingStatus();
   const { setLoading, clearLoading } = useLoading();
-  const [timeoutReached, setTimeoutReached] = useState(false);
   const [hasCheckedOnce, setHasCheckedOnce] = useState(false);
-
-  // Production ready state check
-
-  // Simplified timeout logic
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      console.log('⏰ OnboardingGuard: Timeout reached, assuming completion');
-      setTimeoutReached(true);
-    }, 10000); // Increased to 10 seconds for better reliability
-
-    return () => clearTimeout(timeout);
-  }, []);
 
   // Track when initial checks are done
   useEffect(() => {
@@ -36,20 +23,20 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   }, [authLoading, onboardingLoading]);
 
   // Simplified loading logic - only show loading during auth or initial onboarding check
-  const shouldShowLoading = authLoading || (onboardingLoading && !timeoutReached && !onboardingError);
+  const shouldShowLoading = authLoading || (onboardingLoading && !onboardingError);
 
   // Manage onboarding loading state in global context
   useEffect(() => {
     if (shouldShowLoading) {
       setLoading('onboarding', {
         isLoading: true,
-        message: timeoutReached ? 'Loading is taking longer than expected...' : 'Checking your setup...',
+        message: 'Checking your setup...',
         priority: 'onboarding'
       });
     } else {
       clearLoading('onboarding');
     }
-  }, [shouldShowLoading, timeoutReached, setLoading, clearLoading]);
+  }, [shouldShowLoading, setLoading, clearLoading]);
 
   // Don't render anything while loading - let GlobalLoadingOverlay handle it
   if (shouldShowLoading) {
@@ -64,7 +51,6 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   // Simplified redirect logic - only redirect if we're certain onboarding is incomplete
   const shouldRedirectToOnboarding = user && 
     !isCompleted && 
-    !timeoutReached && 
     !onboardingError &&
     hasCheckedOnce &&
     window.location.pathname !== '/onboarding';
@@ -72,7 +58,6 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   console.log('🔍 OnboardingGuard: Decision state', {
     user: !!user,
     isCompleted,
-    timeoutReached,
     onboardingError,
     hasCheckedOnce,
     pathname: window.location.pathname,

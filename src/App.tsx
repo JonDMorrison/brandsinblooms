@@ -10,6 +10,7 @@ import { PublicRoute } from '@/components/PublicRoute';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { SmartRootRoute } from '@/components/SmartRootRoute';
 import { DataProviderWrapper } from '@/components/DataProviderWrapper';
+import OnboardingPage from '@/pages/OnboardingPage';
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewslettersPage } from '@/pages/NewslettersPage';
 import { TemplatesPage } from '@/pages/TemplatesPage';
@@ -47,6 +48,16 @@ function App() {
             <PublicRoute>
               <AuthPage />
             </PublicRoute>
+          } />
+          <Route path="/onboarding" element={
+            <ProtectedRoute>
+              <OnboardingPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/onboarding/manual" element={
+            <ProtectedRoute>
+              <OnboardingPage />
+            </ProtectedRoute>
           } />
           <Route path="/" element={<SmartRootRoute />} />
           

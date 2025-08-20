@@ -2,6 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { OnboardingGuard } from "@/components/OnboardingGuard";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -25,5 +26,9 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/auth" replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <OnboardingGuard>
+      {children}
+    </OnboardingGuard>
+  );
 };
