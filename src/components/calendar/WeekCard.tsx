@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { CampaignItem } from "./CampaignItem";
-import { getWeekDateRange, getCurrentWeekNumber } from "@/utils/dateUtils";
+import { getWeekDateRange, getCurrentWeekNumber, dateToWeekNumber } from "@/utils/dateUtils";
 
 interface Campaign {
   id: number;
@@ -29,12 +29,13 @@ export const WeekCard = ({
   isCurrentWeek, 
   onThemeUpdate 
 }: WeekCardProps) => {
-  const weekNumber = weekCampaigns[0].week_number;
-  const { startDate, endDate } = getWeekDateRange(weekNumber, currentYear);
+  // Calculate the actual week number from the campaign's start_date
+  const actualWeekNumber = dateToWeekNumber(new Date(weekCampaigns[0].start_date));
+  const { startDate, endDate } = getWeekDateRange(actualWeekNumber, currentYear);
   const currentWeek = getCurrentWeekNumber();
 
   // Check if this is actually the current week based on ISO week calculation
-  const isActualCurrentWeek = weekNumber === currentWeek;
+  const isActualCurrentWeek = actualWeekNumber === currentWeek;
 
   return (
     <Card className="border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow w-full max-w-none overflow-hidden">
@@ -45,7 +46,7 @@ export const WeekCard = ({
               <div className="flex items-center gap-2 min-w-0">
                 <CalendarIcon className="w-5 h-5 text-gray-600 flex-shrink-0" />
                 <CardTitle className="text-lg font-semibold text-gray-900 truncate">
-                  Week {weekNumber} ({currentYear})
+                  Week {actualWeekNumber} ({currentYear})
                 </CardTitle>
               </div>
               {isActualCurrentWeek && (

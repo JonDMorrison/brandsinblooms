@@ -34,7 +34,7 @@ export const ThemeDisplay = ({
                 <Lightbulb className="w-5 h-5 text-orange-600" />
                 <h4 className="font-semibold text-gray-900">Theme</h4>
               </div>
-              <p className="text-gray-800 font-medium mb-3">{currentTheme}</p>
+              <p className="text-gray-800 font-medium mb-3">{currentTheme.replace(/\s*-\s*Week\s+\d+/i, '')}</p>
               
               {currentDescription && (
                 <>

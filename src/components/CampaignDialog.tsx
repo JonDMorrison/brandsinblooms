@@ -46,15 +46,19 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
   };
 
   const calculateStartDate = (weekNumber: number) => {
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
+    const currentYear = new Date().getFullYear();
     
-    // Calculate the start of the year
-    const startOfYear = new Date(currentYear, 0, 1);
+    // Calculate the start date for the given ISO week
+    const jan4 = new Date(currentYear, 0, 4);
+    const jan4WeekDay = jan4.getDay() || 7; // Make Sunday = 7
     
-    // Calculate the start date for the selected week
-    const daysToAdd = (weekNumber - 1) * 7;
-    const weekStartDate = new Date(startOfYear.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+    // Find the Monday of week 1
+    const week1Monday = new Date(jan4);
+    week1Monday.setDate(jan4.getDate() - jan4WeekDay + 1);
+    
+    // Calculate the Monday of the target week
+    const weekStartDate = new Date(week1Monday);
+    weekStartDate.setDate(week1Monday.getDate() + (weekNumber - 1) * 7);
     
     return weekStartDate.toISOString().split('T')[0];
   };

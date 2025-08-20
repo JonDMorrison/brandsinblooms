@@ -1,5 +1,6 @@
 
 import { Badge } from "@/components/ui/badge";
+import { dateToWeekNumber } from "@/utils/dateUtils";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +69,7 @@ export const CalendarCampaignList = ({
                 {campaign.title}
               </h4>
               <Badge className="text-xs bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 px-2 py-1 shrink-0 shadow-sm border-blue-200/50">
-                W{campaign.week_number}
+                W{dateToWeekNumber(new Date(campaign.start_date))}
               </Badge>
             </div>
             

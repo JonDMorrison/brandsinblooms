@@ -8,6 +8,7 @@ import { ThemeDisplay } from "./ThemeDisplay";
 import { ThemeEditor } from "./ThemeEditor";
 import { CampaignContentSection } from "./CampaignContentSection";
 import { supabase } from "@/integrations/supabase/client";
+import { dateToWeekNumber } from "@/utils/dateUtils";
 // Removed sonner import - using global toast replacement
 
 interface Campaign {
@@ -31,6 +32,9 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
   const [contentUpdateKey, setContentUpdateKey] = useState(0);
 
   if (!campaign) return null;
+
+  // Calculate the actual week number from the campaign's start_date
+  const actualWeekNumber = dateToWeekNumber(new Date(campaign.start_date));
 
   const handleThemeUpdate = async (newTheme: string, newDescription?: string) => {
     try {
@@ -101,7 +105,7 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
                 {getStatusBadge()}
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="w-4 h-4" />
-                  Week {campaign.week_number}
+                  Week {actualWeekNumber}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Clock className="w-4 h-4" />
@@ -168,7 +172,7 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
                   campaignId={campaign.id.toString()}
                   currentTheme={campaign.theme || ""}
                   currentDescription={campaign.description || ""}
-                  weekNumber={campaign.week_number}
+                  weekNumber={actualWeekNumber}
                   onSave={handleThemeUpdate}
                   onCancel={() => setIsEditing(false)}
                 />
@@ -177,7 +181,7 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
                   campaignId={campaign.id.toString()}
                   currentTheme={campaign.theme || ""}
                   currentDescription={campaign.description}
-                  weekNumber={campaign.week_number}
+                  weekNumber={actualWeekNumber}
                   onEdit={() => setIsEditing(true)}
                   onContentGenerated={handleContentGenerated}
                 />
