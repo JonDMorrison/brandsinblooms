@@ -99,23 +99,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           const finalResults = supplementWithFallbacks(results, defaultQuery);
           setSearchResults(finalResults);
           
-          // Auto-select the first image if available and no image is currently selected
-          if (finalResults.length > 0 && !selectedImageUrl) {
-            const firstImage = finalResults[0];
-            const imageMetadata = {
-              source: 'unsplash',
-              alt_text: firstImage.alt,
-              photographer: firstImage.photographer,
-              photographer_url: firstImage.photographer_url,
-              unsplash_id: firstImage.id,
-              thumb: firstImage.thumb,
-              download_location: firstImage.download_location
-            };
-            
-            console.log('[MediaSelector] Auto-selecting first image:', firstImage.url);
-            setSelectedImageMetadata(imageMetadata);
-            onImageSelect(firstImage.url, imageMetadata);
-          }
+          // Images loaded - user can now select manually
+          console.log('[MediaSelector] Images loaded, waiting for user selection:', finalResults.length, 'images available');
         } catch (error) {
           console.error('[MediaSelector] Error loading suggestions:', error);
         }
@@ -348,7 +333,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               </span>
             </div>
             <div className="grid grid-cols-3 gap-3 min-h-[200px]">
-              {searchResults.slice(1, 4).map((image, index) => {
+              {searchResults.slice(0, 3).map((image, index) => {
                 console.log('[MediaSelector] Compact - Rendering thumbnail:', index, {
                   id: image.id,
                   thumb: image.thumb,
@@ -403,11 +388,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 );
               })}
             </div>
-            {searchResults.length > 4 && (
               <p className="text-xs text-gray-500 text-center">
-                Showing 3 of {searchResults.length - 1} alternative options.
+                Showing 3 of {searchResults.length} options.
               </p>
-            )}
           </div>
         )}
 
@@ -537,7 +520,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           </h4>
           
            <div className="grid grid-cols-3 gap-4 min-h-[160px]">
-            {searchResults.slice(1, 4).map((image, index) => {
+            {searchResults.slice(0, 3).map((image, index) => {
               console.log('[MediaSelector] Browse mode - rendering thumbnail:', index, {
                 id: image.id,
                 thumb: image.thumb,
@@ -587,7 +570,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             })}
           </div>
           
-          {searchResults.length > 4 && (
+          {searchResults.length > 3 && (
             <div className="text-center">
               <Button 
                 variant="outline" 
