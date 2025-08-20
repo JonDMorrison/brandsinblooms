@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Send, Zap, Image, X } from 'lucide-react';
+import { Send, Zap, Image, X, CheckCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { twilioClient } from '@/lib/sms/twilioClient';
 import { ImageUploader } from '@/lib/image/imageUploader';
@@ -21,6 +21,8 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [processingImage, setProcessingImage] = useState(false);
+  const [imageStatus, setImageStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -33,9 +35,14 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
     
     // Check if file type is supported
     if (!allowedTypes.includes(file.type)) {
+      setImageStatus('error');
       toast.error('Only JPG, PNG, and GIF images are supported for MMS');
       return;
     }
+
+    setProcessingImage(true);
+    setImageStatus('processing');
+    toast.info('Processing image...');
 
     try {
       let processedFile = file;
@@ -58,26 +65,38 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
 
         // Check if compression worked
         if (processedFile.size > 500 * 1024) {
+          setImageStatus('error');
           toast.error('Image is still too large after compression. Please use a smaller image.');
           return;
         }
         
-        toast.success(`Image compressed from ${Math.round(file.size / 1024)}KB to ${Math.round(processedFile.size / 1024)}KB`);
+        toast.success(`Image optimized: ${Math.round(file.size / 1024)}KB → ${Math.round(processedFile.size / 1024)}KB`);
+      } else {
+        toast.success('Image ready for MMS');
       }
 
       setImageFile(processedFile);
+      setImageStatus('success');
+      
+      // Generate preview
       const reader = new FileReader();
       reader.onload = (e) => setImagePreview(e.target?.result as string);
       reader.readAsDataURL(processedFile);
+      
     } catch (error) {
       console.error('Image processing error:', error);
+      setImageStatus('error');
       toast.error('Failed to process image. Please try a different image.');
+    } finally {
+      setProcessingImage(false);
     }
   };
 
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setImageStatus('idle');
+    setProcessingImage(false);
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -180,57 +199,111 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
 
           {/* Image Upload for MMS */}
           <div>
-            <Label>Image (Optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label>Image (Optional)</Label>
+              {imageStatus !== 'idle' && (
+                <div className="flex items-center space-x-1 text-xs">
+                  {imageStatus === 'processing' && (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span className="text-muted-foreground">Processing...</span>
+                    </>
+                  )}
+                  {imageStatus === 'success' && (
+                    <>
+                      <CheckCircle className="h-3 w-3 text-green-600" />
+                      <span className="text-green-600">Ready</span>
+                    </>
+                  )}
+                  {imageStatus === 'error' && (
+                    <>
+                      <X className="h-3 w-3 text-red-600" />
+                      <span className="text-red-600">Error</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="mt-1">
               {imagePreview ? (
                 <div className="relative">
                   <img 
                     src={imagePreview} 
                     alt="MMS Preview" 
-                    className="w-full h-32 object-cover rounded-lg border"
+                    className={`w-full h-32 object-cover rounded-lg border transition-opacity ${
+                      processingImage ? 'opacity-50' : 'opacity-100'
+                    }`}
                   />
+                  {processingImage && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
+                      <Loader2 className="h-6 w-6 animate-spin text-white" />
+                    </div>
+                  )}
                   <Button
                     type="button"
                     variant="secondary"
                     size="sm"
                     onClick={handleRemoveImage}
                     className="absolute top-2 right-2"
+                    disabled={processingImage}
                   >
                     <X className="h-4 w-4" />
                   </Button>
+                  {imageFile && (
+                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                      {Math.round(imageFile.size / 1024)}KB
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center">
-                  <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Add image for MMS (max 500KB)
-                  </p>
-                  <label>
-                    <Button type="button" variant="outline" size="sm" asChild>
-                      <span>Select Image</span>
-                    </Button>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/gif"
-                      onChange={handleImageSelect}
-                      className="hidden"
-                    />
-                  </label>
+                  {processingImage ? (
+                    <div className="space-y-2">
+                      <Loader2 className="h-8 w-8 mx-auto text-muted-foreground animate-spin" />
+                      <p className="text-sm text-muted-foreground">
+                        Processing image...
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Add image for MMS (max 500KB)
+                      </p>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+                          input?.click();
+                        }}
+                      >
+                        Select Image
+                      </Button>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/gif"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                      />
+                    </>
+                  )}
                 </div>
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              JPG, PNG, and GIF only. Large images are automatically compressed to fit MMS limits.
+              JPG, PNG, and GIF only. Large images are automatically optimized for MMS.
             </p>
           </div>
 
           <Button 
             type="submit" 
-            disabled={sending || uploading || !phone || !message}
+            disabled={sending || uploading || processingImage || !phone || !message}
             className="w-full"
           >
             <Send className="h-4 w-4 mr-2" />
-            {uploading ? 'Uploading...' : sending ? 'Sending...' : imageFile ? 'Send Test MMS' : 'Send Test SMS'}
+            {processingImage ? 'Processing Image...' : uploading ? 'Uploading Image...' : sending ? 'Sending...' : imageFile ? 'Send Test MMS' : 'Send Test SMS'}
           </Button>
         </form>
       </CardContent>
