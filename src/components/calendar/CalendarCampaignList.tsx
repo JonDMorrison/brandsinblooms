@@ -65,12 +65,9 @@ export const CalendarCampaignList = ({
             )}
             
             <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-gray-800 truncate pr-2">
+              <h4 className="font-semibold text-gray-800 truncate">
                 {campaign.title}
               </h4>
-              <Badge className="text-xs bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 px-2 py-1 shrink-0 shadow-sm border-blue-200/50">
-                W{dateToWeekNumber(new Date(campaign.start_date))}
-              </Badge>
             </div>
             
             {campaign.theme && campaign.theme !== campaign.title && (
