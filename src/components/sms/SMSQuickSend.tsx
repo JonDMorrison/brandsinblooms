@@ -457,13 +457,23 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                         Upload Image
                       </Button>
                       <span className="text-xs text-muted-foreground">or</span>
-                      <ImageSelectButton
-                        onImageSelect={handleExternalImageSelect}
-                        contentContext={message || "MMS image"}
-                        buttonText="Browse Free Images"
-                        mode="modal"
-                        compact
-                      />
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.stopPropagation();
+                          }
+                        }}
+                        onTouchStart={(e) => e.stopPropagation()}
+                      >
+                        <ImageSelectButton
+                          onImageSelect={handleExternalImageSelect}
+                          contentContext={message || "MMS image"}
+                          buttonText="Browse Free Images"
+                          mode="modal"
+                          compact
+                        />
+                      </div>
                     </div>
                   </div>
                 )}

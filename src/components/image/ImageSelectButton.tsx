@@ -79,7 +79,16 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <div className={className}>
+        <div 
+          className={className}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.stopPropagation();
+            }
+          }}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
           {selectedImageUrl ? (
             <div className="relative group cursor-pointer">
               <img 
@@ -100,6 +109,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
             </div>
           ) : (
             <Button 
+              type="button"
               variant="outline" 
               size="sm"
               className="w-full border-2 border-dashed border-primary/30 hover:border-primary/50 bg-surface-primary/20 hover:bg-surface-primary/30 text-text-secondary hover:text-text-primary transition-all duration-200"
