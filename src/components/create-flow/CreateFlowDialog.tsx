@@ -92,8 +92,16 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
         console.info('[CreateFlowDialog] Seasonal fetch: loading weekly themes');
         try {
           const themes = await getSeasonalTemplates();
-          console.info('[CreateFlowDialog] Weekly themes loaded', { count: themes.length });
-          setWeeklyThemes(themes);
+          // Ensure no duplicates at component level as well
+          const uniqueThemes = themes.filter((theme, index, array) => 
+            array.findIndex(t => t.title === theme.title) === index
+          );
+          console.info('[CreateFlowDialog] Weekly themes loaded and deduplicated', { 
+            originalCount: themes.length, 
+            uniqueCount: uniqueThemes.length,
+            sampleTitles: uniqueThemes.slice(0, 5).map(t => `${t.title} (Week ${t.week_number})`)
+          });
+          setWeeklyThemes(uniqueThemes);
         } catch (error) {
           console.error('[CreateFlowDialog] Failed to load weekly themes', error);
           setWeeklyThemes([]);

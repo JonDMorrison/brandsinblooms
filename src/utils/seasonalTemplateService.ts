@@ -25,7 +25,18 @@ export const getSeasonalTemplates = async (weekNumber?: number): Promise<Seasona
     const { data, error } = await query;
 
     if (error) throw error;
-    return data || [];
+    
+    // Deduplicate by title to prevent duplicate content
+    const seenTitles = new Set<string>();
+    const deduplicated = (data || []).filter(template => {
+      if (seenTitles.has(template.title)) {
+        return false;
+      }
+      seenTitles.add(template.title);
+      return true;
+    });
+    
+    return deduplicated;
   } catch (error) {
     console.error('Error fetching seasonal templates:', error);
     return [];
