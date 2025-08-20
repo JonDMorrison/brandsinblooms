@@ -1695,6 +1695,9 @@ export type Database = {
           segment_id: string | null
           sent_at: string | null
           status: string
+          targeting_logic: string | null
+          targeting_persona_ids: string[] | null
+          targeting_persona_names: string[] | null
           tenant_id: string | null
           updated_at: string
           user_id: string | null
@@ -1711,6 +1714,9 @@ export type Database = {
           segment_id?: string | null
           sent_at?: string | null
           status?: string
+          targeting_logic?: string | null
+          targeting_persona_ids?: string[] | null
+          targeting_persona_names?: string[] | null
           tenant_id?: string | null
           updated_at?: string
           user_id?: string | null
@@ -1727,6 +1733,9 @@ export type Database = {
           segment_id?: string | null
           sent_at?: string | null
           status?: string
+          targeting_logic?: string | null
+          targeting_persona_ids?: string[] | null
+          targeting_persona_names?: string[] | null
           tenant_id?: string | null
           updated_at?: string
           user_id?: string | null
