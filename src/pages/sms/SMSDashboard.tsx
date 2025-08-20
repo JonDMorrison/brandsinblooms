@@ -38,23 +38,23 @@ export default function SMSDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">SMS Campaigns</h1>
-          <p className="text-muted-foreground">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-3xl font-bold tracking-tight whitespace-nowrap truncate">SMS Campaigns</h1>
+          <p className="text-muted-foreground mt-1">
             Create and manage your SMS marketing campaigns
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {twilioSetup?.isSetup ? (
-            <Badge variant="outline" className="text-green-600 border-green-200">
+            <Badge variant="outline" className="text-green-600 border-green-200 whitespace-nowrap">
               <CheckCircle className="h-3 w-3 mr-1" />
               SMS Ready
             </Badge>
           ) : (
             <SMSSetupWizard
               trigger={
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="whitespace-nowrap">
                   <Zap className="h-4 w-4 mr-2" />
                   Setup Wizard
                 </Button>
@@ -65,11 +65,12 @@ export default function SMSDashboard() {
           <Button
             variant="outline"
             onClick={() => navigate('/sms/automations')}
+            className="whitespace-nowrap"
           >
             <SettingsIcon className="h-4 w-4 mr-2" />
             Automations
           </Button>
-          <Button onClick={handleCreateCampaign} size="lg">
+          <Button onClick={handleCreateCampaign} size="lg" className="whitespace-nowrap">
             <PlusIcon className="h-4 w-4 mr-2" />
             Create Campaign
           </Button>
