@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Send, Zap, Image, X, CheckCircle, Loader2, Globe } from 'lucide-react';
+import { Send, Zap, Image, X, CheckCircle, Loader2, Globe, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { twilioClient } from '@/lib/sms/twilioClient';
 import { ImageUploader } from '@/lib/image/imageUploader';
@@ -28,13 +28,14 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
   // External image state
   const [externalImageUrl, setExternalImageUrl] = useState<string | null>(null);
   const [externalImageMetadata, setExternalImageMetadata] = useState<any>(null);
+  // Drag and drop state
+  const [isDragActive, setIsDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Reset input to allow selecting the same file again
-    e.target.value = '';
+  const processFile = async (file: File) => {
+    // Clear external image if local file is selected
+    setExternalImageUrl(null);
+    setExternalImageMetadata(null);
 
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
     
@@ -95,6 +96,40 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
     } finally {
       setProcessingImage(false);
     }
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input to allow selecting the same file again
+    e.target.value = '';
+
+    await processFile(file);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      await processFile(files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(false);
+  };
+
+  const handleBrowseClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleRemoveImage = () => {
@@ -234,7 +269,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
 
           {/* Image Upload for MMS */}
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-2">
               <Label>Image (Optional)</Label>
               {imageStatus !== 'idle' && (
                 <div className="flex items-center space-x-1 text-xs">
@@ -259,91 +294,136 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                 </div>
               )}
             </div>
-            <div className="mt-1">
-              {(imagePreview || externalImageUrl) ? (
-                <div className="relative">
-                  <img 
-                    src={imagePreview || externalImageUrl || ''} 
-                    alt="MMS Preview" 
-                    className={`w-full h-32 object-cover rounded-lg border transition-opacity ${
-                      processingImage ? 'opacity-50' : 'opacity-100'
-                    }`}
-                  />
-                  {processingImage && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
-                      <Loader2 className="h-6 w-6 animate-spin text-white" />
-                    </div>
-                  )}
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleRemoveImage}
-                    className="absolute top-2 right-2"
-                    disabled={processingImage}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                  {imageFile && (
-                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                      {Math.round(imageFile.size / 1024)}KB
-                    </div>
-                  )}
-                  {externalImageUrl && (
-                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
-                      <Globe className="h-3 w-3" />
-                      <span>Unsplash</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center">
-                  {processingImage ? (
-                    <div className="space-y-2">
-                      <Loader2 className="h-8 w-8 mx-auto text-muted-foreground animate-spin" />
-                      <p className="text-sm text-muted-foreground">
-                        Processing image...
+
+            {(imagePreview || externalImageUrl) ? (
+              <div className="relative">
+                <img 
+                  src={imagePreview || externalImageUrl || ''} 
+                  alt="MMS Preview" 
+                  className={`w-full h-32 object-cover rounded-lg border transition-opacity ${
+                    processingImage ? 'opacity-50' : 'opacity-100'
+                  }`}
+                />
+                {processingImage && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
+                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2"
+                  disabled={processingImage}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                {imageFile && (
+                  <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                    {Math.round(imageFile.size / 1024)}KB
+                  </div>
+                )}
+                {externalImageUrl && (
+                  <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
+                    <Globe className="h-3 w-3" />
+                    <span>Unsplash</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div 
+                className={`
+                  border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
+                  transition-colors duration-200 hover:bg-muted/50
+                  ${isDragActive 
+                    ? 'border-primary bg-primary/5' 
+                    : processingImage 
+                    ? 'border-muted-foreground/25 bg-muted/25' 
+                    : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                  }
+                `}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={!processingImage ? handleBrowseClick : undefined}
+                tabIndex={processingImage ? -1 : 0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (!processingImage) handleBrowseClick();
+                  }
+                }}
+                role="button"
+                aria-label="Upload image or drag and drop"
+              >
+                {processingImage ? (
+                  <div className="space-y-3">
+                    <Loader2 className="h-10 w-10 mx-auto text-muted-foreground animate-spin" />
+                    <p className="text-sm text-muted-foreground font-medium">
+                      Processing image...
+                    </p>
+                  </div>
+                ) : isDragActive ? (
+                  <div className="space-y-3">
+                    <Upload className="h-10 w-10 mx-auto text-primary" />
+                    <div>
+                      <p className="text-sm font-medium text-primary">
+                        Drop to upload
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        JPG, PNG, GIF up to 500KB
                       </p>
                     </div>
-                  ) : (
-                    <>
-                      <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Add image for MMS (max 500KB)
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        Upload image for MMS
                       </p>
-                      <div className="flex items-center space-x-2">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-                            input?.click();
-                          }}
-                        >
-                          Select Image
-                        </Button>
-                        <span className="text-xs text-muted-foreground">or</span>
-                        <ImageSelectButton
-                          onImageSelect={handleExternalImageSelect}
-                          contentContext={message || "MMS image"}
-                          buttonText="Browse Free Images"
-                          mode="modal"
-                          compact
-                        />
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/jpg,image/png,image/gif"
-                        onChange={handleImageSelect}
-                        className="hidden"
+                      <p className="text-xs text-muted-foreground">
+                        Drag and drop or click to browse • JPG, PNG, GIF up to 500KB
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center space-x-3">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleBrowseClick();
+                        }}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Image
+                      </Button>
+                      <span className="text-xs text-muted-foreground">or</span>
+                      <ImageSelectButton
+                        onImageSelect={handleExternalImageSelect}
+                        contentContext={message || "MMS image"}
+                        buttonText="Browse Free Images"
+                        mode="modal"
+                        compact
                       />
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/gif"
+              onChange={handleImageSelect}
+              className="hidden"
+              aria-hidden="true"
+            />
+            
+            <p className="text-xs text-muted-foreground mt-2">
               Upload your own image or browse free images from Unsplash. Large images are automatically optimized for MMS.
             </p>
           </div>
