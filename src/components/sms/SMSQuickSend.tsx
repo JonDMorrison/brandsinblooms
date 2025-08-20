@@ -8,6 +8,7 @@ import { Send, Zap, Image, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { twilioClient } from '@/lib/sms/twilioClient';
 import { ImageUploader } from '@/lib/image/imageUploader';
+import { ImageProcessor, getOptimalFormat } from '@/lib/image/imageProcessor';
 
 interface SMSQuickSendProps {
   onSent: () => void;
@@ -21,26 +22,57 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
+    // Reset input to allow selecting the same file again
+    e.target.value = '';
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    
+    // Check if file type is supported
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only JPG, PNG, and GIF images are supported for MMS');
       return;
     }
 
-    // Validate file size (500KB limit for MMS)
-    if (file.size > 500 * 1024) {
-      toast.error('Image must be smaller than 500KB for MMS');
-      return;
-    }
+    try {
+      let processedFile = file;
+      
+      // If file is too large, compress it automatically
+      if (file.size > 500 * 1024) {
+        toast.info('Image is too large, compressing automatically...');
+        
+        const processor = new ImageProcessor();
+        const processed = await processor.processImage(file, {
+          maxDimension: 600, // Smaller dimension for MMS
+          quality: 0.7, // Lower quality for smaller size
+          format: getOptimalFormat(file)
+        });
 
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => setImagePreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+        // Convert blob URL to File object
+        const response = await fetch(processed.optimized);
+        const blob = await response.blob();
+        processedFile = new File([blob], file.name, { type: blob.type });
+
+        // Check if compression worked
+        if (processedFile.size > 500 * 1024) {
+          toast.error('Image is still too large after compression. Please use a smaller image.');
+          return;
+        }
+        
+        toast.success(`Image compressed from ${Math.round(file.size / 1024)}KB to ${Math.round(processedFile.size / 1024)}KB`);
+      }
+
+      setImageFile(processedFile);
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(processedFile);
+    } catch (error) {
+      console.error('Image processing error:', error);
+      toast.error('Failed to process image. Please try a different image.');
+    }
   };
 
   const handleRemoveImage = () => {
@@ -179,7 +211,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                     </Button>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/jpg,image/png,image/gif"
                       onChange={handleImageSelect}
                       className="hidden"
                     />
@@ -188,7 +220,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              PNG, JPG, GIF supported. Images will be compressed if needed.
+              JPG, PNG, and GIF only. Large images are automatically compressed to fit MMS limits.
             </p>
           </div>
 
