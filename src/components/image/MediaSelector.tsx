@@ -20,7 +20,11 @@ interface MediaSelectorProps {
   compact?: boolean;
   onBackClick?: () => void;
   autoSelectFirst?: boolean;
+  instanceId?: string; // Unique identifier to prevent duplicates
 }
+
+// Track active instances to prevent duplicates
+const activeInstances = new Set<string>();
 
 export const MediaSelector: React.FC<MediaSelectorProps> = ({
   onImageSelect,
@@ -29,8 +33,28 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   className,
   compact = false,
   onBackClick,
-  autoSelectFirst = false
+  autoSelectFirst = false,
+  instanceId
 }) => {
+  // Generate unique instance ID if not provided
+  const uniqueInstanceId = instanceId || `${contentContext}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Prevent duplicate instances for the same content
+  React.useEffect(() => {
+    const contentKey = `${contentContext}-${compact}`;
+    if (activeInstances.has(contentKey)) {
+      console.warn('[MediaSelector] Duplicate instance detected for:', contentKey, 'Skipping render.');
+      return;
+    }
+    
+    activeInstances.add(contentKey);
+    console.log('[MediaSelector] Instance registered:', uniqueInstanceId, 'Content:', contentKey);
+    
+    return () => {
+      activeInstances.delete(contentKey);
+      console.log('[MediaSelector] Instance cleanup:', uniqueInstanceId);
+    };
+  }, [contentContext, compact, uniqueInstanceId]);
   console.log('[MediaSelector] Component rendering with props:', {
     hasOnImageSelect: !!onImageSelect,
     hasSelectedImage: !!selectedImageUrl,

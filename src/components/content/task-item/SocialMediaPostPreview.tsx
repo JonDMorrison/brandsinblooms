@@ -411,6 +411,8 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                 contentContext={content}
                 compact={true}
                 className="h-full"
+                instanceId={`social-media-${contentTaskId}-${postType}`}
+                autoSelectFirst={false}
               />
             ) : (
               <div className="h-48 bg-gray-100 rounded-lg flex items-center justify-center">

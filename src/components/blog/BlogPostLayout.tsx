@@ -72,6 +72,8 @@ export const BlogPostLayout = ({
                     contentContext={contentContext}
                     compact={true}
                     className="w-full"
+                    instanceId={`blog-${title || 'untitled'}-${Date.now()}`}
+                    autoSelectFirst={false}
                   />
                 </div>
               </div>
