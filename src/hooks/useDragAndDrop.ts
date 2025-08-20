@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-// Removed sonner import - using global toast replacement
+import { toast } from '@/utils/toast';
 import { format } from 'date-fns';
 import { UnifiedCalendarEvent } from './useUnifiedCalendarData';
 

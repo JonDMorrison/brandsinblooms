@@ -249,13 +249,13 @@ export const useUnifiedCalendarData = () => {
     filterOptions,
     loading,
     refetch,
-    // Individual data sources for specific needs
-    rawData: {
-      campaigns,
-      tasks,
-      scheduledPosts,
-      newsletters,
-      holidays: allHolidays
-    }
+  // Individual data sources for specific needs
+  rawData: {
+    campaigns,
+    tasks,
+    scheduledPosts: scheduledPosts || [],
+    newsletters: newsletters || [],
+    holidays: allHolidays
+  }
   };
 };

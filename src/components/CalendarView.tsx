@@ -3,6 +3,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
 import { CalendarHeader } from './calendar/CalendarHeader';
 import { CalendarPlanningPanel } from './calendar/CalendarPlanningPanel';
+import { CalendarListView } from './calendar/CalendarListView';
 import { QuickAddSheet } from './calendar/QuickAddSheet';
 import { NewsletterSchedulingModal } from './calendar/NewsletterSchedulingModal';
 import { NewsletterEditDrawer } from './calendar/NewsletterEditDrawer';
@@ -13,7 +14,7 @@ import { useNewsletterCalendar } from '@/hooks/useNewsletterCalendar';
 import { useSeasonalHolidays } from '@/hooks/useSeasonalHolidays';
 import { supabase } from '@/integrations/supabase/client';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
-import { addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
+import { format, addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { ContentViewerDialog } from './content/ContentViewerDialog';
 import { CampaignDetailsModal } from './calendar/CampaignDetailsModal';
 import { useRouteState } from '@/hooks/useRouteState';
@@ -216,6 +217,113 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
     setNewsletterDrawerOpen(true);
   };
 
+  // Event click handler for unified events
+  const handleEventClick = (event: any) => {
+    switch (event.type) {
+      case 'task':
+        setSelectedTaskForModal(event.meta);
+        setContentModalOpen(true);
+        break;
+      case 'event':
+        setSelectedCampaignForModal(event.meta);
+        setCampaignModalOpen(true);
+        break;
+      case 'newsletter':
+        setSelectedNewsletter(event.meta);
+        setNewsletterDrawerOpen(true);
+        break;
+      case 'scheduled_post':
+        // Handle scheduled post view/edit
+        toast({
+          title: "Scheduled Post",
+          description: `${event.platform} post scheduled for ${event.time}`,
+        });
+        break;
+      case 'holiday':
+        // Handle holiday content generation
+        handleHolidayGenerate(event.meta);
+        break;
+    }
+  };
+
+  // Holiday content generation
+  const handleHolidayGenerate = async (holiday: any) => {
+    try {
+      await generateHolidayContent(holiday.id);
+      toast({
+        title: "Content Generated",
+        description: `Holiday content created for ${holiday.holiday_name}`,
+      });
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate holiday content",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Quick add action handlers
+  const handleCreateSocialPost = async (date: Date) => {
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .insert({
+          scheduled_date: format(date, 'yyyy-MM-dd'),
+          status: 'planned',
+          user_id: rawData.campaigns[0]?.user_id, // Get from existing data
+          tenant_id: rawData.campaigns[0]?.tenant_id
+        });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Social Post Created",
+        description: `Content task scheduled for ${format(date, 'MMMM d, yyyy')}`,
+      });
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create social post",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCreateEvent = (date: Date) => {
+    // Navigate to event creation with pre-filled date
+    navigate('/calendar?create=event&date=' + format(date, 'yyyy-MM-dd'));
+  };
+
+  const handleCreateTask = async (date: Date) => {
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .insert({
+          scheduled_date: format(date, 'yyyy-MM-dd'),
+          status: 'planned',
+          user_id: rawData.campaigns[0]?.user_id, // Get from existing data
+          tenant_id: rawData.campaigns[0]?.tenant_id
+        });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Task Created",
+        description: `Task scheduled for ${format(date, 'MMMM d, yyyy')}`,
+      });
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Error", 
+        description: "Failed to create task",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleDateClick = (date: Date) => {
     // Open newsletter creation modal for selected date
     setSelectedDateForNewsletter(date);
@@ -268,6 +376,83 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
 
   return (
     <div className="h-full flex flex-col space-y-4">
+      <CalendarHeader
+        viewMode={viewMode}
+        currentDate={currentDate}
+        selectedTasksCount={selectedTasks.length}
+        bulkCompleteLoading={bulkCompleteLoading}
+        bulkDeleteLoading={bulkDeleteLoading}
+        showPlanningPanel={showPlanningPanel}
+        filters={filters}
+        filterOptions={filterOptions}
+        onPrevious={goToPrevious}
+        onNext={goToNext}
+        onToday={goToToday}
+        onViewModeChange={handleViewModeChange}
+        onBulkComplete={handleBulkComplete}
+        onBulkDelete={handleBulkDelete}
+        onFiltersChange={updateFilters}
+        onCreateEvent={() => handleCreateEvent(new Date())}
+        onCreateCampaign={() => navigate('/campaigns/new')}
+        onTogglePlanningPanel={togglePlanningPanel}
+      />
+
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1">
+          {viewMode === 'list' ? (
+            <CalendarListView 
+              events={events}
+              onEventClick={handleEventClick}
+            />
+          ) : (
+            <CalendarGrid
+              campaigns={rawData.campaigns}
+              tasks={rawData.tasks}
+              newsletters={rawData.newsletters}
+              currentDate={currentDate}
+              viewMode={viewMode}
+              onTaskClick={handleTaskClick}
+              onTaskLongPress={handleTaskLongPress}
+              onCampaignClick={handleCampaignClick}
+              onNewsletterClick={handleNewsletterClick}
+              onDateClick={(date) => {
+                setSelectedDateForQuickAdd(date);
+                setQuickAddOpen(true);
+              }}
+              selectedTasks={selectedTasks}
+              onDrop={handleDrop}
+              isTaskSelected={isTaskSelected}
+              isDragging={isDragging}
+              draggedTask={draggedTask}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            />
+          )}
+        </div>
+        {showPlanningPanel && (
+          <CalendarPlanningPanel
+            filters={filters}
+            onFiltersChange={updateFilters}
+            filterOptions={filterOptions}
+            onThemeSchedule={() => {}}
+            onHolidayAction={handleHolidayGenerate}
+          />
+        )}
+      </div>
+
+      <QuickAddSheet
+        isOpen={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        selectedDate={selectedDateForQuickAdd}
+        onCreateSocialPost={handleCreateSocialPost}
+        onCreateNewsletter={(date) => {
+          setSelectedDateForNewsletter(date);
+          setNewsletterMode('create');
+          setNewsletterModalOpen(true);
+        }}
+        onCreateEvent={handleCreateEvent}
+        onCreateTask={handleCreateTask}
+      />
 
       <CalendarHeader
         viewMode={viewMode}
@@ -275,38 +460,98 @@ export const CalendarView = React.memo(({ onDataUpdate }: {
         selectedTasksCount={selectedTasks.length}
         bulkCompleteLoading={bulkCompleteLoading}
         bulkDeleteLoading={bulkDeleteLoading}
+        showPlanningPanel={showPlanningPanel}
+        filters={filters}
+        filterOptions={filterOptions}
         onPrevious={goToPrevious}
         onNext={goToNext}
         onToday={goToToday}
         onViewModeChange={handleViewModeChange}
         onBulkComplete={handleBulkComplete}
         onBulkDelete={handleBulkDelete}
+        onFiltersChange={updateFilters}
+        onCreateEvent={() => handleCreateEvent(new Date())}
+        onCreateCampaign={() => navigate('/campaigns/new')}
+        onTogglePlanningPanel={togglePlanningPanel}
       />
       
-      <div className="flex-1 overflow-hidden">
-        <CalendarGrid
-          campaigns={rawData.campaigns}
-          tasks={rawData.tasks}
-          newsletters={rawData.newsletters}
-          currentDate={currentDate}
-          viewMode={viewMode === 'list' ? 'month' : viewMode}
-          onTaskClick={handleTaskClick}
-          onTaskLongPress={handleTaskLongPress}
-          onCampaignClick={handleCampaignClick}
-          onNewsletterClick={handleNewsletterClick}
-          onDateClick={(date) => {
-            setSelectedDateForQuickAdd(date);
-            setQuickAddOpen(true);
-          }}
-          selectedTasks={selectedTasks}
-          onDrop={handleDrop}
-          isTaskSelected={isTaskSelected}
-          isDragging={isDragging}
-          draggedTask={draggedTask}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        />
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1">
+          {viewMode === 'list' ? (
+            <CalendarListView 
+              events={events}
+              onEventClick={handleEventClick}
+            />
+          ) : (
+            <CalendarGrid
+              campaigns={rawData.campaigns}
+              tasks={rawData.tasks}
+              newsletters={rawData.newsletters}
+              scheduledPosts={rawData.scheduledPosts}
+              holidays={rawData.holidays}
+              unifiedEvents={events}
+              eventsByDate={eventsByDate}
+              currentDate={currentDate}
+              viewMode={viewMode}
+              onTaskClick={handleTaskClick}
+              onTaskLongPress={handleTaskLongPress}
+              onCampaignClick={handleCampaignClick}
+              onNewsletterClick={handleNewsletterClick}
+              onEventClick={handleEventClick}
+              onDateClick={(date) => {
+                setSelectedDateForQuickAdd(date);
+                setQuickAddOpen(true);
+              }}
+              selectedTasks={selectedTasks}
+              onDrop={handleDrop}
+              isTaskSelected={isTaskSelected}
+              isDragging={isDragging}
+              draggedTask={draggedTask}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            />
+          )}
+        </div>
+        {showPlanningPanel && (
+          <CalendarPlanningPanel
+            filters={filters}
+            onFiltersChange={updateFilters}
+            filterOptions={filterOptions}
+            onThemeSchedule={(theme, date) => {
+              // Handle theme scheduling
+              toast({
+                title: "Theme Scheduled",
+                description: `${theme.title} scheduled for ${format(date, 'MMMM d, yyyy')}`,
+              });
+            }}
+            onHolidayAction={(holiday, action) => {
+              if (action === 'generate') {
+                handleHolidayGenerate(holiday);
+              } else if (action === 'schedule') {
+                // Handle holiday scheduling
+                toast({
+                  title: "Holiday Scheduled",
+                  description: `Content scheduled for ${holiday.holiday_name}`,
+                });
+              }
+            }}
+          />
+        )}
       </div>
+
+      <QuickAddSheet
+        isOpen={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        selectedDate={selectedDateForQuickAdd}
+        onCreateSocialPost={handleCreateSocialPost}
+        onCreateNewsletter={(date) => {
+          setSelectedDateForNewsletter(date);
+          setNewsletterMode('create');
+          setNewsletterModalOpen(true);
+        }}
+        onCreateEvent={handleCreateEvent}
+        onCreateTask={handleCreateTask}
+      />
 
       {/* Newsletter Modals */}
       <NewsletterSchedulingModal

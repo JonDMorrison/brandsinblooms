@@ -26,6 +26,7 @@ interface CalendarHeaderProps {
   selectedTasksCount: number;
   bulkCompleteLoading: boolean;
   bulkDeleteLoading: boolean;
+  showPlanningPanel?: boolean;
   filters?: {
     types: string[];
     platforms: string[];
@@ -47,6 +48,7 @@ interface CalendarHeaderProps {
   onFiltersChange?: (filters: any) => void;
   onCreateEvent?: () => void;
   onCreateCampaign?: () => void;
+  onTogglePlanningPanel?: () => void;
 }
 
 export const CalendarHeader = ({
@@ -55,6 +57,7 @@ export const CalendarHeader = ({
   selectedTasksCount,
   bulkCompleteLoading,
   bulkDeleteLoading,
+  showPlanningPanel,
   filters,
   filterOptions,
   onPrevious,
@@ -65,7 +68,8 @@ export const CalendarHeader = ({
   onBulkDelete,
   onFiltersChange,
   onCreateEvent,
-  onCreateCampaign
+  onCreateCampaign,
+  onTogglePlanningPanel
 }: CalendarHeaderProps) => {
   const getDisplayTitle = () => {
     if (viewMode === 'month') {
@@ -228,6 +232,17 @@ export const CalendarHeader = ({
         
         {/* Action Buttons */}
         <div className="flex gap-2">
+          {onTogglePlanningPanel && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onTogglePlanningPanel}
+              className={`h-8 px-3 ${showPlanningPanel ? 'text-blue-700 bg-blue-50' : 'text-slate-600'} hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200`}
+            >
+              <Filter className="w-4 h-4 mr-1" />
+              Planning
+            </Button>
+          )}
           {onCreateEvent && (
             <Button
               variant="outline"

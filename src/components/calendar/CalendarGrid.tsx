@@ -2,17 +2,23 @@
 import React from 'react';
 import { CalendarDayCell } from './CalendarDayCell';
 import { addDays, startOfWeek, startOfMonth, endOfMonth, isSameMonth, format } from 'date-fns';
+import { UnifiedCalendarEvent } from '@/hooks/useUnifiedCalendarData';
 
 interface CalendarGridProps {
   campaigns: any[];
   tasks: any[];
   newsletters: any[];
+  scheduledPosts?: any[];
+  holidays?: any[];
+  unifiedEvents?: UnifiedCalendarEvent[];
+  eventsByDate?: Record<string, UnifiedCalendarEvent[]>;
   currentDate: Date;
   viewMode: 'month' | 'week';
   onTaskClick: (task: any) => void;
   onTaskLongPress?: (task: any) => void;
   onCampaignClick: (campaign: any) => void;
   onNewsletterClick: (newsletter: any) => void;
+  onEventClick?: (event: UnifiedCalendarEvent) => void;
   onDateClick: (date: Date) => void;
   selectedTasks: any[];
   onDrop?: (date: Date) => void;
@@ -27,12 +33,17 @@ export const CalendarGrid = React.memo(({
   campaigns,
   tasks,
   newsletters,
+  scheduledPosts = [],
+  holidays = [],
+  unifiedEvents = [],
+  eventsByDate = {},
   currentDate,
   viewMode,
   onTaskClick,
   onTaskLongPress,
   onCampaignClick,
   onNewsletterClick,
+  onEventClick,
   onDateClick,
   selectedTasks,
   onDrop,
