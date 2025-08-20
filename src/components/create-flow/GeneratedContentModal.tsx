@@ -279,6 +279,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                       onImageSelect={(url: string, metadata?: any) =>
                         editItem(idx, { media: { url, alt: metadata?.alt_text || item.media?.alt } })
                       }
+                      autoSelectFirst={true}
                     />
                   </div>
                 </div>

@@ -19,6 +19,7 @@ interface MediaSelectorProps {
   className?: string;
   compact?: boolean;
   onBackClick?: () => void;
+  autoSelectFirst?: boolean;
 }
 
 export const MediaSelector: React.FC<MediaSelectorProps> = ({
@@ -27,7 +28,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   contentContext,
   className,
   compact = false,
-  onBackClick
+  onBackClick,
+  autoSelectFirst = false
 }) => {
   console.log('[MediaSelector] Component rendering with props:', {
     hasOnImageSelect: !!onImageSelect,
@@ -99,8 +101,23 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           const finalResults = supplementWithFallbacks(results, defaultQuery);
           setSearchResults(finalResults);
           
-          // Images loaded - user can now select manually
-          console.log('[MediaSelector] Images loaded, waiting for user selection:', finalResults.length, 'images available');
+          // Auto-select first image if requested and no image already selected
+          if (autoSelectFirst && !selectedImageUrl && finalResults.length > 0) {
+            const firstImage = finalResults[0];
+            console.log('[MediaSelector] Auto-selecting first image:', firstImage);
+            const imageMetadata = {
+              source: firstImage.source || 'unsplash',
+              alt_text: firstImage.alt,
+              photographer: firstImage.photographer,
+              photographer_url: firstImage.photographer_url,
+              unsplash_id: firstImage.id,
+              thumb: firstImage.thumb_url || firstImage.thumb,
+              download_location: firstImage.download_location
+            };
+            handleImageSelect(firstImage.url || firstImage.download_url, imageMetadata);
+          } else {
+            console.log('[MediaSelector] Images loaded, waiting for user selection:', finalResults.length, 'images available');
+          }
         } catch (error) {
           console.error('[MediaSelector] Error loading suggestions:', error);
         }
