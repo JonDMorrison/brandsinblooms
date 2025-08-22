@@ -13,6 +13,7 @@ import { DataProviderWrapper } from '@/components/DataProviderWrapper';
 import OnboardingPage from '@/pages/OnboardingPage'; // Force refresh
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewslettersPage } from '@/pages/NewslettersPage';
+import { NewsletterNewPage } from '@/pages/NewsletterNewPage';
 import { TemplatesPage } from '@/pages/TemplatesPage';
 import { WebsitePage } from '@/pages/WebsitePage';
 import { WebsiteWaitlistPage } from '@/pages/WebsiteWaitlistPage';
@@ -237,7 +238,7 @@ function App() {
           <Route path="/newsletters/new" element={
             <ProtectedRoute>
               <SidebarLayout>
-                <NewslettersPage />
+                <NewsletterNewPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
