@@ -18,6 +18,7 @@ interface CampaignReadinessProps {
   selectedSegments: any[];
   senderConfig?: any;
   className?: string;
+  onEditAudience?: () => void;
 }
 
 export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
@@ -26,7 +27,8 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
   blocks,
   selectedSegments,
   senderConfig,
-  className = ''
+  className = '',
+  onEditAudience
 }) => {
   const items: ReadinessItem[] = [
     {
@@ -95,32 +97,41 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
       </div>
 
       <div className="grid grid-cols-1 gap-2">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center space-x-2 text-sm"
-          >
-            {item.completed ? (
-              <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-            ) : (
-              <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            )}
-            <div className="flex-1 min-w-0">
-              <span className={cn(
-                "font-medium",
-                item.completed ? "text-foreground" : "text-muted-foreground"
-              )}>
-                {item.label}
-                {item.required && <span className="text-red-500 ml-1">*</span>}
-              </span>
-              {item.description && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {item.description}
-                </p>
+        {items.map((item) => {
+          const isClickable = item.id === 'audience' && onEditAudience;
+          
+          return (
+            <div
+              key={item.id}
+              className={cn(
+                "flex items-center space-x-2 text-sm",
+                isClickable && "cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-colors"
               )}
+              onClick={isClickable ? onEditAudience : undefined}
+            >
+              {item.completed ? (
+                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+              ) : (
+                <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <span className={cn(
+                  "font-medium",
+                  item.completed ? "text-foreground" : "text-muted-foreground",
+                  isClickable && "hover:text-primary"
+                )}>
+                  {item.label}
+                  {item.required && <span className="text-red-500 ml-1">*</span>}
+                </span>
+                {item.description && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {item.description}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

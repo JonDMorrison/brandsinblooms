@@ -2041,6 +2041,7 @@ cleanUrl();
               blocks={blocks}
               selectedSegments={selectedSegments}
               senderConfig={senderConfig}
+              onEditAudience={() => setShowSetupWizard(true)}
             />
           </CardContent>
          </Card>

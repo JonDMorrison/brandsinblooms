@@ -117,16 +117,6 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
               />
             )}
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onAudience}
-              disabled={loading}
-              className="flex items-center space-x-2"
-            >
-              <Users className="h-4 w-4" />
-              <span>Audience</span>
-            </Button>
 
             <Button
               variant="outline"
