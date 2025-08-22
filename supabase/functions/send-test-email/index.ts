@@ -9,10 +9,26 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
-interface TestEmailRequest {
+// Support multiple request formats for different use cases
+interface SenderTestRequest {
   senderId: string;
   testEmail: string;
 }
+
+interface CampaignTestRequest {
+  email: string;
+  subject: string;
+  content: string;
+  campaignId?: string;
+  testName?: string;
+}
+
+interface DomainTestRequest {
+  domain: string;
+  testEmail: string;
+}
+
+type TestEmailRequest = SenderTestRequest | CampaignTestRequest | DomainTestRequest;
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -48,32 +64,139 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { senderId, testEmail }: TestEmailRequest = await req.json();
+    const requestBody: TestEmailRequest = await req.json();
+    console.log('📧 Test email request payload:', JSON.stringify(requestBody, null, 2));
 
-    if (!senderId || !testEmail) {
+    // Determine request type and validate accordingly
+    let testEmail: string;
+    let emailSubject: string;
+    let emailContent: string;
+    let senderEmail: string = '';
+    let senderDisplayName: string = '';
+
+    if ('senderId' in requestBody) {
+      // Original sender test format
+      const { senderId, testEmail: email } = requestBody;
+      if (!senderId || !email) {
+        return new Response(
+          JSON.stringify({ error: 'Sender ID and test email are required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      testEmail = email;
+
+      // Get the email sender details for sender test
+      const { data: sender, error: senderError } = await supabase
+        .from('email_senders')
+        .select('*')
+        .eq('id', senderId)
+        .single();
+
+      if (senderError || !sender) {
+        return new Response(
+          JSON.stringify({ error: 'Email sender not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!sender.verified) {
+        return new Response(
+          JSON.stringify({ error: 'Email sender is not verified' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      senderEmail = sender.sender_email;
+      senderDisplayName = sender.display_name || '';
+      emailSubject = 'Test Email from BloomSuite';
+      emailContent = `
+        <h2>Test Email Successful! 🎉</h2>
+        <p>This is a test email sent from your BloomSuite email sender configuration.</p>
+        <div style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
+          <h3>Sender Details:</h3>
+          <ul>
+            <li><strong>Email:</strong> ${sender.sender_email}</li>
+            ${sender.display_name ? `<li><strong>Display Name:</strong> ${sender.display_name}</li>` : ''}
+            <li><strong>Provider:</strong> ${sender.provider}</li>
+            <li><strong>Status:</strong> Verified ✅</li>
+          </ul>
+        </div>
+        <p>If you received this email, your sender configuration is working correctly!</p>
+        <hr style="margin: 24px 0;">
+        <p style="color: #666; font-size: 14px;">
+          Sent via BloomSuite • 
+          <a href="https://bloomsuite.app" style="color: #0066cc;">bloomsuite.app</a>
+        </p>
+      `;
+
+    } else if ('email' in requestBody && 'subject' in requestBody && 'content' in requestBody) {
+      // Campaign test format
+      const { email, subject, content, campaignId, testName } = requestBody;
+      if (!email || !content) {
+        return new Response(
+          JSON.stringify({ error: 'Email and content are required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      testEmail = email;
+      emailSubject = subject || 'Test Campaign Email';
+      emailContent = content;
+
+      // Try to find a verified sender for the user
+      const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+      if (user) {
+        const { data: sender } = await supabase
+          .from('email_senders')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('verified', true)
+          .limit(1)
+          .single();
+
+        if (sender) {
+          senderEmail = sender.sender_email;
+          senderDisplayName = sender.display_name || '';
+        } else {
+          // Fallback to default sender
+          senderEmail = 'noreply@bloomsuite.email';
+          senderDisplayName = 'BloomSuite';
+        }
+      }
+
+      console.log(`📧 Campaign test email - Campaign ID: ${campaignId}, Test Name: ${testName}`);
+
+    } else if ('domain' in requestBody) {
+      // Domain test format
+      const { domain, testEmail: email } = requestBody;
+      if (!domain || !email) {
+        return new Response(
+          JSON.stringify({ error: 'Domain and test email are required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      testEmail = email;
+      senderEmail = `test@${domain}`;
+      senderDisplayName = 'Domain Test';
+      emailSubject = `Domain Configuration Test - ${domain}`;
+      emailContent = `
+        <h2>Domain Test Email 📧</h2>
+        <p>This is a test email to verify that your domain <strong>${domain}</strong> is properly configured for sending emails.</p>
+        <p>If you received this email, your domain configuration is working correctly!</p>
+        <hr style="margin: 24px 0;">
+        <p style="color: #666; font-size: 14px;">
+          Sent via BloomSuite Domain Test • 
+          <a href="https://bloomsuite.app" style="color: #0066cc;">bloomsuite.app</a>
+        </p>
+      `;
+
+    } else {
       return new Response(
-        JSON.stringify({ error: 'Sender ID and test email are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Get the email sender details
-    const { data: sender, error: senderError } = await supabase
-      .from('email_senders')
-      .select('*')
-      .eq('id', senderId)
-      .single();
-
-    if (senderError || !sender) {
-      return new Response(
-        JSON.stringify({ error: 'Email sender not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!sender.verified) {
-      return new Response(
-        JSON.stringify({ error: 'Email sender is not verified' }),
+        JSON.stringify({ 
+          error: 'Invalid request format',
+          message: 'Request must include either senderId+testEmail, email+subject+content, or domain+testEmail'
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -89,34 +212,18 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`📧 Sending test email from ${sender.sender_email} to ${testEmail}`);
+    const fromAddress = senderDisplayName ? `${senderDisplayName} <${senderEmail}>` : senderEmail;
+    console.log(`📧 Sending test email from ${fromAddress} to ${testEmail}`);
+    console.log(`📧 Subject: ${emailSubject}`);
 
     const resend = new Resend(resendApiKey);
 
     try {
       const result = await resend.emails.send({
-        from: sender.display_name ? `${sender.display_name} <${sender.sender_email}>` : sender.sender_email,
+        from: fromAddress,
         to: [testEmail],
-        subject: 'Test Email from BloomSuite',
-        html: `
-          <h2>Test Email Successful! 🎉</h2>
-          <p>This is a test email sent from your BloomSuite email sender configuration.</p>
-          <div style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <h3>Sender Details:</h3>
-            <ul>
-              <li><strong>Email:</strong> ${sender.sender_email}</li>
-              ${sender.display_name ? `<li><strong>Display Name:</strong> ${sender.display_name}</li>` : ''}
-              <li><strong>Provider:</strong> ${sender.provider}</li>
-              <li><strong>Status:</strong> Verified ✅</li>
-            </ul>
-          </div>
-          <p>If you received this email, your sender configuration is working correctly!</p>
-          <hr style="margin: 24px 0;">
-          <p style="color: #666; font-size: 14px;">
-            Sent via BloomSuite • 
-            <a href="https://bloomsuite.app" style="color: #0066cc;">bloomsuite.app</a>
-          </p>
-        `,
+        subject: emailSubject,
+        html: emailContent,
       });
 
       if (result.error) {

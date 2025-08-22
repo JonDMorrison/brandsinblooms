@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { sendCampaignTestEmail, isValidEmail } from '@/lib/sendTestEmail';
 import { Send, Loader2, Plus, X } from 'lucide-react';
 
 interface TestEmailModalProps {
@@ -48,8 +48,7 @@ export const TestEmailModal: React.FC<TestEmailModalProps> = ({
 
   const validateEmails = () => {
     const validEmails = emails.filter(email => {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      return email.trim() && emailRegex.test(email.trim());
+      return email.trim() && isValidEmail(email.trim());
     });
     
     return validEmails;
@@ -68,46 +67,61 @@ export const TestEmailModal: React.FC<TestEmailModalProps> = ({
     }
 
     setSending(true);
+    let successCount = 0;
+    let failureCount = 0;
 
     try {
       for (const email of validEmails) {
-        const { error } = await supabase.functions.invoke('send-test-email', {
-          body: {
-            email: email.trim(),
-            subject: campaignData.subject_line || 'Test Email',
-            content: campaignData.content,
-            testName: testName,
-            campaignId: campaignData.id // Include campaign ID for webhook tracking
-          }
+        const result = await sendCampaignTestEmail({
+          email: email.trim(),
+          subject: campaignData.subject_line || 'Test Email',
+          content: campaignData.content,
+          testName: testName,
+          campaignId: campaignData.id
         });
 
-        if (error) {
-          console.error('Error sending test email:', error);
+        if (result.success) {
+          successCount++;
+        } else {
+          failureCount++;
+          console.error('Error sending test email to', email, ':', result.error);
+          
+          // Show individual failure toast for better UX
           toast({
             title: "Error",
-            description: `Failed to send test email to ${email}`,
+            description: `Failed to send to ${email}: ${result.message}`,
             variant: "destructive"
           });
         }
       }
 
-      toast({
-        title: "Test Email Sent",
-        description: `Test email sent successfully to ${validEmails.length} recipient${validEmails.length > 1 ? 's' : ''}`,
-      });
+      // Show summary toast
+      if (successCount > 0) {
+        toast({
+          title: "Test Email Sent",
+          description: `Successfully sent to ${successCount} of ${validEmails.length} recipient${validEmails.length > 1 ? 's' : ''}`,
+        });
 
-      onTestSent?.();
-      onClose();
-      
-      // Reset form
-      setEmails(['']);
-      setTestName('Test User');
+        if (successCount === validEmails.length) {
+          // Only close and reset if all succeeded
+          onTestSent?.();
+          onClose();
+          setEmails(['']);
+          setTestName('Test User');
+        }
+      } else {
+        toast({
+          title: "All Test Emails Failed",
+          description: "None of the test emails could be sent. Please check your email configuration.",
+          variant: "destructive"
+        });
+      }
       
     } catch (error) {
-      console.error('Error sending test email:', error);
+      console.error('Unexpected error sending test emails:', error);
       toast({
         title: "Error",
-        description: "Failed to send test email. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
     } finally {

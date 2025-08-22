@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { sendCampaignTestEmail, isValidEmail } from '@/lib/sendTestEmail';
 import { 
   Monitor, 
   Smartphone, 
@@ -34,7 +34,9 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
   const [sendingTest, setSendingTest] = useState(false);
 
   const sendTestEmail = async () => {
-    if (!testEmail.trim()) {
+    const email = testEmail.trim();
+    
+    if (!email) {
       toast({
         title: "Email Required",
         description: "Please enter an email address for the test",
@@ -43,30 +45,43 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
       return;
     }
 
-    setSendingTest(true);
-    try {
-      const { error } = await supabase.functions.invoke('send-test-email', {
-        body: {
-          email: testEmail,
-          subject: subject || 'Test Email Campaign',
-          content: content,
-          campaignId: campaignId // Include campaign ID for webhook tracking
-        }
-      });
-
-      if (error) throw error;
-
+    if (!isValidEmail(email)) {
       toast({
-        title: "Test Email Sent!",
-        description: `Test email has been sent to ${testEmail}`
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive"
       });
-      
-      setTestEmail('');
+      return;
+    }
+
+    setSendingTest(true);
+    
+    try {
+      const result = await sendCampaignTestEmail({
+        email,
+        subject: subject || 'Test Email Campaign',
+        content: content,
+        campaignId: campaignId
+      });
+
+      if (result.success) {
+        toast({
+          title: "Test Email Sent!",
+          description: result.message
+        });
+        setTestEmail('');
+      } else {
+        toast({
+          title: "Failed to Send Test Email",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Error sending test email:', error);
       toast({
         title: "Error",
-        description: "Failed to send test email",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
     } finally {
