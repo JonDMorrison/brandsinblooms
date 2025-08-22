@@ -516,22 +516,44 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             )}
           </div>
 
-          {/* Upload Custom Image Button */}
-          <div className="w-full">
-            <label className="block w-full">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
+          {/* Search and Upload Controls - Two Columns */}
+          <div className="grid grid-cols-2 gap-3 w-full">
+            {/* Left: Search Controls */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search images..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="flex-1"
               />
-              <Button variant="outline" className="w-full" asChild>
-                <span>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Custom Image
-                </span>
+              <Button 
+                onClick={handleSearch} 
+                disabled={unsplashLoading}
+                variant="outline"
+                size="sm"
+              >
+                {unsplashLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               </Button>
-            </label>
+            </div>
+
+            {/* Right: Upload Button */}
+            <div className="w-full">
+              <label className="block w-full">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <Button variant="outline" className="w-full" asChild>
+                  <span>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Custom Image
+                  </span>
+                </Button>
+              </label>
+            </div>
           </div>
 
           {/* Thumbnail Grid */}
