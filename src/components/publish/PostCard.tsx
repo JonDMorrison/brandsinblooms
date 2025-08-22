@@ -3,7 +3,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Facebook, Instagram, Clock, Send, Edit3 } from 'lucide-react';
+import { Facebook, Instagram, Clock, Send, Edit3, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { PublishItem } from '@/types/publish';
@@ -13,6 +13,7 @@ export type PostCardProps = {
   onEdit: (item: PublishItem) => void;
   onPublishNow: (item: PublishItem) => void;
   onSchedule: (item: PublishItem) => void;
+  onDelete: (item: PublishItem) => void;
   disabled?: boolean;
 };
 
@@ -49,7 +50,7 @@ const formatStatus = (status: PublishItem['status'], scheduledFor?: string | nul
   return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
-export default function PostCard({ item, onEdit, onPublishNow, onSchedule, disabled }: PostCardProps) {
+export default function PostCard({ item, onEdit, onPublishNow, onSchedule, onDelete, disabled }: PostCardProps) {
   const PlatformIcon = item.platform === 'facebook' ? Facebook : Instagram;
   const platformColor = item.platform === 'facebook' ? 'text-blue-600' : 'text-pink-500';
   
@@ -57,7 +58,18 @@ export default function PostCard({ item, onEdit, onPublishNow, onSchedule, disab
   const canSchedule = !disabled && ['approved', 'ready', 'draft', 'review'].includes(item.status);
 
   return (
-    <Card className="p-4 hover:shadow-md transition-shadow">
+    <Card className="relative p-4 hover:shadow-md transition-shadow">
+      {/* Delete Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onDelete(item)}
+        disabled={disabled}
+        className="absolute top-2 right-2 w-8 h-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50"
+      >
+        <Trash2 className="w-4 h-4" />
+      </Button>
+      
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">

@@ -290,6 +290,37 @@ const PublishPage = () => {
     refetch?.();
   }, [schedule, refetch]);
 
+  // Delete handler
+  const handleDelete = useCallback(async (item: PublishItem) => {
+    if (!confirm('Are you sure you want to delete this content? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .delete()
+        .eq('id', item.taskId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Content deleted",
+        description: "The content has been successfully deleted.",
+      });
+
+      // Refresh data to remove the deleted item
+      refetch?.();
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete content",
+        variant: "destructive",
+      });
+    }
+  }, [supabase, toast, refetch]);
+
   if (loading || isLoading || tenantLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -357,6 +388,7 @@ const PublishPage = () => {
               onEdit={(item) => handleOpenDrawer(item, 'edit')}
               onPublishNow={(item) => handleOpenDrawer(item, 'publish')}
               onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
+              onDelete={handleDelete}
             />
           ))
         )}
