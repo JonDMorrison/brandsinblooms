@@ -380,7 +380,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
         {/* Content */}
         <div className="flex flex-col h-full min-h-0">
           {/* Search Section */}
-          <div className="p-4 space-y-4 border-b border-gray-100">
+          <div className="p-4 border-b border-gray-100">
             <div className="flex gap-2">
               <Input
                 placeholder="Search images..."
@@ -388,6 +388,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 disabled={isLoading}
+                className="flex-1"
               />
               <Button 
                 onClick={handleSearch} 
@@ -397,30 +398,28 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
               >
                 {unsplashLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               </Button>
+              {/* Upload Button */}
+              <label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={isLoading}
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  asChild
+                  disabled={isLoading}
+                >
+                  <span>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Image
+                  </span>
+                </Button>
+              </label>
             </div>
-
-            {/* Upload Button */}
-            <label className="block">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-                disabled={isLoading}
-              />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full" 
-                asChild
-                disabled={isLoading}
-              >
-                <span>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Image
-                </span>
-              </Button>
-            </label>
           </div>
 
           {/* Results Section */}
