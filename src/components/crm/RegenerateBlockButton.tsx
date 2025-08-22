@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ContentBlock } from '@/types/emailBuilder';
@@ -88,24 +94,27 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
   };
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={handleRegenerate}
-      disabled={regenerating}
-      className="text-xs h-7 px-2"
-    >
-      {regenerating ? (
-        <>
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-          Regenerating...
-        </>
-      ) : (
-        <>
-          <Sparkles className="w-3 h-3 mr-1" />
-          Regenerate with AI
-        </>
-      )}
-    </Button>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground"
+          >
+            {regenerating ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Sparkles className="w-3 h-3" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Regenerate with AI</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };

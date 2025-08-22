@@ -3,7 +3,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Trash2 } from 'lucide-react';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
@@ -173,17 +173,8 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       {/* New Block Edit Toolbar - only show for non-contextual blocks */}
       {block.type !== 'header' && (
         <>
-          <BlockEditToolbar
-            editMode={editMode}
-            onModeChange={handleModeChange}
-            onDuplicate={() => onDuplicate(block)}
-            onDelete={() => onRemove(block.id)}
-            className="opacity-0 group-hover:opacity-100"
-            showImageButton={false} // Hide since we use contextual buttons
-          />
-          
-          {/* Regenerate AI Button - positioned slightly lower */}
-          <div className="absolute top-12 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-40">
+          {/* Combined toolbar with regenerate and delete */}
+          <div className="absolute top-2 right-2 flex items-center bg-background/95 backdrop-blur-sm border rounded-md shadow-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
             <RegenerateBlockButton
               block={localBlock}
               campaignName={campaignName}
@@ -191,6 +182,18 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
               allBlocks={allBlocks}
               blockIndex={index}
             />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(block.id);
+              }}
+              className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground ml-1"
+              title="Delete block"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
           </div>
         </>
       )}
