@@ -386,7 +386,7 @@ const PublishPage = () => {
               key={item.taskId}
               item={item}
               onEdit={(item) => handleOpenDrawer(item, 'edit')}
-              onPublishNow={(item) => handleOpenDrawer(item, 'publish')}
+              onPublishNow={(item) => handleOpenDrawer(item, 'edit')}
               onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
               onDelete={handleDelete}
             />

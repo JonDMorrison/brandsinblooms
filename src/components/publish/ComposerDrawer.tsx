@@ -25,7 +25,7 @@ import { ImageSelectButton } from '@/components/image';
 import { validatePostForPlatform } from '@/utils/validatePost';
 import type { PublishItem, PublishNowInput, ScheduleInput, ValidationResult } from '@/types/publish';
 
-export type ComposerMode = "edit" | "publish" | "schedule";
+export type ComposerMode = "edit" | "schedule";
 
 export type ComposerDrawerProps = {
   open: boolean;
@@ -293,7 +293,7 @@ export default function ComposerDrawer({
               "w-5 h-5",
               item.platform === 'facebook' ? 'text-blue-600' : 'text-pink-500'
             )} />
-            {mode === 'edit' ? 'Edit Post' : mode === 'publish' ? 'Publish Now' : 'Schedule Post'}
+            {mode === 'edit' ? 'Edit Post' : 'Schedule Post'}
           </DialogTitle>
         </DialogHeader>
 
@@ -305,21 +305,14 @@ export default function ComposerDrawer({
               size="sm"
               onClick={() => setMode('edit')}
             >
-              Edit
-            </Button>
-            <Button 
-              variant={mode === 'publish' ? 'default' : 'outline'} 
-              size="sm"
-              onClick={() => setMode('publish')}
-            >
-              Publish
+              Edit Post
             </Button>
             <Button 
               variant={mode === 'schedule' ? 'default' : 'outline'} 
               size="sm"
               onClick={() => setMode('schedule')}
             >
-              Schedule
+              Schedule Post
             </Button>
           </div>
 
@@ -459,31 +452,30 @@ export default function ComposerDrawer({
               Preview
             </Button>
             
-            {mode === 'publish' && (
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+
+            {/* Right side buttons */}
+            <div className="flex gap-2 ml-auto">
+              {mode === 'schedule' && (
+                <Button
+                  onClick={handleSchedule}
+                  disabled={!validation.ok || isLoading}
+                >
+                  <Clock className="w-4 h-4 mr-1" />
+                  Schedule Post
+                </Button>
+              )}
+              
               <Button
                 onClick={handlePublishNow}
                 disabled={!validation.ok || isLoading}
-                className="flex-1"
               >
                 <Send className="w-4 h-4 mr-1" />
                 Publish Now
               </Button>
-            )}
-            
-            {mode === 'schedule' && (
-              <Button
-                onClick={handleSchedule}
-                disabled={!validation.ok || isLoading}
-                className="flex-1"
-              >
-                <Clock className="w-4 h-4 mr-1" />
-                Schedule Post
-              </Button>
-            )}
-            
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
+            </div>
           </div>
 
           {/* Preview Modal */}
