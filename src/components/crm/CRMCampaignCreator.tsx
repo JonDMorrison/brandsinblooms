@@ -137,6 +137,39 @@ const autoFillHeaderTitle = (blocks: ContentBlock[], campaignTitle: string): Con
   });
 };
 
+// Normalize blocks to ensure consistency - convert text blocks to image-text blocks with proper structure
+const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
+  return blocks.map(block => {
+    // Convert text blocks from templates/newsletters to image-text blocks for uniformity
+    if (block.type === 'text' && (block.source === 'template' || block.source === 'newsletter')) {
+      // Extract headline from content if not already present
+      let headline = block.headline || block.title || '';
+      if (!headline && (block.content || block.body)) {
+        const textContent = block.content || block.body || '';
+        // Try to extract first line as headline if it looks like a heading
+        const lines = textContent.split('\n').filter(line => line.trim());
+        if (lines.length > 0) {
+          const firstLine = lines[0].trim();
+          // If first line is short and looks like a heading, use it as headline
+          if (firstLine.length < 100 && firstLine.length > 5) {
+            headline = firstLine.replace(/^#+\s*/, '').replace(/^\*\*(.*?)\*\*$/, '$1'); // Remove markdown
+          }
+        }
+      }
+      
+      return {
+        ...block,
+        type: 'image-text' as const,
+        layout: block.layout || 'image-right',
+        headline: headline || block.title || 'Content Headline',
+        body: block.body || block.content || 'Add your content here'
+      };
+    }
+    
+    return block;
+  });
+};
+
 interface CRMCampaignCreatorProps {
   campaignSlug?: string;
   contentTaskId?: string | null;
@@ -573,7 +606,7 @@ setPreheaderText(generatePreheaderText(body, title));
 
 // Use robust converter to build 4–5 blocks preview from YAML/Markdown
 const result = convertNewsletterToCRM(body, title);
-setBlocks(result.blocks);
+setBlocks(normalizeBlocks(result.blocks));
 
 localStorage.setItem(prefillKey, 'done');
 toast({ title: 'Newsletter prefilled', description: 'We added content from your bundle.' });
@@ -709,7 +742,7 @@ cleanUrl();
                 );
 
                 console.log(`✅ Enhanced ${enhancedBlocks.length} blocks with AI content`);
-                crmBlocks = autoFillHeaderTitle(enhancedBlocks, selectedIdea.title || 'Newsletter Campaign');
+                crmBlocks = normalizeBlocks(autoFillHeaderTitle(enhancedBlocks, selectedIdea.title || 'Newsletter Campaign'));
                 
               } catch (enhancementError) {
                 console.error('❌ Block enhancement failed, using template blocks:', enhancementError);
@@ -721,7 +754,7 @@ cleanUrl();
               crmBlocks = getFallbackBlocks(selectedIdea.title || 'Newsletter Campaign');
             }
             
-            setBlocks(crmBlocks);
+            setBlocks(normalizeBlocks(crmBlocks));
             
             // Always generate and auto-fill images for template-picked newsletters
             setTimeout(async () => {
@@ -835,7 +868,7 @@ cleanUrl();
               crmBlocks = getFallbackBlocks(topic);
             }
             
-            setBlocks(crmBlocks);
+            setBlocks(normalizeBlocks(crmBlocks));
             console.log(`✅ [FallbackInit] Generated ${crmBlocks.length} blocks for "${topic}" (layout: ${layoutType})`);
           }
         } catch (error) {
@@ -1336,7 +1369,7 @@ cleanUrl();
       const crmBlocks = result.blocks;
       console.log('✅ Newsletter converted to', crmBlocks.length, 'blocks');
       
-      setBlocks(crmBlocks);
+      setBlocks(normalizeBlocks(crmBlocks));
       
       toast({
         title: "Newsletter Converted!",

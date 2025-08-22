@@ -2,6 +2,7 @@ import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
 import { SafeHtml } from '@/components/ui/safe-html';
+import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { ContextualEditButton } from '../contextual/ContextualEditButton';
 import { EditMode } from '@/hooks/useBlockEditMode';
 
@@ -76,7 +77,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               } else {
                 headline = 'Add headline';
               }
-              return typeof headline === 'string' ? headline : String(headline || 'Add headline');
+              const headlineText = typeof headline === 'string' ? headline : String(headline || 'Add headline');
+              return sanitizeWeekNumbers(headlineText);
             })()}
             type="newsletter"
             className="text-2xl font-bold"
@@ -97,7 +99,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 body = block.content;
               }
               
-              return body || 'Add body text';
+              const bodyText = body || 'Add body text';
+              return sanitizeWeekNumbers(bodyText);
             })()}
             type="newsletter"
             className="text-muted-foreground"

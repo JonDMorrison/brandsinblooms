@@ -83,6 +83,21 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
         </div>
       )}
       
+      {/* Headline (if present) */}
+      {(block.headline || block.title) && (
+        <div 
+          className="text-2xl font-bold mb-4"
+          style={{ 
+            fontSize: block.fontSize ? `calc(${block.fontSize} * 1.5)` : '24px',
+            fontFamily: block.fontFamily || 'inherit',
+            color: block.textColor || 'inherit'
+          }}
+          dangerouslySetInnerHTML={{ 
+            __html: sanitizeWeekNumbers(block.headline || block.title || '')
+          }}
+        />
+      )}
+      
       {/* Text content */}
       <div 
         className="prose max-w-none"

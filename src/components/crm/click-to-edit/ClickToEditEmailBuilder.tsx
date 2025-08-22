@@ -164,7 +164,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'text':
         // Use ImageTextBlock for text blocks that have images or image-centric layouts
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
-        if ((block.imageUrl || hasImageLayout) && hasImageLayout) {
+        if (block.imageUrl || hasImageLayout) {
           return <ImageTextBlock {...props} isPreview={false} />;
         }
         return <TextBlock {...props} isPreview={false} />;
@@ -197,7 +197,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'text':
         // Use ImageTextBlock for text blocks that have images or image-centric layouts
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
-        if ((block.imageUrl || hasImageLayout) && hasImageLayout) {
+        if (block.imageUrl || hasImageLayout) {
           return <ImageTextBlock {...props} isPreview={true} />;
         }
         return <TextBlock {...props} isPreview={true} />;
