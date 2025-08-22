@@ -10,6 +10,7 @@ import { PublicRoute } from '@/components/PublicRoute';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { SmartRootRoute } from '@/components/SmartRootRoute';
 import { DataProviderWrapper } from '@/components/DataProviderWrapper';
+import { RedirectWithQuery } from '@/components/RedirectWithQuery';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import OnboardingPage from '@/pages/OnboardingPage'; // Force refresh
@@ -259,7 +260,7 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/newsletters/builder" element={
-            <Navigate to="/crm/campaigns/new" replace />
+            <RedirectWithQuery to="/crm/campaigns/new" />
           } />
           <Route path="/integrations" element={
             <ProtectedRoute>

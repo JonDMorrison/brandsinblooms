@@ -955,6 +955,41 @@ cleanUrl();
     });
   }, [blocks]);
 
+  // Initialize blank newsletter with default blocks
+  const blankNewsletterInitialized = useRef(false);
+  useEffect(() => {
+    const isBlankNewsletter = 
+      searchParams.get('type') === 'newsletter' &&
+      !searchParams.get('templateId') &&
+      !searchParams.get('contentTaskId') &&
+      !existingCampaignId &&
+      !campaignSlug &&
+      blocks.length === 0 &&
+      !blankNewsletterInitialized.current;
+
+    if (isBlankNewsletter) {
+      console.log('🆕 Initializing blank newsletter with default blocks');
+      blankNewsletterInitialized.current = true;
+      
+      setCampaignName('Newsletter Campaign');
+      setSubjectLine('Weekly Garden Update');
+      setPreheaderText('Essential gardening tips delivered to your inbox');
+      
+      // Generate default newsletter blocks
+      const defaultBlocks = getFallbackBlocks('Newsletter Campaign');
+      setBlocks(defaultBlocks);
+      
+      console.log('✅ Blank newsletter initialized with', defaultBlocks.length, 'blocks');
+    }
+  }, [
+    searchParams.get('type'), 
+    searchParams.get('templateId'), 
+    searchParams.get('contentTaskId'),
+    existingCampaignId,
+    campaignSlug,
+    blocks.length
+  ]);
+
   const loadExistingCampaign = async (campaignId: string) => {
     try {
       console.log('🔄 Loading existing CRM campaign:', campaignId);
