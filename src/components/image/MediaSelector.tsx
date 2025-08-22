@@ -505,7 +505,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           )}
         </div>
 
-        {/* Right Column: Thumbnails (50%) */}
+        {/* Thumbnails (50%) */}
         <div className="space-y-4 w-full">
           <div className="flex items-center justify-between">
             <h4 className="text-lg font-semibold text-gray-800">Select Image</h4>
