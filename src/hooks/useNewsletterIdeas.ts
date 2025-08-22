@@ -106,10 +106,13 @@ export const useNewsletterIdeas = () => {
   }, []);
 
   const getCurrentWeekNumber = (): number => {
+    // Use ISO week calculation to match the edge function
     const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const pastDaysOfYear = (now.getTime() - startOfYear.getTime()) / 86400000;
-    return Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   };
 
   const fetchWeeklyThemes = async (): Promise<NewsletterIdea[]> => {
@@ -120,6 +123,7 @@ export const useNewsletterIdeas = () => {
       }
 
       const currentWeek = getCurrentWeekNumber();
+      console.log('🗓️ Current week calculated as:', currentWeek, 'for date:', format(new Date(), 'yyyy-MM-dd'));
       
       const { data, error } = await supabase.functions.invoke('generate-weekly-themes', {
         body: { 
@@ -131,10 +135,14 @@ export const useNewsletterIdeas = () => {
       });
 
       if (error || !data?.themes) {
+        console.warn('Edge function failed, falling back to seasonal themes');
         // Fall back to seasonal themes
         return mapThemesToIdeas(getFallbackThemes());
       }
 
+      console.log('📋 Generated themes count:', data.themes.length);
+      console.log('📋 First 3 themes:', data.themes.slice(0, 3).map(t => ({ week: t.week, title: t.title })));
+      
       return mapThemesToIdeas(data.themes, currentWeek);
     } catch (err) {
       console.error('Error fetching weekly themes:', err);
@@ -184,20 +192,20 @@ export const useNewsletterIdeas = () => {
   };
 };
 
-// Fallback ideas when the API fails
+// Fallback ideas when the API fails - seasonal and evergreen
 const getFallbackIdeas = (): NewsletterIdea[] => [
   {
-    id: 'holiday-winter',
-    title: 'Winter Garden Care Tips',
-    description: 'Essential care guide for keeping your garden healthy during winter months',
+    id: 'seasonal-current',
+    title: 'Seasonal Garden Care Guide',
+    description: 'Essential care tips and advice for maintaining your garden this season',
     category: 'seasonal',
     badge: 'Seasonal',
     templateBlocks: [
-      { type: 'header', title: 'Winter Garden Care Tips' },
-      { type: 'image-text', title: 'Protecting Your Plants', content: 'Learn how to protect your plants from frost and cold weather.' },
-      { type: 'text', content: 'Winter is a crucial time for garden maintenance...' }
+      { type: 'header', title: 'Seasonal Garden Care' },
+      { type: 'image-text', title: 'This Season\'s Focus', content: 'Important care tips for successful gardening right now.' },
+      { type: 'text', content: 'Follow our expert seasonal recommendations to keep your garden thriving.' }
     ],
-    heroQuery: 'winter garden frost protection',
+    heroQuery: 'seasonal garden care tips',
     estimatedReadTime: '5 min'
   },
   {
