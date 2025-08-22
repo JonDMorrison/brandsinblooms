@@ -33,7 +33,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, className })
 
   const getBadgeText = (idea: NewsletterIdea): string => {
     if (idea.category === 'weekly' && idea.weekNumber) {
-      return `Week ${idea.weekNumber}`;
+      return "Plant Care Focus";
     }
     return getDateRangeLabel(idea);
   };
