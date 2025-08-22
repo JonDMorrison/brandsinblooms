@@ -439,167 +439,217 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     );
   }
 
-  // Browse Mode UI - thumbnails now directly select images
-  console.log('[MediaSelector] Rendering thumbnail grid (not in preview mode).');
+  // Two-column layout: Featured image on left, thumbnails on right
   return (
-    <div className={cn("w-full space-y-6", className)}>
-
-      {/* Featured Image Section */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium text-slate-700">Featured Image</h3>
-        
-        {selectedImageUrl ? (
-          <div className="relative group aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
-            <img 
-              src={selectedImageUrl} 
-              alt={selectedImageMetadata?.alt_text || "Featured image"}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                console.error('[MediaSelector] Featured image failed to load:', selectedImageUrl);
-                const currentSrc = e.currentTarget.src;
-                const fallbackPath = '/images/newsletter-fallback.jpg';
-                
-                if (!currentSrc.includes('newsletter-fallback.jpg')) {
-                  e.currentTarget.src = fallbackPath;
-                } else {
-                  e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+';
-                }
-              }}
-            />
-            
-            {/* Show edit controls for selected images */}
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
-              <div className="text-center">
-                <Edit3 className="h-6 w-6 text-white mx-auto mb-2" />
-                <p className="text-white font-medium">Change Image</p>
+    <div className={cn("w-full", className)}>
+      {onBackClick && (
+        <Button 
+          variant="ghost" 
+          onClick={onBackClick}
+          className="mb-4 p-0 h-auto font-normal text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to selection
+        </Button>
+      )}
+      
+      <div className="grid grid-cols-2 gap-6">
+        {/* Left Column: Featured Image (50%) */}
+        <div className="space-y-4">
+          <h4 className="text-lg font-semibold text-gray-800">Featured Image</h4>
+          {selectedImageUrl ? (
+            <div className="relative group aspect-video rounded-lg border-2 border-primary/20 overflow-hidden bg-primary/5">
+              <img 
+                src={selectedImageUrl} 
+                alt={selectedImageMetadata?.alt_text || "Featured image"}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  console.error('[MediaSelector] Featured image failed to load:', selectedImageUrl);
+                  const currentSrc = e.currentTarget.src;
+                  const fallbackPath = '/images/newsletter-fallback.jpg';
+                  
+                  if (!currentSrc.includes('newsletter-fallback.jpg')) {
+                    e.currentTarget.src = fallbackPath;
+                  } else {
+                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                  }
+                }}
+              />
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+                {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={(e) => handleDownload(selectedImageMetadata, e)}
+                    className="bg-white/90 hover:bg-white"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    Download
+                  </Button>
+                )}
               </div>
-              {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={(e) => handleDownload(selectedImageMetadata, e)}
-                  className="bg-white/90 hover:bg-white"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
+              {selectedImageMetadata?.photographer && (
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+                  <p className="text-white text-sm">Photo by {selectedImageMetadata.photographer}</p>
+                </div>
               )}
             </div>
-          </div>
-        ) : (
-          <div className="aspect-square w-32 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center hover:border-gray-400 hover:bg-gray-100 transition-colors">
-            <div className="text-center">
-              <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <h4 className="text-lg font-medium text-gray-600 mb-1">Select a Featured Image</h4>
-              <p className="text-sm text-gray-500">Choose from suggestions below or search for something specific</p>
+          ) : (
+            <div className="aspect-video rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
+              <div className="text-center">
+                <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">Featured image will appear here</p>
+                <p className="text-sm text-gray-500 mt-1">Select from thumbnails on the right</p>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Search & Upload Controls */}
-      <div className="space-y-3">
-        <div className="flex gap-3">
-          <div className="flex-1 flex gap-2">
-            <Input
-              placeholder="Search for images..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <Button onClick={handleSearch} disabled={unsplashLoading}>
-              {unsplashLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            </Button>
-          </div>
-          
-          <label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <Button variant="outline" asChild>
-              <span>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload
-              </span>
-            </Button>
-          </label>
+          )}
         </div>
-      </div>
 
-      {/* 3 Thumbnail Grid */}
-      {searchResults.length > 0 && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium text-slate-700">
-            {showingSuggestions ? 'Suggested Images' : 'Search Results'}
-          </h4>
-          
-           <div className="grid grid-cols-3 gap-4 min-h-[160px]">
-            {searchResults.slice(0, 3).map((image, index) => {
-              console.log('[MediaSelector] Browse mode - rendering thumbnail:', index, {
-                id: image.id,
-                thumb: image.thumb,
-                thumb_url: image.thumb_url,
-                url: image.url,
-                download_url: image.download_url
-              });
-              return (
-                <Card 
-                  key={`${image.id}-${index}`}
-                  className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
-                  onClick={() => handleThumbnailClick(image, index)}
-                >
-                  <CardContent className="p-0">
-                    <div className="relative aspect-square">
+        {/* Right Column: Thumbnails (50%) */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-lg font-semibold text-gray-800">Select Image</h4>
+            {searchResults.length > 0 && (
+              <span className="text-sm text-gray-500">
+                {searchResults.length} available
+              </span>
+            )}
+          </div>
+
+          {/* Search Controls */}
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search images..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleSearch} 
+                disabled={unsplashLoading}
+                variant="outline"
+              >
+                {unsplashLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              </Button>
+            </div>
+
+            <label className="block">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button variant="outline" className="w-full" asChild>
+                <span>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Custom Image
+                </span>
+              </Button>
+            </label>
+          </div>
+
+          {/* Thumbnail Grid */}
+          {searchResults.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-700">
+                {showingSuggestions ? 'Suggested Images' : 'Search Results'}
+              </p>
+              <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto">
+                {searchResults.slice(0, 3).map((image, index) => {
+                  console.log('[MediaSelector] Rendering thumbnail:', index, {
+                    id: image.id,
+                    thumb: image.thumb,
+                    thumb_url: image.thumb_url,
+                    url: image.url,
+                    download_url: image.download_url
+                  });
+                  const isSelected = selectedImageUrl === (image.url || image.download_url);
+                  return (
+                    <button
+                      key={image.id || index}
+                      className={cn(
+                        "relative group cursor-pointer aspect-video rounded-lg overflow-hidden border-2 transition-all duration-200 bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary",
+                        isSelected 
+                          ? "border-primary shadow-lg" 
+                          : "border-gray-200 hover:border-primary/50"
+                      )}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('[MediaSelector] Thumbnail clicked:', image.id);
+                        handleThumbnailClick(image, index);
+                      }}
+                      type="button"
+                      tabIndex={0}
+                    >
                       <img 
                         src={image.thumb_url || image.thumb || image.download_url || image.url} 
-                        alt={image.alt}
-                        className="w-full h-full object-cover rounded-lg"
-                        onLoad={() => console.log('[MediaSelector] Browse mode - Image loaded:', image.id)}
+                        alt={image.alt || 'Image thumbnail'}
+                        className="w-full h-full object-cover pointer-events-none"
+                        onLoad={() => console.log('[MediaSelector] Thumbnail loaded successfully:', image.id)}
                         onError={(e) => {
-                          console.error('[MediaSelector] Browse mode - Thumbnail failed to load:', {
+                          console.error('[MediaSelector] Thumbnail failed to load:', {
                             src: e.currentTarget.src,
                             image: image
                           });
-                          // Fallback chain: thumb_url -> thumb -> download_url -> url -> placeholder
                           const currentSrc = e.currentTarget.src;
                           if (currentSrc !== (image.download_url || image.url)) {
                             e.currentTarget.src = image.download_url || image.url;
                           } else {
-                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgRmFpbGVkPC90ZXh0Pjwvc3ZnPg==';
+                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2U8L3RleHQ+PC9zdmc+';
                           }
                         }}
                       />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
-                        <Camera className="h-6 w-6 text-white" />
-                      </div>
-                      {image.photographer && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 rounded-b-lg">
-                          Photo by {image.photographer}
+                      
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                          <div className="bg-primary text-primary-foreground rounded-full p-2">
+                            <Camera className="h-5 w-5" />
+                          </div>
                         </div>
                       )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-          
-          {searchResults.length > 3 && (
-            <div className="text-center">
-              <Button 
-                variant="outline" 
-                onClick={() => setSearchResults(searchResults.slice(0, searchResults.length))}
-                className="text-sm"
-              >
-                Search for more options above
-              </Button>
+                      
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none">
+                        <div className="bg-white rounded-full p-3">
+                          <Camera className="h-5 w-5 text-gray-700" />
+                        </div>
+                      </div>
+                      
+                      {image.photographer && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                          <p className="text-white text-sm truncate">Photo by {image.photographer}</p>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {unsplashLoading && searchResults.length === 0 && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="aspect-video rounded-lg bg-gray-200 animate-pulse" />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* No Results */}
+          {!unsplashLoading && searchResults.length === 0 && !showingSuggestions && (
+            <div className="text-center py-8">
+              <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No images found</p>
+              <p className="text-sm text-gray-500 mt-1">Try a different search term</p>
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
-  );
 };
