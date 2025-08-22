@@ -19,12 +19,15 @@ const buttonVariants = cva(
           "bg-gray-100 text-brand-navy hover:bg-gray-200",
         ghost: "text-brand-navy hover:bg-gray-100",
         link: "text-brand-teal underline-offset-4 hover:underline",
+        success: "bg-green-600 text-white hover:bg-green-700 shadow-sm",
+        "soft-blue": "bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200",
       },
       size: {
         default: "h-10 px-4 py-2",
         sm: "h-9 rounded-md px-3",
         lg: "h-11 rounded-md px-8",
         icon: "h-10 w-10",
+        pill: "h-9 px-4 py-2",
       },
     },
     defaultVariants: {

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ActionGroup } from '@/components/ui/action-group';
 import { Badge } from '@/components/ui/badge';
 import { Facebook, Instagram, Clock, Send, Edit3, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -133,13 +134,12 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2">
+        <ActionGroup className="w-full justify-center">
           <Button
-            variant="outline"
-            size="sm"
+            variant="ghost"
             onClick={() => onEdit(item)}
             disabled={disabled}
-            className="flex-1"
+            className="flex-1 text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm"
           >
             <Edit3 className="w-4 h-4 mr-1" />
             Edit
@@ -147,10 +147,10 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
           
           {canPublish && (
             <Button
-              size="sm"
+              variant="success"
               onClick={() => onPublishNow(item)}
               disabled={!canPublish}
-              className="flex-1 bg-primary hover:bg-primary/90"
+              className="flex-1"
             >
               <Send className="w-4 h-4 mr-1" />
               Publish
@@ -159,8 +159,7 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
           
           {canSchedule && (
             <Button
-              variant="outline"
-              size="sm"
+              variant="soft-blue"
               onClick={() => onSchedule(item)}
               disabled={!canSchedule}
               className="flex-1"
@@ -169,7 +168,7 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
               Schedule
             </Button>
           )}
-        </div>
+        </ActionGroup>
       </div>
     </Card>
   );
