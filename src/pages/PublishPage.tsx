@@ -319,7 +319,7 @@ const PublishPage = () => {
         variant: "destructive",
       });
     }
-  }, [supabase, toast, refetch]);
+  }, [toast, refetch]);
 
   if (loading || isLoading || tenantLoading) {
     return (
