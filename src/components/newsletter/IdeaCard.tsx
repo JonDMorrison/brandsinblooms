@@ -19,7 +19,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, className })
       case 'holiday':
         return 'secondary'; // Changed from destructive to more muted
       case 'weekly':
-        return 'outline'; // Changed from default to more subtle
+        return 'default'; // Changed to default for weekly themes
       case 'seasonal':
         return 'secondary';
       case 'product':
@@ -29,6 +29,13 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, className })
       default:
         return 'secondary';
     }
+  };
+
+  const getBadgeText = (idea: NewsletterIdea): string => {
+    if (idea.category === 'weekly' && idea.weekNumber) {
+      return `Week ${idea.weekNumber}`;
+    }
+    return getDateRangeLabel(idea);
   };
 
   const getDateRangeLabel = (idea: NewsletterIdea): string => {
@@ -79,7 +86,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, className })
             variant={getBadgeVariant(idea.category)} 
             className="text-xs text-muted-foreground bg-muted/50 border-muted hover:bg-muted/70"
           >
-            {getDateRangeLabel(idea)}
+            {getBadgeText(idea)}
           </Badge>
           {idea.estimatedReadTime && (
             <div className="flex items-center text-xs text-muted-foreground">

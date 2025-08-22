@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { NewsletterIdea, NewsletterTemplate } from '@/types/newsletter';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { getFallbackThemes } from '@/utils/fallbackThemes';
 
 export const useNewsletterIdeas = () => {
+  const { user } = useAuth();
   const [ideas, setIdeas] = useState<NewsletterIdea[]>([]);
   const [templates, setTemplates] = useState<NewsletterTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,24 +35,40 @@ export const useNewsletterIdeas = () => {
       setLoading(true);
       setError(null);
 
-      // Call the RPC function to get newsletter ideas
-      const { data, error: rpcError } = await supabase
-        .rpc('fn_get_newsletter_ideas');
+      // Fetch both curated ideas and weekly themes in parallel
+      const [curatedIdeasResult, weeklyThemesResult] = await Promise.allSettled([
+        // Call the RPC function to get newsletter ideas
+        supabase.rpc('fn_get_newsletter_ideas'),
+        // Fetch weekly themes
+        fetchWeeklyThemes()
+      ]);
 
-      if (rpcError) {
-        throw rpcError;
+      let curatedIdeas: NewsletterIdea[] = [];
+      let weeklyThemes: NewsletterIdea[] = [];
+
+      // Process curated ideas
+      if (curatedIdeasResult.status === 'fulfilled' && !curatedIdeasResult.value.error) {
+        const data = curatedIdeasResult.value.data;
+        curatedIdeas = Array.isArray(data) ? (data as unknown) as NewsletterIdea[] : [];
       }
 
-      // Convert the JSONB data to the expected format
-      const ideasArray = Array.isArray(data) ? (data as unknown) as NewsletterIdea[] : [];
-      setIdeas(ideasArray);
+      // Process weekly themes
+      if (weeklyThemesResult.status === 'fulfilled') {
+        weeklyThemes = weeklyThemesResult.value;
+      }
+
+      // Combine and deduplicate ideas
+      const allIdeas = [...weeklyThemes, ...curatedIdeas];
+      setIdeas(allIdeas);
       setTemplates(defaultTemplates);
     } catch (err) {
       console.error('Error fetching newsletter ideas:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch newsletter ideas');
       
-      // Set fallback data
-      setIdeas(getFallbackIdeas());
+      // Set fallback data (includes seasonal themes)
+      const fallbackThemes = mapThemesToIdeas(getFallbackThemes());
+      const fallbackCurated = getFallbackIdeas();
+      setIdeas([...fallbackThemes, ...fallbackCurated]);
       setTemplates(defaultTemplates);
     } finally {
       setLoading(false);
@@ -79,6 +98,55 @@ export const useNewsletterIdeas = () => {
   useEffect(() => {
     fetchNewsletterIdeas();
   }, []);
+
+  const fetchWeeklyThemes = async (): Promise<NewsletterIdea[]> => {
+    try {
+      if (!user) {
+        // Return fallback themes if no user
+        return mapThemesToIdeas(getFallbackThemes());
+      }
+
+      const { data, error } = await supabase.functions.invoke('generate-weekly-themes', {
+        body: { 
+          userId: user.id,
+          generateAll52Weeks: true,
+          startYear: new Date().getFullYear()
+        }
+      });
+
+      if (error || !data?.themes) {
+        // Fall back to seasonal themes
+        return mapThemesToIdeas(getFallbackThemes());
+      }
+
+      return mapThemesToIdeas(data.themes);
+    } catch (err) {
+      console.error('Error fetching weekly themes:', err);
+      // Fall back to seasonal themes
+      return mapThemesToIdeas(getFallbackThemes());
+    }
+  };
+
+  const mapThemesToIdeas = (themes: any[]): NewsletterIdea[] => {
+    return themes.map((theme, index) => ({
+      id: `weekly-theme-${theme.week || index + 1}`,
+      title: theme.title,
+      description: theme.description,
+      category: 'weekly' as const,
+      weekNumber: theme.week || index + 1,
+      templateBlocks: [
+        { type: 'header', title: theme.title },
+        { type: 'text', content: theme.description },
+        ...(theme.content_ideas || []).slice(0, 3).map((idea: string) => ({
+          type: 'image-text',
+          title: idea,
+          content: `Explore ${idea.toLowerCase()} with your audience this week.`
+        }))
+      ],
+      heroQuery: theme.title?.toLowerCase().replace(/[^a-z0-9\s]/g, '') || 'newsletter content',
+      estimatedReadTime: '4 min'
+    }));
+  };
 
   return {
     ideas,
