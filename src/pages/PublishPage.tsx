@@ -269,13 +269,25 @@ const PublishPage = () => {
   // Publish now handler
   const handlePublishNow = useCallback(async (taskId: string, input: PublishNowInput) => {
     await publishNow(taskId, input);
-    refetch?.(); // Refresh statuses
+    
+    // Close the drawer since publishing was successful
+    setDrawerOpen(false);
+    setSelectedItem(null);
+    
+    // Refresh data to show updated status
+    refetch?.();
   }, [publishNow, refetch]);
 
   // Schedule handler  
   const handleSchedule = useCallback(async (taskId: string, input: ScheduleInput) => {
     await schedule(taskId, input);
-    refetch?.(); // Refresh statuses
+    
+    // Close the drawer since scheduling was successful
+    setDrawerOpen(false);
+    setSelectedItem(null);
+    
+    // Refresh data to show updated status
+    refetch?.();
   }, [schedule, refetch]);
 
   if (loading || isLoading || tenantLoading) {

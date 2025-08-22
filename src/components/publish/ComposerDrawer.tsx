@@ -179,7 +179,7 @@ export default function ComposerDrawer({
         description: "Published successfully",
       });
       
-      onClose();
+      // Don't close here - let parent handle closing after data refresh
     } catch (error: any) {
       console.error('Publish error:', error);
       toast({
@@ -227,7 +227,7 @@ export default function ComposerDrawer({
         description: `Scheduled for ${format(publishAt, 'MMM d, h:mm a')}`,
       });
       
-      onClose();
+      // Don't close here - let parent handle closing after data refresh
     } catch (error: any) {
       console.error('Schedule error:', error);
       toast({
