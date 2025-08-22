@@ -228,8 +228,8 @@ const PublishPage = () => {
     const updateData: any = {};
     if (partial.caption !== undefined) updateData.ai_output = partial.caption;
     if (partial.mediaUrl !== undefined) updateData.image_url = partial.mediaUrl;
-    if (partial.firstComment !== undefined) updateData.first_comment = partial.firstComment;
-    if (partial.accountId !== undefined) updateData.account_id = partial.accountId;
+    // Note: firstComment is Instagram-specific and not stored in content_tasks
+    // Note: accountId is not stored in content_tasks - it's passed to publish functions
 
     if (partial.mediaUrl) {
       updateData.attachments = {
