@@ -517,7 +517,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           </div>
 
           {/* Search Controls */}
-          <div className="space-y-3">
+          <div className="space-y-3 w-full">
             <div className="flex gap-2 w-full">
               <Input
                 placeholder="Search images..."
