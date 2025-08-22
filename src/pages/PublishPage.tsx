@@ -116,7 +116,7 @@ const PublishPage = () => {
         id: task.id,
         status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW',
         caption: task.ai_output || '',
-        mediaUrl: (task.attachments as any)?.image?.url || undefined,
+        mediaUrl: (task.attachments as any)?.image?.thumb || (task.attachments as any)?.image?.url || undefined,
         platform: task.post_type,
         campaignId: task.campaign_id,
         createdAt: task.created_at
@@ -168,7 +168,16 @@ const PublishPage = () => {
             <Card key={item.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg capitalize">{item.platform}</CardTitle>
+                  <div className="flex items-center gap-3">
+                    {item.mediaUrl && (
+                      <img 
+                        src={item.mediaUrl} 
+                        alt="Content thumbnail" 
+                        className="w-8 h-8 object-cover rounded-md border"
+                      />
+                    )}
+                    <CardTitle className="text-lg capitalize">{item.platform}</CardTitle>
+                  </div>
                   <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                     {item.status}
                   </span>
