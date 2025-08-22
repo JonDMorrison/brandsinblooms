@@ -10,6 +10,7 @@ import type { PublishItem } from '@/types/publish';
 
 export type PostCardProps = {
   item: PublishItem;
+  publishedAt?: string;
   onEdit: (item: PublishItem) => void;
   onPublishNow: (item: PublishItem) => void;
   onSchedule: (item: PublishItem) => void;
@@ -50,7 +51,7 @@ const formatStatus = (status: PublishItem['status'], scheduledFor?: string | nul
   return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
-export default function PostCard({ item, onEdit, onPublishNow, onSchedule, onDelete, disabled }: PostCardProps) {
+export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSchedule, onDelete, disabled }: PostCardProps) {
   const PlatformIcon = item.platform === 'facebook' ? Facebook : Instagram;
   const platformColor = item.platform === 'facebook' ? 'text-blue-600' : 'text-pink-500';
   
@@ -107,6 +108,14 @@ export default function PostCard({ item, onEdit, onPublishNow, onSchedule, onDel
             <div className="border-l-2 border-gray-200 pl-3">
               <p className="text-xs text-gray-500 mb-1">First comment:</p>
               <p className="text-sm text-gray-600 line-clamp-2">{item.firstComment}</p>
+            </div>
+          )}
+
+          {/* Published Date (Published posts only) */}
+          {item.status === 'published' && publishedAt && (
+            <div className="flex items-center gap-2 text-sm text-gray-500 bg-green-50 px-2 py-1 rounded">
+              <Clock className="w-4 h-4" />
+              <span>Published {format(new Date(publishedAt), 'MMM d, h:mm a')}</span>
             </div>
           )}
         </div>

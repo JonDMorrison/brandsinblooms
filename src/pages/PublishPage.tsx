@@ -9,6 +9,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Send, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -51,13 +52,16 @@ const PublishPage = () => {
   const [drawerMode, setDrawerMode] = useState<ComposerMode>('edit');
   const [selectedItem, setSelectedItem] = useState<PublishItem | null>(null);
 
-  // Convert dashboard data to PublishItem format
+  // Convert dashboard data to PublishItem format (ready to post)
   const publishItems: PublishItem[] = useMemo(() => {
     const tasks = dashboardData?.tasks || [];
     const socialConnections = dashboardData?.socialConnections || [];
 
     return tasks
-      .filter(task => ['facebook', 'instagram'].includes(task.post_type))
+      .filter(task => 
+        ['facebook', 'instagram'].includes(task.post_type) &&
+        task.status.toLowerCase() !== 'published'
+      )
       .map(task => {
         const connection = socialConnections.find(
           conn => conn.platform === task.post_type && conn.is_active
@@ -79,6 +83,32 @@ const PublishPage = () => {
       });
   }, [dashboardData]);
 
+  // Convert scheduled posts to published items format
+  const publishedItems: (PublishItem & { publishedAt: string })[] = useMemo(() => {
+    const scheduledPosts = dashboardData?.scheduledPosts || [];
+    
+    return scheduledPosts
+      .filter(post => post.status === 'PUBLISHED')
+      .map(post => {
+        const contentTask = (post as any).content_tasks;
+        return {
+          taskId: contentTask?.id || post.id,
+          tenantId: post.tenant_id,
+          platform: (post.platform || contentTask?.post_type) as "facebook" | "instagram",
+          accountId: null,
+          accountName: null,
+          caption: contentTask?.ai_output?.trim() || null,
+          firstComment: null,
+          mediaUrl: contentTask?.image_url || contentTask?.attachments?.image?.url || null,
+          scheduledFor: null,
+          status: 'published' as const,
+          attachments: contentTask?.attachments,
+          publishedAt: post.publish_at || post.created_at
+        };
+      })
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  }, [dashboardData]);
+
   // Available accounts for ComposerDrawer
   const availableAccounts = useMemo(() => {
     const connections = dashboardData?.socialConnections || [];
@@ -91,8 +121,8 @@ const PublishPage = () => {
       }));
   }, [dashboardData]);
 
-  // Filter items by search term
-  const filteredItems = useMemo(() => {
+  // Filter ready items by search term
+  const filteredReadyItems = useMemo(() => {
     if (!searchTerm) return publishItems;
     const term = searchTerm.toLowerCase();
     return publishItems.filter(item =>
@@ -101,6 +131,17 @@ const PublishPage = () => {
       item.accountName?.toLowerCase().includes(term)
     );
   }, [publishItems, searchTerm]);
+
+  // Filter published items by search term
+  const filteredPublishedItems = useMemo(() => {
+    if (!searchTerm) return publishedItems;
+    const term = searchTerm.toLowerCase();
+    return publishedItems.filter(item =>
+      item.caption?.toLowerCase().includes(term) ||
+      item.platform.toLowerCase().includes(term) ||
+      item.accountName?.toLowerCase().includes(term)
+    );
+  }, [publishedItems, searchTerm]);
 
   // Prefill logic (unchanged from original)
   useEffect(() => {
@@ -363,36 +404,80 @@ const PublishPage = () => {
         </div>
       </div>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredItems.length === 0 ? (
-          <Card className="col-span-full">
-            <CardContent className="text-center py-12">
-              <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <CardTitle className="mb-2">
-                {publishItems.length === 0 ? "No content ready to publish" : "No matching content"}
-              </CardTitle>
-              <CardDescription>
-                {publishItems.length === 0 
-                  ? "Approved content from the Create Flow will appear here ready for publishing."
-                  : "Try adjusting your search terms to find content."
-                }
-              </CardDescription>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredItems.map((item) => (
-            <PostCard
-              key={item.taskId}
-              item={item}
-              onEdit={(item) => handleOpenDrawer(item, 'edit')}
-              onPublishNow={(item) => handleOpenDrawer(item, 'edit')}
-              onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
-              onDelete={handleDelete}
-            />
-          ))
-        )}
-      </div>
+      {/* Tabs */}
+      <Tabs defaultValue="ready" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="ready">Ready to Post</TabsTrigger>
+          <TabsTrigger value="published">Published</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ready" className="space-y-6">
+          {/* Ready to Post Content Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredReadyItems.length === 0 ? (
+              <Card className="col-span-full">
+                <CardContent className="text-center py-12">
+                  <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <CardTitle className="mb-2">
+                    {publishItems.length === 0 ? "No content ready to publish" : "No matching content"}
+                  </CardTitle>
+                  <CardDescription>
+                    {publishItems.length === 0 
+                      ? "Approved content from the Create Flow will appear here ready for publishing."
+                      : "Try adjusting your search terms to find content."
+                    }
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredReadyItems.map((item) => (
+                <PostCard
+                  key={item.taskId}
+                  item={item}
+                  onEdit={(item) => handleOpenDrawer(item, 'edit')}
+                  onPublishNow={(item) => handleOpenDrawer(item, 'edit')}
+                  onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
+                  onDelete={handleDelete}
+                />
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="published" className="space-y-6">
+          {/* Published Content Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredPublishedItems.length === 0 ? (
+              <Card className="col-span-full">
+                <CardContent className="text-center py-12">
+                  <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <CardTitle className="mb-2">
+                    {publishedItems.length === 0 ? "No published posts" : "No matching published posts"}
+                  </CardTitle>
+                  <CardDescription>
+                    {publishedItems.length === 0 
+                      ? "Published posts will appear here with their publication dates."
+                      : "Try adjusting your search terms to find published posts."
+                    }
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredPublishedItems.map((item) => (
+                <PostCard
+                  key={`published-${item.taskId}`}
+                  item={item}
+                  publishedAt={item.publishedAt}
+                  onEdit={(item) => handleOpenDrawer(item, 'edit')}
+                  onPublishNow={(item) => handleOpenDrawer(item, 'edit')}
+                  onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
+                  onDelete={handleDelete}
+                />
+              ))
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Composer Drawer */}
       <ComposerDrawer
