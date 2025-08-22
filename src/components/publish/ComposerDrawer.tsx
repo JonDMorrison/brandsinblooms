@@ -6,7 +6,7 @@
 // - Mode switching between edit/publish/schedule
 
 import React, { useState, useEffect } from 'react';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -261,19 +261,19 @@ export default function ComposerDrawer({
   };
 
   return (
-    <Drawer open={open} onOpenChange={onClose}>
-      <DrawerContent className="max-w-2xl mx-auto">
-        <DrawerHeader>
-          <DrawerTitle className="flex items-center gap-2">
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white z-50">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <PlatformIcon className={cn(
               "w-5 h-5",
               item.platform === 'facebook' ? 'text-blue-600' : 'text-pink-500'
             )} />
             {mode === 'edit' ? 'Edit Post' : mode === 'publish' ? 'Publish Now' : 'Schedule Post'}
-          </DrawerTitle>
-        </DrawerHeader>
+          </DialogTitle>
+        </DialogHeader>
 
-        <div className="p-4 space-y-6 max-h-[80vh] overflow-y-auto">
+        <div className="space-y-6">
           {/* Mode Switcher */}
           <div className="flex gap-2">
             <Button 
@@ -453,7 +453,7 @@ export default function ComposerDrawer({
             </Button>
           </div>
         </div>
-      </DrawerContent>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   );
 }
