@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboardData } from '@/hooks/useDashboardData';
+import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ interface GeneratedContent {
 
 const PublishPage = () => {
   const { user } = useAuth();
+  const { tenant, loading: tenantLoading } = useTenant();
   const { data: dashboardData, isLoading } = useDashboardData();
   const [content, setContent] = useState<GeneratedContent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,7 @@ const PublishPage = () => {
     const params = new URLSearchParams(window.location.search);
     const bundleId = params.get('bundleId');
     const channel = params.get('channel'); // 'instagram' | 'facebook'
-    if (!bundleId || prefillDone) return;
+    if (!bundleId || prefillDone || !user || !tenant || tenantLoading) return;
 
     const prefillKey = `publish-prefill:${bundleId}:${channel || 'any'}`;
     const cleanUrl = () => {
@@ -67,9 +69,10 @@ const PublishPage = () => {
         if (!item) return;
 
         const insertPayload: any = {
-          user_id: user?.id,
+          user_id: user.id,
+          tenant_id: tenant.id,
           post_type: item.channel === 'instagram' ? 'instagram' : (item.channel === 'facebook' ? 'facebook' : 'instagram'),
-          ai_output: item.body,
+          ai_output: item.caption ?? item.body,
           image_url: item.media?.url || null,
           status: 'review'
         };
@@ -85,6 +88,17 @@ const PublishPage = () => {
         }
 
         const insertedRow: any = inserted as any;
+
+        // One-time repair: set tenant_id for any recent tasks by this user that are missing it
+        if (tenant?.id) {
+          await supabase
+            .from('content_tasks' as any)
+            .update({ tenant_id: tenant.id })
+            .eq('user_id', user.id)
+            .is('tenant_id', null)
+            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // last 24 hours
+            .limit(10);
+        }
 
         const newContent: GeneratedContent = {
           id: insertedRow.id,
@@ -104,7 +118,7 @@ const PublishPage = () => {
         console.warn('Publish prefill failed', e);
       }
     })();
-  }, [prefillDone, user]);
+  }, [prefillDone, user, tenant, tenantLoading]);
 
   useEffect(() => {
     if (user && !isLoading && dashboardData) {
@@ -117,7 +131,7 @@ const PublishPage = () => {
         id: task.id,
         status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW',
         caption: task.ai_output || '',
-        mediaUrl: (task.attachments as any)?.image?.thumb || (task.attachments as any)?.image?.url || undefined,
+        mediaUrl: (task.attachments as any)?.image?.thumb || (task.attachments as any)?.image?.url || task.image_url || undefined,
         platform: task.post_type,
         campaignId: task.campaign_id,
         createdAt: task.created_at
@@ -133,7 +147,7 @@ const PublishPage = () => {
     }
   }, [user, dashboardData, isLoading]);
 
-  if (loading || isLoading) {
+  if (loading || isLoading || tenantLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
