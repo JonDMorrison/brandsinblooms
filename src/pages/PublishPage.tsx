@@ -433,7 +433,21 @@ const PublishPage = () => {
 
         <TabsContent value="ready" className="space-y-6">
           {/* Ready to Post Content Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-300">
+          <div className="flex flex-wrap gap-6 transition-all duration-300">
+            <style>{`
+              @media (min-width: 768px) {
+                .flex-wrap > * {
+                  flex: 1 1 calc(50% - 12px);
+                  max-width: calc(50% - 12px);
+                }
+              }
+              @media (min-width: 1024px) {
+                .flex-wrap > * {
+                  flex: 1 1 calc(33.333% - 16px);
+                  max-width: calc(33.333% - 16px);
+                }
+              }
+            `}</style>
             {filteredReadyItems.length === 0 ? (
               <Card className="col-span-full">
                 <CardContent className="text-center py-12">
@@ -451,14 +465,15 @@ const PublishPage = () => {
               </Card>
             ) : (
               filteredReadyItems.map((item) => (
-                <PostCard
-                  key={item.taskId}
-                  item={item}
-                  onEdit={(item) => handleOpenDrawer(item, 'edit')}
-                  onPublishNow={(item) => handleOpenDrawer(item, 'edit')}
-                  onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
-                  onDelete={handleDelete}
-                />
+                <div key={`ready-${item.taskId}-${filteredReadyItems.length}`} className="w-full transition-all duration-300">
+                  <PostCard
+                    item={item}
+                    onEdit={(item) => handleOpenDrawer(item, 'edit')}
+                    onPublishNow={(item) => handleOpenDrawer(item, 'edit')}
+                    onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
+                    onDelete={handleDelete}
+                  />
+                </div>
               ))
             )}
           </div>
@@ -466,7 +481,21 @@ const PublishPage = () => {
 
         <TabsContent value="published" className="space-y-6">
           {/* Published Content Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-300">
+          <div className="flex flex-wrap gap-6 transition-all duration-300">
+            <style>{`
+              @media (min-width: 768px) {
+                .flex-wrap > * {
+                  flex: 1 1 calc(50% - 12px);
+                  max-width: calc(50% - 12px);
+                }
+              }
+              @media (min-width: 1024px) {
+                .flex-wrap > * {
+                  flex: 1 1 calc(33.333% - 16px);
+                  max-width: calc(33.333% - 16px);
+                }
+              }
+            `}</style>
             {filteredPublishedItems.length === 0 ? (
               <Card className="col-span-full">
                 <CardContent className="text-center py-12">
@@ -484,15 +513,16 @@ const PublishPage = () => {
               </Card>
             ) : (
               filteredPublishedItems.map((item) => (
-                <PostCard
-                  key={`published-${item.taskId}`}
-                  item={item}
-                  publishedAt={item.publishedAt}
-                  onEdit={(item) => handleOpenDrawer(item, 'edit')}
-                  onPublishNow={(item) => handleOpenDrawer(item, 'edit')}
-                  onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
-                  onDelete={handleDelete}
-                />
+                <div key={`published-${item.taskId}-${filteredPublishedItems.length}`} className="w-full transition-all duration-300">
+                  <PostCard
+                    item={item}
+                    publishedAt={item.publishedAt}
+                    onEdit={(item) => handleOpenDrawer(item, 'edit')}
+                    onPublishNow={(item) => handleOpenDrawer(item, 'edit')}
+                    onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
+                    onDelete={handleDelete}
+                  />
+                </div>
               ))
             )}
           </div>
