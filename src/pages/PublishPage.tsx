@@ -83,27 +83,37 @@ const PublishPage = () => {
       });
   }, [dashboardData]);
 
-  // Convert scheduled posts to published items format
+  // Convert published tasks to published items format
   const publishedItems: (PublishItem & { publishedAt: string })[] = useMemo(() => {
+    const publishedTasks = dashboardData?.publishedTasks || [];
     const scheduledPosts = dashboardData?.scheduledPosts || [];
+    const socialConnections = dashboardData?.socialConnections || [];
     
-    return scheduledPosts
-      .filter(post => post.status === 'PUBLISHED')
-      .map(post => {
-        const contentTask = (post as any).content_tasks;
+    return publishedTasks
+      .filter(task => ['facebook', 'instagram'].includes(task.post_type))
+      .map(task => {
+        const connection = socialConnections.find(
+          conn => conn.platform === task.post_type && conn.is_active
+        );
+        
+        // Find corresponding scheduled post for publish timestamp
+        const scheduledPost = scheduledPosts.find(
+          post => post.content_id === task.id && post.status === 'PUBLISHED'
+        );
+        
         return {
-          taskId: contentTask?.id || post.id,
-          tenantId: post.tenant_id,
-          platform: (post.platform || contentTask?.post_type) as "facebook" | "instagram",
-          accountId: null,
-          accountName: null,
-          caption: contentTask?.ai_output?.trim() || null,
-          firstComment: null,
-          mediaUrl: contentTask?.image_url || contentTask?.attachments?.image?.url || null,
+          taskId: task.id,
+          tenantId: task.tenant_id,
+          platform: task.post_type as "facebook" | "instagram",
+          accountId: connection?.platform_account_id || null,
+          accountName: connection?.platform_account_name || null,
+          caption: task.ai_output?.trim() || null,
+          firstComment: (task as any).first_comment || null,
+          mediaUrl: task.image_url || (task.attachments as any)?.image?.url || null,
           scheduledFor: null,
           status: 'published' as const,
-          attachments: contentTask?.attachments,
-          publishedAt: post.publish_at || post.created_at
+          attachments: task.attachments,
+          publishedAt: scheduledPost?.publish_at || task.created_at
         };
       })
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());

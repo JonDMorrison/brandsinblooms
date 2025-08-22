@@ -59,7 +59,7 @@ export const useDashboardData = () => {
             tenant_id
           )
         `)
-        .in('status', ['draft', 'generated', 'approved', 'review', 'scheduled'])
+        .in('status', ['draft', 'generated', 'approved', 'review', 'scheduled', 'published'])
         .order('created_at', { ascending: false });
 
       // Always filter by user ownership - never show other users' content
@@ -71,7 +71,7 @@ export const useDashboardData = () => {
 
       const { data: tasks } = await taskQuery;
 
-      // Fetch scheduled posts with proper PostgREST join syntax
+      // Fetch scheduled posts - no join needed, we'll match by content_id
       const scheduledPostsQuery = supabase
         .from('scheduled_posts')
         .select(`
@@ -81,24 +81,13 @@ export const useDashboardData = () => {
           publish_at,
           status,
           mode,
-          tenant_id,
-          content_tasks (
-            id,
-            ai_output,
-            post_type,
-            attachments,
-            campaign_id,
-            tenant_id,
-            created_by_user_id
-          )
+          tenant_id
         `)
         .in('status', ['QUEUED', 'PUBLISHED']);
 
       // Apply proper filtering for scheduled posts
       if (tenant?.id) {
         scheduledPostsQuery.eq('tenant_id', tenant.id);
-      } else {
-        scheduledPostsQuery.eq('content_tasks.created_by_user_id', user.id);
       }
 
       const { data: scheduledPosts } = await scheduledPostsQuery;
@@ -114,6 +103,7 @@ export const useDashboardData = () => {
       const allTasks = tasks || [];
       const drafts = allTasks.filter(task => ['draft', 'generated', 'approved', 'review'].includes(task.status));
       const scheduledTasks = allTasks.filter(task => task.status === 'scheduled');
+      const publishedTasks = allTasks.filter(task => task.status === 'published');
 
       // Group scheduled tasks by date for the ribbon
       const scheduledByDate = scheduledTasks.reduce((acc, task) => {
@@ -142,6 +132,7 @@ export const useDashboardData = () => {
           tasks: allTasks,
           drafts,
           scheduledTasks,
+          publishedTasks,
           scheduledByDate,
           scheduledPosts: scheduledPosts || [],
           socialConnections: connections || []
