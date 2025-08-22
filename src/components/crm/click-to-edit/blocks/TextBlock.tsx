@@ -2,6 +2,7 @@ import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
+import { ImageTextBlock } from './ImageTextBlock';
 
 interface TextBlockProps {
   block: ContentBlock;
@@ -10,6 +11,17 @@ interface TextBlockProps {
 }
 
 export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview = true }) => {
+  // If this text block has an image, render as ImageTextBlock instead
+  if (block.imageUrl) {
+    return (
+      <ImageTextBlock 
+        block={block} 
+        onUpdate={onUpdate} 
+        isPreview={isPreview} 
+      />
+    );
+  }
+
   // Always render as preview - editing is handled by the new mode system
   const paddingClass = {
     none: 'p-0',
