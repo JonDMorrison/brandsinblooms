@@ -6,6 +6,7 @@ import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 
 interface ButtonBlockProps {
   block: ContentBlock;
@@ -14,8 +15,8 @@ interface ButtonBlockProps {
 }
 
 export const ButtonBlock: React.FC<ButtonBlockProps> = ({ block, onUpdate, isPreview }) => {
-  const headline = block.headline || '';
-  const body = block.body || '';
+  const headline = sanitizeWeekNumbers(block.headline || '');
+  const body = sanitizeWeekNumbers(block.body || '');
   const buttonText = block.buttonText || 'Click Here';
   const buttonUrl = block.buttonUrl || '#';
   const alignment = block.textAlign || 'center';

@@ -10,6 +10,7 @@ import { Edit, Copy, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContextualToolbar } from '../contextual/ContextualToolbar';
 import { EditMode } from '@/hooks/useBlockEditMode';
+import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 
 interface HeaderBlockProps {
   block: ContentBlock;
@@ -101,10 +102,10 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       )}>
         <div className="max-w-2xl">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-            {block.headline || 'Your Headline Here'}
+            {sanitizeWeekNumbers(block.headline || 'Your Headline Here')}
           </h1>
           <p className="text-lg md:text-xl opacity-90 leading-relaxed">
-            {block.body || 'Add your subtitle or description text here.'}
+            {sanitizeWeekNumbers(block.body || 'Add your subtitle or description text here.')}
           </p>
         </div>
       </div>

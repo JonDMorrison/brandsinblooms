@@ -1,6 +1,7 @@
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
+import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 
 interface TextBlockProps {
   block: ContentBlock;
@@ -81,7 +82,7 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
           __html: (() => {
             // Prioritize non-empty content from either field
             const content = block.content || block.body || '';
-            return content || '<p>Add text content</p>';
+            return sanitizeWeekNumbers(content) || '<p>Add text content</p>';
           })()
         }}
       />

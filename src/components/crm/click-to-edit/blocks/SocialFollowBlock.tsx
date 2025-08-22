@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Facebook, Twitter, Instagram, Youtube } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 
 interface SocialFollowBlockProps {
   block: ContentBlock;
@@ -22,8 +23,8 @@ interface SocialPlatform {
 }
 
 export const SocialFollowBlock: React.FC<SocialFollowBlockProps> = ({ block, onUpdate, isPreview }) => {
-  const headline = block.headline || '';
-  const body = block.body || '';
+  const headline = sanitizeWeekNumbers(block.headline || '');
+  const body = sanitizeWeekNumbers(block.body || '');
   const socialLinks = block.socialLinks || {
     facebook: { enabled: false, url: '' },
     twitter: { enabled: false, url: '' },
