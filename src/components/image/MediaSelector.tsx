@@ -516,26 +516,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             )}
           </div>
 
-          {/* Search Controls */}
-          <div className="space-y-3 w-full">
-            <div className="flex gap-2 w-full">
-              <Input
-                placeholder="Search images..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="flex-1"
-              />
-              <Button 
-                onClick={handleSearch} 
-                disabled={unsplashLoading}
-                variant="outline"
-              >
-                {unsplashLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              </Button>
-            </div>
-
-            <label className="block">
+          {/* Upload Custom Image Button */}
+          <div className="w-full">
+            <label className="block w-full">
               <input
                 type="file"
                 accept="image/*"
