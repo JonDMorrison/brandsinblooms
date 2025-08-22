@@ -16,7 +16,8 @@ import { Switch } from '@/components/ui/switch';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Facebook, Instagram, Clock, Calendar as CalendarIcon, Send, Save, AlertTriangle, Info } from 'lucide-react';
+import { Facebook, Instagram, Clock, Calendar as CalendarIcon, Send, Save, AlertTriangle, Info, Eye } from 'lucide-react';
+import { SocialPostPreviewModal } from './preview/SocialPostPreviewModal';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, addHours, setHours, setMinutes } from 'date-fns';
@@ -79,6 +80,8 @@ export default function ComposerDrawer({
   const [selectedTime, setSelectedTime] = useState<Date>(addHours(new Date(), 1));
   const [isLoading, setIsLoading] = useState(false);
   const [validation, setValidation] = useState<ValidationResult>({ ok: true, warnings: [], errors: [] });
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewPlatform, setPreviewPlatform] = useState<"instagram" | "facebook">("instagram");
 
   // Initialize local state when item changes
   useEffect(() => {
@@ -88,6 +91,7 @@ export default function ComposerDrawer({
       setLocalFirstComment(item.firstComment || '');
       setSelectedAccountId(item.accountId || '');
       setMode(initialMode);
+      setPreviewPlatform(item.platform);
       
       // Auto-select first available account for platform if none selected
       if (!item.accountId) {
@@ -445,6 +449,15 @@ export default function ComposerDrawer({
                 Save Draft
               </Button>
             )}
+
+            <Button
+              variant="outline"
+              onClick={() => setPreviewOpen(true)}
+              disabled={!localMediaUrl && !localCaption}
+            >
+              <Eye className="w-4 h-4 mr-1" />
+              Preview
+            </Button>
             
             {mode === 'publish' && (
               <Button
@@ -472,6 +485,27 @@ export default function ComposerDrawer({
               Cancel
             </Button>
           </div>
+
+          {/* Preview Modal */}
+          {item && (
+            <SocialPostPreviewModal
+              open={previewOpen}
+              onClose={() => setPreviewOpen(false)}
+              platform={previewPlatform}
+              onPlatformChange={setPreviewPlatform}
+              accountName={platformAccounts.find(acc => acc.accountId === selectedAccountId)?.accountName || 'Account'}
+              caption={localCaption || ''}
+              mediaUrl={localMediaUrl || ''}
+              scheduledFor={mode === 'schedule' ? 
+                (() => {
+                  const publishAt = new Date(selectedDate);
+                  publishAt.setHours(selectedTime.getHours());
+                  publishAt.setMinutes(selectedTime.getMinutes());
+                  return publishAt.toISOString();
+                })() : null
+              }
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>
