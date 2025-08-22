@@ -67,6 +67,7 @@ const PublishPage = () => {
         if (!item) return;
 
         const insertPayload: any = {
+          user_id: user?.id,
           post_type: item.channel === 'instagram' ? 'instagram' : (item.channel === 'facebook' ? 'facebook' : 'instagram'),
           ai_output: item.body,
           image_url: item.media?.url || null,
@@ -103,7 +104,7 @@ const PublishPage = () => {
         console.warn('Publish prefill failed', e);
       }
     })();
-  }, [prefillDone]);
+  }, [prefillDone, user]);
 
   useEffect(() => {
     if (user && !isLoading && dashboardData) {
