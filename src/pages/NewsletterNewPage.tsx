@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { NewsletterPicker } from '@/components/newsletter/NewsletterPicker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +7,7 @@ import { Plus, Mail, Sparkles } from 'lucide-react';
 
 export const NewsletterNewPage: React.FC = () => {
   const [showPicker, setShowPicker] = useState(true);
+  const navigate = useNavigate();
 
   return (
     <div className="container mx-auto p-6">
@@ -61,7 +63,7 @@ export const NewsletterNewPage: React.FC = () => {
             <Button 
               variant="outline" 
               className="w-full"
-              onClick={() => window.location.href = '/crm/campaigns/new?type=newsletter'}
+              onClick={() => navigate('/crm/campaigns/new?type=newsletter')}
             >
               <Plus className="w-4 h-4 mr-2" />
               Start Blank

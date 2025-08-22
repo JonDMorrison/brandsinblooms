@@ -260,7 +260,11 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/newsletters/builder" element={
-            <RedirectWithQuery to="/crm/campaigns/new" />
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMCampaignCreatorPage />
+              </SidebarLayout>
+            </ProtectedRoute>
           } />
           <Route path="/integrations" element={
             <ProtectedRoute>
