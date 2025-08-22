@@ -135,6 +135,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
   };
 
   const handoffPublish = (channel: 'instagram'|'facebook') => {
+    handleClose();
     toast({ title: 'Sent to Publish Portal', description: `Opening ${channel}` });
     navigate(`/publish?bundleId=${bundleId}&channel=${channel}`);
   };

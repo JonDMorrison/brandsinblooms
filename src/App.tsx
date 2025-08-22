@@ -38,6 +38,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import IntegrationsPage from '@/pages/IntegrationsPage';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
+import PublishPage from '@/pages/PublishPage';
 
 function App() {
   return (
@@ -265,6 +266,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <SupportPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/publish" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <PublishPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
