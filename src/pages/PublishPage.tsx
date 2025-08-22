@@ -77,20 +77,37 @@ const PublishPage = () => {
         console.log('🎯 Selected item:', item);
         console.log('📝 Item caption:', item?.caption);
         console.log('📝 Item body:', item?.body);
+        console.log('📝 Item script:', item?.script);
+        console.log('📝 Item markdown:', item?.markdown);
         console.log('🖼️ Item media:', item?.media);
         
         if (!item) return;
 
-        const content = item.caption ?? item.body ?? '';
-        const imageUrl = item.media?.url || null;
+        // Extract content from all possible formats - prioritize longer/richer content
+        const extractContent = (item: any): string => {
+          const candidates = [
+            item.body,
+            item.markdown, 
+            item.script,
+            item.caption,
+            item.text,
+            item.content
+          ].filter(Boolean);
+          
+          // Return the longest non-empty content
+          return candidates.sort((a, b) => (b?.length || 0) - (a?.length || 0))[0] || '';
+        };
+        
+        const content = extractContent(item);
+        const imageUrl = item.media?.url || bundleData.content.recommendedImages?.[0]?.url || null;
         
         const insertPayload: any = {
           user_id: user.id,
           tenant_id: tenant.id,
           post_type: item.channel === 'instagram' ? 'instagram' : (item.channel === 'facebook' ? 'facebook' : 'instagram'),
-          ai_output: content.length > 0 ? content : 'Content generated from campaign',
+          ai_output: content.trim() || 'Content generated from campaign',
           image_url: imageUrl,
-          attachments: imageUrl ? { image: { url: imageUrl, alt: item.alt || 'Campaign image' } } : null,
+          attachments: imageUrl ? { image: { url: imageUrl, alt: item.alt || 'Campaign image', thumb: imageUrl } } : null,
           status: 'review'
         };
         
@@ -125,6 +142,21 @@ const PublishPage = () => {
             .limit(10);
         }
 
+        // Auto-repair recent tasks with empty ai_output
+        if (content.trim()) {
+          await supabase
+            .from('content_tasks' as any)
+            .update({ 
+              ai_output: content.trim(),
+              image_url: imageUrl || undefined,
+              attachments: imageUrl ? { image: { url: imageUrl, alt: item.alt || 'Campaign image', thumb: imageUrl } } : undefined
+            })
+            .eq('user_id', user.id)
+            .or('ai_output.is.null,ai_output.eq.')
+            .gte('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()) // last 2 hours
+            .limit(3);
+        }
+
         const newContent: GeneratedContent = {
           id: insertedRow.id,
           status: ((insertedRow.status || 'REVIEW').toString().toUpperCase()) as any,
@@ -155,8 +187,8 @@ const PublishPage = () => {
       const generatedContent: GeneratedContent[] = publishableTasks.map(task => ({
         id: task.id,
         status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW',
-        caption: task.ai_output || task.caption || "No content available",
-        mediaUrl: task.image_url || (task.attachments as any)?.image?.url || "",
+        caption: task.ai_output?.trim() || "Content generated from campaign",
+        mediaUrl: task.image_url || (task.attachments as any)?.image?.url || (task.attachments as any)?.image?.thumb || "",
         platform: task.post_type,
         campaignId: task.campaign_id,
         createdAt: task.created_at
