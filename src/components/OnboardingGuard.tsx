@@ -22,8 +22,8 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     }
   }, [authLoading, onboardingLoading]);
 
-  // Simplified loading logic - only show loading during auth or initial onboarding check
-  const shouldShowLoading = authLoading || (onboardingLoading && !onboardingError);
+  // Only show loading during initial auth check or first onboarding check
+  const shouldShowLoading = authLoading || (onboardingLoading && !hasCheckedOnce && !onboardingError);
 
   // Manage onboarding loading state in global context
   useEffect(() => {
