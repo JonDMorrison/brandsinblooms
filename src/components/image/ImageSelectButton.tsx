@@ -400,6 +400,18 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
               </TabsContent>
             </Tabs>
           </div>
+          
+          {/* Save and Close Button */}
+          <div className="p-6 border-t border-gray-200 bg-gray-50">
+            <div className="flex justify-end">
+              <Button 
+                onClick={() => setIsOpen(false)}
+                className="bg-primary hover:bg-primary/90 text-white px-6 py-2"
+              >
+                Save and Close
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>
