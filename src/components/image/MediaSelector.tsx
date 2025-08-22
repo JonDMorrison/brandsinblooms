@@ -652,4 +652,5 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         </div>
       </div>
     </div>
+  );
 };
