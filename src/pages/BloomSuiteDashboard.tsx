@@ -105,8 +105,8 @@ export const BloomSuiteDashboard = () => {
         }
       },
       secondaryAction: {
-        label: 'Browse Templates',
-        onClick: () => setShowNewsletterDrawer(true)
+        label: 'Previous Newsletters',
+        onClick: () => navigate('/crm/campaigns')
       },
       status: 'ready' as const,
       statusMessage: 'Email system ready'
