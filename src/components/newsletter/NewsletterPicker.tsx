@@ -194,11 +194,11 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
       {/* Footer */}
       {currentStep === 'layout' && (
-        <div className="flex-shrink-0 mt-6 pt-4 border-t">
+        <div className="flex-shrink-0 mt-6 pt-4 border-t flex justify-center">
           <Button 
             onClick={handleContinue}
             disabled={!selectedIdea || !selectedLayout}
-            className="w-full"
+            className="px-8"
             size="lg"
           >
             Continue to Builder
