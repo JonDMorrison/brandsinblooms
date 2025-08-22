@@ -123,7 +123,12 @@ const PublishPage = () => {
         createdAt: task.created_at
       }));
 
-      setContent(generatedContent);
+      // Merge with existing prefilled content instead of replacing
+      setContent(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newItems = generatedContent.filter(item => !existingIds.has(item.id));
+        return [...prev, ...newItems];
+      });
       setLoading(false);
     }
   }, [user, dashboardData, isLoading]);
