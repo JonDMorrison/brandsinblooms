@@ -10,6 +10,8 @@ import { PublicRoute } from '@/components/PublicRoute';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { SmartRootRoute } from '@/components/SmartRootRoute';
 import { DataProviderWrapper } from '@/components/DataProviderWrapper';
+import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
+import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import OnboardingPage from '@/pages/OnboardingPage'; // Force refresh
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewslettersPage } from '@/pages/NewslettersPage';
@@ -186,6 +188,20 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
+          <Route path="/crm/campaigns/new" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMCampaignCreatorPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/campaigns/:campaignId" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMCampaignBuilderPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
           <Route path="/sms/*" element={
             <ProtectedRoute>
               <SidebarLayout>
@@ -243,11 +259,7 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/newsletters/builder" element={
-            <ProtectedRoute>
-              <SidebarLayout>
-                <NewsletterNewPage />
-              </SidebarLayout>
-            </ProtectedRoute>
+            <Navigate to="/crm/campaigns/new" replace />
           } />
           <Route path="/integrations" element={
             <ProtectedRoute>
