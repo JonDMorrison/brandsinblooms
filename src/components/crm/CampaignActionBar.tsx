@@ -4,13 +4,15 @@ import { Badge } from '@/components/ui/badge';
 import { Send, Save, Eye, Users, Sparkles } from 'lucide-react';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
 import { SaveIndicator } from './SaveIndicator';
+import { ShortenAllBlocksButton } from './ShortenAllBlocksButton';
 import type { SenderConfig } from '@/hooks/useSenderConfiguration';
+import type { ContentBlock } from '@/types/emailBuilder';
 
 interface CampaignActionBarProps {
   // Campaign status
   campaignName: string;
   subjectLine: string;
-  blocks: any[];
+  blocks: ContentBlock[];
   selectedSegments: any[];
   
   // Sender info
@@ -32,6 +34,7 @@ interface CampaignActionBarProps {
   onPreview: () => void;
   onAudience: () => void;
   onAIWriter: () => void;
+  onBlockUpdate?: (blockId: string, updatedBlock: ContentBlock) => void;
   
   className?: string;
 }
@@ -53,6 +56,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
   onPreview,
   onAudience,
   onAIWriter,
+  onBlockUpdate,
   className = ''
 }) => {
   // Calculate readiness
@@ -104,6 +108,14 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
               <Sparkles className="h-4 w-4" />
               <span>Write with AI</span>
             </Button>
+
+            {onBlockUpdate && (
+              <ShortenAllBlocksButton
+                blocks={blocks}
+                campaignName={campaignName}
+                onUpdate={onBlockUpdate}
+              />
+            )}
 
             <Button
               variant="outline"

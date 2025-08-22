@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Scissors } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
   TooltipContent,
@@ -11,7 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ContentBlock } from '@/types/emailBuilder';
 import { normalizeAIResponse, applyAIToBlock } from '@/lib/newsletter/aiMapping';
-import { createBlockPrompt } from '@/utils/blockPromptBuilder';
+import { createBlockPrompt, createShortenBlockPrompt } from '@/utils/blockPromptBuilder';
 
 interface RegenerateBlockButtonProps {
   block: ContentBlock;
@@ -31,7 +37,7 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
   const [regenerating, setRegenerating] = useState(false);
   const { toast } = useToast();
 
-  const handleRegenerate = async () => {
+  const handleAction = async (action: 'regenerate' | 'shorten') => {
     if (regenerating) return;
     
     setRegenerating(true);
@@ -40,15 +46,10 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
       const topic = campaignName || block.title || 'Newsletter';
       const previousBlocks = allBlocks.slice(0, blockIndex).filter(b => b.type !== 'header' && b.type !== 'divider');
 
-      // Use the enhanced block prompt builder
-      const enhancedPrompt = createBlockPrompt(
-        block,
-        topic,
-        '',
-        blockIndex,
-        previousBlocks,
-        allBlocks.length
-      );
+      // Use appropriate prompt builder based on action
+      const enhancedPrompt = action === 'shorten' 
+        ? createShortenBlockPrompt(block, topic, '', blockIndex, previousBlocks, allBlocks.length)
+        : createBlockPrompt(block, topic, '', blockIndex, previousBlocks, allBlocks.length);
 
       const payload = {
         prompt: enhancedPrompt,
@@ -61,12 +62,12 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
         totalBlocks: allBlocks.length
       };
 
-      console.log('[AI] regenerate block invoke:', { blockId: block.id, payload });
+      console.log(`[AI] ${action} block invoke:`, { blockId: block.id, payload });
       const { data, error } = await supabase.functions.invoke('generate-email-content', { 
         body: payload 
       });
       
-      console.log('[AI] regenerate block response:', { blockId: block.id, error, data });
+      console.log(`[AI] ${action} block response:`, { blockId: block.id, error, data });
       
       if (error) {
         throw new Error(error.message || 'AI generation failed');
@@ -78,14 +79,16 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
       onUpdate(updatedBlock);
       
       toast({
-        title: "Block Regenerated",
-        description: "Content has been updated with fresh AI-generated content",
+        title: action === 'shorten' ? "Block Shortened" : "Block Regenerated",
+        description: action === 'shorten' 
+          ? "Content has been shortened by ~50% while preserving key information"
+          : "Content has been updated with fresh AI-generated content",
       });
     } catch (error: any) {
-      console.error('Block regeneration failed:', error);
+      console.error(`Block ${action} failed:`, error);
       toast({
-        title: "Regeneration Failed",
-        description: error.message || "Failed to regenerate content. Try again.",
+        title: action === 'shorten' ? "Shortening Failed" : "Regeneration Failed",
+        description: error.message || `Failed to ${action} content. Try again.`,
         variant: "destructive"
       });
     } finally {
@@ -97,22 +100,35 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRegenerate}
-            disabled={regenerating}
-            className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground"
-          >
-            {regenerating ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <Sparkles className="w-3 h-3" />
-            )}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={regenerating}
+                className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground"
+              >
+                {regenerating ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3 h-3" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleAction('regenerate')}>
+                <Sparkles className="w-3 h-3 mr-2" />
+                Regenerate (fresh)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleAction('shorten')}>
+                <Scissors className="w-3 h-3 mr-2" />
+                Shorten by 50%
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </TooltipTrigger>
         <TooltipContent>
-          <p>Regenerate with AI</p>
+          <p>AI Options</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

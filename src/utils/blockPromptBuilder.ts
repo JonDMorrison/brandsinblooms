@@ -151,3 +151,59 @@ DIFFERENTIATION REQUIREMENTS:
     IMPORTANT: Return ONLY a JSON object with keys: title, content, cta_text, cta_url.
     Do not use markdown code fences, backticks, or any additional text outside the JSON.`;
 };
+
+// Create a shortened version of existing block content
+export const createShortenBlockPrompt = (
+  block: ContentBlock, 
+  campaignTitle: string, 
+  campaignDescription: string, 
+  blockIndex: number,
+  previousBlocks: ContentBlock[] = [],
+  totalBlocks: number = 1
+): string => {
+  const subtopic = getSubtopicForBlock(campaignTitle, blockIndex);
+  const baseTheme = campaignTitle.replace(/Newsletter$/i, '').trim();
+  
+  // Extract plain text from block content for analysis
+  const currentContent = (block.content || block.body || '').replace(/<[^>]*>/g, '');
+  const currentTitle = block.title || block.headline || '';
+  const currentCTA = block.ctaText || '';
+  
+  const wordCount = currentContent.split(/\s+/).filter(word => word.length > 0).length;
+  const targetWords = Math.max(Math.floor(wordCount * 0.5), 120); // 50% reduction, minimum 120 words
+  
+  return `Shorten this existing newsletter content by approximately 50% while preserving all key information and value.
+
+CURRENT CONTENT TO SHORTEN:
+Title: "${currentTitle}"
+Content: "${currentContent}"
+CTA: "${currentCTA}"
+
+CAMPAIGN CONTEXT:
+Theme: ${baseTheme}
+Subtopic: ${subtopic}
+Block position: ${blockIndex + 1} of ${totalBlocks}
+
+SHORTENING REQUIREMENTS:
+- CRITICAL LENGTH: Reduce to ~${targetWords} words (approximately 50% of current ${wordCount} words)
+- PRESERVE all key points and essential information
+- MAINTAIN the same tone, voice, and style
+- KEEP the current title unless you can make it more concise while staying on-topic
+- PRESERVE the existing CTA text and URL unless the shortened content suggests a better fit
+- Remove redundant phrases, unnecessary adjectives, and verbose explanations
+- Combine related sentences and eliminate repetition
+- Focus on the most actionable and valuable information
+- Ensure the shortened version still delivers clear value to garden center customers
+
+CONTENT FOCUS:
+- Stay strictly within the subtopic: ${subtopic}
+- Maintain relevance to ${baseTheme} theme
+- Keep practical, actionable advice for gardeners
+- Preserve any specific tips, techniques, or recommendations
+
+OUTPUT INSTRUCTIONS:
+- Return ONLY a JSON object with keys: title, content, cta_text, cta_url
+- The content should be significantly shorter but equally valuable
+- Do not use markdown code fences, backticks, or any additional text outside the JSON
+- Ensure the shortened content flows naturally and reads well`;
+};
