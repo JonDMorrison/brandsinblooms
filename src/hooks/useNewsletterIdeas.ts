@@ -3,6 +3,7 @@ import { NewsletterIdea, NewsletterTemplate } from '@/types/newsletter';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getFallbackThemes } from '@/utils/fallbackThemes';
+import { format } from 'date-fns';
 
 export const useNewsletterIdeas = () => {
   const { user } = useAuth();
@@ -71,7 +72,7 @@ export const useNewsletterIdeas = () => {
       setError(err instanceof Error ? err.message : 'Failed to fetch newsletter ideas');
       
       // Set fallback data (includes seasonal themes)
-      const fallbackThemes = mapThemesToIdeas(getFallbackThemes());
+      const fallbackThemes = mapThemesToIdeas(getFallbackThemes(), getCurrentWeekNumber());
       const fallbackCurated = getFallbackIdeas();
       setIdeas([...fallbackThemes, ...fallbackCurated]);
       setTemplates(defaultTemplates);
@@ -104,6 +105,13 @@ export const useNewsletterIdeas = () => {
     fetchNewsletterIdeas();
   }, []);
 
+  const getCurrentWeekNumber = (): number => {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const pastDaysOfYear = (now.getTime() - startOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+  };
+
   const fetchWeeklyThemes = async (): Promise<NewsletterIdea[]> => {
     try {
       if (!user) {
@@ -111,11 +119,14 @@ export const useNewsletterIdeas = () => {
         return mapThemesToIdeas(getFallbackThemes());
       }
 
+      const currentWeek = getCurrentWeekNumber();
+      
       const { data, error } = await supabase.functions.invoke('generate-weekly-themes', {
         body: { 
           userId: user.id,
           generateAll52Weeks: true,
-          startYear: new Date().getFullYear()
+          startYear: new Date().getFullYear(),
+          startWeek: currentWeek
         }
       });
 
@@ -124,7 +135,7 @@ export const useNewsletterIdeas = () => {
         return mapThemesToIdeas(getFallbackThemes());
       }
 
-      return mapThemesToIdeas(data.themes);
+      return mapThemesToIdeas(data.themes, currentWeek);
     } catch (err) {
       console.error('Error fetching weekly themes:', err);
       // Fall back to seasonal themes
@@ -132,25 +143,35 @@ export const useNewsletterIdeas = () => {
     }
   };
 
-  const mapThemesToIdeas = (themes: any[]): NewsletterIdea[] => {
-    return themes.map((theme, index) => ({
-      id: `weekly-theme-${theme.week || index + 1}`,
-      title: theme.title,
-      description: theme.description,
-      category: 'weekly' as const,
-      weekNumber: theme.week || index + 1,
-      templateBlocks: [
-        { type: 'header', title: theme.title },
-        { type: 'text', content: theme.description },
-        ...(theme.content_ideas || []).slice(0, 3).map((idea: string) => ({
-          type: 'image-text',
-          title: idea,
-          content: `Explore ${idea.toLowerCase()} with your audience this week.`
-        }))
-      ],
-      heroQuery: theme.title?.toLowerCase().replace(/[^a-z0-9\s]/g, '') || 'newsletter content',
-      estimatedReadTime: '4 min'
-    }));
+  const mapThemesToIdeas = (themes: any[], startWeek?: number): NewsletterIdea[] => {
+    const currentWeek = startWeek || getCurrentWeekNumber();
+    
+    return themes.map((theme, index) => {
+      // Calculate the actual week number, wrapping around the year
+      let weekNumber = theme.week || (currentWeek + index);
+      if (weekNumber > 52) {
+        weekNumber = weekNumber - 52;
+      }
+      
+      return {
+        id: `weekly-theme-${weekNumber}`,
+        title: theme.title,
+        description: theme.description,
+        category: 'weekly' as const,
+        weekNumber: weekNumber,
+        templateBlocks: [
+          { type: 'header', title: theme.title },
+          { type: 'text', content: theme.description },
+          ...(theme.content_ideas || []).slice(0, 3).map((idea: string) => ({
+            type: 'image-text',
+            title: idea,
+            content: `Explore ${idea.toLowerCase()} with your audience this week.`
+          }))
+        ],
+        heroQuery: theme.title?.toLowerCase().replace(/[^a-z0-9\s]/g, '') || 'newsletter content',
+        estimatedReadTime: '4 min'
+      };
+    });
   };
 
   return {

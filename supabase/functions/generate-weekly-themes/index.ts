@@ -173,10 +173,14 @@ const getSeasonalGardenTheme = (weekNumber: number) => {
   };
 };
 
-const generateAll52Themes = () => {
+const generateAll52Themes = (startWeek: number = 1) => {
   const themes = [];
-  for (let week = 1; week <= 52; week++) {
-    themes.push(getSeasonalGardenTheme(week));
+  for (let i = 0; i < 52; i++) {
+    let weekNumber = startWeek + i;
+    if (weekNumber > 52) {
+      weekNumber = weekNumber - 52;
+    }
+    themes.push(getSeasonalGardenTheme(weekNumber));
   }
   return themes;
 };
@@ -187,24 +191,25 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, generateAll52Weeks = false, weekNumber } = await req.json();
+    const { userId, generateAll52Weeks = false, weekNumber, startWeek } = await req.json();
 
-    console.log(`🌱 Generating garden center themes for user: ${userId}, generateAll52Weeks: ${generateAll52Weeks}, week: ${weekNumber || 'current'}`);
+    console.log(`🌱 Generating garden center themes for user: ${userId}, generateAll52Weeks: ${generateAll52Weeks}, week: ${weekNumber || 'current'}, startWeek: ${startWeek || 'current'}`);
 
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
     // Handle bulk generation of all 52 weeks
     if (generateAll52Weeks) {
-      console.log('🌿 Generating all 52 seasonal garden center themes');
+      const currentWeekForStart = startWeek || getCurrentWeekNumber();
+      console.log(`🌿 Generating all 52 seasonal garden center themes starting from week ${currentWeekForStart}`);
       
-      const allThemes = generateAll52Themes();
+      const allThemes = generateAll52Themes(currentWeekForStart);
       
       return new Response(JSON.stringify({ 
         themes: allThemes,
         success: true,
         source: 'seasonal_garden_themes_bulk',
-        message: `Generated complete 52-week seasonal garden center theme collection` 
+        message: `Generated complete 52-week seasonal garden center theme collection starting from week ${currentWeekForStart}` 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
