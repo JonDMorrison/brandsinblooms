@@ -80,9 +80,6 @@ export default function PostCard({ item, onEdit, onPublishNow, onSchedule, onDel
               <span className="text-sm text-gray-500">• {item.accountName}</span>
             )}
           </div>
-          <Badge className={cn("text-xs", getStatusColor(item.status))}>
-            {formatStatus(item.status, item.scheduledFor)}
-          </Badge>
         </div>
 
         {/* Content Preview */}
