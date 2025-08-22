@@ -156,6 +156,16 @@ export default function ComposerDrawer({
     
     setIsLoading(true);
     try {
+      // Save any unsaved changes first
+      if (hasChanges) {
+        await onSaveDraft(item.taskId, {
+          caption: localCaption,
+          mediaUrl: localMediaUrl,
+          firstComment: localFirstComment,
+          accountId: selectedAccountId
+        });
+      }
+      
       await onPublishNow(item.taskId, {
         platform: item.platform,
         accountId: selectedAccountId,
@@ -187,6 +197,16 @@ export default function ComposerDrawer({
     
     setIsLoading(true);
     try {
+      // Save any unsaved changes first
+      if (hasChanges) {
+        await onSaveDraft(item.taskId, {
+          caption: localCaption,
+          mediaUrl: localMediaUrl,
+          firstComment: localFirstComment,
+          accountId: selectedAccountId
+        });
+      }
+      
       // Combine date and time
       const publishAt = new Date(selectedDate);
       publishAt.setHours(selectedTime.getHours());
