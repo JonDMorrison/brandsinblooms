@@ -57,9 +57,14 @@ export const useNewsletterIdeas = () => {
         weeklyThemes = weeklyThemesResult.value;
       }
 
-      // Combine and deduplicate ideas
+      // Combine and deduplicate ideas by title
       const allIdeas = [...weeklyThemes, ...curatedIdeas];
-      setIdeas(allIdeas);
+      const uniqueIdeas = allIdeas.filter((idea, index, self) => 
+        index === self.findIndex(other => 
+          other.title.toLowerCase().trim() === idea.title.toLowerCase().trim()
+        )
+      );
+      setIdeas(uniqueIdeas);
       setTemplates(defaultTemplates);
     } catch (err) {
       console.error('Error fetching newsletter ideas:', err);
