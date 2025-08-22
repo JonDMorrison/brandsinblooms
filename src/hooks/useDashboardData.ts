@@ -51,6 +51,7 @@ export const useDashboardData = () => {
           scheduled_date,
           created_at,
           attachments,
+          image_url,
           campaign_id,
           campaigns (
             title,

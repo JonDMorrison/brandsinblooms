@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Send, Calendar, BarChart3, Zap } from 'lucide-react';
@@ -20,6 +21,7 @@ const PublishPage = () => {
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
   const { data: dashboardData, isLoading } = useDashboardData();
+  const queryClient = useQueryClient();
   const [content, setContent] = useState<GeneratedContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [prefillDone, setPrefillDone] = useState(false);
@@ -79,12 +81,16 @@ const PublishPage = () => {
         
         if (!item) return;
 
+        const content = item.caption ?? item.body ?? '';
+        const imageUrl = item.media?.url || null;
+        
         const insertPayload: any = {
           user_id: user.id,
           tenant_id: tenant.id,
           post_type: item.channel === 'instagram' ? 'instagram' : (item.channel === 'facebook' ? 'facebook' : 'instagram'),
-          ai_output: item.caption ?? item.body,
-          image_url: item.media?.url || null,
+          ai_output: content.length > 0 ? content : 'Content generated from campaign',
+          image_url: imageUrl,
+          attachments: imageUrl ? { image: { url: imageUrl, alt: item.alt || 'Campaign image' } } : null,
           status: 'review'
         };
         
@@ -102,6 +108,9 @@ const PublishPage = () => {
         }
 
         console.log('✅ Inserted task:', inserted);
+        
+        // Invalidate dashboard data to refresh UI immediately
+        queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
 
         const insertedRow: any = inserted as any;
 
@@ -146,8 +155,8 @@ const PublishPage = () => {
       const generatedContent: GeneratedContent[] = publishableTasks.map(task => ({
         id: task.id,
         status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW',
-        caption: task.ai_output || '',
-        mediaUrl: (task.attachments as any)?.image?.thumb || (task.attachments as any)?.image?.url || task.image_url || undefined,
+        caption: task.ai_output || task.caption || "No content available",
+        mediaUrl: task.image_url || (task.attachments as any)?.image?.url || "",
         platform: task.post_type,
         campaignId: task.campaign_id,
         createdAt: task.created_at
