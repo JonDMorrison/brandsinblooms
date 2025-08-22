@@ -487,7 +487,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             </div>
           </div>
         ) : (
-          <div className="aspect-video rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center hover:border-gray-400 hover:bg-gray-100 transition-colors">
+          <div className="aspect-square w-32 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center hover:border-gray-400 hover:bg-gray-100 transition-colors">
             <div className="text-center">
               <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
               <h4 className="text-lg font-medium text-gray-600 mb-1">Select a Featured Image</h4>
