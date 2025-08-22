@@ -1,12 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// AUDIT: Rebuilt PublishPage using new component structure
+// - Uses PostCard components for rendering individual posts
+// - Integrates ComposerDrawer for editing, publishing, and scheduling
+// - Wires to publish-task via usePublishActions hook
+// - Maps useDashboardData tasks to PublishItem format
+// - Functional "Publish Now" and "Schedule" buttons via drawer
+
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Search, Send, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useTenant } from '@/hooks/useTenant';
+import { usePublishActions } from '@/hooks/usePublishActions';
+import { validatePostForPlatform } from '@/utils/validatePost';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Send, Calendar, BarChart3, Zap } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import PostCard from '@/components/publish/PostCard';
+import ComposerDrawer, { ComposerMode } from '@/components/publish/ComposerDrawer';
+import type { PublishItem, PublishNowInput, ScheduleInput } from '@/types/publish';
+
 interface GeneratedContent {
   id: string;
   status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW';
@@ -20,16 +35,78 @@ interface GeneratedContent {
 const PublishPage = () => {
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
-  const { data: dashboardData, isLoading } = useDashboardData();
+  const { data: dashboardData, isLoading, refetch } = useDashboardData();
+  const { publishNow, schedule } = usePublishActions();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // State for content and prefill logic
   const [content, setContent] = useState<GeneratedContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [prefillDone, setPrefillDone] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<ComposerMode>('edit');
+  const [selectedItem, setSelectedItem] = useState<PublishItem | null>(null);
+
+  // Convert dashboard data to PublishItem format
+  const publishItems: PublishItem[] = useMemo(() => {
+    const tasks = dashboardData?.tasks || [];
+    const socialConnections = dashboardData?.socialConnections || [];
+
+    return tasks
+      .filter(task => ['facebook', 'instagram'].includes(task.post_type))
+      .map(task => {
+        const connection = socialConnections.find(
+          conn => conn.platform === task.post_type && conn.is_active
+        );
+
+        return {
+          taskId: task.id,
+          tenantId: task.tenant_id,
+          platform: task.post_type as "facebook" | "instagram",
+          accountId: connection?.platform_account_id || null,
+          accountName: connection?.platform_account_name || null,
+          caption: task.ai_output?.trim() || null,
+          firstComment: (task as any).first_comment || null,
+          mediaUrl: task.image_url || (task.attachments as any)?.image?.url || null,
+          scheduledFor: (task as any).scheduled_for || null,
+          status: task.status.toLowerCase() as PublishItem['status'],
+          attachments: task.attachments
+        };
+      });
+  }, [dashboardData]);
+
+  // Available accounts for ComposerDrawer
+  const availableAccounts = useMemo(() => {
+    const connections = dashboardData?.socialConnections || [];
+    return connections
+      .filter(conn => conn.is_active)
+      .map(conn => ({
+        platform: conn.platform as "facebook" | "instagram",
+        accountId: conn.platform_account_id,
+        accountName: conn.platform_account_name || conn.username || `${conn.platform} account`
+      }));
+  }, [dashboardData]);
+
+  // Filter items by search term
+  const filteredItems = useMemo(() => {
+    if (!searchTerm) return publishItems;
+    const term = searchTerm.toLowerCase();
+    return publishItems.filter(item =>
+      item.caption?.toLowerCase().includes(term) ||
+      item.platform.toLowerCase().includes(term) ||
+      item.accountName?.toLowerCase().includes(term)
+    );
+  }, [publishItems, searchTerm]);
+
+  // Prefill logic (unchanged from original)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const bundleId = params.get('bundleId');
-    const channel = params.get('channel'); // 'instagram' | 'facebook'
+    const channel = params.get('channel');
     if (!bundleId || prefillDone || !user || !tenant || tenantLoading) return;
 
     const prefillKey = `publish-prefill:${bundleId}:${channel || 'any'}`;
@@ -60,7 +137,6 @@ const PublishPage = () => {
           .maybeSingle();
 
         const bundleData: any = data as any;
-        console.log('📦 Bundle data:', bundleData);
         
         if (error || !bundleData?.content) {
           console.warn('Bundle not found for publish prefill', error);
@@ -68,22 +144,12 @@ const PublishPage = () => {
         }
 
         const items = (bundleData.content.items || []) as any[];
-        console.log('📋 Bundle items:', items);
-        
         const preferred = channel && items.find((it: any) => it.channel === channel);
         const fallback = items.find((it: any) => it.channel === 'instagram' || it.channel === 'facebook');
         const item = (preferred as any) || (fallback as any) || items[0];
         
-        console.log('🎯 Selected item:', item);
-        console.log('📝 Item caption:', item?.caption);
-        console.log('📝 Item body:', item?.body);
-        console.log('📝 Item script:', item?.script);
-        console.log('📝 Item markdown:', item?.markdown);
-        console.log('🖼️ Item media:', item?.media);
-        
         if (!item) return;
 
-        // Extract content from all possible formats - prioritize longer/richer content
         const extractContent = (item: any): string => {
           const candidates = [
             item.body,
@@ -94,7 +160,6 @@ const PublishPage = () => {
             item.content
           ].filter(Boolean);
           
-          // Return the longest non-empty content
           return candidates.sort((a, b) => (b?.length || 0) - (a?.length || 0))[0] || '';
         };
         
@@ -111,8 +176,6 @@ const PublishPage = () => {
           status: 'review'
         };
         
-        console.log('💾 Insert payload:', insertPayload);
-        
         const { data: inserted, error: insertError } = await supabase
           .from('content_tasks' as any)
           .insert(insertPayload)
@@ -124,50 +187,9 @@ const PublishPage = () => {
           return;
         }
 
-        console.log('✅ Inserted task:', inserted);
-        
         // Invalidate dashboard data to refresh UI immediately
         queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
 
-        const insertedRow: any = inserted as any;
-
-        // One-time repair: set tenant_id for any recent tasks by this user that are missing it
-        if (tenant?.id) {
-          await supabase
-            .from('content_tasks' as any)
-            .update({ tenant_id: tenant.id })
-            .eq('user_id', user.id)
-            .is('tenant_id', null)
-            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // last 24 hours
-            .limit(10);
-        }
-
-        // Auto-repair recent tasks with empty ai_output
-        if (content.trim()) {
-          await supabase
-            .from('content_tasks' as any)
-            .update({ 
-              ai_output: content.trim(),
-              image_url: imageUrl || undefined,
-              attachments: imageUrl ? { image: { url: imageUrl, alt: item.alt || 'Campaign image', thumb: imageUrl } } : undefined
-            })
-            .eq('user_id', user.id)
-            .or('ai_output.is.null,ai_output.eq.')
-            .gte('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()) // last 2 hours
-            .limit(3);
-        }
-
-        const newContent: GeneratedContent = {
-          id: insertedRow.id,
-          status: ((insertedRow.status || 'REVIEW').toString().toUpperCase()) as any,
-          caption: insertedRow.ai_output || '',
-          mediaUrl: insertedRow.image_url || undefined,
-          platform: insertedRow.post_type,
-          campaignId: insertedRow.campaign_id || undefined,
-          createdAt: insertedRow.created_at
-        };
-
-        setContent(prev => [newContent, ...prev]);
         localStorage.setItem(prefillKey, 'done');
         cleanUrl();
         setPrefillDone(true);
@@ -175,34 +197,86 @@ const PublishPage = () => {
         console.warn('Publish prefill failed', e);
       }
     })();
-  }, [prefillDone, user, tenant, tenantLoading]);
+  }, [prefillDone, user, tenant, tenantLoading, queryClient]);
 
+  // Set loading state
   useEffect(() => {
-    if (user && !isLoading && dashboardData) {
-      const publishableTasks = dashboardData.tasks?.filter(task => 
-        (task.status === 'approved' || task.status === 'review') && 
-        ['facebook', 'instagram'].includes(task.post_type)
-      ) || [];
-
-      const generatedContent: GeneratedContent[] = publishableTasks.map(task => ({
-        id: task.id,
-        status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW',
-        caption: task.ai_output?.trim() || "Content generated from campaign",
-        mediaUrl: task.image_url || (task.attachments as any)?.image?.url || (task.attachments as any)?.image?.thumb || "",
-        platform: task.post_type,
-        campaignId: task.campaign_id,
-        createdAt: task.created_at
-      }));
-
-      // Merge with existing prefilled content instead of replacing
-      setContent(prev => {
-        const existingIds = new Set(prev.map(item => item.id));
-        const newItems = generatedContent.filter(item => !existingIds.has(item.id));
-        return [...prev, ...newItems];
-      });
+    if (user && !isLoading) {
       setLoading(false);
     }
-  }, [user, dashboardData, isLoading]);
+  }, [user, isLoading]);
+
+  // Drawer handlers
+  const handleOpenDrawer = (item: PublishItem, mode: ComposerMode) => {
+    setSelectedItem(item);
+    setDrawerMode(mode);
+    setDrawerOpen(true);
+  };
+
+  const handleCloseDrawer = () => {
+    setDrawerOpen(false);
+    setSelectedItem(null);
+  };
+
+  // Save draft handler
+  const handleSaveDraft = useCallback(async (taskId: string, partial: {
+    caption?: string | null;
+    mediaUrl?: string | null;
+    firstComment?: string | null;
+    accountId?: string | null;
+  }) => {
+    const updateData: any = {};
+    if (partial.caption !== undefined) updateData.ai_output = partial.caption;
+    if (partial.mediaUrl !== undefined) updateData.image_url = partial.mediaUrl;
+    if (partial.firstComment !== undefined) updateData.first_comment = partial.firstComment;
+    if (partial.accountId !== undefined) updateData.account_id = partial.accountId;
+
+    if (partial.mediaUrl) {
+      updateData.attachments = {
+        image: { 
+          url: partial.mediaUrl, 
+          alt: 'Content image',
+          thumb: partial.mediaUrl 
+        }
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('content_tasks')
+      .update(updateData)
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Update local state optimistically
+    const updated: PublishItem = {
+      ...(selectedItem as PublishItem),
+      caption: data.ai_output || null,
+      mediaUrl: data.image_url || null,
+      firstComment: (data as any).first_comment || null,
+      accountId: (data as any).account_id || null,
+    };
+    setSelectedItem(updated);
+
+    // Refresh dashboard data
+    refetch?.();
+
+    return updated;
+  }, [selectedItem, refetch]);
+
+  // Publish now handler
+  const handlePublishNow = useCallback(async (taskId: string, input: PublishNowInput) => {
+    await publishNow(taskId, input);
+    refetch?.(); // Refresh statuses
+  }, [publishNow, refetch]);
+
+  // Schedule handler  
+  const handleSchedule = useCallback(async (taskId: string, input: ScheduleInput) => {
+    await schedule(taskId, input);
+    refetch?.(); // Refresh statuses
+  }, [schedule, refetch]);
 
   if (loading || isLoading || tenantLoading) {
     return (
@@ -218,74 +292,76 @@ const PublishPage = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
-          <Send className="w-10 h-10 text-primary" />
-          Publish Portal
-        </h1>
-        <p className="text-lg text-gray-600 font-medium">
-          Direct social publishing with smart scheduling and analytics
-        </p>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
+            <Send className="w-10 h-10 text-primary" />
+            Publish Portal
+          </h1>
+          <p className="text-lg text-gray-600 font-medium">
+            Direct social publishing with smart scheduling and analytics
+          </p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="flex gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search posts by caption, platform, or account..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Button variant="outline" size="icon">
+            <Filter className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {content.length === 0 ? (
+        {filteredItems.length === 0 ? (
           <Card className="col-span-full">
             <CardContent className="text-center py-12">
               <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <CardTitle className="mb-2">No content ready to publish</CardTitle>
+              <CardTitle className="mb-2">
+                {publishItems.length === 0 ? "No content ready to publish" : "No matching content"}
+              </CardTitle>
               <CardDescription>
-                Approved content from the Create Flow will appear here ready for publishing.
+                {publishItems.length === 0 
+                  ? "Approved content from the Create Flow will appear here ready for publishing."
+                  : "Try adjusting your search terms to find content."
+                }
               </CardDescription>
             </CardContent>
           </Card>
         ) : (
-          content.map((item) => (
-            <Card key={item.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {item.mediaUrl && (
-                      <img 
-                        src={item.mediaUrl} 
-                        alt="Content thumbnail" 
-                        className="w-8 h-8 object-cover rounded-md border"
-                      />
-                    )}
-                    <CardTitle className="text-lg capitalize">{item.platform}</CardTitle>
-                  </div>
-                  <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                    {item.status}
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {item.mediaUrl && (
-                  <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                    <img 
-                      src={item.mediaUrl} 
-                      alt="Content media" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                <p className="text-sm text-muted-foreground line-clamp-3">
-                  {item.caption}
-                </p>
-                <div className="flex gap-2">
-                  <Button size="sm" className="flex-1">
-                    Publish Now
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1">
-                    Schedule
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          filteredItems.map((item) => (
+            <PostCard
+              key={item.taskId}
+              item={item}
+              onEdit={(item) => handleOpenDrawer(item, 'edit')}
+              onPublishNow={(item) => handleOpenDrawer(item, 'publish')}
+              onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
+            />
           ))
         )}
       </div>
+
+      {/* Composer Drawer */}
+      <ComposerDrawer
+        open={drawerOpen}
+        mode={drawerMode}
+        item={selectedItem}
+        accounts={availableAccounts}
+        onClose={handleCloseDrawer}
+        validate={validatePostForPlatform}
+        onSaveDraft={handleSaveDraft}
+        onPublishNow={handlePublishNow}
+        onSchedule={handleSchedule}
+      />
     </div>
   );
 };

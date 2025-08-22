@@ -21,6 +21,7 @@ export interface RescheduleRequest {
   publishAt: string;
 }
 
+// DEPRECATED: Use usePublishActions + publish-task instead.
 export class PublishAPI {
   private static async callFunction(functionName: string, body?: any) {
     const { data, error } = await supabase.functions.invoke(functionName, {

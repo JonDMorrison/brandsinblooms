@@ -1,316 +1,459 @@
+// AUDIT: Updated ComposerDrawer to match new PublishItem contract and integrate MediaSelector + validation
+// - Added props for PublishItem and callbacks for onSaveDraft, onPublishNow, onSchedule  
+// - Integrated ImageSelectButton for media selection with DB persistence
+// - Added validation using validatePostForPlatform utility
+// - Added caption/firstComment editing with real-time preview
+// - Mode switching between edit/publish/schedule
 
-import React, { useState } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import React, { useState, useEffect } from 'react';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Facebook, Instagram, Clock, Calendar as CalendarIcon, Info } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { NativeSelect } from '@/components/ui/NativeSelect';
+import { Facebook, Instagram, Clock, Calendar as CalendarIcon, Send, Save, AlertTriangle, Info } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, addHours, setHours, setMinutes } from 'date-fns';
+import { ImageSelectButton } from '@/components/image';
+import { validatePostForPlatform } from '@/utils/validatePost';
+import type { PublishItem, PublishNowInput, ScheduleInput, ValidationResult } from '@/types/publish';
 
-interface GeneratedContent {
-  id: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW';
-  caption: string;
-  mediaUrl?: string;
-  platform?: string;
-  campaignId?: string;
-  createdAt: string;
-}
+export type ComposerMode = "edit" | "publish" | "schedule";
 
-interface SocialConnection {
-  id: string;
-  platform: string;
-  isActive: boolean;
-  platformAccountName: string;
-}
+export type ComposerDrawerProps = {
+  open: boolean;
+  mode: ComposerMode;              // initial intent; can be changed inside
+  item: PublishItem | null;        // selected card
+  accounts: Array<{               // available linked accounts for tenant
+    platform: "facebook" | "instagram";
+    accountId: string;             // Page ID or IG Business ID
+    accountName: string;
+  }>;
 
-interface ComposerDrawerProps {
-  isOpen: boolean;
+  // Callbacks provided by parent (PublishPage)
   onClose: () => void;
-  selectedContent: GeneratedContent | null;
-  socialConnections: SocialConnection[];
-  onSchedule: (data: {
-    contentId: string;
-    caption: string;
-    mediaUrl?: string;
-    platforms: string[];
-    publishAt: string;
-  }) => void;
-  onPublishNow: (data: {
-    contentId: string;
-    caption: string;
-    mediaUrl?: string;
-    platforms: string[];
-  }) => void;
-}
 
-type SmartTimeOption = 'now' | 'best' | 'custom';
+  // Persist edits to the source task (caption, mediaUrl, firstComment).
+  // Return the updated item for optimistic UI.
+  onSaveDraft: (taskId: string, partial: {
+    caption?: string | null;
+    mediaUrl?: string | null;
+    firstComment?: string | null;
+    accountId?: string | null;
+  }) => Promise<PublishItem>;
 
-export const ComposerDrawer = ({ 
-  isOpen, 
-  onClose, 
-  selectedContent, 
-  socialConnections, 
-  onSchedule, 
-  onPublishNow 
-}: ComposerDrawerProps) => {
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
-  const [smartTime, setSmartTime] = useState<SmartTimeOption>('best');
-  const [customDate, setCustomDate] = useState<Date>();
-  const [customTime, setCustomTime] = useState('12:00');
+  // Final actions: call the hook that invokes 'publish-task'
+  onPublishNow: (taskId: string, input: PublishNowInput) => Promise<void>;
+  onSchedule:   (taskId: string, input: ScheduleInput)   => Promise<void>;
 
-  // Debug social connections
-  console.log('🔍 Social connections in ComposerDrawer:', socialConnections);
+  // Optional validation override (else use default validatePostForPlatform)
+  validate?: (platform: "facebook" | "instagram", input: PublishNowInput) => ValidationResult;
+};
+
+export default function ComposerDrawer({
+  open,
+  mode: initialMode,
+  item,
+  accounts,
+  onClose,
+  onSaveDraft,
+  onPublishNow,
+  onSchedule,
+  validate = validatePostForPlatform
+}: ComposerDrawerProps) {
+  const { toast } = useToast();
   
-  const platforms = [
-    {
-      key: 'facebook',
-      label: 'Facebook Page',
-      icon: Facebook,
-      available: socialConnections.some(c => c.platform === 'facebook' && c.isActive)
-    },
-    {
-      key: 'instagram',
-      label: 'Instagram',
-      icon: Instagram,
-      available: socialConnections.some(c => c.platform === 'instagram' && c.isActive)
+  // Local state
+  const [mode, setMode] = useState<ComposerMode>(initialMode);
+  const [localCaption, setLocalCaption] = useState('');
+  const [localMediaUrl, setLocalMediaUrl] = useState<string | null>(null);
+  const [localFirstComment, setLocalFirstComment] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date>(addHours(new Date(), 1));
+  const [selectedTime, setSelectedTime] = useState<Date>(addHours(new Date(), 1));
+  const [isLoading, setIsLoading] = useState(false);
+  const [validation, setValidation] = useState<ValidationResult>({ ok: true, warnings: [], errors: [] });
+
+  // Initialize local state when item changes
+  useEffect(() => {
+    if (item) {
+      setLocalCaption(item.caption || '');
+      setLocalMediaUrl(item.mediaUrl || null);
+      setLocalFirstComment(item.firstComment || '');
+      setSelectedAccountId(item.accountId || '');
+      setMode(initialMode);
+      
+      // Auto-select first available account for platform if none selected
+      if (!item.accountId) {
+        const matchingAccounts = accounts.filter(acc => acc.platform === item.platform);
+        if (matchingAccounts.length > 0) {
+          setSelectedAccountId(matchingAccounts[0].accountId);
+        }
+      }
     }
-  ];
-  
-  console.log('🔍 Platform availability:', platforms.map(p => ({ key: p.key, available: p.available })));
+  }, [item, initialMode, accounts]);
 
-  const togglePlatform = (platformKey: string) => {
-    setSelectedPlatforms(prev => 
-      prev.includes(platformKey)
-        ? prev.filter(p => p !== platformKey)
-        : [...prev, platformKey]
+  // Run validation when inputs change
+  useEffect(() => {
+    if (item && selectedAccountId) {
+      const input: PublishNowInput = {
+        platform: item.platform,
+        accountId: selectedAccountId,
+        caption: localCaption,
+        mediaUrl: localMediaUrl,
+        firstComment: localFirstComment
+      };
+      setValidation(validate(item.platform, input));
+    }
+  }, [item, localCaption, localMediaUrl, localFirstComment, selectedAccountId, validate]);
+
+  if (!item) return null;
+
+  const PlatformIcon = item.platform === 'facebook' ? Facebook : Instagram;
+  const platformAccounts = accounts.filter(acc => acc.platform === item.platform);
+  
+  const hasChanges = localCaption !== (item.caption || '') || 
+                    localMediaUrl !== (item.mediaUrl || null) ||
+                    localFirstComment !== (item.firstComment || '') ||
+                    selectedAccountId !== (item.accountId || '');
+
+  const handleSave = async () => {
+    if (!hasChanges) return;
+    
+    setIsLoading(true);
+    try {
+      await onSaveDraft(item.taskId, {
+        caption: localCaption,
+        mediaUrl: localMediaUrl,
+        firstComment: localFirstComment,
+        accountId: selectedAccountId
+      });
+      
+      toast({
+        title: "Saved",
+        description: "Draft saved successfully",
+      });
+    } catch (error: any) {
+      console.error('Save error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save draft",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePublishNow = async () => {
+    if (!validation.ok) return;
+    
+    setIsLoading(true);
+    try {
+      await onPublishNow(item.taskId, {
+        platform: item.platform,
+        accountId: selectedAccountId,
+        caption: localCaption,
+        mediaUrl: localMediaUrl,
+        firstComment: localFirstComment
+      });
+      
+      toast({
+        title: "Success!",
+        description: "Published successfully",
+      });
+      
+      onClose();
+    } catch (error: any) {
+      console.error('Publish error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to publish",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSchedule = async () => {
+    if (!validation.ok) return;
+    
+    setIsLoading(true);
+    try {
+      // Combine date and time
+      const publishAt = new Date(selectedDate);
+      publishAt.setHours(selectedTime.getHours());
+      publishAt.setMinutes(selectedTime.getMinutes());
+      publishAt.setSeconds(0);
+
+      await onSchedule(item.taskId, {
+        platform: item.platform,
+        accountId: selectedAccountId,
+        caption: localCaption,
+        mediaUrl: localMediaUrl,
+        firstComment: localFirstComment,
+        publishAt: publishAt.toISOString()
+      });
+      
+      toast({
+        title: "Scheduled!",
+        description: `Scheduled for ${format(publishAt, 'MMM d, h:mm a')}`,
+      });
+      
+      onClose();
+    } catch (error: any) {
+      console.error('Schedule error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to schedule",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const TimePicker = ({ 
+    selectedTime, 
+    onTimeChange 
+  }: { 
+    selectedTime: Date; 
+    onTimeChange: (time: Date) => void; 
+  }) => {
+    const hours = Array.from({ length: 24 }, (_, i) => i);
+    const minutes = [0, 15, 30, 45];
+    
+    const currentHour = selectedTime.getHours();
+    const currentMinute = selectedTime.getMinutes();
+    
+    return (
+      <div className="flex items-center gap-2">
+        <NativeSelect 
+          value={currentHour.toString()} 
+          onChange={(e) => onTimeChange(setHours(selectedTime, parseInt(e.target.value)))}
+          className="w-20"
+          options={hours.map(hour => ({
+            value: hour.toString(),
+            label: hour.toString().padStart(2, '0')
+          }))}
+        />
+        
+        <span className="text-gray-500">:</span>
+        
+        <NativeSelect 
+          value={currentMinute.toString()} 
+          onChange={(e) => onTimeChange(setMinutes(selectedTime, parseInt(e.target.value)))}
+          className="w-20"
+          options={minutes.map(minute => ({
+            value: minute.toString(),
+            label: minute.toString().padStart(2, '0')
+          }))}
+        />
+      </div>
     );
   };
 
-  const getSmartTimeLabel = (option: SmartTimeOption) => {
-    switch (option) {
-      case 'now':
-        return 'Publish Now';
-      case 'best':
-        return 'Best Time';
-      case 'custom':
-        return 'Custom Time';
-    }
-  };
-
-  const getPublishTime = (): string => {
-    switch (smartTime) {
-      case 'now':
-        return new Date().toISOString();
-      case 'best':
-        // TODO: Implement best time algorithm
-        const bestTime = new Date();
-        bestTime.setHours(14, 0, 0, 0); // Default to 2 PM today
-        return bestTime.toISOString();
-      case 'custom':
-        if (!customDate) return new Date().toISOString();
-        const [hours, minutes] = customTime.split(':');
-        const customDateTime = new Date(customDate);
-        customDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        return customDateTime.toISOString();
-      default:
-        return new Date().toISOString();
-    }
-  };
-
-  const handleSchedule = () => {
-    if (!selectedContent || selectedPlatforms.length === 0) return;
-
-    const publishAt = getPublishTime();
-    
-    onSchedule({
-      contentId: selectedContent.id,
-      caption: selectedContent.caption,
-      mediaUrl: selectedContent.mediaUrl,
-      platforms: selectedPlatforms,
-      publishAt
-    });
-    
-    onClose();
-  };
-
-  const handlePublishNow = () => {
-    if (!selectedContent || selectedPlatforms.length === 0) return;
-
-    onPublishNow({
-      contentId: selectedContent.id,
-      caption: selectedContent.caption,
-      mediaUrl: selectedContent.mediaUrl,
-      platforms: selectedPlatforms
-    });
-    
-    onClose();
-  };
-
-  if (!selectedContent) return null;
-
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-[320px] bg-white">
-        <SheetHeader>
-          <SheetTitle className="text-[#3E5A6B]">Publish Settings</SheetTitle>
-        </SheetHeader>
+    <Drawer open={open} onOpenChange={onClose}>
+      <DrawerContent className="max-w-2xl mx-auto">
+        <DrawerHeader>
+          <DrawerTitle className="flex items-center gap-2">
+            <PlatformIcon className={cn(
+              "w-5 h-5",
+              item.platform === 'facebook' ? 'text-blue-600' : 'text-pink-500'
+            )} />
+            {mode === 'edit' ? 'Edit Post' : mode === 'publish' ? 'Publish Now' : 'Schedule Post'}
+          </DrawerTitle>
+        </DrawerHeader>
 
-        <div className="space-y-6 mt-6">
-          {/* Platform Selection */}
-          <div className="space-y-3">
-            <h3 className="font-medium text-[#3E5A6B]">Destinations</h3>
+        <div className="p-4 space-y-6 max-h-[80vh] overflow-y-auto">
+          {/* Mode Switcher */}
+          <div className="flex gap-2">
+            <Button 
+              variant={mode === 'edit' ? 'default' : 'outline'} 
+              size="sm"
+              onClick={() => setMode('edit')}
+            >
+              Edit
+            </Button>
+            <Button 
+              variant={mode === 'publish' ? 'default' : 'outline'} 
+              size="sm"
+              onClick={() => setMode('publish')}
+            >
+              Publish
+            </Button>
+            <Button 
+              variant={mode === 'schedule' ? 'default' : 'outline'} 
+              size="sm"
+              onClick={() => setMode('schedule')}
+            >
+              Schedule
+            </Button>
+          </div>
+
+          {/* Account Selection */}
+          {platformAccounts.length > 1 && (
             <div className="space-y-2">
-              {platforms.map((platform) => {
-                const IconComponent = platform.icon;
-                const isSelected = selectedPlatforms.includes(platform.key);
-                const isAvailable = platform.available;
-                
-                return (
-                  <div
-                    key={platform.key}
-                    onClick={() => isAvailable && togglePlatform(platform.key)}
-                    className={cn(
-                      "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all",
-                      isAvailable 
-                        ? "hover:border-[#68BEB9]/50" 
-                        : "opacity-40 cursor-not-allowed",
-                      isSelected && isAvailable 
-                        ? "border-[#68BEB9] bg-[#68BEB9]/5" 
-                        : "border-gray-200"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <IconComponent className="w-5 h-5 text-[#3E5A6B]" />
-                      <div>
-                        <p className="font-medium text-sm">{platform.label}</p>
-                        {!isAvailable && (
-                          <p className="text-xs text-gray-500">Not connected</p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {isAvailable && (
-                      <Switch
-                        checked={isSelected}
-                        onCheckedChange={() => togglePlatform(platform.key)}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+              <Label>Account</Label>
+              <NativeSelect
+                value={selectedAccountId}
+                onChange={(e) => setSelectedAccountId(e.target.value)}
+                options={platformAccounts.map(acc => ({
+                  value: acc.accountId,
+                  label: acc.accountName
+                }))}
+              />
+            </div>
+          )}
+
+          {/* Media Selection */}
+          <div className="space-y-2">
+            <Label>Image</Label>
+            <ImageSelectButton
+              selectedImageUrl={localMediaUrl || undefined}
+              onImageSelect={async (url) => {
+                setLocalMediaUrl(url);
+                // Auto-save media selection
+                try {
+                  await onSaveDraft(item.taskId, { mediaUrl: url });
+                } catch (error) {
+                  console.error('Failed to save media:', error);
+                }
+              }}
+              contentContext={localCaption || item.caption || ''}
+              buttonText="Select Image"
+              mode="modal"
+            />
+          </div>
+
+          {/* Caption Editor */}
+          <div className="space-y-2">
+            <Label>Caption</Label>
+            <Textarea
+              value={localCaption}
+              onChange={(e) => setLocalCaption(e.target.value)}
+              placeholder="Write your caption..."
+              className="min-h-[120px]"
+              maxLength={item.platform === 'instagram' ? 2200 : 63206}
+            />
+            <div className="text-sm text-gray-500 text-right">
+              {localCaption.length} / {item.platform === 'instagram' ? '2,200' : '63,206'} characters
             </div>
           </div>
 
-          {/* Smart Time Selection */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <h3 className="font-medium text-[#3E5A6B]">Timing</h3>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-auto p-1">
-                    <Info className="w-4 h-4 text-gray-400" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80" align="start">
-                  <div className="space-y-2">
-                    <h4 className="font-medium">Smart-Time Explained</h4>
-                    <p className="text-sm text-gray-600">
-                      Our algorithm analyzes your audience activity patterns to suggest the optimal posting time for maximum engagement.
-                    </p>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-            
+          {/* First Comment (Instagram only) */}
+          {item.platform === 'instagram' && (
             <div className="space-y-2">
-              {(['now', 'best', 'custom'] as SmartTimeOption[]).map((option) => (
-                <Button
-                  key={option}
-                  variant={smartTime === option ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSmartTime(option)}
-                  className={cn(
-                    "w-full justify-start",
-                    smartTime === option && [
-                      "bg-[#68BEB9] hover:bg-[#56a7a1] text-white",
-                      "shadow-lg shadow-[#68BEB9]/20"
-                    ]
-                  )}
-                >
-                  <Clock className="w-4 h-4 mr-2" />
-                  {getSmartTimeLabel(option)}
-                </Button>
-              ))}
+              <Label>First Comment (Optional)</Label>
+              <Input
+                value={localFirstComment}
+                onChange={(e) => setLocalFirstComment(e.target.value)}
+                placeholder="Add a first comment..."
+              />
             </div>
+          )}
 
-            {/* Custom Time Picker */}
-            {smartTime === 'custom' && (
-              <div className="space-y-3 pt-2">
+          {/* Schedule Settings */}
+          {mode === 'schedule' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
+                    <Button variant="outline" className="w-full justify-start">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customDate ? format(customDate, "PPP") : "Pick a date"}
+                      {format(selectedDate, "PPP")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={customDate}
-                      onSelect={setCustomDate}
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
                       disabled={(date) => date < new Date()}
                       initialFocus
                     />
                   </PopoverContent>
                 </Popover>
-                
-                <input
-                  type="time"
-                  value={customTime}
-                  onChange={(e) => setCustomTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#68BEB9] focus:border-transparent"
+              </div>
+
+              <div className="space-y-2">
+                <Label>Time</Label>
+                <TimePicker 
+                  selectedTime={selectedTime}
+                  onTimeChange={setSelectedTime}
                 />
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Validation Messages */}
+          {(validation.errors.length > 0 || validation.warnings.length > 0) && (
+            <div className="space-y-2">
+              {validation.errors.map((error, i) => (
+                <div key={i} className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertTriangle className="w-4 h-4" />
+                  {error}
+                </div>
+              ))}
+              {validation.warnings.map((warning, i) => (
+                <div key={i} className="flex items-center gap-2 text-yellow-600 text-sm">
+                  <Info className="w-4 h-4" />
+                  {warning}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Action Buttons */}
-          <div className="space-y-3 pt-4">
-            {smartTime === 'now' ? (
+          <div className="flex gap-3 pt-4 border-t">
+            {hasChanges && (
+              <Button
+                variant="outline"
+                onClick={handleSave}
+                disabled={isLoading}
+              >
+                <Save className="w-4 h-4 mr-1" />
+                Save Draft
+              </Button>
+            )}
+            
+            {mode === 'publish' && (
               <Button
                 onClick={handlePublishNow}
-                disabled={selectedPlatforms.length === 0}
-                className="w-full bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
+                disabled={!validation.ok || isLoading}
+                className="flex-1"
               >
+                <Send className="w-4 h-4 mr-1" />
                 Publish Now
               </Button>
-            ) : (
+            )}
+            
+            {mode === 'schedule' && (
               <Button
                 onClick={handleSchedule}
-                disabled={selectedPlatforms.length === 0}
-                className="w-full bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
+                disabled={!validation.ok || isLoading}
+                className="flex-1"
               >
+                <Clock className="w-4 h-4 mr-1" />
                 Schedule Post
               </Button>
             )}
             
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="w-full border-[#3E5A6B] text-[#3E5A6B] hover:bg-[#3E5A6B]/5"
-            >
+            <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
-};
+}
