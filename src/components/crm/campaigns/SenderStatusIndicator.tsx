@@ -15,12 +15,14 @@ import type { SenderConfig } from '@/hooks/useSenderConfiguration';
 interface SenderStatusIndicatorProps {
   senderConfig: SenderConfig;
   showDetailedAlert?: boolean;
+  compact?: boolean;
   className?: string;
 }
 
 export const SenderStatusIndicator: React.FC<SenderStatusIndicatorProps> = ({
   senderConfig,
   showDetailedAlert = false,
+  compact = false,
   className = ''
 }) => {
   const { isVerified, senderEmail, displayName, deliveryMethod } = senderConfig;
@@ -36,12 +38,12 @@ export const SenderStatusIndicator: React.FC<SenderStatusIndicatorProps> = ({
             {isVerified ? (
               <>
                 <Shield className="h-3 w-3" />
-                <span>🔒 Verified Sender</span>
+                <span>{compact ? 'Verified' : '🔒 Verified Sender'}</span>
               </>
             ) : (
               <>
                 <AlertTriangle className="h-3 w-3" />
-                <span>⚠️ Shared Domain</span>
+                <span>{compact ? 'Shared' : '⚠️ Shared Domain'}</span>
               </>
             )}
           </Badge>

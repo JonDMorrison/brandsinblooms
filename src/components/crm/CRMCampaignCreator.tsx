@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, ArrowLeft, Users, Sparkles, Send } from 'lucide-react';
+import { Loader2, Mail, ArrowLeft, Users, Sparkles, Send, Eye } from 'lucide-react';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { SharedSenderConfirmationModal } from './campaigns/SharedSenderConfirmationModal';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
@@ -27,6 +27,8 @@ import { useGeneratedBundle } from '@/hooks/useGeneratedBundle';
 import { CampaignSetupWizard } from './campaign-setup/CampaignSetupWizard';
 import { AIWriterDialog } from './ai-writer/AIWriterDialog';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
+import { CampaignActionBar } from './CampaignActionBar';
+import { CampaignReadiness } from './CampaignReadiness';
 import { 
   Breadcrumb,
   BreadcrumbItem,
@@ -1902,179 +1904,146 @@ cleanUrl();
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Breadcrumb Navigation */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/crm">CRM</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/crm/campaigns">Campaigns</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>
-              {existingCampaignId ? 'Edit Campaign' : 'New Campaign'}
-            </BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-      
-      {/* Back Button */}
-      <div>
-        <Button variant="ghost" size="sm" onClick={() => navigate('/crm/campaigns')}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-      </div>
-      
-      {/* Header */}
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {existingCampaignId ? 'Edit Email Campaign' : 'Create Email Campaign'}
-          </h1>
-          <p className="text-muted-foreground">Build and customize your email campaign</p>
-        </div>
+    <>
+      {/* Sticky Action Bar */}
+      <CampaignActionBar
+        campaignName={campaignName}
+        subjectLine={subjectLine}
+        blocks={blocks}
+        selectedSegments={selectedSegments}
+        senderConfig={senderConfig}
+        loadingSenderConfig={loadingSenderConfig}
+        lastSaved={lastSaved}
+        isAutoSaving={isAutoSaving}
+        saveError={saveError}
+        sending={sending}
+        loading={loading}
+        onSend={handleSendCampaign}
+        onSave={handleSave}
+        onPreview={() => setShowPreview(true)}
+        onAudience={() => setShowSetupWizard(true)}
+        onAIWriter={() => setShowAIWriter(true)}
+      />
 
-        {/* Sender Status and Configuration Banner */}
-        <div className="space-y-4">
-          <SenderStatusIndicator 
-            senderConfig={senderConfig} 
-            showDetailedAlert={!senderConfig?.isVerified}
-          />
-        </div>
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Breadcrumb Navigation */}
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/crm">CRM</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/crm/campaigns">Campaigns</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>
+                {existingCampaignId ? 'Edit Campaign' : 'New Campaign'}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
         
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Only show Write with AI for new campaigns */}
-          {!existingCampaignId && (
-            <Button variant="outline" onClick={() => setShowAIWriter(true)}>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Write with AI
-            </Button>
-          )}
-          <Button variant="outline" onClick={() => setShowSetupWizard(true)}>
-            <Users className="h-4 w-4 mr-2" />
-            Audience
-            {(selectedPersonas.length > 0 || selectedSegments.length > 0) && (
-              <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary text-primary-foreground rounded">
-                {selectedPersonas.length + selectedSegments.length}
-              </span>
-            )}
-          </Button>
-          <Button variant="outline" onClick={() => setShowPreview(true)}>
-            Preview
-          </Button>
-          <Button onClick={handleSave} disabled={loading || sending} variant="outline">
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Mail className="h-4 w-4 mr-2" />
-                {existingCampaignId ? 'Update Campaign' : 'Save Campaign'}
-              </>
-            )}
+        {/* Back Button & Simple Header */}
+        <div className="space-y-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/crm/campaigns')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
           </Button>
           
-          <Button 
-            onClick={handleSendCampaign} 
-            disabled={loading || sending || loadingSenderConfig || !campaignName || !subjectLine || blocks.length === 0}
-          >
-            {sending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="h-4 w-4 mr-2" />
-                Send Campaign
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {/* Campaign Settings - Top Horizontal Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Campaign Settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="campaign-name">Campaign Name</Label>
-               <Input
-                 id="campaign-name"
-                 value={campaignName}
-                 onChange={(e) => {
-                   setCampaignName(e.target.value);
-                   // Auto-save campaign settings when they change
-                   if (existingCampaignId) {
-                     debouncedAutoSave({
-                       blocks,
-                       campaign_name: e.target.value,
-                       subject_line: subjectLine,
-                       preheader: preheaderText
-                     });
-                   }
-                 }}
-                 placeholder="Enter campaign name"
-                 className="mt-1"
-               />
-            </div>
-            
-            <div>
-              <Label htmlFor="subject-line">Subject Line</Label>
-               <Input
-                 id="subject-line"
-                 value={subjectLine}
-                 onChange={(e) => {
-                   setSubjectLine(e.target.value);
-                   // Auto-save campaign settings when they change
-                   if (existingCampaignId) {
-                     debouncedAutoSave({
-                       blocks,
-                       campaign_name: campaignName,
-                       subject_line: e.target.value,
-                       preheader: preheaderText
-                     });
-                   }
-                 }}
-                 placeholder="Enter subject line"
-                 className="mt-1"
-               />
-            </div>
-            
-            <div>
-              <Label htmlFor="preheader">Preheader Text</Label>
-               <Input
-                 id="preheader"
-                 value={preheaderText}
-                 onChange={(e) => {
-                   setPreheaderText(e.target.value);
-                   // Auto-save campaign settings when they change
-                   if (existingCampaignId) {
-                     debouncedAutoSave({
-                       blocks,
-                       campaign_name: campaignName,
-                       subject_line: subjectLine,
-                       preheader: e.target.value
-                     });
-                   }
-                 }}
-                 placeholder="Optional preheader text"
-                 className="mt-1"
-               />
-            </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {existingCampaignId ? 'Edit Email Campaign' : 'Create Email Campaign'}
+            </h1>
+            <p className="text-muted-foreground">Build and customize your email campaign</p>
           </div>
-        </CardContent>
-       </Card>
+        </div>
+
+        {/* Campaign Settings - Top Horizontal Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Campaign Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="campaign-name">Campaign Name</Label>
+                 <Input
+                   id="campaign-name"
+                   value={campaignName}
+                   onChange={(e) => {
+                     setCampaignName(e.target.value);
+                     // Auto-save campaign settings when they change
+                     if (existingCampaignId) {
+                       debouncedAutoSave({
+                         blocks,
+                         campaign_name: e.target.value,
+                         subject_line: subjectLine,
+                         preheader: preheaderText
+                       });
+                     }
+                   }}
+                   placeholder="Enter campaign name"
+                   className="mt-1"
+                 />
+              </div>
+              
+              <div>
+                <Label htmlFor="subject-line">Subject Line</Label>
+                 <Input
+                   id="subject-line"
+                   value={subjectLine}
+                   onChange={(e) => {
+                     setSubjectLine(e.target.value);
+                     // Auto-save campaign settings when they change
+                     if (existingCampaignId) {
+                       debouncedAutoSave({
+                         blocks,
+                         campaign_name: campaignName,
+                         subject_line: e.target.value,
+                         preheader: preheaderText
+                       });
+                     }
+                   }}
+                   placeholder="Enter subject line"
+                   className="mt-1"
+                 />
+              </div>
+              
+              <div>
+                <Label htmlFor="preheader">Preheader Text</Label>
+                 <Input
+                   id="preheader"
+                   value={preheaderText}
+                   onChange={(e) => {
+                     setPreheaderText(e.target.value);
+                     // Auto-save campaign settings when they change
+                     if (existingCampaignId) {
+                       debouncedAutoSave({
+                         blocks,
+                         campaign_name: campaignName,
+                         subject_line: subjectLine,
+                         preheader: e.target.value
+                       });
+                     }
+                   }}
+                   placeholder="Optional preheader text"
+                   className="mt-1"
+                 />
+              </div>
+            </div>
+            
+            {/* Campaign Readiness Checklist */}
+            <CampaignReadiness
+              campaignName={campaignName}
+              subjectLine={subjectLine}
+              blocks={blocks}
+              selectedSegments={selectedSegments}
+              senderConfig={senderConfig}
+            />
+          </CardContent>
+         </Card>
 
        {/* Campaign Setup Wizard */}
        <CampaignSetupWizard
@@ -2086,28 +2055,19 @@ cleanUrl();
          onSegmentsChange={setSelectedSegments}
        />
 
-       {/* Email Content Builder - Full Width */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Email Content</CardTitle>
-            <SaveIndicator 
-              lastSaved={lastSaved} 
-              saving={loading || isAutoSaving} 
-              error={saveError} 
-              onRetry={() => {
-                if (existingCampaignId) {
-                  autoSaveCampaign({
-                    blocks,
-                    campaign_name: campaignName,
-                    subject_line: subjectLine,
-                    preheader: preheaderText
-                  });
-                }
-              }}
-            />
-          </div>
-        </CardHeader>
+         {/* Email Content Builder - Full Width */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Email Content</CardTitle>
+              {!existingCampaignId && (
+                <Button variant="outline" size="sm" onClick={() => setShowAIWriter(true)}>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Write with AI
+                </Button>
+              )}
+            </div>
+          </CardHeader>
         <CardContent>
           <CleanEmailBlockEditor
             blocks={blocks}
@@ -2158,6 +2118,7 @@ cleanUrl();
         campaignName={campaignName}
         recipientCount={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || 0), 0)}
       />
-    </div>
+      </div>
+    </>
   );
 };
