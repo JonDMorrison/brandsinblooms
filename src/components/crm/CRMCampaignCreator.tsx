@@ -1522,8 +1522,8 @@ cleanUrl();
                         ${!block.backgroundImageUrl ? `background-color: ${block.backgroundColor || '#1f2937'};` : ''}">
               ${block.backgroundImageUrl ? `<div style="position: absolute; inset: 0; background-color: ${block.backgroundColor || '#000000'}; opacity: ${headerOpacity};"></div>` : ''}
               <div style="position: relative; z-index: 10;">
-                <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline || 'Your Headline Here'}</h1>
-                ${block.body ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.body}</div>` : ''}
+                <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline || block.title || 'Your Headline Here'}</h1>
+                ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
               </div>
             </div>
           `;
@@ -1534,8 +1534,8 @@ cleanUrl();
           const textColor = block.textColor || '#475569';
           html += `
             <div style="margin: 20px 0; text-align: ${textAlign}; font-size: ${block.fontSize || '16px'}; font-family: 'Quicksand', sans-serif; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
-              ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-              ${block.content ? `<div style="color: ${textColor}; line-height: 1.6;">${block.content}</div>` : ''}
+              ${block.headline || block.title ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor}; font-family: 'Quicksand', sans-serif;">${block.headline || block.title}</h2>` : ''}
+              ${block.content || block.body ? `<div style="color: ${textColor}; line-height: 1.6;">${block.content || block.body}</div>` : ''}
             </div>
           `;
           break;
