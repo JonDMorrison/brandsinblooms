@@ -86,17 +86,26 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     }
   }, [debouncedQuery]);
 
-  const loadCuratedImages = async () => {
+  const loadCuratedImages = async (page = 1, append = false) => {
     setIsLoading(true);
     try {
-      const curatedImages = await getCuratedCollectionImages(1);
+      const curatedImages = await getCuratedCollectionImages(page);
       const curatedResults: SearchResult[] = curatedImages.map(img => ({ 
         ...img,
         thumb_url: img.thumb_url || img.thumb || img.url,
         download_url: img.download_url || img.url,
         source: 'unsplash' as const 
       }));
-      setAllResults(curatedResults);
+      
+      if (append) {
+        setAllResults(prev => [...prev, ...curatedResults]);
+      } else {
+        setAllResults(curatedResults);
+        setCurrentPage(1);
+      }
+      
+      setHasMorePages(curatedImages.length === 12); // If we got 12 images, there might be more
+      setCurrentPage(page);
     } catch (error) {
       console.error('Error loading curated images:', error);
       toast.error('Failed to load curated images');
@@ -153,6 +162,11 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     if (searchQuery.trim()) {
       setDebouncedQuery(searchQuery);
     }
+  };
+
+  const handleLoadMore = async () => {
+    if (!hasMorePages || isLoading || debouncedQuery) return;
+    await loadCuratedImages(currentPage + 1, true);
   };
 
   const handleRefresh = () => {
@@ -495,6 +509,26 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                     </div>
                   ))}
                 </div>
+
+                {/* Load More Button */}
+                {hasMorePages && !debouncedQuery && (
+                  <div className="mt-6">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleLoadMore}
+                      disabled={isLoading}
+                      className="w-full"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Camera className="h-4 w-4 mr-2" />
+                      )}
+                      Load More Images
+                    </Button>
+                  </div>
+                )}
 
                 {/* Refresh Section */}
                 <div className="mt-6 pt-4 border-t border-gray-100">
