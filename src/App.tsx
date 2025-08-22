@@ -242,6 +242,13 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
+          <Route path="/newsletters/builder" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <NewsletterNewPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
           <Route path="/integrations" element={
             <ProtectedRoute>
               <SidebarLayout>

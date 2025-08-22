@@ -62,14 +62,17 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   const handleContinue = () => {
     if (!selectedIdea || !selectedLayout) return;
 
-    // Navigate to email builder with template data
+    // Navigate to newsletter builder with template data
     const params = new URLSearchParams({
       templateId: selectedIdea.id,
       layout: selectedLayout,
-      source: 'picker'
+      source: 'picker',
+      title: selectedIdea.title,
+      description: selectedIdea.description,
+      category: selectedIdea.category
     });
     
-    navigate(`/crm/campaigns/new?type=newsletter&${params.toString()}`);
+    navigate(`/newsletters/builder?${params.toString()}`);
     onClose();
   };
 
@@ -81,7 +84,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   };
 
   const handleSkipToBlank = () => {
-    navigate('/crm/campaigns/new?type=newsletter');
+    navigate('/newsletters/builder');
     onClose();
   };
 
