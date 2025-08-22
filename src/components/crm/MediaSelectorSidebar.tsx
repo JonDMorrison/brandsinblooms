@@ -457,12 +457,14 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                         />
                         
                         {/* Source Badge */}
-                        <Badge 
-                          variant={image.source === 'uploads' ? 'default' : 'secondary'} 
-                          className="absolute top-2 left-2 text-xs px-1.5 py-0.5"
-                        >
-                          {image.source === 'uploads' ? 'Mine' : 'Unsplash'}
-                        </Badge>
+                        {image.source === 'uploads' && (
+                          <Badge 
+                            variant="default"
+                            className="absolute top-2 left-2 text-xs px-1.5 py-0.5"
+                          >
+                            Mine
+                          </Badge>
+                        )}
 
                         {/* Download button for Unsplash images */}
                         {image.source === 'unsplash' && (
