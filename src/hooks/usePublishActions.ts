@@ -9,7 +9,6 @@ export function usePublishActions() {
       status: 'approved',
       ai_output: input.caption ?? '',
       image_url: input.mediaUrl ?? null,
-      notes: input.firstComment ?? null,
     };
 
     // Add attachments if media is provided
@@ -53,7 +52,6 @@ export function usePublishActions() {
       status: 'approved',
       ai_output: input.caption ?? '',
       image_url: input.mediaUrl ?? null,
-      notes: input.firstComment ?? null,
     };
 
     // Add attachments if media is provided
