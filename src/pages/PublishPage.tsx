@@ -47,6 +47,7 @@ const PublishPage = () => {
 
     (async () => {
       try {
+        console.log('🔍 Starting prefill process...');
         const { data, error } = await supabase
           .from('draft_snapshots' as any)
           .select('content')
@@ -57,15 +58,25 @@ const PublishPage = () => {
           .maybeSingle();
 
         const bundleData: any = data as any;
+        console.log('📦 Bundle data:', bundleData);
+        
         if (error || !bundleData?.content) {
           console.warn('Bundle not found for publish prefill', error);
           return;
         }
 
         const items = (bundleData.content.items || []) as any[];
+        console.log('📋 Bundle items:', items);
+        
         const preferred = channel && items.find((it: any) => it.channel === channel);
         const fallback = items.find((it: any) => it.channel === 'instagram' || it.channel === 'facebook');
         const item = (preferred as any) || (fallback as any) || items[0];
+        
+        console.log('🎯 Selected item:', item);
+        console.log('📝 Item caption:', item?.caption);
+        console.log('📝 Item body:', item?.body);
+        console.log('🖼️ Item media:', item?.media);
+        
         if (!item) return;
 
         const insertPayload: any = {
@@ -76,6 +87,9 @@ const PublishPage = () => {
           image_url: item.media?.url || null,
           status: 'review'
         };
+        
+        console.log('💾 Insert payload:', insertPayload);
+        
         const { data: inserted, error: insertError } = await supabase
           .from('content_tasks' as any)
           .insert(insertPayload)
@@ -86,6 +100,8 @@ const PublishPage = () => {
           console.error('Failed inserting content task from bundle', insertError);
           return;
         }
+
+        console.log('✅ Inserted task:', inserted);
 
         const insertedRow: any = inserted as any;
 
