@@ -416,9 +416,19 @@ const PublishPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="ready" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="ready">Ready to Post</TabsTrigger>
-          <TabsTrigger value="published">Published</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 h-12 bg-gray-100 p-1 rounded-lg">
+          <TabsTrigger 
+            value="ready" 
+            className="h-10 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:font-semibold data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-900 transition-all duration-200"
+          >
+            Ready to Post
+          </TabsTrigger>
+          <TabsTrigger 
+            value="published"
+            className="h-10 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:font-semibold data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-900 transition-all duration-200"
+          >
+            Published
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="ready" className="space-y-6">
