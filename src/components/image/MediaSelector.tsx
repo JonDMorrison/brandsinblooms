@@ -86,7 +86,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   // Load default suggestions on mount and auto-select first image
   useEffect(() => {
     const loadDefaultSuggestions = async () => {
-      if (searchResults.length === 0 && !showingSuggestions && !selectedImageUrl) {
+      if (searchResults.length === 0 && !showingSuggestions) {
         console.log('[MediaSelector] Loading default suggestions...');
         setShowingSuggestions(true);
         const rawQuery = contentContext ? extractImageSummary(contentContext) : 'garden center';
