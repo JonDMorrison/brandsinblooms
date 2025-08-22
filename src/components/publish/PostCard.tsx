@@ -52,21 +52,33 @@ const formatStatus = (status: PublishItem['status'], scheduledFor?: string | nul
 };
 
 export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSchedule, onDelete, disabled }: PostCardProps) {
+  const [isDeleting, setIsDeleting] = React.useState(false);
   const PlatformIcon = item.platform === 'facebook' ? Facebook : Instagram;
   const platformColor = item.platform === 'facebook' ? 'text-blue-600' : 'text-pink-500';
   
   const canPublish = !disabled && ['approved', 'ready', 'draft', 'review'].includes(item.status);
   const canSchedule = !disabled && ['approved', 'ready', 'draft', 'review'].includes(item.status);
 
+  const handleDelete = () => {
+    setIsDeleting(true);
+    // Delay the actual deletion to allow animation to complete
+    setTimeout(() => {
+      onDelete(item);
+    }, 300);
+  };
+
   return (
-    <Card className="relative p-4 hover:shadow-md transition-shadow">
+    <Card className={cn(
+      "relative p-4 hover:shadow-md transition-all duration-300",
+      isDeleting && "animate-fade-out opacity-0 scale-95 pointer-events-none"
+    )}>
       {/* Delete Button */}
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => onDelete(item)}
-        disabled={disabled}
-        className="absolute top-2 right-2 w-8 h-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50"
+        onClick={handleDelete}
+        disabled={disabled || isDeleting}
+        className="absolute top-2 right-2 w-8 h-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
       >
         <Trash2 className="w-4 h-4" />
       </Button>
