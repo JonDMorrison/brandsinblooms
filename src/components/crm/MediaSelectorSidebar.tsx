@@ -391,10 +391,9 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
 
             {/* Source Tabs */}
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="all">All ({allResults.length})</TabsTrigger>
                 <TabsTrigger value="uploads">My Uploads ({allResults.filter(r => r.source === 'uploads').length})</TabsTrigger>
-                <TabsTrigger value="unsplash">Unsplash ({allResults.filter(r => r.source === 'unsplash').length})</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
