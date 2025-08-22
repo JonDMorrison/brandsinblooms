@@ -557,7 +557,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               <p className="text-sm font-medium text-gray-700">
                 {showingSuggestions ? 'Suggested Images' : 'Search Results'}
               </p>
-              <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto">
+              <div className="grid grid-cols-3 gap-3">
                 {searchResults.slice(0, 3).map((image, index) => {
                   console.log('[MediaSelector] Rendering thumbnail:', index, {
                     id: image.id,
