@@ -162,9 +162,10 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'header':
         return <HeaderBlock {...props} isPreview={false} />;
       case 'text':
-        // Use ImageTextBlock for text blocks that have images or image-centric layouts
+        // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
-        if (block.imageUrl || hasImageLayout) {
+        const hasHeadline = block.headline || block.title;
+        if (block.imageUrl || hasImageLayout || hasHeadline) {
           return <ImageTextBlock {...props} isPreview={false} />;
         }
         return <TextBlock {...props} isPreview={false} />;
@@ -195,9 +196,10 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'header':
         return <HeaderBlock {...props} isPreview={true} />;
       case 'text':
-        // Use ImageTextBlock for text blocks that have images or image-centric layouts
+        // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
-        if (block.imageUrl || hasImageLayout) {
+        const hasHeadline = block.headline || block.title;
+        if (block.imageUrl || hasImageLayout || hasHeadline) {
           return <ImageTextBlock {...props} isPreview={true} />;
         }
         return <TextBlock {...props} isPreview={true} />;

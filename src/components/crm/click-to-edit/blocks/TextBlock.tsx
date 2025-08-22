@@ -31,10 +31,12 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
   }[block.padding || 'medium'];
 
   // Check if this text block has content that could benefit from an image
-  const hasRichContent = (block.title || block.content || block.body) && 
-    (block.title || block.content || block.body)!.length > 50;
+  const hasContent = (block.title || block.content || block.body || block.headline);
+  const hasRichContent = hasContent && (block.title || block.content || block.body || block.headline)!.length > 50;
+  const isFromTemplate = block.source === 'template' || block.source === 'newsletter';
   
-  const showAddImageSuggestion = hasRichContent && !block.imageUrl && isPreview && onUpdate;
+  // Show suggestion for rich content OR template-based blocks (regardless of length)
+  const showAddImageSuggestion = (hasRichContent || isFromTemplate) && !block.imageUrl && isPreview && onUpdate;
 
   return (
     <div 

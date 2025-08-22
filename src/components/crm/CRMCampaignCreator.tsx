@@ -140,8 +140,8 @@ const autoFillHeaderTitle = (blocks: ContentBlock[], campaignTitle: string): Con
 // Normalize blocks to ensure consistency - convert text blocks to image-text blocks with proper structure
 const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
   return blocks.map(block => {
-    // Convert text blocks from templates/newsletters to image-text blocks for uniformity
-    if (block.type === 'text' && (block.source === 'template' || block.source === 'newsletter')) {
+    // Convert ALL text blocks to image-text blocks for uniformity, not just template/newsletter ones
+    if (block.type === 'text') {
       // Extract headline from content if not already present
       let headline = block.headline || block.title || '';
       if (!headline && (block.content || block.body)) {
@@ -157,11 +157,18 @@ const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
         }
       }
       
+      // Set default headline if still empty
+      if (!headline) {
+        headline = 'Content Headline';
+      }
+      
+      console.log(`🔄 Normalizing text block ${block.id} to image-text with headline: "${headline}"`);
+      
       return {
         ...block,
         type: 'image-text' as const,
         layout: block.layout || 'image-right',
-        headline: headline || block.title || 'Content Headline',
+        headline: headline,
         body: block.body || block.content || 'Add your content here'
       };
     }
@@ -787,7 +794,7 @@ cleanUrl();
                     
                     return (hasImageType || (hasImageCentricLayout && hasTextContent)) && needsImage;
                   })
-                  .slice(0, 3);
+                  .slice(0, 8); // Increased limit to handle more blocks
                 
                 console.log(`📸 [Images] Found ${imageBlocks.length} blocks needing images`);
                 
