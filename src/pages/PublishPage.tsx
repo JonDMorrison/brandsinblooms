@@ -433,7 +433,7 @@ const PublishPage = () => {
 
         <TabsContent value="ready" className="space-y-6">
           {/* Ready to Post Content Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-300">
             {filteredReadyItems.length === 0 ? (
               <Card className="col-span-full">
                 <CardContent className="text-center py-12">
@@ -466,7 +466,7 @@ const PublishPage = () => {
 
         <TabsContent value="published" className="space-y-6">
           {/* Published Content Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-300">
             {filteredPublishedItems.length === 0 ? (
               <Card className="col-span-full">
                 <CardContent className="text-center py-12">
