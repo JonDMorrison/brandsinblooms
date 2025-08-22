@@ -7,7 +7,7 @@ export function usePublishActions() {
     const { data, error } = await supabase.functions.invoke("publish-task", {
       body: {
         taskId,
-        platform: input.platform,
+        platforms: [input.platform], // Convert single platform to array
         accountId: input.accountId,
         caption: input.caption ?? "",
         imageUrl: input.mediaUrl ?? undefined,
@@ -22,7 +22,7 @@ export function usePublishActions() {
     const { data, error } = await supabase.functions.invoke("publish-task", {
       body: {
         taskId,
-        platform: input.platform,
+        platforms: [input.platform], // Convert single platform to array
         accountId: input.accountId,
         caption: input.caption ?? "",
         imageUrl: input.mediaUrl ?? undefined,
