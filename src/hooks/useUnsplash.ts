@@ -56,23 +56,24 @@ export const useUnsplash = () => {
     }
   }, []);
 
-  const getSmartImages = useCallback(async (query: string, count = 12): Promise<ImageAttachment[]> => {
+  const getSmartImages = useCallback(async (query: string, count = 12, useRawQuery = false): Promise<ImageAttachment[]> => {
     if (!query.trim()) return [];
     
     setLoading(true);
     setError(null);
     
-    // Create concise image summary from the query
-    const imageQuery = extractImageSummary(query);
-    console.log('[useUnsplash] Query transformation:', { original: query, processed: imageQuery });
+    // Use raw query or create concise image summary
+    const imageQuery = useRawQuery ? query : extractImageSummary(query);
+    console.log('[useUnsplash] Query transformation:', { original: query, processed: imageQuery, useRawQuery });
     
     try {
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
           query: imageQuery,
+          rawQuery: useRawQuery,
           maxImages: count,
           orientation: 'squarish',
-          orderBy: 'relevant', // Use relevant instead of popular for better quality
+          orderBy: 'relevant',
           contentFilter: 'high'
         }
       });
@@ -83,8 +84,8 @@ export const useUnsplash = () => {
         id: img.id,
         url: img.download_url,
         thumb: img.thumb_url,
-        thumb_url: img.thumb_url, // Add for MediaSelectorSidebar compatibility
-        download_url: img.download_url, // Add for MediaSelectorSidebar compatibility
+        thumb_url: img.thumb_url,
+        download_url: img.download_url,
         alt: img.alt || query,
         photographer: img.photographer,
         photographer_url: img.photographer_url || `https://unsplash.com/@${img.photographer?.toLowerCase().replace(/\s+/g, '')}`,
@@ -102,9 +103,9 @@ export const useUnsplash = () => {
     }
   }, []);
 
-  const searchImages = useCallback(async (query: string): Promise<ImageAttachment[]> => {
-    console.log('[useUnsplash] Searching images with query:', query);
-    return getSmartImages(query, 12);
+  const searchImages = useCallback(async (query: string, useRawQuery = false): Promise<ImageAttachment[]> => {
+    console.log('[useUnsplash] Searching images with query:', query, 'rawQuery:', useRawQuery);
+    return getSmartImages(query, 12, useRawQuery);
   }, [getSmartImages]);
 
   const refreshImages = useCallback(async (prevQuery: string): Promise<ImageAttachment[]> => {

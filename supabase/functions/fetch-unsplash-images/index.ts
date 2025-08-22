@@ -25,8 +25,9 @@ serve(async (req) => {
       contentTaskId, 
       maxImages = 4,
       orientation = 'squarish',
-      orderBy = 'relevant', // Changed from 'popular' to 'relevant' for better quality
-      contentFilter = 'high'
+      orderBy = 'relevant',
+      contentFilter = 'high',
+      rawQuery = false
     } = await req.json();
 
     if (!query && !collection) {
@@ -35,7 +36,7 @@ serve(async (req) => {
 
     console.log(`[UNSPLASH] ===== ENHANCED FETCH DEBUG =====`);
     console.log(`[UNSPLASH] Received query: "${query}", collection: "${collection}", page: ${page}`);
-    console.log(`[UNSPLASH] Parameters: maxImages=${maxImages}, orientation=${orientation}, orderBy=${orderBy}, contentFilter=${contentFilter}`);
+    console.log(`[UNSPLASH] Parameters: maxImages=${maxImages}, orientation=${orientation}, orderBy=${orderBy}, contentFilter=${contentFilter}, rawQuery=${rawQuery}`);
     console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey} (${unsplashAccessKey ? 'Available' : 'Missing - will use garden center fallbacks'})`);
     console.log(`[UNSPLASH] Supabase URL: ${!!supabaseUrl}`);
     console.log(`[UNSPLASH] Service Key: ${!!supabaseServiceKey}`);
@@ -79,14 +80,19 @@ serve(async (req) => {
     } else {
       // Search photos with query
       if (query) {
-        // Validate query doesn't contain problematic terms
-        const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number)\b/i;
         let searchQuery = query;
-        if (problematicTerms.test(query)) {
-          console.warn(`[UNSPLASH] Query contains problematic terms: "${query}"`);
-          // Force garden center context
-          searchQuery = `garden center plants nursery ${query.replace(problematicTerms, '').trim()}`;
-          console.log(`[UNSPLASH] Using sanitized query: "${searchQuery}"`);
+        
+        // Apply garden-specific filtering only if not using raw query
+        if (!rawQuery) {
+          const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number)\b/i;
+          if (problematicTerms.test(query)) {
+            console.warn(`[UNSPLASH] Query contains problematic terms: "${query}"`);
+            // Force garden center context
+            searchQuery = `garden center plants nursery ${query.replace(problematicTerms, '').trim()}`;
+            console.log(`[UNSPLASH] Using sanitized query: "${searchQuery}"`);
+          }
+        } else {
+          console.log(`[UNSPLASH] Using raw query without garden filtering: "${searchQuery}"`);
         }
 
         // Enhanced Unsplash API call with quality parameters
@@ -153,7 +159,22 @@ serve(async (req) => {
         return true;
       }
       
-      // For search queries, apply full filtering
+      // For raw queries, skip garden-specific filtering
+      if (rawQuery) {
+        const alt = (image.alt_description || '').toLowerCase();
+        const desc = (image.description || '').toLowerCase();
+        const content = `${alt} ${desc}`;
+        
+        // Only filter out obviously problematic content
+        const problematicTerms = /\b(inappropriate|nsfw|adult)\b/i;
+        if (problematicTerms.test(content)) {
+          console.warn(`[UNSPLASH] Filtering out inappropriate image: ${image.id} - ${alt}`);
+          return false;
+        }
+        return true;
+      }
+      
+      // For garden-specific search queries, apply full filtering
       const alt = (image.alt_description || '').toLowerCase();
       const desc = (image.description || '').toLowerCase();
       const tags = image.tags?.map(t => t.title.toLowerCase()).join(' ') || '';

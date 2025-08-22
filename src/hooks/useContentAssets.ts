@@ -152,12 +152,46 @@ export const useContentAssets = () => {
     fetchAssets();
   }, [user]);
 
+  const searchAssets = async (query: string): Promise<Asset[]> => {
+    if (!user || !query.trim()) return [];
+    
+    try {
+      const { data, error } = await supabase
+        .from('content_assets')
+        .select('*')
+        .or(`name.ilike.%${query}%,tags.cs.{${query}}`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      // Generate signed URLs for search results
+      const assetsWithUrls = await Promise.all(
+        (data || []).map(async (asset) => {
+          const { data: urlData } = await supabase.storage
+            .from('content-assets')
+            .createSignedUrl(asset.file_path, 3600);
+
+          return {
+            ...asset,
+            url: urlData?.signedUrl || '/placeholder.svg'
+          };
+        })
+      );
+
+      return assetsWithUrls;
+    } catch (error) {
+      console.error('Error searching assets:', error);
+      return [];
+    }
+  };
+
   return {
     assets,
     loading,
     uploadAsset,
     deleteAsset,
-    refetch: fetchAssets
+    refetch: fetchAssets,
+    searchAssets
   };
 };
 

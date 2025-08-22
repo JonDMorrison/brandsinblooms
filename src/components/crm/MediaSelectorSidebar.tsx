@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Search, Upload, Camera, Download, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { X, Search, Upload, Camera, Download, Loader2, RefreshCw, MessageSquare } from 'lucide-react';
 import { useUnsplash } from '@/hooks/useUnsplash';
 import { useContentAssets } from '@/hooks/useContentAssets';
 import { extractImageSummary } from '@/utils/imageContentSummary';
@@ -20,6 +22,19 @@ interface MediaSelectorSidebarProps {
   editMode?: 'text' | 'image' | null;
 }
 
+interface SearchResult {
+  id: string;
+  url: string;
+  thumb: string;
+  thumb_url: string;
+  download_url: string;
+  alt: string;
+  photographer: string;
+  photographer_url?: string;
+  download_location?: string;
+  source: 'uploads' | 'unsplash';
+}
+
 export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
   isOpen,
   onClose,
@@ -29,22 +44,124 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
   editMode
 }) => {
   console.log('[MediaSelectorSidebar] Component called with props:', { isOpen, editMode, contentContext });
+  
+  // Search states
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [showingCurated, setShowingCurated] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [allResults, setAllResults] = useState<SearchResult[]>([]);
+  const [activeTab, setActiveTab] = useState<'all' | 'uploads' | 'unsplash'>('all');
+  
+  // UI states
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMorePages, setHasMorePages] = useState(true);
+  
+  // Refs
   const sidebarRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   
+  // Hooks
   const { getCuratedCollectionImages, searchImages, loading: unsplashLoading } = useUnsplash();
-  const { uploadAsset } = useContentAssets();
+  const { uploadAsset, searchAssets, loading: assetsLoading } = useContentAssets();
 
-  // Debug editMode state
+  // Debounce search query
   useEffect(() => {
-    console.log('[MediaSelectorSidebar] editMode check', { isOpen, editMode });
-  }, [isOpen, editMode]);
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Load initial content
+  useEffect(() => {
+    if (isOpen && !debouncedQuery) {
+      loadCuratedImages();
+    }
+  }, [isOpen, debouncedQuery]);
+
+  // Perform search when debounced query changes
+  useEffect(() => {
+    if (debouncedQuery.trim()) {
+      performSearch(debouncedQuery);
+    }
+  }, [debouncedQuery]);
+
+  const loadCuratedImages = async () => {
+    setIsLoading(true);
+    try {
+      const curatedImages = await getCuratedCollectionImages(1);
+      const curatedResults: SearchResult[] = curatedImages.map(img => ({ 
+        ...img,
+        thumb_url: img.thumb_url || img.thumb || img.url,
+        download_url: img.download_url || img.url,
+        source: 'unsplash' as const 
+      }));
+      setAllResults(curatedResults);
+    } catch (error) {
+      console.error('Error loading curated images:', error);
+      toast.error('Failed to load curated images');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const performSearch = async (query: string) => {
+    setIsLoading(true);
+    try {
+      const [uploadResults, unsplashResults] = await Promise.all([
+        searchAssets(query),
+        searchImages(query, true) // Use raw query for full Unsplash access
+      ]);
+
+      const uploadsFormatted: SearchResult[] = uploadResults.map(asset => ({
+        id: asset.id,
+        url: asset.url || '/placeholder.svg',
+        thumb: asset.url || '/placeholder.svg',
+        thumb_url: asset.url || '/placeholder.svg',
+        download_url: asset.url || '/placeholder.svg',
+        alt: asset.name,
+        photographer: 'Your Upload',
+        source: 'uploads' as const
+      }));
+
+      const unsplashFormatted: SearchResult[] = unsplashResults.map(img => ({
+        ...img,
+        thumb_url: img.thumb_url || img.thumb || img.url,
+        download_url: img.download_url || img.url,
+        source: 'unsplash' as const
+      }));
+
+      // Combine and prioritize user uploads
+      const combined = [...uploadsFormatted, ...unsplashFormatted];
+      setAllResults(combined);
+    } catch (error) {
+      console.error('Error performing search:', error);
+      toast.error('Search failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Filter results based on active tab
+  const filteredResults = useMemo(() => {
+    if (activeTab === 'all') return allResults;
+    return allResults.filter(result => result.source === activeTab);
+  }, [allResults, activeTab]);
+
+  const handleSearch = () => {
+    // Search is now handled automatically via debounce
+    if (searchQuery.trim()) {
+      setDebouncedQuery(searchQuery);
+    }
+  };
+
+  const handleRefresh = () => {
+    if (debouncedQuery.trim()) {
+      performSearch(debouncedQuery);
+    } else {
+      loadCuratedImages();
+    }
+  };
 
   // Handle escape key and backdrop clicks
   useEffect(() => {
@@ -77,157 +194,30 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     }
   }, [isOpen, onClose]);
 
-  // Reset scroll position when sidebar opens with multiple attempts
+  // Reset scroll position when sidebar opens
   useEffect(() => {
     if (isOpen && contentRef.current) {
       console.log('[MediaSelectorSidebar] Resetting scroll on open');
-      
-      // Immediate reset
       contentRef.current.scrollTop = 0;
       
-      // Delayed reset to ensure DOM is ready
       setTimeout(() => {
         if (contentRef.current) {
           contentRef.current.scrollTop = 0;
-          console.log('[MediaSelectorSidebar] Delayed scroll reset applied');
         }
       }, 100);
-      
-      // Additional reset using requestAnimationFrame
-      requestAnimationFrame(() => {
-        if (contentRef.current) {
-          contentRef.current.scrollTop = 0;
-          console.log('[MediaSelectorSidebar] RAF scroll reset applied');
-        }
-      });
     }
   }, [isOpen]);
 
-  // Load curated collection when sidebar opens
-  useEffect(() => {
-    const loadCuratedCollection = async () => {
-      if (isOpen && searchResults.length === 0 && !showingCurated) {
-        console.log('[MediaSelectorSidebar] Loading curated collection...');
-        setShowingCurated(true);
-        setCurrentPage(1);
-        
-        try {
-          const results = await getCuratedCollectionImages(1);
-          
-          // Fallback to search if curated collection is empty
-          if (results.length === 0) {
-            console.log('[MediaSelectorSidebar] Curated collection empty, falling back to plants search...');
-            const fallbackResults = await searchImages('plants');
-            setSearchResults(fallbackResults.slice(0, 12));
-            setShowingCurated(false);
-          } else {
-            console.log('[MediaSelectorSidebar] Loaded curated collection:', results);
-            setSearchResults(results);
-            setHasMorePages(results.length === 12); // Assume more pages if we got a full page
-          }
-          
-          // Reset scroll after results are loaded
-          setTimeout(() => {
-            if (contentRef.current) {
-              contentRef.current.scrollTop = 0;
-              console.log('[MediaSelectorSidebar] Scroll reset after curated collection loaded');
-            }
-          }, 150);
-        } catch (error) {
-          console.error('[MediaSelectorSidebar] Error loading curated collection:', error);
-          // Fallback to search on error
-          try {
-            const fallbackResults = await searchImages('plants');
-            setSearchResults(fallbackResults.slice(0, 12));
-            setShowingCurated(false);
-          } catch (fallbackError) {
-            console.error('[MediaSelectorSidebar] Fallback search also failed:', fallbackError);
-          }
-        }
-      }
-    };
-    
-    if (isOpen) {
-      loadCuratedCollection();
-    }
-  }, [isOpen, getCuratedCollectionImages, searchImages, searchResults.length, showingCurated]);
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    
-    const cleanQuery = validateImageQuery(searchQuery);
-    setShowingCurated(false);
-    setCurrentPage(1);
-    setHasMorePages(true);
-    
-    try {
-      const results = await searchImages(cleanQuery);
-      setSearchResults(results);
-      
-      // Reset scroll after search results are loaded
-      setTimeout(() => {
-        if (contentRef.current) {
-          contentRef.current.scrollTop = 0;
-          console.log('[MediaSelectorSidebar] Scroll reset after search results loaded');
-        }
-      }, 150);
-    } catch (error) {
-      console.error('[MediaSelectorSidebar] Search error:', error);
-      toast.error('Search failed. Please try again.');
-    }
-  };
-
-  // Handle pagination for curated collection
-  const loadMoreImages = async () => {
-    if (!showingCurated || !hasMorePages || unsplashLoading) return;
-    
-    try {
-      const nextPage = currentPage + 1;
-      const moreResults = await getCuratedCollectionImages(nextPage);
-      
-      if (moreResults.length > 0) {
-        setSearchResults(prev => [...prev, ...moreResults]);
-        setCurrentPage(nextPage);
-        setHasMorePages(moreResults.length === 12); // Assume more pages if we got a full page
-      } else {
-        setHasMorePages(false);
-      }
-    } catch (error) {
-      console.error('[MediaSelectorSidebar] Error loading more images:', error);
-      setHasMorePages(false);
-    }
-  };
-
-  // Handle scroll for pagination
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!contentRef.current || !showingCurated || !hasMorePages) return;
-      
-      const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
-      const nearBottom = scrollTop + clientHeight >= scrollHeight - 100;
-      
-      if (nearBottom && !unsplashLoading) {
-        loadMoreImages();
-      }
-    };
-
-    const contentElement = contentRef.current;
-    if (contentElement && isOpen) {
-      contentElement.addEventListener('scroll', handleScroll);
-      return () => contentElement.removeEventListener('scroll', handleScroll);
-    }
-  }, [isOpen, showingCurated, hasMorePages, unsplashLoading, currentPage]);
-
-  const handleImageClick = (image: any) => {
+  const handleImageClick = (image: SearchResult) => {
     console.log('[MediaSelectorSidebar] Image selected:', image.url);
     setIsLoading(true);
     
     const imageMetadata = {
-      source: 'unsplash',
+      source: image.source,
       alt_text: image.alt,
       photographer: image.photographer,
       photographer_url: image.photographer_url,
-      unsplash_id: image.id,
+      unsplash_id: image.source === 'unsplash' ? image.id : undefined,
       thumb: image.thumb,
       download_location: image.download_location
     };
@@ -263,8 +253,10 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     }
   };
 
-  const handleDownload = async (image: any, event: React.MouseEvent) => {
+  const handleDownload = async (image: SearchResult, event: React.MouseEvent) => {
     event.stopPropagation();
+    
+    if (image.source !== 'unsplash') return;
     
     try {
       const result = await downloadUnsplashImage({
@@ -286,36 +278,12 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
     }
   };
 
-  // Remove conditional rendering - let the portal always render and use CSS for visibility
-
   console.log('[MediaSelectorSidebar] Rendering sidebar with portal to document.body', {
     isOpen,
     documentBodyExists: !!document.body,
-    searchResultsLength: searchResults.length,
-    bodyChildrenCount: document.body?.children.length,
-    portalTarget: document.body
+    resultsLength: allResults.length,
+    activeTab
   });
-
-  // Debug: Force check if element exists in DOM after render
-  React.useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => {
-        const sidebarElement = document.querySelector('[data-testid="media-selector-sidebar"]');
-        const backdropElement = document.querySelector('[data-media-selector-backdrop]');
-        console.log('[MediaSelectorSidebar] DOM Debug Check:', {
-          sidebarExists: !!sidebarElement,
-          sidebarVisible: sidebarElement ? window.getComputedStyle(sidebarElement).visibility : 'not found',
-          sidebarDisplay: sidebarElement ? window.getComputedStyle(sidebarElement).display : 'not found',
-          sidebarOpacity: sidebarElement ? window.getComputedStyle(sidebarElement).opacity : 'not found',
-          sidebarZIndex: sidebarElement ? window.getComputedStyle(sidebarElement).zIndex : 'not found',
-          backdropExists: !!backdropElement,
-          bodyChildren: document.body.children.length
-        });
-      }, 100);
-    }
-  }, [isOpen]);
-
-  console.log('[MediaSelectorSidebar] About to create portal');
 
   return createPortal(
     <>
@@ -380,10 +348,10 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
         {/* Content */}
         <div className="flex flex-col h-full min-h-0">
           {/* Search Section */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-gray-100 space-y-4">
             <div className="flex gap-2">
               <Input
-                placeholder="Search images..."
+                placeholder="Search all images..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -392,11 +360,11 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
               />
               <Button 
                 onClick={handleSearch} 
-                disabled={unsplashLoading || isLoading}
-                variant="outline"
-                size="sm"
+                size="sm" 
+                disabled={isLoading}
+                className="shrink-0"
               >
-                {unsplashLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               </Button>
               {/* Upload Button */}
               <label>
@@ -415,21 +383,41 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                 >
                   <span>
                     <Upload className="h-4 w-4 mr-2" />
-                    Upload Image
+                    Upload
                   </span>
                 </Button>
               </label>
             </div>
+
+            {/* Source Tabs */}
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="all">All ({allResults.length})</TabsTrigger>
+                <TabsTrigger value="uploads">My Uploads ({allResults.filter(r => r.source === 'uploads').length})</TabsTrigger>
+                <TabsTrigger value="unsplash">Unsplash ({allResults.filter(r => r.source === 'unsplash').length})</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
           {/* Results Section */}
           <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto p-4">
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-                  <p className="text-gray-600">Processing...</p>
-                </div>
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                <span className="ml-2 text-gray-600">
+                  {debouncedQuery ? 'Searching...' : 'Loading images...'}
+                </span>
+              </div>
+            ) : filteredResults.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-32 text-gray-500">
+                <MessageSquare className="h-8 w-8 mb-2" />
+                <p className="text-sm text-center">
+                  {debouncedQuery ? (
+                    <>No images found for "{debouncedQuery}"<br />Try different keywords</>
+                  ) : (
+                    'Search for images from your uploads and Unsplash'
+                  )}
+                </p>
               </div>
             ) : (
               <>
@@ -448,109 +436,85 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                 )}
 
                 {/* Image Grid */}
-                {searchResults.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium text-gray-700">
-                        {showingCurated ? 'Curated Collection' : 'Search Results'}
-                      </h4>
-                      <span className="text-xs text-gray-500">
-                        {searchResults.length} images
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      {searchResults.map((image, index) => (
-                        <button
-                          key={image.id || index}
-                          className="relative group cursor-pointer aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-primary transition-all duration-200 bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                          onClick={() => handleImageClick(image)}
-                          type="button"
+                <div className="grid grid-cols-2 gap-3">
+                  {filteredResults.map((image) => (
+                    <div key={`${image.source}-${image.id}`} className="relative group cursor-pointer">
+                      <button
+                        className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square w-full border-2 border-gray-200 hover:border-primary transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                        onClick={() => handleImageClick(image)}
+                        type="button"
+                      >
+                        <img
+                          src={image.thumb_url || image.thumb}
+                          alt={image.alt}
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          loading="lazy"
+                          onError={(e) => {
+                            const currentSrc = e.currentTarget.src;
+                            if (currentSrc !== (image.download_url || image.url)) {
+                              e.currentTarget.src = image.download_url || image.url;
+                            }
+                          }}
+                        />
+                        
+                        {/* Source Badge */}
+                        <Badge 
+                          variant={image.source === 'uploads' ? 'default' : 'secondary'} 
+                          className="absolute top-2 left-2 text-xs px-1.5 py-0.5"
                         >
-                          <img 
-                            src={image.thumb_url || image.thumb || image.download_url || image.url} 
-                            alt={image.alt || 'Image thumbnail'}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const currentSrc = e.currentTarget.src;
-                              if (currentSrc !== (image.download_url || image.url)) {
-                                e.currentTarget.src = image.download_url || image.url;
-                              }
-                            }}
-                          />
-                          
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                            <div className="bg-white rounded-full p-2">
-                              <Camera className="h-4 w-4 text-gray-700" />
-                            </div>
-                          </div>
+                          {image.source === 'uploads' ? 'Mine' : 'Unsplash'}
+                        </Badge>
 
-                          {/* Download button */}
-                          {image.photographer && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 hover:bg-white"
-                              onClick={(e) => handleDownload(image, e)}
-                            >
-                              <Download className="h-3 w-3" />
+                        {/* Download button for Unsplash images */}
+                        {image.source === 'unsplash' && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+                            onClick={(e) => handleDownload(image, e)}
+                            type="button"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button size="sm" variant="secondary" className="text-xs">
+                              Select Image
                             </Button>
-                          )}
-
-                          {/* Photographer credit */}
-                          {image.photographer && (
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                              <p className="text-white text-xs truncate">
-                                Photo by {image.photographer}
-                              </p>
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Pagination Loading for Curated Collection */}
-                    {showingCurated && hasMorePages && unsplashLoading && (
-                      <div className="flex justify-center items-center py-4">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                        <span className="text-sm text-gray-600">Loading more images...</span>
-                      </div>
-                    )}
-
-                    {/* End of Collection Message */}
-                    {showingCurated && !hasMorePages && searchResults.length > 12 && (
-                      <div className="text-center py-4">
-                        <p className="text-sm text-gray-500">All images from collection loaded</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Loading State */}
-                {unsplashLoading && (
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-medium text-gray-700">Loading Images...</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {Array.from({ length: 6 }).map((_, index) => (
-                        <div
-                          key={index}
-                          className="aspect-square rounded-lg bg-gray-100 animate-pulse flex items-center justify-center"
-                        >
-                          <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+                          </div>
                         </div>
-                      ))}
+                      </button>
+                      <div className="mt-1 text-xs text-gray-500 truncate">
+                        {image.photographer && (
+                          <span>by {image.photographer}</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
 
-                {/* No Results */}
-                {!unsplashLoading && searchResults.length === 0 && !showingCurated && (
-                  <div className="text-center py-12">
-                    <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-2">No images found</p>
-                    <p className="text-sm text-gray-500">Try a different search term</p>
-                  </div>
-                )}
+                {/* Refresh Section */}
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                    className="w-full"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Results
+                  </Button>
+                </div>
+
+                {/* Tip */}
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-blue-600">
+                    <strong>Tip:</strong> Search across your uploads and the full Unsplash library. Images are saved when selected.
+                  </p>
+                </div>
               </>
             )}
           </div>
