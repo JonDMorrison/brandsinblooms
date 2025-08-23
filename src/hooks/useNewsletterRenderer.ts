@@ -108,7 +108,7 @@ export const useNewsletterRenderer = ({
     loadingImages,
     imageErrors,
     featuredImagePrompt,
-    // topicValidation, // Temporarily disabled to fix rendering error
+    topicValidation,
     handleImageSelect,
     needsRegeneration: processedNewsletter.needsRegeneration,
     isStructured: processedNewsletter.isStructured

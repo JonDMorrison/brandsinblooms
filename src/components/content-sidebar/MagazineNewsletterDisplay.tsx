@@ -36,8 +36,7 @@ export const MagazineNewsletterDisplay = ({
     imageErrors,
     handleImageSelect,
     needsRegeneration,
-    isStructured,
-    topicValidation
+    isStructured
   } = useNewsletterRenderer({
     content,
     campaignTitle,
