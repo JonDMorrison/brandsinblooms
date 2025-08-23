@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { NewsletterContentBlock } from '@/components/content-sidebar/newsletter/NewsletterContentBlock';
 import { useNewsletterImages } from '@/components/content-sidebar/newsletter/useNewsletterImages';
 import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
+import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { Edit, Save, X } from 'lucide-react';
 
 interface EditableNewsletterPreviewProps {
@@ -112,7 +113,7 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
       <div className="p-6">
         {/* Newsletter Header */}
         <div className="mb-8 text-center border-b pb-6">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">{title}</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">{sanitizeWeekNumbers(title)}</h1>
           <p className="text-sm text-slate-600">Your Garden Center Newsletter</p>
         </div>
 
