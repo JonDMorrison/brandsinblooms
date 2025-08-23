@@ -48,10 +48,23 @@ export const useNewsletterRenderer = ({
 }: NewsletterRendererOptions): NewsletterRendererResult => {
   
   // Process the newsletter content with memoization
-  const processedNewsletter = useMemo(() => 
-    processNewsletterContent(content, campaignTitle), 
-    [content, campaignTitle]
-  );
+  const processedNewsletter = useMemo(() => {
+    console.log('[NEWSLETTER RENDERER] Processing newsletter content:', {
+      contentLength: content?.length,
+      campaignTitle,
+      hasContent: !!content
+    });
+    const result = processNewsletterContent(content, campaignTitle);
+    console.log('[NEWSLETTER RENDERER] Processed newsletter result:', {
+      blocksCount: result.blocks.length,
+      unstructuredSectionsCount: result.unstructuredSections?.length || 0,
+      isStructured: result.isStructured,
+      needsRegeneration: result.needsRegeneration,
+      blockTitles: result.blocks.map(b => b.title),
+      sectionTitles: result.unstructuredSections?.map(s => s.title) || []
+    });
+    return result;
+  }, [content, campaignTitle]);
 
   // Generate featured image prompt with topic specificity
   const featuredImagePrompt = useMemo(() => {

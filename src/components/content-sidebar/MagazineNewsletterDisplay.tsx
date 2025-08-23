@@ -24,8 +24,11 @@ export const MagazineNewsletterDisplay = ({
     contentLength: content?.length || 0,
     isPlaceholder: !content || content.length < 100,
     campaignTitle,
-    taskStatus
+    taskStatus,
+    contentPreview: content?.substring(0, 200)
   });
+
+  console.log('[MAGAZINE NEWSLETTER] Raw content:', content);
 
   // Use the newsletter renderer hook
   const {
@@ -59,6 +62,13 @@ export const MagazineNewsletterDisplay = ({
 
   // If structured newsletter or unstructured with sections, use the magazine renderer
   if ((isStructured && processedNewsletter.blocks.length > 0) || processedNewsletter.unstructuredSections?.length > 0) {
+    console.log('[MAGAZINE NEWSLETTER] Using magazine renderer with:', {
+      isStructured,
+      blocksCount: processedNewsletter.blocks.length,
+      unstructuredSectionsCount: processedNewsletter.unstructuredSections?.length || 0,
+      willConvertToBlocks: processedNewsletter.blocks.length === 0 && processedNewsletter.unstructuredSections?.length > 0
+    });
+    
     // Convert unstructured sections to blocks format if needed
     const blocksToRender = processedNewsletter.blocks.length > 0 
       ? processedNewsletter.blocks 
@@ -70,6 +80,15 @@ export const MagazineNewsletterDisplay = ({
           image_prompt: section.image_prompt,
           alt_text: section.alt_text
         }));
+
+    console.log('[MAGAZINE NEWSLETTER] Final blocks to render:', {
+      blocksCount: blocksToRender.length,
+      blockTitles: blocksToRender.map(b => b.title),
+      firstBlockPreview: blocksToRender[0] ? {
+        title: blocksToRender[0].title,
+        bodyLength: blocksToRender[0].body?.length || 0
+      } : null
+    });
 
     return (
       <div className={`magazine-newsletter-display ${className}`}>
