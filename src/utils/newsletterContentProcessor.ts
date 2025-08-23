@@ -28,7 +28,8 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
   console.log('[NEWSLETTER PROCESSOR] Processing content:', {
     contentLength: content?.length || 0,
     campaignTitle,
-    hasYAML: content?.includes('newsletter_md:') || false
+    hasYAML: content?.includes('newsletter_md:') || false,
+    hasMalformedBlocks: content?.includes('blocks title:') || false
   });
 
   if (!content || content.trim().length === 0) {
@@ -36,7 +37,7 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
   }
 
   // Check if content is malformed and needs fixing
-  const needsFixing = !validateNewsletterStructure(content) || content.includes('blocks: title:');
+  const needsFixing = !validateNewsletterStructure(content) || content.includes('blocks title:') || content.includes('blocks: title:');
   
   let processedContent = content;
   
@@ -54,8 +55,8 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
     // Check if we have proper blocks or need to create them from markdown content
     let finalBlocks = parsedNewsletter.blocks || [];
     
-    // If no blocks found or blocks are empty/invalid, create them from markdown content
-    console.log('[NEWSLETTER PROCESSOR] Found blocks:', finalBlocks);
+    console.log('[NEWSLETTER PROCESSOR] Found blocks count:', finalBlocks.length);
+    console.log('[NEWSLETTER PROCESSOR] Block titles:', finalBlocks.map(b => b.title));
     
     const hasValidBlocks = finalBlocks.length > 0 && finalBlocks.some(block => 
       (block.title && block.title.trim()) || (block.body && block.body.trim())
@@ -108,6 +109,8 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
         image_prompt: improveImagePrompt(block.image_prompt, block.title, parsedNewsletter.meta?.theme)
       }));
     }
+    
+    console.log('[NEWSLETTER PROCESSOR] Final blocks count:', finalBlocks.length);
     
     return {
       newsletter_md: parsedNewsletter.newsletter_md || '',

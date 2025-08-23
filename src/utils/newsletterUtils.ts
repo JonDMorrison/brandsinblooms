@@ -92,6 +92,7 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
 
 const fixMalformedYAML = (content: string): string => {
   let fixed = content;
+  console.log('[YAML FIXER] Input content preview:', content.substring(0, 200));
   
   // Fix line breaks that were lost during URL encoding
   fixed = fixed
@@ -111,19 +112,24 @@ const fixMalformedYAML = (content: string): string => {
       
       return `newsletter_md: |\n${indentedContent}${ending ? '\n' + ending : ''}`;
     })
+    // Fix malformed "blocks title:" pattern - this is the key issue
+    .replace(/blocks\s+title:/g, 'blocks:\n  - title:')
     // Fix blocks section - ensure proper line breaks and indentation
     .replace(/(\w)\s+(blocks:|meta:|extra_content_ideas:)/g, '$1\n\n$2')
     // Fix blocks array formatting - handle inline blocks
     .replace(/blocks:\s*-\s*/g, 'blocks:\n  - ')
-    // Fix field indentation within blocks
+    // Fix field indentation within blocks - detect inline fields
     .replace(/(\w)\s+(title:|body:|cta:|link:|image_prompt:|alt_text:|type:)/g, '$1\n    $2')
-    // Ensure quotes are properly formatted
-    .replace(/:\s*"([^"]*?)"\s*/g, ': "$1"\n    ')
+    // Fix quote formatting and line breaks after quoted values
+    .replace(/:\s*"([^"]*?)"\s*(?=(title:|body:|cta:|link:|image_prompt:|alt_text:|meta:|extra_content_ideas:))/g, ': "$1"\n    ')
+    // Ensure proper line breaks after last field in blocks
+    .replace(/alt_text:\s*"([^"]*?)"\s*(?=(title:|meta:|extra_content_ideas:|$))/g, 'alt_text: "$1"\n  - ')
     // Fix meta section formatting  
     .replace(/meta:\s*(\w)/g, 'meta:\n  $1')
     // Fix extra_content_ideas formatting
     .replace(/extra_content_ideas:\s*-\s*/g, 'extra_content_ideas:\n  - ');
   
+  console.log('[YAML FIXER] Fixed content preview:', fixed.substring(0, 200));
   return fixed;
 };
 
@@ -267,15 +273,22 @@ const parseBlocksManually = (blockContent: string): NewsletterBlock[] => {
     console.log('[YAML PARSER] 📊 Method 2 (title split) found:', blockItems.length, 'items');
   }
   
-  // Method 3: Try inline parsing for severely malformed blocks
+  // Method 3: Try inline parsing for severely malformed blocks with CTA extraction
   if (blockItems.length === 0) {
     console.log('[YAML PARSER] 🔄 Trying inline parsing for malformed blocks');
     
-    // Look for title/body patterns in the entire content
+    // Look for title/body/cta/image patterns in the entire content
     const titleMatches = Array.from(blockContent.matchAll(/title:\s*"([^"]*?)"/g));
     const bodyMatches = Array.from(blockContent.matchAll(/body:\s*"([^"]*?)"/g));
+    const ctaMatches = Array.from(blockContent.matchAll(/cta:\s*"([^"]*?)"/g));
+    const imageMatches = Array.from(blockContent.matchAll(/image_prompt:\s*"([^"]*?)"/g));
     
-    console.log('[YAML PARSER] 📋 Found', titleMatches.length, 'titles and', bodyMatches.length, 'bodies');
+    console.log('[YAML PARSER] 📋 Found:', {
+      titles: titleMatches.length,
+      bodies: bodyMatches.length, 
+      ctas: ctaMatches.length,
+      images: imageMatches.length
+    });
     
     if (titleMatches.length > 0 && bodyMatches.length > 0) {
       const maxBlocks = Math.min(titleMatches.length, bodyMatches.length);
@@ -283,9 +296,9 @@ const parseBlocksManually = (blockContent: string): NewsletterBlock[] => {
         blocks.push({
           title: titleMatches[i][1] || '',
           body: bodyMatches[i][1] || '',
-          cta: 'Learn More',
+          cta: ctaMatches[i]?.[1] || 'Learn More',
           link: '#',
-          image_prompt: `${titleMatches[i][1]} garden newsletter`,
+          image_prompt: imageMatches[i]?.[1] || `${titleMatches[i][1]} garden newsletter`,
           alt_text: `Image for ${titleMatches[i][1]}`
         });
       }

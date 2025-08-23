@@ -58,8 +58,20 @@ export const MagazineNewsletterDisplay = ({
     );
   }
 
-  // If structured newsletter, use the magazine renderer
-  if (isStructured && processedNewsletter.blocks.length > 0) {
+  // If structured newsletter or unstructured with sections, use the magazine renderer
+  if ((isStructured && processedNewsletter.blocks.length > 0) || processedNewsletter.unstructuredSections?.length > 0) {
+    // Convert unstructured sections to blocks format if needed
+    const blocksToRender = processedNewsletter.blocks.length > 0 
+      ? processedNewsletter.blocks 
+      : (processedNewsletter.unstructuredSections || []).map(section => ({
+          title: section.title,
+          body: section.content,
+          cta: section.cta || 'Learn More',
+          link: section.link || '#',
+          image_prompt: section.image_prompt,
+          alt_text: section.alt_text
+        }));
+
     return (
       <div className={`magazine-newsletter-display ${className}`}>
         {loadingImages && (
@@ -71,7 +83,7 @@ export const MagazineNewsletterDisplay = ({
         
         <MagazineNewsletterRenderer
           title={campaignTitle || processedNewsletter.meta.week_focus}
-          blocks={processedNewsletter.blocks}
+          blocks={blocksToRender}
           meta={processedNewsletter.meta}
           featuredImage={featuredImage}
           blockImages={images}
