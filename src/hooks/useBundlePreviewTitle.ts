@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useGeneratedBundle } from '@/hooks/useGeneratedBundle';
 import type { GeneratedBundle, GeneratedBundleItem } from '@/hooks/useGeneratedBundle';
 import type { Channel } from '@/lib/content/libraryTypes';
+import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 
 function pickBestItem(items: GeneratedBundleItem[]): GeneratedBundleItem | null {
   if (!items || items.length === 0) return null;
@@ -54,6 +55,9 @@ export function useBundlePreviewTitle(bundleId?: string, opts?: { includeChannel
     let candidate = (item.title && item.title.trim())
       || (item.summary && item.summary.trim())
       || firstSentence(item.body || '');
+
+    // Sanitize week numbers from the candidate title
+    candidate = sanitizeWeekNumbers(candidate);
 
     // Guard against non-informative titles
     if (!candidate || /^untitled$/i.test(candidate)) return { title: undefined as string | undefined };
