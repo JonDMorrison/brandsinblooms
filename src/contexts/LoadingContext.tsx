@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import type { ReactNode } from 'react';
 
 type LoadingPriority = 'auth' | 'onboarding' | 'page';
@@ -35,7 +35,7 @@ const PRIORITY_ORDER: Record<LoadingPriority, number> = {
 export const LoadingProvider = ({ children }: { children: ReactNode }) => {
   const [loadingStates, setLoadingStates] = useState<Map<string, LoadingState>>(new Map());
 
-  const setLoading = (key: string, state: LoadingState | null) => {
+  const setLoading = useCallback((key: string, state: LoadingState | null) => {
     setLoadingStates(prev => {
       const newStates = new Map(prev);
       if (state === null) {
@@ -45,11 +45,11 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
       }
       return newStates;
     });
-  };
+  }, []);
 
-  const clearLoading = (key: string) => {
+  const clearLoading = useCallback((key: string) => {
     setLoading(key, null);
-  };
+  }, [setLoading]);
 
   const currentLoading = useMemo(() => {
     if (loadingStates.size === 0) return null;
@@ -76,7 +76,7 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
     setLoading,
     clearLoading,
     isAnyLoading,
-  }), [currentLoading, isAnyLoading]);
+  }), [currentLoading, setLoading, clearLoading, isAnyLoading]);
 
   return (
     <LoadingContext.Provider value={value}>
