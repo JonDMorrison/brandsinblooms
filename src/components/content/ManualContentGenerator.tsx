@@ -5,7 +5,7 @@ import { RefreshCw, AlertCircle } from "lucide-react";
 import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { showToast } from "@/utils/toastUtils";
+import { toast } from "@/hooks/use-toast";
 
 interface ManualContentGeneratorProps {
   campaign: any;
@@ -20,7 +20,11 @@ export const ManualContentGenerator = ({ campaign, onContentGenerated }: ManualC
 
   const handleGenerateContent = async () => {
     if (!user || !campaign) {
-      toast.error("Missing user or campaign information");
+      toast({
+        title: "Missing information",
+        description: "Missing user or campaign information",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -40,17 +44,28 @@ export const ManualContentGenerator = ({ campaign, onContentGenerated }: ManualC
       );
 
       if (result.success) {
-        toast.success(`Successfully generated ${result.tasks?.length || 0} content pieces!`);
+        toast({
+          title: "Success!",
+          description: `Successfully generated ${result.tasks?.length || 0} content pieces!`
+        });
         onContentGenerated();
       } else {
         setError(result.message || 'Content generation failed');
-        toast.error(result.message || 'Content generation failed');
+        toast({
+          title: "Generation failed",
+          description: result.message || 'Content generation failed',
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('❌ Manual content generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setError(errorMessage);
-      toast.error(`Content generation failed: ${errorMessage}`);
+      toast({
+        title: "Generation failed",
+        description: `Content generation failed: ${errorMessage}`,
+        variant: "destructive"
+      });
     } finally {
       setIsGenerating(false);
     }

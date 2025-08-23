@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Calendar, CheckCircle, ArrowRight } from "lucide-react";
 import { generateRequiredTasks } from "@/components/homepage/TaskManagementUtils";
-// Removed sonner import - using global toast replacement
+import { toast } from "@/hooks/use-toast";
 
 interface ContentGenerationControlProps {
   campaigns: any[];
@@ -33,17 +33,28 @@ export const ContentGenerationControl = ({
 
   const handleGenerateContent = async () => {
     if (!currentCampaign) {
-      toast.error("No campaign found. Please create a campaign first.");
+      toast({
+        title: "No campaign found",
+        description: "Please create a campaign first.",
+        variant: "destructive"
+      });
       return;
     }
 
     setIsGenerating(true);
     try {
       await generateRequiredTasks(currentCampaign.id, campaigns, userId, onTaskUpdate);
-      toast.success("🎉 Amazing! Your content is ready to review and customize.");
+      toast({
+        title: "Success!",
+        description: "🎉 Amazing! Your content is ready to review and customize."
+      });
     } catch (error) {
       console.error('Error generating content:', error);
-      toast.error("Failed to generate content. Please try again.");
+      toast({
+        title: "Generation failed",
+        description: "Failed to generate content. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsGenerating(false);
     }
