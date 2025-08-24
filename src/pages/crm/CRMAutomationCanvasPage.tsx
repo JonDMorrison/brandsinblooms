@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDraftAutosave } from '@/hooks/useDraftAutosave';
 import { ConflictBanner } from '@/components/autosave/ConflictBanner';
 import { AutoSaveIndicator } from '@/components/crm/AutoSaveIndicator';
+import { compileFlow } from '@/lib/automation/compiler';
+import { normalizeTriggerId } from '@/lib/automation/normalize';
 
 export const CRMAutomationCanvasPage: React.FC = () => {
   const { id: automationId } = useParams();
@@ -93,13 +95,22 @@ export const CRMAutomationCanvasPage: React.FC = () => {
       return;
     }
     setIsSaving(true);
+    
+    // Compile flow state to workflow steps
+    const compilation = compileFlow({ nodes: flowState.nodes, edges: flowState.edges });
+    const triggerNode = flowState.nodes.find((n: any) => n.type === 'trigger');
+    const normalizedTrigger = triggerNode ? normalizeTriggerId(String(triggerNode.data?.triggerType) || 'loyalty_join') : 'loyalty_join';
+    
     const payload: any = {
       name: automationName,
       is_active: false,
-      trigger_type: 'manual',
+      trigger_type: normalizedTrigger,
       trigger_conditions: {},
-      workflow_steps: flowState,
+      workflow_steps: compilation.steps,
+      flow_state: flowState,
       user_id: user?.id,
+      version: 1,
+      compiled_at: new Date().toISOString(),
       ...(tenantId ? { tenant_id: tenantId } : {}),
     };
     try {
@@ -126,13 +137,22 @@ export const CRMAutomationCanvasPage: React.FC = () => {
       return;
     }
     setIsSaving(true);
+    
+    // Compile flow state to workflow steps
+    const compilation = compileFlow({ nodes: flowState.nodes, edges: flowState.edges });
+    const triggerNode = flowState.nodes.find((n: any) => n.type === 'trigger');
+    const normalizedTrigger = triggerNode ? normalizeTriggerId(String(triggerNode.data?.triggerType) || 'loyalty_join') : 'loyalty_join';
+    
     const payload: any = {
       name: automationName,
       is_active: true,
-      trigger_type: 'manual',
+      trigger_type: normalizedTrigger,
       trigger_conditions: {},
-      workflow_steps: flowState,
+      workflow_steps: compilation.steps,
+      flow_state: flowState,
       user_id: user?.id,
+      version: 1,
+      compiled_at: new Date().toISOString(),
       ...(tenantId ? { tenant_id: tenantId } : {}),
     };
     try {

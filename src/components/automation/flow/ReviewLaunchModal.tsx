@@ -15,6 +15,8 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { getTriggerById } from '@/lib/automation/triggerCatalog';
+import { compileFlow } from '@/lib/automation/compiler';
 
 interface ReviewLaunchModalProps {
   open: boolean;
@@ -45,6 +47,12 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
   isTestSending = false
 }) => {
   const getTriggerDescription = (triggerType: string) => {
+    const trigger = getTriggerById(triggerType);
+    if (trigger) {
+      return trigger.description;
+    }
+    
+    // Legacy fallbacks
     switch (triggerType) {
       case 'new_customer':
         return 'When a new customer joins';
@@ -174,14 +182,48 @@ export const ReviewLaunchModal: React.FC<ReviewLaunchModalProps> = ({
               Flow Steps ({automation.flowSteps.length})
             </h3>
             <div className="space-y-2">
-              {automation.flowSteps.map((step, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                  <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium">
-                    {index + 1}
+              {(() => {
+                // Try to show compiled steps if available
+                const compiledSteps = compileFlow({ 
+                  nodes: [
+                    { id: 'trigger', type: 'trigger', position: { x: 0, y: 0 }, data: { triggerType: automation.triggerType } },
+                    ...automation.flowSteps
+                  ], 
+                  edges: [] 
+                }).steps;
+                
+                if (compiledSteps.length > 0) {
+                  return compiledSteps.map((step, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                      <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">
+                          {step.type === 'email' ? `📧 ${step.subject}` : `📱 SMS Message`}
+                        </div>
+                        {step.delayMin > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            Delay: {step.delayMin >= 1440 ? `${Math.floor(step.delayMin / 1440)} day(s)` : 
+                                   step.delayMin >= 60 ? `${Math.floor(step.delayMin / 60)} hour(s)` : 
+                                   `${step.delayMin} minute(s)`}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ));
+                }
+                
+                // Fallback to flow steps
+                return automation.flowSteps.map((step, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                    <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium">
+                      {index + 1}
+                    </div>
+                    <span className="text-sm">{getStepDescription(step)}</span>
                   </div>
-                  <span className="text-sm">{getStepDescription(step)}</span>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           </div>
 

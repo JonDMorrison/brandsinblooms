@@ -35,6 +35,8 @@ import { Play, Save, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { compileFlow } from '@/lib/automation/compiler';
+import { normalizeTriggerId } from '@/lib/automation/normalize';
 
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
@@ -184,16 +186,23 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
     
     setIsLaunchLoading(true);
     try {
+      // Compile flow state to workflow steps
+      const compilation = compileFlow({ nodes, edges });
+      const triggerNode = nodes.find(n => n.type === 'trigger');
+      const normalizedTrigger = triggerNode ? normalizeTriggerId(String(triggerNode.data?.triggerType) || 'loyalty_join') : 'loyalty_join';
+      
       const automationData = {
         name: automationName,
-        triggerType,
+        triggerType: normalizedTrigger,
         flowSteps: nodes.filter(n => n.type !== 'trigger'),
+        workflowSteps: compilation.steps,
         selectedAudience: {
           personas: selectedPersonas,
           segments: selectedSegments,
           totalContacts: totalAudienceContacts
         },
-        flowState: { nodes, edges }
+        flowState: { nodes, edges },
+        compilation
       };
       
       await onLaunch(automationData);
@@ -213,7 +222,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
     } finally {
       setIsLaunchLoading(false);
     }
-  }, [onLaunch, automationName, triggerType, nodes, edges, selectedPersonas, selectedSegments, totalAudienceContacts, toast]);
+  }, [onLaunch, automationName, nodes, edges, selectedPersonas, selectedSegments, totalAudienceContacts, toast]);
 
   const { user } = useAuth();
   const [isTestSending, setIsTestSending] = useState(false);
@@ -488,7 +497,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         onOpenChange={setShowReviewModal}
         automation={{
           name: automationName,
-          triggerType,
+          triggerType: normalizeTriggerId(triggerType),
           flowSteps: nodes.filter(n => n.type !== 'trigger'),
           selectedAudience
         }}
