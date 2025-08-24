@@ -29,80 +29,63 @@ export interface StructuredNewsletter {
 
 export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter | null => {
   try {
-    console.log('[YAML PARSER] Starting to parse newsletter YAML content, length:', yamlContent.length);
-    console.log('[YAML PARSER] Raw content preview:', yamlContent.substring(0, 300));
-    
     // Decode URL-encoded content first and fix line breaks
     let decodedContent = yamlContent;
     try {
       if (yamlContent.includes('%')) {
         decodedContent = decodeURIComponent(yamlContent);
-        console.log('[YAML PARSER] URL decoded content preview:', decodedContent.substring(0, 300));
       }
       
       // Fix malformed YAML structure
       decodedContent = fixMalformedYAML(decodedContent);
-      console.log('[YAML PARSER] Fixed YAML structure, preview:', decodedContent.substring(0, 300));
       
     } catch (e) {
-      console.log('[YAML PARSER] Content was not URL encoded, using original');
+      // Content was not URL encoded, continue with original
     }
     
     // Try parsing with js-yaml first
     try {
       const parsed = yaml.load(decodedContent);
       if (parsed && typeof parsed === 'object') {
-        console.log('[YAML PARSER] ✅ Successfully parsed with js-yaml');
-        console.log('[YAML PARSER] Parse result:', {
-          hasNewsletterMd: !!parsed.newsletter_md,
-          hasBlocks: !!parsed.blocks,
-          blocksCount: parsed.blocks?.length || 0,
-          hasMeta: !!parsed.meta
-        });
-        
-        // Always return the parsed result, even if blocks is empty - we'll create them later
         return parsed as StructuredNewsletter;
       }
     } catch (yamlError: any) {
-      console.log('[YAML PARSER] ❌ js-yaml failed:', yamlError.message);
-      console.log('[YAML PARSER] Attempting to fix and retry...');
-      
-      // Try one more time with additional fixes
+      // Try one more time with additional repairs
       const repairedContent = repairYAMLStructure(decodedContent);
       try {
         const repairedParsed = yaml.load(repairedContent);
         if (repairedParsed && typeof repairedParsed === 'object') {
-          console.log('[YAML PARSER] ✅ Successfully parsed repaired YAML');
           return repairedParsed as StructuredNewsletter;
         }
       } catch (secondError: any) {
-        console.log('[YAML PARSER] ❌ Repair attempt also failed:', secondError.message);
+        // Both attempts failed, try manual parsing
       }
     }
     
     // Fallback to manual parsing if js-yaml fails
-    console.log('[YAML PARSER] Falling back to manual parsing');
     return parseNewsletterManually(decodedContent);
     
   } catch (error) {
-    console.error('[YAML PARSER] Critical error:', error);
     return null;
   }
 };
 
 const fixMalformedYAML = (content: string): string => {
   let fixed = content;
-  console.log('[YAML FIXER] Input content preview:', content.substring(0, 200));
   
   // Fix line breaks that were lost during URL encoding
   fixed = fixed
     .replace(/\\n/g, '\n')
     .replace(/\\r/g, '\r')
-    // Fix spaces that became + signs
     .replace(/\+/g, ' ')
-    // Fix the critical pipe syntax issue - detect inline content after pipe
+    
+    // Fix critical YAML indentation issues in extra_content_ideas
+    .replace(/extra_content_ideas:\s*\n\s*-\s*title:\s*"([^"]*?)"\s*\nquick_desc:\s*"([^"]*?)"/g, 
+      'extra_content_ideas:\n  - title: "$1"\n    quick_desc: "$2"')
+    .replace(/(\n\s*-\s*title:\s*"[^"]*?"\s*\n)(\s*)quick_desc:/g, '$1    quick_desc:')
+    
+    // Fix newsletter_md pipe syntax
     .replace(/newsletter_md:\s*\|\s*(.+?)(\s+blocks:|$)/gs, (match, content, ending) => {
-      // Split content by ## headers and properly indent
       const sections = content.split(/(\s+##\s+)/g);
       const indentedContent = sections
         .map(section => section.trim())
@@ -112,24 +95,20 @@ const fixMalformedYAML = (content: string): string => {
       
       return `newsletter_md: |\n${indentedContent}${ending ? '\n' + ending : ''}`;
     })
-    // Fix malformed "blocks title:" pattern - this is the key issue
+    
+    // Fix malformed blocks structure
     .replace(/blocks\s+title:/g, 'blocks:\n  - title:')
-    // Fix blocks section - ensure proper line breaks and indentation
     .replace(/(\w)\s+(blocks:|meta:|extra_content_ideas:)/g, '$1\n\n$2')
-    // Fix blocks array formatting - handle inline blocks
     .replace(/blocks:\s*-\s*/g, 'blocks:\n  - ')
-    // Fix field indentation within blocks - detect inline fields
-    .replace(/(\w)\s+(title:|body:|cta:|link:|image_prompt:|alt_text:|type:)/g, '$1\n    $2')
-    // Fix quote formatting and line breaks after quoted values
-    .replace(/:\s*"([^"]*?)"\s*(?=(title:|body:|cta:|link:|image_prompt:|alt_text:|meta:|extra_content_ideas:))/g, ': "$1"\n    ')
-    // Ensure proper line breaks after last field in blocks
-    .replace(/alt_text:\s*"([^"]*?)"\s*(?=(title:|meta:|extra_content_ideas:|$))/g, 'alt_text: "$1"\n  - ')
-    // Fix meta section formatting  
+    
+    // Fix field indentation - ensure all block fields are properly indented
+    .replace(/(\n\s*-\s*title:[^\n]*\n)(\s*)([a-z_]+:)/g, '$1    $3')
+    .replace(/(\n\s{4}[a-z_]+:[^\n]*\n)(\s*)([a-z_]+:)/g, '$1    $3')
+    
+    // Fix meta section formatting
     .replace(/meta:\s*(\w)/g, 'meta:\n  $1')
-    // Fix extra_content_ideas formatting
-    .replace(/extra_content_ideas:\s*-\s*/g, 'extra_content_ideas:\n  - ');
+    .replace(/(\n\s*[a-z_]+:[^\n]*\n)(\s*)([a-z_]+:)/g, '$1  $3');
   
-  console.log('[YAML FIXER] Fixed content preview:', fixed.substring(0, 200));
   return fixed;
 };
 
@@ -160,10 +139,8 @@ const parseNewsletterManually = (content: string): StructuredNewsletter | null =
   // Check if content contains YAML structure indicators
   const hasNewsletterMd = content.includes('newsletter_md:');
   const hasBlocks = content.includes('blocks:');
-  console.log('[YAML PARSER] Manual parse - Structure check:', { hasNewsletterMd, hasBlocks });
   
   if (!hasNewsletterMd && !hasBlocks) {
-    console.log('[YAML PARSER] Content does not appear to be YAML structured newsletter');
     return null;
   }
 
@@ -177,7 +154,6 @@ const parseNewsletterManually = (content: string): StructuredNewsletter | null =
   // More robust section splitting - handle potential whitespace issues
   const sectionRegex = /^(newsletter_md:|blocks:|extra_content_ideas:|meta:)/gm;
   const matches = Array.from(content.matchAll(sectionRegex));
-  console.log('[YAML PARSER] Found section markers:', matches.map(m => m[1]));
   
   // If we found structured sections, parse them
   if (matches.length > 0) {
@@ -189,13 +165,10 @@ const parseNewsletterManually = (content: string): StructuredNewsletter | null =
       const sectionEnd = nextMatch ? nextMatch.index! : content.length;
       const sectionContent = content.substring(sectionStart, sectionEnd).trim();
       
-      console.log(`[YAML PARSER] Processing section: ${currentMatch[1]}`);
-      
       if (currentMatch[1] === 'newsletter_md:') {
         // Parse newsletter markdown content (handle pipe syntax)
         const lines = sectionContent.split('\n');
         const firstLine = lines[0].trim();
-        console.log('[YAML PARSER] Processing newsletter_md section, firstLine:', firstLine);
         
         if (firstLine.includes('|')) {
           // Check if content is on the same line as the pipe
@@ -206,14 +179,11 @@ const parseNewsletterManually = (content: string): StructuredNewsletter | null =
             // Content is on the same line as pipe - use it plus any following lines
             const followingLines = lines.slice(1).filter(line => line.trim());
             result.newsletter_md = [contentAfterPipe, ...followingLines].join('\n').trim();
-            console.log('[YAML PARSER] Found newsletter_md with inline pipe content, length:', result.newsletter_md.length);
           } else {
             // Multi-line content with pipe syntax - content starts from next line
             const contentLines = lines.slice(1).filter(line => line.trim());
             result.newsletter_md = contentLines.join('\n').trim();
-            console.log('[YAML PARSER] Found newsletter_md with pipe syntax, length:', result.newsletter_md.length);
           }
-          console.log('[YAML PARSER] First 200 chars:', result.newsletter_md.substring(0, 200));
         } else {
           // Check if the entire line after 'newsletter_md:' contains pipe
           const afterColon = firstLine.substring(firstLine.indexOf(':') + 1).trim();
@@ -221,11 +191,9 @@ const parseNewsletterManually = (content: string): StructuredNewsletter | null =
             // Multi-line content starts from next line
             const contentLines = lines.slice(1).filter(line => line.trim());
             result.newsletter_md = contentLines.join('\n').trim();
-            console.log('[YAML PARSER] Found newsletter_md with pipe on next line, length:', result.newsletter_md.length);
           } else {
             // Single line content
             result.newsletter_md = afterColon;
-            console.log('[YAML PARSER] Found newsletter_md single line, length:', result.newsletter_md.length);
           }
         }
       }
@@ -244,51 +212,30 @@ const parseNewsletterManually = (content: string): StructuredNewsletter | null =
     }
   }
   
-  // Always return result even if partially parsed
-  console.log('[YAML PARSER] Manual parsing completed:', {
-    hasNewsletterMd: !!result.newsletter_md,
-    blocksCount: result.blocks?.length || 0,
-    hasMeta: !!result.meta
-  });
-  
   return result as StructuredNewsletter;
 };
 
 const parseBlocksManually = (blockContent: string): NewsletterBlock[] => {
   const blocks: NewsletterBlock[] = [];
   
-  console.log('[YAML PARSER] 🔍 Raw block content for manual parsing (length:', blockContent.length, ')');
-  console.log('[YAML PARSER] 📋 Content preview:', blockContent.substring(0, 500));
-  
   // Enhanced splitting - handle multiple block formats
   let blockItems: string[] = [];
   
   // Method 1: Standard YAML list splitting
   blockItems = blockContent.split(/(?=^\s*-\s)/m).filter(item => item.trim());
-  console.log('[YAML PARSER] 📊 Method 1 (standard split) found:', blockItems.length, 'items');
   
   // Method 2: Try splitting by title: pattern if standard fails
   if (blockItems.length === 0) {
     blockItems = blockContent.split(/(?=\s*title:\s*")/g).filter(item => item.trim() && item.includes('title:'));
-    console.log('[YAML PARSER] 📊 Method 2 (title split) found:', blockItems.length, 'items');
   }
   
-  // Method 3: Try inline parsing for severely malformed blocks with CTA extraction
+  // Method 3: Try inline parsing for severely malformed blocks
   if (blockItems.length === 0) {
-    console.log('[YAML PARSER] 🔄 Trying inline parsing for malformed blocks');
-    
     // Look for title/body/cta/image patterns in the entire content
     const titleMatches = Array.from(blockContent.matchAll(/title:\s*"([^"]*?)"/g));
     const bodyMatches = Array.from(blockContent.matchAll(/body:\s*"([^"]*?)"/g));
     const ctaMatches = Array.from(blockContent.matchAll(/cta:\s*"([^"]*?)"/g));
     const imageMatches = Array.from(blockContent.matchAll(/image_prompt:\s*"([^"]*?)"/g));
-    
-    console.log('[YAML PARSER] 📋 Found:', {
-      titles: titleMatches.length,
-      bodies: bodyMatches.length, 
-      ctas: ctaMatches.length,
-      images: imageMatches.length
-    });
     
     if (titleMatches.length > 0 && bodyMatches.length > 0) {
       const maxBlocks = Math.min(titleMatches.length, bodyMatches.length);
@@ -302,15 +249,12 @@ const parseBlocksManually = (blockContent: string): NewsletterBlock[] => {
           alt_text: `Image for ${titleMatches[i][1]}`
         });
       }
-      console.log('[YAML PARSER] ✅ Parsed', blocks.length, 'blocks using inline method');
       return blocks;
     }
   }
   
   // Process each block item with enhanced parsing
   blockItems.forEach((item, index) => {
-    console.log(`[YAML PARSER] 🔍 Processing block ${index + 1}:`, item.substring(0, 200));
-    
     const block: any = {};
     
     // Enhanced field extraction with multiple patterns
@@ -320,13 +264,11 @@ const parseBlocksManually = (blockContent: string): NewsletterBlock[] => {
       const [, key, value] = match;
       if (['title', 'body', 'content', 'cta', 'link', 'image_prompt', 'alt_text', 'type'].includes(key)) {
         block[key] = value;
-        console.log(`[YAML PARSER] ✅ Extracted ${key}: ${value.substring(0, 50)}...`);
       }
     }
     
     // Pattern 2: Unquoted values (fallback)
     if (Object.keys(block).length === 0) {
-      console.log('[YAML PARSER] 🔄 Trying unquoted pattern matching');
       const lines = item.split('\n').map(line => line.trim()).filter(line => line);
       
       lines.forEach(line => {
@@ -342,7 +284,6 @@ const parseBlocksManually = (blockContent: string): NewsletterBlock[] => {
           
           if (['title', 'body', 'content', 'cta', 'link', 'image_prompt', 'alt_text', 'type'].includes(key)) {
             block[key] = value;
-            console.log(`[YAML PARSER] ✅ Unquoted ${key}: ${value.substring(0, 50)}...`);
           }
         }
       });
@@ -351,7 +292,6 @@ const parseBlocksManually = (blockContent: string): NewsletterBlock[] => {
     // Use 'content' as fallback for 'body' if available
     if (!block.body && block.content) {
       block.body = block.content;
-      console.log('[YAML PARSER] ✅ Used content field as body');
     }
     
     // Enhanced validation and block creation
@@ -366,18 +306,9 @@ const parseBlocksManually = (blockContent: string): NewsletterBlock[] => {
       };
       
       blocks.push(newBlock);
-      console.log(`[YAML PARSER] ✅ Successfully created block: "${newBlock.title}"`);
-    } else {
-      console.log(`[YAML PARSER] ❌ Skipping incomplete block - title: ${!!block.title}, body: ${!!(block.body || block.content)}`);
-      console.log('[YAML PARSER] 📋 Available fields:', Object.keys(block));
-      console.log('[YAML PARSER] 📋 Raw item content:', item);
     }
   });
   
-  console.log(`[YAML PARSER] ✅ Manual parsing complete: ${blocks.length} blocks extracted`);
-  if (blocks.length > 0) {
-    console.log('[YAML PARSER] 📋 Block titles:', blocks.map(b => b.title));
-  }
   return blocks;
 };
 

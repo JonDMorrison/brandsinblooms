@@ -4,6 +4,7 @@ import { useNewsletterRenderer } from '@/hooks/useNewsletterRenderer';
 import { MagazineNewsletterRenderer } from '@/components/newsletter/MagazineNewsletterRenderer';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { TopicValidationIndicator } from '@/components/debug/TopicValidationIndicator';
+import { SafeHtml } from '@/components/ui/safe-html';
 
 interface MagazineNewsletterDisplayProps {
   content: string;
@@ -20,16 +21,6 @@ export const MagazineNewsletterDisplay = ({
   campaignTitle,
   taskStatus 
 }: MagazineNewsletterDisplayProps) => {
-  console.log('[MAGAZINE NEWSLETTER] Rendering with:', {
-    contentLength: content?.length || 0,
-    isPlaceholder: !content || content.length < 100,
-    campaignTitle,
-    taskStatus,
-    contentPreview: content?.substring(0, 200)
-  });
-
-  console.log('[MAGAZINE NEWSLETTER] Raw content:', content);
-
   // Use the newsletter renderer hook
   const {
     processedNewsletter,
@@ -60,72 +51,51 @@ export const MagazineNewsletterDisplay = ({
     );
   }
 
-  // If structured newsletter or unstructured with sections, use the magazine renderer
-  if ((isStructured && processedNewsletter.blocks.length > 0) || processedNewsletter.unstructuredSections?.length > 0) {
-    console.log('[MAGAZINE NEWSLETTER] Using magazine renderer with:', {
-      isStructured,
-      blocksCount: processedNewsletter.blocks.length,
-      unstructuredSectionsCount: processedNewsletter.unstructuredSections?.length || 0,
-      willConvertToBlocks: processedNewsletter.blocks.length === 0 && processedNewsletter.unstructuredSections?.length > 0
-    });
-    
-    // Convert unstructured sections to blocks format if needed
-    const blocksToRender = processedNewsletter.blocks.length > 0 
-      ? processedNewsletter.blocks 
-      : (processedNewsletter.unstructuredSections || []).map(section => ({
-          title: section.title,
-          body: section.content,
-          cta: section.cta || 'Learn More',
-          link: section.link || '#',
-          image_prompt: section.image_prompt,
-          alt_text: section.alt_text
-        }));
+  // Always try to render blocks - the improved processor ensures we have them
+  const blocksToRender = processedNewsletter.blocks.length > 0 
+    ? processedNewsletter.blocks 
+    : (processedNewsletter.unstructuredSections || []).map(section => ({
+        title: section.title,
+        body: section.content,
+        cta: section.cta || 'Learn More',
+        link: section.link || '#',
+        image_prompt: section.image_prompt,
+        alt_text: section.alt_text
+      }));
 
-    console.log('[MAGAZINE NEWSLETTER] Final blocks to render:', {
-      blocksCount: blocksToRender.length,
-      blockTitles: blocksToRender.map(b => b.title),
-      firstBlockPreview: blocksToRender[0] ? {
-        title: blocksToRender[0].title,
-        bodyLength: blocksToRender[0].body?.length || 0
-      } : null
-    });
-
+  // If we still don't have blocks, show a better error state
+  if (blocksToRender.length === 0) {
     return (
-      <div className={`magazine-newsletter-display ${className}`}>
-        {loadingImages && (
-          <div className="text-center py-4 mb-6">
-            <LoadingSpinner />
-            <p className="text-sm text-muted-foreground mt-2">Loading newsletter images...</p>
+      <div className={`magazine-newsletter-display space-y-6 ${className}`}>
+        <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30">
+          <h3 className="text-lg font-semibold text-foreground mb-2">Content Processing</h3>
+          <p className="text-muted-foreground mb-4">The newsletter content is being optimized for display...</p>
+          <div className="prose prose-sm max-w-none text-left bg-background p-4 rounded border">
+            <SafeHtml content={content.replace(/\n/g, '<br/>')} type="newsletter-clean" />
           </div>
-        )}
-        
-        <MagazineNewsletterRenderer
-          title={campaignTitle || processedNewsletter.meta.week_focus}
-          blocks={blocksToRender}
-          meta={processedNewsletter.meta}
-          featuredImage={featuredImage}
-          blockImages={images}
-          onImageSelect={handleImageSelect}
-          className="space-y-8"
-        />
+        </div>
       </div>
     );
   }
 
-  // Fallback for unstructured content - render as simple formatted content
   return (
-    <div className={`magazine-newsletter-display space-y-6 ${className}`}>
-      <div className="prose prose-lg max-w-none">
-        <h1 className="text-4xl font-bold text-foreground mb-6">
-          {campaignTitle || 'Newsletter'}
-        </h1>
-        <div 
-          className="text-muted-foreground leading-relaxed"
-          dangerouslySetInnerHTML={{ 
-            __html: content.replace(/\n/g, '<br/>') 
-          }} 
-        />
-      </div>
+    <div className={`magazine-newsletter-display ${className}`}>
+      {loadingImages && (
+        <div className="text-center py-4 mb-6">
+          <LoadingSpinner />
+          <p className="text-sm text-muted-foreground mt-2">Loading newsletter images...</p>
+        </div>
+      )}
+      
+      <MagazineNewsletterRenderer
+        title={campaignTitle || processedNewsletter.meta.week_focus}
+        blocks={blocksToRender}
+        meta={processedNewsletter.meta}
+        featuredImage={featuredImage}
+        blockImages={images}
+        onImageSelect={handleImageSelect}
+        className="space-y-8"
+      />
     </div>
   );
 };

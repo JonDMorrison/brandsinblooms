@@ -49,21 +49,7 @@ export const useNewsletterRenderer = ({
   
   // Process the newsletter content with memoization
   const processedNewsletter = useMemo(() => {
-    console.log('[NEWSLETTER RENDERER] Processing newsletter content:', {
-      contentLength: content?.length,
-      campaignTitle,
-      hasContent: !!content
-    });
-    const result = processNewsletterContent(content, campaignTitle);
-    console.log('[NEWSLETTER RENDERER] Processed newsletter result:', {
-      blocksCount: result.blocks.length,
-      unstructuredSectionsCount: result.unstructuredSections?.length || 0,
-      isStructured: result.isStructured,
-      needsRegeneration: result.needsRegeneration,
-      blockTitles: result.blocks.map(b => b.title),
-      sectionTitles: result.unstructuredSections?.map(s => s.title) || []
-    });
-    return result;
+    return processNewsletterContent(content, campaignTitle);
   }, [content, campaignTitle]);
 
   // Generate featured image prompt with topic specificity
@@ -83,7 +69,6 @@ export const useNewsletterRenderer = ({
   const topicValidation = useMemo(() => {
     if (campaignTitle && content && content.length > 50) {
       const validation = validateCampaignContent(content, campaignTitle);
-      console.log('[NEWSLETTER RENDERER] Topic validation result:', validation);
       return {
         isValid: validation.isValid,
         confidence: validation.confidence,
@@ -110,8 +95,7 @@ export const useNewsletterRenderer = ({
 
   // Handle image selection
   const handleImageSelect = (blockIndex: number, prompt: string) => {
-    console.log(`[NEWSLETTER RENDERER] Image selection for block ${blockIndex}:`, prompt);
-    // This could be enhanced to open an image selection modal
+    // Enhanced image selection could be implemented here
   };
 
   return {

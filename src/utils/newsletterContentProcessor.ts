@@ -25,13 +25,6 @@ interface UnstructuredSection {
 }
 
 export const processNewsletterContent = (content: string, campaignTitle?: string): ProcessedNewsletter => {
-  console.log('[NEWSLETTER PROCESSOR] Processing content:', {
-    contentLength: content?.length || 0,
-    campaignTitle,
-    hasYAML: content?.includes('newsletter_md:') || false,
-    hasMalformedBlocks: content?.includes('blocks title:') || false
-  });
-
   if (!content || content.trim().length === 0) {
     return createEmptyNewsletter(campaignTitle);
   }
@@ -42,75 +35,40 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
   let processedContent = content;
   
   if (needsFixing) {
-    console.log('[NEWSLETTER PROCESSOR] Fixing malformed content');
     processedContent = fixMalformedNewsletter(content);
   }
 
   // Try to parse the YAML structure
   const parsedNewsletter = parseNewsletterYAML(processedContent);
   
-  if (parsedNewsletter && parsedNewsletter.newsletter_md) {
-    console.log('[NEWSLETTER PROCESSOR] Successfully parsed structured newsletter');
-    
-    // Check if we have proper blocks or need to create them from markdown content
+  if (parsedNewsletter) {
+    // Always ensure we have blocks - create from content if none exist
     let finalBlocks = parsedNewsletter.blocks || [];
-    
-    console.log('[NEWSLETTER PROCESSOR] Found blocks count:', finalBlocks.length);
-    console.log('[NEWSLETTER PROCESSOR] Block titles:', finalBlocks.map(b => b.title));
     
     const hasValidBlocks = finalBlocks.length > 0 && finalBlocks.some(block => 
       (block.title && block.title.trim()) || (block.body && block.body.trim())
     );
     
-    // Detect and fix content duplication
-    const isDuplicated = detectContentDuplication(parsedNewsletter.newsletter_md, finalBlocks);
-    
-    if (isDuplicated) {
-      console.log('[NEWSLETTER PROCESSOR] Detected content duplication, prioritizing structured blocks');
-      // When duplication is detected, clear the markdown to avoid showing the same content twice
-      parsedNewsletter.newsletter_md = '';
-    }
-    
+    // If no valid blocks, create them from markdown or split content intelligently
     if (!hasValidBlocks) {
-      console.log('[NEWSLETTER PROCESSOR] No valid blocks found, creating from markdown content');
-      finalBlocks = createBlocksFromMarkdownContent(parsedNewsletter.newsletter_md);
-    } else {
-      console.log('[NEWSLETTER PROCESSOR] Using existing structured blocks');
-      
-      // Only add introduction block if we don't have duplication and no blocks have intro-like content
-      const hasIntroduction = finalBlocks.some(block => 
-        block.title?.toLowerCase().includes('welcome') || 
-        block.title?.toLowerCase().includes('introduction') ||
-        block.title?.toLowerCase().includes('beat the heat') ||
-        block.title?.toLowerCase().includes('summer survival')
-      );
-      
-      if (!hasIntroduction && parsedNewsletter.newsletter_md && !isDuplicated) {
-        const lines = parsedNewsletter.newsletter_md.split('\n');
-        const headerLine = lines.find(line => line.trim().startsWith('#'));
-        const introText = lines.slice(1).join('\n').trim();
-        
-        if (headerLine && introText) {
-          const introBlock = {
-            title: headerLine.replace(/^#+\s*/, '').trim(),
-            body: introText,
-            image_prompt: generateThemeSpecificImagePrompt(headerLine.replace(/^#+\s*/, '').trim(), parsedNewsletter.meta?.theme),
-            alt_text: `Header image for ${headerLine.replace(/^#+\s*/, '').trim()}`,
-            cta: 'Learn More',
-            link: '#'
-          };
-          finalBlocks.unshift(introBlock);
-        }
+      if (parsedNewsletter.newsletter_md) {
+        finalBlocks = createBlocksFromMarkdownContent(parsedNewsletter.newsletter_md);
+      } else {
+        // Fallback: create blocks from raw content
+        finalBlocks = createBlocksFromRawContent(processedContent, campaignTitle);
       }
-      
-      // Improve image prompts for existing blocks
-      finalBlocks = finalBlocks.map(block => ({
-        ...block,
-        image_prompt: improveImagePrompt(block.image_prompt, block.title, parsedNewsletter.meta?.theme)
-      }));
     }
     
-    console.log('[NEWSLETTER PROCESSOR] Final blocks count:', finalBlocks.length);
+    // Ensure minimum of 2 blocks for good newsletter structure
+    if (finalBlocks.length < 2) {
+      finalBlocks = ensureMinimumBlocks(finalBlocks, parsedNewsletter.newsletter_md || processedContent, campaignTitle);
+    }
+    
+    // Improve image prompts
+    finalBlocks = finalBlocks.map(block => ({
+      ...block,
+      image_prompt: improveImagePrompt(block.image_prompt, block.title, parsedNewsletter.meta?.theme)
+    }));
     
     return {
       newsletter_md: parsedNewsletter.newsletter_md || '',
@@ -125,9 +83,7 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
     };
   }
 
-  // If YAML parsing failed, treat as unstructured content and create sections
-  console.log('[NEWSLETTER PROCESSOR] Content not structured, creating sections with image support');
-  
+  // If YAML parsing failed completely, create structured sections from content
   const unstructuredSections = createSectionsFromUnstructuredContent(processedContent, campaignTitle);
   
   return {
@@ -145,7 +101,6 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
 };
 
 const createBlocksFromMarkdownContent = (markdownContent: string): any[] => {
-  console.log('[NEWSLETTER PROCESSOR] Creating blocks from markdown content');
   const blocks: any[] = [];
   
   // Split content by headers - first # is main header, ## are sections
@@ -186,8 +141,110 @@ const createBlocksFromMarkdownContent = (markdownContent: string): any[] => {
     blocks.push(createBlockFromSection(currentSection));
   }
   
-  console.log(`[NEWSLETTER PROCESSOR] Created ${blocks.length} blocks from markdown`);
   return blocks;
+};
+
+// Create blocks from raw content when no structure is found
+const createBlocksFromRawContent = (content: string, campaignTitle?: string): any[] => {
+  const blocks: any[] = [];
+  
+  // Split by paragraphs and create meaningful blocks
+  const paragraphs = content
+    .split(/\n\s*\n/)
+    .map(p => p.trim())
+    .filter(p => p.length > 50); // Only substantial content
+  
+  // Create title from campaign title or first line
+  const title = campaignTitle || extractTitleFromContent(content);
+  
+  // If we have multiple paragraphs, create multiple blocks
+  if (paragraphs.length >= 2) {
+    paragraphs.slice(0, 4).forEach((paragraph, index) => {
+      const blockTitle = index === 0 ? title : `Key Point ${index}`;
+      blocks.push({
+        title: blockTitle,
+        body: paragraph,
+        cta: 'Learn More',
+        link: '#',
+        image_prompt: generateThemeSpecificImagePrompt(blockTitle, campaignTitle),
+        alt_text: `Image for ${blockTitle}`
+      });
+    });
+  } else {
+    // Single block with full content
+    blocks.push({
+      title: title,
+      body: content,
+      cta: 'Learn More', 
+      link: '#',
+      image_prompt: generateThemeSpecificImagePrompt(title, campaignTitle),
+      alt_text: `Image for ${title}`
+    });
+  }
+  
+  return blocks;
+};
+
+// Ensure we have at least 2 blocks for proper newsletter structure
+const ensureMinimumBlocks = (existingBlocks: any[], content: string, campaignTitle?: string): any[] => {
+  if (existingBlocks.length >= 2) return existingBlocks;
+  
+  const blocks = [...existingBlocks];
+  
+  // If we only have one block, split its content or create a welcome block
+  if (blocks.length === 1) {
+    const existingBlock = blocks[0];
+    
+    // Try to split the existing block's body
+    if (existingBlock.body && existingBlock.body.length > 200) {
+      const sentences = existingBlock.body.split(/[.!?]+/).filter(s => s.trim());
+      if (sentences.length > 2) {
+        const midPoint = Math.ceil(sentences.length / 2);
+        const firstHalf = sentences.slice(0, midPoint).join('. ') + '.';
+        const secondHalf = sentences.slice(midPoint).join('. ') + '.';
+        
+        blocks[0].body = firstHalf;
+        blocks.push({
+          title: 'More Key Insights',
+          body: secondHalf,
+          cta: 'Learn More',
+          link: '#',
+          image_prompt: generateThemeSpecificImagePrompt('Key Insights', campaignTitle),
+          alt_text: 'Image for key insights'
+        });
+      }
+    }
+  }
+  
+  // If still need more blocks, add a generic welcome/intro block
+  if (blocks.length < 2) {
+    const welcomeBlock = {
+      title: `Welcome to ${campaignTitle || 'Garden Newsletter'}`,
+      body: 'Discover expert gardening tips and insights to help your plants thrive this season.',
+      cta: 'Get Started',
+      link: '#',
+      image_prompt: generateThemeSpecificImagePrompt('Welcome Garden', campaignTitle),
+      alt_text: 'Welcome to garden newsletter'
+    };
+    blocks.unshift(welcomeBlock);
+  }
+  
+  return blocks;
+};
+
+// Extract title from content
+const extractTitleFromContent = (content: string): string => {
+  // Look for markdown header
+  const headerMatch = content.match(/^#\s+(.+)$/m);
+  if (headerMatch) return headerMatch[1].trim();
+  
+  // Use first line if it's short enough to be a title
+  const firstLine = content.split('\n')[0]?.trim();
+  if (firstLine && firstLine.length < 80) {
+    return firstLine;
+  }
+  
+  return 'Garden Newsletter';
 };
 
 const createBlockFromSection = (section: { title: string; content: string[]; isMainHeader: boolean }): any => {

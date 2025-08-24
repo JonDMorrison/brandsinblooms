@@ -46,7 +46,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 }) => {
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        // Disable underline from StarterKit to avoid conflicts
+        underline: false,
+      }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
         alignments: ['left', 'center', 'right'],
