@@ -8,6 +8,8 @@ import { Plus, Play, Pause, Edit, Copy, Trash2, Users, Mail, MessageSquare, Cloc
 import { useToast } from '@/hooks/use-toast';
 import { AutomationBuilder } from '@/components/crm/automations/AutomationBuilder';
 import { AutomationStats } from '@/components/crm/automations/AutomationStats';
+import { AIAutomationDesigner } from '@/components/automation/AIAutomationDesigner';
+import { useNavigate } from 'react-router-dom';
 
 interface Automation {
   id: string;
@@ -32,6 +34,7 @@ export default function Automations() {
   const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch automations
   const { data: automations, isLoading } = useQuery({
@@ -175,6 +178,12 @@ export default function Automations() {
     setIsBuilderOpen(true);
   };
 
+  const handleAutomationGenerated = (automation: any) => {
+    queryClient.invalidateQueries({ queryKey: ['crm-automations'] });
+    // Navigate to the canvas page for the generated automation
+    navigate(`/crm/automations/${automation.id}/canvas`);
+  };
+
   if (isBuilderOpen) {
     return (
       <AutomationBuilder
@@ -202,10 +211,13 @@ export default function Automations() {
             Create automated email and SMS campaigns to engage your customers
           </p>
         </div>
-        <Button onClick={handleCreateNew} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Create Automation
-        </Button>
+        <div className="flex items-center gap-3">
+          <AIAutomationDesigner onAutomationGenerated={handleAutomationGenerated} />
+          <Button onClick={handleCreateNew} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Create Automation
+          </Button>
+        </div>
       </div>
 
       {/* Stats Overview */}
