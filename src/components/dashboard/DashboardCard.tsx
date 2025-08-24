@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, AlertCircle, CheckCircle } from "lucide-react";
 import { getCardIllustration } from "./illustrations/BackgroundIllustrations";
+import { useNavigate } from "react-router-dom";
 
 interface DashboardCardProps {
   title: string;
@@ -41,6 +42,7 @@ export const DashboardCard = ({
   dynamicIcon,
   hasPendingAction = false
 }: DashboardCardProps) => {
+  const navigate = useNavigate();
   const IllustrationComponent = cardId ? getCardIllustration(cardId) : null;
   const displayIcon = dynamicIcon || icon;
   const getStatusIcon = () => {
@@ -135,7 +137,7 @@ export const DashboardCard = ({
         
         <div className="flex flex-col gap-3">
           <Button 
-            onClick={primaryAction.onClick}
+            onClick={() => navigate('/publish')}
             className={`w-full group rounded-xl h-12 font-medium transition-all duration-200 ${
               hasPendingAction ? 'animate-pulse-mint' : ''
             }`}
