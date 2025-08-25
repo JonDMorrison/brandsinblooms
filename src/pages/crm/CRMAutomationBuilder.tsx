@@ -320,7 +320,7 @@ export const CRMAutomationBuilder = () => {
             <Button
               variant="secondary"
               onClick={() => setIsGuideOpen(true)}
-              className={showGuideSidebar ? "md:hidden" : ""}
+              className={!automationId && flowState.nodes.length === 0 ? "md:hidden" : ""}
             >
               Build with Guide
             </Button>
@@ -338,7 +338,7 @@ export const CRMAutomationBuilder = () => {
       </header>
 
       <div className="flex-1 flex">
-        {showGuideSidebar && (
+        {!automationId && flowState.nodes.length === 0 && (
           <aside className="hidden md:block md:w-72 border-r p-4 overflow-y-auto">
             <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
               <GuidedAutomationBuilder 
