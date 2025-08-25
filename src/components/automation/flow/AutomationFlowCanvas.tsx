@@ -400,7 +400,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             maxZoom={2}
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-            {showMinimap && useMemo(() => (
+            {showMinimap && (
               <MiniMap
                 nodeStrokeColor="#374151"
                 nodeColor="#f3f4f6"
@@ -411,7 +411,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
                 pannable={false}
                 zoomable={false}
               />
-            ), [showMinimap])}
+            )}
             
             {/* Minimap Toggle Button */}
             <div className="absolute top-4 left-4 z-10">
