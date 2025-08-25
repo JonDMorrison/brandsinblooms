@@ -137,7 +137,7 @@ export const DashboardCard = ({
         
         <div className="flex flex-col gap-3">
           <Button 
-            onClick={() => navigate('/publish')}
+            onClick={primaryAction.onClick || (() => navigate('/crm/automations'))}
             className={`w-full group rounded-xl h-12 font-medium transition-all duration-200 ${
               hasPendingAction ? 'animate-pulse-mint' : ''
             }`}
