@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit, Calendar, RefreshCw } from "lucide-react";
+import { Plus, Edit, Calendar, RefreshCw, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { DashboardError } from "@/components/dashboard/DashboardError";
 import { useAuth } from "@/hooks/useAuth";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface Automation {
   id: string;
@@ -26,6 +27,9 @@ const CRMAutomations = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchAutomations();
@@ -89,6 +93,43 @@ const CRMAutomations = () => {
         description: "Failed to update automation",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDeleteAutomation = (automation: Automation) => {
+    setDeleteTarget(automation);
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('crm_automations')
+        .delete()
+        .eq('id', deleteTarget.id);
+
+      if (error) throw error;
+
+      setAutomations(prev => prev.filter(automation => automation.id !== deleteTarget.id));
+      
+      toast({
+        title: "Success",
+        description: "Automation deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting automation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete automation",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+      setConfirmOpen(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -224,15 +265,27 @@ const CRMAutomations = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        <div className="flex items-center gap-2">
                           <Link
                             to={`/crm/automations/${automation.id}`}
                             aria-label={`Edit automation ${automation.name}`}
                             title="Edit"
                           >
                             <Button variant="ghost" size="sm">
+                              <Edit className="h-4 w-4 mr-1" />
                               Edit
                             </Button>
                           </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeleteAutomation(automation)}
+                            title="Delete"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -241,6 +294,16 @@ const CRMAutomations = () => {
             )}
           </CardContent>
         </Card>
+        
+        <ConfirmationDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="Delete Automation"
+          description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+          confirmText="Delete"
+          onConfirm={confirmDelete}
+          loading={deleting}
+        />
       </div>
     </div>
   );
