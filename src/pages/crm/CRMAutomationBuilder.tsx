@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ReviewLaunchModal } from '@/components/automation/flow/ReviewLaunchModal';
-import { AutomationCanvas } from '@/components/automation/AutomationCanvas';
+import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
 import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
 import { Save } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -341,13 +341,15 @@ export const CRMAutomationBuilder = () => {
               <Save className="w-4 h-4" />
               {isSaving ? 'Saving...' : 'Save Draft'}
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setIsGuideOpen(true)}
-              className={!automationId && flowState.nodes.length === 0 ? "md:hidden" : ""}
-            >
-              Build with Guide
-            </Button>
+            {!automationId && (
+              <Button
+                variant="secondary"
+                onClick={() => setIsGuideOpen(true)}
+                className={flowState.nodes.length === 0 ? "md:hidden" : ""}
+              >
+                Build with Guide
+              </Button>
+            )}
             <AudienceTargetingButton
               selectedPersonas={selectedPersonas}
               selectedSegments={selectedSegments}
@@ -373,9 +375,17 @@ export const CRMAutomationBuilder = () => {
           </aside>
         )}
         <main className="flex-1 overflow-y-auto">
-          <AutomationCanvas
-            flowState={flowState}
-            onFlowStateChange={setFlowState}
+          <AutomationFlowCanvas
+            automationId={automationId}
+            initialFlowState={flowState}
+            onSave={setFlowState}
+            onSaveDraft={handleSaveDraft}
+            onReviewLaunch={() => setIsReviewOpen(true)}
+            automationName={automationName}
+            selectedPersonas={selectedPersonas}
+            selectedSegments={selectedSegments}
+            onPersonasChange={setSelectedPersonas}
+            onSegmentsChange={setSelectedSegments}
           />
         </main>
       </div>
