@@ -402,6 +402,81 @@ export const GuidedAutomationBuilder: React.FC<GuidedAutomationBuilderProps> = (
             </div>
           )}
 
+          {/* Step 4: Audience Selection */}
+          {currentStep === 4 && (
+            <div className="space-y-4">
+              <p className="text-muted-foreground">
+                Who should receive this automation? You can target everyone or be more specific with personas and segments.
+              </p>
+              
+              <div className="space-y-4">
+                {/* Everyone Option */}
+                <Card 
+                  className={`cursor-pointer transition-all hover:shadow-md ${
+                    audienceType === 'everyone' ? 'ring-2 ring-primary border-primary' : ''
+                  }`}
+                  onClick={() => setAudienceType('everyone')}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium">Everyone</h3>
+                        <p className="text-sm text-muted-foreground">Send to all customers who meet the trigger criteria</p>
+                      </div>
+                      {audienceType === 'everyone' && (
+                        <CheckCircle className="w-5 h-5 text-primary" />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Specific Audience Option */}
+                <Card 
+                  className={`cursor-pointer transition-all hover:shadow-md ${
+                    audienceType !== 'everyone' ? 'ring-2 ring-primary border-primary' : ''
+                  }`}
+                  onClick={() => {
+                    setAudienceType('segment');
+                    setShowAudienceSelector(true);
+                  }}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium">Specific Audience</h3>
+                        <p className="text-sm text-muted-foreground">Target specific personas or customer segments</p>
+                        {(selectedPersonas.length > 0 || selectedSegments.length > 0) && (
+                          <div className="flex gap-2 mt-2">
+                            {selectedPersonas.map((persona) => (
+                              <Badge key={persona.id} variant="secondary">{persona.name}</Badge>
+                            ))}
+                            {selectedSegments.map((segment) => (
+                              <Badge key={segment.id} variant="secondary">{segment.name}</Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {audienceType !== 'everyone' && (
+                        <CheckCircle className="w-5 h-5 text-primary" />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Audience Selector Modal */}
+              {showAudienceSelector && (
+                <AudienceSelector
+                  selectedPersonas={selectedPersonas}
+                  selectedSegments={selectedSegments}
+                  onPersonasChange={setSelectedPersonas}
+                  onSegmentsChange={setSelectedSegments}
+                  onClose={() => setShowAudienceSelector(false)}
+                />
+              )}
+            </div>
+          )}
+
           {/* Navigation */}
           <div className="flex justify-between pt-6 border-t">
             <Button
@@ -413,7 +488,7 @@ export const GuidedAutomationBuilder: React.FC<GuidedAutomationBuilderProps> = (
               {currentStep > 1 ? 'Previous' : 'Back to Templates'}
             </Button>
             
-            {currentStep < 3 ? (
+            {currentStep < 4 ? (
               <Button
                 onClick={() => setCurrentStep(currentStep + 1)}
                 disabled={!canProceed()}
