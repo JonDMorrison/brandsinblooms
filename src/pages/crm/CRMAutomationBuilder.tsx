@@ -98,12 +98,17 @@ export const CRMAutomationBuilder = () => {
 
       if (data) {
         setAutomationName(data.name || 'Untitled Automation');
+        
         // Load flow state if available and valid
         const rawFlow = (data as any).flow_state;
-        if (isFlowState(rawFlow)) {
+        if (isFlowState(rawFlow) && rawFlow.nodes.length > 0) {
           setFlowState({ nodes: rawFlow.nodes, edges: rawFlow.edges });
+        } else if (data.workflow_steps && Array.isArray(data.workflow_steps) && data.workflow_steps.length > 0) {
+          // Reconstruct flow from workflow_steps if flow_state is empty
+          const reconstructedFlow = reconstructFlowFromWorkflowSteps(data.workflow_steps, data.trigger_type);
+          setFlowState(reconstructedFlow);
         } else {
-          console.log('No valid flow_state found on automation record:', rawFlow);
+          console.log('No valid flow_state or workflow_steps found:', { rawFlow, workflow_steps: data.workflow_steps });
         }
       }
     } catch (error) {
@@ -116,6 +121,71 @@ export const CRMAutomationBuilder = () => {
     }
   };
 
+  // Helper to reconstruct flow from workflow_steps array
+  const reconstructFlowFromWorkflowSteps = (steps: any[], triggerType: string) => {
+    const nodes = [];
+    const edges = [];
+    
+    // Add trigger node
+    nodes.push({
+      id: 'trigger-1',
+      type: 'trigger',
+      position: { x: 100, y: 100 },
+      data: { triggerType: triggerType || 'manual' }
+    });
+
+    let previousNodeId = 'trigger-1';
+    
+    // Add workflow step nodes
+    steps.forEach((step, index) => {
+      const nodeId = `${step.type}-${index + 1}`;
+      nodes.push({
+        id: nodeId,
+        type: step.type,
+        position: { x: 100, y: 200 + (index * 100) },
+        data: { ...step }
+      });
+      
+      // Connect to previous node
+      edges.push({
+        id: `${previousNodeId}-${nodeId}`,
+        source: previousNodeId,
+        target: nodeId
+      });
+      
+      previousNodeId = nodeId;
+    });
+
+    return { nodes, edges };
+  };
+
+  // Map trigger IDs to database-accepted values
+  const mapTriggerType = (triggerType?: string) => {
+    if (!triggerType) return 'manual';
+    
+    const triggerMapping: Record<string, string> = {
+      'loyalty_join': 'welcome',
+      'first_purchase': 'welcome', 
+      'customer_birthday': 'seasonal',
+      'big_spender': 'purchase_delay',
+      'abandoned_cart': 'purchase_delay',
+      'review_request': 'purchase_delay',
+      'event_rsvp': 'seasonal',
+      'newsletter_opt_in': 'segment_joined',
+      'newsletter_signup': 'segment_joined',
+      'weekly_promotion': 'seasonal',
+      'seasonal_campaign': 'seasonal',
+      'inventory_clearance': 'manual',
+      'plant_care_reminder': 'seasonal',
+      'seasonal_tips': 'seasonal',
+      'problem_solving': 'manual',
+      'repeat_purchase_90d': 'purchase_delay',
+      'repeat_purchase_180d': 'purchase_delay'
+    };
+    
+    return triggerMapping[triggerType] || 'manual';
+  };
+
   const handleSaveDraft = async () => {
     if (!user?.id) {
       toast({ title: 'Not signed in', description: 'Please sign in to save.', variant: 'destructive' });
@@ -124,10 +194,11 @@ export const CRMAutomationBuilder = () => {
     setIsSaving(true);
 
     const currentFlowState = flowState;
+    const triggerNode = currentFlowState.nodes.find((n: any) => n.type === 'trigger');
     const payload: any = {
       name: automationName,
       is_active: false,
-      trigger_type: currentFlowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
+      trigger_type: mapTriggerType(triggerNode?.data.triggerType),
       trigger_conditions: {},
       workflow_steps: currentFlowState.nodes.filter(n => n.type !== 'trigger').length > 0 ? 
         currentFlowState.nodes.filter(n => n.type !== 'trigger').map(n => ({ type: n.type, ...n.data })) : [],
@@ -176,10 +247,11 @@ export const CRMAutomationBuilder = () => {
     setIsSaving(true);
 
     const currentFlowState = flowState;
+    const triggerNode = currentFlowState.nodes.find((n: any) => n.type === 'trigger');
     const payload: any = {
       name: automationName,
       is_active: true,
-      trigger_type: currentFlowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
+      trigger_type: mapTriggerType(triggerNode?.data.triggerType),
       trigger_conditions: {},
       workflow_steps: currentFlowState.nodes.filter(n => n.type !== 'trigger').length > 0 ? 
         currentFlowState.nodes.filter(n => n.type !== 'trigger').map(n => ({ type: n.type, ...n.data })) : [],
@@ -216,6 +288,9 @@ export const CRMAutomationBuilder = () => {
     }
   };
 
+  // Determine if we should show the guide sidebar
+  const showGuideSidebar = !automationId || flowState.nodes.length === 0;
+
   return (
     <div className="min-h-[100dvh] flex flex-col">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -244,7 +319,7 @@ export const CRMAutomationBuilder = () => {
             <Button
               variant="secondary"
               onClick={() => setIsGuideOpen(true)}
-              className="md:hidden"
+              className={showGuideSidebar ? "md:hidden" : ""}
             >
               Build with Guide
             </Button>
@@ -262,14 +337,16 @@ export const CRMAutomationBuilder = () => {
       </header>
 
       <div className="flex-1 flex">
-        <aside className="hidden md:block md:w-72 border-r p-4 overflow-y-auto">
-          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
-            <GuidedAutomationBuilder 
-              onComplete={handleGuideComplete}
-              onBack={() => {}}
-            />
-          </Suspense>
-        </aside>
+        {showGuideSidebar && (
+          <aside className="hidden md:block md:w-72 border-r p-4 overflow-y-auto">
+            <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
+              <GuidedAutomationBuilder 
+                onComplete={handleGuideComplete}
+                onBack={() => {}}
+              />
+            </Suspense>
+          </aside>
+        )}
         <main className="flex-1 overflow-y-auto">
           <AutomationCanvas
             flowState={flowState}
