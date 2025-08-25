@@ -13,16 +13,21 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
   const { isCompleted, isLoading: onboardingLoading, error: onboardingError } = useOnboardingStatus();
   const { setLoading, clearLoading } = useLoading();
-  const [hasCheckedOnce, setHasCheckedOnce] = useState(false);
+  
+  // Use sessionStorage to persist across navigation - this prevents loading on every route change
+  const [hasCheckedOnce, setHasCheckedOnce] = useState(() => {
+    return sessionStorage.getItem('onboarding-checked') === 'true';
+  });
 
   // Track when initial checks are done
   useEffect(() => {
-    if (!authLoading && !onboardingLoading) {
+    if (!authLoading && !onboardingLoading && !hasCheckedOnce) {
       setHasCheckedOnce(true);
+      sessionStorage.setItem('onboarding-checked', 'true');
     }
-  }, [authLoading, onboardingLoading]);
+  }, [authLoading, onboardingLoading, hasCheckedOnce]);
 
-  // Only show loading during initial auth check or first onboarding check
+  // Only show loading during the very first auth/onboarding check
   const shouldShowLoading = authLoading || (onboardingLoading && !hasCheckedOnce && !onboardingError);
 
   // Manage onboarding loading state in global context
