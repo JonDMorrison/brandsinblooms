@@ -19,6 +19,7 @@ interface Automation {
   is_active: boolean;
   created_at: string;
   workflow_steps: any;
+  flow_state: any;
 }
 
 const CRMAutomations = () => {
@@ -34,6 +35,26 @@ const CRMAutomations = () => {
   useEffect(() => {
     fetchAutomations();
   }, []);
+
+  const getStepCount = (automation: Automation) => {
+    // Check flow_state.nodes first
+    if (automation.flow_state?.nodes && Array.isArray(automation.flow_state.nodes)) {
+      // Count non-trigger nodes
+      return automation.flow_state.nodes.filter((node: any) => node.type !== 'trigger').length;
+    }
+    
+    // Check workflow_steps as array
+    if (Array.isArray(automation.workflow_steps)) {
+      return automation.workflow_steps.length;
+    }
+    
+    // Check workflow_steps as object with nodes
+    if (automation.workflow_steps?.nodes && Array.isArray(automation.workflow_steps.nodes)) {
+      return automation.workflow_steps.nodes.filter((node: any) => node.type !== 'trigger').length;
+    }
+    
+    return 0;
+  };
 
   const fetchAutomations = async () => {
     setLoading(true);
@@ -261,7 +282,7 @@ const CRMAutomations = () => {
                       <TableCell>{formatDate(automation.created_at)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">
-                          {Array.isArray(automation.workflow_steps) ? automation.workflow_steps.length : 0} steps
+                          {getStepCount(automation)} steps
                         </Badge>
                       </TableCell>
                       <TableCell>

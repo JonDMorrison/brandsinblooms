@@ -102,11 +102,35 @@ export const CRMAutomationBuilder = () => {
         // Load flow state if available and valid
         const rawFlow = (data as any).flow_state;
         if (isFlowState(rawFlow) && rawFlow.nodes.length > 0) {
-          setFlowState({ nodes: rawFlow.nodes, edges: rawFlow.edges });
-        } else if (data.workflow_steps && Array.isArray(data.workflow_steps) && data.workflow_steps.length > 0) {
-          // Reconstruct flow from workflow_steps if flow_state is empty
-          const reconstructedFlow = reconstructFlowFromWorkflowSteps(data.workflow_steps, data.trigger_type);
-          setFlowState(reconstructedFlow);
+          // Normalize edges to ensure proper format
+          const normalizedEdges = rawFlow.edges.map((edge: any) => ({
+            id: edge.id || `${edge.source || edge.from}-${edge.target || edge.to}`,
+            source: edge.source || edge.from,
+            target: edge.target || edge.to,
+            ...edge
+          }));
+          setFlowState({ nodes: rawFlow.nodes, edges: normalizedEdges });
+        } else if (data.workflow_steps) {
+          // Try to load from workflow_steps (array or object format)
+          const workflowSteps = data.workflow_steps as any;
+          if (Array.isArray(workflowSteps) && workflowSteps.length > 0) {
+            const reconstructedFlow = reconstructFlowFromWorkflowSteps(workflowSteps, data.trigger_type);
+            setFlowState(reconstructedFlow);
+          } else if (workflowSteps?.nodes && Array.isArray(workflowSteps.nodes)) {
+            // workflow_steps is stored as object with nodes/edges
+            const normalizedEdges = (workflowSteps.edges || []).map((edge: any) => ({
+              id: edge.id || `${edge.source || edge.from}-${edge.target || edge.to}`,
+              source: edge.source || edge.from,
+              target: edge.target || edge.to,
+              ...edge
+            }));
+            setFlowState({ 
+              nodes: workflowSteps.nodes, 
+              edges: normalizedEdges 
+            });
+          } else {
+            console.log('No valid flow_state or workflow_steps found:', { rawFlow, workflow_steps: data.workflow_steps });
+          }
         } else {
           console.log('No valid flow_state or workflow_steps found:', { rawFlow, workflow_steps: data.workflow_steps });
         }
