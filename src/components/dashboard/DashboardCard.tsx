@@ -138,18 +138,10 @@ export const DashboardCard = ({
         <div className="flex flex-col gap-3">
           <Button 
             type="button"
-            onClick={() => {
-              console.log(`DashboardCard: Button clicked for card ${cardId}`, {
-                hasPrimaryAction: !!primaryAction.onClick,
-                primaryActionLabel: primaryAction.label
-              });
-              if (primaryAction.onClick) {
-                primaryAction.onClick();
-              } else {
-                console.warn('DashboardCard: No primaryAction.onClick provided, falling back to automation wizard');
-                navigate('/crm/automations/new?mode=quick');
-              }
-            }}
+            onClick={primaryAction.onClick || (() => {
+              console.warn('DashboardCard: No primaryAction.onClick provided, falling back to automation wizard');
+              navigate('/crm/automations/new?mode=quick');
+            })}
             className={`w-full group rounded-xl h-12 font-medium transition-all duration-200 ${
               hasPendingAction ? 'animate-pulse-mint' : ''
             }`}

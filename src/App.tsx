@@ -13,6 +13,8 @@ import { DataProviderWrapper } from '@/components/DataProviderWrapper';
 import { RedirectWithQuery } from '@/components/RedirectWithQuery';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
+import { CRMAutomationBuilderPage } from '@/pages/crm/CRMAutomationBuilderPage';
+import { CRMAutomationGuidePage } from '@/pages/crm/CRMAutomationGuidePage';
 import OnboardingPage from '@/pages/OnboardingPage'; // Force refresh
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewslettersPage } from '@/pages/NewslettersPage';
@@ -186,6 +188,34 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <CRMAutomations />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/automations/new" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMAutomationGuidePage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/automations/new/guide" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMAutomationGuidePage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/automations/new/canvas" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMAutomationBuilderPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/automations/:automationId" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMAutomationBuilderPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
