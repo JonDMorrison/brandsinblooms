@@ -3,7 +3,7 @@ import { SimplifiedOnboardingFlow } from "@/components/onboarding/SimplifiedOnbo
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { EnhancedErrorBoundary } from "@/components/onboarding/EnhancedErrorBoundary";
 import { useAuth } from "@/contexts/AuthContext";
-import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";

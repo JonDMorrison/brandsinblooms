@@ -1,7 +1,7 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLoading } from "@/contexts/LoadingContext";
 
@@ -11,7 +11,7 @@ interface OnboardingGuardProps {
 
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { isCompleted, isLoading: onboardingLoading, error: onboardingError } = useOnboardingStatus();
+  const { isCompleted, isLoading: onboardingLoading, error } = useOnboardingStatus();
   const { setLoading, clearLoading } = useLoading();
   
   // Use sessionStorage to persist across navigation - this prevents loading on every route change
@@ -28,7 +28,7 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   }, [authLoading, onboardingLoading, hasCheckedOnce]);
 
   // Only show loading during the very first auth/onboarding check
-  const shouldShowLoading = authLoading || (onboardingLoading && !hasCheckedOnce && !onboardingError);
+  const shouldShowLoading = authLoading || (onboardingLoading && !hasCheckedOnce && !error);
 
   // Manage onboarding loading state in global context
   useEffect(() => {
@@ -57,14 +57,14 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   // Don't redirect from onboarding paths to prevent loops
   const shouldRedirectToOnboarding = user && 
     !isCompleted && 
-    !onboardingError &&
+    !error &&
     hasCheckedOnce &&
     !window.location.pathname.startsWith('/onboarding');
 
   console.log('🔍 OnboardingGuard: Decision state', {
     user: !!user,
     isCompleted,
-    onboardingError,
+    error,
     hasCheckedOnce,
     pathname: window.location.pathname,
     shouldRedirect: shouldRedirectToOnboarding

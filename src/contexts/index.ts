@@ -5,3 +5,4 @@ export { SubscriptionProvider, useSubscription } from './SubscriptionContext';
 export { ContentGenerationProvider, useContentGeneration } from './ContentGenerationContext';
 export { DashboardProvider, useDashboardContext } from './DashboardContext';
 export { LoadingProvider, useLoading } from './LoadingContext';
+export { OnboardingStatusProvider, useOnboardingStatus } from './OnboardingStatusContext';
