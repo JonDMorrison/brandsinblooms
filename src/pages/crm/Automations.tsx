@@ -181,7 +181,7 @@ export default function Automations() {
   const handleAutomationGenerated = (automation: any) => {
     queryClient.invalidateQueries({ queryKey: ['crm-automations'] });
     // Navigate to the canvas page for the generated automation
-    navigate(`/crm/automations/${automation.id}/canvas`);
+    navigate(`/crm/automations/${automation.id}`);
   };
 
   if (isBuilderOpen) {

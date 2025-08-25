@@ -125,7 +125,7 @@ export const CRMAutomationGuidePage: React.FC = () => {
         description: 'Opening the canvas to continue designing.' 
       });
       
-      navigate(`/crm/automations/${data.id}/canvas`);
+      navigate(`/crm/automations/${data.id}`);
 
     } catch (err: any) {
       console.error('Failed to create automation:', err);

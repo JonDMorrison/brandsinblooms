@@ -120,7 +120,7 @@ export const CRMAutomationCanvasPage: React.FC = () => {
       } else {
         const { data, error } = await supabase.from('crm_automations').insert(payload).select().single();
         if (error) throw error;
-        if (data?.id) window.history.replaceState({}, '', `/crm/automations/${data.id}/canvas`);
+        if (data?.id) window.history.replaceState({}, '', `/crm/automations/${data.id}`);
       }
       toast({ title: 'Saved', description: 'Draft saved successfully.' });
     } catch (e) {

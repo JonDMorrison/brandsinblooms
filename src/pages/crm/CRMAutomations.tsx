@@ -192,7 +192,7 @@ const CRMAutomations = () => {
                     <TableRow key={automation.id}>
                       <TableCell className="font-medium">
                         <Link
-                          to={`/crm/automations/${automation.id}/canvas`}
+                          to={`/crm/automations/${automation.id}`}
                           aria-label={`Edit automation ${automation.name}`}
                           className="hover:underline"
                         >
@@ -225,7 +225,7 @@ const CRMAutomations = () => {
                       </TableCell>
                       <TableCell>
                           <Link
-                            to={`/crm/automations/${automation.id}/canvas`}
+                            to={`/crm/automations/${automation.id}`}
                             aria-label={`Edit automation ${automation.name}`}
                             title="Edit"
                           >
