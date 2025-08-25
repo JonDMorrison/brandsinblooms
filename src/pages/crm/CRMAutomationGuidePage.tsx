@@ -36,17 +36,20 @@ export const CRMAutomationGuidePage: React.FC = () => {
   // Normalize builder trigger IDs to backend-accepted categories
   const mapTriggerType = (id?: string) => {
     if (!id) return 'manual';
-    const eventTriggers = new Set([
-      'loyalty_join',
-      'first_purchase',
-      'customer_birthday',
-      'big_spender',
-      'abandoned_cart',
-      'review_request',
-      'event_rsvp',
-      'newsletter_opt_in'
-    ]);
-    return eventTriggers.has(id) ? 'event' : 'manual';
+    
+    // Map specific event triggers to appropriate database values
+    const triggerMapping: Record<string, string> = {
+      'loyalty_join': 'welcome',
+      'first_purchase': 'welcome', 
+      'customer_birthday': 'seasonal',
+      'big_spender': 'purchase_delay',
+      'abandoned_cart': 'purchase_delay',
+      'review_request': 'purchase_delay',
+      'event_rsvp': 'seasonal',
+      'newsletter_opt_in': 'segment_joined'
+    };
+    
+    return triggerMapping[id] || 'manual';
   };
 
   const handleGuideComplete = async (config?: any) => {
