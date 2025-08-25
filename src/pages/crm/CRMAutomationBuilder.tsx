@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ReviewLaunchModal } from '@/components/automation/flow/ReviewLaunchModal';
 import { AutomationFlowCanvas } from '@/components/automation/flow/AutomationFlowCanvas';
+import { FlowStatusBadge } from '@/components/automation/flow/FlowValidation';
 import { Save } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -349,9 +350,22 @@ export const CRMAutomationBuilder = () => {
                 Build with Guide
               </Button>
             )}
-            <Button onClick={() => setIsReviewOpen(true)} aria-label="Review and launch">
-              Review & Launch
-            </Button>
+            <div className="flex items-center gap-2">
+              <FlowStatusBadge 
+                nodes={flowState.nodes} 
+                edges={flowState.edges} 
+                selectedAudience={{
+                  personas: selectedPersonas,
+                  segments: selectedSegments,
+                  totalContacts: selectedSegments.reduce((total, segment) => 
+                    total + (segment.customer_count || 0), 0
+                  )
+                }} 
+              />
+              <Button onClick={() => setIsReviewOpen(true)} aria-label="Review and launch">
+                Review & Launch
+              </Button>
+            </div>
           </div>
         </div>
       </header>

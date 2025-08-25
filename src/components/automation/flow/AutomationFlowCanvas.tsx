@@ -31,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
 import { AudienceSelector } from '@/components/crm/AudienceSelector';
 import { useSegmentSelector } from '@/hooks/useSegmentSelector';
-import { Play, Save, Users } from 'lucide-react';
+import { Play, Save, Users, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -99,6 +99,14 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const [isLaunchLoading, setIsLaunchLoading] = useState(false);
   const [editingNode, setEditingNode] = useState<{id: string; type: string; data: any} | null>(null);
   const [showAudienceSelector, setShowAudienceSelector] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(() => {
+    const saved = localStorage.getItem('automation.showMinimap');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('automation.showMinimap', JSON.stringify(showMinimap));
+  }, [showMinimap]);
   
   const { toast } = useToast();
 
@@ -392,93 +400,59 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             maxZoom={2}
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-            {useMemo(() => (
+            {showMinimap && useMemo(() => (
               <MiniMap
                 nodeStrokeColor="#374151"
                 nodeColor="#f3f4f6"
                 nodeBorderRadius={8}
-                maskColor="rgba(0, 0, 0, 0.1)"
+                maskColor="rgba(0, 0, 0, 0.05)"
                 position="top-left"
-                style={{ width: 256, height: 160, borderRadius: 8, left: 16, top: 16 }}
+                style={{ width: 160, height: 100, borderRadius: 8, left: 16, top: 16 }}
                 pannable={false}
                 zoomable={false}
               />
-            ), [])}
+            ), [showMinimap])}
+            
+            {/* Minimap Toggle Button */}
+            <div className="absolute top-4 left-4 z-10">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMinimap(!showMinimap)}
+                className="w-8 h-8 p-0 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+                aria-label={showMinimap ? "Hide minimap" : "Show minimap"}
+              >
+                <Map className="w-4 h-4" />
+              </Button>
+            </div>
           </ReactFlow>
         </div>
       </section>
 
-      {/* Flow Status and Actions Below Canvas */}
-      <div className="mt-4 flex flex-col items-center gap-4">
-        <FlowStatusBadge 
-          nodes={nodes} 
-          edges={edges} 
-          selectedAudience={selectedAudience} 
-        />
-        
-        
-        {/* Audience Selector Modal */}
-        {showAudienceSelector && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden">
-              <div className="p-6 border-b bg-white flex-shrink-0">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Configure Target Audience
-                </h3>
-              </div>
-              <div className="flex-1 overflow-y-auto min-h-0">
-                <AudienceSelector
-                  selectedPersonas={selectedPersonas}
-                  selectedSegments={selectedSegments}
-                  onPersonasChange={onPersonasChange || (() => {})}
-                  onSegmentsChange={onSegmentsChange || (() => {})}
-                  maxPersonas={3}
-                  maxSegments={5}
-                  onClose={() => setShowAudienceSelector(false)}
-                />
-              </div>
+      {/* Audience Selector Modal */}
+      {showAudienceSelector && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-6 border-b bg-white flex-shrink-0">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Configure Target Audience
+              </h3>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <AudienceSelector
+                selectedPersonas={selectedPersonas}
+                selectedSegments={selectedSegments}
+                onPersonasChange={onPersonasChange || (() => {})}
+                onSegmentsChange={onSegmentsChange || (() => {})}
+                maxPersonas={3}
+                maxSegments={5}
+                onClose={() => setShowAudienceSelector(false)}
+              />
             </div>
           </div>
-        )}
-        
-        {hasValidFlow && (
-          <div className="flex items-center gap-3">
-            {hasAudience && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Users className="w-4 h-4" />
-                <span>{totalAudienceContacts} contacts</span>
-              </div>
-            )}
-            
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <Button
-                      onClick={handleReviewAndLaunch}
-                      disabled={!isReadyToLaunch}
-                      className="gap-2"
-                    >
-                      <Play className="w-4 h-4" />
-                      Review & Launch
-                    </Button>
-                  </div>
-                </TooltipTrigger>
-                {!isReadyToLaunch && (
-                  <TooltipContent>
-                    <p>
-                      {!nodes.some(n => n.type === 'trigger') && "Add a trigger to continue"}
-                      {nodes.some(n => n.type === 'trigger') && !nodes.some(n => n.type === 'email' || n.type === 'sms') && "Add at least one action (email or SMS)"}
-                      {hasValidFlow && !hasAudience && "Select an audience to continue"}
-                    </p>
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Floating Toolbar */}
       <FloatingToolbar

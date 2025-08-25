@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -8,7 +8,8 @@ import {
   Clock, 
   GitBranch,
   Sparkles,
-  Plus
+  Plus,
+  X
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -27,6 +28,14 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   showAISuggestions,
   isModalOpen = false,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(() => {
+    const saved = localStorage.getItem('automation.toolbarExpanded');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('automation.toolbarExpanded', JSON.stringify(isExpanded));
+  }, [isExpanded]);
   const nodeTypes = [
     {
       type: 'trigger',
@@ -70,43 +79,66 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   }
 
   return (
-    <div className="absolute top-4 right-0 z-50 space-y-3 w-64 interactive">
-      {/* Add Node Toolbar */}
-      <Card className="border w-full">
-        <CardContent className="p-3">
-          <div className="flex items-center gap-2 mb-3">
-            <Plus className="w-4 h-4" />
-            <span className="text-sm font-medium">Add Step</span>
-          </div>
-          
-          <div className="grid grid-cols-1 gap-2">
-            {nodeTypes.map((nodeType) => {
-              const Icon = nodeType.icon;
-              return (
-                <Button
-                  key={nodeType.type}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onAddNode(nodeType.type)}
-                  className="justify-start gap-2 h-auto p-2 w-full"
-                >
-                  <Icon className={`w-4 h-4 ${nodeType.color}`} />
-                  <div className="text-left">
-                    <div className="text-sm font-medium">{nodeType.label}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {nodeType.description}
+    <div className="absolute top-4 right-4 z-50 space-y-3 interactive">
+      {!isExpanded ? (
+        // Collapsed FAB
+        <Button
+          onClick={() => setIsExpanded(true)}
+          size="sm"
+          className="rounded-full w-10 h-10 p-0 shadow-lg"
+          aria-label="Add step"
+        >
+          <Plus className="w-4 h-4" />
+        </Button>
+      ) : (
+        // Expanded Panel
+        <Card className="border w-64">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">Add Step</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(false)}
+                className="w-6 h-6 p-0"
+                aria-label="Collapse toolbar"
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-2">
+              {nodeTypes.map((nodeType) => {
+                const Icon = nodeType.icon;
+                return (
+                  <Button
+                    key={nodeType.type}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAddNode(nodeType.type)}
+                    className="justify-start gap-2 h-auto p-2 w-full"
+                  >
+                    <Icon className={`w-4 h-4 ${nodeType.color}`} />
+                    <div className="text-left">
+                      <div className="text-sm font-medium">{nodeType.label}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {nodeType.description}
+                      </div>
                     </div>
-                  </div>
-                </Button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* AI Suggestions */}
-      {selectedNodeId && (
-        <Card className="border w-full">
+      {/* AI Suggestions - only show when expanded */}
+      {isExpanded && selectedNodeId && (
+        <Card className="border w-64">
           <CardContent className="p-3">
             <Button
               variant={showAISuggestions ? "default" : "ghost"}
