@@ -153,12 +153,16 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
     return true;
   }, [nodes, edges]);
 
-  // Auto-save when flow changes
+  // Auto-save when flow changes (debounced to prevent excessive saves)
   useEffect(() => {
-    if (nodes.length > 0 || edges.length > 0) {
-      autoSave();
-      onSave?.({ nodes, edges });
-    }
+    const timeoutId = setTimeout(() => {
+      if (nodes.length > 0 || edges.length > 0) {
+        autoSave();
+        onSave?.({ nodes, edges });
+      }
+    }, 100); // 100ms debounce
+    
+    return () => clearTimeout(timeoutId);
   }, [nodes, edges, autoSave, onSave]);
 
   const handleAddNode = useCallback(
@@ -388,14 +392,18 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             maxZoom={2}
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-            <MiniMap
-              nodeStrokeColor="#374151"
-              nodeColor="#f3f4f6"
-              nodeBorderRadius={8}
-              maskColor="rgba(0, 0, 0, 0.1)"
-              position="top-left"
-              style={{ width: 256, height: 160, borderRadius: 8, left: 16, top: 16 }}
-            />
+            {useMemo(() => (
+              <MiniMap
+                nodeStrokeColor="#374151"
+                nodeColor="#f3f4f6"
+                nodeBorderRadius={8}
+                maskColor="rgba(0, 0, 0, 0.1)"
+                position="top-left"
+                style={{ width: 256, height: 160, borderRadius: 8, left: 16, top: 16 }}
+                pannable={false}
+                zoomable={false}
+              />
+            ), [])}
           </ReactFlow>
         </div>
       </section>
