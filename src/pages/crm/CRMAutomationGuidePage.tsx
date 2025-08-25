@@ -58,25 +58,56 @@ export const CRMAutomationGuidePage: React.FC = () => {
       });
       return;
     }
+
     try {
+      // Resolve tenant ID robustly
+      let tenantId = tenant?.id;
+      if (!tenantId) {
+        console.warn('No tenant found, fetching user tenant...');
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('tenant_id')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        if (userError) {
+          console.error('Failed to fetch user tenant:', userError);
+          throw new Error('Unable to determine workspace. Please try again.');
+        }
+        tenantId = userData?.tenant_id;
+      }
+
+      if (!tenantId) {
+        throw new Error('No workspace found. Please contact support.');
+      }
+
+      // Extract trigger information
       const triggerSubtype =
         config?.trigger ||
         config?.flow_data?.trigger_type ||
         config?.flow_data?.nodes?.find((n: any) => n?.type === 'trigger')?.data?.triggerType ||
         'manual';
 
-      const payload: any = {
+      // Map trigger type correctly
+      const triggerType = mapTriggerType(triggerSubtype);
+
+      // Build complete payload
+      const payload = {
         name: config?.name || 'Untitled Automation',
-        trigger_type: 'manual',
+        trigger_type: triggerType,
         trigger_conditions: {
           ...(config?.trigger_conditions ?? {}),
           subtype: triggerSubtype
         },
-        workflow_steps: config?.flow_data ?? [],
+        flow_state: config?.flow_data || null,
+        workflow_steps: config?.workflow_steps || config?.flow_data || [],
+        template_source: config?.template_key || null,
         is_active: false,
         user_id: user.id,
-        ...(tenant?.id ? { tenant_id: tenant.id } : {})
+        tenant_id: tenantId
       };
+
+      console.log('Creating automation with payload:', payload);
 
       const { data, error } = await supabase
         .from('crm_automations')
@@ -84,15 +115,33 @@ export const CRMAutomationGuidePage: React.FC = () => {
         .select('id')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
-      toast({ title: 'Blueprint ready', description: 'Opening the canvas to continue designing.' });
+      toast({ 
+        title: 'Automation created successfully', 
+        description: 'Opening the canvas to continue designing.' 
+      });
+      
       navigate(`/crm/automations/${data.id}/canvas`);
+
     } catch (err: any) {
-      console.error('Failed to create automation draft', err?.message || err, err);
+      console.error('Failed to create automation:', err);
+      
+      let errorMessage = 'Please try again.';
+      if (err?.message?.includes('row-level security')) {
+        errorMessage = 'Permission denied. Please check your workspace access.';
+      } else if (err?.message?.includes('workspace') || err?.message?.includes('tenant')) {
+        errorMessage = err.message;
+      } else if (err?.message?.includes('violates check constraint')) {
+        errorMessage = 'Invalid automation data. Please review your settings.';
+      }
+
       toast({
-        title: 'Could not create automation',
-        description: 'Please try again.',
+        title: 'Failed to create automation',
+        description: errorMessage,
         variant: 'destructive'
       });
     }
