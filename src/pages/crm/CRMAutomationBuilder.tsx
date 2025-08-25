@@ -129,11 +129,11 @@ export const CRMAutomationBuilder = () => {
       is_active: false,
       trigger_type: currentFlowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
       trigger_conditions: {},
-      workflow_steps: [],
+      workflow_steps: currentFlowState.nodes.filter(n => n.type !== 'trigger').length > 0 ? 
+        currentFlowState.nodes.filter(n => n.type !== 'trigger').map(n => ({ type: n.type, ...n.data })) : [],
+      flow_state: currentFlowState,
       user_id: user?.id,
       ...(tenantId ? { tenant_id: tenantId } : {}),
-      // Optional: include flow_state when saving
-      // flow_state: currentFlowState,
     };
 
     try {
@@ -181,11 +181,11 @@ export const CRMAutomationBuilder = () => {
       is_active: true,
       trigger_type: currentFlowState.nodes.find((n: any) => n.type === 'trigger')?.data.triggerType || 'manual',
       trigger_conditions: {},
-      workflow_steps: [],
+      workflow_steps: currentFlowState.nodes.filter(n => n.type !== 'trigger').length > 0 ? 
+        currentFlowState.nodes.filter(n => n.type !== 'trigger').map(n => ({ type: n.type, ...n.data })) : [],
+      flow_state: currentFlowState,
       user_id: user?.id,
       ...(tenantId ? { tenant_id: tenantId } : {}),
-      // Optional: include flow_state when activating
-      // flow_state: currentFlowState,
     };
 
     try {
