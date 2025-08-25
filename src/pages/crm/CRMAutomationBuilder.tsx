@@ -289,7 +289,8 @@ export const CRMAutomationBuilder = () => {
   };
 
   // Determine if we should show the guide sidebar
-  const showGuideSidebar = !automationId || flowState.nodes.length === 0;
+  // Hide sidebar when editing existing automation or when flow has nodes
+  const showGuideSidebar = !automationId ? flowState.nodes.length === 0 : false;
 
   return (
     <div className="min-h-[100dvh] flex flex-col">
