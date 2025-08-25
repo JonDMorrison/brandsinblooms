@@ -135,6 +135,14 @@ export const useAutomationFlow = (
     }
   }, [automationId, initialFlowState, setNodes, setEdges]);
 
+  // Sync with initialFlowState changes (when automation data is loaded)
+  useEffect(() => {
+    if (initialFlowState && (initialFlowState.nodes.length > 0 || initialFlowState.edges.length > 0)) {
+      setNodes(initialFlowState.nodes);
+      setEdges(initialFlowState.edges);
+    }
+  }, [initialFlowState, setNodes, setEdges]);
+
   // Auto-save periodically
   useEffect(() => {
     const interval = setInterval(autoSave, 5000); // Auto-save every 5 seconds

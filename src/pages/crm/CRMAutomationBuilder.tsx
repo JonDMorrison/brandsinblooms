@@ -15,7 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 const GuidedAutomationBuilder = lazy(() => import('@/components/automation/GuidedAutomationBuilder').then(m => ({ default: m.GuidedAutomationBuilder })));
 
 export const CRMAutomationBuilder = () => {
-  const { id: automationId } = useParams();
+  const { automationId } = useParams();
   const [automationName, setAutomationName] = useState('New Automation');
   const [isSaving, setIsSaving] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
