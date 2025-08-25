@@ -137,10 +137,15 @@ export const DashboardCard = ({
         
         <div className="flex flex-col gap-3">
           <Button 
-            onClick={primaryAction.onClick || (() => navigate('/crm/automations'))}
+            type="button"
+            onClick={primaryAction.onClick || (() => {
+              console.warn('DashboardCard: No primaryAction.onClick provided, falling back to automation wizard');
+              navigate('/crm/automations/new?mode=quick');
+            })}
             className={`w-full group rounded-xl h-12 font-medium transition-all duration-200 ${
               hasPendingAction ? 'animate-pulse-mint' : ''
             }`}
+            data-card-id={cardId}
           >
             {primaryAction.label}
             <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
