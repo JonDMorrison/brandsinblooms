@@ -10,7 +10,7 @@ import { Loader2 } from "lucide-react";
 
 const OnboardingPage = () => {
   const { user, loading } = useAuth();
-  const { isCompleted, isLoading: onboardingLoading } = useOnboardingStatus();
+  const { isCompleted, isLoading: onboardingLoading, markAsCompleted, refreshStatus } = useOnboardingStatus();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,7 +31,7 @@ const OnboardingPage = () => {
     }
   }, [user, loading, onboardingLoading, isCompleted, navigate]);
 
-  const handleOnboardingComplete = (data: any) => {
+  const handleOnboardingComplete = async (data: any) => {
     console.log('✅ OnboardingPage: Onboarding completed for user:', user?.id, 'data:', data);
     
     if (user) {
@@ -39,7 +39,14 @@ const OnboardingPage = () => {
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
       console.log('📱 OnboardingPage: Data stored in localStorage');
       
-      // Immediately navigate without delay to prevent race conditions
+      // Mark as completed immediately to prevent race conditions
+      console.log('🔄 OnboardingPage: Marking onboarding as completed');
+      markAsCompleted();
+      
+      // Force refresh the status to ensure consistency
+      await refreshStatus();
+      
+      // Navigate to dashboard
       console.log('🎯 OnboardingPage: Navigating to dashboard after completion');
       navigate('/', { replace: true });
     } else {

@@ -54,11 +54,12 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   }
 
   // Simplified redirect logic - only redirect if we're certain onboarding is incomplete
+  // Don't redirect from onboarding paths to prevent loops
   const shouldRedirectToOnboarding = user && 
     !isCompleted && 
     !onboardingError &&
     hasCheckedOnce &&
-    window.location.pathname !== '/onboarding';
+    !window.location.pathname.startsWith('/onboarding');
 
   console.log('🔍 OnboardingGuard: Decision state', {
     user: !!user,
