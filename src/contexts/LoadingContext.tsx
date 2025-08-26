@@ -40,8 +40,10 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
       const newStates = new Map(prev);
       if (state === null) {
         newStates.delete(key);
+        console.log(`🔄 LoadingContext: Cleared loading for '${key}'. Active keys:`, Array.from(newStates.keys()));
       } else {
         newStates.set(key, state);
+        console.log(`🔄 LoadingContext: Set loading for '${key}' (${state.priority}). Active keys:`, Array.from(newStates.keys()));
       }
       return newStates;
     });

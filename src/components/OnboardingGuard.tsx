@@ -18,17 +18,19 @@ const debug = (message: string, data?: any) => {
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
   
-  // Safely handle onboarding status with fallbacks
+  // Use the hook directly without try/catch to maintain hook order
   let onboardingStatus;
   try {
     onboardingStatus = useOnboardingStatus();
   } catch (error) {
-    console.warn('OnboardingGuard: OnboardingStatusContext not available, using defaults');
+    // If context is not available, provide fallback but without hook order issues
     onboardingStatus = {
       isCompleted: false,
       hasEverCompleted: false,
       isLoading: false,
-      error: null
+      error: null,
+      refreshStatus: () => Promise.resolve(),
+      markAsCompleted: () => Promise.resolve()
     };
   }
 
@@ -69,6 +71,11 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     } else {
       clearLoading('onboarding');
     }
+    
+    // Always clear onboarding loading on unmount
+    return () => {
+      clearLoading('onboarding');
+    };
   }, [shouldShowLoading, setLoading, clearLoading]);
 
   // Don't render anything while loading - let GlobalLoadingOverlay handle it
