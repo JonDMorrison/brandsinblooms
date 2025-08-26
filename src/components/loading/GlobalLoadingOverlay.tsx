@@ -8,7 +8,8 @@ export const GlobalLoadingOverlay = () => {
   console.log('🔄 GlobalLoadingOverlay render:', { 
     hasCurrentLoading: !!currentLoading,
     message: currentLoading?.message,
-    priority: currentLoading?.priority 
+    priority: currentLoading?.priority,
+    isLoading: currentLoading?.isLoading
   });
 
   if (!currentLoading) return null;

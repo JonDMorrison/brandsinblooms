@@ -11,8 +11,13 @@ interface SidebarLayoutProps {
 }
 
 export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
-  console.log('SidebarLayout rendering - CreateFlowDialog should not be referenced anywhere');
+  console.log('🔧 SidebarLayout: Rendering with children');
   const { user } = useAuth();
+
+  console.log('🔧 SidebarLayout: User state:', {
+    hasUser: !!user,
+    userId: user?.id
+  });
 
   // Defensive: ensure nothing marks the sidebar wrapper aria-hidden
   useEffect(() => {
@@ -41,8 +46,11 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   }, []);
 
   if (!user) {
+    console.log('❌ SidebarLayout: No user, showing login message');
     return <div>Please log in to access this page</div>;
   }
+
+  console.log('✅ SidebarLayout: User authenticated, rendering sidebar layout');
 
   return (
     <SidebarProvider>
@@ -59,7 +67,10 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           <TrialBanner />
           
           <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            {children}
+            <div style={{ minHeight: '200px', backgroundColor: 'rgba(255,0,0,0.1)' }}>
+              <p>DEBUG: Content should render here</p>
+              {children}
+            </div>
           </div>
         </main>
       </div>
