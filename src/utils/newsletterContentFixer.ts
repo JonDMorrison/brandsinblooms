@@ -25,8 +25,14 @@ export const fixMalformedNewsletter = (content: string): string => {
   console.log('🔧 Fixing malformed newsletter content');
   
   // Check if content is already properly formatted
-  if (content.includes('newsletter_md: |') && content.includes('blocks:') && content.includes('meta:')) {
+  if (content.includes('newsletter_md: |') && content.includes('blocks:') && content.includes('meta:') && !content.includes('blocks title:')) {
     // Content seems properly formatted, just clean up any formatting issues
+    return cleanupExistingYAML(content);
+  }
+  
+  // Check if content has newsletter structure but malformed blocks
+  if (content.includes('newsletter_md: |') && content.includes('blocks title:')) {
+    // Has newsletter structure but malformed blocks - fix the YAML
     return cleanupExistingYAML(content);
   }
   
@@ -52,6 +58,67 @@ const cleanupExistingYAML = (content: string): string => {
   
   let cleaned = content;
   
+  // Fix the specific malformed "blocks title:" pattern
+  if (cleaned.includes('blocks title:')) {
+    console.log('🔧 Fixing malformed blocks title: pattern');
+    
+    // Extract blocks section and restructure it
+    const blocksMatch = cleaned.match(/blocks title:([\s\S]*?)(?=extra_content_ideas|meta:|$)/);
+    if (blocksMatch) {
+      const blocksContent = blocksMatch[1];
+      
+      // Parse the malformed blocks structure
+      const blockEntries: any[] = [];
+      let currentBlock: any = {};
+      
+      const lines = blocksContent.split('\n');
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) continue;
+        
+        if (trimmedLine.startsWith('title:')) {
+          // Save previous block if it exists
+          if (currentBlock.title && currentBlock.body) {
+            blockEntries.push(currentBlock);
+          }
+          // Start new block
+          currentBlock = {
+            title: trimmedLine.replace('title:', '').trim().replace(/^["']|["']$/g, ''),
+          };
+        } else if (trimmedLine.startsWith('body:')) {
+          currentBlock.body = trimmedLine.replace('body:', '').trim().replace(/^["']|["']$/g, '');
+        } else if (trimmedLine.startsWith('cta:')) {
+          currentBlock.cta = trimmedLine.replace('cta:', '').trim().replace(/^["']|["']$/g, '');
+        } else if (trimmedLine.startsWith('link:')) {
+          currentBlock.link = trimmedLine.replace('link:', '').trim().replace(/^["']|["']$/g, '');
+        } else if (trimmedLine.startsWith('image_prompt:')) {
+          currentBlock.image_prompt = trimmedLine.replace('image_prompt:', '').trim().replace(/^["']|["']$/g, '');
+        } else if (trimmedLine.startsWith('alt_text:')) {
+          currentBlock.alt_text = trimmedLine.replace('alt_text:', '').trim().replace(/^["']|["']$/g, '');
+        }
+      }
+      
+      // Add the last block
+      if (currentBlock.title && currentBlock.body) {
+        blockEntries.push(currentBlock);
+      }
+      
+      // Rebuild the blocks section in proper YAML format
+      let properBlocksYAML = 'blocks:\n';
+      blockEntries.forEach(block => {
+        properBlocksYAML += `- title: "${block.title}"\n`;
+        properBlocksYAML += `  body: "${block.body.replace(/"/g, '\\"')}"\n`;
+        properBlocksYAML += `  cta: "${block.cta || 'Learn More'}"\n`;
+        properBlocksYAML += `  link: "${block.link || '#'}"\n`;
+        properBlocksYAML += `  image_prompt: "${block.image_prompt || (block.title + ' garden newsletter')}"\n`;
+        properBlocksYAML += `  alt_text: "${block.alt_text || ('Image for ' + block.title)}"\n`;
+      });
+      
+      // Replace the malformed blocks section with the proper one
+      cleaned = cleaned.replace(/blocks title:[\s\S]*?(?=extra_content_ideas|meta:|$)/, properBlocksYAML);
+    }
+  }
+  
   // Fix common YAML formatting issues
   cleaned = cleaned
     // Fix missing quotes around strings with special characters
@@ -59,10 +126,10 @@ const cleanupExistingYAML = (content: string): string => {
     .replace(/body:\s*([^"\n]+)$/gm, 'body: "$1"')
     .replace(/cta:\s*([^"\n]+)$/gm, 'cta: "$1"')
     .replace(/alt_text:\s*([^"\n]+)$/gm, 'alt_text: "$1"')
-    // Fix malformed blocks structure
+    // Fix malformed blocks structure (fallback)
     .replace(/blocks:\s*title:/g, 'blocks:\n- title:')
     // Fix missing dashes for list items
-    .replace(/^title:/gm, '- title:')
+    .replace(/^(\s*)title:/gm, '$1- title:')
     // Remove duplicate content that appears in both markdown and blocks
     .replace(/---[\s\S]*?blocks:/g, 'blocks:')
     // Clean up extra spaces and formatting
