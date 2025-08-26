@@ -29,6 +29,8 @@ interface OnboardingStatusProviderProps {
 export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderProps) => {
   const { user } = useAuth();
   
+  console.log('🔍 OnboardingStatusProvider: Rendering with user:', !!user);
+  
   // Clean up legacy global flag (once per app load)
   const [hasEverCompleted, setHasEverCompleted] = useState(false);
   
@@ -132,15 +134,17 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
   const value = {
     isCompleted,
     hasEverCompleted,
-    isLoading,
+    isLoading: isLoading || false,
     error: error?.message || null,
     refreshStatus,
     markAsCompleted
   };
+
+  console.log('🔍 OnboardingStatusProvider: Providing context value:', value);
 
   return (
     <OnboardingStatusContext.Provider value={value}>
       {children}
     </OnboardingStatusContext.Provider>
   );
-};
+}
