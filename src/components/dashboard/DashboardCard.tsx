@@ -122,7 +122,7 @@ export const DashboardCard = ({
               {statusMessage && (
                 <div className="flex items-center gap-2">
                   {getStatusIcon()}
-                  <span className={`text-xs font-bold ${getStatusColor()}`}>
+                  <span className="text-xs text-black">
                     {statusMessage}
                   </span>
                 </div>
