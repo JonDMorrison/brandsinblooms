@@ -1,21 +1,139 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, Users, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { TrendingUp, Users, Heart, MessageCircle, Share2, BarChart3, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
-const mockData = [
-  { name: 'Mon', likes: 24, comments: 8, shares: 3 },
-  { name: 'Tue', likes: 32, comments: 12, shares: 5 },
-  { name: 'Wed', likes: 18, comments: 6, shares: 2 },
-  { name: 'Thu', likes: 45, comments: 15, shares: 8 },
-  { name: 'Fri', likes: 38, comments: 11, shares: 6 },
-  { name: 'Sat', likes: 52, comments: 18, shares: 12 },
-  { name: 'Sun', likes: 41, comments: 14, shares: 9 },
-];
+const EmptyAnalyticsState = () => (
+  <div className="text-center py-12 px-6">
+    <div className="max-w-md mx-auto">
+      <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-6">
+        <BarChart3 className="w-12 h-12 text-blue-600" />
+      </div>
+      
+      <h3 className="text-2xl font-bold text-gray-900 mb-4">
+        Welcome to Analytics
+      </h3>
+      
+      <p className="text-gray-600 mb-8 leading-relaxed">
+        Your analytics dashboard is ready to track your marketing performance. 
+        Connect your social media accounts and start creating content to see your data here.
+      </p>
+      
+      <div className="space-y-3">
+        <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+          <a href="/social-accounts">
+            Connect Social Accounts
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </a>
+        </Button>
+        
+        <Button variant="outline" asChild className="w-full">
+          <a href="/content">
+            Create Content
+          </a>
+        </Button>
+      </div>
+      
+      <div className="mt-8 pt-6 border-t border-gray-200">
+        <h4 className="font-semibold text-gray-900 mb-3">What you'll see here:</h4>
+        <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-blue-500" />
+            <span>Reach & Views</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Heart className="w-4 h-4 text-red-500" />
+            <span>Engagement</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MessageCircle className="w-4 h-4 text-green-500" />
+            <span>Comments</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-purple-500" />
+            <span>Growth Trends</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 export const AnalyticsDashboard: React.FC = () => {
+  const { user } = useAuth();
+  const [hasData, setHasData] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkForAnalyticsData = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Check multiple analytics tables to see if user has any data
+        const [
+          analyticsData,
+          postPerformance,
+          hubViews,
+          analyticsEvents
+        ] = await Promise.all([
+          supabase.from('analytics_data').select('id').limit(1),
+          supabase.from('post_performance').select('id').limit(1),
+          supabase.from('hub_views').select('id').limit(1),
+          supabase.from('analytics_events').select('id').limit(1)
+        ]);
+
+        const hasAnyData = (
+          (analyticsData.data && analyticsData.data.length > 0) ||
+          (postPerformance.data && postPerformance.data.length > 0) ||
+          (hubViews.data && hubViews.data.length > 0) ||
+          (analyticsEvents.data && analyticsEvents.data.length > 0)
+        );
+
+        setHasData(hasAnyData);
+      } catch (error) {
+        console.error('Error checking for analytics data:', error);
+        setHasData(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkForAnalyticsData();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasData) {
+    return <EmptyAnalyticsState />;
+  }
+
+  // Original dashboard content for users with data
+  const mockData = [
+    { name: 'Mon', likes: 24, comments: 8, shares: 3 },
+    { name: 'Tue', likes: 32, comments: 12, shares: 5 },
+    { name: 'Wed', likes: 18, comments: 6, shares: 2 },
+    { name: 'Thu', likes: 45, comments: 15, shares: 8 },
+    { name: 'Fri', likes: 38, comments: 11, shares: 6 },
+    { name: 'Sat', likes: 52, comments: 18, shares: 12 },
+    { name: 'Sun', likes: 41, comments: 14, shares: 9 },
+  ];
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

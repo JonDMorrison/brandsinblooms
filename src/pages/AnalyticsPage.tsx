@@ -13,6 +13,9 @@ const AnalyticsPage = () => {
   const [syncing, setSyncing] = useState(false);
   const { totalViews, engagementRate, clicks, conversions, growth, loading, error, refetch } = useAnalyticsOverview(selectedPeriod);
 
+  // Check if user has any meaningful data
+  const hasData = totalViews > 0 || clicks > 0 || conversions > 0;
+
   const handleSyncAnalytics = async () => {
     try {
       setSyncing(true);
@@ -52,13 +55,15 @@ const AnalyticsPage = () => {
             Track your marketing performance and insights
           </p>
           
-          {/* Period Selector */}
-          <div className="mt-4">
-            <AnalyticsPeriodSelector 
-              selectedPeriod={selectedPeriod} 
-              onPeriodChange={setSelectedPeriod} 
-            />
-          </div>
+          {/* Period Selector - only show for users with data */}
+          {hasData && !loading && !error && (
+            <div className="mt-4">
+              <AnalyticsPeriodSelector 
+                selectedPeriod={selectedPeriod} 
+                onPeriodChange={setSelectedPeriod} 
+              />
+            </div>
+          )}
           
           {/* Quick stats */}
           {loading ? (
@@ -75,7 +80,7 @@ const AnalyticsPage = () => {
                 Error loading analytics data
               </div>
             </div>
-          ) : (
+          ) : hasData ? (
             <div className="flex items-center gap-6 mt-4">
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <TrendingUp className="w-4 h-4 text-green-600" />
@@ -98,34 +103,37 @@ const AnalyticsPage = () => {
                 <span className="font-medium">{growth >= 0 ? '+' : ''}{growth}%</span> growth
               </div>
             </div>
-          )}
+          ) : null}
         </div>
         
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={handleSyncAnalytics}
-            variant="outline"
-            disabled={syncing}
-            className="flex items-center gap-2 hover:bg-blue-50 border-blue-200 text-blue-700"
-            size="lg"
-          >
-            {syncing ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <RefreshCw className="w-5 h-5" />
-            )}
-            Sync Analytics
-          </Button>
-          
-          <Button
-            onClick={handleExportData}
-            className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-md"
-            size="lg"
-          >
-            <Download className="w-5 h-5" />
-            Export Report
-          </Button>
-        </div>
+        {/* Action buttons - only show for users with data */}
+        {hasData && !loading && !error && (
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleSyncAnalytics}
+              variant="outline"
+              disabled={syncing}
+              className="flex items-center gap-2 hover:bg-blue-50 border-blue-200 text-blue-700"
+              size="lg"
+            >
+              {syncing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-5 h-5" />
+              )}
+              Sync Analytics
+            </Button>
+            
+            <Button
+              onClick={handleExportData}
+              className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-md"
+              size="lg"
+            >
+              <Download className="w-5 h-5" />
+              Export Report
+            </Button>
+          </div>
+        )}
       </div>
       
       {/* Analytics Content */}
