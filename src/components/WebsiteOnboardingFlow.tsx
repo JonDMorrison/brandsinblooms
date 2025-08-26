@@ -59,21 +59,15 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       clearProgress();
     }
     
-    // Save the website URL immediately
+    // Advance to step 2 immediately when analyze is clicked
     if (websiteUrl.trim()) {
-      saveProgress({ websiteUrl, currentStep: 1, extractedData: {} });
+      setCurrentStep(2);
+      saveProgress({ websiteUrl, currentStep: 2, extractedData: {} });
     }
     
-    const success = await analyzeWebsite(websiteUrl);
-    if (success) {
-      // Only advance to next step on successful analysis
-      setTimeout(() => {
-        setCurrentStep(2);
-        // Save successful progress
-        saveProgress({ websiteUrl, currentStep: 2, extractedData });
-      }, 1000);
-    }
-    // If analysis fails, user stays on current step with error displayed
+    // Start analysis in the background
+    await analyzeWebsite(websiteUrl);
+    // User stays on review screen regardless of analysis success/failure
   };
 
   const handleManualEntry = () => {
@@ -169,8 +163,8 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
           <WebsiteAnalysisLoader isAnalyzing={isAnalyzing} />
           <OnboardingContentLoader isCompleting={isCompleting} />
 
-          {/* Main form - Hide when analyzing or completing */}
-          {!isAnalyzing && !isCompleting && (
+          {/* Main form - Hide only when completing or analyzing on step 1 */}
+          {!isCompleting && !(isAnalyzing && currentStep === 1) && (
             <>
               {currentStep === 1 ? (
                 <UrlInputStep

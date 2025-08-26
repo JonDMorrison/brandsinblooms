@@ -45,12 +45,10 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   // No navigation logic here - OnboardingPage handles all navigation
 
   const handleAnalyze = async () => {
-    const success = await analyzeWebsite(websiteUrl);
-    if (success) {
-      setTimeout(() => {
-        setCurrentStep(2);
-      }, 1000);
-    }
+    // Advance to step 2 immediately when analyze is clicked
+    setCurrentStep(2);
+    // Start analysis in the background
+    await analyzeWebsite(websiteUrl);
   };
 
   const handleBack = () => {
@@ -115,8 +113,8 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
           </div>
         </div>
 
-        {/* Main content - Hide when analyzing or completing */}
-        {!isAnalyzing && !isCompletingOnboarding && (
+        {/* Main content - Hide only when completing or analyzing on step 1 */}
+        {!isCompletingOnboarding && !(isAnalyzing && currentStep === 1) && (
           <div className="w-full max-w-lg">
             {currentStep === 1 ? (
               <UrlInputStep

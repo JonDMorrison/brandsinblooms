@@ -32,9 +32,6 @@ export const DataReviewStep = ({
   isCompleting,
   isAnalyzing
 }: DataReviewStepProps) => {
-  if (isAnalyzing) {
-    return null;
-  }
 
   return (
     <Card className="w-full max-w-lg mx-auto border-brand-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
