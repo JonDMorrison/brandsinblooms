@@ -19,6 +19,8 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 60_000, // 1 minute default staleTime
     },
   },
 })

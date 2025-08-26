@@ -1,9 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 interface OnboardingStatusContextType {
   isCompleted: boolean;
+  hasEverCompleted: boolean;
   isLoading: boolean;
   error: string | null;
   refreshStatus: () => Promise<void>;
@@ -26,23 +28,23 @@ interface OnboardingStatusProviderProps {
 
 export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderProps) => {
   const { user } = useAuth();
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  
+  // Sticky flag - once completed, stays completed for the session
+  const [hasEverCompleted, setHasEverCompleted] = useState(() => {
+    // Initialize from localStorage if available
+    return localStorage.getItem('onboarding-has-completed') === '1';
+  });
 
-  const checkOnboardingStatus = async () => {
-    if (!user) {
-      console.log('🔍 OnboardingStatusProvider: No user, setting incomplete');
-      setIsLoading(false);
-      setIsCompleted(false);
-      setError(null);
-      return;
-    }
+  // Fetch onboarding status with stable React Query
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['onboarding_status', user?.id],
+    queryFn: async () => {
+      if (!user) {
+        console.log('🔍 OnboardingStatusProvider: No user, setting incomplete');
+        return { isCompleted: false };
+      }
 
-    console.log('🔍 OnboardingStatusProvider: Checking status for user:', user.id);
-    
-    try {
-      setIsLoading(true);
+      console.log('🔍 OnboardingStatusProvider: Checking status for user:', user.id);
       
       // Use order and limit to get the most recent profile (handles duplicates)
       const { data: profile, error: dbError } = await supabase
@@ -55,13 +57,11 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
 
       if (dbError && dbError.code !== 'PGRST116') {
         console.error('❌ OnboardingStatusProvider: Database error:', dbError);
-        setError(dbError.message);
-        setIsCompleted(false);
+        throw new Error(dbError.message);
       } else if (!profile) {
         // No profile found - definitely not completed
         console.log('📝 OnboardingStatusProvider: No profile found');
-        setIsCompleted(false);
-        setError(null);
+        return { isCompleted: false };
       } else {
         // Consider complete if has onboarding_completed_at OR first_content_generated
         // This provides multiple completion criteria and better handles edge cases
@@ -78,45 +78,46 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
           completed
         });
         
-        setIsCompleted(completed);
-        setError(null);
+        return { isCompleted: completed };
       }
-    } catch (error: any) {
-      console.error('❌ OnboardingStatusProvider: Error in checkOnboardingStatus:', error);
-      setError(error.message || 'Failed to check onboarding status');
-      setIsCompleted(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    enabled: !!user,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 60_000, // 1 minute
+    retry: 1,
+  });
 
+  const isCompleted = data?.isCompleted ?? false;
+
+  // Update hasEverCompleted when isCompleted becomes true
   useEffect(() => {
-    // Immediate check with shorter delay
-    const timer = setTimeout(() => {
-      checkOnboardingStatus();
-    }, 50);
-
-    return () => clearTimeout(timer);
-  }, [user]);
+    if (isCompleted && !hasEverCompleted) {
+      setHasEverCompleted(true);
+      localStorage.setItem('onboarding-has-completed', '1');
+      console.log('✅ OnboardingStatusProvider: Set hasEverCompleted to true');
+    }
+  }, [isCompleted, hasEverCompleted]);
 
   // Function to force refresh the onboarding status
   const refreshStatus = async () => {
     console.log('🔄 OnboardingStatusProvider: Force refreshing status...');
-    await checkOnboardingStatus();
+    await refetch();
   };
 
   // Function to mark as completed immediately (for avoiding race conditions)
   const markAsCompleted = () => {
     console.log('✅ OnboardingStatusProvider: Marking as completed immediately');
-    setIsCompleted(true);
-    setError(null);
-    setIsLoading(false);
+    setHasEverCompleted(true);
+    localStorage.setItem('onboarding-has-completed', '1');
+    // Note: The query will update on next refetch
   };
 
   const value = {
     isCompleted,
+    hasEverCompleted,
     isLoading,
-    error,
+    error: error?.message || null,
     refreshStatus,
     markAsCompleted
   };

@@ -52,6 +52,10 @@ const OnboardingPage = () => {
       console.log('🔄 OnboardingPage: Marking onboarding as completed');
       await markAsCompleted();
       
+      // Set sticky completion flag
+      localStorage.setItem('onboarding-has-completed', '1');
+      console.log('💾 OnboardingPage: Set sticky completion flag');
+      
       // Force refresh the status to ensure consistency
       await refreshStatus();
       

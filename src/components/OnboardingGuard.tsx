@@ -17,7 +17,7 @@ const debug = (message: string, data?: any) => {
 
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { isCompleted, isLoading: onboardingLoading, error } = useOnboardingStatus();
+  const { isCompleted, hasEverCompleted, isLoading: onboardingLoading, error } = useOnboardingStatus();
   const { setLoading, clearLoading } = useLoading();
   const location = useLocation();
   const navigate = useNavigate();
@@ -77,18 +77,25 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
       return;
     }
     
-    // Only redirect if we have a user, onboarding is incomplete, and we've checked at least once
-    if (user && !isCompleted && !error && hasCheckedOnce) {
+    // Allow dashboard access to prevent bounce
+    if (location.pathname.startsWith('/dashboard')) {
+      debug('Allowing dashboard access to prevent bounce');
+      return;
+    }
+    
+    // Only redirect if we have a user, onboarding is incomplete (both flags), and we've checked at least once
+    if (user && !isCompleted && !hasEverCompleted && !error && hasCheckedOnce) {
       debug('Redirecting to onboarding', { 
         user: !!user, 
         isCompleted, 
+        hasEverCompleted,
         error, 
         hasCheckedOnce,
         pathname: location.pathname 
       });
       navigate('/onboarding', { replace: true });
     }
-  }, [user, isCompleted, error, hasCheckedOnce, authLoading, onboardingLoading, inHandoff, location.pathname, navigate]);
+  }, [user, isCompleted, hasEverCompleted, error, hasCheckedOnce, authLoading, onboardingLoading, inHandoff, location.pathname, navigate]);
 
   // Allow dashboard access during handoff even if status hasn't updated yet
   if (location.pathname === '/dashboard' && inHandoff) {
