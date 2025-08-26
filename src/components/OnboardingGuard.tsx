@@ -1,6 +1,6 @@
 
 import { ReactNode, useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLoading } from "@/contexts/LoadingContext";
@@ -9,10 +9,18 @@ interface OnboardingGuardProps {
   children: ReactNode;
 }
 
+const debug = (message: string, data?: any) => {
+  if (import.meta.env.DEV) {
+    console.log(`🔍 OnboardingGuard: ${message}`, data || '');
+  }
+};
+
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
   const { isCompleted, isLoading: onboardingLoading, error } = useOnboardingStatus();
   const { setLoading, clearLoading } = useLoading();
+  const location = useLocation();
+  const navigate = useNavigate();
   
   // Use sessionStorage to persist across navigation - this prevents loading on every route change
   const [hasCheckedOnce, setHasCheckedOnce] = useState(() => {
@@ -53,32 +61,39 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return <>{children}</>;
   }
 
-  // Simplified redirect logic - only redirect if we're certain onboarding is incomplete
-  // Don't redirect from onboarding paths to prevent loops
-  // Don't redirect if we're in the middle of completing onboarding
-  // Don't redirect if completion status check is still loading
-  const isCompleting = sessionStorage.getItem('onboarding-completing') === 'true';
-  const shouldRedirectToOnboarding = user && 
-    !isCompleted && 
-    !error &&
-    hasCheckedOnce &&
-    !isCompleting &&
-    !onboardingLoading &&
-    !window.location.pathname.startsWith('/onboarding');
+  // Reactive redirect logic using router location
+  const inHandoff = sessionStorage.getItem('onboarding-completing') === 'true';
+  
+  useEffect(() => {
+    // Don't redirect during loading states or handoff
+    if (authLoading || onboardingLoading || inHandoff) {
+      debug('Skipping redirect check', { authLoading, onboardingLoading, inHandoff });
+      return;
+    }
+    
+    // Don't redirect if already on onboarding path
+    if (location.pathname.startsWith('/onboarding')) {
+      debug('Already on onboarding path, no redirect needed');
+      return;
+    }
+    
+    // Only redirect if we have a user, onboarding is incomplete, and we've checked at least once
+    if (user && !isCompleted && !error && hasCheckedOnce) {
+      debug('Redirecting to onboarding', { 
+        user: !!user, 
+        isCompleted, 
+        error, 
+        hasCheckedOnce,
+        pathname: location.pathname 
+      });
+      navigate('/onboarding', { replace: true });
+    }
+  }, [user, isCompleted, error, hasCheckedOnce, authLoading, onboardingLoading, inHandoff, location.pathname, navigate]);
 
-  console.log('🔍 OnboardingGuard: Decision state', {
-    user: !!user,
-    isCompleted,
-    error,
-    hasCheckedOnce,
-    isCompleting,
-    onboardingLoading,
-    pathname: window.location.pathname,
-    shouldRedirect: shouldRedirectToOnboarding
-  });
-
-  if (shouldRedirectToOnboarding) {
-    return <Navigate to="/onboarding" replace />;
+  // Allow dashboard access during handoff even if status hasn't updated yet
+  if (location.pathname === '/dashboard' && inHandoff) {
+    debug('Allowing dashboard access during handoff');
+    return <>{children}</>;
   }
 
   // Default to allowing access - better user experience than blocking

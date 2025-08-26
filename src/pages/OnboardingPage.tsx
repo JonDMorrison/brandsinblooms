@@ -32,29 +32,46 @@ const OnboardingPage = () => {
   }, [user, loading, onboardingLoading, isCompleted, navigate]);
 
   const handleOnboardingComplete = async (data: any) => {
-    console.log('✅ OnboardingPage: Onboarding completed for user:', user?.id, 'data:', data);
-    
-    if (user) {
+    if (!user) {
+      console.error('❌ OnboardingPage: No user found during onboarding completion');
+      navigate('/auth', { replace: true });
+      return;
+    }
+
+    try {
+      console.log('✅ OnboardingPage: Starting completion process for user:', user.id);
+      
+      // Set handoff flag to prevent guard redirects
+      sessionStorage.setItem('onboarding-completing', 'true');
+      
       // Store the onboarding data in localStorage for the main app to pick up
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
       console.log('📱 OnboardingPage: Data stored in localStorage');
       
       // Mark as completed immediately to prevent race conditions
       console.log('🔄 OnboardingPage: Marking onboarding as completed');
-      markAsCompleted();
+      await markAsCompleted();
       
       // Force refresh the status to ensure consistency
       await refreshStatus();
       
       // Small delay to ensure state propagation
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 150));
       
-      // Navigate directly to dashboard to avoid redirect loops
+      // Navigate directly to dashboard
       console.log('🎯 OnboardingPage: Navigating to dashboard after completion');
       navigate('/dashboard', { replace: true });
-    } else {
-      console.error('❌ OnboardingPage: No user found during onboarding completion');
-      navigate('/auth', { replace: true });
+      
+      // Clear handoff flag after navigation
+      setTimeout(() => {
+        sessionStorage.removeItem('onboarding-completing');
+        console.log('🧹 OnboardingPage: Cleared completion flag');
+      }, 800);
+      
+    } catch (error) {
+      console.error('❌ OnboardingPage: Error during completion:', error);
+      sessionStorage.removeItem('onboarding-completing');
+      throw error;
     }
   };
 

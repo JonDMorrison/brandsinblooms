@@ -1,5 +1,4 @@
 
-import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { createCompanyProfileFromOnboarding, saveOnboardingResponse } from "./CompanyProfileCreator";
 
@@ -11,8 +10,6 @@ interface OnboardingCompletionData {
 }
 
 export const useOnboardingCompletion = () => {
-  const navigate = useNavigate();
-
   const completeOnboarding = async (
     extractedData: any,
     websiteUrl: string,
@@ -100,21 +97,10 @@ export const useOnboardingCompletion = () => {
         description: "🎉 Profile created! Your dashboard is ready - content is generating in the background.",
       });
       
-      console.log('🎯 Onboarding profile step completed, navigating to dashboard...');
-      
-      // Clean up completion state
-      sessionStorage.removeItem('onboarding-completing');
-      
-      // Navigate immediately to dashboard - content will load progressively
-      setTimeout(() => {
-        navigate('/dashboard', { replace: true });
-      }, 200);
+      console.log('🎯 Onboarding profile step completed, no navigation from here');
       
     } catch (error) {
       console.error('🚨 Critical error in onboarding completion:', error);
-      
-      // Clean up completion state on error
-      sessionStorage.removeItem('onboarding-completing');
       
       // Provide user-friendly error message
       const friendlyMessage = error.message?.includes('Onboarding failed:') 

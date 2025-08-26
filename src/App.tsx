@@ -1,8 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
-
-import { AuthProvider } from '@/contexts/AuthContext';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -48,8 +46,7 @@ import PublishPage from '@/pages/PublishPage';
 
 function App() {
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
         <Routes>
           {/* Public routes */}
           <Route path="/auth" element={
@@ -337,7 +334,6 @@ function App() {
         </Routes>
         <Toaster />
       </div>
-    </AuthProvider>
   );
 }
 

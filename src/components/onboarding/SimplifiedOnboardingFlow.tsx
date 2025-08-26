@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 import { UrlInputStep } from './UrlInputStep';
 import { DataReviewStep } from './DataReviewStep';
@@ -17,11 +16,9 @@ interface SimplifiedOnboardingFlowProps {
 
 export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlowProps) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [isCompletingOnboarding, setIsCompletingOnboarding] = useState(false);
-  const [completionStep, setCompletionStep] = useState<'saving' | 'generating' | 'finalizing' | 'complete'>('saving');
   
   const { 
     isAnalyzing, 
@@ -33,7 +30,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   } = useWebsiteAnalysis();
   
   const { completeOnboarding } = useOnboardingCompletion();
-  const { markAsCompleted, isCompleted: onboardingCompleted } = useOnboardingStatus();
+  const { markAsCompleted } = useOnboardingStatus();
 
   // Prevent any redirects while completing onboarding
   useEffect(() => {
@@ -45,22 +42,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
     }
   }, [isCompletingOnboarding]);
 
-  // Check if we're in the middle of completion (in case of redirect)
-  useEffect(() => {
-    const wasCompleting = sessionStorage.getItem('onboarding-completing') === 'true';
-    
-    // Only redirect if we were completing AND onboarding is actually completed now
-    if (wasCompleting && !isCompletingOnboarding && onboardingCompleted) {
-      console.log('🔄 SimplifiedOnboardingFlow: Detected completed onboarding, redirecting to dashboard...');
-      // Clean up completion state
-      sessionStorage.removeItem('onboarding-completing');
-      navigate('/dashboard', { replace: true });
-    } else if (wasCompleting && !isCompletingOnboarding && !onboardingCompleted) {
-      // We were completing but onboarding isn't complete - clear the flag and stay here
-      console.log('⚠️ SimplifiedOnboardingFlow: Was completing but onboarding not complete, clearing flag');
-      sessionStorage.removeItem('onboarding-completing');
-    }
-  }, [navigate, isCompletingOnboarding, onboardingCompleted]);
+  // No navigation logic here - OnboardingPage handles all navigation
 
   const handleAnalyze = async () => {
     const success = await analyzeWebsite(websiteUrl);
@@ -79,61 +61,43 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   };
 
   const handleComplete = async () => {
-    if (!user) {
-      
-      return;
-    }
-
+    if (!extractedData || !websiteUrl || !user) return;
+    
     try {
       setIsCompletingOnboarding(true);
-      setCompletionStep('saving');
       
-      // Enhanced completion with progress indicators
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Show saving step
+      // Prepare the data for the parent completion handler
+      const finalData = {
+        aboutBusiness: `${extractedData.businessName ? extractedData.businessName + '. ' : ''}${extractedData.aboutBusiness}${extractedData.location ? ' Located in ' + extractedData.location + '.' : ''}${extractedData.services ? ' Services: ' + extractedData.services : ''}`,
+        toneSamples: extractedData.brandVoice,
+        annualEvents: extractedData.annualEvents,
+        websiteUrl: websiteUrl
+      };
       
-      setCompletionStep('generating');
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Show generating step
+      // Clear progress
+      if (user) {
+        localStorage.removeItem(`onboarding-progress-${user.id}`);
+      }
       
-      setCompletionStep('finalizing');
-      
-      await completeOnboarding(
-        extractedData,
-        websiteUrl,
-        user.id,
-        onComplete,
-        markAsCompleted,
-        () => {} // No need to clear progress in simplified flow
-      );
-      
-      setCompletionStep('complete');
-      
+      // Call the parent completion handler - no navigation here
+      onComplete(finalData);
     } catch (error) {
-      console.error('Onboarding completion error:', error);
+      console.error('Failed to complete onboarding:', error);
       setIsCompletingOnboarding(false);
-      setCompletionStep('saving'); // Reset on error
     }
   };
 
-  const handleContinueFromSuccess = () => {
-    // Clean up completion state
-    sessionStorage.removeItem('onboarding-completing');
-    navigate('/dashboard', { replace: true });
-  };
-
-  const handleManualEntry = () => {
-    // Switch to manual entry (original OnboardingFlow)
-    navigate('/onboarding/manual');
-  };
+  // No navigation handlers - OnboardingPage manages navigation
 
   return (
     <div className="min-h-screen bg-garden-background">
-      <LandingPageHeader onLogin={() => navigate('/auth')} />
+      <LandingPageHeader onLogin={() => {}} />
       
       {/* Success/Loading Overlay */}
       <OnboardingSuccessIndicator 
         isCompleting={isCompletingOnboarding}
-        step={completionStep}
-        onContinue={handleContinueFromSuccess}
+        step="saving"
+        onContinue={() => {}}
       />
       
       {/* Analysis Loading */}
@@ -159,7 +123,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
                 websiteUrl={websiteUrl}
                 setWebsiteUrl={setWebsiteUrl}
                 onAnalyze={handleAnalyze}
-                onManualEntry={handleManualEntry}
+                onManualEntry={() => {}}
                 isAnalyzing={isAnalyzing}
                 analysisError={analysisError}
                 onResetAnalysis={resetAnalysis}
