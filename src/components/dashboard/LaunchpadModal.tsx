@@ -9,7 +9,8 @@ import {
   BarChart3, 
   Share2,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Globe
 } from "lucide-react";
 
 interface LaunchpadModalProps {
@@ -20,12 +21,19 @@ interface LaunchpadModalProps {
 
 const quickStartOptions = [
   {
+    id: 'website-setup',
+    title: 'Setup Your Website Profile',
+    description: 'Analyze your website to personalize BloomSuite',
+    icon: <Globe className="w-5 h-5" />,
+    color: 'from-blue-50 to-blue-100',
+    recommended: true
+  },
+  {
     id: 'newsletter',
     title: 'Send My First Newsletter',
     description: 'Quick email blast to your customers',
     icon: <Mail className="w-5 h-5" />,
-    color: 'from-blue-50 to-blue-100',
-    recommended: true
+    color: 'from-green-50 to-green-100'
   },
   {
     id: 'social-post',
@@ -39,13 +47,6 @@ const quickStartOptions = [
     title: 'Build an Automation',
     description: 'Create a customer journey or SMS sequence',
     icon: <Megaphone className="w-5 h-5" />,
-    color: 'from-green-50 to-green-100'
-  },
-  {
-    id: 'content-calendar',
-    title: 'Plan Content Calendar',
-    description: 'Schedule posts and campaigns ahead of time',
-    icon: <Calendar className="w-5 h-5" />,
     color: 'from-orange-50 to-orange-100'
   }
 ];

@@ -15,6 +15,7 @@ export const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [companyName, setCompanyName] = useState('');
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +46,7 @@ export const AuthPage = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !fullName) {
+    if (!email || !password || !fullName || !companyName) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -58,8 +59,9 @@ export const AuthPage = () => {
         options: {
           data: {
             full_name: fullName,
+            company_name: companyName,
           },
-          emailRedirectTo: `${window.location.origin}/onboarding`
+          emailRedirectTo: `${window.location.origin}/dashboard`
         }
       });
 
@@ -198,6 +200,23 @@ export const AuthPage = () => {
                         placeholder="Enter your full name"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
+                        className="pl-10"
+                        disabled={loading}
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="company-name">Company Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="company-name"
+                        type="text"
+                        placeholder="Enter your company name"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
                         className="pl-10"
                         disabled={loading}
                         required

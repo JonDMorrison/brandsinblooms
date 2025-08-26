@@ -105,22 +105,16 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
       return;
     }
     
-    // Only redirect if we have a user, onboarding is incomplete (both flags), and we've checked at least once
-    // Allow dashboard access ONLY if user has completed onboarding (either flag) or is in handoff
-    const shouldAllowAccess = isCompleted || hasEverCompleted || inHandoff;
-    
-    if (user && !shouldAllowAccess && !error && hasCheckedOnce && !location.pathname.startsWith('/onboarding')) {
-      debug('Redirecting to onboarding', { 
-        user: !!user, 
-        isCompleted, 
-        hasEverCompleted,
-        shouldAllowAccess,
-        error, 
-        hasCheckedOnce,
-        pathname: location.pathname 
-      });
-      navigate('/onboarding', { replace: true });
-    }
+    // Allow access to dashboard for all authenticated users
+    // The dashboard will show setup wizard if onboarding is incomplete
+    debug('Allowing dashboard access', { 
+      user: !!user, 
+      isCompleted, 
+      hasEverCompleted,
+      error, 
+      hasCheckedOnce,
+      pathname: location.pathname 
+    });
   }, [user, isCompleted, hasEverCompleted, error, hasCheckedOnce, authLoading, onboardingLoading, inHandoff, location.pathname, navigate]);
 
   // Allow dashboard access during handoff even if status hasn't updated yet

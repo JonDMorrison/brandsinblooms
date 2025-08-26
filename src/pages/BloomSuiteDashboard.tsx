@@ -23,6 +23,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
+import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
 
 export const BloomSuiteDashboard = () => {
   const navigate = useNavigate();
@@ -33,17 +34,22 @@ export const BloomSuiteDashboard = () => {
   const [showPostComposer, setShowPostComposer] = useState(false);
   const [showQuickTour, setShowQuickTour] = useState(false);
   const [showCreateFlow, setShowCreateFlow] = useState(false);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
   
   const { data: socialConnections = [], isLoading: loadingConnections } = useConnectedAccounts();
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
 
-  // Safety check: redirect users who shouldn't be on dashboard
+  // Show setup wizard for new users
   useEffect(() => {
     if (user && !onboardingLoading && !isCompleted && !hasEverCompleted) {
-      console.log('🚨 BloomSuiteDashboard: User has not completed onboarding, redirecting');
-      navigate('/onboarding', { replace: true });
+      // Show setup wizard instead of redirecting
+      const hasSeenWizard = localStorage.getItem('setupWizardShown');
+      if (!hasSeenWizard) {
+        setShowSetupWizard(true);
+        localStorage.setItem('setupWizardShown', 'true');
+      }
     }
-  }, [user, onboardingLoading, isCompleted, hasEverCompleted, navigate]);
+  }, [user, onboardingLoading, isCompleted, hasEverCompleted]);
 
   // Check if user should see the quick start tour
   useEffect(() => {
@@ -73,6 +79,9 @@ export const BloomSuiteDashboard = () => {
 
   const handleSelectAction = (action: string) => {
     switch (action) {
+      case 'website-setup':
+        setShowSetupWizard(true);
+        break;
       case 'newsletter':
         navigate('/crm/campaigns/new?type=newsletter');
         break;
@@ -235,6 +244,18 @@ export const BloomSuiteDashboard = () => {
             Your complete marketing command center
           </p>
           
+          {!isCompleted && !hasEverCompleted && (
+            <div className="mb-6">
+              <Button 
+                onClick={() => setShowSetupWizard(true)}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Complete Your Setup
+              </Button>
+            </div>
+          )}
+          
         </div>
 
         {/* Dashboard Cards Grid */}
@@ -302,6 +323,11 @@ export const BloomSuiteDashboard = () => {
       />
 
       <CreateFlowDialog open={showCreateFlow} onOpenChange={setShowCreateFlow} />
+      
+      <DashboardSetupWizard 
+        isOpen={showSetupWizard}
+        onClose={() => setShowSetupWizard(false)}
+      />
     </div>
   );
 };
