@@ -61,8 +61,16 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return <>{children}</>;
   }
 
-  // Reactive redirect logic using router location
+  // Clean up stale handoff flags and reactive redirect logic
   const inHandoff = sessionStorage.getItem('onboarding-completing') === 'true';
+  
+  // Clean up stale handoff flags
+  useEffect(() => {
+    if (user && (isCompleted || hasEverCompleted) && inHandoff) {
+      debug('Cleaning up stale handoff flag');
+      sessionStorage.removeItem('onboarding-completing');
+    }
+  }, [user, isCompleted, hasEverCompleted, inHandoff]);
   
   useEffect(() => {
     // Don't redirect during loading states or handoff

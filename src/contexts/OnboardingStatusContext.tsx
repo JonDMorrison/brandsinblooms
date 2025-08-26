@@ -29,10 +29,19 @@ interface OnboardingStatusProviderProps {
 export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderProps) => {
   const { user } = useAuth();
   
-  // Sticky flag - once completed, stays completed for the session
+  // Clean up legacy global flag and initialize user-specific flag
   const [hasEverCompleted, setHasEverCompleted] = useState(() => {
-    // Initialize from localStorage if available
-    return localStorage.getItem('onboarding-has-completed') === '1';
+    // Clean up legacy global flag
+    const legacyFlag = localStorage.getItem('onboarding-has-completed');
+    if (legacyFlag) {
+      localStorage.removeItem('onboarding-has-completed');
+    }
+    
+    // Initialize from user-specific localStorage if available
+    if (user) {
+      return localStorage.getItem(`onboarding-has-completed:${user.id}`) === '1';
+    }
+    return false;
   });
 
   // Fetch onboarding status with stable React Query
@@ -92,12 +101,12 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
 
   // Update hasEverCompleted when isCompleted becomes true
   useEffect(() => {
-    if (isCompleted && !hasEverCompleted) {
+    if (user && isCompleted && !hasEverCompleted) {
       setHasEverCompleted(true);
-      localStorage.setItem('onboarding-has-completed', '1');
-      console.log('✅ OnboardingStatusProvider: Set hasEverCompleted to true');
+      localStorage.setItem(`onboarding-has-completed:${user.id}`, '1');
+      console.log('✅ OnboardingStatusProvider: Set hasEverCompleted to true for user:', user.id);
     }
-  }, [isCompleted, hasEverCompleted]);
+  }, [isCompleted, hasEverCompleted, user]);
 
   // Function to force refresh the onboarding status
   const refreshStatus = async () => {
@@ -107,10 +116,12 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
 
   // Function to mark as completed immediately (for avoiding race conditions)
   const markAsCompleted = () => {
-    console.log('✅ OnboardingStatusProvider: Marking as completed immediately');
-    setHasEverCompleted(true);
-    localStorage.setItem('onboarding-has-completed', '1');
-    // Note: The query will update on next refetch
+    if (user) {
+      console.log('✅ OnboardingStatusProvider: Marking as completed immediately for user:', user.id);
+      setHasEverCompleted(true);
+      localStorage.setItem(`onboarding-has-completed:${user.id}`, '1');
+      // Note: The query will update on next refetch
+    }
   };
 
   const value = {

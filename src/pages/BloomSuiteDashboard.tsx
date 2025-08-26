@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { LaunchpadModal } from "@/components/dashboard/LaunchpadModal";
 import { NewsletterTemplateDrawer } from "@/components/dashboard/NewsletterTemplateDrawer";
@@ -23,6 +26,8 @@ import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 
 export const BloomSuiteDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { isCompleted, hasEverCompleted, isLoading: onboardingLoading } = useOnboardingStatus();
   const [showLaunchpad, setShowLaunchpad] = useState(false);
   const [showNewsletterDrawer, setShowNewsletterDrawer] = useState(false);
   const [showPostComposer, setShowPostComposer] = useState(false);
@@ -31,6 +36,26 @@ export const BloomSuiteDashboard = () => {
   
   const { data: socialConnections = [], isLoading: loadingConnections } = useConnectedAccounts();
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
+
+  // Safety check: redirect users who shouldn't be on dashboard
+  useEffect(() => {
+    if (user && !onboardingLoading && !isCompleted && !hasEverCompleted) {
+      console.log('🚨 BloomSuiteDashboard: User has not completed onboarding, redirecting');
+      navigate('/onboarding', { replace: true });
+    }
+  }, [user, onboardingLoading, isCompleted, hasEverCompleted, navigate]);
+
+  // Show loading while checking onboarding status
+  if (onboardingLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-gray-50/30">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-primary font-medium">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Check if user should see the quick start tour
   useEffect(() => {
