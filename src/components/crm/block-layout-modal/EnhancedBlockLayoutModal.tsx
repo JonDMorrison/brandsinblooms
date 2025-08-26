@@ -26,15 +26,6 @@ const layoutOptions = [
     isNew: true,
     previewType: 'newsletter-header' as const
   },
-  {
-    id: 'quote-featured' as LayoutType,
-    title: 'Featured Quote',
-    description: 'Elegant quote block with author attribution',
-    category: 'Newsletter',
-    icon: <Quote className="h-4 w-4 text-muted-foreground" />,
-    isNew: true,
-    previewType: 'quote-featured' as const
-  },
 
   // Header Layouts
   {
