@@ -7,6 +7,7 @@ import { TrendingUp, Users, Heart, MessageCircle, Share2, BarChart3, ArrowRight 
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Link } from 'react-router-dom';
 
 const EmptyAnalyticsState = () => (
   <div className="text-center py-12 px-6">
@@ -26,16 +27,16 @@ const EmptyAnalyticsState = () => (
       
       <div className="space-y-3">
         <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-          <a href="/social-accounts">
+          <Link to="/social-accounts">
             Connect Social Accounts
             <ArrowRight className="w-4 h-4 ml-2" />
-          </a>
+          </Link>
         </Button>
         
         <Button variant="outline" asChild className="w-full">
-          <a href="/content">
+          <Link to="/content">
             Create Content
-          </a>
+          </Link>
         </Button>
       </div>
       

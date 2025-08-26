@@ -110,8 +110,8 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
       
       
       
-      // Navigate to the app - OnboardingGuard will now allow access
-      navigate('/app');
+      // Navigate to the dashboard - OnboardingGuard will now allow access
+      navigate('/dashboard', { replace: true });
       
     } catch (error) {
       // Error completing onboarding
