@@ -32,3 +32,12 @@ verify_jwt = false
 
 [functions.domain-connect-callback]
 verify_jwt = false
+
+[functions.analyze-website]
+verify_jwt = false
+
+[functions.generate-company-profile]
+verify_jwt = false
+
+[functions.generate-weekly-themes]
+verify_jwt = false

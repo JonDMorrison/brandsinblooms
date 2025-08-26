@@ -1,6 +1,6 @@
 
-// Removed sonner import - using global toast replacement
 import { useNavigate } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 import { createCompanyProfileFromOnboarding, saveOnboardingResponse } from "./CompanyProfileCreator";
 
 interface OnboardingCompletionData {
@@ -44,7 +44,11 @@ export const useOnboardingCompletion = () => {
         markAsCompleted();
       } catch (saveError) {
         console.error('❌ Failed to save onboarding response:', saveError);
-        toast.error("Failed to save onboarding data. Please try again.");
+        toast({
+          title: "Error",
+          description: "Failed to save onboarding data. Please try again.",
+          variant: "destructive",
+        });
         throw saveError;
       }
       
@@ -55,7 +59,10 @@ export const useOnboardingCompletion = () => {
       createCompanyProfileFromOnboarding(finalData, userId)
         .then(() => {
           console.log('✅ Background company profile creation completed successfully');
-          toast.success("🎉 Your content library is ready! All posts have been generated.");
+          toast({
+            title: "Success",
+            description: "🎉 Your content library is ready! All posts have been generated.",
+          });
         })
         .catch((profileError) => {
           console.error('❌ Background company profile creation failed:', profileError);
@@ -72,7 +79,11 @@ export const useOnboardingCompletion = () => {
             errorMessage += "Some content may not be available.";
           }
           
-          toast.error(errorMessage + " You can retry from the dashboard.");
+          toast({
+            title: "Error",
+            description: errorMessage + " You can retry from the dashboard.",
+            variant: "destructive",
+          });
         });
       
       // Store the onboarding data in localStorage as backup
@@ -84,7 +95,10 @@ export const useOnboardingCompletion = () => {
       // Call the onComplete callback with the data
       onComplete(finalData);
       
-      toast.success("🎉 Profile created! Your dashboard is ready - content is generating in the background.");
+      toast({
+        title: "Success",
+        description: "🎉 Profile created! Your dashboard is ready - content is generating in the background.",
+      });
       
       console.log('🎯 Onboarding profile step completed, navigating to dashboard...');
       
@@ -101,7 +115,11 @@ export const useOnboardingCompletion = () => {
         ? error.message.replace('Onboarding failed: ', '')
         : 'An unexpected error occurred during setup';
         
-      toast.error(`Setup failed: ${friendlyMessage}. Please try again.`);
+      toast({
+        title: "Setup Failed",
+        description: `Setup failed: ${friendlyMessage}. Please try again.`,
+        variant: "destructive",
+      });
       throw error;
     }
   };

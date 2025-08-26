@@ -179,6 +179,7 @@ export const UrlInputStep = ({
         <div className="text-xs text-gray-500 text-center space-y-1">
           <p>Having trouble? Try entering your full website URL including "https://"</p>
           <p>Example: https://www.yoursite.com</p>
+          <p className="text-brand-green font-medium">🔒 Your data is processed securely and never stored</p>
         </div>
       </CardContent>
     </Card>

@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-// Removed sonner import - using global toast replacement
+import { toast } from "@/hooks/use-toast";
 
 interface ExtractedData {
   businessName: string;
@@ -134,7 +134,11 @@ export const useWebsiteAnalysis = () => {
         
         setExtractedData(data.extractedData);
         
-        // Website analyzed successfully - removing toast to prevent ReferenceError
+        // Website analyzed successfully - show success message
+        toast({
+          title: "Success",
+          description: "Website analyzed successfully!",
+        });
         return true;
       } else {
         console.warn('7. No extracted data received');
