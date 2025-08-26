@@ -56,6 +56,7 @@ export const DashboardContent = ({
   const isDevelopment = import.meta.env.DEV;
 
   console.log('🔍 DashboardContent: Rendering with user:', user?.id, 'tenant:', tenant?.id || 'none', 'isDevelopment:', isDevelopment);
+  console.log('🔍 DashboardContent: Loading states - user:', !!user, 'tenantLoading:', tenantLoading, 'loading:', loading);
 
   const fetchCampaignData = async () => {
     if (!user) {

@@ -71,9 +71,7 @@ function App() {
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <SidebarLayout>
-                <DataProviderWrapper>
-                  <BloomSuiteDashboard />
-                </DataProviderWrapper>
+                <BloomSuiteDashboard />
               </SidebarLayout>
             </ProtectedRoute>
           } />

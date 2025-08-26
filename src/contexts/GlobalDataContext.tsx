@@ -86,6 +86,12 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
   
+  console.log('🌍 GlobalDataProvider: Initializing with', {
+    hasUser: !!user,
+    tenantLoading,
+    tenantId: tenant?.id
+  });
+  
   // Core data state
   const [cachedData, setCachedData] = useState<CachedData | null>(null);
   const [loadingStates, setLoadingStates] = useState<LoadingStates>({

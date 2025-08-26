@@ -32,6 +32,12 @@ export const BloomSuiteDashboard = () => {
   const { data: socialConnections = [], isLoading: loadingConnections } = useConnectedAccounts();
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
 
+  console.log('🏠 BloomSuiteDashboard: Rendering dashboard with loading states:', {
+    loadingConnections,
+    loadingTwilio,
+    socialConnections: socialConnections.length
+  });
+
   // Check if user should see the quick start tour
   useEffect(() => {
     const tourDone = localStorage.getItem('dashboardTourDone');
