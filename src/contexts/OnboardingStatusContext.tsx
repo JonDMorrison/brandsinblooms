@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -106,39 +106,40 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
 
   const isCompleted = data?.isCompleted ?? false;
 
-  // Update hasEverCompleted when isCompleted becomes true
+  // Update hasEverCompleted when isCompleted becomes true (prevent infinite loop with dependency check)
   useEffect(() => {
     if (user && isCompleted && !hasEverCompleted) {
       setHasEverCompleted(true);
       localStorage.setItem(`onboarding-has-completed:${user.id}`, '1');
       console.log('✅ OnboardingStatusProvider: Set hasEverCompleted to true for user:', user.id);
     }
-  }, [isCompleted, hasEverCompleted, user]);
+  }, [isCompleted, user]); // Remove hasEverCompleted from deps to prevent infinite loop
 
-  // Function to force refresh the onboarding status
-  const refreshStatus = async () => {
+  // Memoized functions to prevent re-renders
+  const refreshStatus = useCallback(async () => {
     console.log('🔄 OnboardingStatusProvider: Force refreshing status...');
     await refetch();
-  };
+  }, [refetch]);
 
   // Function to mark as completed immediately (for avoiding race conditions)
-  const markAsCompleted = () => {
+  const markAsCompleted = useCallback(() => {
     if (user) {
       console.log('✅ OnboardingStatusProvider: Marking as completed immediately for user:', user.id);
       setHasEverCompleted(true);
       localStorage.setItem(`onboarding-has-completed:${user.id}`, '1');
       // Note: The query will update on next refetch
     }
-  };
+  }, [user]);
 
-  const value = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     isCompleted,
     hasEverCompleted,
     isLoading: isLoading || false,
     error: error?.message || null,
     refreshStatus,
     markAsCompleted
-  };
+  }), [isCompleted, hasEverCompleted, isLoading, error, refreshStatus, markAsCompleted]);
 
   console.log('🔍 OnboardingStatusProvider: Providing context value:', value);
 
