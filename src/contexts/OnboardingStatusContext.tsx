@@ -6,13 +6,14 @@ import { useQuery } from '@tanstack/react-query';
 interface OnboardingStatusContextType {
   isCompleted: boolean;
   hasEverCompleted: boolean;
+  hasCheckedOnce: boolean;
   isLoading: boolean;
   error: string | null;
   refreshStatus: () => Promise<void>;
-  markAsCompleted: () => void;
+  markAsCompleted: (payload?: { company_name?: string }) => Promise<void>;
 }
 
-const OnboardingStatusContext = createContext<OnboardingStatusContextType | undefined>(undefined);
+export const OnboardingStatusContext = createContext<OnboardingStatusContextType | undefined>(undefined);
 
 export const useOnboardingStatus = () => {
   const context = useContext(OnboardingStatusContext);
@@ -31,8 +32,9 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
   
   console.log('🔍 OnboardingStatusProvider: Rendering with user:', !!user);
   
-  // Clean up legacy global flag (once per app load)
+  // State management for onboarding status
   const [hasEverCompleted, setHasEverCompleted] = useState(false);
+  const [hasCheckedOnce, setHasCheckedOnce] = useState(false);
   
   // Initialize user-specific flag when user becomes available
   useEffect(() => {
@@ -104,6 +106,13 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
     retry: 1,
   });
 
+  // Track when we've completed our first check
+  useEffect(() => {
+    if (!isLoading && !hasCheckedOnce) {
+      setHasCheckedOnce(true);
+    }
+  }, [isLoading, hasCheckedOnce]);
+
   const isCompleted = data?.isCompleted ?? false;
 
   // Update hasEverCompleted when isCompleted becomes true
@@ -121,19 +130,43 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
     await refetch();
   };
 
-  // Function to mark as completed immediately (for avoiding race conditions)
-  const markAsCompleted = () => {
-    if (user) {
-      console.log('✅ OnboardingStatusProvider: Marking as completed immediately for user:', user.id);
+  // Function to mark as completed - writes to DB and sets localStorage
+  const markAsCompleted = async (payload?: { company_name?: string }) => {
+    if (!user) return;
+
+    console.log('✅ OnboardingStatusProvider: Marking as completed for user:', user.id);
+    
+    try {
+      // Write to database first
+      const { error: updateError } = await supabase
+        .from('company_profiles')
+        .upsert({
+          user_id: user.id,
+          onboarding_completed_at: new Date().toISOString(),
+          ...(payload?.company_name && { company_name: payload.company_name }),
+          updated_at: new Date().toISOString()
+        });
+
+      if (updateError) {
+        console.error('❌ Failed to update database:', updateError);
+        throw updateError;
+      }
+
+      // Set sticky completion flag after successful DB write
       setHasEverCompleted(true);
       localStorage.setItem(`onboarding-has-completed:${user.id}`, '1');
-      // Note: The query will update on next refetch
+      
+      console.log('✅ OnboardingStatusProvider: Successfully marked as completed');
+    } catch (error) {
+      console.error('❌ OnboardingStatusProvider: Failed to mark as completed:', error);
+      throw error;
     }
   };
 
   const value = {
     isCompleted,
     hasEverCompleted,
+    hasCheckedOnce,
     isLoading: isLoading || false,
     error: error?.message || null,
     refreshStatus,

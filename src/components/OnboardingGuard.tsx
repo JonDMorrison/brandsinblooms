@@ -1,7 +1,7 @@
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useContext } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
+import { OnboardingStatusContext } from "@/contexts/OnboardingStatusContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLoading } from "@/contexts/LoadingContext";
 
@@ -17,46 +17,36 @@ const debug = (message: string, data?: any) => {
 
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
-  
-  // Safely handle onboarding status with fallbacks
-  let onboardingStatus;
-  try {
-    onboardingStatus = useOnboardingStatus();
-  } catch (error) {
-    console.warn('OnboardingGuard: OnboardingStatusContext not available, using defaults');
-    onboardingStatus = {
-      isCompleted: false,
-      hasEverCompleted: false,
-      isLoading: false,
-      error: null
-    };
-  }
-
-  const { setLoading, clearLoading } = useLoading();
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Safely extract values with fallbacks
-  const isCompleted = onboardingStatus?.isCompleted ?? false;
-  const hasEverCompleted = onboardingStatus?.hasEverCompleted ?? false;
-  const onboardingLoading = onboardingStatus?.isLoading ?? false;
-  const error = onboardingStatus?.error ?? null;
+  const { setLoading, clearLoading } = useLoading();
   
-  // Use sessionStorage to persist across navigation - this prevents loading on every route change
-  const [hasCheckedOnce, setHasCheckedOnce] = useState(() => {
+  // Use context directly with fallbacks if not available
+  const onboardingContext = useContext(OnboardingStatusContext);
+  const isCompleted = (onboardingContext as any)?.isCompleted ?? false;
+  const hasEverCompleted = (onboardingContext as any)?.hasEverCompleted ?? false;
+  const hasCheckedOnce = (onboardingContext as any)?.hasCheckedOnce ?? false;
+  const onboardingLoading = (onboardingContext as any)?.isLoading ?? false;
+  const error = (onboardingContext as any)?.error ?? null;
+  
+  // Check handoff state from sessionStorage
+  const inHandoff = sessionStorage.getItem('onboarding-completing') === 'true';
+  
+  // Use sessionStorage to persist guard state
+  const [localHasCheckedOnce, setLocalHasCheckedOnce] = useState(() => {
     return sessionStorage.getItem('onboarding-checked') === 'true';
   });
 
   // Track when initial checks are done
   useEffect(() => {
-    if (!authLoading && !onboardingLoading && !hasCheckedOnce) {
-      setHasCheckedOnce(true);
+    if (!authLoading && !onboardingLoading && hasCheckedOnce && !localHasCheckedOnce) {
+      setLocalHasCheckedOnce(true);
       sessionStorage.setItem('onboarding-checked', 'true');
     }
-  }, [authLoading, onboardingLoading, hasCheckedOnce]);
+  }, [authLoading, onboardingLoading, hasCheckedOnce, localHasCheckedOnce]);
 
-  // Only show loading during the very first auth/onboarding check
-  const shouldShowLoading = authLoading || (onboardingLoading && !hasCheckedOnce && !error);
+  // Only show loading during the very first check
+  const shouldShowLoading = authLoading || (onboardingLoading && !localHasCheckedOnce && !error);
 
   // Manage onboarding loading state in global context
   useEffect(() => {
@@ -81,9 +71,6 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return <>{children}</>;
   }
 
-  // Clean up stale handoff flags and reactive redirect logic
-  const inHandoff = sessionStorage.getItem('onboarding-completing') === 'true';
-  
   // Clean up stale handoff flags
   useEffect(() => {
     if (user && (isCompleted || hasEverCompleted) && inHandoff) {
@@ -92,43 +79,55 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     }
   }, [user, isCompleted, hasEverCompleted, inHandoff]);
   
+  // Redirect logic with strict conditions
   useEffect(() => {
-    // Don't redirect during loading states or handoff
-    if (authLoading || onboardingLoading || inHandoff) {
-      debug('Skipping redirect check', { authLoading, onboardingLoading, inHandoff });
-      return;
-    }
+    // Must have all conditions true to redirect:
+    // - Not loading (auth or onboarding)
+    // - Has checked at least once (prevents premature redirects)
+    // - Not in handoff (prevents redirect during completion flow)
+    // - Not completed and never completed (both must be false)
+    // - Not already on onboarding path
+    const shouldRedirect = (
+      !authLoading &&
+      !onboardingLoading &&
+      hasCheckedOnce &&
+      !inHandoff &&
+      !isCompleted &&
+      !hasEverCompleted &&
+      location.pathname !== '/onboarding'
+    );
     
-    // Don't redirect if already on onboarding path
-    if (location.pathname.startsWith('/onboarding')) {
-      debug('Already on onboarding path, no redirect needed');
-      return;
-    }
-    
-    // Only redirect if we have a user, onboarding is incomplete (both flags), and we've checked at least once
-    // Allow dashboard access ONLY if user has completed onboarding (either flag) or is in handoff
-    const shouldAllowAccess = isCompleted || hasEverCompleted || inHandoff;
-    
-    if (user && !shouldAllowAccess && !error && hasCheckedOnce && !location.pathname.startsWith('/onboarding')) {
+    if (shouldRedirect && user) {
       debug('Redirecting to onboarding', { 
         user: !!user, 
         isCompleted, 
         hasEverCompleted,
-        shouldAllowAccess,
-        error, 
         hasCheckedOnce,
+        inHandoff,
+        authLoading,
+        onboardingLoading,
         pathname: location.pathname 
       });
       navigate('/onboarding', { replace: true });
     }
-  }, [user, isCompleted, hasEverCompleted, error, hasCheckedOnce, authLoading, onboardingLoading, inHandoff, location.pathname, navigate]);
+  }, [
+    user, 
+    isCompleted, 
+    hasEverCompleted, 
+    hasCheckedOnce, 
+    inHandoff,
+    authLoading, 
+    onboardingLoading, 
+    location.pathname, 
+    navigate
+  ]);
 
-  // Allow dashboard access during handoff even if status hasn't updated yet
-  if (location.pathname === '/dashboard' && inHandoff) {
+  // Allow dashboard access during handoff
+  if (location.pathname.startsWith('/dashboard') && inHandoff) {
     debug('Allowing dashboard access during handoff');
     return <>{children}</>;
   }
 
-  // Default to allowing access - better user experience than blocking
+  // Default to allowing access
   return <>{children}</>;
 };

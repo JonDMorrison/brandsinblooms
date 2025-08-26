@@ -48,9 +48,11 @@ const OnboardingPage = () => {
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
       console.log('📱 OnboardingPage: Data stored in localStorage');
       
-      // Mark as completed immediately to prevent race conditions
+      // Mark as completed with company name from data
       console.log('🔄 OnboardingPage: Marking onboarding as completed');
-      await markAsCompleted();
+      await markAsCompleted({ 
+        company_name: data.companyName || data.businessName || 'My Company' 
+      });
       
       // Set user-specific sticky completion flag
       localStorage.setItem(`onboarding-has-completed:${user.id}`, '1');

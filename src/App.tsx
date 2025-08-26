@@ -43,7 +43,8 @@ import ProfilePage from '@/pages/ProfilePage';
 import IntegrationsPage from '@/pages/IntegrationsPage';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
-import PublishPage from '@/pages/PublishPage';
+import { OnboardingPage } from '@/pages/OnboardingPage';
+import { OnboardingHealth } from '@/pages/dev/OnboardingHealth';
 
 function App() {
   return (
@@ -328,6 +329,15 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
+          
+          {/* Dev-only routes */}
+          {import.meta.env.DEV && (
+            <Route path="/dev/onboarding-health" element={
+              <ProtectedRoute>
+                <OnboardingHealth />
+              </ProtectedRoute>
+            } />
+          )}
           
           {/* Redirect authenticated users to dashboard, unauthenticated to auth */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

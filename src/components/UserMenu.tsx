@@ -38,6 +38,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signOutCompletely } from "@/integrations/supabase/client";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { isSuperAdmin } from "@/utils/adminUtils";
+import { clearOnboardingState } from "@/utils/onboardingCleanup";
 
 
 export const UserMenu = () => {
@@ -53,12 +54,16 @@ export const UserMenu = () => {
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
-      // Sign out process started
+      // Clear onboarding state before sign out
+      if (user) {
+        clearOnboardingState(user.id);
+      }
+      
+      // Sign out process
       await signOutCompletely();
       
     } catch (error) {
-      // Sign out error handled
-      
+      console.error('Sign out error:', error);
     } finally {
       setIsSigningOut(false);
     }
