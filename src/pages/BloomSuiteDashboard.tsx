@@ -45,6 +45,17 @@ export const BloomSuiteDashboard = () => {
     }
   }, [user, onboardingLoading, isCompleted, hasEverCompleted, navigate]);
 
+  // Check if user should see the quick start tour
+  useEffect(() => {
+    const tourDone = localStorage.getItem('dashboardTourDone');
+    if (!tourDone && !showQuickTour) {
+      // Show tour after a brief delay to let the page load
+      setTimeout(() => {
+        setShowQuickTour(true);
+      }, 1000);
+    }
+  }, [showQuickTour]);
+
   // Show loading while checking onboarding status
   if (onboardingLoading) {
     return (
@@ -56,17 +67,6 @@ export const BloomSuiteDashboard = () => {
       </div>
     );
   }
-
-  // Check if user should see the quick start tour
-  useEffect(() => {
-    const tourDone = localStorage.getItem('dashboardTourDone');
-    if (!tourDone && !showQuickTour) {
-      // Show tour after a brief delay to let the page load
-      setTimeout(() => {
-        setShowQuickTour(true);
-      }, 1000);
-    }
-  }, [showQuickTour]);
   
   const socialStatus = getConnectionStatus(socialConnections);
   const twilioStatus = getTwilioStatus(twilioData?.isSetup || false);
