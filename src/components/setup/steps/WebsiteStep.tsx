@@ -52,20 +52,15 @@ export const WebsiteStep = ({ onNext }: WebsiteStepProps) => {
       setAnalysisStatus('Analyzing your site in the background...');
       
       // Call the analyze-website edge function
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/analyze-website`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
+      const { error } = await supabase.functions.invoke('analyze-website', {
+        body: { 
           url,
           workspaceId: user?.id 
-        }),
+        },
       });
       
-      if (!response.ok) {
-        throw new Error('Analysis failed');
+      if (error) {
+        throw error;
       }
       
       setAnalysisStatus('✅ Site analysis started! This won\'t slow you down.');
