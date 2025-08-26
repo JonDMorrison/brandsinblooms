@@ -68,8 +68,11 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           
           <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div style={{ minHeight: '200px', backgroundColor: 'rgba(255,0,0,0.1)' }}>
-              <p>DEBUG: Content should render here</p>
-              {children}
+              <p style={{ color: 'red', fontSize: '18px', fontWeight: 'bold' }}>DEBUG: SidebarLayout content wrapper</p>
+              <div style={{ minHeight: '200px', backgroundColor: 'rgba(255,0,0,0.1)' }}>
+                <p>DEBUG: Content should render here</p>
+                {children}
+              </div>
             </div>
           </div>
         </main>
