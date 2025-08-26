@@ -188,6 +188,7 @@ const AppSidebar: React.FC = () => {
           />
           {!isCollapsed && <span>BloomSuite</span>}
         </NavLink>
+        <SidebarTrigger className="ml-auto" />
       </SidebarHeader>
       
       <SidebarContent>

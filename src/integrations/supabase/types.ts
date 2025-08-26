@@ -638,7 +638,6 @@ export type Database = {
           unique_selling_points: string | null
           updated_at: string
           user_id: string
-          website_url: string | null
         }
         Insert: {
           beta_tour_enabled?: boolean | null
@@ -672,7 +671,6 @@ export type Database = {
           unique_selling_points?: string | null
           updated_at?: string
           user_id: string
-          website_url?: string | null
         }
         Update: {
           beta_tour_enabled?: boolean | null
@@ -706,7 +704,6 @@ export type Database = {
           unique_selling_points?: string | null
           updated_at?: string
           user_id?: string
-          website_url?: string | null
         }
         Relationships: []
       }
@@ -4714,10 +4711,6 @@ export type Database = {
       }
       increment_template_usage: {
         Args: { template_id: string }
-        Returns: undefined
-      }
-      mark_onboarding_completed: {
-        Args: { p_company?: string }
         Returns: undefined
       }
       merge_duplicate_accounts: {

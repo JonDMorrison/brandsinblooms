@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { TrialBanner } from "@/components/TrialBanner";
 import { UserMenu } from "@/components/UserMenu";
 import AppSidebar from "@/components/AppSidebar";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 
 interface AuthenticatedLayoutProps {
   children: ReactNode;
@@ -17,28 +16,20 @@ export const AuthenticatedLayout = ({ children }: AuthenticatedLayoutProps) => {
   }
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen w-full flex">
-        <AppSidebar />
-        
-        <SidebarInset>
-          {/* Header with trigger and user menu */}
-          <header className="h-12 flex items-center justify-between border-b px-4">
-            <SidebarTrigger />
-            <div className="ml-auto">
-              <UserMenu />
-            </div>
-          </header>
-          
-          <main className="flex-1 w-full h-full overflow-x-hidden flex flex-col">
-            {/* Trial Banner */}
-            <TrialBanner />
-            <div className="flex-1 w-full h-full px-4">
-              {children}
-            </div>
-          </main>
-        </SidebarInset>
+    <div className="min-h-screen w-full flex">
+      {/* Fixed UserMenu - always visible in top-right */}
+      <div className="fixed top-6 right-6 z-50">
+        <UserMenu />
       </div>
-    </SidebarProvider>
+      
+      <AppSidebar />
+      <main className="flex-1 w-full h-full overflow-x-hidden flex flex-col">
+        {/* Trial Banner */}
+        <TrialBanner />
+        <div className="flex-1 w-full h-full px-4">
+          {children}
+        </div>
+      </main>
+    </div>
   );
 };
