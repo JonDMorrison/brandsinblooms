@@ -202,6 +202,8 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
 
       setBundleIds(data.id, data.snapshotId);
       toast({ title: 'Draft bundle ready', description: 'Review and approve your items.' });
+      // Close the dialog to show the GeneratedContentModal
+      onOpenChange(false);
     } catch (e: any) {
       console.error(e);
       const msg = String(e?.message || '');
