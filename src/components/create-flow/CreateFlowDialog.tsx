@@ -161,11 +161,11 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
     setLoading(true);
     setNetworkError(false);
 
-    // Get workspace id for current user
-    const { data: me } = await supabase.from('users').select('tenant_id').limit(1).single();
-    const workspaceId = me?.tenant_id as string;
-
     try {
+      // Get workspace id for current user
+      const { data: me } = await supabase.from('users').select('tenant_id').limit(1).single();
+      const workspaceId = me?.tenant_id as string;
+
       const payload: any = {
         mode: selectedPath as Mode,
         sourceId: selectedSourceId || undefined,
@@ -197,7 +197,15 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       }
 
       toast({ title: 'Generating content…', description: 'Creating five items across your channels.' });
-      const { data, error } = await supabase.functions.invoke('generate-multichannel-content', { body: payload });
+      
+      // Add timeout to prevent endless spinning
+      const timeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Generation timed out after 60 seconds')), 60000);
+      });
+      
+      const generation = supabase.functions.invoke('generate-multichannel-content', { body: payload });
+      
+      const { data, error } = await Promise.race([generation, timeout]) as any;
       if (error) throw error;
 
       setBundleIds(data.id, data.snapshotId);
@@ -205,12 +213,15 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       // Close the dialog to show the GeneratedContentModal
       onOpenChange(false);
     } catch (e: any) {
-      console.error(e);
+      console.error('Content generation error:', e);
       const msg = String(e?.message || '');
       const statusMatch = msg.match(/\b(4\d{2}|5\d{2})\b/);
       const status = (e?.status || e?.context?.status || (statusMatch ? Number(statusMatch[1]) : undefined)) as number | undefined;
 
-      if (e?.name === 'FunctionsFetchError' || msg.includes('Failed to fetch')) {
+      if (msg.includes('timed out')) {
+        setNetworkError(true);
+        toast({ title: 'Generation timed out', description: 'Content generation is taking too long. Please try again.', variant: 'destructive' });
+      } else if (e?.name === 'FunctionsFetchError' || msg.includes('Failed to fetch')) {
         setNetworkError(true);
         toast({ title: 'AI temporarily unavailable', description: 'Please check your connection and try again.', variant: 'destructive' });
       } else if (status === 404) {
