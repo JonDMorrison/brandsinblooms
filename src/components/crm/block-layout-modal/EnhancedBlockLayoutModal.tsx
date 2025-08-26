@@ -73,16 +73,6 @@ const layoutOptions = [
     previewType: 'image-right' as const
   },
   
-  // Button Layouts
-  {
-    id: 'button-centered' as LayoutType,
-    title: 'Call to Action (CTA)',
-    description: 'Center-aligned action button with supporting text above',
-    category: 'Button',
-    icon: <MousePointer className="h-4 w-4 text-muted-foreground" />,
-    isPopular: true,
-    previewType: 'button-centered' as const
-  },
   
 ];
 
