@@ -42,12 +42,8 @@ export const BloomSuiteDashboard = () => {
   // Show setup wizard for new users
   useEffect(() => {
     if (user && !onboardingLoading && !isCompleted && !hasEverCompleted) {
-      // Show setup wizard instead of redirecting
-      const hasSeenWizard = localStorage.getItem('setupWizardShown');
-      if (!hasSeenWizard) {
-        setShowSetupWizard(true);
-        localStorage.setItem('setupWizardShown', 'true');
-      }
+      // Show setup wizard for first-time users automatically
+      setShowSetupWizard(true);
     }
   }, [user, onboardingLoading, isCompleted, hasEverCompleted]);
 
