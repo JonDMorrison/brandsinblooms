@@ -370,7 +370,7 @@ Guidelines:
       userPrompt = `Create a Facebook post about ${args.campaignTitle}. Write 200-300 words that encourage engagement and community interaction. Include a call-to-action.`;
       break;
     case 'video':
-      userPrompt = `Write a video script about ${args.campaignTitle}. Create a 60-90 second script with clear intro, main points, and call-to-action. Make it conversational and engaging.`;
+      userPrompt = `Write a simple video script monologue about ${args.campaignTitle}. Create a 60-90 second conversational script that flows as one continuous speaking piece - no scenes, no instructions, no stage directions. Just write what the speaker should say directly to the camera in a natural, engaging way.`;
       break;
     case 'blog':
       userPrompt = `Write a blog post about ${args.campaignTitle}. Create 400-600 words in markdown format with headers, bullet points, and actionable tips. Include SEO-friendly structure.`;
