@@ -43,7 +43,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import IntegrationsPage from '@/pages/IntegrationsPage';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
-import { OnboardingPage } from '@/pages/OnboardingPage';
+import PublishPage from '@/pages/PublishPage';
 import { OnboardingHealth } from '@/pages/dev/OnboardingHealth';
 
 function App() {
