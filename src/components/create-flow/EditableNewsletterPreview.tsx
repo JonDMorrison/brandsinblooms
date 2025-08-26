@@ -29,7 +29,21 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
 
   // Process newsletter content to get structured blocks
   const processedNewsletter = useMemo(() => {
-    return processNewsletterContent(content);
+    console.log('[NEWSLETTER PREVIEW] Processing content:', { 
+      contentLength: content?.length || 0, 
+      contentPreview: content?.substring(0, 200),
+      title 
+    });
+    const result = processNewsletterContent(content);
+    console.log('[NEWSLETTER PREVIEW] Processed result:', {
+      blocksCount: result.blocks?.length || 0,
+      unstructuredCount: result.unstructuredSections?.length || 0,
+      isStructured: result.isStructured,
+      needsRegeneration: result.needsRegeneration,
+      blocks: result.blocks,
+      unstructured: result.unstructuredSections
+    });
+    return result;
   }, [content]);
 
   // Load images for the newsletter blocks
