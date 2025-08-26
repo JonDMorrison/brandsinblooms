@@ -102,13 +102,19 @@ export const useOnboardingCompletion = () => {
       
       console.log('🎯 Onboarding profile step completed, navigating to dashboard...');
       
+      // Clean up completion state
+      sessionStorage.removeItem('onboarding-completing');
+      
       // Navigate immediately to dashboard - content will load progressively
       setTimeout(() => {
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       }, 200);
       
     } catch (error) {
       console.error('🚨 Critical error in onboarding completion:', error);
+      
+      // Clean up completion state on error
+      sessionStorage.removeItem('onboarding-completing');
       
       // Provide user-friendly error message
       const friendlyMessage = error.message?.includes('Onboarding failed:') 

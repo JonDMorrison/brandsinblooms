@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -34,6 +34,25 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   
   const { completeOnboarding } = useOnboardingCompletion();
   const { markAsCompleted } = useOnboardingStatus();
+
+  // Prevent any redirects while completing onboarding
+  useEffect(() => {
+    if (isCompletingOnboarding) {
+      // Store completion state in sessionStorage to survive any redirects
+      sessionStorage.setItem('onboarding-completing', 'true');
+    } else {
+      sessionStorage.removeItem('onboarding-completing');
+    }
+  }, [isCompletingOnboarding]);
+
+  // Check if we're in the middle of completion (in case of redirect)
+  useEffect(() => {
+    const wasCompleting = sessionStorage.getItem('onboarding-completing') === 'true';
+    if (wasCompleting && !isCompletingOnboarding) {
+      // We were completing but component remounted, go to dashboard
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate, isCompletingOnboarding]);
 
   const handleAnalyze = async () => {
     const success = await analyzeWebsite(websiteUrl);
@@ -88,7 +107,9 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   };
 
   const handleContinueFromSuccess = () => {
-    navigate('/', { replace: true });
+    // Clean up completion state
+    sessionStorage.removeItem('onboarding-completing');
+    navigate('/dashboard', { replace: true });
   };
 
   const handleManualEntry = () => {
