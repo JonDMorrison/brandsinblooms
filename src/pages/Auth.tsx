@@ -35,6 +35,14 @@ const Auth = () => {
     try {
       console.log('🔍 Auth: Checking onboarding status for user:', userId);
       
+      // Check sticky completion flag first - if set, user has completed onboarding
+      const stickyCompleted = localStorage.getItem('onboarding-has-completed') === '1';
+      if (stickyCompleted) {
+        console.log('✅ Auth: Sticky completion flag found, going to dashboard');
+        navigate('/', { replace: true });
+        return;
+      }
+      
       // Check if user has completed onboarding by looking for company profile
       const { data: profile, error } = await supabase
         .from('company_profiles')
@@ -55,6 +63,8 @@ const Auth = () => {
         navigate('/onboarding', { replace: true });
       } else {
         console.log('✅ Auth: User has completed onboarding, going to dashboard');
+        // Set sticky flag when we discover completion
+        localStorage.setItem('onboarding-has-completed', '1');
         navigate('/', { replace: true });
       }
     } catch (error) {
