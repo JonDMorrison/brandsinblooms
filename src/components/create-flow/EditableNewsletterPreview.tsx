@@ -101,13 +101,15 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
             </div>
           </div>
           
-          <RichTextEditor
-            content={editContent}
-            onChange={setEditContent}
-            placeholder="Write your newsletter content..."
-            className="min-h-[300px]"
-            autoFocus
-          />
+          <div className="prose prose-slate max-w-none">
+            <div 
+              className="min-h-[300px] p-4 border rounded-md focus-within:ring-2 focus-within:ring-primary" 
+              contentEditable
+              dangerouslySetInnerHTML={{ __html: editContent || "Start writing your newsletter content..." }}
+              onInput={(e) => setEditContent(e.currentTarget.innerHTML)}
+              style={{ minHeight: "300px" }}
+            />
+          </div>
         </div>
       </Card>
     );
@@ -131,74 +133,12 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
           <p className="text-sm text-slate-600">Your Garden Center Newsletter</p>
         </div>
 
-        {/* Newsletter Blocks */}
-        <div className="space-y-12">
-          {(() => {
-            // Render structured blocks if they exist
-            if (processedNewsletter.blocks.length > 0) {
-              return processedNewsletter.blocks.map((block, index) => {
-                const newsletterBlock = {
-                  title: block.title || block.headline || `Section ${index + 1}`,
-                  body: block.body || block.content || '',
-                  cta: block.cta || block.ctaText || '',
-                  link: block.link || '',
-                  image_prompt: block.image_prompt || '',
-                  alt_text: block.alt_text || block.altText || ''
-                };
-
-                return (
-                  <div key={index} className="border-b border-slate-100 last:border-b-0 pb-12 last:pb-0">
-                    <NewsletterContentBlock
-                      block={newsletterBlock}
-                      index={index}
-                      isStructuredNewsletter={processedNewsletter.isStructured}
-                      images={images}
-                      imageErrors={imageErrors}
-                      loadingImages={loadingImages}
-                      onImageSelect={handleImageSelect}
-                      selectedImages={selectedImages}
-                    />
-                  </div>
-                );
-              });
-            }
-            
-            // Render unstructured sections if no structured blocks
-            if (processedNewsletter.unstructuredSections && processedNewsletter.unstructuredSections.length > 0) {
-              return processedNewsletter.unstructuredSections.map((section, index) => {
-                const newsletterBlock = {
-                  title: section.title || `Section ${index + 1}`,
-                  body: section.content || '',
-                  cta: '',
-                  link: '',
-                  image_prompt: section.image_prompt || '',
-                  alt_text: ''
-                };
-
-                return (
-                  <div key={`unstructured-${index}`} className="border-b border-slate-100 last:border-b-0 pb-12 last:pb-0">
-                    <NewsletterContentBlock
-                      block={newsletterBlock}
-                      index={index}
-                      isStructuredNewsletter={false}
-                      images={images}
-                      imageErrors={imageErrors}
-                      loadingImages={loadingImages}
-                      onImageSelect={handleImageSelect}
-                      selectedImages={selectedImages}
-                    />
-                  </div>
-                );
-              });
-            }
-
-            // Show empty state only if no content at all
-            return (
-              <div className="text-center py-8 text-slate-500">
-                <p>Click edit to add newsletter content</p>
-              </div>
-            );
-          })()}
+        {/* Newsletter Content */}
+        <div className="prose prose-slate max-w-none">
+          <div 
+            className="whitespace-pre-wrap text-slate-700 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: content || "No content available. Click edit to add newsletter content." }}
+          />
         </div>
 
         {/* Newsletter Footer */}
