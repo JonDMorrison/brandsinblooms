@@ -100,7 +100,7 @@ export default {
 					900: '#78271C',
 				},
 				'brand-green': {
-					DEFAULT: 'rgb(var(--brand-green))',
+					DEFAULT: 'hsl(var(--brand-green))',
 					50: '#E8F5E8',
 					100: '#C8E6C9',
 					200: '#A5D6A7',
@@ -113,7 +113,7 @@ export default {
 					900: '#14532D',
 				},
 				'brand-blue': {
-					DEFAULT: 'rgb(var(--brand-blue))',
+					DEFAULT: 'hsl(var(--brand-blue))',
 					50: '#EFF6FF',
 					100: '#DBEAFE',
 					200: '#BFDBFE',
@@ -127,19 +127,19 @@ export default {
 				},
 				// Status chip colors
 				'chip': {
-					draft: 'rgb(var(--chip-draft))',
-					generated: 'rgb(var(--chip-generated))',
-					approved: 'rgb(var(--chip-approved))',
-					scheduled: 'rgb(var(--chip-scheduled))',
-					posted: 'rgb(var(--chip-posted))',
+					draft: 'hsl(var(--chip-draft))',
+					generated: 'hsl(var(--chip-generated))',
+					approved: 'hsl(var(--chip-approved))',
+					scheduled: 'hsl(var(--chip-scheduled))',
+					posted: 'hsl(var(--chip-posted))',
 				},
 				// Enhanced gray scale
 				gray: {
 					...colors.gray,
-					50: 'rgb(var(--gray-50))',
-					100: 'rgb(var(--gray-100))',
-					200: 'rgb(var(--gray-200))',
-					700: 'rgb(var(--gray-700))',
+					50: 'hsl(var(--gray-50))',
+					100: 'hsl(var(--gray-100))',
+					200: 'hsl(var(--gray-200))',
+					700: 'hsl(var(--gray-700))',
 				}
 			},
 			borderRadius,

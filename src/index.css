@@ -27,32 +27,30 @@ html {
 
 :root {
   /* Enhanced BloomSuite Color Variables */
-  --brand-navy: 48 80 110;         /* #30506E */
-  --brand-teal: 104 190 185;       /* #68BEB9 */
-  --mint-100: 231 250 247;         /* #E7FAF7 - Success backgrounds */
-  --mint-600: 31 168 123;          /* #1FA87B - Success text/badges */
-  --sand-50: 251 249 244;          /* #FBF9F4 - Main page background */
-  --gray-700: 75 85 99;            /* #4B5563 - Body text */
+  --brand-navy: 210 24% 27%;       /* #3E5A6B - Steel blue (HSL) */
+  --brand-teal: 174 63% 57%;       /* #68BEB9 - Teal mint (HSL) */
+  --mint-100: 142 76% 89%;         /* #E7FAF7 - Success backgrounds (HSL) */
+  --mint-600: 160 68% 40%;         /* #1FA87B - Success text/badges (HSL) */
+  --sand-50: 46 80% 97%;           /* #FBF9F4 - Main page background (HSL) */
+  --gray-700: 218 11% 35%;         /* #4B5563 - Body text (HSL) */
   
   /* Enhanced brand tokens - HSL format for proper CSS variable usage */
-  --brand-teal: 174 63% 57%;       /* #68BEB9 - Teal mint */
-  --brand-navy: 210 24% 27%;       /* #3E5A6B - Steel blue */
-  --brand-blue: 220 70% 50%;       /* Professional blue accent */
+  --brand-blue: 220 70% 50%;       /* Professional blue accent (HSL) */
   --brand-green: var(--brand-teal); /* Alias for consistency */
   --brand-success: var(--brand-teal); /* Success states */
   --brand-warning: var(--brand-navy); /* Warning states */
   
-  /* Status chip colors */
-  --chip-draft: 156 163 175;       /* #9CA3AF */
-  --chip-generated: 59 130 246;    /* #3B82F6 */
-  --chip-approved: 104 190 185;    /* #68BEB9 */
-  --chip-scheduled: 59 130 246;    /* #3B82F6 */
-  --chip-posted: 104 190 185;      /* #68BEB9 */
+  /* Status chip colors - HSL format */
+  --chip-draft: 220 9% 46%;        /* #9CA3AF (HSL) */
+  --chip-generated: 221 83% 53%;   /* #3B82F6 (HSL) */
+  --chip-approved: 174 63% 57%;    /* #68BEB9 (HSL) */
+  --chip-scheduled: 221 83% 53%;   /* #3B82F6 (HSL) */
+  --chip-posted: 174 63% 57%;      /* #68BEB9 (HSL) */
   
-  /* Enhanced gray scale */
-  --gray-50: 248 250 252;          /* #F8FAFC */
-  --gray-100: 241 245 249;         /* #F1F5F9 */
-  --gray-200: 226 232 240;         /* #E2E8F0 */
+  /* Enhanced gray scale - HSL format */
+  --gray-50: 210 40% 98%;          /* #F8FAFC (HSL) */
+  --gray-100: 210 40% 96%;         /* #F1F5F9 (HSL) */
+  --gray-200: 214 32% 91%;         /* #E2E8F0 (HSL) */
 }
 
 /* Premium glass morphism effects */
