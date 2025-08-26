@@ -8,7 +8,7 @@ import { OnboardingSuccessIndicator } from './OnboardingSuccessIndicator';
 import { WebsiteAnalysisLoader } from './WebsiteAnalysisLoader';
 import { useWebsiteAnalysis } from '@/hooks/useWebsiteAnalysis';
 import { useOnboardingCompletion } from './OnboardingCompletion';
-import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
+import { useOnboardingStatus } from '@/contexts/OnboardingStatusContext';
 import { LandingPageHeader } from '../landing/LandingPageHeader';
 
 interface SimplifiedOnboardingFlowProps {
@@ -33,7 +33,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   } = useWebsiteAnalysis();
   
   const { completeOnboarding } = useOnboardingCompletion();
-  const { markAsCompleted } = useOnboardingStatus();
+  const { markAsCompleted, isCompleted: onboardingCompleted } = useOnboardingStatus();
 
   // Prevent any redirects while completing onboarding
   useEffect(() => {
@@ -48,11 +48,19 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   // Check if we're in the middle of completion (in case of redirect)
   useEffect(() => {
     const wasCompleting = sessionStorage.getItem('onboarding-completing') === 'true';
-    if (wasCompleting && !isCompletingOnboarding) {
-      // We were completing but component remounted, go to dashboard
+    
+    // Only redirect if we were completing AND onboarding is actually completed now
+    if (wasCompleting && !isCompletingOnboarding && onboardingCompleted) {
+      console.log('🔄 SimplifiedOnboardingFlow: Detected completed onboarding, redirecting to dashboard...');
+      // Clean up completion state
+      sessionStorage.removeItem('onboarding-completing');
       navigate('/dashboard', { replace: true });
+    } else if (wasCompleting && !isCompletingOnboarding && !onboardingCompleted) {
+      // We were completing but onboarding isn't complete - clear the flag and stay here
+      console.log('⚠️ SimplifiedOnboardingFlow: Was completing but onboarding not complete, clearing flag');
+      sessionStorage.removeItem('onboarding-completing');
     }
-  }, [navigate, isCompletingOnboarding]);
+  }, [navigate, isCompletingOnboarding, onboardingCompleted]);
 
   const handleAnalyze = async () => {
     const success = await analyzeWebsite(websiteUrl);

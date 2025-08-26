@@ -56,12 +56,14 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   // Simplified redirect logic - only redirect if we're certain onboarding is incomplete
   // Don't redirect from onboarding paths to prevent loops
   // Don't redirect if we're in the middle of completing onboarding
+  // Don't redirect if completion status check is still loading
   const isCompleting = sessionStorage.getItem('onboarding-completing') === 'true';
   const shouldRedirectToOnboarding = user && 
     !isCompleted && 
     !error &&
     hasCheckedOnce &&
     !isCompleting &&
+    !onboardingLoading &&
     !window.location.pathname.startsWith('/onboarding');
 
   console.log('🔍 OnboardingGuard: Decision state', {
@@ -70,6 +72,7 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     error,
     hasCheckedOnce,
     isCompleting,
+    onboardingLoading,
     pathname: window.location.pathname,
     shouldRedirect: shouldRedirectToOnboarding
   });
