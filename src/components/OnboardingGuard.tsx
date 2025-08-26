@@ -23,30 +23,17 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   
   // Use context directly with fallbacks if not available
   const onboardingContext = useContext(OnboardingStatusContext);
-  const isCompleted = (onboardingContext as any)?.isCompleted ?? false;
-  const hasEverCompleted = (onboardingContext as any)?.hasEverCompleted ?? false;
-  const hasCheckedOnce = (onboardingContext as any)?.hasCheckedOnce ?? false;
-  const onboardingLoading = (onboardingContext as any)?.isLoading ?? false;
-  const error = (onboardingContext as any)?.error ?? null;
+  const isCompleted = onboardingContext?.isCompleted ?? false;
+  const hasEverCompleted = onboardingContext?.hasEverCompleted ?? false;
+  const hasCheckedOnce = onboardingContext?.hasCheckedOnce ?? false;
+  const onboardingLoading = onboardingContext?.isLoading ?? false;
+  const error = onboardingContext?.error ?? null;
   
-  // Check handoff state from sessionStorage
+  // Check handoff state from sessionStorage (read-only, no state)
   const inHandoff = sessionStorage.getItem('onboarding-completing') === 'true';
   
-  // Use sessionStorage to persist guard state
-  const [localHasCheckedOnce, setLocalHasCheckedOnce] = useState(() => {
-    return sessionStorage.getItem('onboarding-checked') === 'true';
-  });
-
-  // Track when initial checks are done
-  useEffect(() => {
-    if (!authLoading && !onboardingLoading && hasCheckedOnce && !localHasCheckedOnce) {
-      setLocalHasCheckedOnce(true);
-      sessionStorage.setItem('onboarding-checked', 'true');
-    }
-  }, [authLoading, onboardingLoading, hasCheckedOnce, localHasCheckedOnce]);
-
-  // Only show loading during the very first check
-  const shouldShowLoading = authLoading || (onboardingLoading && !localHasCheckedOnce && !error);
+  // Only show loading during auth or when onboarding is actually loading
+  const shouldShowLoading = authLoading || onboardingLoading;
 
   // Manage onboarding loading state in global context
   useEffect(() => {
