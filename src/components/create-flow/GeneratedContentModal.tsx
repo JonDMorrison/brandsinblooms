@@ -14,6 +14,7 @@ import { EditableNewsletterPreview } from "./EditableNewsletterPreview";
 import { convertNewsletterToCRM_Direct } from "@/utils/newsletterToCrmSync";
 import { buildEmailHtmlFromNewsletter } from "@/utils/newsletterToCrmConverter";
 import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
+import { convertMarkdownToHtml } from "@/utils/markdownUtils";
 
 interface GeneratedContentModalProps {
   open: boolean;
@@ -214,15 +215,15 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                         onChange={(e) => editItem(idx, { script: e.target.value })}
                         placeholder="Write a short video script"
                       />
-                    ) : item.channel === 'blog' ? (
-                      <div className="w-full">
-                        <RichTextEditor
-                          content={sanitizeWeekNumbers(item.markdown || item.body || '')}
-                          onChange={(html) => editItem(idx, { markdown: html })}
-                          placeholder="Write and format your blog content"
-                          className="w-full"
-                        />
-                      </div>
+                     ) : item.channel === 'blog' ? (
+                       <div className="w-full">
+                         <RichTextEditor
+                           content={convertMarkdownToHtml(sanitizeWeekNumbers(item.markdown || item.body || ''))}
+                           onChange={(html) => editItem(idx, { markdown: html })}
+                           placeholder="Write and format your blog content"
+                           className="w-full"
+                         />
+                       </div>
                      ) : (
                        item.channel === 'newsletter' ? (
                          <EditableNewsletterPreview
