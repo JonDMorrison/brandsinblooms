@@ -84,15 +84,6 @@ const layoutOptions = [
     previewType: 'button-centered' as const
   },
   
-  // Text Layouts
-  {
-    id: 'text-double' as LayoutType,
-    title: 'Two Columns',
-    description: 'Text split into two columns for better readability',
-    category: 'Text',
-    icon: <FileText className="h-4 w-4 text-muted-foreground" />,
-    previewType: 'text-double' as const
-  },
 ];
 
 export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> = ({ 
