@@ -77,18 +77,16 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
       return;
     }
     
-    // Allow dashboard access to prevent bounce
-    if (location.pathname.startsWith('/dashboard')) {
-      debug('Allowing dashboard access to prevent bounce');
-      return;
-    }
-    
     // Only redirect if we have a user, onboarding is incomplete (both flags), and we've checked at least once
-    if (user && !isCompleted && !hasEverCompleted && !error && hasCheckedOnce) {
+    // Allow dashboard access ONLY if user has completed onboarding (either flag) or is in handoff
+    const shouldAllowAccess = isCompleted || hasEverCompleted || inHandoff;
+    
+    if (user && !shouldAllowAccess && !error && hasCheckedOnce && !location.pathname.startsWith('/onboarding')) {
       debug('Redirecting to onboarding', { 
         user: !!user, 
         isCompleted, 
         hasEverCompleted,
+        shouldAllowAccess,
         error, 
         hasCheckedOnce,
         pathname: location.pathname 
