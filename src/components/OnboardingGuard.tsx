@@ -1,5 +1,5 @@
 
-import { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useAuth } from "@/contexts/AuthContext";
