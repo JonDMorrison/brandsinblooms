@@ -29,20 +29,25 @@ interface OnboardingStatusProviderProps {
 export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderProps) => {
   const { user } = useAuth();
   
-  // Clean up legacy global flag and initialize user-specific flag
-  const [hasEverCompleted, setHasEverCompleted] = useState(() => {
-    // Clean up legacy global flag
+  // Clean up legacy global flag (once per app load)
+  const [hasEverCompleted, setHasEverCompleted] = useState(false);
+  
+  // Initialize user-specific flag when user becomes available
+  useEffect(() => {
+    // Clean up legacy global flag once
     const legacyFlag = localStorage.getItem('onboarding-has-completed');
     if (legacyFlag) {
       localStorage.removeItem('onboarding-has-completed');
     }
     
-    // Initialize from user-specific localStorage if available
+    // Set user-specific flag when user is available
     if (user) {
-      return localStorage.getItem(`onboarding-has-completed:${user.id}`) === '1';
+      const userSpecificFlag = localStorage.getItem(`onboarding-has-completed:${user.id}`) === '1';
+      setHasEverCompleted(userSpecificFlag);
+    } else {
+      setHasEverCompleted(false);
     }
-    return false;
-  });
+  }, [user]);
 
   // Fetch onboarding status with stable React Query
   const { data, isLoading, error, refetch } = useQuery({
