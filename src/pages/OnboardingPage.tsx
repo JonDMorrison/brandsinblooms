@@ -27,7 +27,7 @@ const OnboardingPage = () => {
   useEffect(() => {
     if (!loading && !onboardingLoading && user && isCompleted) {
       console.log('✅ OnboardingPage: Onboarding already complete, redirecting to dashboard');
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [user, loading, onboardingLoading, isCompleted, navigate]);
 
@@ -46,9 +46,12 @@ const OnboardingPage = () => {
       // Force refresh the status to ensure consistency
       await refreshStatus();
       
-      // Navigate to dashboard
+      // Small delay to ensure state propagation
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Navigate directly to dashboard to avoid redirect loops
       console.log('🎯 OnboardingPage: Navigating to dashboard after completion');
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } else {
       console.error('❌ OnboardingPage: No user found during onboarding completion');
       navigate('/auth', { replace: true });
