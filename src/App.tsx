@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -47,6 +48,7 @@ import PublishPage from '@/pages/PublishPage';
 function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <ErrorBoundary>
         <Routes>
           {/* Public routes */}
           <Route path="/auth" element={
@@ -331,7 +333,8 @@ function App() {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         <Toaster />
-      </div>
+      </ErrorBoundary>
+    </div>
   );
 }
 

@@ -17,10 +17,30 @@ const debug = (message: string, data?: any) => {
 
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { isCompleted, hasEverCompleted, isLoading: onboardingLoading, error } = useOnboardingStatus();
+  
+  // Safely handle onboarding status with fallbacks
+  let onboardingStatus;
+  try {
+    onboardingStatus = useOnboardingStatus();
+  } catch (error) {
+    console.warn('OnboardingGuard: OnboardingStatusContext not available, using defaults');
+    onboardingStatus = {
+      isCompleted: false,
+      hasEverCompleted: false,
+      isLoading: false,
+      error: null
+    };
+  }
+
   const { setLoading, clearLoading } = useLoading();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Safely extract values with fallbacks
+  const isCompleted = onboardingStatus?.isCompleted ?? false;
+  const hasEverCompleted = onboardingStatus?.hasEverCompleted ?? false;
+  const onboardingLoading = onboardingStatus?.isLoading ?? false;
+  const error = onboardingStatus?.error ?? null;
   
   // Use sessionStorage to persist across navigation - this prevents loading on every route change
   const [hasCheckedOnce, setHasCheckedOnce] = useState(() => {
