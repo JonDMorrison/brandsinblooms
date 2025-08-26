@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -55,9 +55,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const isTestUser = user?.email ? isTestAccount(user.email) : false;
   const hasPrivilegedAccess = isDeveloper || isTestUser;
 
-  const clearSubscriptionError = () => {
+  const clearSubscriptionError = useCallback(() => {
     setSubscriptionError(null);
-  };
+  }, []);
 
   const createDefaultSubscription = async () => {
     if (!user) return null;
@@ -271,20 +271,20 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
-  const updateSubscription = async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
+  const updateSubscription = useCallback(async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
     await updateSubscriptionPlan(plan, billingInterval);
-  };
+  }, []);
 
-  const refreshSubscription = async () => {
+  const refreshSubscription = useCallback(async () => {
     console.log('🔄 Refreshing subscription data');
     setLoading(true);
     setSubscriptionError(null);
     await fetchSubscription();
     await checkStripeSubscription();
     console.log('✅ Subscription refresh completed');
-  };
+  }, []);
 
-  const checkAccess = (requiredPlan: SubscriptionPlan): boolean => {
+  const checkAccess = useCallback((requiredPlan: SubscriptionPlan): boolean => {
     // Privileged access: super admins and test accounts have access to everything
     if (hasPrivilegedAccess) {
       console.log('🔓 Privileged access granted');
@@ -312,7 +312,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     });
     
     return hasAccess;
-  };
+  }, [subscription, hasPrivilegedAccess]);
 
   // Modified to account for privileged access
   const isTrialExpired = subscription?.plan === 'expired' && !hasPrivilegedAccess;
@@ -339,11 +339,13 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     if (user) {
       fetchSubscription();
       // Also check with Stripe on load
-      setTimeout(() => {
+      const stripeTimer = setTimeout(() => {
         checkStripeSubscription();
       }, 1000); // Delay Stripe check to avoid overloading
+      
+      return () => clearTimeout(stripeTimer);
     }
-  }, [user]);
+  }, [user?.id]); // Only depend on user.id, not the entire user object
 
   // Enhanced trial expiration handling - skip for privileged users
   useEffect(() => {
@@ -371,7 +373,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
   // Auto-refresh subscription status periodically when user is active
   useEffect(() => {
-    if (!user || !subscription) return;
+    if (!user?.id || !subscription) return;
 
     const interval = setInterval(() => {
       // Only auto-refresh if user is on a trial or paid plan and no errors
@@ -381,9 +383,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }, 300000); // Check every 5 minutes instead of every minute
 
     return () => clearInterval(interval);
-  }, [user, subscription, subscriptionError]);
+  }, [user?.id, subscription?.plan, subscriptionError]); // More specific dependencies
 
-  const value = {
+  const value = useMemo(() => ({
     subscription,
     loading,
     isTrialExpired,
@@ -394,7 +396,18 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     checkAccess,
     refreshSubscription,
     clearSubscriptionError
-  };
+  }), [
+    subscription,
+    loading,
+    isTrialExpired,
+    trialDaysLeft,
+    subscriptionError,
+    lastCheckTime,
+    updateSubscription,
+    checkAccess,
+    refreshSubscription,
+    clearSubscriptionError
+  ]);
 
   console.log('🔍 SubscriptionProvider render:', { 
     hasSubscription: !!subscription, 
