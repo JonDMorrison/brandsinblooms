@@ -335,36 +335,103 @@ blocks:
 }
 
 async function callGenerateContent(supabase: any, args: { postType: string; campaignTitle: string; userId: string; weekDescription?: string }) {
-  const { data, error } = await supabase.functions.invoke("generate-content", {
-    body: {
-      postType: args.postType,
-      campaignTitle: args.campaignTitle,
-      userId: args.userId,
-      weekDescription: args.weekDescription,
-      enforceCompanyName: true,
-    },
-  });
-  if (error) throw error;
-  return (data as any)?.content as string;
+  // Get company profile for personalization
+  const { data: profile } = await supabase
+    .from('company_profiles')
+    .select('company_name, description, keywords')
+    .eq('user_id', args.userId)
+    .single();
+
+  const companyName = profile?.company_name || 'Your Garden Center';
+  const description = args.weekDescription || `Content about ${args.campaignTitle}`;
+  
+  // Direct OpenAI call instead of problematic edge function
+  const systemPrompt = `You are an expert content creator for garden centers and nurseries. Create engaging, professional content that drives customer engagement and sales.
+
+Company: ${companyName}
+Focus: ${args.campaignTitle}
+Description: ${description}
+
+Guidelines:
+- Write in a helpful, knowledgeable tone
+- Include actionable advice
+- Mention ${companyName} naturally
+- Keep content appropriate for ${args.postType} format
+- For social posts: include relevant hashtags
+- For blog posts: use markdown formatting
+- For video: write a conversational script`;
+
+  let userPrompt = '';
+  switch (args.postType) {
+    case 'instagram':
+      userPrompt = `Create an engaging Instagram post about ${args.campaignTitle}. Include a compelling caption (150-200 words) and 5-8 relevant hashtags. Focus on visual storytelling and customer benefits.`;
+      break;
+    case 'facebook':
+      userPrompt = `Create a Facebook post about ${args.campaignTitle}. Write 200-300 words that encourage engagement and community interaction. Include a call-to-action.`;
+      break;
+    case 'video':
+      userPrompt = `Write a video script about ${args.campaignTitle}. Create a 60-90 second script with clear intro, main points, and call-to-action. Make it conversational and engaging.`;
+      break;
+    case 'blog':
+      userPrompt = `Write a blog post about ${args.campaignTitle}. Create 400-600 words in markdown format with headers, bullet points, and actionable tips. Include SEO-friendly structure.`;
+      break;
+    default:
+      userPrompt = `Create content about ${args.campaignTitle} for ${args.postType} format.`;
+  }
+
+  return await openAIChat(systemPrompt, userPrompt);
 }
 
 async function callGenerateStructuredNewsletter(
   supabase: any,
   args: { campaignTitle: string; userId: string; weekDescription?: string; toneNote?: string; weekNumber?: number; campaignId?: string }
 ) {
-  const { data, error } = await supabase.functions.invoke("generate-structured-newsletter", {
-    body: {
-      campaignId: args.campaignId || crypto.randomUUID(),
-      campaignTitle: args.campaignTitle,
-      weekNumber: args.weekNumber ?? 0,
-      userId: args.userId,
-      weekDescription: args.weekDescription,
-      promoItems: [],
-      toneNote: args.toneNote,
-    },
-  });
-  if (error) throw error;
-  return (data as any)?.yamlContent as string;
+  // Get company profile for personalization
+  const { data: profile } = await supabase
+    .from('company_profiles')
+    .select('company_name, description, keywords')
+    .eq('user_id', args.userId)
+    .single();
+
+  const companyName = profile?.company_name || 'Your Garden Center';
+  const description = args.weekDescription || `Newsletter content about ${args.campaignTitle}`;
+  const tone = args.toneNote || 'professional and helpful';
+
+  const systemPrompt = `You are an expert newsletter content creator for garden centers and nurseries. Create professional, engaging newsletter content in YAML format.
+
+Company: ${companyName}
+Topic: ${args.campaignTitle}
+Description: ${description}
+Tone: ${tone}
+
+Guidelines:
+- Write in a ${tone} tone
+- Include actionable gardening advice
+- Mention ${companyName} naturally
+- Create 4 distinct content blocks
+- Each block should have title, body, and CTA`;
+
+  const userPrompt = `Create a newsletter about ${args.campaignTitle}. Format as YAML with:
+
+newsletter_md: |
+  # ${args.campaignTitle} Newsletter
+  *Expert gardening insights for ${args.campaignTitle.toLowerCase()} success*
+  
+  [Create 4 sections with helpful content]
+
+blocks:
+  - title: "[First section title]"
+    body: "[Engaging content with gardening advice]"
+    cta: "[Call to action]"
+    link: "#"
+  [Continue with 3 more blocks]
+
+meta:
+  reading_time: "≈3 min"
+  theme: "${args.campaignTitle}"
+  week_focus: "[Brief focus description]"`;
+
+  return await openAIChat(systemPrompt, userPrompt);
 }
 
 function generateNewsletterBlocksServer(topic: string) {
