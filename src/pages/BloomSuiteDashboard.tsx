@@ -32,20 +32,12 @@ export const BloomSuiteDashboard = () => {
   const { data: socialConnections = [], isLoading: loadingConnections } = useConnectedAccounts();
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
 
-  console.log('🏠 BloomSuiteDashboard: Rendering dashboard with loading states:', {
-    loadingConnections,
-    loadingTwilio,
-    socialConnections: socialConnections.length
-  });
-
   // Check if user should see the quick start tour
   useEffect(() => {
     const tourDone = localStorage.getItem('dashboardTourDone');
-    console.log('Tour check - tourDone:', tourDone, 'showQuickTour:', showQuickTour);
     if (!tourDone && !showQuickTour) {
       // Show tour after a brief delay to let the page load
       setTimeout(() => {
-        console.log('Setting showQuickTour to true');
         setShowQuickTour(true);
       }, 1000);
     }
@@ -208,11 +200,6 @@ export const BloomSuiteDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 p-6">
       <div className="max-w-6xl mx-auto">
-        <div style={{ minHeight: '200px', backgroundColor: 'red', color: 'white', padding: '20px' }}>
-          <h1>DEBUG: Dashboard should render here</h1>
-          <p>Screen width: {typeof window !== 'undefined' ? window.innerWidth : 'unknown'}</p>
-          <p>User agent: {typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'}</p>
-        </div>
         
         {/* Header */}
         <div className="text-center mb-8">
