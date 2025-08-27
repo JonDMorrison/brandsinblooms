@@ -150,7 +150,7 @@ export const determineBlockTypeFromLayout = (modalLayoutType: string): ContentBl
     case 'image-right':
     case 'image-vertical-left':
     case 'image-vertical-right':
-      return 'image';
+      return 'image-text';
     case 'text-double':
     case 'text-triple':
     default:
