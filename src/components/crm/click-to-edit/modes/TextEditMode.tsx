@@ -20,8 +20,6 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   onCancel
 }) => {
   const handleSave = () => {
-    console.log('🔍 [TextEditMode] Save button clicked');
-    console.log('🔍 [TextEditMode] Current block state:', block);
     onSave?.();
   };
 
