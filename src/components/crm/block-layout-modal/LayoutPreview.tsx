@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface LayoutPreviewProps {
-  type: 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background';
+  type: 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'text-plain' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background';
 }
 
 export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
@@ -123,6 +123,16 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
                 <div className="w-1/2 h-1 bg-gray-200 rounded"></div>
               </div>
             ))}
+          </div>
+        );
+
+      case 'text-plain':
+        return (
+          <div className="h-full bg-white border rounded-md flex flex-col justify-center px-3">
+            <div className="w-full h-1 bg-gray-300 rounded mb-2"></div>
+            <div className="w-5/6 h-1 bg-gray-200 rounded mb-1"></div>
+            <div className="w-4/5 h-1 bg-gray-200 rounded mb-1"></div>
+            <div className="w-3/4 h-1 bg-gray-200 rounded"></div>
           </div>
         );
 

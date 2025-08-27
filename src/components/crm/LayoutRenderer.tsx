@@ -139,6 +139,7 @@ export const mapModalLayoutToBlockLayout = (modalLayoutType: string): BlockLayou
       return 'two-column-right';
     case 'text-double':
     case 'text-triple':
+    case 'text-plain':
     default:
       return 'full-width';
   }
@@ -153,6 +154,7 @@ export const determineBlockTypeFromLayout = (modalLayoutType: string): ContentBl
       return 'image-text';
     case 'text-double':
     case 'text-triple':
+    case 'text-plain':
     default:
       return 'text';
   }

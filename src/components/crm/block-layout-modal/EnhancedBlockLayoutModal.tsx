@@ -63,6 +63,17 @@ const layoutOptions = [
     icon: <ArrowRight className="h-4 w-4 text-muted-foreground" />,
     previewType: 'image-right' as const
   },
+
+  // Text Layouts
+  {
+    id: 'text-plain' as LayoutType,
+    title: 'Plain Text',
+    description: 'Single column body text for articles and content',
+    category: 'Text',
+    icon: <FileText className="h-4 w-4 text-muted-foreground" />,
+    isPopular: true,
+    previewType: 'text-plain' as const
+  },
   
   
 ];

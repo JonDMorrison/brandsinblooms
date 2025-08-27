@@ -8,6 +8,7 @@ export type LayoutType =
   | 'image-vertical-left'
   | 'image-vertical-right'
   | 'text-double'
+  | 'text-plain'
   | 'header-simple'
   | 'image-full'
   | 'button-centered'
