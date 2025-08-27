@@ -82,14 +82,17 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       )}
 
       {/* CTA Text and URL (for blocks that support it) */}
-      {(block.ctaText !== undefined || block.ctaUrl !== undefined || block.type === 'image' || block.type === 'image-text' || block.type === 'text') && (
+      {(block.ctaText !== undefined || block.ctaUrl !== undefined || block.buttonText !== undefined || block.buttonUrl !== undefined || block.type === 'image' || block.type === 'image-text' || block.type === 'text') && (
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="ctaText">Button Text</Label>
             <Input
               id="ctaText"
-              value={block.ctaText || ''}
-              onChange={(e) => onUpdate({ ctaText: e.target.value })}
+              value={block.ctaText || block.buttonText || ''}
+              onChange={(e) => onUpdate({ 
+                ctaText: e.target.value,
+                buttonText: e.target.value 
+              })}
               placeholder="Enter button text"
             />
           </div>
@@ -97,8 +100,11 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             <Label htmlFor="ctaUrl">Button URL</Label>
             <Input
               id="ctaUrl"
-              value={block.ctaUrl || ''}
-              onChange={(e) => onUpdate({ ctaUrl: e.target.value })}
+              value={block.ctaUrl || block.buttonUrl || ''}
+              onChange={(e) => onUpdate({ 
+                ctaUrl: e.target.value,
+                buttonUrl: e.target.value 
+              })}
               placeholder="https://example.com"
             />
           </div>

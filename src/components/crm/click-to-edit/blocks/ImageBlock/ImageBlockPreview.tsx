@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
 import { InlineImageEditor } from '../../inline/InlineImageEditor';
 import { InlineStyleEditor } from '../../inline/InlineStyleEditor';
+import { CTAButton } from '@/components/ui/CTAButton';
 import { cn } from '@/lib/utils';
 
 interface ImageBlockPreviewProps {
@@ -122,24 +123,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
       )}
 
       {/* CTA Button */}
-      {(block.ctaText || block.ctaUrl) && (
-        <div className="mt-4 flex justify-center">
-          <Button
-            asChild={!!block.ctaUrl}
-            variant="default"
-            size="default"
-            className="inline-flex items-center px-6 py-3"
-          >
-            {block.ctaUrl ? (
-              <a href={block.ctaUrl} target="_blank" rel="noopener noreferrer">
-                {block.ctaText || 'Learn More'}
-              </a>
-            ) : (
-              <span>{block.ctaText || 'Learn More'}</span>
-            )}
-          </Button>
-        </div>
-      )}
+      <CTAButton block={block} className="justify-center" />
 
       {/* Style editor overlay */}
       {inlineEditMode === 'style' && (

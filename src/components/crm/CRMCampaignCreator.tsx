@@ -301,24 +301,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         }
         console.log('✅ Campaign metadata updated successfully');
 
-        // Step 2: Delete existing blocks
-        console.log('🗑️ Deleting existing blocks...');
-        const { error: deleteError } = await supabase
-          .from('campaign_blocks')
-          .delete()
-          .eq('campaign_id', existingCampaignId);
-
-        if (deleteError) {
-          console.error('❌ Block deletion failed:', deleteError);
-          throw new Error(`Block deletion failed: ${deleteError.message}`);
-        }
-        console.log('✅ Existing blocks deleted successfully');
-
-        // Step 3: Insert updated blocks (if any)
+        // Step 2: Upsert blocks to avoid race conditions
+        console.log('📦 Upserting', campaignData.blocks.length, 'blocks...');
+        
         if (campaignData.blocks.length > 0) {
-          console.log('📦 Inserting', campaignData.blocks.length, 'new blocks...');
-          
-          // Validate blocks before insertion
+          // Validate blocks before upsert
           const blocksToSave = campaignData.blocks.map((block, index) => {
             const blockData = {
               campaign_id: existingCampaignId,
@@ -366,6 +353,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             return blockData;
           });
 
+          // First, delete existing blocks for this campaign
+          const { error: deleteError } = await supabase
+            .from('campaign_blocks')
+            .delete()
+            .eq('campaign_id', existingCampaignId);
+
+          if (deleteError) {
+            console.error('❌ Block deletion failed:', deleteError);
+            throw new Error(`Block deletion failed: ${deleteError.message}`);
+          }
+
+          // Then insert new blocks in a single transaction
           const { error: blocksError } = await supabase
             .from('campaign_blocks')
             .insert(blocksToSave);
@@ -374,7 +373,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             console.error('❌ Block insertion failed:', blocksError);
             throw new Error(`Block insertion failed: ${blocksError.message}`);
           }
-          console.log('✅ New blocks inserted successfully');
+          console.log('✅ Blocks upserted successfully');
         } else {
           console.log('📦 No blocks to insert');
         }

@@ -229,6 +229,9 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           altText: block.altText || 
                   (typeof block.content === 'object' && block.content && (block.content as any).altText) || 
                   '',
+          // CRITICAL: Normalize CTA fields bidirectionally to prevent rendering issues
+          ctaText: block.ctaText || block.buttonText || '',
+          ctaUrl: block.ctaUrl || block.buttonUrl || '',
           buttonText: block.buttonText || block.ctaText || '',
           buttonUrl: block.buttonUrl || block.ctaUrl || '',
           visible: block.visible !== false,
