@@ -30,13 +30,16 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       </div>
 
       {/* Headline (for blocks that support it) */}
-      {(block.type === 'header' || block.headline !== undefined) && (
+      {(block.type === 'header' || block.headline !== undefined || block.title !== undefined) && (
         <div className="space-y-2">
           <Label htmlFor="headline">Headline</Label>
           <Input
             id="headline"
-            value={block.headline || ''}
-            onChange={(e) => onUpdate({ headline: e.target.value })}
+            value={block.headline || block.title || ''}
+            onChange={(e) => onUpdate({ 
+              headline: e.target.value,
+              title: e.target.value 
+            })}
             placeholder="Enter headline"
             className="w-full"
           />
