@@ -251,12 +251,14 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                   block={localBlock}
                   onUpdate={handleLocalUpdate}
                   onSave={() => {
-                    exitEditMode(); // Exit text editing mode
+                    // Ensure final state is committed before exiting
+                    onUpdate(block.id, localBlock);
+                    exitEditMode();
                   }}
                   onCancel={() => {
                     // Reset to original block state
                     setLocalBlock(block);
-                    exitEditMode(); // Exit text editing mode
+                    exitEditMode();
                   }}
                 />
               </div>
