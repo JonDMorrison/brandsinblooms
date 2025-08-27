@@ -178,7 +178,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       {block.type !== 'header' && (
         <>
           {/* Combined toolbar with regenerate and delete */}
-          <div className="absolute top-2 right-2 flex items-center bg-background/95 backdrop-blur-sm border rounded-md shadow-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
+          <div className="absolute top-2 right-2 flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-md shadow-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
             <RegenerateBlockButton
               block={localBlock}
               campaignName={campaignName}
@@ -193,7 +193,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                 e.stopPropagation();
                 onRemove(block.id);
               }}
-              className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground ml-1"
+              className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground"
               title="Delete block"
             >
               <Trash2 className="w-3 h-3" />
