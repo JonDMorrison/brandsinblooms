@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Slider } from '@/components/ui/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { CTAButton } from '@/components/ui/CTAButton';
 import { cn } from '@/lib/utils';
 import { ContextualToolbar } from '../contextual/ContextualToolbar';
 import { EditMode } from '@/hooks/useBlockEditMode';
@@ -114,6 +115,18 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
               </div>
             )}
           </div>
+
+          {/* CTA Button */}
+          {(block.ctaText || block.buttonText || block.ctaUrl || block.buttonUrl) && (
+            <div className="mt-8">
+              <CTAButton 
+                block={block} 
+                variant="secondary" 
+                size="lg"
+                className="text-white border-white hover:bg-white hover:text-primary"
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

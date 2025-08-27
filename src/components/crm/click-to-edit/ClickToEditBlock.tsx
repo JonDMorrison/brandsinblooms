@@ -251,8 +251,20 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                   block={localBlock}
                   onUpdate={handleLocalUpdate}
                   onSave={() => {
-                    // Ensure final state is committed before exiting
-                    onUpdate(block.id, localBlock);
+                    console.log('💾 ClickToEditBlock: Save callback triggered');
+                    console.log('🔍 Current localBlock state:', {
+                      id: localBlock.id,
+                      type: localBlock.type,
+                      title: localBlock.title,
+                      headline: localBlock.headline,
+                      content: localBlock.content,
+                      body: localBlock.body,
+                      ctaText: localBlock.ctaText,
+                      ctaUrl: localBlock.ctaUrl,
+                      buttonText: localBlock.buttonText,
+                      buttonUrl: localBlock.buttonUrl
+                    });
+                    // Just exit edit mode - the updates should already be applied via handleLocalUpdate
                     exitEditMode();
                   }}
                   onCancel={() => {
