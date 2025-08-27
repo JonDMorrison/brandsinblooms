@@ -24,6 +24,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
 }) => {
   const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left';
   const isImageRight = block.layout === 'image-right' || block.layout === 'two-column-right';
+  const isTextOnly = block.layout === 'full-width' || block.type === 'text';
 
   const handleModeClick = (mode: EditMode, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -63,13 +64,13 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       {!isEmpty && (
         <div className={cn(
           "grid gap-6 items-center",
-          (isImageLeft || isImageRight) ? "md:grid-cols-2" : "md:grid-cols-1"
+          (isImageLeft || isImageRight) && !isTextOnly ? "md:grid-cols-2" : "md:grid-cols-1"
         )}>
           {/* Content - shown first on mobile, positioned based on layout on desktop */}
           <div className={cn(
             "space-y-4 relative group/text",
-            isImageLeft && "md:order-2",
-            isImageRight && "md:order-1",
+            isImageLeft && !isTextOnly && "md:order-2",
+            isImageRight && !isTextOnly && "md:order-1",
             block.textAlign === 'center' && "text-center",
             block.textAlign === 'right' && "text-right",
             "hover:bg-background/50 rounded-md transition-colors duration-200 p-2 -m-2"
@@ -133,95 +134,97 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
             <CTAButton block={block} />
           </div>
 
-          {/* Image */}
-          <div className={cn(
-            isImageLeft && "md:order-1",
-            isImageRight && "md:order-2", 
-            "relative group/image cursor-pointer",
-            "hover:opacity-90 transition-opacity duration-200"
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onModeChange) {
-              handleModeClick('image', e);
-            }
-          }}
-          >
-            {/* Contextual Image Edit Button */}
-            {onModeChange && (
-              <ContextualEditButton
-                mode="image"
-                isActive={editMode === 'image'}
-                onClick={(e) => handleModeClick('image', e)}
-                variant="image"
-                position="top-right"
-                className="group-hover/image:opacity-100"
-              />
+          {/* Image - only render for image-text layouts */}
+          {!isTextOnly && (
+            <div className={cn(
+              isImageLeft && "md:order-1",
+              isImageRight && "md:order-2", 
+              "relative group/image cursor-pointer",
+              "hover:opacity-90 transition-opacity duration-200"
             )}
-            
-            {(() => {
-              // Derive image source from multiple possible locations
-              const imageSrc = block.imageUrl || 
-                             (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) || 
-                             '';
-              
-              return imageSrc ? (
-                <img 
-                  src={imageSrc}
-                  alt={block.altText || 'Content image'}
-                  className="w-full h-auto rounded-lg cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onModeChange) {
+                handleModeClick('image', e);
+              }
+            }}
+            >
+              {/* Contextual Image Edit Button */}
+              {onModeChange && (
+                <ContextualEditButton
+                  mode="image"
+                  isActive={editMode === 'image'}
+                  onClick={(e) => handleModeClick('image', e)}
+                  variant="image"
+                  position="top-right"
+                  className="group-hover/image:opacity-100"
                 />
-              ) : (
-                <div 
-                  className="w-full h-48 bg-muted rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors p-4"
-                >
-                  <span className="text-muted-foreground mb-3">Click to add image</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onModeChange) {
-                          handleModeClick('image', e);
-                        }
-                      }}
-                      className="px-3 py-1 text-xs bg-background border border-border rounded hover:bg-muted transition-colors"
-                    >
-                      Browse
-                    </button>
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        // Auto-pick image based on content
-                        const headline = (() => {
-                          if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
-                            return (block.content as any).headline;
-                          } else if (block.headline) {
-                            return block.headline;
-                          } else if (block.title) {
-                            return block.title;
+              )}
+              
+              {(() => {
+                // Derive image source from multiple possible locations
+                const imageSrc = block.imageUrl || 
+                               (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) || 
+                               '';
+                
+                return imageSrc ? (
+                  <img 
+                    src={imageSrc}
+                    alt={block.altText || 'Content image'}
+                    className="w-full h-auto rounded-lg cursor-pointer"
+                  />
+                ) : (
+                  <div 
+                    className="w-full h-48 bg-muted rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors p-4"
+                  >
+                    <span className="text-muted-foreground mb-3">Click to add image</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onModeChange) {
+                            handleModeClick('image', e);
                           }
-                          return 'garden plants';
-                        })();
-                        
-                        const { fetchSmartImage } = await import('@/services/unsplashService');
-                        const imageData = await fetchSmartImage(headline, '', true);
-                        
-                        if (imageData?.url && onUpdate) {
-                          onUpdate({
-                            imageUrl: imageData.url,
-                            altText: imageData.alt
-                          });
-                        }
-                      }}
-                      className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-                    >
-                      Auto-pick
-                    </button>
+                        }}
+                        className="px-3 py-1 text-xs bg-background border border-border rounded hover:bg-muted transition-colors"
+                      >
+                        Browse
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          // Auto-pick image based on content
+                          const headline = (() => {
+                            if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
+                              return (block.content as any).headline;
+                            } else if (block.headline) {
+                              return block.headline;
+                            } else if (block.title) {
+                              return block.title;
+                            }
+                            return 'garden plants';
+                          })();
+                          
+                          const { fetchSmartImage } = await import('@/services/unsplashService');
+                          const imageData = await fetchSmartImage(headline, '', true);
+                          
+                          if (imageData?.url && onUpdate) {
+                            onUpdate({
+                              imageUrl: imageData.url,
+                              altText: imageData.alt
+                            });
+                          }
+                        }}
+                        className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                      >
+                        Auto-pick
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
-          </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
     </div>
