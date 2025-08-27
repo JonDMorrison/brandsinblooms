@@ -14,6 +14,7 @@ interface BlockTypeConverterProps {
 
 const blockTypeOptions = [
   { value: 'header', label: 'Header', icon: '📄' },
+  { value: 'newsletter-header', label: 'Newsletter Header', icon: '📰' },
   { value: 'text', label: 'Text', icon: '📝' },
   { value: 'image', label: 'Image', icon: '🖼️' },
   { value: 'button', label: 'Button', icon: '🔘' },
@@ -97,6 +98,17 @@ const preserveContentDuringTypeChange = (block: ContentBlock, newType: BlockType
     case 'header':
       preserved.title = block.title || block.content || 'Header Title';
       preserved.content = block.content || '';
+      break;
+      
+    case 'newsletter-header':
+      preserved.title = block.title || block.content || 'Newsletter Title';
+      preserved.subtitle = block.subtitle || block.body || block.content || '';
+      preserved.body = block.subtitle || block.body || block.content || '';
+      preserved.backgroundImageUrl = block.backgroundImageUrl;
+      preserved.issueNumber = block.issueNumber;
+      preserved.publishDate = block.publishDate;
+      preserved.textAlign = block.textAlign || 'center';
+      preserved.padding = block.padding || 'large';
       break;
       
     case 'text':

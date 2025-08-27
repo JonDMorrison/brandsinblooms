@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Bug } from 'lucide-react';
 import { ClickToEditBlock } from './ClickToEditBlock';
 import { HeaderBlock } from './blocks/HeaderBlock';
+import { NewsletterHeaderBlock } from './blocks/NewsletterHeaderBlock';
 import { TextBlock } from './blocks/TextBlock';
 import { ImageBlock } from './blocks/ImageBlock';
 import { ImageTextBlock } from './blocks/ImageTextBlock';
@@ -161,6 +162,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
     switch (block.type) {
       case 'header':
         return <HeaderBlock {...props} isPreview={false} />;
+      case 'newsletter-header':
+        return <NewsletterHeaderBlock {...props} isPreview={false} />;
       case 'text':
         // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
@@ -195,6 +198,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
     switch (block.type) {
       case 'header':
         return <HeaderBlock {...props} isPreview={true} />;
+      case 'newsletter-header':
+        return <NewsletterHeaderBlock {...props} isPreview={true} />;
       case 'text':
         // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
