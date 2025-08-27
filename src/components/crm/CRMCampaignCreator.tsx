@@ -2108,6 +2108,13 @@ cleanUrl();
             blocks={blocks}
             onBlocksChange={(newBlocks) => {
               console.log('[CRM CAMPAIGN CREATOR] Blocks changed:', newBlocks.length);
+              
+              // Prevent accidental clearing of blocks unless it's intentional
+              if (newBlocks.length === 0 && blocks.length > 0) {
+                console.log('🚫 [CRM CAMPAIGN CREATOR] Preventing accidental block clearing');
+                return;
+              }
+              
               setBlocks(newBlocks);
               
               // Auto-save when blocks change

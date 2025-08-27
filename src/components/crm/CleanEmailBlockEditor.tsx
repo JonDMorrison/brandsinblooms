@@ -183,14 +183,12 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
 
   // Enhanced hydration logic with proper state management
   useEffect(() => {
-    // Don't clear internal blocks just because parent temporarily provides empty blocks
-    // Only clear if parent explicitly provides empty blocks AND we haven't hydrated yet
+    // Skip if no blocks provided yet
     if (blocks.length === 0) {
-      if (!hydrationComplete) {
-        // Only set hydration complete for truly empty initial state
+      if (internalBlocks.length > 0) {
+        setInternalBlocks([]);
         setHydrationComplete(true);
       }
-      // Don't clear existing internal blocks - preserve user's work
       return;
     }
 
