@@ -264,7 +264,8 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                       buttonText: localBlock.buttonText,
                       buttonUrl: localBlock.buttonUrl
                     });
-                    // Just exit edit mode - the updates should already be applied via handleLocalUpdate
+                    // Final commit of changes and exit edit mode
+                    onUpdate(block.id, localBlock);
                     exitEditMode();
                   }}
                   onCancel={() => {

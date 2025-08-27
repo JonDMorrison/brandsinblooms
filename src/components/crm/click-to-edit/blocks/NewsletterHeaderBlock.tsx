@@ -86,13 +86,18 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
         <div className="max-w-3xl w-full text-center space-y-6">
           {/* Newsletter Title */}
           <h1 className="text-5xl md:text-6xl font-bold mb-4 leading-tight">
-            {sanitizeWeekNumbers(block.title || "Newsletter Title")}
+            {sanitizeWeekNumbers(block.headline || block.title || "Newsletter Title")}
           </h1>
           
           {/* Subtitle */}
-          {(block.subtitle || block.body) && (
+          {(block.subtitle || block.body || block.content) && (
             <p className="text-xl md:text-2xl opacity-90 leading-relaxed">
-              {sanitizeWeekNumbers(block.subtitle || block.body || "Your newsletter subtitle")}
+              {sanitizeWeekNumbers(
+                block.subtitle || 
+                (block.body ? block.body.replace(/<[^>]*>/g, '') : '') || 
+                (block.content ? block.content.replace(/<[^>]*>/g, '') : '') || 
+                "Your newsletter subtitle"
+              )}
             </p>
           )}
 
@@ -118,7 +123,7 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
 
           {/* CTA Button */}
           {(block.ctaText || block.buttonText || block.ctaUrl || block.buttonUrl) && (
-            <div className="mt-8">
+            <div className="mt-8 flex justify-center">
               <CTAButton 
                 block={block} 
                 variant="secondary" 
