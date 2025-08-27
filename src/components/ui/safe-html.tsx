@@ -33,14 +33,14 @@ export const SafeHtml: React.FC<SafeHtmlProps> = ({
   // For newsletter-clean type, render as plain text with preserved line breaks
   if (type === 'newsletter-clean') {
     return (
-      <span className={`${className} whitespace-pre-wrap`}>
+      <div className={`${className} whitespace-pre-wrap`}>
         {getSanitizedContent()}
-      </span>
+      </div>
     );
   }
 
   return (
-    <span 
+    <div 
       className={className}
       dangerouslySetInnerHTML={{ __html: getSanitizedContent() }}
     />
