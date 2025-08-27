@@ -21,7 +21,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   editMode,
   onModeChange 
 }) => {
-  const isImageLeft = block.layout === 'image-left';
+  const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left';
+  const isImageRight = block.layout === 'image-right' || block.layout === 'two-column-right';
 
   const handleModeClick = (mode: EditMode, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -61,12 +62,13 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       {!isEmpty && (
         <div className={cn(
           "grid gap-6 items-center",
-          isImageLeft ? "md:grid-cols-2" : "md:grid-cols-2"
+          (isImageLeft || isImageRight) ? "md:grid-cols-2" : "md:grid-cols-1"
         )}>
           {/* Content - shown first on mobile, positioned based on layout on desktop */}
           <div className={cn(
             "space-y-4 relative group/text",
             isImageLeft && "md:order-2",
+            isImageRight && "md:order-1",
             block.textAlign === 'center' && "text-center",
             block.textAlign === 'right' && "text-right",
             "hover:bg-background/50 rounded-md transition-colors duration-200 p-2 -m-2"
@@ -129,7 +131,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
 
           {/* Image */}
           <div className={cn(
-            isImageLeft && "md:order-1", 
+            isImageLeft && "md:order-1",
+            isImageRight && "md:order-2", 
             "relative group/image cursor-pointer",
             "hover:opacity-90 transition-opacity duration-200"
           )}

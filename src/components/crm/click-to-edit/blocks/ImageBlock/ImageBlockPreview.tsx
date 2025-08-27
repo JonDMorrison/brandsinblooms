@@ -41,7 +41,12 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
   }, [onUpdate]);
 
   const handleLayoutChange = useCallback((layout: string) => {
-    onUpdate({ layout: layout as any });
+    // When switching to two-column layout, change block type to image-text
+    const updates: Partial<ContentBlock> = { layout: layout as any };
+    if (layout === 'two-column-left' || layout === 'two-column-right') {
+      updates.type = 'image-text';
+    }
+    onUpdate(updates);
   }, [onUpdate]);
 
   const handleTextAlignChange = useCallback((align: string) => {

@@ -45,11 +45,16 @@ export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({
     const newBlockType = determineBlockTypeFromLayout(layoutType);
     const newBlockLayout = mapModalLayoutToBlockLayout(layoutType);
     
+    // Force image-text type for two-column layouts
+    const finalBlockType = (newBlockLayout === 'two-column-left' || newBlockLayout === 'two-column-right') 
+      ? 'image-text' 
+      : newBlockType;
+    
     // Preserve content during layout change
-    const preservedContent = preserveContentDuringLayoutChange(block, newBlockType, newBlockLayout);
+    const preservedContent = preserveContentDuringLayoutChange(block, finalBlockType, newBlockLayout);
     
     onUpdate({
-      type: newBlockType,
+      type: finalBlockType,
       layout: newBlockLayout,
       ...preservedContent
     });
