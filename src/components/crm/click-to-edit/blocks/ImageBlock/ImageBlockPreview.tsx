@@ -121,6 +121,26 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
         </p>
       )}
 
+      {/* CTA Button */}
+      {(block.ctaText || block.ctaUrl) && (
+        <div className="mt-4 flex justify-center">
+          <Button
+            asChild={!!block.ctaUrl}
+            variant="default"
+            size="default"
+            className="inline-flex items-center px-6 py-3"
+          >
+            {block.ctaUrl ? (
+              <a href={block.ctaUrl} target="_blank" rel="noopener noreferrer">
+                {block.ctaText || 'Learn More'}
+              </a>
+            ) : (
+              <span>{block.ctaText || 'Learn More'}</span>
+            )}
+          </Button>
+        </div>
+      )}
+
       {/* Style editor overlay */}
       {inlineEditMode === 'style' && (
         <div className="absolute top-2 right-2 z-50">

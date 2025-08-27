@@ -82,7 +82,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       )}
 
       {/* CTA Text and URL (for blocks that support it) */}
-      {(block.ctaText !== undefined || block.ctaUrl !== undefined) && (
+      {(block.ctaText !== undefined || block.ctaUrl !== undefined || block.type === 'image' || block.type === 'image-text' || block.type === 'text') && (
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="ctaText">Button Text</Label>
