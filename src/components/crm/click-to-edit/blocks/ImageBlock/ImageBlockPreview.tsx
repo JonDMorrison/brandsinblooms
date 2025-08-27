@@ -78,7 +78,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
             onBackgroundColorChange={handleBackgroundColorChange}
             layout={block.layout as 'image-left' | 'two-column-left' | 'two-column-right'}
             onLayoutChange={handleLayoutChange}
-            showLayoutControls={true}
+            showLayoutControls={block.layout === 'two-column-left' || block.layout === 'two-column-right'}
           />
         </div>
       ) : (
