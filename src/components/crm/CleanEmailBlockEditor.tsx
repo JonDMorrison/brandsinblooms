@@ -359,7 +359,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   };
 
   const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
-    console.log('🔧 Updating block:', id, 'with updates:', updates);
+    console.log('🔧 Updating block: {id} with updates: {updates}', id, 'with updates:', updates);
     const newBlocks = internalBlocks.map(block => {
       if (block.id === id) {
         const updatedBlock = { ...block, ...updates };

@@ -146,10 +146,20 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
   // Handle image selection from MediaSelector
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
-    handleLocalUpdate({ 
-      imageUrl,
-      altText: metadata?.alt || metadata?.description || block.altText 
-    });
+    console.log('🖼️ Image selected for block:', block.type, 'URL:', imageUrl);
+    
+    // For newsletter headers, update backgroundImageUrl instead of imageUrl
+    if (block.type === 'newsletter-header') {
+      handleLocalUpdate({ 
+        backgroundImageUrl: imageUrl,
+        altText: metadata?.alt || metadata?.description || block.altText 
+      });
+    } else {
+      handleLocalUpdate({ 
+        imageUrl,
+        altText: metadata?.alt || metadata?.description || block.altText 
+      });
+    }
     setIsMediaSelectorOpen(false);
   };
 
