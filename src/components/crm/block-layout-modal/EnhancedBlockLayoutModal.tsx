@@ -27,15 +27,6 @@ const layoutOptions = [
     previewType: 'newsletter-header' as const
   },
 
-  // Header Layouts
-  {
-    id: 'header-simple' as LayoutType,
-    title: 'Text Only Header',
-    description: 'Clean full-width text section with title and subtitle',
-    category: 'Header',
-    icon: <FileText className="h-4 w-4 text-muted-foreground" />,
-    previewType: 'header-simple' as const
-  },
   
   // Enhanced Image Layouts
   {
