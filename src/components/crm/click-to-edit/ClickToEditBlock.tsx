@@ -89,10 +89,13 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
   // Handle immediate local updates for responsive UI
   const handleLocalUpdate = useCallback((updates: Partial<ContentBlock>) => {
+    console.log('🔍 [ClickToEditBlock] handleLocalUpdate called with:', updates);
     const updatedBlock = { ...localBlock, ...updates };
+    console.log('🔍 [ClickToEditBlock] Updated local block:', updatedBlock);
     setLocalBlock(updatedBlock);
     // Update parent immediately for all content changes
     onUpdate(block.id, updates);
+    console.log('🔍 [ClickToEditBlock] Called parent onUpdate with updates:', updates);
   }, [localBlock, block.id, onUpdate]);
 
   // Handle click outside to exit edit mode
@@ -251,9 +254,13 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                   block={localBlock}
                   onUpdate={handleLocalUpdate}
                   onSave={() => {
+                    console.log('🔍 [ClickToEditBlock] Save called, localBlock state:', localBlock);
+                    console.log('🔍 [ClickToEditBlock] Original block state:', block);
                     // Ensure final state is committed before exiting
                     onUpdate(block.id, localBlock);
+                    console.log('🔍 [ClickToEditBlock] Called onUpdate with:', localBlock);
                     exitEditMode();
+                    console.log('🔍 [ClickToEditBlock] Exited edit mode');
                   }}
                   onCancel={() => {
                     // Reset to original block state
