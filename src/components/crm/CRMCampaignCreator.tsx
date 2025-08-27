@@ -29,6 +29,7 @@ import { AIWriterDialog } from './ai-writer/AIWriterDialog';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
 import { CampaignActionBar } from './CampaignActionBar';
 import { CampaignReadiness } from './CampaignReadiness';
+import { usePagePersistence } from '@/hooks/usePagePersistence';
 import { 
   Breadcrumb,
   BreadcrumbItem,
@@ -193,6 +194,28 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const { toast } = useToast();
   
   const [campaignName, setCampaignName] = useState('');
+  
+  // Page persistence hook
+  const { persistState, restoreState } = usePagePersistence<{
+    campaignName: string;
+    subjectLine: string;
+    preheaderText: string;
+    blocks: ContentBlock[];
+    showPreview: boolean;
+  }>({
+    key: `campaign_creator_${campaignSlug || 'new'}`,
+    ttl: 2 * 60 * 60 * 1000, // 2 hours for campaign data
+    onHidden: () => {
+      // Persist critical state when tab is hidden
+      persistState({
+        campaignName,
+        subjectLine,
+        preheaderText,
+        blocks,
+        showPreview
+      });
+    }
+  });
   
   // Prefill from Generated Bundle if provided
   const bundleIdParam = searchParams.get('bundleId');
@@ -634,6 +657,17 @@ cleanUrl();
   useEffect(() => {
     const checkExistingCampaign = async () => {
       console.log('🔍 CRMCampaignCreator: Starting campaign check', { campaignSlug, finalContentTaskId });
+      
+      // First try to restore from persisted state
+      const persistedState = restoreState();
+      if (persistedState && !existingCampaignId) {
+        console.log('📋 Restoring persisted state');
+        setCampaignName(persistedState.campaignName);
+        setSubjectLine(persistedState.subjectLine);
+        setPreheaderText(persistedState.preheaderText);
+        setBlocks(persistedState.blocks);
+        setShowPreview(persistedState.showPreview);
+      }
       
       // Handle newsletter template processing (from picker)
       const templateId = searchParams.get('templateId');

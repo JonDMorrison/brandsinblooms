@@ -7,6 +7,7 @@ import { SubscriptionProvider } from '@/contexts/SubscriptionContext'
 import { OnboardingStatusProvider } from '@/contexts/OnboardingStatusContext'
 import { LoadingProvider } from '@/contexts/LoadingContext'
 import { GlobalLoadingOverlay } from '@/components/loading/GlobalLoadingOverlay'
+import { GlobalVisibilityManager } from '@/components/GlobalVisibilityManager'
 import App from './App.tsx'
 import './index.css'
 
@@ -34,6 +35,7 @@ createRoot(document.getElementById("root")!).render(
             <OnboardingStatusProvider>
               <App />
               <GlobalLoadingOverlay />
+              <GlobalVisibilityManager />
             </OnboardingStatusProvider>
           </SubscriptionProvider>
         </AuthProvider>

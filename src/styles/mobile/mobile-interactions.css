@@ -55,6 +55,10 @@
       animation-duration: 1ms !important;
       animation-iteration-count: 1 !important;
       background-attachment: initial !important;
+    }
+    
+    /* Only apply auto scroll-behavior to body on reduced motion */
+    body {
       scroll-behavior: auto !important;
     }
   }

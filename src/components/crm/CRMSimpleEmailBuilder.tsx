@@ -10,6 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
+import { usePagePersistence } from '@/hooks/usePagePersistence';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -71,6 +72,36 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Page persistence hook
+  const { persistState, restoreState } = usePagePersistence<{
+    campaignName: string;
+    subjectLine: string;
+    message: string;
+    coverImage: {url: string; alt: string} | null;
+    ctaButton: {text: string; url: string} | null;
+    showCtaButton: boolean;
+    sendOption: 'immediate' | 'scheduled';
+    scheduledDate?: Date;
+    showPreview: boolean;
+  }>({
+    key: `simple_email_builder_${campaignId}`,
+    ttl: 2 * 60 * 60 * 1000, // 2 hours
+    onHidden: () => {
+      // Persist state when tab is hidden
+      persistState({
+        campaignName,
+        subjectLine,
+        message,
+        coverImage,
+        ctaButton,
+        showCtaButton,
+        sendOption,
+        scheduledDate,
+        showPreview
+      });
+    }
+  });
+
   // Personalization tokens
   const personalizationTokens = [
     { label: 'First Name', value: '{{first_name}}', icon: User },
@@ -83,6 +114,21 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
   useEffect(() => {
     loadCampaign();
     loadSegments();
+    
+    // Try to restore persisted state
+    const persistedState = restoreState();
+    if (persistedState) {
+      console.log('📋 Restoring simple email builder state');
+      setCampaignName(persistedState.campaignName);
+      setSubjectLine(persistedState.subjectLine);
+      setMessage(persistedState.message);
+      setCoverImage(persistedState.coverImage);
+      setCtaButton(persistedState.ctaButton);
+      setShowCtaButton(persistedState.showCtaButton);
+      setSendOption(persistedState.sendOption);
+      setScheduledDate(persistedState.scheduledDate);
+      setShowPreview(persistedState.showPreview);
+    }
   }, [campaignId]);
 
   // Auto-save functionality
