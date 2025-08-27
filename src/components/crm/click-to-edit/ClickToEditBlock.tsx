@@ -155,6 +155,10 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
   const handleBlockClick = () => {
     if (!editMode) {
+      // Don't show text edit mode for image-only blocks
+      if (block.type === 'image') {
+        return;
+      }
       toggleMode('text'); // Default to text editing on click
     }
   };
