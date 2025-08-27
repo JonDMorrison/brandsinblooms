@@ -3,7 +3,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Trash2, Edit, Image } from 'lucide-react';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
@@ -174,32 +174,60 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         </div>
       </div>
 
-      {/* New Block Edit Toolbar - only show for non-contextual blocks */}
+      {/* Combined Block Edit Toolbar - only show for non-header blocks */}
       {block.type !== 'header' && (
-        <>
-          {/* Combined toolbar with regenerate and delete */}
-          <div className="absolute top-2 right-2 flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-md shadow-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
-            <RegenerateBlockButton
-              block={localBlock}
-              campaignName={campaignName}
-              onUpdate={(updatedBlock) => handleLocalUpdate(updatedBlock)}
-              allBlocks={allBlocks}
-              blockIndex={index}
-            />
+        <div className="absolute top-2 right-2 flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-md shadow-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
+          {/* Text Edit Button - hide for image-only blocks */}
+          {block.type !== 'image' && (
             <Button
-              variant="ghost"
+              variant={editMode === 'text' ? 'default' : 'ghost'}
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                onRemove(block.id);
+                handleModeChange('text');
               }}
-              className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground"
-              title="Delete block"
+              className="h-7 w-7 p-0 hover:bg-muted"
+              title="Edit text"
             >
-              <Trash2 className="w-3 h-3" />
+              <Edit className="w-3 h-3" />
             </Button>
-          </div>
-        </>
+          )}
+          
+          {/* Image Edit Button */}
+          <Button
+            variant={editMode === 'image' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleModeChange('image');
+            }}
+            className="h-7 w-7 p-0 hover:bg-muted"
+            title="Edit image"
+          >
+            <Image className="w-3 h-3" />
+          </Button>
+          
+          <RegenerateBlockButton
+            block={localBlock}
+            campaignName={campaignName}
+            onUpdate={(updatedBlock) => handleLocalUpdate(updatedBlock)}
+            allBlocks={allBlocks}
+            blockIndex={index}
+          />
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(block.id);
+            }}
+            className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground"
+            title="Delete block"
+          >
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
       )}
 
       <Card
@@ -254,7 +282,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
               React.cloneElement(children.preview as React.ReactElement, {
                 block: localBlock,
                 editMode: localEditMode,
-                onModeChange: handleModeChange
+                onModeChange: block.type === 'header' ? handleModeChange : undefined
               })
             ) : typeof children.preview === 'object' && children.preview !== null ? (
               <div className="p-4 text-center text-muted-foreground">
@@ -278,7 +306,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                   return React.cloneElement(children.preview as React.ReactElement, {
                     block: localBlock,
                     editMode: localEditMode,
-                    onModeChange: handleModeChange
+                    onModeChange: block.type === 'header' ? handleModeChange : undefined
                   });
                 } else if (typeof children.preview === 'object' && children.preview !== null) {
                   console.error('[ClickToEditBlock] Invalid preview object:', children.preview);
