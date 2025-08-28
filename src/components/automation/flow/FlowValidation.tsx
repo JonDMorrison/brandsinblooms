@@ -1,8 +1,8 @@
-import React from 'react';
-import { AlertCircle, CheckCircle, Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertCircle, CheckCircle, Users, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Node, Edge } from '@xyflow/react';
 
@@ -160,6 +160,7 @@ export const FlowStatusBadge: React.FC<FlowValidationProps> = ({
   edges,
   selectedAudience
 }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const validationResults = validateFlow(nodes, edges, selectedAudience);
   const hasErrors = validationResults.some(result => result.type === 'error');
   const hasWarnings = validationResults.some(result => result.type === 'warning');
@@ -176,68 +177,104 @@ export const FlowStatusBadge: React.FC<FlowValidationProps> = ({
     );
   }
 
-  // Has issues - make it clickable with popover
+  // Has issues - make it clickable with modal
   const badgeContent = hasErrors ? (
-    <Badge variant="destructive" className="gap-1 cursor-pointer hover:opacity-80">
+    <Badge 
+      variant="destructive" 
+      className="gap-1 cursor-pointer hover:opacity-80"
+      onClick={() => setIsModalOpen(true)}
+    >
       <AlertCircle className="w-3 h-3" />
       Needs Fixes
     </Badge>
   ) : (
-    <Badge variant="secondary" className="gap-1 bg-yellow-100 text-yellow-800 border-yellow-300 cursor-pointer hover:opacity-80">
+    <Badge 
+      variant="secondary" 
+      className="gap-1 bg-yellow-100 text-yellow-800 border-yellow-300 cursor-pointer hover:opacity-80"
+      onClick={() => setIsModalOpen(true)}
+    >
       <AlertCircle className="w-3 h-3" />
       Has Warnings
     </Badge>
   );
 
+  const handleFixClick = (issue: { type: 'error' | 'warning'; message: string }) => {
+    // Handle different fix actions based on the issue type
+    if (issue.message.includes('trigger node')) {
+      console.log('Navigate to add trigger node');
+    } else if (issue.message.includes('target audience')) {
+      console.log('Open audience selector');
+    } else if (issue.message.includes('missing subject or content')) {
+      console.log('Navigate to email node editor');
+    } else if (issue.message.includes('missing message content')) {
+      console.log('Navigate to SMS node editor');
+    } else if (issue.message.includes('not connected')) {
+      console.log('Highlight disconnected nodes');
+    }
+    setIsModalOpen(false);
+  };
+
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        {badgeContent}
-      </PopoverTrigger>
-      <PopoverContent className="w-80" align="center" side="top">
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            <h4 className="font-medium">Validation Issues</h4>
-          </div>
+    <>
+      {badgeContent}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Validation Issues
+            </DialogTitle>
+          </DialogHeader>
           
-          {errors.length > 0 && (
-            <div className="space-y-2">
-              <h5 className="text-sm font-medium text-destructive flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                Errors ({errors.length})
-              </h5>
-              <div className="space-y-1">
-                {errors.map((error, index) => (
-                  <div key={index} className="text-xs text-destructive bg-destructive/10 p-2 rounded">
-                    {error.message}
-                  </div>
-                ))}
+          <div className="space-y-4">
+            {errors.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-sm font-medium text-destructive flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Errors ({errors.length})
+                </h5>
+                <div className="space-y-1">
+                  {errors.map((error, index) => (
+                    <div 
+                      key={index} 
+                      className="text-xs text-destructive bg-destructive/10 p-3 rounded cursor-pointer hover:bg-destructive/20 transition-colors flex items-center justify-between"
+                      onClick={() => handleFixClick(error)}
+                    >
+                      <span>{error.message}</span>
+                      <ExternalLink className="w-3 h-3 opacity-60" />
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-          
-          {warnings.length > 0 && (
-            <div className="space-y-2">
-              <h5 className="text-sm font-medium text-yellow-700 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                Warnings ({warnings.length})
-              </h5>
-              <div className="space-y-1">
-                {warnings.map((warning, index) => (
-                  <div key={index} className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded">
-                    {warning.message}
-                  </div>
-                ))}
+            )}
+            
+            {warnings.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-sm font-medium text-yellow-700 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Warnings ({warnings.length})
+                </h5>
+                <div className="space-y-1">
+                  {warnings.map((warning, index) => (
+                    <div 
+                      key={index} 
+                      className="text-xs text-yellow-700 bg-yellow-50 p-3 rounded cursor-pointer hover:bg-yellow-100 transition-colors flex items-center justify-between"
+                      onClick={() => handleFixClick(warning)}
+                    >
+                      <span>{warning.message}</span>
+                      <ExternalLink className="w-3 h-3 opacity-60" />
+                    </div>
+                  ))}
+                </div>
               </div>
+            )}
+            
+            <div className="text-xs text-muted-foreground pt-2 border-t">
+              Click on any issue above to view the suggested fix.
             </div>
-          )}
-          
-          <div className="text-xs text-muted-foreground pt-2 border-t">
-            Fix all errors to enable launching your automation.
           </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
