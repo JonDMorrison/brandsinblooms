@@ -4,6 +4,7 @@ import { cleanContentForDisplay } from '@/utils/contentUtils';
 import { cleanVideoContent, isVideoScriptContent } from '@/utils/videoContentCleaner';
 import { convertMarkdownToHtml } from '@/utils/markdownUtils';
 import { SafeHtml } from '@/components/ui/safe-html';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { stripEmojis } from '@/utils/contentValidation';
 import { validateFormattedContent, repairFormattedContent } from '@/utils/contentFormatValidator';
 import { useNewsletterRenderer } from '@/hooks/useNewsletterRenderer';
@@ -19,6 +20,7 @@ interface MagazineContentDisplayProps {
   campaignTitle?: string;
   task?: any;
   className?: string;
+  onContentChange?: (content: string) => void;
 }
 
 export const MagazineContentDisplay = ({ 
@@ -27,11 +29,14 @@ export const MagazineContentDisplay = ({
   contentTaskId, 
   campaignTitle, 
   task,
-  className = ""
+  className = "",
+  onContentChange
 }: MagazineContentDisplayProps) => {
   
   // State for format toggle
   const [format, setFormat] = useState<'magazine' | 'plain'>('magazine');
+  // State for editable content
+  const [editableContent, setEditableContent] = useState(content);
   
   console.log('🔍 [MagazineContentDisplay] Input:', {
     contentLength: content?.length || 0,
@@ -219,12 +224,16 @@ export const MagazineContentDisplay = ({
             </div>
           </div>
         ) : postType === 'blog' ? (
-          // Blog content uses SafeHtml for rich formatting
+          // Blog content uses RichTextEditor for editing
           <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-ul:text-gray-700">
-            <SafeHtml 
-              content={processedContent} 
-              className=""
-              type="general"
+            <RichTextEditor
+              content={editableContent}
+              onChange={(newContent) => {
+                setEditableContent(newContent);
+                onContentChange?.(newContent);
+              }}
+              placeholder="Enter blog content..."
+              className="min-h-[300px]"
             />
           </div>
         ) : postType === 'newsletter' ? (
