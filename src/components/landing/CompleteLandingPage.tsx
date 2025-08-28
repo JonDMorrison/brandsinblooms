@@ -7,7 +7,7 @@ import { ProblemAgitationSection } from './ProblemAgitationSection';
 import { GuideSection } from './GuideSection';
 
 import { BenefitsSection } from './BenefitsSection';
-import { TestimonialsSection } from './TestimonialsSection';
+
 import { PricingPreviewSection } from './PricingPreviewSection';
 import { FinalCTASection } from './FinalCTASection';
 
@@ -35,7 +35,7 @@ export const CompleteLandingPage = () => {
       <GuideSection />
       
       <BenefitsSection />
-      <TestimonialsSection />
+      
       <PricingPreviewSection onSeePricing={handleSeePricing} />
       <FinalCTASection onGetStarted={handleGetStarted} />
     </div>
