@@ -159,12 +159,7 @@ export const EnhancedBlockEditor: React.FC<EnhancedBlockEditorProps> = ({
 
           {/* Block Content Preview */}
           <div className="flex-1 min-w-0">
-            <div className="text-sm text-muted-foreground truncate">
-              {block.title && <span className="font-medium">{block.title}</span>}
-              {block.content && <span className="ml-2">{block.content.substring(0, 50)}{block.content.length > 50 ? '...' : ''}</span>}
-              {block.imageUrl && <span className="ml-2">📷 Image</span>}
-              {block.ctaText && <span className="ml-2">🔘 {block.ctaText}</span>}
-            </div>
+            {renderSpecializedEditor()}
           </div>
 
           {/* Action Buttons */}
