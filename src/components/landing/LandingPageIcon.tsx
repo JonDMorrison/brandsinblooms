@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
 interface LandingPageIconProps {
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  logo?: string;
   variant?: 'hero' | 'section' | 'feature';
   theme?: 'spring' | 'summer' | 'autumn' | 'winter' | 'neutral';
   className?: string;
@@ -38,6 +39,7 @@ const themeStyles = {
 
 export const LandingPageIcon = ({ 
   icon: Icon, 
+  logo,
   variant = 'section', 
   theme = 'neutral', 
   className, 
@@ -59,14 +61,27 @@ export const LandingPageIcon = ({
       )}
       style={style}
     >
-      <Icon 
-        className={cn(
-          "transition-all duration-300",
-          styles.icon,
-          animated && "group-hover:scale-110",
-          className
-        )}
-      />
+      {logo ? (
+        <img 
+          src={logo}
+          alt="BloomSuite Logo"
+          className={cn(
+            "transition-all duration-300",
+            styles.icon,
+            animated && "group-hover:scale-110",
+            className
+          )}
+        />
+      ) : Icon ? (
+        <Icon 
+          className={cn(
+            "transition-all duration-300",
+            styles.icon,
+            animated && "group-hover:scale-110",
+            className
+          )}
+        />
+      ) : null}
     </div>
   );
 };

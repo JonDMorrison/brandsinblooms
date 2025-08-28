@@ -95,18 +95,32 @@ export const BenefitsSection = () => {
             >
               <CardContent className="p-0">
                 <div className="mb-6">
-                  <LandingPageIcon 
-                    icon={benefit.icon}
-                    variant="section"
-                    theme="neutral"
-                    animated={true}
-                    containerClassName="shadow-md"
-                    style={{ 
-                      backgroundColor: 'white',
-                      borderColor: `${benefit.iconColor}30`,
-                      color: benefit.iconColor
-                    }}
-                  />
+                  {index === 0 ? (
+                    <LandingPageIcon 
+                      logo="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png"
+                      variant="section"
+                      theme="neutral"
+                      animated={true}
+                      containerClassName="shadow-md"
+                      style={{ 
+                        backgroundColor: 'white',
+                        borderColor: `${benefit.iconColor}30`,
+                      }}
+                    />
+                  ) : (
+                    <LandingPageIcon 
+                      icon={benefit.icon}
+                      variant="section"
+                      theme="neutral"
+                      animated={true}
+                      containerClassName="shadow-md"
+                      style={{ 
+                        backgroundColor: 'white',
+                        borderColor: `${benefit.iconColor}30`,
+                        color: benefit.iconColor
+                      }}
+                    />
+                  )}
                 </div>
                 <h3 className="text-xl font-semibold mb-4 text-gray-900">
                   {benefit.title}
