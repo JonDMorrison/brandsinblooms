@@ -23,11 +23,11 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         {/* Hero Icon with enhanced styling */}
         <div className="flex justify-center mb-12">
           <LandingPageIcon 
-            icon={Sparkles} 
+            logo="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png"
             variant="hero" 
             theme="spring" 
             animated={true}
-            containerClassName="apple-fade-in-stagger garden-breathing shadow-2xl bg-white border-2 border-[#47B881]/20 text-[#47B881]"
+            containerClassName="apple-fade-in-stagger garden-breathing shadow-2xl bg-white border-2 border-[#47B881]/20"
           />
         </div>
         
