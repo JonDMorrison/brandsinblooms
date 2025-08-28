@@ -65,15 +65,10 @@ const AddCustomer = () => {
   const [newTag, setNewTag] = useState('');
 
   const customerPersonas = [
-    'Plant-Killer Pam',
-    'Curb Appeal Ashley',
-    'DIY Dana',
-    'Patio Gardener Gail',
-    'Pet-Friendly Hannah',
-    'Pollinator Paula',
-    'Sustainable Susie',
-    'Vegetable Garden Veronica',
-    'Wellness Whitney'
+    { value: 'newbie', label: 'Newbie Gardener' },
+    { value: 'struggler', label: 'Struggling Gardener' }, 
+    { value: 'regular', label: 'Regular Gardener' },
+    { value: 'expert', label: 'Expert Gardener' }
   ];
 
   const addCustomerMutation = useMutation({
@@ -272,10 +267,7 @@ const AddCustomer = () => {
                   value={formData.persona} 
                   onChange={(e) => handleInputChange('persona', e.target.value)}
                   placeholder="Select a persona..."
-                  options={customerPersonas.map((persona) => ({
-                    value: persona.toLowerCase(),
-                    label: persona
-                  }))}
+                  options={customerPersonas}
                 />
               </div>
 
