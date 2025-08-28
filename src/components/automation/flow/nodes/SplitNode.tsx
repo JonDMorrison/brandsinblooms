@@ -14,10 +14,20 @@ export interface SplitNodeData {
   editable?: boolean;
 }
 
-const SplitNode: React.FC<NodeProps> = ({ 
+interface SplitNodeProps {
+  id: string;
+  data: SplitNodeData;
+  selected?: boolean;
+  onEdit?: (nodeId: string, nodeType: string, nodeData: any) => void;
+  onDelete?: (nodeId: string) => void;
+}
+
+const SplitNode: React.FC<SplitNodeProps> = ({ 
   data, 
   selected,
-  id 
+  id,
+  onEdit,
+  onDelete
 }) => {
   const nodeData = (data as unknown) as SplitNodeData;
   const getSplitTypeLabel = () => {
@@ -33,14 +43,27 @@ const SplitNode: React.FC<NodeProps> = ({
     }
   };
 
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.(id, 'split', nodeData);
+  };
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // TODO: Implement delete functionality
-    console.log('Delete split node:', id);
+    onDelete?.(id);
+  };
+
+  const handleCardClick = () => {
+    onEdit?.(id, 'split', nodeData);
   };
 
   return (
-    <Card className={`min-w-[200px] ${selected ? 'ring-2 ring-primary' : ''}`}>
+    <Card 
+      className={`min-w-[200px] cursor-pointer hover:shadow-md transition-shadow ${
+        selected ? 'ring-2 ring-primary' : ''
+      }`}
+      onClick={handleCardClick}
+    >
       <CardContent className="p-4">
         <Handle
           type="target"
@@ -58,15 +81,14 @@ const SplitNode: React.FC<NodeProps> = ({
             </Badge>
           </div>
           <div className="flex gap-1">
-            <Settings className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" />
-            <Button
-              variant="ghost"
-              size="sm"
+            <Settings 
+              className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" 
+              onClick={handleEdit}
+            />
+            <Trash2 
+              className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-destructive" 
               onClick={handleDelete}
-              className="h-auto p-0 w-4 h-4 text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
+            />
           </div>
         </div>
         

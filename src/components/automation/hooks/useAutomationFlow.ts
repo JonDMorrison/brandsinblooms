@@ -16,10 +16,10 @@ export const useAutomationFlow = (
 ) => {
   const { toast } = useToast();
   const [nodes, setNodes, onNodesChange] = useNodesState(
-    initialFlowState?.nodes || []
+    initialFlowState?.nodes || getDefaultWelcomeFlow().nodes
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState(
-    initialFlowState?.edges || []
+    initialFlowState?.edges || getDefaultWelcomeFlow().edges
   );
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -164,6 +164,60 @@ export const useAutomationFlow = (
     saveToDatabase,
   };
 };
+
+// Default "Welcome New Customers" flow
+function getDefaultWelcomeFlow(): { nodes: Node[]; edges: Edge[] } {
+  const nodes: Node[] = [
+    {
+      id: 'trigger-welcome',
+      type: 'trigger',
+      position: { x: 250, y: 50 },
+      data: {
+        triggerType: 'loyalty_join',
+        label: 'Welcome New Customers',
+        conditions: {},
+      },
+    },
+    {
+      id: 'email-welcome',
+      type: 'email',
+      position: { x: 250, y: 200 },
+      data: {
+        subject: 'Welcome to our loyalty program!',
+        content: 'Thank you for joining our loyalty program. Get ready for exclusive offers and rewards!',
+        template: 'welcome-email',
+        editable: true,
+      },
+    },
+    {
+      id: 'sms-welcome',
+      type: 'sms',
+      position: { x: 250, y: 350 },
+      data: {
+        content: 'Welcome! Your loyalty account is ready. Reply STOP to opt out.',
+        characterCount: 65,
+        editable: true,
+      },
+    },
+  ];
+
+  const edges: Edge[] = [
+    {
+      id: 'e1',
+      source: 'trigger-welcome',
+      target: 'email-welcome',
+      type: 'smoothstep',
+    },
+    {
+      id: 'e2',
+      source: 'email-welcome',
+      target: 'sms-welcome',
+      type: 'smoothstep',
+    },
+  ];
+
+  return { nodes, edges };
+}
 
 // Default data for different node types
 function getDefaultNodeData(nodeType: string) {
