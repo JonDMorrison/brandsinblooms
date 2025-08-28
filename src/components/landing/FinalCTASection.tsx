@@ -1,7 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { LandingPageIcon } from "./LandingPageIcon";
-import { ArrowRight, Calendar, Leaf } from "lucide-react";
+import { ArrowRight, Sparkles, Users, TrendingUp } from "lucide-react";
 
 interface FinalCTASectionProps {
   onGetStarted: () => void;
@@ -9,64 +8,75 @@ interface FinalCTASectionProps {
 
 export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
   return (
-    <section className="final-cta-section py-16 md:py-24 px-6 bg-gradient-to-br from-[#47B881] to-[#3A9B6C] text-black relative overflow-hidden">
-      {/* Garden-themed illustration background */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-1/4 left-1/4 transform -translate-x-1/2 -translate-y-1/2">
-          <Calendar className="w-32 h-32 text-black" />
-        </div>
-        <div className="absolute top-1/2 right-1/4 transform translate-x-1/2 -translate-y-1/2">
-          <Leaf className="w-24 h-24 text-black" />
-        </div>
-        <div className="absolute bottom-1/4 left-1/2 transform -translate-x-1/2 translate-y-1/2">
-          <div className="w-16 h-16 bg-black/20 rounded-full flex items-center justify-center">
-            <div className="w-8 h-8 bg-black/40 rounded-full"></div>
-          </div>
-        </div>
+    <section className="py-24 px-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white relative overflow-hidden">
+      {/* Modern geometric background */}
+      <div className="absolute inset-0">
+        <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-green-500/20 to-emerald-500/10 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-blue-500/20 to-green-500/10 rounded-full blur-3xl transform translate-x-1/2 translate-y-1/2"></div>
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-full blur-2xl transform -translate-x-1/2 -translate-y-1/2"></div>
       </div>
       
-      {/* Subtle overlay for depth */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/5 via-transparent to-black/5" />
-      
-      <div className="max-w-4xl mx-auto text-center relative z-10">
-        {/* Central icon with enhanced styling */}
-        <div className="flex justify-center mb-8">
-          <LandingPageIcon 
-            icon={Calendar}
-            variant="hero" 
-            theme="neutral"
-            containerClassName="bg-white/95 border-white/30 text-[#47B881] shadow-2xl"
-            animated={true}
-          />
+      <div className="max-w-6xl mx-auto relative z-10">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 bg-green-500/10 text-green-400 px-4 py-2 rounded-full text-sm font-medium mb-6">
+            <Sparkles className="w-4 h-4" />
+            Join 500+ Successful Garden Centers
+          </div>
+          
+          <h2 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+            Ready to Transform Your
+            <span className="block text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text">
+              Garden Center?
+            </span>
+          </h2>
+          
+          <p className="text-xl md:text-2xl mb-12 max-w-3xl mx-auto leading-relaxed text-slate-300">
+            Stop losing customers to competitors. Start your free trial and see why BloomSuite is the #1 choice for growing garden centers.
+          </p>
+        </div>
+
+        {/* Three-column feature highlights */}
+        <div className="grid md:grid-cols-3 gap-8 mb-16">
+          <div className="text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <Users className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Smart CRM</h3>
+            <p className="text-slate-400 text-sm">Automatically track customer preferences and buying patterns</p>
+          </div>
+          
+          <div className="text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">AI Content</h3>
+            <p className="text-slate-400 text-sm">Generate plant care posts and seasonal campaigns instantly</p>
+          </div>
+          
+          <div className="text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Real ROI</h3>
+            <p className="text-slate-400 text-sm">Track every dollar from campaign to cash register</p>
+          </div>
         </div>
         
-        <h2 className="text-3xl md:text-5xl font-bold mb-6 leading-tight text-black">
-          Don't Let Another Season Pass You By
-        </h2>
-        
-        <p className="text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed text-black opacity-90">
-          Every day you wait is another day your competitors are attracting your customers. 
-          Join the garden centers already dominating their markets with BloomSuite.
-        </p>
-        
-        {/* Enhanced button with nature-inspired styling */}
-        <div className="mb-6">
+        {/* CTA Section */}
+        <div className="text-center">
           <Button 
             onClick={onGetStarted}
             size="lg"
-            className="final-cta-button bg-white text-black border-2 border-black hover:bg-white/95 hover:text-black font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-            style={{
-              boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)'
-            }}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-12 py-6 text-lg shadow-2xl hover:shadow-green-500/25 transition-all duration-300 hover:scale-105 border-0"
           >
-            Start Dominating Your Market Today
-            <ArrowRight className="ml-2 h-5 w-5 text-black" />
+            Start Your Free Trial Today
+            <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
+          
+          <p className="text-slate-400 text-sm mt-6">
+            No credit card required • 14-day free trial • Cancel anytime
+          </p>
         </div>
-        
-        <p className="text-sm text-black opacity-80">
-          Free trial • No credit card required • Setup in 60 seconds
-        </p>
       </div>
     </section>
   );
