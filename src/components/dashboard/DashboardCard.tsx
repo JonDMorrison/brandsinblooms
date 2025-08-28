@@ -118,7 +118,7 @@ export const DashboardCard = ({
               {displayIcon}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">{title}</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">Create Content</h3>
               {statusMessage && (
                 <div className="flex items-center gap-2">
                   {getStatusIcon()}
