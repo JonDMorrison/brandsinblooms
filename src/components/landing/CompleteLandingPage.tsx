@@ -5,7 +5,7 @@ import { LandingPageHeader } from './LandingPageHeader';
 import { HeroSection } from './HeroSection';
 import { ProblemAgitationSection } from './ProblemAgitationSection';
 import { GuideSection } from './GuideSection';
-import { HowItWorksSection } from './HowItWorksSection';
+
 import { BenefitsSection } from './BenefitsSection';
 import { TestimonialsSection } from './TestimonialsSection';
 import { PricingPreviewSection } from './PricingPreviewSection';
@@ -33,7 +33,7 @@ export const CompleteLandingPage = () => {
       <HeroSection onGetStarted={handleGetStarted} />
       <ProblemAgitationSection />
       <GuideSection />
-      <HowItWorksSection />
+      
       <BenefitsSection />
       <TestimonialsSection />
       <PricingPreviewSection onSeePricing={handleSeePricing} />
