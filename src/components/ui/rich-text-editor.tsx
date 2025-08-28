@@ -17,7 +17,11 @@ import {
   Undo,
   Redo,
   Indent,
-  Outdent
+  Outdent,
+  Heading1,
+  Heading2,
+  Heading3,
+  Type
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -72,6 +76,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         class: cn(
           'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl max-w-none focus:outline-none',
           'min-h-[100px] p-3 text-sm',
+          'prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg',
+          'prose-p:mb-4 prose-headings:mb-4 prose-headings:mt-6 first:prose-headings:mt-0',
           editorClassName
         ),
       },
@@ -132,6 +138,38 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       <div className={cn("border border-input rounded-md bg-background", className)}>
         {showToolbar && (
           <div className="border-b border-border p-2 flex flex-wrap gap-1">
+            {/* Headings */}
+            <div className="flex gap-1 border-r border-border pr-2 mr-2">
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                isActive={editor.isActive('heading', { level: 1 })}
+                tooltip="Heading 1"
+              >
+                <Heading1 className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                isActive={editor.isActive('heading', { level: 2 })}
+                tooltip="Heading 2"
+              >
+                <Heading2 className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                isActive={editor.isActive('heading', { level: 3 })}
+                tooltip="Heading 3"
+              >
+                <Heading3 className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().setParagraph().run()}
+                isActive={editor.isActive('paragraph')}
+                tooltip="Paragraph"
+              >
+                <Type className="h-4 w-4" />
+              </ToolbarButton>
+            </div>
+
             {/* Text Formatting */}
             <div className="flex gap-1 border-r border-border pr-2 mr-2">
               <ToolbarButton
