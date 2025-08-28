@@ -884,18 +884,20 @@ cleanUrl();
             
             console.log(`✅ [NewsletterInit] Generated ${crmBlocks.length} blocks for "${selectedIdea.title}" (layout: ${layoutType})`);
           } else {
-            console.warn('⚠️ Template not found, generating from topic:', templateId);
+            console.warn('⚠️ Template not found, using URL parameters as fallback:', templateId);
             
-            // Extract topic from URL parameters or use default
-            const urlTitle = decodeURIComponent(window.location.href.split('templateId=')[1]?.split('&')[0] || '');
-            const topicFromUrl = urlTitle.replace(/^holiday-[a-f0-9-]+$/, 'National Farmers Market Week Newsletter');
-            const topic = topicFromUrl || 'Newsletter Campaign';
+            // Extract title and description from URL parameters as fallback
+            const urlTitle = decodeURIComponent(searchParams.get('title') || '');
+            const urlDescription = decodeURIComponent(searchParams.get('description') || '');
+            
+            const topic = urlTitle || 'Newsletter Campaign';
+            const description = urlDescription || topic;
             
             // Generate blocks based on layout and topic
             const layoutType = layout as 'block-builder' | 'simple-email' || 'block-builder';
             setCampaignName(topic);
             setSubjectLine(topic.replace(' Newsletter', ''));
-            setPreheaderText(generatePreheaderText(topic, topic));
+            setPreheaderText(generatePreheaderText(topic, description));
             
             console.log(`🎨 Generating ${layoutType} layout blocks for topic: "${topic}"`);
             
