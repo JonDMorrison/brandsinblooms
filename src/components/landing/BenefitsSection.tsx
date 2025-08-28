@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { LandingPageIcon } from "./LandingPageIcon";
-import { Calendar, Sparkles, TrendingUp, Leaf, Clock, Star, Users, Zap, Globe } from "lucide-react";
+import { Calendar, Sparkles, TrendingUp, Leaf, Clock, Star, Users, Zap, LifeBuoy } from "lucide-react";
 
 export const BenefitsSection = () => {
   const benefits = [
@@ -34,11 +34,11 @@ export const BenefitsSection = () => {
       iconColor: "#0EA5E9"
     },
     {
-      icon: Globe,
-      title: "Platform Integrations",
-      description: "Connect with Facebook, Instagram, Mailchimp, and more. Manage everything from one central dashboard.",
-      bg: "#F3E8FF",
-      iconColor: "#8B5CF6"
+      icon: LifeBuoy,
+      title: "Human Support",
+      description: "Never get stuck with chatbots or outdated articles. Talk to real humans who understand your garden center and industry best practices.",
+      bg: "#FDF2F2",
+      iconColor: "#F28C8C"
     },
     {
       icon: TrendingUp,
