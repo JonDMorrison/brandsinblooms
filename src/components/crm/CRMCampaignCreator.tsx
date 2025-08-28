@@ -154,22 +154,56 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             if (blocksError) throw blocksError;
 
             if (campaignBlocks) {
-              const contentBlocks: ContentBlock[] = campaignBlocks.map((block: DatabaseCampaignBlock) => ({
-                id: block.id,
-                type: block.block_type as ContentBlock['type'],
-                title: block.content?.title || '',
-                content: block.content?.content || '',
-                imageUrl: block.image_url || '',
-                ctaText: block.cta_text || '',
-                ctaUrl: block.cta_url || '',
-                source: (block.source || 'manual') as ContentBlock['source'],
-                personaTag: block.persona_tag || undefined,
-                layout: 'full-width',
-                collapsed: false,
-                alignment: 'left',
-                padding: 'medium',
-                margin: 'medium'
-              }));
+              const contentBlocks: ContentBlock[] = campaignBlocks.map((block: DatabaseCampaignBlock) => {
+                console.log('🔍 Mapping campaign block:', {
+                  id: block.id,
+                  type: block.block_type,
+                  content: block.content,
+                  image_url: block.image_url,
+                  cta_text: block.cta_text
+                });
+
+                return {
+                  id: block.id,
+                  type: block.block_type as ContentBlock['type'],
+                  // Map both title variations
+                  title: block.content?.title || block.content?.headline || '',
+                  headline: block.content?.headline || block.content?.title || '',
+                  // Map both content variations
+                  content: block.content?.content || block.content?.body || '',
+                  body: block.content?.body || block.content?.content || '',
+                  // Map image data
+                  imageUrl: block.image_url || block.content?.imageUrl || '',
+                  altText: block.content?.altText || '',
+                  // Map CTA data from multiple sources
+                  ctaText: block.cta_text || block.content?.buttonText || block.content?.ctaText || '',
+                  ctaUrl: block.cta_url || block.content?.buttonUrl || block.content?.ctaUrl || '',
+                  buttonText: block.content?.buttonText || block.cta_text || '',
+                  buttonUrl: block.content?.buttonUrl || block.cta_url || '',
+                  // Metadata
+                  source: (block.source || 'manual') as ContentBlock['source'],
+                  personaTag: block.persona_tag || undefined,
+                  // Layout and styling
+                  layout: (block.content?.layout as any) || 'full-width',
+                  collapsed: block.content?.collapsed || false,
+                  alignment: (block.content?.alignment as any) || 'left',
+                  padding: (block.content?.padding as any) || 'medium',
+                  margin: 'medium',
+                  visible: block.content?.visible !== false
+                };
+              });
+              
+              console.log('✅ Mapped campaign blocks:', contentBlocks.length, 'blocks');
+              console.log('📋 Block summaries:', contentBlocks.map(b => ({
+                id: b.id,
+                type: b.type,
+                title: b.title,
+                headline: b.headline,
+                hasContent: !!(b.content || b.body),
+                hasImage: !!b.imageUrl,
+                hasCTA: !!(b.ctaText || b.buttonText)
+              })));
+              
               setBlocks(contentBlocks);
             }
           }
