@@ -41,11 +41,12 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
         </div>
         
         <h2 className="text-3xl md:text-5xl font-bold mb-6 leading-tight text-black">
-          Transform Your Garden Center's Marketing Today
+          Don't Let Another Season Pass You By
         </h2>
         
         <p className="text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed text-black opacity-90">
-          Join hundreds of garden centers using BloomSuite to automate their marketing, increase sales, and grow their business. Get AI content creation, CRM, automation, analytics, and more in one powerful platform.
+          Every day you wait is another day your competitors are attracting your customers. 
+          Join the garden centers already dominating their markets with BloomSuite.
         </p>
         
         {/* Enhanced button with nature-inspired styling */}
@@ -58,13 +59,13 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
               boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)'
             }}
           >
-            Start Your Free Trial
+            Start Dominating Your Market Today
             <ArrowRight className="ml-2 h-5 w-5 text-black" />
           </Button>
         </div>
         
         <p className="text-sm text-black opacity-80">
-          No credit card required • No technical skills needed • Ready in 60 seconds
+          Free trial • No credit card required • Setup in 60 seconds
         </p>
       </div>
     </section>

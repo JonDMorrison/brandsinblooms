@@ -3,6 +3,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LandingPageHeader } from './LandingPageHeader';
 import { HeroSection } from './HeroSection';
+import { ProblemAgitationSection } from './ProblemAgitationSection';
+import { GuideSection } from './GuideSection';
 import { HowItWorksSection } from './HowItWorksSection';
 import { BenefitsSection } from './BenefitsSection';
 import { TestimonialsSection } from './TestimonialsSection';
@@ -29,6 +31,8 @@ export const CompleteLandingPage = () => {
     <div className="w-full min-h-screen bg-white">
       <LandingPageHeader onLogin={handleLogin} />
       <HeroSection onGetStarted={handleGetStarted} />
+      <ProblemAgitationSection />
+      <GuideSection />
       <HowItWorksSection />
       <BenefitsSection />
       <TestimonialsSection />

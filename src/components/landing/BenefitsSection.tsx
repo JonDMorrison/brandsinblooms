@@ -75,10 +75,10 @@ export const BenefitsSection = () => {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20">
           <h2 className="text-4xl font-bold mb-6 text-gray-900">
-            Everything You Need to Grow Your Garden Center
+            What You Get: Everything to Dominate Your Market
           </h2>
           <p className="text-xl text-[#6B7280] max-w-3xl mx-auto">
-            Professional marketing tools designed specifically for garden centers, nurseries, and plant retailers.
+            Stop paying for multiple tools. Get everything you need to attract customers, increase sales, and build loyalty — all in one platform.
           </p>
         </div>
         

@@ -33,11 +33,11 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         
         {/* Enhanced Typography */}
         <h1 className="text-6xl md:text-7xl font-bold text-gray-900 mb-8 leading-tight tracking-tight apple-fade-in-stagger">
-          Complete Marketing Suite for <span className="text-[#47B881]">Garden Centers</span>
+          The Most Powerful Marketing Tool Ever Built for <span className="text-[#47B881]">Garden Centers</span>
         </h1>
         
         <p className="text-xl md:text-2xl text-[#6B7280] mb-14 max-w-4xl mx-auto leading-relaxed apple-body-enhanced">
-          The only marketing platform built specifically for garden centers. Get AI-powered content creation, customer management, automated campaigns, social media planning, email marketing, blog management, and powerful analytics — all in one place.
+          Stop struggling with scattered marketing tools that don't understand your business. BloomSuite gives you everything you need to attract more customers, increase sales, and grow your garden center — all in one powerful platform.
         </p>
         
         {/* Enhanced feature highlights with new color palette */}

@@ -8,10 +8,10 @@ export const HowItWorksSection = () => {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20 apple-section-spacing">
           <h2 className="text-4xl font-bold mb-6 text-gray-900 apple-headline-large">
-            Complete Marketing Transformation in 4 Steps
+            Your Path to Marketing Success: The BloomSuite Plan
           </h2>
           <p className="text-xl text-[#6B7280] apple-body-enhanced max-w-3xl mx-auto">
-            From setup to success in under a minute. Our comprehensive platform handles everything automatically.
+            Here's exactly how BloomSuite transforms your marketing in just 4 simple steps:
           </p>
         </div>
         

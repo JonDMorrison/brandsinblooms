@@ -10,12 +10,12 @@ export const PricingPreviewSection = ({ onSeePricing }: PricingPreviewSectionPro
   return (
     <section className="py-12 px-6 bg-white">
       <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-2xl font-semibold mb-4 text-gray-900">
-          Complete Marketing Suite. One Simple Price.
+        <h2 className="text-4xl font-bold mb-6 text-gray-900">
+          Stop Paying $200+ Per Month for Scattered Tools
         </h2>
         
-        <p className="text-base text-[#6B7280] mb-10">
-          Get AI content creation, CRM, automation, analytics, social planning, email marketing, and more – all for less than what other tools charge for just one feature.
+        <p className="text-xl text-[#6B7280] mb-10">
+          Get everything you need for less than what you're probably paying for just social media scheduling. AI content creation, CRM, automation, analytics, email marketing, and more — all for one low price.
         </p>
         
         <Button 
