@@ -1,10 +1,10 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { DashboardErrorBoundary } from '@/components/dashboard/DashboardErrorBoundary';
 import { PublicRoute } from '@/components/PublicRoute';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { SmartRootRoute } from '@/components/SmartRootRoute';
@@ -48,8 +48,7 @@ import PublishPage from '@/pages/PublishPage';
 function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <ErrorBoundary>
-        <Routes>
+      <Routes>
           {/* Public routes */}
           <Route path="/auth" element={
             <PublicRoute>
@@ -73,7 +72,9 @@ function App() {
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <SidebarLayout>
-                <BloomSuiteDashboard />
+                <DashboardErrorBoundary>
+                  <BloomSuiteDashboard />
+                </DashboardErrorBoundary>
               </SidebarLayout>
             </ProtectedRoute>
           } />
@@ -331,9 +332,8 @@ function App() {
           
           {/* Redirect authenticated users to dashboard, unauthenticated to auth */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-        <Toaster />
-      </ErrorBoundary>
+      </Routes>
+      <Toaster />
     </div>
   );
 }
