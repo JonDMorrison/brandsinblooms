@@ -915,6 +915,75 @@ cleanUrl();
             setBlocks(normalizeBlocks(crmBlocks));
             console.log(`✅ [FallbackInit] Generated ${crmBlocks.length} blocks for "${topic}" (layout: ${layoutType})`);
             
+            // Check if we already have cached content for this template
+            const cacheKey = `${templateId}-${encodeURIComponent(topic)}-${encodeURIComponent(description)}`;
+            console.log(`🔍 Checking for existing content with cache key: ${cacheKey}`);
+            
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                // Check for existing campaigns with matching template or title
+                const { data: existingCampaign, error } = await supabase
+                  .from('crm_campaigns')
+                  .select(`
+                    id, 
+                    name, 
+                    subject_line, 
+                    preheader, 
+                    metadata,
+                    campaign_blocks(*)
+                  `)
+                  .eq('user_id', user.id)
+                  .eq('status', 'draft')
+                  .ilike('name', `%${topic}%`)
+                  .limit(1)
+                  .maybeSingle();
+
+                if (!error && existingCampaign && 
+                    ((existingCampaign.metadata as any)?.content_blocks?.length > 0 || 
+                     existingCampaign.campaign_blocks?.length > 0)) {
+                  console.log(`📋 Found existing campaign with content: ${existingCampaign.id}`);
+                  
+                  // Use campaign_blocks if available, otherwise metadata
+                  const blocksData = existingCampaign.campaign_blocks?.length > 0 
+                    ? existingCampaign.campaign_blocks
+                    : (existingCampaign.metadata as any)?.content_blocks || [];
+                  
+                  // Convert existing blocks back to our format
+                  const existingBlocks = blocksData.map((block: any, index: number) => ({
+                    id: block.id || `existing_${Date.now()}_${index}`,
+                    type: block.block_type || block.type || 'text',
+                    title: block.title || '',
+                    content: block.content || '',
+                    headline: block.headline || block.title || '',
+                    body: block.body || (typeof block.content === 'string' ? block.content : ''),
+                    imageUrl: block.image_url || '',
+                    ctaText: block.cta_text || '',
+                    ctaUrl: block.cta_url || '',
+                    source: block.source || 'cached',
+                    personaTag: block.persona_tag || 'general',
+                    layout: block.layout || 'full-width',
+                    alignment: 'left',
+                    textAlign: 'left',
+                    padding: 'medium',
+                    visible: true,
+                    collapsed: false
+                  }));
+                  
+                  setBlocks(normalizeBlocks(existingBlocks));
+                  setExistingCampaignId(existingCampaign.id);
+                  setCampaignName(existingCampaign.name);
+                  setSubjectLine(existingCampaign.subject_line || topic);
+                  setPreheaderText(existingCampaign.preheader || generatePreheaderText(topic, description));
+                  
+                  console.log(`✅ Loaded cached content with ${existingBlocks.length} blocks`);
+                  return; // Skip AI generation since we have cached content
+                }
+              }
+            } catch (error) {
+              console.warn('Failed to check for existing content:', error);
+            }
+            
             // Add AI content generation for fallback blocks
             setTimeout(async () => {
               try {
@@ -982,6 +1051,31 @@ cleanUrl();
                 }
                 
                 console.log(`✅ [FallbackAI] AI enhancement complete for "${topic}"`);
+                
+                // Auto-save the generated content as a draft
+                try {
+                  console.log('💾 [FallbackAI] Auto-saving generated content as draft');
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (user) {
+                    const campaignData = {
+                      name: topic,
+                      subject: subjectLine || topic,
+                      preheader: preheaderText || generatePreheaderText(topic, description),
+                      sender_name: senderConfig?.displayName || 'BloomSuite',
+                      sender_email: senderConfig?.senderEmail || 'noreply@bloomsuite.email',
+                      content: '', // HTML will be generated when needed
+                      segments: [],
+                      schedule: { type: 'immediate' as const },
+                      content_blocks: enhancedBlocks
+                    };
+                    
+                    const savedCampaign = await saveCampaignAsDraft(campaignData);
+                    setExistingCampaignId(savedCampaign.id);
+                    console.log(`✅ [FallbackAI] Content cached in campaign: ${savedCampaign.id}`);
+                  }
+                } catch (error) {
+                  console.warn('Failed to auto-save generated content:', error);
+                }
                 
               } catch (error) {
                 console.error('Failed to enhance fallback blocks with AI:', error);
