@@ -14,6 +14,10 @@ interface FlowValidationProps {
     segments: any[];
     totalContacts: number;
   };
+  onAddTrigger?: () => void;
+  onOpenAudienceSelector?: () => void;
+  onEditNode?: (nodeId: string) => void;
+  onHighlightNodes?: (nodeIds: string[]) => void;
 }
 
 export const FlowValidation: React.FC<FlowValidationProps> = ({
@@ -158,7 +162,11 @@ function validateFlow(
 export const FlowStatusBadge: React.FC<FlowValidationProps> = ({
   nodes,
   edges,
-  selectedAudience
+  selectedAudience,
+  onAddTrigger,
+  onOpenAudienceSelector,
+  onEditNode,
+  onHighlightNodes
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const validationResults = validateFlow(nodes, edges, selectedAudience);
@@ -201,15 +209,37 @@ export const FlowStatusBadge: React.FC<FlowValidationProps> = ({
   const handleFixClick = (issue: { type: 'error' | 'warning'; message: string }) => {
     // Handle different fix actions based on the issue type
     if (issue.message.includes('trigger node')) {
-      console.log('Navigate to add trigger node');
+      onAddTrigger?.();
     } else if (issue.message.includes('target audience')) {
-      console.log('Open audience selector');
+      onOpenAudienceSelector?.();
     } else if (issue.message.includes('missing subject or content')) {
-      console.log('Navigate to email node editor');
+      // Find the email node that has issues
+      const emailNode = nodes.find(node => 
+        node.type === 'email' && 
+        (!node.data?.subject || !node.data?.content)
+      );
+      if (emailNode) {
+        onEditNode?.(emailNode.id);
+      }
     } else if (issue.message.includes('missing message content')) {
-      console.log('Navigate to SMS node editor');
+      // Find the SMS node that has issues
+      const smsNode = nodes.find(node => 
+        node.type === 'sms' && 
+        !node.data?.message
+      );
+      if (smsNode) {
+        onEditNode?.(smsNode.id);
+      }
     } else if (issue.message.includes('not connected')) {
-      console.log('Highlight disconnected nodes');
+      // Find disconnected nodes
+      const connectedNodeIds = new Set([
+        ...edges.map(edge => edge.source),
+        ...edges.map(edge => edge.target)
+      ]);
+      const disconnectedNodes = nodes.filter(node => 
+        node.type !== 'trigger' && !connectedNodeIds.has(node.id)
+      );
+      onHighlightNodes?.(disconnectedNodes.map(node => node.id));
     }
     setIsModalOpen(false);
   };

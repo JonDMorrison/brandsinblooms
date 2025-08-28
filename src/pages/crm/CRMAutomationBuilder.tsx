@@ -361,6 +361,42 @@ export const CRMAutomationBuilder = () => {
                     total + (segment.customer_count || 0), 0
                   )
                 }} 
+                onAddTrigger={() => {
+                  const triggerNode = {
+                    id: 'trigger-1',
+                    type: 'trigger',
+                    position: { x: 250, y: 50 },
+                    data: { 
+                      label: 'Trigger',
+                      triggerType: 'manual',
+                      description: 'Manual trigger'
+                    }
+                  };
+                  setFlowState(prev => ({
+                    ...prev,
+                    nodes: [...prev.nodes.filter(n => n.type !== 'trigger'), triggerNode]
+                  }));
+                  toast({ title: 'Trigger Added', description: 'A trigger node has been added to your flow.' });
+                }}
+                onOpenAudienceSelector={() => {
+                  // For now, show a toast - this could be expanded to open a modal
+                  toast({ title: 'Audience Selector', description: 'Use the audience targeting above to select your audience.' });
+                }}
+                onEditNode={(nodeId) => {
+                  // For now, show a toast - this would need integration with the node editor
+                  const node = flowState.nodes.find(n => n.id === nodeId);
+                  toast({ 
+                    title: 'Edit Node', 
+                    description: `Please click on the ${node?.type || 'node'} in the canvas to edit it.` 
+                  });
+                }}
+                onHighlightNodes={(nodeIds) => {
+                  // For now, show a toast with the nodes to highlight
+                  toast({ 
+                    title: 'Nodes Need Attention', 
+                    description: `${nodeIds.length} disconnected node(s) found. Look for unconnected nodes in your flow.` 
+                  });
+                }}
               />
               <Button onClick={() => setIsReviewOpen(true)} aria-label="Review and launch">
                 Review & Launch
