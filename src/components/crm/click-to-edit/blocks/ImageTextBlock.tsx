@@ -6,6 +6,7 @@ import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { ContextualEditButton } from '../contextual/ContextualEditButton';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { CTAButton } from '@/components/ui/CTAButton';
+import { BlockGeneratingOverlay } from './BlockGeneratingOverlay';
 
 interface ImageTextBlockProps {
   block: ContentBlock;
@@ -13,6 +14,7 @@ interface ImageTextBlockProps {
   isPreview?: boolean;
   editMode?: EditMode;
   onModeChange?: (mode: EditMode) => void;
+  isGenerating?: boolean;
 }
 
 export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ 
@@ -20,7 +22,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   onUpdate, 
   isPreview = true, 
   editMode,
-  onModeChange 
+  onModeChange,
+  isGenerating = false
 }) => {
   const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left';
   const isImageRight = block.layout === 'image-right' || block.layout === 'two-column-right';
@@ -54,6 +57,12 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       )}
       style={{ backgroundColor: isEmpty ? 'transparent' : (block.backgroundColor || 'transparent') }}
     >
+      {/* Show generating overlay for empty blocks being enhanced with AI */}
+      {isGenerating && isEmpty && (
+        <BlockGeneratingOverlay 
+          message="Creating content for this section..." 
+        />
+      )}
       {isEmpty && (
         <div className="text-center text-muted-foreground py-8">
           <p className="text-sm">Empty image & text block</p>

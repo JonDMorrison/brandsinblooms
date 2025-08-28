@@ -169,18 +169,18 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
         const hasHeadline = block.headline || block.title;
         if (block.imageUrl || hasImageLayout || hasHeadline) {
-          return <ImageTextBlock {...props} isPreview={false} />;
+          return <ImageTextBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
         }
         return <TextBlock {...props} isPreview={false} />;
       case 'image':
         // Use ImageTextBlock for image blocks with two-column layouts
         const hasTwoColumnLayout = block.layout && ['two-column-left', 'two-column-right'].includes(block.layout);
         if (hasTwoColumnLayout) {
-          return <ImageTextBlock {...props} isPreview={false} />;
+          return <ImageTextBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
         }
         return <ImageBlock {...props} isPreview={false} />;
       case 'image-text':
-        return <ImageTextBlock {...props} isPreview={false} />;
+        return <ImageTextBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
       case 'divider':
         return <DividerBlock {...props} isPreview={false} />;
       case 'button':
@@ -210,18 +210,18 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
         const hasHeadline = block.headline || block.title;
         if (block.imageUrl || hasImageLayout || hasHeadline) {
-          return <ImageTextBlock {...props} isPreview={true} />;
+          return <ImageTextBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
         }
         return <TextBlock {...props} isPreview={true} />;
       case 'image':
         // Use ImageTextBlock for image blocks with two-column layouts
         const hasTwoColumnLayoutPreview = block.layout && ['two-column-left', 'two-column-right'].includes(block.layout);
         if (hasTwoColumnLayoutPreview) {
-          return <ImageTextBlock {...props} isPreview={true} />;
+          return <ImageTextBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
         }
         return <ImageBlock {...props} isPreview={true} />;
       case 'image-text':
-        return <ImageTextBlock {...props} isPreview={true} />;
+        return <ImageTextBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
       case 'divider':
         return <DividerBlock {...props} isPreview={true} />;
       case 'button':

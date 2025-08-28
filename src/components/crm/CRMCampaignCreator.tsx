@@ -29,6 +29,8 @@ import { AIWriterDialog } from './ai-writer/AIWriterDialog';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
 import { CampaignActionBar } from './CampaignActionBar';
 import { CampaignReadiness } from './CampaignReadiness';
+import { createBlockPrompt } from '@/utils/blockPromptBuilder';
+import { normalizeAIResponse, applyAIToBlock } from '@/lib/newsletter/aiMapping';
 import { usePagePersistence } from '@/hooks/usePagePersistence';
 import { 
   Breadcrumb,
@@ -83,8 +85,6 @@ const getOrFetchImage = async (contentObj: any, block: any): Promise<string | nu
 
 // Post type rotation for varied content styles
 const POST_TYPE_ROTATION = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
-
-import { createBlockPrompt } from '@/utils/blockPromptBuilder';
 
 // Generate appropriate preheader text based on content and campaign name
 const generatePreheaderText = (content: string, campaignName: string): string => {
@@ -914,6 +914,81 @@ cleanUrl();
             
             setBlocks(normalizeBlocks(crmBlocks));
             console.log(`✅ [FallbackInit] Generated ${crmBlocks.length} blocks for "${topic}" (layout: ${layoutType})`);
+            
+            // Add AI content generation for fallback blocks
+            setTimeout(async () => {
+              try {
+                console.log(`🤖 [FallbackAI] Starting AI enhancement for ${crmBlocks.length} blocks`);
+                const enhancedBlocks = [...crmBlocks];
+                
+                // Mark all content blocks as generating
+                const contentBlockIds = enhancedBlocks
+                  .filter(block => block.type !== 'header' && block.type !== 'divider')
+                  .map(block => block.id);
+                setGeneratingBlocks(new Set(contentBlockIds));
+                
+                for (let i = 0; i < enhancedBlocks.length; i++) {
+                  const block = enhancedBlocks[i];
+                  
+                  if (block.type === 'header' || block.type === 'divider') {
+                    continue;
+                  }
+                  
+                  try {
+                    const blockPrompt = createBlockPrompt(block, topic, description, i);
+                    const payload = {
+                      prompt: blockPrompt,
+                      type: 'email_block',
+                      postType: 'newsletter'
+                    };
+                    
+                    console.log(`🤖 [FallbackAI] Enhancing block ${i + 1}/${enhancedBlocks.length} (${block.type})`);
+                    const { data, error } = await supabase.functions.invoke('generate-email-content', { 
+                      body: payload 
+                    });
+                    
+                    if (error) {
+                      console.warn(`Failed to generate content for fallback block ${i}:`, error);
+                      continue;
+                    }
+                    
+                    if (data?.content) {
+                      // Use the same AI mapping logic as AIWriterDialog
+                      const normalizedAI = normalizeAIResponse(data);
+                      const aiEnhancedBlock = applyAIToBlock(block, normalizedAI);
+                      
+                      enhancedBlocks[i] = aiEnhancedBlock;
+                    }
+                    
+                    // Update blocks incrementally so user sees progress
+                    setBlocks(normalizeBlocks([...enhancedBlocks]));
+                    
+                    // Remove this block from generating set
+                    setGeneratingBlocks(prev => {
+                      const newSet = new Set(prev);
+                      newSet.delete(block.id);
+                      return newSet;
+                    });
+                    
+                  } catch (error) {
+                    console.error(`Failed to enhance fallback block ${i}:`, error);
+                    // Remove from generating set even on error
+                    setGeneratingBlocks(prev => {
+                      const newSet = new Set(prev);
+                      newSet.delete(block.id);
+                      return newSet;
+                    });
+                  }
+                }
+                
+                console.log(`✅ [FallbackAI] AI enhancement complete for "${topic}"`);
+                
+              } catch (error) {
+                console.error('Failed to enhance fallback blocks with AI:', error);
+                // Clear all generating states on major error
+                setGeneratingBlocks(new Set());
+              }
+            }, 500);
           }
         } catch (error) {
           console.error('❌ Error processing template:', error);
