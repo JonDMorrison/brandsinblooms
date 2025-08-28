@@ -49,10 +49,10 @@ export const LandingPageIcon = ({
 }: LandingPageIconProps) => {
   const styles = variantStyles[variant];
   
-  // Special handling for logos - no border, larger size
+  // Special handling for logos - no border, smaller size (50% of previous)
   if (logo) {
-    const logoSize = variant === 'hero' ? 'w-60 h-60 md:w-72 md:h-72' : 
-                     variant === 'section' ? 'w-24 h-24' : 'w-18 h-18';
+    const logoSize = variant === 'hero' ? 'w-30 h-30 md:w-36 md:h-36' : 
+                     variant === 'section' ? 'w-12 h-12' : 'w-9 h-9';
     
     return (
       <div 
