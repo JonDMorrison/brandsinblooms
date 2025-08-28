@@ -35,35 +35,35 @@ export const GuideSection = () => {
           </div>
           
           <div className="grid grid-cols-2 gap-6">
-            <Card className="p-6 text-center rounded-2xl bg-[#E9F5EC] border-2 border-[#47B881]/20">
+            <Card className="p-6 rounded-2xl bg-[#E9F5EC] border-2 border-[#47B881]/20">
               <CardContent className="p-0">
-                <Users className="w-8 h-8 text-[#47B881] mx-auto mb-3" />
-                <div className="text-2xl font-bold text-gray-900 mb-1">500+</div>
-                <div className="text-sm text-[#6B7280]">Garden Centers Served</div>
+                <Users className="w-8 h-8 text-[#47B881] mb-3" />
+                <div className="text-lg font-semibold text-gray-900 mb-2">CRM & Customer Management</div>
+                <div className="text-sm text-[#6B7280]">Track customers, manage campaigns, and automate follow-ups</div>
               </CardContent>
             </Card>
             
-            <Card className="p-6 text-center rounded-2xl bg-[#FEF3C7] border-2 border-[#F4C430]/20">
+            <Card className="p-6 rounded-2xl bg-[#FEF3C7] border-2 border-[#F4C430]/20">
               <CardContent className="p-0">
-                <Award className="w-8 h-8 text-[#D97706] mx-auto mb-3" />
-                <div className="text-2xl font-bold text-gray-900 mb-1">98%</div>
-                <div className="text-sm text-[#6B7280]">Customer Satisfaction</div>
+                <Award className="w-8 h-8 text-[#D97706] mb-3" />
+                <div className="text-lg font-semibold text-gray-900 mb-2">Social Media Automation</div>
+                <div className="text-sm text-[#6B7280]">Generate and schedule plant care content across all platforms</div>
               </CardContent>
             </Card>
             
-            <Card className="p-6 text-center rounded-2xl bg-[#FDF2F2] border-2 border-[#F28C8C]/20">
+            <Card className="p-6 rounded-2xl bg-[#FDF2F2] border-2 border-[#F28C8C]/20">
               <CardContent className="p-0">
-                <Target className="w-8 h-8 text-[#DC2626] mx-auto mb-3" />
-                <div className="text-2xl font-bold text-gray-900 mb-1">40%+</div>
-                <div className="text-sm text-[#6B7280]">Average Sales Increase</div>
+                <Target className="w-8 h-8 text-[#DC2626] mb-3" />
+                <div className="text-lg font-semibold text-gray-900 mb-2">SMS & Email Campaigns</div>
+                <div className="text-sm text-[#6B7280]">Send targeted promotions with seasonal plant recommendations</div>
               </CardContent>
             </Card>
             
-            <Card className="p-6 text-center rounded-2xl bg-[#E0F2FE] border-2 border-[#0EA5E9]/20">
+            <Card className="p-6 rounded-2xl bg-[#E0F2FE] border-2 border-[#0EA5E9]/20">
               <CardContent className="p-0">
-                <CheckCircle className="w-8 h-8 text-[#0EA5E9] mx-auto mb-3" />
-                <div className="text-2xl font-bold text-gray-900 mb-1">15 hrs</div>
-                <div className="text-sm text-[#6B7280]">Saved Per Week</div>
+                <CheckCircle className="w-8 h-8 text-[#0EA5E9] mb-3" />
+                <div className="text-lg font-semibold text-gray-900 mb-2">Analytics & ROI Tracking</div>
+                <div className="text-sm text-[#6B7280]">Measure campaign performance and customer lifetime value</div>
               </CardContent>
             </Card>
           </div>
