@@ -32,17 +32,24 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
   onModeChange 
 }) => {
   // Live preview component that can be reused
-  const PreviewContent = () => (
-    <div className="relative overflow-hidden rounded-lg group min-h-[300px]">
-      {/* Background Image - bottom layer */}
-      {block.backgroundImageUrl && (
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ 
-            backgroundImage: `url(${block.backgroundImageUrl})`,
-            opacity: (block.backgroundOpacity || 100) / 100
-          }}
-        />
+  const PreviewContent = () => {
+    // Extract background image from multiple possible locations
+    const backgroundImageUrl = block.backgroundImageUrl || 
+                              (typeof block.content === 'object' && block.content && (block.content as any).backgroundImageUrl) ||
+                              (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) ||
+                              '';
+
+    return (
+      <div className="relative overflow-hidden rounded-lg group min-h-[300px]">
+        {/* Background Image - bottom layer */}
+        {backgroundImageUrl && (
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ 
+              backgroundImage: `url(${backgroundImageUrl})`,
+              opacity: (block.backgroundOpacity || 100) / 100
+            }}
+          />
       )}
       
       {/* Color Overlay - middle layer */}
@@ -96,16 +103,28 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       <div className={cn(
         "relative z-10 p-12 text-white flex items-center justify-center min-h-[300px]",
         // Add dark background only if no background image or color
-        !block.backgroundImageUrl && !block.backgroundColor && "bg-slate-800/80",
+        !backgroundImageUrl && !block.backgroundColor && "bg-slate-800/80",
         block.textAlign === 'center' && "text-center",
         block.textAlign === 'right' && "text-right"
       )}>
         <div className="max-w-2xl">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-            {sanitizeWeekNumbers(block.headline || block.title || "Your Headline Here")}
+            {sanitizeWeekNumbers((() => {
+              // Extract headline from multiple possible locations
+              if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
+                return (block.content as any).headline;
+              }
+              return block.headline || block.title || "Your Headline Here";
+            })())}
           </h1>
           <p className="text-lg md:text-xl opacity-90 leading-relaxed">
-            {sanitizeWeekNumbers(block.body || "Add your subtitle or description text here.")}
+            {sanitizeWeekNumbers((() => {
+              // Extract body from multiple possible locations
+              if (typeof block.content === 'object' && block.content && (block.content as any).body) {
+                return (block.content as any).body;
+              }
+              return block.body || "Add your subtitle or description text here.";
+            })())}
           </p>
         </div>
       </div>
@@ -136,7 +155,8 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   if (isPreview) {
     return <PreviewContent />;
@@ -191,7 +211,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label>Background Image</Label>
-          {block.backgroundImageUrl && (
+          {(block.backgroundImageUrl || (typeof block.content === 'object' && block.content && ((block.content as any).backgroundImageUrl || (block.content as any).imageUrl))) && (
             <button
               onClick={() => onUpdate({ backgroundImageUrl: undefined })}
               className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-md transition-colors"
@@ -201,7 +221,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
           )}
         </div>
         <MediaSelectorImage
-          src={block.backgroundImageUrl}
+          src={block.backgroundImageUrl || (typeof block.content === 'object' && block.content && ((block.content as any).backgroundImageUrl || (block.content as any).imageUrl)) || ''}
           onChange={(imageUrl, metadata) => {
             console.log('[HeaderBlock] Image selected:', imageUrl, metadata);
             onUpdate({ backgroundImageUrl: imageUrl });
@@ -209,7 +229,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
           contentContext={block.headline || block.body || 'header background'}
           className="h-32"
         />
-        {block.backgroundImageUrl && (
+        {(block.backgroundImageUrl || (typeof block.content === 'object' && block.content && ((block.content as any).backgroundImageUrl || (block.content as any).imageUrl))) && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="imageOpacity">Image Opacity</Label>
