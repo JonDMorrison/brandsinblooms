@@ -49,6 +49,36 @@ export const LandingPageIcon = ({
 }: LandingPageIconProps) => {
   const styles = variantStyles[variant];
   
+  // Special handling for logos - no border, larger size
+  if (logo) {
+    const logoSize = variant === 'hero' ? 'w-60 h-60 md:w-72 md:h-72' : 
+                     variant === 'section' ? 'w-24 h-24' : 'w-18 h-18';
+    
+    return (
+      <div 
+        className={cn(
+          "flex items-center justify-center transition-all duration-300 ease-out",
+          logoSize,
+          animated && "hover:scale-110 hover:-translate-y-1",
+          containerClassName
+        )}
+        style={style}
+      >
+        <img 
+          src={logo}
+          alt="BloomSuite Logo"
+          className={cn(
+            "transition-all duration-300 object-contain",
+            logoSize,
+            animated && "group-hover:scale-110",
+            className
+          )}
+        />
+      </div>
+    );
+  }
+  
+  // Original icon handling
   return (
     <div 
       className={cn(
@@ -61,18 +91,7 @@ export const LandingPageIcon = ({
       )}
       style={style}
     >
-      {logo ? (
-        <img 
-          src={logo}
-          alt="BloomSuite Logo"
-          className={cn(
-            "transition-all duration-300",
-            styles.icon,
-            animated && "group-hover:scale-110",
-            className
-          )}
-        />
-      ) : Icon ? (
+      {Icon ? (
         <Icon 
           className={cn(
             "transition-all duration-300",
