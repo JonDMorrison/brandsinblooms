@@ -4,6 +4,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LayoutRenderer } from './LayoutRenderer';
 import { Mail, Eye } from 'lucide-react';
+import { normalizeBlock } from '@/utils/ctaNormalization';
 
 interface EmailPreviewProps {
   blocks: ContentBlock[];
@@ -49,6 +50,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
               <div className="space-y-1 p-2">
                 {blocks
                   .filter(block => block.visible !== false)
+                  .map((block) => ({...block, ...normalizeBlock(block)}))
                   .map((block) => (
                     <div key={block.id} className="border-b border-muted last:border-b-0 pb-2 last:pb-0">
                       <LayoutRenderer 

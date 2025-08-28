@@ -84,7 +84,7 @@ const getOrFetchImage = async (contentObj: any, block: any): Promise<string | nu
 // Post type rotation for varied content styles
 const POST_TYPE_ROTATION = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
 
-import { createBlockPrompt } from '@/utils/blockPromptBuilder';
+import { normalizeCTAFields, normalizeHeadlineFields, normalizeBlock } from '@/utils/ctaNormalization';
 
 // Generate appropriate preheader text based on content and campaign name
 const generatePreheaderText = (content: string, campaignName: string): string => {
@@ -1106,204 +1106,44 @@ cleanUrl();
         preheader: campaign.preheader
       });
 
-        // Convert campaign blocks back to ContentBlocks using enhanced transformBlock function
-        const transformBlock = async (block: any): Promise<ContentBlock> => {
-          console.log('🔍 Transforming block:', {
-            blockId: block.id,
-            blockType: block.block_type,
-            rawContent: block.content,
-            imageUrl: block.image_url,
-            ctaUrl: block.cta_url,
-            ctaText: block.cta_text
-          });
-
-          // Parse the content if it's a string
-          let contentObj = block.content;
-          if (typeof block.content === 'string') {
-            try {
-              contentObj = JSON.parse(block.content);
-            } catch (e) {
-              console.warn('Failed to parse block content as JSON:', e);
-              contentObj = {};
-            }
-          } else if (!block.content || typeof block.content !== 'object') {
-            contentObj = {};
-          }
-
-          // CRITICAL FIX: Unwrap nested content structure
-          // Database stores content like: { content: { body: "text", content: "text", headline: "..." } }
-          // We need to unwrap to get to the actual content fields
-          while (contentObj && typeof contentObj === 'object' && contentObj.content && typeof contentObj.content === 'object') {
-            console.log('🔧 Unwrapping nested content layer:', Object.keys(contentObj.content));
-            contentObj = contentObj.content;
-          }
-          
-          console.log('✅ Content after unwrapping:', {
-            blockId: block.id,
-            hasBody: !!contentObj?.body,
-            hasContent: !!contentObj?.content,
-            hasHeadline: !!contentObj?.headline,
-            bodyType: typeof contentObj?.body,
-            contentType: typeof contentObj?.content
-          });
-
-          // Detect if this should actually be a header block
-          // Check for header block characteristics: backgroundColor + imageUrl + full-width layout
-          let actualBlockType = block.block_type;
-          if (block.block_type === 'text' && contentObj?.content) {
-            const nestedContent = contentObj.content;
-            const hasBackgroundColor = nestedContent?.backgroundColor;
-            const hasImageUrl = nestedContent?.imageUrl;
-            const isFullWidth = nestedContent?.layout === 'full-width';
-            
-            if (hasBackgroundColor && hasImageUrl && isFullWidth) {
-              console.log('🔄 Converting misclassified text block to header block:', block.id);
-              actualBlockType = 'header';
-            }
-          }
-
-        // Use simplified content structure with validation
-        console.log('[HYDRATION] Processing block with clean content structure:', {
-          blockId: block.id,
-          blockType: block.block_type,
-          contentObj: contentObj,
-          hasContent: !!contentObj?.content,
-          hasBody: !!contentObj?.body,
-          hasHeadline: !!contentObj?.headline,
-          hasTitle: !!contentObj?.title
-        });
+      // Convert campaign blocks back to ContentBlocks with simplified mapping
+      const contentBlocks: ContentBlock[] = campaignBlocks.map((block: any) => ({
+        id: block.id,
+        type: block.block_type as ContentBlock['type'],
         
-        // Extract content directly from the simplified structure
-        const finalExtractedContent = {
-          // Essential content fields - prioritize direct fields
-          headline: contentObj?.headline,
-          title: contentObj?.title,
-          body: contentObj?.body || contentObj?.content,
-          content: contentObj?.content || contentObj?.body,
-          // Image fields - CRITICAL FIX: Treat empty strings as null and fetch if missing
-          imageUrl: await getOrFetchImage(contentObj, block),
-          altText: contentObj?.altText,
-          caption: contentObj?.caption,
-          // Button/CTA fields
-          buttonText: contentObj?.buttonText,
-          buttonUrl: contentObj?.buttonUrl,
-          ctaText: contentObj?.ctaText,
-          ctaUrl: contentObj?.ctaUrl,
-          ctaStyle: contentObj?.ctaStyle,
-          ctaSize: contentObj?.ctaSize,
-          // Layout and styling
-          layout: contentObj?.layout || 'full-width',
-          alignment: contentObj?.alignment,
-          padding: contentObj?.padding || 'medium',
-          margin: contentObj?.margin,
-          // Typography
-          fontFamily: contentObj?.fontFamily,
-          fontSize: contentObj?.fontSize,
-          textColor: contentObj?.textColor,
-          textAlign: contentObj?.textAlign || contentObj?.alignment,
-          // Background
-          backgroundColor: contentObj?.backgroundColor,
-          backgroundImageUrl: contentObj?.backgroundImageUrl,
-          backgroundOpacity: contentObj?.backgroundOpacity,
-          // Special content
-          quote: contentObj?.quote,
-          author: contentObj?.author,
-          authorTitle: contentObj?.authorTitle,
-          issueNumber: contentObj?.issueNumber,
-          publishDate: contentObj?.publishDate,
-          // Meta
-          visible: contentObj?.visible !== false,
-          collapsed: contentObj?.collapsed || false
-        };
-
-        console.log('📋 Content extraction details:', {
-          blockId: block.id,
-          originalContentObj: contentObj,
-          extractedContent: {
-            headline: finalExtractedContent.headline,
-            title: finalExtractedContent.title,
-            body: finalExtractedContent.body,
-            imageUrl: finalExtractedContent.imageUrl,
-            altText: finalExtractedContent.altText,
-            buttonText: finalExtractedContent.buttonText,
-            buttonUrl: finalExtractedContent.buttonUrl,
-            backgroundColor: finalExtractedContent.backgroundColor,
-            layout: finalExtractedContent.layout
-          }
-        });
-
-        // Build the transformed block with comprehensive field mapping
-        const transformedBlock: ContentBlock = {
-          id: block.id,
-          // Use the detected actualBlockType which includes header block auto-detection
-          type: actualBlockType === 'header'
-            ? 'header' as ContentBlock['type']
-            : (actualBlockType === 'text' && finalExtractedContent.imageUrl && finalExtractedContent.imageUrl !== '/images/newsletter-fallback.jpg')
-              ? 'image-text' as ContentBlock['type']
-              : actualBlockType as ContentBlock['type'],
-          title: finalExtractedContent.title || finalExtractedContent.headline || 'Untitled Block',
-          headline: finalExtractedContent.headline || finalExtractedContent.title,
-          body: finalExtractedContent.body || finalExtractedContent.content,
-          content: finalExtractedContent.body || finalExtractedContent.content || '',
-          source: (block.source as ContentBlock['source']) || 'manual',
-          // Image fields - map correctly for header vs other blocks
-          imageUrl: block.block_type === 'header' ? undefined : (finalExtractedContent.imageUrl || block.image_url),
-          altText: finalExtractedContent.altText,
-          caption: finalExtractedContent.caption,
-          // Button/CTA fields
-          buttonText: finalExtractedContent.buttonText || block.cta_text,
-          buttonUrl: finalExtractedContent.buttonUrl || block.cta_url,
-          ctaText: finalExtractedContent.ctaText || block.cta_text,
-          ctaUrl: finalExtractedContent.ctaUrl || block.cta_url,
-          ctaStyle: finalExtractedContent.ctaStyle,
-          ctaSize: finalExtractedContent.ctaSize,
-          // Layout and styling
-          visible: finalExtractedContent.visible !== false,
-          collapsed: finalExtractedContent.collapsed || false,
-          layout: finalExtractedContent.layout || 'full-width',
-          alignment: finalExtractedContent.alignment || 'left',
-          padding: finalExtractedContent.padding || 'medium',
-          margin: finalExtractedContent.margin,
-          // Typography
-          fontFamily: finalExtractedContent.fontFamily,
-          fontSize: finalExtractedContent.fontSize,
-          textColor: finalExtractedContent.textColor,
-          textAlign: finalExtractedContent.textAlign || finalExtractedContent.alignment,
-          // Background
-          backgroundColor: finalExtractedContent.backgroundColor,
-          backgroundImageUrl: actualBlockType === 'header' ? (finalExtractedContent.backgroundImageUrl || block.image_url) : finalExtractedContent.backgroundImageUrl,
-          backgroundOpacity: finalExtractedContent.backgroundOpacity,
-          // Newsletter-specific
-          quote: finalExtractedContent.quote,
-          author: finalExtractedContent.author,
-          authorTitle: finalExtractedContent.authorTitle,
-          issueNumber: finalExtractedContent.issueNumber,
-          publishDate: finalExtractedContent.publishDate
-        };
-
-        // Enhanced logging to verify header block fix
-        console.log('🧱 Hydrated contentObj:', {
-          blockId: block.id,
-          originalType: block.block_type,
-          finalType: transformedBlock.type, 
-          headline: transformedBlock.headline,
-          body: transformedBlock.body,
-          imageUrl: transformedBlock.imageUrl,
-          backgroundImageUrl: transformedBlock.backgroundImageUrl,
-          buttonText: transformedBlock.buttonText,
-          buttonUrl: transformedBlock.buttonUrl,
-          backgroundColor: transformedBlock.backgroundColor,
-          layout: transformedBlock.layout,
-          hasImage: !!transformedBlock.imageUrl && transformedBlock.imageUrl !== '/images/newsletter-fallback.jpg',
-          isHeaderWithBackground: block.block_type === 'header' && !!transformedBlock.backgroundImageUrl
-        });
-
-        return transformedBlock;
-      };
-
-      const contentBlocks: ContentBlock[] = await Promise.all(campaignBlocks.map(transformBlock));
-
-      setBlocks(contentBlocks);
+        // Title/headline normalization
+        title: block.content?.title || block.content?.headline || '',
+        headline: block.content?.headline || block.content?.title || '',
+        
+        // Body/content normalization  
+        content: block.content?.content || block.content?.body || '',
+        body: block.content?.body || block.content?.content || '',
+        
+        // Image fields
+        imageUrl: block.image_url || block.content?.imageUrl || '',
+        altText: block.content?.altText || '',
+        
+        // CTA fields (both cta* and button* supported)
+        ctaText: block.cta_text || block.content?.buttonText || block.content?.ctaText || '',
+        ctaUrl: block.cta_url || block.content?.buttonUrl || block.content?.ctaUrl || '',
+        buttonText: block.content?.buttonText || block.cta_text || '',
+        buttonUrl: block.content?.buttonUrl || block.cta_url || '',
+        
+        // Metadata
+        source: (block.source || 'manual') as ContentBlock['source'],
+        personaTag: block.persona_tag || undefined,
+        
+        // Layout and visibility (defaults preserved)
+        layout: (block.content?.layout as any) || 'full-width',
+        collapsed: block.content?.collapsed || false,
+        alignment: (block.content?.alignment as any) || 'left',
+        padding: (block.content?.padding as any) || 'medium',
+        margin: 'medium',
+        visible: block.content?.visible !== false
+      }));
+      
+      // Then normalize for rendering safety
+      setBlocks(contentBlocks.map(b => normalizeBlock(b) as ContentBlock));
 
       toast({
         title: "Campaign Loaded",
