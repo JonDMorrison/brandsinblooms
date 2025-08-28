@@ -121,11 +121,22 @@ const AddCustomer = () => {
       navigate('/crm/customers');
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error adding customer", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      console.error('Error adding customer:', error);
+      
+      // Handle persona constraint errors specifically
+      if (error.message.includes('persona_check') || error.message.includes('persona')) {
+        toast({ 
+          title: "Invalid Persona", 
+          description: "Please select a valid persona (Newbie, Struggler, Regular, or Expert)", 
+          variant: "destructive" 
+        });
+      } else {
+        toast({ 
+          title: "Error adding customer", 
+          description: error.message, 
+          variant: "destructive" 
+        });
+      }
     }
   });
 

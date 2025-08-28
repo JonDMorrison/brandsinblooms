@@ -128,7 +128,26 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
             customer.phone = value.replace(/\D/g, ''); // Remove non-digits
             break;
           case 'persona':
-            customer.persona = value;
+            // Normalize persona to match database constraints
+            const normalizedPersona = value.toLowerCase();
+            const allowedPersonas = ['newbie', 'struggler', 'regular', 'expert'];
+            if (allowedPersonas.includes(normalizedPersona)) {
+              customer.persona = normalizedPersona;
+            } else {
+              // Map common variations to allowed values
+              const personaMapping: Record<string, string> = {
+                'new-customer': 'newbie',
+                'new': 'newbie',
+                'beginner': 'newbie',
+                'loyal-customer': 'regular',
+                'loyal': 'regular',
+                'experienced': 'expert',
+                'advanced': 'expert',
+                'seasonal-shopper': 'regular',
+                'high-value': 'expert'
+              };
+              customer.persona = personaMapping[normalizedPersona] || null;
+            }
             break;
           case 'tags':
             customer.tags = value.split(',').map(tag => tag.trim()).filter(Boolean);
@@ -324,8 +343,8 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 
   const downloadTemplate = () => {
     const template = `email,first_name,last_name,phone,persona,tags,lifetime_value,last_purchase_date,sms_opt_in
-john@example.com,John,Doe,5551234567,loyal-customer,"gardening,tools",250.50,2024-01-15,true
-jane@example.com,Jane,Smith,5559876543,new-customer,"plants,seeds",75.25,2024-01-10,false`;
+john@example.com,John,Doe,5551234567,regular,"gardening,tools",250.50,2024-01-15,true
+jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,false`;
 
     const blob = new Blob([template], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -442,10 +461,10 @@ jane@example.com,Jane,Smith,5559876543,new-customer,"plants,seeds",75.25,2024-01
                     onChange={(e) => setDefaultPersona(e.target.value)}
                     placeholder="Select a persona (optional)"
                     options={[
-                      { value: 'new-customer', label: 'New Customer' },
-                      { value: 'loyal-customer', label: 'Loyal Customer' },
-                      { value: 'seasonal-shopper', label: 'Seasonal Shopper' },
-                      { value: 'high-value', label: 'High Value' }
+                      { value: 'newbie', label: 'Newbie' },
+                      { value: 'struggler', label: 'Struggler' },
+                      { value: 'regular', label: 'Regular' },
+                      { value: 'expert', label: 'Expert' }
                     ]}
                   />
                 </div>
