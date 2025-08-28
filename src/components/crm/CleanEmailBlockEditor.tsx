@@ -200,10 +200,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       const buttonText = block.buttonText || block.ctaText || '';
       const buttonUrl = block.buttonUrl || block.ctaUrl || '';
       const visible = block.visible !== false;
-      
-      // Ensure content is a string before slicing
-      const contentString = typeof content === 'string' ? content : JSON.stringify(content);
-      return `${block.id}:${block.type}:${title}:${contentString.slice(0, 50)}:${imageUrl}:${buttonText}:${buttonUrl}:${visible}`;
+      return `${block.id}:${block.type}:${title}:${content.slice(0, 50)}:${imageUrl}:${buttonText}:${buttonUrl}:${visible}`;
     };
 
     const currentSignature = internalBlocks.map(createContentSignature).sort().join('|');

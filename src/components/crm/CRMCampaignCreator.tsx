@@ -1799,33 +1799,31 @@ cleanUrl();
       />
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Navigation Header */}
-        <div className="flex items-center gap-4">
+        {/* Breadcrumb Navigation */}
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/crm">CRM</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/crm/campaigns">Campaigns</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>
+                {existingCampaignId ? 'Edit Campaign' : 'New Campaign'}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+        
+        {/* Back Button & Simple Header */}
+        <div className="space-y-2">
           <Button variant="ghost" size="sm" onClick={() => navigate('/crm/campaigns')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/crm">CRM</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/crm/campaigns">Campaigns</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>
-                  {existingCampaignId ? 'Edit Campaign' : 'New Campaign'}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-        
-        {/* Simple Header */}
-        <div>
           
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
