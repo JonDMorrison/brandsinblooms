@@ -30,7 +30,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = localStorage.getItem('automation.toolbarExpanded');
-    return saved ? JSON.parse(saved) : false;
+    return saved ? JSON.parse(saved) : true;
   });
 
   useEffect(() => {
