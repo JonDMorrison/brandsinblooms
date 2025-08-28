@@ -1,193 +1,47 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
-import { LayoutRenderer } from './LayoutRenderer';
-import { EmailPreview } from './EmailPreview';
-import { EmailBlockRenderer } from './EmailBlockRenderer';
-import { useToast } from '@/hooks/use-toast';
-import { useNewsletterRenderer } from '@/hooks/useNewsletterRenderer';
-import { supabase } from '@/integrations/supabase/client';
-import { ContentBlock, EmailBlock, GlobalSettings } from '@/types/emailBuilder';
-import { NewsletterIdea } from '@/types/newsletter';
-import { 
-  Save, 
-  Send, 
-  Eye, 
-  Plus, 
-  Settings, 
-  Calendar,
-  Users,
-  Mail,
-  BookOpen,
-  Sparkles,
-  Clock,
-  Target,
-  Leaf,
-  ArrowLeft,
-  ChevronDown,
-  ChevronUp,
-  Trash2,
-  Edit3,
-  Copy,
-  ExternalLink
-} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { LayoutRenderer } from '@/components/crm/LayoutRenderer';
+import { EmailPreview } from '@/components/crm/EmailPreview';
+import { MagazineNewsletterDisplay } from '@/components/content-sidebar/MagazineNewsletterDisplay';
+import { getSeasonalTemplates } from '@/utils/seasonalTemplateService';
+import { ContentBlock, EmailBlock, AlignmentType, SpacingType, BlockType } from '@/types/emailBuilder';
+import { NewsletterMeta } from '@/types/newsletter';
+import { Send, Settings, Eye, Plus, Save, Calendar, User, Mail } from 'lucide-react';
+import { toast } from 'sonner';
 
-interface BlockSettingsProps {
-  block: ContentBlock;
-  onUpdate: (updates: Partial<ContentBlock>) => void;
-}
-
-const BlockSettings: React.FC<BlockSettingsProps> = ({ block, onUpdate }) => {
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    onUpdate({ [name]: value });
-  };
-
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    onUpdate({ [name]: checked });
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    onUpdate({ [name]: value });
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Visibility Setting */}
-      <div>
-        <Label htmlFor="visible">Visible</Label>
-        <Switch
-          id="visible"
-          name="visible"
-          checked={block.visible !== false}
-          onCheckedChange={(checked) => onUpdate({ visible: checked })}
-        />
-      </div>
-
-      {/* Title Input */}
-      <div>
-        <Label htmlFor="title">Title</Label>
-        <Input
-          type="text"
-          id="title"
-          name="title"
-          value={block.title || ''}
-          onChange={handleInputChange}
-          placeholder="Block Title"
-        />
-      </div>
-
-      {/* Content Input */}
-      <div>
-        <Label htmlFor="content">Content</Label>
-        <Textarea
-          id="content"
-          name="content"
-          value={block.content || ''}
-          onChange={handleInputChange}
-          placeholder="Block Content"
-          rows={4}
-        />
-      </div>
-
-      {/* Alignment Selection */}
-      <div>
-        <Label>Alignment</Label>
-        <Select value={block.alignment || 'left'} onValueChange={(value) => handleSelectChange('alignment', value)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="left">Left</SelectItem>
-            <SelectItem value="center">Center</SelectItem>
-            <SelectItem value="right">Right</SelectItem>
-            <SelectItem value="justify">Justify</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Padding Selection */}
-      <div>
-        <Label>Padding</Label>
-        <Select value={block.padding || 'medium'} onValueChange={(value) => handleSelectChange('padding', value)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="small">Small</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="large">Large</SelectItem>
-            <SelectItem value="extra-large">Extra Large</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Margin Selection */}
-      <div>
-        <Label>Margin</Label>
-        <Select value={block.margin || 'medium'} onValueChange={(value) => handleSelectChange('margin', value)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="small">Small</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="large">Large</SelectItem>
-            <SelectItem value="extra-large">Extra Large</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  );
-};
-
+// Database types that match Supabase schema
 interface DatabaseSeasonalTemplate {
-  content_ideas: string;
-  created_at: string;
   id: string;
-  platform_specific_notes: any;
-  prompt: string;
-  seasonal_focus: string;
-  target_audience_notes: string;
-  theme: string;
   title: string;
-  updated_at: string;
+  theme: string;
   week_number: number;
+  seasonal_focus: string;
+  content_ideas: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
+// Component interface with required fields
 interface SeasonalTemplate {
   id: string;
   title: string;
   description: string;
-  category: string;
   theme: string;
-  prompt: string;
-  content_ideas: string[];
-  seasonal_focus: string;
-  target_audience_notes: string;
   week_number: number;
-  platform_specific_notes: any;
-}
-
-interface NewsletterMeta {
-  theme: string;
-  category: string;
-  estimatedReadTime: string;
-  difficulty: string;
-  keyPoints: string[];
-  callToActions: string[];
+  seasonal_focus: string;
+  content_ideas: string;
+  category?: string;
 }
 
 interface CRMCampaignCreatorProps {
@@ -195,235 +49,155 @@ interface CRMCampaignCreatorProps {
   contentTaskId?: string | null;
 }
 
-const defaultGlobalSettings: GlobalSettings = {
-  fontFamily: 'Arial, sans-serif',
-  fontSize: '16px',
-  buttonStyle: {
-    cornerRadius: '6px',
-    backgroundColor: '#22C55E',
-    textColor: '#FFFFFF'
-  },
-  headerStyle: {
-    backgroundColor: '#F8F9FA',
-    textColor: '#1F2937'
-  },
-  footerStyle: {
-    backgroundColor: '#F8F9FA', 
-    textColor: '#6B7280'
-  }
-};
-
 export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({ 
   campaignSlug, 
   contentTaskId 
 }) => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  
-  // Campaign state
-  const [campaignName, setCampaignName] = useState('');
-  const [campaignDescription, setCampaignDescription] = useState('');
-  const [subjectLine, setSubjectLine] = useState('');
-  const [senderName, setSenderName] = useState('Garden Center Pro');
-  const [senderEmail, setSenderEmail] = useState('hello@gardencenterpro.com');
-  const [status, setStatus] = useState('draft' as const);
-  const [scheduledDate, setScheduledDate] = useState('');
-  
-  // Content state
-  const [blocks, setBlocks] = useState<ContentBlock[]>([]);
-  const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('compose');
-  const [showPreview, setShowPreview] = useState(false);
-  
-  // Newsletter conversion state
-  const [newsletterContent, setNewsletterContent] = useState('');
-  const [isConverting, setIsConverting] = useState(false);
-  const [conversionComplete, setConversionComplete] = useState(false);
-  const [newsletterMeta, setNewsletterMeta] = useState<NewsletterMeta | null>(null);
-  
-  // Template state
-  const [availableTemplates, setAvailableTemplates] = useState<SeasonalTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<SeasonalTemplate | null>(null);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
-  
-  // Loading states
-  const [saving, setSaving] = useState(false);
-  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [campaign, setCampaign] = useState<any>(null);
+  const [blocks, setBlocks] = useState<ContentBlock[]>([]);
+  const [selectedBlock, setSelectedBlock] = useState<ContentBlock | null>(null);
 
-  // Check if this is a newsletter campaign from URL parameters
-  const isNewsletterCampaign = searchParams.get('type') === 'newsletter';
-  const templateId = searchParams.get('templateId');
-
-  // Load seasonal templates
-  const loadSeasonalTemplates = useCallback(async () => {
-    if (loadingTemplates) return;
-    
-    setLoadingTemplates(true);
-    try {
-      const { data, error } = await supabase
-        .from('master_campaign_templates')
-        .select('*')
-        .order('week_number', { ascending: true });
-
-      if (error) throw error;
-
-      const templates: SeasonalTemplate[] = (data as DatabaseSeasonalTemplate[]).map(template => ({
-        id: template.id,
-        title: template.title,
-        description: `${template.seasonal_focus} - Week ${template.week_number}`,
-        category: 'weekly',
-        theme: template.theme,
-        prompt: template.prompt,
-        content_ideas: typeof template.content_ideas === 'string' 
-          ? template.content_ideas.split('\n').filter(Boolean)
-          : [],
-        seasonal_focus: template.seasonal_focus,
-        target_audience_notes: template.target_audience_notes,
-        week_number: template.week_number,
-        platform_specific_notes: template.platform_specific_notes
-      }));
-
-      setAvailableTemplates(templates);
-      
-      // Auto-select template if templateId is provided
-      if (templateId) {
-        const template = templates.find(t => t.id === templateId);
-        if (template) {
-          setSelectedTemplate(template);
-          setCampaignName(template.title);
-          setCampaignDescription(template.description);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading seasonal templates:', error);
-      toast({
-        title: "Error Loading Templates",
-        description: "Failed to load seasonal templates. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoadingTemplates(false);
-    }
-  }, [templateId, loadingTemplates, toast]);
-
-  // Load existing campaign or initialize new one
-  useEffect(() => {
-    const initializeCampaign = async () => {
-      if (!campaignSlug) return;
-      
-      // Check if this is an existing campaign (UUID format)
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      const isExistingCampaign = uuidRegex.test(campaignSlug);
-      
-      if (isExistingCampaign) {
-        await loadExistingCampaign(campaignSlug);
-      } else {
-        // Initialize new campaign with URL parameters
-        const title = searchParams.get('title');
-        const description = searchParams.get('description');
-        
-        if (title) setCampaignName(decodeURIComponent(title));
-        if (description) setCampaignDescription(decodeURIComponent(description));
-      }
-    };
-
-    initializeCampaign();
-  }, [campaignSlug, searchParams]);
-
-  // Load seasonal templates on mount
-  useEffect(() => {
-    loadSeasonalTemplates();
-  }, [loadSeasonalTemplates]);
-
-  // Newsletter content processing
-  const {
-    processedNewsletter,
-    images,
-    featuredImage,
-    loadingImages,
-    topicValidation
-  } = useNewsletterRenderer({
-    content: newsletterContent,
-    campaignTitle: campaignName,
-    contentTaskId: contentTaskId || undefined,
-    format: 'magazine'
+  // Campaign form data
+  const [campaignData, setCampaignData] = useState({
+    name: '',
+    subject_line: '',
+    sender_name: '',
+    sender_email: '',
+    status: 'draft' as const,
+    scheduled_date: null as Date | null
   });
 
-  // Auto-convert newsletter content when available
+  // Block editor states
+  const [selectedAlignment, setSelectedAlignment] = useState<AlignmentType>('left');
+  const [selectedPadding, setSelectedPadding] = useState<SpacingType>('medium');
+  const [selectedMargin, setSelectedMargin] = useState<SpacingType>('medium');
+
+  // Load campaign data
   useEffect(() => {
-    if (isNewsletterCampaign && contentTaskId && !conversionComplete && !isConverting) {
-      handleNewsletterConversion();
+    if (campaignSlug) {
+      loadCampaign();
+    } else {
+      initializeNewCampaign();
     }
-  }, [isNewsletterCampaign, contentTaskId, conversionComplete, isConverting]);
+  }, [campaignSlug]);
 
-  const loadExistingCampaign = async (campaignId: string) => {
-    setLoading(true);
+  const loadCampaign = async () => {
     try {
-      // Load campaign details
-      const { data: campaign, error: campaignError } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('id', campaignId)
-        .single();
+      setLoading(true);
+      
+      // Check if campaignSlug is a UUID (existing campaign) or a slug (new campaign)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const isExistingCampaign = uuidRegex.test(campaignSlug || '');
 
-      if (campaignError) throw campaignError;
+      if (isExistingCampaign) {
+        // Load existing CRM campaign
+        const { data: crmCampaign, error: crmError } = await supabase
+          .from('crm_campaigns')
+          .select('*')
+          .eq('id', campaignSlug)
+          .single();
 
-      setCampaignName(campaign.name || '');
-      setCampaignDescription(campaign.description || '');
-      setSubjectLine(campaign.subject_line || '');
-      setSenderName(campaign.sender_name || 'Garden Center Pro');
-      setSenderEmail(campaign.sender_email || 'hello@gardencenterpro.com');
-      setStatus(campaign.status || 'draft');
-      setScheduledDate(campaign.scheduled_date || '');
+        if (crmError) throw crmError;
 
-      // Load campaign blocks
-      const { data: emailBlocks, error: blocksError } = await supabase
-        .from('email_blocks')
-        .select('*')
-        .eq('campaign_id', campaignId)
-        .order('order_index');
+        setCampaign(crmCampaign);
+        setCampaignData({
+          name: crmCampaign.name || '',
+          subject_line: crmCampaign.subject_line || '',
+          sender_name: crmCampaign.sender_name || '',
+          sender_email: crmCampaign.sender_email || '',
+          status: crmCampaign.status || 'draft',
+          scheduled_date: crmCampaign.scheduled_at ? new Date(crmCampaign.scheduled_at) : null
+        });
 
-      if (blocksError) throw blocksError;
+        // Load existing blocks
+        const { data: existingBlocks, error: blocksError } = await supabase
+          .from('campaign_blocks')
+          .select('*')
+          .eq('campaign_id', campaignSlug)
+          .order('order_index');
 
-      // Convert EmailBlocks to ContentBlocks
-      const contentBlocks: ContentBlock[] = emailBlocks.map((block: EmailBlock) => ({
-        id: block.id,
-        type: block.block_type,
-        title: block.content?.title || '',
-        content: block.content?.content || block.content?.body || '',
-        imageUrl: block.image_url || '',
-        ctaText: block.cta_text || '',
-        ctaUrl: block.cta_url || '',
-        source: block.source as 'newsletter' | 'ai' | 'template' | 'manual' || 'manual',
-        personaTag: block.persona_tag || '',
-        visible: true,
-        layout: 'full-width',
-        alignment: 'left',
-        padding: 'medium',
-        margin: 'medium'
-      }));
+        if (blocksError) throw blocksError;
 
-      setBlocks(contentBlocks);
+        const contentBlocks: ContentBlock[] = existingBlocks?.map((block: any) => ({
+          id: block.id,
+          type: block.block_type as BlockType,
+          title: block.content?.title,
+          content: block.content?.content,
+          imageUrl: block.image_url || '',
+          ctaText: block.cta_text || '',
+          ctaUrl: block.cta_url || '',
+          source: 'manual' as const,
+          layout: 'full-width',
+          alignment: 'left',
+          padding: 'medium',
+          margin: 'medium'
+        })) || [];
+
+        setBlocks(contentBlocks);
+      } else {
+        // Initialize from seasonal template or content task
+        await initializeFromTemplate();
+      }
     } catch (error) {
       console.error('Error loading campaign:', error);
-      toast({
-        title: "Error Loading Campaign",
-        description: "Failed to load campaign data. Please try again.",
-        variant: "destructive"
-      });
+      toast.error('Failed to load campaign');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleNewsletterConversion = async () => {
-    if (!contentTaskId || isConverting) return;
+  const initializeNewCampaign = async () => {
+    const type = searchParams.get('type');
+    const title = searchParams.get('title');
+    const description = searchParams.get('description');
 
-    setIsConverting(true);
+    setCampaignData({
+      name: title || 'New Campaign',
+      subject_line: title || '',
+      sender_name: 'Your Business',
+      sender_email: 'hello@yourbusiness.com',
+      status: 'draft' as const,
+      scheduled_date: null
+    });
+
+    if (type === 'newsletter' && contentTaskId) {
+      await initializeFromContentTask();
+    }
+  };
+
+  const initializeFromTemplate = async () => {
     try {
-      // Load content task
+      const templateId = searchParams.get('templateId');
+      if (templateId === 'weekly-theme-40') {
+        const templates = await getSeasonalTemplates(40);
+        if (templates.length > 0) {
+          const template = templates[0] as DatabaseSeasonalTemplate;
+          const seasonalTemplate: SeasonalTemplate = {
+            id: template.id,
+            title: template.title,
+            description: template.content_ideas || 'Seasonal content',
+            theme: template.theme,
+            week_number: template.week_number,
+            seasonal_focus: template.seasonal_focus,
+            content_ideas: template.content_ideas,
+            category: 'weekly'
+          };
+          
+          await createCampaignFromTemplate(seasonalTemplate);
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing from template:', error);
+    }
+  };
+
+  const initializeFromContentTask = async () => {
+    if (!contentTaskId) return;
+
+    try {
       const { data: contentTask, error } = await supabase
         .from('content_tasks')
         .select('*')
@@ -432,169 +206,213 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       if (error) throw error;
 
-      if (contentTask?.content) {
-        setNewsletterContent(contentTask.content);
-        
-        // Extract meta information
-        const meta: NewsletterMeta = {
-          theme: contentTask.theme || 'general',
-          category: 'newsletter',
-          estimatedReadTime: '3-5 minutes',
-          difficulty: 'beginner',
-          keyPoints: [],
-          callToActions: []
+      if (contentTask?.ai_output) {
+        // Process newsletter content into blocks
+        const newsletterMeta: NewsletterMeta = {
+          week_focus: campaignData.name,
+          industry_context: 'Gardening and landscaping business',
+          target_audience: 'Garden enthusiasts and homeowners',
+          content_theme: 'Fall gardening preparation',
+          estimated_read_time: '5 minutes'
         };
-        
-        setNewsletterMeta(meta);
-        setConversionComplete(true);
-        
-        toast({
-          title: "Newsletter Content Loaded",
-          description: "Successfully loaded newsletter content for conversion.",
-        });
+
+        // Create initial blocks from content
+        const initialBlocks: ContentBlock[] = [
+          {
+            id: 'header-1',
+            type: 'header',
+            title: campaignData.name,
+            content: 'Welcome to this week\'s newsletter',
+            source: 'newsletter',
+            layout: 'full-width',
+            alignment: 'center',
+            padding: 'large',
+            margin: 'medium'
+          },
+          {
+            id: 'content-1',
+            type: 'text',
+            title: 'Main Content',
+            content: contentTask.ai_output,
+            source: 'newsletter',
+            layout: 'full-width',
+            alignment: 'left',
+            padding: 'medium',
+            margin: 'medium'
+          }
+        ];
+
+        setBlocks(initialBlocks);
       }
     } catch (error) {
       console.error('Error loading content task:', error);
-      toast({
-        title: "Error Loading Content",
-        description: "Failed to load newsletter content. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsConverting(false);
+      toast.error('Failed to load content task');
     }
   };
 
-  const handleConvertToBlocks = () => {
-    if (!processedNewsletter.blocks.length) return;
-
-    const newBlocks: ContentBlock[] = processedNewsletter.blocks.map((block, index) => ({
-      id: `block-${Date.now()}-${index}`,
-      type: block.type as ContentBlock['type'],
-      title: block.title || '',
-      content: block.content || '',
-      imageUrl: block.imageUrl || '',
-      ctaText: block.ctaText || '',
-      ctaUrl: block.ctaUrl || '',
-      source: 'newsletter',
-      visible: true,
-      layout: 'full-width',
-      alignment: 'left',
-      padding: 'medium',
-      margin: 'medium'
-    }));
-
-    setBlocks(newBlocks);
-    setActiveTab('compose');
-    
-    toast({
-      title: "Content Converted",
-      description: `Successfully converted newsletter content into ${newBlocks.length} email blocks.`,
-    });
-  };
-
-  const handleSaveDraft = async () => {
-    setSaving(true);
+  const createCampaignFromTemplate = async (template: SeasonalTemplate) => {
     try {
-      const campaignData = {
-        name: campaignName,
-        description: campaignDescription,
-        subject_line: subjectLine,
-        sender_name: senderName,
-        sender_email: senderEmail,
+      // Create CRM campaign
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error('Not authenticated');
+
+      const { data: userProfile } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.user.id)
+        .single();
+
+      const campaignPayload = {
+        name: template.title,
+        subject_line: `${template.title} - Week ${template.week_number}`,
+        sender_name: 'Your Business',
+        sender_email: 'hello@yourbusiness.com',
         status: 'draft' as const,
-        scheduled_date: scheduledDate || null,
-        updated_at: new Date().toISOString()
+        tenant_id: userProfile?.tenant_id,
+        user_id: user.user.id,
+        metadata: {
+          template_id: template.id,
+          week_number: template.week_number,
+          theme: template.theme
+        }
       };
 
-      let campaignId = campaignSlug;
+      const { data: newCampaign, error: campaignError } = await supabase
+        .from('crm_campaigns')
+        .insert(campaignPayload)
+        .select()
+        .single();
 
-      // Check if this is an existing campaign
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      const isExistingCampaign = campaignSlug && uuidRegex.test(campaignSlug);
+      if (campaignError) throw campaignError;
 
-      if (isExistingCampaign) {
-        // Update existing campaign
-        const { error } = await supabase
-          .from('campaigns')
-          .update(campaignData)
-          .eq('id', campaignSlug);
+      setCampaign(newCampaign);
+      setCampaignData({
+        name: newCampaign.name,
+        subject_line: newCampaign.subject_line || '',
+        sender_name: newCampaign.sender_name || '',
+        sender_email: newCampaign.sender_email || '',
+        status: newCampaign.status || 'draft',
+        scheduled_date: null
+      });
 
-        if (error) throw error;
-      } else {
-        // Create new campaign
-        const { data, error } = await supabase
-          .from('campaigns')
-          .insert([campaignData])
-          .select()
-          .single();
+      // Create initial content blocks
+      const contentIdeas = Array.isArray(template.content_ideas) 
+        ? template.content_ideas 
+        : template.content_ideas.split('\n').filter(idea => idea.trim());
 
-        if (error) throw error;
-        campaignId = data.id;
+      const initialBlocks: ContentBlock[] = [
+        {
+          id: 'header-1',
+          type: 'header',
+          title: template.title,
+          content: `Week ${template.week_number}: ${template.theme}`,
+          source: 'template',
+          layout: 'full-width',
+          alignment: 'center',
+          padding: 'large',
+          margin: 'medium'
+        },
+        {
+          id: 'content-1',
+          type: 'text',
+          title: 'Seasonal Focus',
+          content: template.seasonal_focus,
+          source: 'template',
+          layout: 'full-width',
+          alignment: 'left',
+          padding: 'medium',
+          margin: 'medium'
+        },
+        {
+          id: 'content-2',
+          type: 'text',
+          title: 'Content Ideas',
+          content: contentIdeas.join('\n\n'),
+          source: 'template',
+          layout: 'full-width',
+          alignment: 'left',
+          padding: 'medium',
+          margin: 'medium'
+        }
+      ];
+
+      setBlocks(initialBlocks);
+      
+      // Navigate to the new campaign
+      navigate(`/crm/campaigns/builder/${newCampaign.id}`);
+      toast.success('Campaign created from template');
+    } catch (error) {
+      console.error('Error creating campaign from template:', error);
+      toast.error('Failed to create campaign');
+    }
+  };
+
+  const saveCampaign = async () => {
+    try {
+      setLoading(true);
+
+      if (!campaign?.id) {
+        toast.error('No campaign to save');
+        return;
       }
 
-      // Save email blocks
-      if (blocks.length > 0 && campaignId) {
-        // Delete existing blocks for this campaign
-        await supabase
-          .from('email_blocks')
-          .delete()
-          .eq('campaign_id', campaignId);
+      // Update campaign metadata
+      const { error: campaignError } = await supabase
+        .from('crm_campaigns')
+        .update({
+          name: campaignData.name,
+          subject_line: campaignData.subject_line,
+          sender_name: campaignData.sender_name,
+          sender_email: campaignData.sender_email,
+          status: campaignData.status,
+          scheduled_at: campaignData.scheduled_date?.toISOString()
+        })
+        .eq('id', campaign.id);
 
-        // Insert new blocks
-        const emailBlocks: Omit<EmailBlock, 'created_at' | 'updated_at'>[] = blocks.map((block, index) => ({
-          id: block.id,
-          campaign_id: campaignId,
+      if (campaignError) throw campaignError;
+
+      // Save blocks to database
+      for (const block of blocks) {
+        const blockPayload = {
+          campaign_id: campaign.id,
           block_type: block.type,
           content: {
             title: block.title,
             content: block.content,
-            body: block.content
+            alignment: block.alignment,
+            padding: block.padding,
+            margin: block.margin
           },
-          image_url: block.imageUrl || null,
-          cta_text: block.ctaText || null,
-          cta_url: block.ctaUrl || null,
-          source: block.source || 'manual',
-          persona_tag: block.personaTag || null,
-          order_index: index
-        }));
+          image_url: block.imageUrl,
+          cta_text: block.ctaText,
+          cta_url: block.ctaUrl,
+          order_index: blocks.indexOf(block),
+          source: block.source
+        };
 
-        const { error: blocksError } = await supabase
-          .from('email_blocks')
-          .insert(emailBlocks);
+        const { error: blockError } = await supabase
+          .from('campaign_blocks')
+          .upsert(blockPayload);
 
-        if (blocksError) throw blocksError;
+        if (blockError) throw blockError;
       }
 
-      toast({
-        title: "Campaign Saved",
-        description: "Your campaign has been saved as a draft.",
-      });
-
-      // Navigate to the saved campaign if it's new
-      if (!isExistingCampaign && campaignId) {
-        navigate(`/crm/campaigns/${campaignId}`);
-      }
+      toast.success('Campaign saved successfully');
     } catch (error) {
       console.error('Error saving campaign:', error);
-      toast({
-        title: "Error Saving Campaign",
-        description: "Failed to save campaign. Please try again.",
-        variant: "destructive"
-      });
+      toast.error('Failed to save campaign');
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
-  const addBlock = (type: ContentBlock['type']) => {
+  const addBlock = (type: BlockType) => {
     const newBlock: ContentBlock = {
       id: `block-${Date.now()}`,
       type,
-      title: '',
-      content: '',
+      title: `New ${type} block`,
+      content: `Content for ${type} block`,
       source: 'manual',
-      visible: true,
       layout: 'full-width',
       alignment: 'left',
       padding: 'medium',
@@ -602,103 +420,60 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     };
 
     setBlocks([...blocks, newBlock]);
-    setSelectedBlock(newBlock.id);
+    setSelectedBlock(newBlock);
   };
 
   const updateBlock = (blockId: string, updates: Partial<ContentBlock>) => {
     setBlocks(blocks.map(block => 
       block.id === blockId ? { ...block, ...updates } : block
     ));
+    
+    if (selectedBlock?.id === blockId) {
+      setSelectedBlock({ ...selectedBlock, ...updates });
+    }
   };
 
   const deleteBlock = (blockId: string) => {
     setBlocks(blocks.filter(block => block.id !== blockId));
-    if (selectedBlock === blockId) {
+    if (selectedBlock?.id === blockId) {
       setSelectedBlock(null);
     }
   };
 
-  const renderEmailPreview = () => {
-    return (
-      <div className="space-y-4">
-        <EmailPreview
-          blocks={blocks}
-          campaignName={campaignName}
-          subjectLine={subjectLine}
-          senderName={senderName}
-          senderEmail={senderEmail}
-        />
-      </div>
-    );
-  };
-
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading campaign...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Loading campaign...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/crm/campaigns')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Campaigns
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Campaign Creator</h1>
-            <p className="text-muted-foreground">
-              {campaignSlug && campaignSlug.includes('-') ? 'Create new campaign' : 'Edit campaign'}
-            </p>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Campaign Creator</h1>
+          <p className="text-muted-foreground">Create and manage your email campaigns</p>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSaveDraft}
-            disabled={saving || !campaignName.trim()}
-          >
-            {saving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save as Draft
-              </>
-            )}
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/crm/campaigns')}>
+            Cancel
           </Button>
-          
-          <Button
-            onClick={() => setShowPreview(true)}
-            disabled={blocks.length === 0}
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            Preview
+          <Button onClick={saveCampaign} disabled={loading}>
+            <Save className="h-4 w-4 mr-2" />
+            Save Campaign
           </Button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Panel - Campaign Settings */}
-        <div className="lg:col-span-1">
+        <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -711,20 +486,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 <Label htmlFor="campaign-name">Campaign Name</Label>
                 <Input
                   id="campaign-name"
-                  value={campaignName}
-                  onChange={(e) => setCampaignName(e.target.value)}
+                  value={campaignData.name}
+                  onChange={(e) => setCampaignData({ ...campaignData, name: e.target.value })}
                   placeholder="Enter campaign name"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="campaign-description">Description</Label>
-                <Textarea
-                  id="campaign-description"
-                  value={campaignDescription}
-                  onChange={(e) => setCampaignDescription(e.target.value)}
-                  placeholder="Campaign description"
-                  rows={3}
                 />
               </div>
               
@@ -732,269 +496,226 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 <Label htmlFor="subject-line">Subject Line</Label>
                 <Input
                   id="subject-line"
-                  value={subjectLine}
-                  onChange={(e) => setSubjectLine(e.target.value)}
+                  value={campaignData.subject_line}
+                  onChange={(e) => setCampaignData({ ...campaignData, subject_line: e.target.value })}
                   placeholder="Enter email subject"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="sender-name">Sender Name</Label>
                 <Input
                   id="sender-name"
-                  value={senderName}
-                  onChange={(e) => setSenderName(e.target.value)}
-                  placeholder="Your Name"
+                  value={campaignData.sender_name}
+                  onChange={(e) => setCampaignData({ ...campaignData, sender_name: e.target.value })}
+                  placeholder="Your Business Name"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="sender-email">Sender Email</Label>
                 <Input
                   id="sender-email"
-                  value={senderEmail}
-                  onChange={(e) => setSenderEmail(e.target.value)}
-                  placeholder="your@email.com"
+                  type="email"
+                  value={campaignData.sender_email}
+                  onChange={(e) => setCampaignData({ ...campaignData, sender_email: e.target.value })}
+                  placeholder="hello@yourbusiness.com"
                 />
               </div>
 
-              {/* Template Selection for Newsletter Campaigns */}
-              {isNewsletterCampaign && availableTemplates.length > 0 && (
-                <div>
-                  <Label>Campaign Template</Label>
-                  <Select value={selectedTemplate?.id || ''} onValueChange={(value) => {
-                    const template = availableTemplates.find(t => t.id === value);
-                    setSelectedTemplate(template || null);
-                    if (template) {
-                      setCampaignName(template.title);
-                      setCampaignDescription(template.description);
-                    }
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a template" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {availableTemplates.map(template => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <Separator />
 
-              {/* Status Selection */}
               <div>
-                <Label>Campaign Status</Label>
-                <Select value={status} onValueChange={(value: any) => setStatus(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="sent">Sent</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Add Content Block</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <Button variant="outline" size="sm" onClick={() => addBlock('header')}>
+                    Header
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => addBlock('text')}>
+                    Text
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => addBlock('image')}>
+                    Image
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => addBlock('button')}>
+                    Button
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Block Editor */}
+          {selectedBlock && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Edit Block</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Title</Label>
+                  <Input
+                    value={selectedBlock.title || ''}
+                    onChange={(e) => updateBlock(selectedBlock.id, { title: e.target.value })}
+                    placeholder="Block title"
+                  />
+                </div>
+
+                <div>
+                  <Label>Content</Label>
+                  <Textarea
+                    value={selectedBlock.content || ''}
+                    onChange={(e) => updateBlock(selectedBlock.id, { content: e.target.value })}
+                    placeholder="Block content"
+                    rows={4}
+                  />
+                </div>
+
+                <div>
+                  <Label>Alignment</Label>
+                  <Select
+                    value={selectedBlock.alignment || 'left'}
+                    onValueChange={(value: AlignmentType) => {
+                      setSelectedAlignment(value);
+                      updateBlock(selectedBlock.id, { alignment: value });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                      <SelectItem value="justify">Justify</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Padding</Label>
+                  <Select
+                    value={selectedBlock.padding || 'medium'}
+                    onValueChange={(value: SpacingType) => {
+                      setSelectedPadding(value);
+                      updateBlock(selectedBlock.id, { padding: value });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="small">Small</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="large">Large</SelectItem>
+                      <SelectItem value="extra-large">Extra Large</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Margin</Label>
+                  <Select
+                    value={selectedBlock.margin || 'medium'}
+                    onValueChange={(value: SpacingType) => {
+                      setSelectedMargin(value);
+                      updateBlock(selectedBlock.id, { margin: value });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="small">Small</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="large">Large</SelectItem>
+                      <SelectItem value="extra-large">Extra Large</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => deleteBlock(selectedBlock.id)}
+                >
+                  Delete Block
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {/* Main Content Area */}
-        <div className="lg:col-span-3">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="compose">
-                <Edit3 className="h-4 w-4 mr-2" />
-                Compose
-              </TabsTrigger>
-              <TabsTrigger value="preview">
-                <Eye className="h-4 w-4 mr-2" />
-                Preview
-              </TabsTrigger>
-              {isNewsletterCampaign && (
-                <TabsTrigger value="newsletter">
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Newsletter
-                </TabsTrigger>
-              )}
+        {/* Center Panel - Email Builder */}
+        <div className="lg:col-span-2">
+          <Tabs defaultValue="builder" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="builder">Email Builder</TabsTrigger>
+              <TabsTrigger value="preview">Preview</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="compose" className="mt-6">
-              <div className="space-y-4">
-                {/* Add Block Buttons */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Plus className="h-5 w-5" />
-                      Add Content Block
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addBlock('header')}
-                      >
-                        Header
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addBlock('text')}
-                      >
-                        Text
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addBlock('image')}
-                      >
-                        Image
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addBlock('button')}
-                      >
-                        Button
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Content Blocks */}
-                {blocks.length > 0 ? (
+            <TabsContent value="builder" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Email Content</CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-4">
-                    {blocks.map((block) => (
-                      <Card key={block.id} className="relative">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <Badge variant="secondary" className="capitalize">
-                              {block.type}
-                            </Badge>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setSelectedBlock(
-                                  selectedBlock === block.id ? null : block.id
-                                )}
-                              >
-                                <Edit3 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteBlock(block.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                          
-                          <LayoutRenderer
-                            block={block}
-                            editable={selectedBlock === block.id}
-                            onUpdate={(updates) => updateBlock(block.id, updates)}
-                          />
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Card>
-                    <CardContent className="p-8 text-center">
-                      <Mail className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-lg font-medium mb-2">No content blocks yet</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Add your first content block to start building your campaign
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="preview" className="mt-6">
-              {renderEmailPreview()}
-            </TabsContent>
-
-            {isNewsletterCampaign && (
-              <TabsContent value="newsletter" className="mt-6">
-                <div className="space-y-6">
-                  {conversionComplete && newsletterContent ? (
-                    <div className="space-y-4">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <BookOpen className="h-5 w-5" />
-                            Newsletter Content Ready
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-muted-foreground mb-4">
-                            Your newsletter content has been processed and is ready to convert into email blocks.
-                          </p>
-                          <Button onClick={handleConvertToBlocks}>
-                            <Sparkles className="h-4 w-4 mr-2" />
-                            Convert to Email Blocks
-                          </Button>
-                        </CardContent>
-                      </Card>
-
-                      {/* Newsletter Preview */}
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Newsletter Preview</CardTitle>
-                        </CardHeader>
-                        <CardContent className="max-h-96 overflow-y-auto">
-                          <div className="prose prose-sm max-w-none">
-                            {processedNewsletter.blocks.map((block, index) => (
-                              <div key={index} className="mb-4 p-3 border rounded">
-                                <div className="text-xs text-muted-foreground mb-2 capitalize">
-                                  {block.type} Block
-                                </div>
-                                {block.title && (
-                                  <h3 className="font-medium mb-2">{block.title}</h3>
-                                )}
-                                {block.content && (
-                                  <div className="text-sm text-muted-foreground">
-                                    {block.content.substring(0, 200)}
-                                    {block.content.length > 200 && '...'}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  ) : isConverting ? (
-                    <Card>
-                      <CardContent className="p-8 text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-                        <p className="text-muted-foreground">Converting newsletter content...</p>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <Card>
-                      <CardContent className="p-8 text-center">
-                        <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <h3 className="text-lg font-medium mb-2">Newsletter Content Not Available</h3>
-                        <p className="text-muted-foreground">
-                          No newsletter content found for conversion. Please ensure you have a valid content task ID.
+                    {blocks.length === 0 ? (
+                      <div className="text-center py-12 border-2 border-dashed border-muted-foreground/25 rounded-lg">
+                        <Mail className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                        <h3 className="text-lg font-medium mb-2">No content blocks yet</h3>
+                        <p className="text-muted-foreground mb-4">
+                          Add content blocks to start building your email
                         </p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              </TabsContent>
-            )}
+                        <Button onClick={() => addBlock('header')}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Your First Block
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {blocks.map((block) => (
+                          <div
+                            key={block.id}
+                            className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                              selectedBlock?.id === block.id
+                                ? 'border-primary bg-primary/5'
+                                : 'border-muted hover:border-muted-foreground/25'
+                            }`}
+                            onClick={() => setSelectedBlock(block)}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">{block.type}</Badge>
+                                <span className="font-medium">{block.title}</span>
+                              </div>
+                            </div>
+                            <LayoutRenderer
+                              block={block}
+                              editable={false}
+                              className="pointer-events-none"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="preview">
+              <EmailPreview
+                blocks={blocks}
+                campaignName={campaignData.name}
+                subjectLine={campaignData.subject_line}
+                senderName={campaignData.sender_name}
+                senderEmail={campaignData.sender_email}
+              />
+            </TabsContent>
           </Tabs>
         </div>
       </div>
