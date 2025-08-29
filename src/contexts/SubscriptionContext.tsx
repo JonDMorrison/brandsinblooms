@@ -169,7 +169,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
-  const fetchSubscription = async () => {
+  const fetchSubscription = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
@@ -243,9 +243,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, isTestUser, hasPrivilegedAccess]);
 
-  const checkStripeSubscription = async () => {
+  const checkStripeSubscription = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -269,7 +269,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       console.error('❌ Error in checkStripeSubscription:', error);
       setSubscriptionError(`Stripe verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  };
+  }, [user, fetchSubscription]);
 
   const updateSubscription = useCallback(async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
     await updateSubscriptionPlan(plan, billingInterval);
@@ -282,7 +282,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     await fetchSubscription();
     await checkStripeSubscription();
     console.log('✅ Subscription refresh completed');
-  }, []);
+  }, [fetchSubscription, checkStripeSubscription]);
 
   const checkAccess = useCallback((requiredPlan: SubscriptionPlan): boolean => {
     // Privileged access: super admins and test accounts have access to everything
@@ -345,7 +345,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       
       return () => clearTimeout(stripeTimer);
     }
-  }, [user?.id]); // Only depend on user.id, not the entire user object
+  }, [user?.id, fetchSubscription, checkStripeSubscription]); // Include the memoized functions
 
   // Enhanced trial expiration handling - skip for privileged users
   useEffect(() => {
@@ -383,7 +383,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }, 300000); // Check every 5 minutes instead of every minute
 
     return () => clearInterval(interval);
-  }, [user?.id, subscription?.plan, subscriptionError]); // More specific dependencies
+  }, [user?.id, subscription?.plan, subscriptionError, checkStripeSubscription]); // Include checkStripeSubscription
 
   const value = useMemo(() => ({
     subscription,
