@@ -104,7 +104,7 @@ export const BloomSuiteDashboard = () => {
   const dashboardActions = [
     {
       id: 'create-flow',
-      title: 'Create and Post Something',
+      title: 'Create Any Content',
       description: 'Events, holidays, or your own idea—AI will draft everything.',
       icon: <Sparkles className="w-6 h-6 text-indigo-600" />,
       
