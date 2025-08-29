@@ -105,7 +105,7 @@ export const BloomSuiteDashboard = () => {
     {
       id: 'create-flow',
       title: 'Create Any Content',
-      description: 'Events, holidays, or your own idea—AI will draft everything.',
+      description: 'We will give you ideas and write all the content for you. For social, video script, or newsletter.',
       icon: <Sparkles className="w-6 h-6 text-indigo-600" />,
       
       primaryAction: {
