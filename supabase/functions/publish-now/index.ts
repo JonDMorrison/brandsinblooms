@@ -1,6 +1,13 @@
 
+import * as Sentry from "https://deno.land/x/sentry@7.114.0/mod.js";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2.38.0'
+
+// Initialize Sentry
+Sentry.init({
+  dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
+  environment: Deno.env.get("ENV") ?? "production",
+});
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,9 +88,15 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
   return publishResult.id
 }
 
-serve(async (req) => {
+async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  // Test error endpoint for Sentry verification
+  const url = new URL(req.url);
+  if (url.searchParams.get('testError') === '1') {
+    throw new Error('Test error from publish-now edge function - Sentry should capture this!');
   }
 
   try {
@@ -216,9 +229,12 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error publishing now:', error)
+    Sentry.captureException(error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
-})
+}
+
+Deno.serve(handler);

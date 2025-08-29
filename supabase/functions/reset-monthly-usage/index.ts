@@ -1,15 +1,28 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import * as Sentry from "https://deno.land/x/sentry@7.114.0/mod.js";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+// Initialize Sentry
+Sentry.init({
+  dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
+  environment: Deno.env.get("ENV") ?? "production",
+});
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+async function handler(req: Request): Promise<Response> {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Test error endpoint for Sentry verification
+  const url = new URL(req.url);
+  if (url.searchParams.get('testError') === '1') {
+    throw new Error('Test error from reset-monthly-usage edge function - Sentry should capture this!');
   }
 
   try {
@@ -56,6 +69,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in reset-monthly-usage function:', error);
+    Sentry.captureException(error);
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
@@ -67,4 +81,6 @@ serve(async (req) => {
       }
     );
   }
-})
+}
+
+Deno.serve(handler);

@@ -1,6 +1,13 @@
 
+import * as Sentry from "https://deno.land/x/sentry@7.114.0/mod.js";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2.38.0'
+
+// Initialize Sentry
+Sentry.init({
+  dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
+  environment: Deno.env.get("ENV") ?? "production",
+});
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -116,7 +123,13 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
   return publishResult.id
 }
 
-serve(async (req) => {
+async function handler(req: Request): Promise<Response> {
+  // Test error endpoint for Sentry verification  
+  const url = new URL(req.url);
+  if (url.searchParams.get('testError') === '1') {
+    throw new Error('Test error from queue-worker edge function - Sentry should capture this!');
+  }
+
   try {
     console.log('Queue worker starting...')
     
@@ -242,6 +255,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Queue worker error:', error)
+    Sentry.captureException(error);
     return new Response('Worker error', { status: 500 })
   }
-})
+}
+
+Deno.serve(handler);
