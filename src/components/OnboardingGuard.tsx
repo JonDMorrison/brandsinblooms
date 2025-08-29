@@ -17,22 +17,7 @@ const debug = (message: string, data?: any) => {
 
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
-  
-  // Use the hook directly without try/catch to maintain hook order
-  let onboardingStatus;
-  try {
-    onboardingStatus = useOnboardingStatus();
-  } catch (error) {
-    // If context is not available, provide fallback but without hook order issues
-    onboardingStatus = {
-      isCompleted: false,
-      hasEverCompleted: false,
-      isLoading: false,
-      error: null,
-      refreshStatus: () => Promise.resolve(),
-      markAsCompleted: () => Promise.resolve()
-    };
-  }
+  const onboardingStatus = useOnboardingStatus();
 
   const { setLoading, clearLoading } = useLoading();
   const location = useLocation();
