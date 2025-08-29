@@ -22,6 +22,7 @@ import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 import { SeasonalHolidaysCard } from "@/components/dashboard/seasonal-holidays/SeasonalHolidaysCard";
+import { SentryWidget } from "@/components/dashboard/SentryWidget";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 interface UnifiedDashboardGridProps {
@@ -112,6 +113,9 @@ export const UnifiedDashboardGrid = ({
       <div className="xl:col-span-4 space-y-6">
         {/* Quick Actions Section */}
         <QuickActionsSection onCampaignCreated={onCampaignCreated} />
+
+        {/* Error Monitoring Widget */}
+        <SentryWidget />
 
         {/* Seasonal Holidays Section */}
         <SeasonalHolidaysCard onContentGenerated={onTaskUpdate} />

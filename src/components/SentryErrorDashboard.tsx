@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { ExternalLink, RefreshCw, AlertTriangle, Bug, Clock, Users } from 'lucide-react';
+import { NativeSelect } from '@/components/ui/NativeSelect';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { ExternalLink, RefreshCw, AlertTriangle, Bug, Clock, Users, Filter, Search } from 'lucide-react';
 import { useSentryErrors, SentryError } from '@/hooks/useSentryErrors';
+import { ErrorInvestigationDrawer } from '@/components/debug/ErrorInvestigationDrawer';
 import { formatDistanceToNow } from 'date-fns';
 
 const ErrorLevelBadge: React.FC<{ level: string }> = ({ level }) => {
@@ -24,15 +28,18 @@ const ErrorLevelBadge: React.FC<{ level: string }> = ({ level }) => {
   );
 };
 
-const ErrorCard: React.FC<{ error: SentryError }> = ({ error }) => {
+const ErrorCard: React.FC<{ 
+  error: SentryError;
+  onInvestigate: (error: SentryError) => void;
+}> = ({ error, onInvestigate }) => {
   const [showFix, setShowFix] = useState(false);
 
   return (
-    <Card className="w-full">
+    <Card className="w-full hover:shadow-md transition-shadow cursor-pointer">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-base font-medium truncate">
+          <div className="flex-1 min-w-0" onClick={() => onInvestigate(error)}>
+            <CardTitle className="text-base font-medium truncate hover:text-primary">
               {error.title}
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1 truncate">
@@ -81,26 +88,35 @@ const ErrorCard: React.FC<{ error: SentryError }> = ({ error }) => {
             <strong>Location:</strong> {error.location}
           </div>
           
-          {error.suggestedFix && (
-            <div>
+          <div className="flex items-center justify-between">
+            {error.suggestedFix && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFix(!showFix)}
                 className="h-auto p-1 text-xs font-medium"
               >
-                {showFix ? 'Hide' : 'Show'} AI Suggested Fix
+                {showFix ? 'Hide' : 'Show'} AI Fix
               </Button>
-              
-              {showFix && (
-                <Alert className="mt-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription className="text-sm">
-                    {error.suggestedFix}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onInvestigate(error)}
+              className="h-auto p-1 text-xs font-medium text-primary"
+            >
+              <Search className="h-3 w-3 mr-1" />
+              Investigate
+            </Button>
+          </div>
+          
+          {showFix && error.suggestedFix && (
+            <Alert className="mt-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                {error.suggestedFix}
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       </CardContent>
@@ -112,10 +128,37 @@ export const SentryErrorDashboard: React.FC = () => {
   const { errors, summary, loading, error, fetchErrors } = useSentryErrors();
   const [orgSlug, setOrgSlug] = useState('brands-in-blooms');
   const [projectSlug, setProjectSlug] = useState('javascript-react');
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [filterLevel, setFilterLevel] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [selectedError, setSelectedError] = useState<SentryError | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Auto-refresh effect
+  useEffect(() => {
+    if (autoRefresh) {
+      const interval = setInterval(() => {
+        fetchErrors({ orgSlug, projectSlug, limit: 25 });
+      }, 30000); // Refresh every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [autoRefresh, orgSlug, projectSlug, fetchErrors]);
 
   const handleFetchErrors = () => {
     fetchErrors({ orgSlug, projectSlug, limit: 25 });
   };
+
+  const handleInvestigate = (error: SentryError) => {
+    setSelectedError(error);
+    setDrawerOpen(true);
+  };
+
+  // Filter errors based on selected filters
+  const filteredErrors = errors.filter(error => {
+    const levelMatch = filterLevel === 'all' || error.level === filterLevel;
+    const statusMatch = filterStatus === 'all' || error.status === filterStatus;
+    return levelMatch && statusMatch;
+  });
 
   return (
     <div className="w-full max-w-6xl mx-auto p-6 space-y-6">
@@ -132,36 +175,89 @@ export const SentryErrorDashboard: React.FC = () => {
         </Button>
       </div>
 
-      {/* Configuration Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Configuration</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">Organization Slug</label>
-              <input
-                type="text"
-                value={orgSlug}
-                onChange={(e) => setOrgSlug(e.target.value)}
-                className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
-                placeholder="e.g., brands-in-blooms"
-              />
+      {/* Configuration & Filters */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Configuration</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Organization Slug</label>
+                <input
+                  type="text"
+                  value={orgSlug}
+                  onChange={(e) => setOrgSlug(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
+                  placeholder="e.g., brands-in-blooms"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Project Slug</label>
+                <input
+                  type="text"
+                  value={projectSlug}
+                  onChange={(e) => setProjectSlug(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
+                  placeholder="e.g., javascript-react"
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium">Project Slug</label>
-              <input
-                type="text"
-                value={projectSlug}
-                onChange={(e) => setProjectSlug(e.target.value)}
-                className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
-                placeholder="e.g., javascript-react"
+            <div className="flex items-center space-x-2 mt-4">
+              <Switch
+                id="auto-refresh"
+                checked={autoRefresh}
+                onCheckedChange={setAutoRefresh}
               />
+              <Label htmlFor="auto-refresh" className="text-sm">
+                Auto-refresh every 30s
+              </Label>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              Filters
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <NativeSelect 
+                  label="Error Level"
+                  value={filterLevel} 
+                  onChange={(e) => setFilterLevel(e.target.value)}
+                  options={[
+                    { value: 'all', label: 'All Levels' },
+                    { value: 'fatal', label: 'Fatal' },
+                    { value: 'error', label: 'Error' },
+                    { value: 'warning', label: 'Warning' },
+                    { value: 'info', label: 'Info' },
+                    { value: 'debug', label: 'Debug' }
+                  ]}
+                />
+              </div>
+              <div>
+                <NativeSelect 
+                  label="Status"
+                  value={filterStatus} 
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  options={[
+                    { value: 'all', label: 'All Statuses' },
+                    { value: 'unresolved', label: 'Unresolved' },
+                    { value: 'resolved', label: 'Resolved' },
+                    { value: 'ignored', label: 'Ignored' }
+                  ]}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Summary Section */}
       {summary && (
@@ -200,12 +296,26 @@ export const SentryErrorDashboard: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Recent Errors</h2>
-            <Badge variant="outline">{errors.length} issues found</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{filteredErrors.length} of {errors.length} shown</Badge>
+              {(filterLevel !== 'all' || filterStatus !== 'all') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFilterLevel('all');
+                    setFilterStatus('all');
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
           </div>
           <Separator />
           <div className="space-y-4">
-            {errors.map((error) => (
-              <ErrorCard key={error.id} error={error} />
+            {filteredErrors.map((error) => (
+              <ErrorCard key={error.id} error={error} onInvestigate={handleInvestigate} />
             ))}
           </div>
         </div>
@@ -225,6 +335,13 @@ export const SentryErrorDashboard: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Investigation Drawer */}
+      <ErrorInvestigationDrawer
+        error={selectedError}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
     </div>
   );
 };
