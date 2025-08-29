@@ -8,10 +8,14 @@ import { OnboardingStatusProvider } from '@/contexts/OnboardingStatusContext'
 import { LoadingProvider } from '@/contexts/LoadingContext'
 import { GlobalLoadingOverlay } from '@/components/loading/GlobalLoadingOverlay'
 import { GlobalVisibilityManager } from '@/components/GlobalVisibilityManager'
+import { initSentry } from '@/lib/sentry'
 import App from './App.tsx'
 import './index.css'
 
 import './utils/globalToastReplace'
+
+// Initialize Sentry
+initSentry();
 
 
 // Create a client
