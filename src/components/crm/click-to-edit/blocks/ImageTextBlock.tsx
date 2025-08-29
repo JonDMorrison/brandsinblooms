@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
 import { SafeHtml } from '@/components/ui/safe-html';
@@ -7,6 +7,7 @@ import { ContextualEditButton } from '../contextual/ContextualEditButton';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { BlockGeneratingOverlay } from './BlockGeneratingOverlay';
+import { mediaSelector } from '@/utils/mediaSelector';
 
 interface ImageTextBlockProps {
   block: ContentBlock;
@@ -25,6 +26,40 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   onModeChange,
   isGenerating = false
 }) => {
+  // Auto-fetch image for blocks that don't have an image
+  useEffect(() => {
+    if (!block.imageUrl && onUpdate) {
+      const contentForImage = (() => {
+        if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
+          return (block.content as any).headline;
+        } else if (block.headline) {
+          return block.headline;
+        } else if (block.title) {
+          return block.title;
+        } else if (typeof block.content === 'string') {
+          return block.content;
+        }
+        return null;
+      })();
+
+      if (contentForImage) {
+        console.log('[ImageTextBlock] Auto-fetching image for content:', contentForImage);
+        mediaSelector({ 
+          prompt: contentForImage,
+          fallback: '/images/newsletter-fallback.jpg' 
+        }).then((result) => {
+          console.log('[ImageTextBlock] Auto-fetched image:', result.url);
+          onUpdate({ 
+            imageUrl: result.url,
+            altText: result.alt || 'Auto-selected image'
+          });
+        }).catch((error) => {
+          console.error('[ImageTextBlock] Failed to auto-fetch image:', error);
+        });
+      }
+    }
+  }, [block.imageUrl, block.headline, block.title, block.content, onUpdate]);
+
   const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left';
   const isImageRight = block.layout === 'image-right' || block.layout === 'two-column-right';
   const isTextOnly = block.layout === 'full-width' || block.type === 'text';
