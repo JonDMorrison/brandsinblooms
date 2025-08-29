@@ -115,6 +115,20 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               download_location: firstImage.download_location
             };
             handleImageSelect(firstImage.url || firstImage.download_url, imageMetadata);
+          } else if (!selectedImageUrl && finalResults.length > 0) {
+            // If no image is selected, auto-select the first one anyway to avoid showing placeholder
+            const firstImage = finalResults[0];
+            console.log('[MediaSelector] No image selected, auto-selecting first available:', firstImage);
+            const imageMetadata = {
+              source: firstImage.source || 'unsplash',
+              alt_text: firstImage.alt,
+              photographer: firstImage.photographer,
+              photographer_url: firstImage.photographer_url,
+              unsplash_id: firstImage.id,
+              thumb: firstImage.thumb_url || firstImage.thumb,
+              download_location: firstImage.download_location
+            };
+            handleImageSelect(firstImage.url || firstImage.download_url, imageMetadata);
           } else {
             console.log('[MediaSelector] Images loaded, waiting for user selection:', finalResults.length, 'images available');
           }
