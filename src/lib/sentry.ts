@@ -1,14 +1,15 @@
 import * as Sentry from "@sentry/react";
 
 export const initSentry = () => {
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
+  // TODO: Replace with your actual Sentry DSN from https://sentry.io
+  const dsn = ""; // Add your Sentry DSN here
   
   if (!dsn) {
     console.warn('🟡 Sentry DSN not configured - error tracking disabled');
     return;
   }
   
-  console.log('🔧 Initializing Sentry with DSN:', dsn ? 'configured' : 'missing');
+  console.log('🔧 Initializing Sentry with DSN configured');
   
   Sentry.init({
     dsn,

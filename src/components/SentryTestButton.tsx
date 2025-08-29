@@ -6,12 +6,8 @@ export const SentryTestButton: React.FC = () => {
   const testSentryError = () => {
     console.log('🧪 Test Sentry Error button clicked');
     
-    // Check if Sentry is properly configured
-    if (!import.meta.env.VITE_SENTRY_DSN) {
-      console.error('❌ VITE_SENTRY_DSN not configured - Sentry cannot send events');
-      alert('Sentry DSN not configured! Please set VITE_SENTRY_DSN in your environment.');
-      return;
-    }
+    // Check if Sentry is properly configured - we'll let the library handle this
+    // The DSN is configured in src/lib/sentry.ts
     
     // Test different types of errors
     const errorType = Math.random();
