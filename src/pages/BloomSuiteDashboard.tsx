@@ -158,7 +158,7 @@ export const BloomSuiteDashboard = () => {
     },
     {
       id: 'calendar',
-      title: 'Plan Your Content Calendar',
+      title: 'Plan Your Content',
       description: 'Schedule posts, campaigns, and content across all your marketing channels with visual planning tools.',
       icon: <Calendar className="w-6 h-6 text-orange-600" />,
       
