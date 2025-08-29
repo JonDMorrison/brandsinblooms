@@ -158,6 +158,9 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
 
   const startGenerate = async () => {
     if (!selectedPath) return;
+    
+    // Close modal immediately and show generating feedback
+    onOpenChange(false);
     setLoading(true);
     setNetworkError(false);
 
@@ -196,7 +199,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
         }
       }
 
-      toast({ title: 'Generating content…', description: 'Creating five items across your channels.' });
+      toast({ title: 'Generating content…', description: 'This will only take a moment.' });
       
       // Add timeout to prevent endless spinning
       const timeout = new Promise((_, reject) => {
@@ -210,13 +213,15 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
 
       setBundleIds(data.id, data.snapshotId);
       toast({ title: 'Draft bundle ready', description: 'Review and approve your items.' });
-      // Close the dialog to show the GeneratedContentModal
-      onOpenChange(false);
     } catch (e: any) {
       console.error('Content generation error:', e);
       const msg = String(e?.message || '');
       const statusMatch = msg.match(/\b(4\d{2}|5\d{2})\b/);
       const status = (e?.status || e?.context?.status || (statusMatch ? Number(statusMatch[1]) : undefined)) as number | undefined;
+
+      // Reopen dialog for retry
+      onOpenChange(true);
+      setStep(3);
 
       if (msg.includes('timed out')) {
         setNetworkError(true);
