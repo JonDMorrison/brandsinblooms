@@ -165,9 +165,25 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
     setNetworkError(false);
 
     try {
-      // Get workspace id for current user
-      const { data: me } = await supabase.from('users').select('tenant_id').limit(1).single();
-      const workspaceId = me?.tenant_id as string;
+      // Get current user's tenant info - handle both single-user and multi-tenant modes
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+
+      // Get workspace id for current user - tenant_id can be null for single-user mode
+      const { data: me, error: userError } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', currentUser.id)
+        .single();
+      
+      if (userError) {
+        console.error('Failed to get user tenant info:', userError);
+        throw new Error('Failed to get user workspace information');
+      }
+
+      const workspaceId = me?.tenant_id || currentUser.id; // Fallback to user ID for single-user mode
 
       const payload: any = {
         mode: selectedPath as Mode,
