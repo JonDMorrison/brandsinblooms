@@ -75,11 +75,16 @@ serve(async (req) => {
       
       Structure:
       - Opening hook specific to "${campaign_title}"
-      - 2-3 specific tips or insights about this exact topic
-      - Relevant hashtags using topic keywords
+      - 2-3 specific tips or insights about this exact topic (short paragraphs: 2-3 sentences max)
       - Call-to-action mentioning the specific topic
       
-      Do NOT use any emojis. Stay laser-focused on the exact topic provided.`,
+      FORBIDDEN ELEMENTS:
+      - NO emojis anywhere in the content
+      - NO hashtags - keep content clean and professional
+      - NO image recommendations or descriptions like "[Image: ...]"
+      - NO long paragraphs - break into short, punchy sections
+      
+      Stay laser-focused on the exact topic provided with professional business tone.`,
       
       facebook: `Write a Facebook post specifically about "${campaign_title}" for ${businessName}. 
 
@@ -87,12 +92,18 @@ serve(async (req) => {
       
       Structure:
       - Opening question or statement specifically about "${campaign_title}"
-      - 2-3 specific insights or tips related only to this topic
+      - 2-3 specific insights or tips related only to this topic (short paragraphs: 2-3 sentences max)
       - Community engagement question about this specific topic
       - Call-to-action that mentions "${campaign_title}"
       
+      FORBIDDEN ELEMENTS:
+      - NO emojis anywhere in the content
+      - NO hashtags - keep content clean and professional  
+      - NO image recommendations or descriptions like "[Image: ...]"
+      - NO long paragraphs - break into short, readable sections
+      
       If the topic is specific (like "National Honey Month"), every sentence should relate to that theme.
-      Do NOT use any emojis. Stay completely focused on the provided topic.`,
+      Stay completely focused on the provided topic with professional business tone.`,
       
       blog: `Write a comprehensive blog post exclusively about "${campaign_title}" for ${businessName}. 
 
@@ -308,6 +319,9 @@ serve(async (req) => {
         
         CRITICAL RULES:
         - NEVER use emojis or emoticons
+        - NO hashtags - keep content clean and professional
+        - NO image recommendations or descriptions like "[Image: ...]"
+        - SHORT PARAGRAPHS - maximum 2-3 sentences each
         - Focus on practical gardening advice
         - Write in a professional, friendly tone
         - ${contentType === 'video' ? 'Write ONLY the script dialogue/narration without any scene descriptions, visual cues, or production notes. Just the spoken words.' : ''}`;

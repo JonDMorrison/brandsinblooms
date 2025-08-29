@@ -64,12 +64,15 @@ WRITING STYLE GUIDELINES:
 - Use specific plant names, gardening techniques, and sensory details
 - Sound like a knowledgeable garden center expert talking to customers
 - ABSOLUTELY NO emojis anywhere in the content
+- **NO HASHTAGS** - Content should be clean and professional without hashtag clusters
+- **NO IMAGE RECOMMENDATIONS** - Never include bracketed image descriptions like "[Image: ...]"
 - NO corporate buzzwords ("leverage", "optimize", "maximize", "seamless", "synergy", "utilize")
 - **CRITICAL: Follow proper sentence spacing - use EXACTLY TWO SPACES after every sentence ending (period, question mark, exclamation mark) before the next sentence begins**
 
 CONTENT STRUCTURE REQUIREMENTS:
 - Keep sentences under 20 words on average
-- Break longer content into multiple paragraphs with double line breaks
+- Break longer content into SHORT paragraphs (2-3 sentences maximum)
+- Use double line breaks between paragraphs for readability
 - Use concrete, actionable advice rather than vague statements
 - Include specific plant varieties, care techniques, and seasonal timing
 - Address real gardening challenges customers face
@@ -98,9 +101,12 @@ INSTAGRAM SPECIFIC QUALITY RULES:
 - Start with an engaging hook about a gardening challenge or opportunity
 - Include 2-3 specific actionable gardening tips
 - End with a natural call-to-action to visit the garden center
-- Include 6-8 relevant hashtags
+- **NO HASHTAGS** - Keep content clean and professional
+- **NO EMOJIS** - Use descriptive words instead
+- **NO IMAGE SUGGESTIONS** - Never include "[Image: ...]" descriptions
 - Structure with line breaks for easy mobile reading
-- **CRITICAL: Maintain two-space sentence spacing throughout post and hashtags**` : ''}
+- Short paragraphs (2-3 sentences maximum)
+- **CRITICAL: Maintain two-space sentence spacing throughout post**` : ''}
 
 ${contentType?.toLowerCase() === 'facebook' ? `
 FACEBOOK SPECIFIC QUALITY RULES:
