@@ -4,25 +4,37 @@ import { Sentry } from '@/lib/sentry';
 
 export const SentryTestButton: React.FC = () => {
   const testSentryError = () => {
+    console.log('🧪 Test Sentry Error button clicked');
+    
+    // Check if Sentry is properly configured
+    if (!import.meta.env.VITE_SENTRY_DSN) {
+      console.error('❌ VITE_SENTRY_DSN not configured - Sentry cannot send events');
+      alert('Sentry DSN not configured! Please set VITE_SENTRY_DSN in your environment.');
+      return;
+    }
+    
     // Test different types of errors
     const errorType = Math.random();
     
     if (errorType < 0.33) {
       // Test manual error capture
+      console.log('🔧 Testing manual error capture...');
       Sentry.captureException(new Error('Manual Sentry test error'), {
         tags: {
           test: true,
           errorType: 'manual'
         }
       });
-      console.log('Manual error sent to Sentry');
+      console.log('✅ Manual error sent to Sentry');
     } else if (errorType < 0.66) {
       // Test thrown error (will be caught by error boundary)
+      console.log('🔧 Testing thrown error...');
       throw new Error('Test error thrown by component - Error Boundary should catch this!');
     } else {
       // Test message capture
+      console.log('🔧 Testing message capture...');
       Sentry.captureMessage('Test message from Sentry integration', 'info');
-      console.log('Test message sent to Sentry');
+      console.log('✅ Test message sent to Sentry');
     }
   };
 
