@@ -352,7 +352,9 @@ Company: ${companyName}
 Focus: ${args.campaignTitle}
 Description: ${description}
 
-Guidelines:
+CRITICAL CONTENT RULES:
+- NO EMOJIS ANYWHERE in the content - this is absolutely mandatory
+- Use SHORT PARAGRAPHS (1-2 sentences maximum per paragraph)
 - Write in a helpful, knowledgeable tone
 - Include actionable advice
 - Mention ${companyName} naturally
@@ -364,19 +366,49 @@ Guidelines:
   let userPrompt = '';
   switch (args.postType) {
     case 'instagram':
-      userPrompt = `Create an engaging Instagram post about ${args.campaignTitle}. Include a compelling caption (150-200 words) and 5-8 relevant hashtags. Focus on visual storytelling and customer benefits.`;
+      userPrompt = `Create an engaging Instagram post about ${args.campaignTitle}. 
+
+REQUIREMENTS:
+- NO emojis anywhere in the content
+- Use very short paragraphs (1-2 sentences each)
+- Write 150-200 words total for the caption
+- Include 5-8 relevant hashtags at the end
+- Focus on visual storytelling and customer benefits
+- Include actionable advice
+- End with a clear call-to-action`;
       break;
     case 'facebook':
-      userPrompt = `Create a Facebook post about ${args.campaignTitle}. Write 200-300 words that encourage engagement and community interaction. Include a call-to-action.`;
+      userPrompt = `Create a Facebook post about ${args.campaignTitle}. 
+
+REQUIREMENTS:
+- NO emojis anywhere in the content
+- Use very short paragraphs (1-2 sentences each)
+- Write 200-300 words that encourage engagement
+- Include a call-to-action
+- Focus on community interaction`;
       break;
     case 'video':
-      userPrompt = `Write a simple video script monologue about ${args.campaignTitle}. Create a 60-90 second conversational script that flows as one continuous speaking piece - no scenes, no instructions, no stage directions. Just write what the speaker should say directly to the camera in a natural, engaging way.`;
+      userPrompt = `Write a simple video script monologue about ${args.campaignTitle}. 
+
+REQUIREMENTS:
+- NO emojis anywhere in the content
+- Create a 60-90 second conversational script
+- Write as one continuous speaking piece - no scenes, no instructions, no stage directions
+- Just write what the speaker should say directly to the camera
+- Use natural, engaging language`;
       break;
     case 'blog':
-      userPrompt = `Write a blog post about ${args.campaignTitle}. Create 400-600 words in markdown format with headers, bullet points, and actionable tips. Include SEO-friendly structure.`;
+      userPrompt = `Write a blog post about ${args.campaignTitle}. 
+
+REQUIREMENTS:
+- NO emojis anywhere in the content
+- Use short paragraphs (1-2 sentences each)
+- Create 400-600 words in markdown format
+- Include headers, bullet points, and actionable tips
+- Use SEO-friendly structure`;
       break;
     default:
-      userPrompt = `Create content about ${args.campaignTitle} for ${args.postType} format.`;
+      userPrompt = `Create content about ${args.campaignTitle} for ${args.postType} format. NO emojis and use short paragraphs.`;
   }
 
   return await openAIChat(systemPrompt, userPrompt);
