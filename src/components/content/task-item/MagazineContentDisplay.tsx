@@ -35,8 +35,10 @@ export const MagazineContentDisplay = ({
   
   // State for format toggle
   const [format, setFormat] = useState<'magazine' | 'plain'>('magazine');
-  // State for editable content
-  const [editableContent, setEditableContent] = useState(content);
+  // State for editable content - initialize with HTML for blogs
+  const [editableContent, setEditableContent] = useState(
+    postType === 'blog' ? convertMarkdownToHtml(content) : content
+  );
   
   console.log('🔍 [MagazineContentDisplay] Input:', {
     contentLength: content?.length || 0,

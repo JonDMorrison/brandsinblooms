@@ -85,10 +85,10 @@ export const convertMarkdownToHtml = (markdown: string): string => {
     return html;
   }
   
-  // Convert headers
-  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+  // Convert headers with proper spacing
+  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>\n\n');
+  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>\n\n');
+  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>\n\n');
   
   // Convert bold text
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');

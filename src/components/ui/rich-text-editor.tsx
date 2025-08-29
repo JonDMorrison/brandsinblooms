@@ -74,8 +74,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     editorProps: {
       attributes: {
         class: cn(
-          'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl max-w-none focus:outline-none',
-          'min-h-[100px] p-3 text-sm',
+          'prose max-w-none focus:outline-none',
+          'min-h-[100px] p-3',
           'prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg',
           'prose-p:mb-4 prose-headings:mb-4 prose-headings:mt-6 first:prose-headings:mt-0',
           editorClassName
