@@ -1,8 +1,8 @@
 import * as Sentry from "@sentry/react";
 
 export const initSentry = () => {
-  // TODO: Replace with your actual Sentry DSN from https://sentry.io
-  const dsn = ""; // Add your Sentry DSN here
+  // Sentry DSN for error tracking
+  const dsn = "https://f96d85e82e82bc1091562cade2bcefa9@o4509929420161024.ingest.us.sentry.io/4509929461841920";
   
   if (!dsn) {
     console.warn('🟡 Sentry DSN not configured - error tracking disabled');
