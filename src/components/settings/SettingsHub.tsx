@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Settings,
-  Globe
+  Globe,
+  Bug
 } from 'lucide-react';
 
 // Import existing components
@@ -22,6 +23,7 @@ import { AccountBillingSettings } from './AccountBillingSettings';
 import { ComplianceSettings } from './ComplianceSettings';
 import { SupportSettings } from './SupportSettings';
 import { POSSetupWizard } from '@/components/crm/pos/POSSetupWizard';
+import { SentryErrorDashboard } from '@/components/SentryErrorDashboard';
 
 // Import hooks for status checking
 import { usePOSConnection } from '@/hooks/usePOSConnection';
@@ -45,7 +47,7 @@ export const SettingsHub = () => {
   const verifiedSenders = emailSenders.filter(s => s.verified);
   const hasDomainSetup = activeDomains.length > 0 || verifiedSenders.length > 0;
 
-  const settingsTabs = [
+const settingsTabs = [
     {
       id: 'connections',
       label: 'Connections',
@@ -64,6 +66,12 @@ export const SettingsHub = () => {
       label: 'Compliance & Privacy',
       icon: Shield,
       description: 'SMS settings, quiet hours, and data retention',
+    },
+    {
+      id: 'debug',
+      label: 'Debug',
+      icon: Bug,
+      description: 'Error monitoring and debugging tools',
     },
     {
       id: 'support',
@@ -231,7 +239,7 @@ export const SettingsHub = () => {
 
         {/* Settings Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-4 h-auto p-2">
+          <TabsList className="grid w-full grid-cols-5 h-auto p-2">
             {settingsTabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
@@ -259,6 +267,10 @@ export const SettingsHub = () => {
 
           <TabsContent value="compliance" className="space-y-6">
             <ComplianceSettings onUpdate={() => {}} />
+          </TabsContent>
+
+          <TabsContent value="debug" className="space-y-6">
+            <SentryErrorDashboard />
           </TabsContent>
 
           <TabsContent value="support" className="space-y-6">
