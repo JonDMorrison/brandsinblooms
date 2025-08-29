@@ -33,6 +33,95 @@ const ErrorCard: React.FC<{
   onInvestigate: (error: SentryError) => void;
 }> = ({ error, onInvestigate }) => {
   const [showFix, setShowFix] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+
+  // Generate enhanced solution data based on error patterns
+  const getEnhancedSolution = (error: SentryError) => {
+    const solutions: Record<string, any> = {
+      'TypeError': {
+        rootCause: 'Attempting to access properties or methods on undefined/null values',
+        commonCauses: [
+          'Missing null/undefined checks',
+          'Async data not loaded yet',
+          'Incorrect API response structure',
+          'Missing optional chaining'
+        ],
+        steps: [
+          '1. Add null/undefined checks before accessing properties',
+          '2. Use optional chaining (?.) for safer property access',
+          '3. Implement proper loading states for async data',
+          '4. Validate API response structure'
+        ],
+        codeExample: `// Before (Error-prone)
+const userName = user.name;
+
+// After (Safe)
+const userName = user?.name || 'Unknown';
+
+// With loading state
+if (!user) return <div>Loading...</div>;`,
+        prevention: 'Always validate data existence before accessing nested properties'
+      },
+      'ReferenceError': {
+        rootCause: 'Trying to use variables or functions that are not defined',
+        commonCauses: [
+          'Typos in variable names',
+          'Missing imports',
+          'Scope issues',
+          'Variable used before declaration'
+        ],
+        steps: [
+          '1. Check for typos in variable/function names',
+          '2. Verify all required imports are present',
+          '3. Ensure variables are declared before use',
+          '4. Check variable scope and accessibility'
+        ],
+        codeExample: `// Check imports
+import { requiredFunction } from './utils';
+
+// Declare before use
+const myVariable = 'value';
+console.log(myVariable);`,
+        prevention: 'Use TypeScript and proper linting to catch undefined references'
+      },
+      'SyntaxError': {
+        rootCause: 'Invalid JavaScript syntax or structure',
+        commonCauses: [
+          'Missing brackets or parentheses',
+          'Incorrect JSX syntax',
+          'Invalid JSON structure',
+          'Wrong function syntax'
+        ],
+        steps: [
+          '1. Check for matching brackets and parentheses',
+          '2. Validate JSX element closing tags',
+          '3. Verify JSON structure if parsing data',
+          '4. Use proper function declaration syntax'
+        ],
+        codeExample: `// Correct JSX syntax
+return (
+  <div>
+    <Component />
+  </div>
+);
+
+// Proper JSON
+const data = { "key": "value" };`,
+        prevention: 'Use code formatters like Prettier and enable syntax highlighting'
+      }
+    };
+
+    const errorType = error.errorType || 'Unknown';
+    return solutions[errorType] || {
+      rootCause: 'Error details need investigation',
+      commonCauses: ['Review error context and stack trace'],
+      steps: ['1. Examine the full error stack trace', '2. Check recent code changes', '3. Review related functionality'],
+      codeExample: 'Review the specific error location and context',
+      prevention: 'Implement comprehensive error handling and testing'
+    };
+  };
+
+  const enhancedSolution = getEnhancedSolution(error);
 
   return (
     <Card className="w-full hover:shadow-md transition-shadow cursor-pointer">
@@ -88,17 +177,27 @@ const ErrorCard: React.FC<{
             <strong>Location:</strong> {error.location}
           </div>
           
-          <div className="flex items-center justify-between">
-            {error.suggestedFix && (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowFix(!showFix)}
+                onClick={() => setShowDetails(!showDetails)}
                 className="h-auto p-1 text-xs font-medium"
               >
-                {showFix ? 'Hide' : 'Show'} AI Fix
+                {showDetails ? 'Hide' : 'Show'} Solution Guide
               </Button>
-            )}
+              {error.suggestedFix && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFix(!showFix)}
+                  className="h-auto p-1 text-xs font-medium"
+                >
+                  {showFix ? 'Hide' : 'Show'} AI Fix
+                </Button>
+              )}
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -110,11 +209,54 @@ const ErrorCard: React.FC<{
             </Button>
           </div>
           
+          {/* Enhanced Solution Guide */}
+          {showDetails && (
+            <div className="mt-3 space-y-3 p-3 bg-muted/50 rounded-lg">
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Root Cause</h4>
+                <p className="text-xs text-muted-foreground">{enhancedSolution.rootCause}</p>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Common Causes</h4>
+                <ul className="text-xs text-muted-foreground space-y-0.5">
+                  {enhancedSolution.commonCauses.map((cause: string, index: number) => (
+                    <li key={index} className="flex items-start gap-1">
+                      <span className="text-primary">•</span>
+                      <span>{cause}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Fix Steps</h4>
+                <ol className="text-xs text-muted-foreground space-y-0.5">
+                  {enhancedSolution.steps.map((step: string, index: number) => (
+                    <li key={index}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Code Example</h4>
+                <pre className="text-xs bg-background p-2 rounded border overflow-x-auto">
+                  <code>{enhancedSolution.codeExample}</code>
+                </pre>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Prevention</h4>
+                <p className="text-xs text-muted-foreground italic">{enhancedSolution.prevention}</p>
+              </div>
+            </div>
+          )}
+          
           {showFix && error.suggestedFix && (
             <Alert className="mt-2">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-sm">
-                {error.suggestedFix}
+                <strong>AI Suggestion:</strong> {error.suggestedFix}
               </AlertDescription>
             </Alert>
           )}
