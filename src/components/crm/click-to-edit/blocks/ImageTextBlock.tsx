@@ -8,6 +8,8 @@ import { EditMode } from '@/hooks/useBlockEditMode';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { BlockGeneratingOverlay } from './BlockGeneratingOverlay';
 import { mediaSelector } from '@/utils/mediaSelector';
+import { extractImageSummaryWithContext } from '@/utils/imageContentSummary';
+import { useUnsplash } from '@/hooks/useUnsplash';
 
 interface ImageTextBlockProps {
   block: ContentBlock;
@@ -26,6 +28,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   onModeChange,
   isGenerating = false
 }) => {
+  const { getCuratedCollectionImages } = useUnsplash();
+  
   // Auto-fetch image for blocks that don't have an image
   useEffect(() => {
     if (!block.imageUrl && onUpdate) {
@@ -44,8 +48,14 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
 
       if (contentForImage) {
         console.log('[ImageTextBlock] Auto-fetching image for content:', contentForImage);
+        
+        // Use smart content summary for better image selection
+        const smartSummary = extractImageSummaryWithContext(contentForImage, true);
+        console.log('[ImageTextBlock] Using smart summary:', smartSummary);
+        
+        // Try media selector first with smart summary
         mediaSelector({ 
-          prompt: contentForImage,
+          prompt: smartSummary,
           fallback: '/images/newsletter-fallback.jpg' 
         }).then((result) => {
           console.log('[ImageTextBlock] Auto-fetched image:', result.url);
@@ -53,12 +63,26 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
             imageUrl: result.url,
             altText: result.alt || 'Auto-selected image'
           });
-        }).catch((error) => {
-          console.error('[ImageTextBlock] Failed to auto-fetch image:', error);
+        }).catch(async (error) => {
+          console.error('[ImageTextBlock] Media selector failed, trying curated collection:', error);
+          
+          // Fallback to curated collection
+          try {
+            const curatedImages = await getCuratedCollectionImages(1);
+            if (curatedImages.length > 0) {
+              console.log('[ImageTextBlock] Using curated collection image');
+              onUpdate({ 
+                imageUrl: curatedImages[0].download_url,
+                altText: curatedImages[0].alt || 'Garden center image'
+              });
+            }
+          } catch (curatedError) {
+            console.error('[ImageTextBlock] Curated collection also failed:', curatedError);
+          }
         });
       }
     }
-  }, [block.imageUrl, block.headline, block.title, block.content, onUpdate]);
+  }, [block.imageUrl, block.headline, block.title, block.content, onUpdate, getCuratedCollectionImages]);
 
   const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left';
   const isImageRight = block.layout === 'image-right' || block.layout === 'two-column-right';
