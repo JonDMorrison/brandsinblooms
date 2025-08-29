@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -30,11 +30,28 @@ import { usePOSConnection } from '@/hooks/usePOSConnection';
 import { useConnectedAccounts } from '@/components/dashboard/ConnectedAccountChecker';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { useDomains } from '@/hooks/useDomains';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 export const SettingsHub = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('connections');
   const [showPOSWizard, setShowPOSWizard] = useState(false);
+  
+  // Sync activeTab with URL parameters
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    const validTabs = ['connections', 'account', 'compliance', 'debug', 'support'];
+    
+    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
+  
+  // Update URL when tab changes
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    setSearchParams({ tab: newTab }, { replace: true });
+  };
   
   // Status hooks
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
@@ -238,7 +255,7 @@ const settingsTabs = [
         </Card>
 
         {/* Settings Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
           <TabsList className="grid w-full grid-cols-5 h-auto p-2">
             {settingsTabs.map((tab) => (
               <TabsTrigger
