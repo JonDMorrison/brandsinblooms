@@ -1,0 +1,38 @@
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Sentry } from '@/lib/sentry';
+
+export const SentryTestButton: React.FC = () => {
+  const testSentryError = () => {
+    // Test different types of errors
+    const errorType = Math.random();
+    
+    if (errorType < 0.33) {
+      // Test manual error capture
+      Sentry.captureException(new Error('Manual Sentry test error'), {
+        tags: {
+          test: true,
+          errorType: 'manual'
+        }
+      });
+      console.log('Manual error sent to Sentry');
+    } else if (errorType < 0.66) {
+      // Test thrown error (will be caught by error boundary)
+      throw new Error('Test error thrown by component - Error Boundary should catch this!');
+    } else {
+      // Test message capture
+      Sentry.captureMessage('Test message from Sentry integration', 'info');
+      console.log('Test message sent to Sentry');
+    }
+  };
+
+  return (
+    <Button 
+      onClick={testSentryError}
+      variant="outline"
+      className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+    >
+      🧪 Test Sentry Error
+    </Button>
+  );
+};

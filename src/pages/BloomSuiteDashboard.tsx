@@ -12,6 +12,7 @@ import { useConnectedAccounts, getConnectionStatus } from "@/components/dashboar
 import { useTwilioSetup, getTwilioStatus } from "@/components/dashboard/TwilioSetupChecker";
 import { getDynamicIcon } from "@/components/dashboard/DynamicIcons";
 import { Button } from "@/components/ui/button";
+import { SentryTestButton } from "@/components/SentryTestButton";
 import { 
   Mail, 
   Megaphone, 
@@ -241,7 +242,7 @@ export const BloomSuiteDashboard = () => {
           </p>
           
           {!isCompleted && !hasEverCompleted && (
-            <div className="mb-6">
+            <div className="mb-6 flex items-center justify-center gap-4">
               <Button 
                 onClick={() => setShowSetupWizard(true)}
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
@@ -249,9 +250,20 @@ export const BloomSuiteDashboard = () => {
                 <Sparkles className="w-4 h-4 mr-2" />
                 Complete Your Setup
               </Button>
+              
+              {/* Sentry Test Button - Development Only */}
+              {import.meta.env.MODE === 'development' && (
+                <SentryTestButton />
+              )}
             </div>
           )}
-          
+
+          {/* Add test button for production testing too */}
+          {(isCompleted || hasEverCompleted) && import.meta.env.MODE === 'development' && (
+            <div className="mb-6 flex justify-center">
+              <SentryTestButton />
+            </div>
+          )}
         </div>
 
         {/* Dashboard Cards Grid */}
