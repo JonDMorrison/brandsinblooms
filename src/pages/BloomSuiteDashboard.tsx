@@ -105,7 +105,7 @@ export const BloomSuiteDashboard = () => {
     {
       id: 'create-flow',
       title: 'Create Any Content',
-      description: 'We will give you ideas and write all the content for you. For social, video script, or newsletter.',
+      description: 'We will give you ideas and write all the content for you. For social, your blog, video script, or newsletter.',
       icon: <Sparkles className="w-6 h-6 text-indigo-600" />,
       
       primaryAction: {
