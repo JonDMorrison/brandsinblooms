@@ -3,6 +3,10 @@ import * as Sentry from "https://esm.sh/@sentry/deno@8.55.0";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2.38.0'
 
+function softFail(code: string, context: Record<string, unknown> = {}) {
+  Sentry.captureMessage(`[soft-fail] ${code}`, { level: "warning", extra: context });
+}
+
 // Initialize Sentry
 Sentry.init({
   dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
@@ -64,7 +68,12 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
 
   const createResult = await createResponse.json()
   
-  if (!createResponse.ok) {
+  if (!createResponse.ok || !createResult.id) {
+    softFail("publish_no_media_container_created", { 
+      accountId,
+      mediaUrl,
+      error: createResult.error?.message || 'No container ID returned'
+    });
     throw new Error(createResult.error?.message || 'Instagram media creation failed')
   }
 

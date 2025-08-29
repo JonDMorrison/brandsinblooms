@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.generate-weekly-themes]
 verify_jwt = false
+
+[functions.watchdog]
+verify_jwt = false

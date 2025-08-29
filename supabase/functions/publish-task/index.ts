@@ -2,6 +2,10 @@ import * as Sentry from "https://esm.sh/@sentry/deno@8.55.0";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+function softFail(code: string, context: Record<string, unknown> = {}) {
+  Sentry.captureMessage(`[soft-fail] ${code}`, { level: "warning", extra: context });
+}
+
 // Initialize Sentry
 Sentry.init({
   dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
@@ -48,24 +52,77 @@ async function handler(req: Request): Promise<Response> {
 
     console.log(`[PUBLISH-TASK] Processing task ${taskId} with action: ${action}`);
 
-    // Simulate task processing based on action
-    let result;
-    switch (action) {
-      case 'publish':
-        console.log(`[PUBLISH-TASK] Publishing task ${taskId}`);
-        result = { status: 'published', taskId, timestamp: new Date().toISOString() };
-        break;
-      case 'schedule':
-        console.log(`[PUBLISH-TASK] Scheduling task ${taskId}`);
-        result = { status: 'scheduled', taskId, timestamp: new Date().toISOString() };
-        break;
-      case 'cancel':
-        console.log(`[PUBLISH-TASK] Cancelling task ${taskId}`);
-        result = { status: 'cancelled', taskId, timestamp: new Date().toISOString() };
-        break;
-      default:
-        console.log(`[PUBLISH-TASK] Unknown action: ${action}`);
-        result = { status: 'unknown', taskId, action };
+    // Add retry logic with exponential backoff
+    let attempt = 0;
+    const maxRetries = 2;
+    let lastError: Error | null = null;
+
+    while (attempt <= maxRetries) {
+      try {
+        // Simulate task processing based on action with validation
+        let result;
+        switch (action) {
+          case 'publish':
+            console.log(`[PUBLISH-TASK] Publishing task ${taskId} (attempt ${attempt + 1})`);
+            
+            // Simulate validation for missing media/content
+            const hasContent = Math.random() > 0.1; // 90% success rate
+            if (!hasContent) {
+              softFail("publish_no_media_container_created", { 
+                taskId, 
+                platform: "test", 
+                attempt: attempt + 1 
+              });
+              
+              if (attempt < maxRetries) {
+                attempt++;
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+                continue;
+              } else {
+                softFail("publish_retry_exhausted", { 
+                  taskId, 
+                  lastError: "No media container created",
+                  totalAttempts: attempt + 1
+                });
+                return new Response(
+                  JSON.stringify({ ok: false, code: "NO_MEDIA", message: "No media to publish" }),
+                  { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+            }
+            
+            result = { status: 'published', taskId, timestamp: new Date().toISOString() };
+            break;
+          case 'schedule':
+            console.log(`[PUBLISH-TASK] Scheduling task ${taskId}`);
+            result = { status: 'scheduled', taskId, timestamp: new Date().toISOString() };
+            break;
+          case 'cancel':
+            console.log(`[PUBLISH-TASK] Cancelling task ${taskId}`);
+            result = { status: 'cancelled', taskId, timestamp: new Date().toISOString() };
+            break;
+          default:
+            console.log(`[PUBLISH-TASK] Unknown action: ${action}`);
+            result = { status: 'unknown', taskId, action };
+        }
+        
+        break; // Success, exit retry loop
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`[PUBLISH-TASK] Attempt ${attempt + 1} failed:`, error);
+        
+        if (attempt < maxRetries) {
+          attempt++;
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        } else {
+          softFail("publish_retry_exhausted", { 
+            taskId, 
+            lastError: lastError.message,
+            totalAttempts: attempt + 1
+          });
+          throw lastError;
+        }
+      }
     }
 
     // Add a deliberate test log line

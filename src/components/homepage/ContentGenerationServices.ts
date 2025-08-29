@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { memoryCache, apiDeduplicator } from '@/utils/performanceOptimizations';
 import { toast } from '@/utils/toast';
 import { TASK_STATUS, type TaskStatus } from "@/constants/taskStatus";
+import { reportSoftFail } from '@/lib/softFail';
 
 export interface ContentGenerationResult {
   success: boolean;
@@ -46,6 +47,11 @@ export const generatePersonalizedContent = async (
     }
 
     if (!contentResult?.content) {
+      reportSoftFail('content_generation_empty', { 
+        taskId: 'personalized-content',
+        postType,
+        campaignTitle
+      });
       throw new Error('No content generated');
     }
 
@@ -79,6 +85,11 @@ export const generateNewsletterContent = async (
     }
 
     if (!result?.content) {
+      reportSoftFail('content_generation_empty', { 
+        taskId: campaignId,
+        channel: 'newsletter',
+        campaignTitle
+      });
       throw new Error('No newsletter content generated');
     }
 
@@ -113,6 +124,11 @@ export const generateVideoScript = async (
     }
 
     if (!contentResult?.content) {
+      reportSoftFail('content_generation_empty', { 
+        taskId: 'video-script',
+        channel: 'video',
+        campaignTitle
+      });
       throw new Error('No video script generated');
     }
 
@@ -209,6 +225,11 @@ export const generateCampaignContent = async (
       }
 
       if (!data.success) {
+        reportSoftFail('edge_function_returned_not_ok', { 
+          fn: 'generate_campaign_content',
+          campaignId,
+          error: data.error
+        });
         throw new Error(data.error || 'Campaign content generation failed');
       }
 
