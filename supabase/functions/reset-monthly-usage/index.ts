@@ -1,4 +1,4 @@
-import * as Sentry from "https://deno.land/x/sentry@7.114.0/mod.js";
+import * as Sentry from "https://deno.land/x/sentry/index.js";
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 

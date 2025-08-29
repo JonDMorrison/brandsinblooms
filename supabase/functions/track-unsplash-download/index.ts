@@ -1,4 +1,4 @@
-import * as Sentry from "https://deno.land/x/sentry@7.114.0/mod.js";
+import * as Sentry from "https://deno.land/x/sentry/index.js";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
