@@ -21,12 +21,12 @@ export const NewsletterIcon = ({ status }: { status?: string }) => {
     case 'active':
       return (
         <div className="relative">
-          <MailCheck className="w-6 h-6 text-blue-600" />
+          <MailCheck className="w-6 h-6 text-primary" />
           <CheckCircle className="w-3 h-3 absolute -top-1 -right-1 text-green-500 bg-white rounded-full" />
         </div>
       );
     default:
-      return <Mail className="w-6 h-6 text-blue-600" />;
+      return <Mail className="w-6 h-6 text-primary" />;
   }
 };
 
@@ -35,7 +35,7 @@ export const CampaignIcon = ({ status }: { status?: string }) => {
   if (status === 'pending') {
     return (
       <div className="relative">
-        <Megaphone className="w-6 h-6 text-green-600" />
+        <Megaphone className="w-6 h-6 text-primary" />
         <div className="absolute inset-0 w-8 h-8 -m-1">
           <svg className="w-8 h-8 animate-spin" viewBox="0 0 24 24">
             <circle 
@@ -47,7 +47,7 @@ export const CampaignIcon = ({ status }: { status?: string }) => {
               fill="none" 
               strokeDasharray="31.416" 
               strokeDashoffset="15.708"
-              className="text-green-400"
+              className="text-primary/60"
             />
           </svg>
         </div>
@@ -58,13 +58,13 @@ export const CampaignIcon = ({ status }: { status?: string }) => {
   if (status === 'connected') {
     return (
       <div className="relative">
-        <Megaphone className="w-6 h-6 text-green-600" />
+        <Megaphone className="w-6 h-6 text-primary" />
         <CheckCircle className="w-3 h-3 absolute -top-1 -right-1 text-green-500 bg-white rounded-full" />
       </div>
     );
   }
   
-  return <Megaphone className="w-6 h-6 text-green-600" />;
+  return <Megaphone className="w-6 h-6 text-primary" />;
 };
 
 // Social Media Icons with connection status
@@ -72,7 +72,7 @@ export const SocialIcon = ({ status, connectionCount = 0 }: { status?: string; c
   if (status === 'connected' && connectionCount > 0) {
     return (
       <div className="relative">
-        <Share2 className="w-6 h-6" style={{ color: 'hsl(var(--brand-teal))' }} />
+        <Share2 className="w-6 h-6 text-primary" />
         <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
           <span className="text-xs text-white font-bold">{connectionCount}</span>
         </div>
@@ -89,17 +89,17 @@ export const SocialIcon = ({ status, connectionCount = 0 }: { status?: string; c
     );
   }
   
-  return <Share2 className="w-6 h-6" style={{ color: 'hsl(var(--brand-teal))' }} />;
+  return <Share2 className="w-6 h-6 text-primary" />;
 };
 
 // Analytics Icons with animation
 export const AnalyticsIcon = ({ status }: { status?: string }) => {
   return (
     <div className="relative group">
-      <BarChart3 className="w-6 h-6" style={{ color: 'hsl(var(--brand-navy))' }} />
+      <BarChart3 className="w-6 h-6 text-primary" />
       {status === 'active' && (
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="w-1 h-1 bg-green-400 rounded-full absolute top-1 right-2 animate-ping" />
+          <div className="w-1 h-1 bg-primary rounded-full absolute top-1 right-2 animate-ping" />
         </div>
       )}
     </div>
@@ -110,7 +110,7 @@ export const AnalyticsIcon = ({ status }: { status?: string }) => {
 export const CalendarIcon = ({ status }: { status?: string }) => {
   return (
     <div className="relative">
-      <Calendar className="w-6 h-6 text-orange-600" />
+      <Calendar className="w-6 h-6 text-primary" />
       {status === 'pending' && (
         <Clock className="w-3 h-3 absolute -top-1 -right-1 text-amber-500 bg-white rounded-full" />
       )}
@@ -122,10 +122,10 @@ export const CalendarIcon = ({ status }: { status?: string }) => {
 export const CreateIcon = ({ status }: { status?: string }) => {
   return (
     <div className="relative">
-      <Sparkles className="w-6 h-6 text-indigo-600" />
+      <Sparkles className="w-6 h-6 text-primary" />
       {status === 'active' && (
         <div className="absolute inset-0">
-          <Sparkles className="w-6 h-6 text-indigo-600 animate-pulse" />
+          <Sparkles className="w-6 h-6 text-primary animate-pulse" />
         </div>
       )}
     </div>
@@ -136,7 +136,7 @@ export const CreateIcon = ({ status }: { status?: string }) => {
 export const WebsiteIcon = ({ status }: { status?: string }) => {
   return (
     <div className="relative">
-      <Globe className="w-6 h-6 text-teal-600" />
+      <Globe className="w-6 h-6 text-primary" />
       {status === 'setup-needed' && (
         <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full flex items-center justify-center">
           <span className="text-xs text-white">!</span>
