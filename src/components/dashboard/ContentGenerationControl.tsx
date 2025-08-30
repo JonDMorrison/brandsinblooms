@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Calendar, CheckCircle, ArrowRight } from "lucide-react";
 import { generateRequiredTasks } from "@/components/homepage/TaskManagementUtils";
 import { toast } from "@/hooks/use-toast";
+import { ContentGenerationLoadingModal } from "@/components/content/ContentGenerationLoadingModal";
+import { ContentViewerDialog } from "@/components/content/ContentViewerDialog";
 
 interface ContentGenerationControlProps {
   campaigns: any[];
@@ -21,6 +23,9 @@ export const ContentGenerationControl = ({
   onTaskUpdate 
 }: ContentGenerationControlProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showLoadingModal, setShowLoadingModal] = useState(false);
+  const [showContentModal, setShowContentModal] = useState(false);
+  const [generatedCampaign, setGeneratedCampaign] = useState<any>(null);
 
   const currentWeekNumber = Math.ceil(
     ((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7
@@ -42,14 +47,21 @@ export const ContentGenerationControl = ({
     }
 
     setIsGenerating(true);
+    setShowLoadingModal(true);
+    setGeneratedCampaign(currentCampaign);
+    
     try {
-      await generateRequiredTasks(currentCampaign.id, campaigns, userId, onTaskUpdate);
+      const result = await generateRequiredTasks(currentCampaign.id, campaigns, userId, onTaskUpdate);
+      setShowLoadingModal(false);
+      setShowContentModal(true);
+      
       toast({
         title: "Success!",
         description: "🎉 Amazing! Your content is ready to review and customize."
       });
     } catch (error) {
       console.error('Error generating content:', error);
+      setShowLoadingModal(false);
       toast({
         title: "Generation failed",
         description: "Failed to generate content. Please try again.",
@@ -58,6 +70,11 @@ export const ContentGenerationControl = ({
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleCloseContentModal = () => {
+    setShowContentModal(false);
+    setGeneratedCampaign(null);
   };
 
   if (!currentCampaign) {
@@ -76,107 +93,127 @@ export const ContentGenerationControl = ({
   }
 
   return (
-    <Card className={hasContent ? "border-green-200 bg-green-50/30" : "border-primary/30 bg-primary/5"}>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {hasContent ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            ) : (
-              <Sparkles className="w-5 h-5 text-primary" />
-            )}
-            <span>AI Content Generation</span>
+    <>
+      <Card className={hasContent ? "border-green-200 bg-green-50/30" : "border-primary/30 bg-primary/5"}>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {hasContent ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <Sparkles className="w-5 h-5 text-primary" />
+              )}
+              <span>AI Content Generation</span>
+            </div>
+            <Badge variant={hasContent ? "default" : "outline"} className={hasContent ? "bg-green-100 text-green-800" : ""}>
+              {hasContent ? "Content Ready" : "Ready to Generate"}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <h4 className="font-medium mb-2">Current Campaign:</h4>
+            <div className="flex items-center gap-2 mb-3">
+              <Badge variant="outline" className="bg-white">{currentCampaign.title}</Badge>
+              <span className="text-sm text-gray-500">Week {currentCampaign.week_number}</span>
+            </div>
           </div>
-          <Badge variant={hasContent ? "default" : "outline"} className={hasContent ? "bg-green-100 text-green-800" : ""}>
-            {hasContent ? "Content Ready" : "Ready to Generate"}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <h4 className="font-medium mb-2">Current Campaign:</h4>
-          <div className="flex items-center gap-2 mb-3">
-            <Badge variant="outline" className="bg-white">{currentCampaign.title}</Badge>
-            <span className="text-sm text-gray-500">Week {currentCampaign.week_number}</span>
-          </div>
-        </div>
 
-        {hasContent ? (
-          <div className="space-y-3">
-            <div className="bg-white/60 backdrop-blur p-3 rounded-lg border">
-              <div className="flex items-center gap-2 text-green-700 mb-2">
-                <CheckCircle className="w-4 h-4" />
-                <span className="text-sm font-semibold">Content Generated Successfully!</span>
+          {hasContent ? (
+            <div className="space-y-3">
+              <div className="bg-white/60 backdrop-blur p-3 rounded-lg border">
+                <div className="flex items-center gap-2 text-green-700 mb-2">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-sm font-semibold">Content Generated Successfully!</span>
+                </div>
+                <p className="text-sm text-gray-700 mb-2">
+                  You have {campaignTasks.length} personalized content pieces ready for review.
+                </p>
+                <div className="text-xs text-gray-600">
+                  ✓ Instagram Posts ✓ Facebook Updates ✓ Email Content ✓ Video Scripts ✓ Newsletters
+                </div>
               </div>
-              <p className="text-sm text-gray-700 mb-2">
-                You have {campaignTasks.length} personalized content pieces ready for review.
-              </p>
-              <div className="text-xs text-gray-600">
-                ✓ Instagram Posts ✓ Facebook Updates ✓ Email Content ✓ Video Scripts ✓ Newsletters
-              </div>
+              <Button 
+                onClick={handleGenerateContent}
+                disabled={isGenerating || showLoadingModal}
+                variant="outline"
+                className="w-full"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Regenerating Fresh Content...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Fresh Content
+                  </>
+                )}
+              </Button>
             </div>
-            <Button 
-              onClick={handleGenerateContent}
-              disabled={isGenerating}
-              variant="outline"
-              className="w-full"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Regenerating Fresh Content...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Fresh Content
-                </>
-              )}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="bg-white/60 backdrop-blur p-4 rounded-lg border">
-              <h4 className="font-medium text-gray-900 mb-2">What you'll get:</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-700">
-                <div>✨ Instagram posts</div>
-                <div>📧 Email newsletters</div>
-                <div>📘 Facebook updates</div>
-                <div>🎥 Video scripts</div>
-                <div>📝 Blog content</div>
-                <div>📱 Social media captions</div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-white/60 backdrop-blur p-4 rounded-lg border">
+                <h4 className="font-medium text-gray-900 mb-2">What you'll get:</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-700">
+                  <div>✨ Instagram posts</div>
+                  <div>📧 Email newsletters</div>
+                  <div>📘 Facebook updates</div>
+                  <div>🎥 Video scripts</div>
+                  <div>📝 Blog content</div>
+                  <div>📱 Social media captions</div>
+                </div>
+                <p className="text-xs text-gray-600 mt-3 font-medium">
+                  All personalized to your garden center's brand and voice!
+                </p>
               </div>
-              <p className="text-xs text-gray-600 mt-3 font-medium">
-                All personalized to your garden center's brand and voice!
-              </p>
-            </div>
-            <Button 
-              onClick={handleGenerateContent}
-              disabled={isGenerating}
-              className="w-full bg-primary hover:bg-primary-600 text-white"
-              size="lg"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating Your Content...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate My Content Now
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </>
+              <Button 
+                onClick={handleGenerateContent}
+                disabled={isGenerating || showLoadingModal}
+                className="w-full bg-primary hover:bg-primary-600 text-white"
+                size="lg"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating Your Content...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate My Content Now
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </Button>
+              {!isGenerating && !showLoadingModal && (
+                <p className="text-xs text-center text-gray-500">
+                  Takes about 30 seconds • Creates 5+ content pieces
+                </p>
               )}
-            </Button>
-            {!isGenerating && (
-              <p className="text-xs text-center text-gray-500">
-                Takes about 30 seconds • Creates 5+ content pieces
-              </p>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Loading Modal */}
+      <ContentGenerationLoadingModal
+        isOpen={showLoadingModal}
+        campaignTitle={generatedCampaign?.title || 'Your Campaign'}
+      />
+
+      {/* Content Viewer Modal - only show if we have a generated campaign and tasks */}
+      {generatedCampaign && (
+        <ContentViewerDialog
+          isOpen={showContentModal}
+          onClose={handleCloseContentModal}
+          campaignTitle={generatedCampaign.title}
+          loading={false}
+          tasks={tasks.filter(task => task.campaign_id === generatedCampaign.id)}
+          onTaskUpdate={handleCloseContentModal}
+        />
+      )}
+    </>
   );
 };
