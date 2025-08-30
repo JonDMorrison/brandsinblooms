@@ -18,7 +18,6 @@ const debug = (message: string, data?: any) => {
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
   const onboardingStatus = useOnboardingStatus();
-
   const { setLoading, clearLoading } = useLoading();
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,6 +33,12 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return sessionStorage.getItem('onboarding-checked') === 'true';
   });
 
+  // Clean up stale handoff flags and reactive redirect logic
+  const inHandoff = sessionStorage.getItem('onboarding-completing') === 'true';
+  
+  // Only show loading during the very first auth/onboarding check
+  const shouldShowLoading = authLoading || (onboardingLoading && !hasCheckedOnce && !error);
+
   // Track when initial checks are done
   useEffect(() => {
     if (!authLoading && !onboardingLoading && !hasCheckedOnce) {
@@ -41,9 +46,6 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
       sessionStorage.setItem('onboarding-checked', 'true');
     }
   }, [authLoading, onboardingLoading, hasCheckedOnce]);
-
-  // Only show loading during the very first auth/onboarding check
-  const shouldShowLoading = authLoading || (onboardingLoading && !hasCheckedOnce && !error);
 
   // Manage onboarding loading state in global context
   useEffect(() => {
@@ -63,19 +65,6 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     };
   }, [shouldShowLoading, setLoading, clearLoading]);
 
-  // Don't render anything while loading - let GlobalLoadingOverlay handle it
-  if (shouldShowLoading) {
-    return null;
-  }
-
-  // If no user, let the ProtectedRoute handle the redirect
-  if (!user) {
-    return <>{children}</>;
-  }
-
-  // Clean up stale handoff flags and reactive redirect logic
-  const inHandoff = sessionStorage.getItem('onboarding-completing') === 'true';
-  
   // Clean up stale handoff flags
   useEffect(() => {
     if (user && (isCompleted || hasEverCompleted) && inHandoff) {
@@ -108,6 +97,16 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
       pathname: location.pathname 
     });
   }, [user, isCompleted, hasEverCompleted, error, hasCheckedOnce, authLoading, onboardingLoading, inHandoff, location.pathname, navigate]);
+
+  // Don't render anything while loading - let GlobalLoadingOverlay handle it
+  if (shouldShowLoading) {
+    return null;
+  }
+
+  // If no user, let the ProtectedRoute handle the redirect
+  if (!user) {
+    return <>{children}</>;
+  }
 
   // Allow dashboard access during handoff even if status hasn't updated yet
   if (location.pathname === '/dashboard' && inHandoff) {
