@@ -120,7 +120,7 @@ export const DashboardCard = ({
       <CardContent className="relative p-7 z-10">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-4">
-            <div className={`${getIconClasses()} transition-transform duration-200 ${hasPendingAction ? 'animate-pulse' : ''}`}>
+            <div className={`${getIconClasses()} transition-transform duration-200 ${hasPendingAction ? 'animate-pulse' : ''} text-primary`}>
               {displayIcon}
             </div>
             <div>
