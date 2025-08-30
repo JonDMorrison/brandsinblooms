@@ -91,7 +91,13 @@ export const DashboardCard = ({
   };
 
   const getIconClasses = () => {
-    return 'p-3 rounded-xl bg-white/50 backdrop-blur-sm';
+    const baseClasses = 'p-4 rounded-2xl transition-all duration-300 ease-out';
+    const backgroundClasses = 'bg-gradient-to-br from-white/80 to-white/60 backdrop-blur-md';
+    const shadowClasses = 'shadow-lg shadow-black/5 hover:shadow-xl hover:shadow-black/10';
+    const hoverClasses = 'hover:scale-110 hover:-translate-y-0.5';
+    const borderClasses = 'border border-white/20 hover:border-white/40';
+    
+    return `${baseClasses} ${backgroundClasses} ${shadowClasses} ${hoverClasses} ${borderClasses}`;
   };
 
   return (
