@@ -32,7 +32,7 @@ export const SharedSenderConfirmationModal: React.FC<SharedSenderConfirmationMod
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md w-[92vw] sm:w-full max-h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <AlertTriangle className="h-5 w-5 text-orange-600" />
@@ -43,8 +43,8 @@ export const SharedSenderConfirmationModal: React.FC<SharedSenderConfirmationMod
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <Alert className="border-orange-200 bg-orange-50">
+        <div className="space-y-4 w-full overflow-y-auto">
+          <Alert className="border-orange-200 bg-orange-50 w-full">
             <Mail className="h-4 w-4 text-orange-600" />
             <AlertDescription>
               <div className="space-y-2">
@@ -52,7 +52,7 @@ export const SharedSenderConfirmationModal: React.FC<SharedSenderConfirmationMod
                   Sending from: {senderConfig.displayName}
                 </p>
                 <p className="text-sm text-orange-700">
-                  Email address: <code>{senderConfig.senderEmail}</code>
+                  Email address: <code className="break-words">{senderConfig.senderEmail}</code>
                 </p>
                 <p className="text-sm text-orange-600">
                   Recipients will see this email as coming from BloomSuite on behalf of your business.
@@ -61,7 +61,7 @@ export const SharedSenderConfirmationModal: React.FC<SharedSenderConfirmationMod
             </AlertDescription>
           </Alert>
 
-          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg w-full">
             <h4 className="font-medium text-blue-800 mb-2">💡 Want better results?</h4>
             <p className="text-sm text-blue-700 mb-3">
               Verify your custom domain to:
