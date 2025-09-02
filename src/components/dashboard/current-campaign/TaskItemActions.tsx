@@ -180,13 +180,15 @@ export const TaskItemActions = ({
         )}
 
         {!isEditing && isApproved && (task.post_type === 'facebook' || task.post_type === 'instagram') && (
-          <PostToSocialButton
-            task={task}
-            onSuccess={onTaskUpdate}
-            variant="ghost"
-            size="sm"
-            className="text-xs"
-          />
+          <div className="flex items-center">
+            <PostToSocialButton
+              task={task}
+              onSuccess={onTaskUpdate}
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+            />
+          </div>
         )}
 
         {!isEditing && isApproved && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (

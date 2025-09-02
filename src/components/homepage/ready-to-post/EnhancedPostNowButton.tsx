@@ -5,6 +5,7 @@ import { Facebook, Instagram, Send, Loader2, AlertTriangle, RefreshCw, ExternalL
 // Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';
 import { SmartPostComposer } from '@/components/social/SmartPostComposer';
+import { ConnectSocialCTA } from '@/components/social/ConnectSocialCTA';
 
 interface EnhancedPostNowButtonProps {
   task: any;
@@ -46,10 +47,11 @@ export const EnhancedPostNowButton: React.FC<EnhancedPostNowButtonProps> = ({
 
   if (!connection) {
     return (
-      <Button disabled size="sm" variant="outline">
-        <PlatformIcon className="w-4 h-4 mr-2" />
-        Connect {platformName}
-      </Button>
+      <ConnectSocialCTA
+        variant="button"
+        size="sm"
+        redirectTo={window.location.pathname}
+      />
     );
   }
 

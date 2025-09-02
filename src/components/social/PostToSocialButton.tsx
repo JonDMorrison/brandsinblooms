@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { generateCampaignSlug } from '@/utils/campaignSlugUtils';
 import { useToast } from '@/hooks/use-toast';
+import { ConnectSocialCTA } from './ConnectSocialCTA';
 
 interface PostToSocialButtonProps {
   task: any;
@@ -340,9 +341,11 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
                   <span className="ml-2 text-gray-500">Loading connections...</span>
                 </div>
               ) : connections.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No social media accounts connected.</p>
-                  <p className="text-sm mt-1">Connect your accounts in Settings to post content.</p>
+                <div className="text-center py-8">
+                  <ConnectSocialCTA 
+                    variant="inline" 
+                    redirectTo={window.location.pathname}
+                  />
                 </div>
               ) : (
                 <div className="grid gap-3">

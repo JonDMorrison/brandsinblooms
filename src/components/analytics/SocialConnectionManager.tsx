@@ -41,6 +41,16 @@ export const SocialConnectionManager = () => {
         if (Date.now() - data.timestamp < 30000) {
           
           fetchConnections(); // Refresh connections
+          
+          // Check if there's a returnTo URL parameter and set connected=true
+          const currentUrl = new URL(window.location.href);
+          const returnTo = currentUrl.searchParams.get('returnTo');
+          
+          if (returnTo) {
+            // Set connected=true to trigger success message and redirect
+            currentUrl.searchParams.set('connected', 'true');
+            window.history.replaceState({}, '', currentUrl.toString());
+          }
         }
         sessionStorage.removeItem('social_connection_success');
       } catch (error) {

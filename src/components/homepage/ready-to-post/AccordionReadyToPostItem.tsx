@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 // Removed sonner import - using global toast replacement
 import { SafeHtml } from "@/components/ui/safe-html";
 import { cleanContentForDisplay } from "@/utils/contentUtils";
+import { ConnectSocialCTA } from "@/components/social/ConnectSocialCTA";
 
 interface AccordionReadyToPostItemProps {
   task: any;
@@ -308,15 +309,26 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                     />
                   )}
                   
-                  {/* Post to Social Button */}
-                  {!batchMode && (facebookConnection || instagramConnection) && (
-                    <PostToSocialButton
-                      task={task}
-                      onSuccess={onTaskUpdate}
-                      size="sm"
-                      className="w-full"
-                    />
-                  )}
+                   {/* Post to Social Button */}
+                   {!batchMode && (
+                     <>
+                       {(facebookConnection || instagramConnection) ? (
+                         <PostToSocialButton
+                           task={task}
+                           onSuccess={onTaskUpdate}
+                           size="sm"
+                           className="w-full"
+                         />
+                       ) : (task.post_type === 'facebook' || task.post_type === 'instagram') && (
+                         <ConnectSocialCTA
+                           variant="button"
+                           size="sm"
+                           className="w-full"
+                           redirectTo={window.location.pathname}
+                         />
+                       )}
+                     </>
+                   )}
                 </div>
               </div>
             </div>
