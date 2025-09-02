@@ -13,6 +13,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { GeneratedContentModal } from "@/components/create-flow/GeneratedContentModal";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import { useBundlePreviewTitle } from "@/hooks/useBundlePreviewTitle";
+import { GenerationProgressBanner } from "@/components/generation/GenerationProgressBanner";
+import { ContentGenerationSkeleton } from "@/components/generation/ContentGenerationSkeleton";
+import { useGenerationJobTracker } from "@/state/useGenerationJobTracker";
 
 const channelLabels: Record<Channel, string> = {
   instagram: 'IG',
@@ -92,6 +95,7 @@ function BundleCard({ it, openBundle, handleDelete }: { it: any; openBundle: (bu
 export const BundleLibrary = () => {
   const navigate = useNavigate();
   const params = useQueryParams();
+  const { getJobsByType, getActiveJobs } = useGenerationJobTracker();
 
   const [search, setSearch] = useState(params.get('q') || '');
   const [mode, setMode] = useState<("event"|"seasonal"|"custom"|"all")>((params.get('mode') as any) || 'all');
@@ -115,6 +119,10 @@ export const BundleLibrary = () => {
   const { data, isLoading } = useContentLibrary({ search: debouncedSearch, mode, channel, page, pageSize: 24, sort });
   const total = data?.total || 0;
   const items = data?.items || [];
+  
+  // Check for active generation jobs
+  const activeJobs = getActiveJobs();
+  const bundleJobs = getJobsByType('bundle').concat(getJobsByType('custom'));
 
   const { toast } = useToast();
   const del = useDeleteBundle();
@@ -189,19 +197,36 @@ export const BundleLibrary = () => {
         </div>
       </section>
 
+      {/* Generation Progress Banner */}
+      <GenerationProgressBanner />
+
       <main>
         {isLoading ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
-        ) : items.length === 0 ? (
+        ) : items.length === 0 && bundleJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 border border-dashed rounded-2xl">
             <p className="text-sm text-muted-foreground mb-3">No content yet</p>
             <Button onClick={() => navigate('/')}>Create Any Content</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {items.map((it: any) => (
-              <BundleCard key={it.bundleId} it={it} openBundle={openBundle} handleDelete={handleDelete} />
-            ))}
+          <div className="space-y-6">
+            {/* Show generation skeletons for active jobs */}
+            {bundleJobs.filter(job => job.status === 'generating').length > 0 && (
+              <ContentGenerationSkeleton 
+                type="bundle" 
+                count={bundleJobs.filter(job => job.status === 'generating').length}
+                className="mb-6"
+              />
+            )}
+            
+            {/* Show actual content */}
+            {items.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {items.map((it: any) => (
+                  <BundleCard key={it.bundleId} it={it} openBundle={openBundle} handleDelete={handleDelete} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>

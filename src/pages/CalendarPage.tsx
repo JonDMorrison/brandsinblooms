@@ -7,13 +7,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CalendarPlus, PlusCircle, Calendar } from "lucide-react";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
+import { GenerationProgressBanner } from "@/components/generation/GenerationProgressBanner";
+import { ContentGenerationSkeleton } from "@/components/generation/ContentGenerationSkeleton";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useGlobalCalendarData } from "@/hooks/useGlobalCalendarData";
+import { useGenerationJobTracker } from "@/state/useGenerationJobTracker";
 
 const CalendarPage = () => {
   const { user } = useAuth();
   const { campaigns, tasks, loading, error, stats, refetch, isCached, isRefreshing } = useGlobalCalendarData();
+  const { getJobsByType } = useGenerationJobTracker();
   
   // Local state for UI
   const [showBackfill, setShowBackfill] = useState(false);
@@ -41,6 +45,9 @@ const CalendarPage = () => {
 
   // Weekly themes modal state
   const [showWeeklyThemesModal, setShowWeeklyThemesModal] = useState(false);
+  
+  // Check for active seasonal/holiday generation jobs
+  const campaignJobs = getJobsByType('seasonal').concat(getJobsByType('holiday'));
 
   if (!user) {
     return (
@@ -120,6 +127,18 @@ const CalendarPage = () => {
       />
       
       <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Generation Progress Banner */}
+        <GenerationProgressBanner />
+        
+        {/* Show generation placeholder for campaign content */}
+        {campaignJobs.filter(job => job.status === 'generating').length > 0 && (
+          <ContentGenerationSkeleton 
+            type="campaign" 
+            count={campaignJobs.filter(job => job.status === 'generating').length}
+            className="mb-6"
+          />
+        )}
+        
         {/* Backfill Component */}
         {shouldShowBackfill && !showBackfill && (
           <BackfillCampaigns 

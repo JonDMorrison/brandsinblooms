@@ -1,13 +1,15 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { generateCampaignContent, ContentGenerationResult } from "./ContentGenerationServices";
+import { useGenerationJobTracker } from "@/state/useGenerationJobTracker";
 
 export const generateRequiredTasks = async (
   campaignId: string,
   campaigns: any[],
   userId: string,
   onTaskUpdate: () => void,
-  tenantId?: string
+  tenantId?: string,
+  jobId?: string
 ): Promise<ContentGenerationResult> => {
   console.log('🎯 RequiredTasksGenerator: Starting task generation for campaign:', campaignId);
 

@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { sanitizeCampaignTitle } from "@/utils/weekNumberSanitizer";
 import { Loader2, AlertCircle } from "lucide-react";
 import { GeneratedContentModal } from "./GeneratedContentModal";
+import { useGenerationJobTracker } from "@/state/useGenerationJobTracker";
+import { useNavigate } from "react-router-dom";
 import { getSeasonalTemplates, type SeasonalTemplate } from "@/utils/seasonalTemplateService";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
@@ -35,6 +37,8 @@ type Mode = 'seasonal'|'holiday'|'custom';
 
 export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { startGeneration, completeJob, failJob } = useGenerationJobTracker();
   const {
     selectedPath, setSelectedPath,
     selectedSourceId, setSelectedSourceId,
@@ -159,8 +163,42 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   const startGenerate = async () => {
     if (!selectedPath) return;
     
-    // Close modal immediately and show generating feedback
+    // Prepare job data
+    let jobTitle = 'Untitled Content';
+    let jobType: 'campaign' | 'bundle' | 'holiday' | 'seasonal' | 'custom' = 'bundle';
+    let redirectPath = '/content/library';
+
+    if (selectedPath === 'custom') {
+      jobTitle = title || 'Custom Content';
+      jobType = 'custom';
+    } else if (selectedPath === 'seasonal' && selectedSourceId) {
+      const picked = weeklyThemes.find((theme) => theme.id === selectedSourceId);
+      if (picked) {
+        jobTitle = `Week ${picked.week_number}: ${picked.title}`;
+        jobType = 'seasonal';
+        redirectPath = '/calendar';
+      }
+    } else if (selectedPath === 'holiday' && selectedSourceId) {
+      const picked = allHolidays.find((holiday) => holiday.id === selectedSourceId);
+      if (picked) {
+        jobTitle = picked.holiday_name;
+        jobType = 'holiday';
+        redirectPath = '/calendar';
+      }
+    }
+
+    // Start job tracking and close modal immediately
+    const jobId = startGeneration({
+      type: jobType,
+      title: jobTitle,
+      redirectPath,
+      sourceId: selectedSourceId || undefined,
+    });
+    
+    // Close modal and navigate immediately
     onOpenChange(false);
+    navigate(redirectPath);
+    
     setLoading(true);
     setNetworkError(false);
 
@@ -228,30 +266,25 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       if (error) throw error;
 
       setBundleIds(data.id, data.snapshotId);
-      toast({ title: 'Draft bundle ready', description: 'Review and approve your items.' });
+      completeJob(jobId, { bundleId: data.id, snapshotId: data.snapshotId });
+      toast({ title: 'Content generated successfully!', description: 'Your content is ready for review.' });
     } catch (e: any) {
       console.error('Content generation error:', e);
       const msg = String(e?.message || '');
       const statusMatch = msg.match(/\b(4\d{2}|5\d{2})\b/);
       const status = (e?.status || e?.context?.status || (statusMatch ? Number(statusMatch[1]) : undefined)) as number | undefined;
 
-      // Reopen dialog for retry
-      onOpenChange(true);
-      setStep(3);
-
+      // Mark job as failed
       if (msg.includes('timed out')) {
-        setNetworkError(true);
-        toast({ title: 'Generation timed out', description: 'Content generation is taking too long. Please try again.', variant: 'destructive' });
+        failJob(jobId, 'Generation timed out. Please try again.');
       } else if (e?.name === 'FunctionsFetchError' || msg.includes('Failed to fetch')) {
-        setNetworkError(true);
-        toast({ title: 'AI temporarily unavailable', description: 'Please check your connection and try again.', variant: 'destructive' });
+        failJob(jobId, 'AI temporarily unavailable. Please check your connection and try again.');
       } else if (status === 404) {
-        setNetworkError(true);
-        toast({ title: 'Generator not found', description: 'AI generator is not deployed in this environment.', variant: 'destructive' });
+        failJob(jobId, 'AI generator not found. Please contact support.');
       } else if (status === 401 || status === 403) {
-        toast({ title: 'Authorization required', description: 'Please sign in again and retry.', variant: 'destructive' });
+        failJob(jobId, 'Authorization required. Please sign in again.');
       } else {
-        toast({ title: 'Generation failed', description: msg || 'Please try again.', variant: 'destructive' });
+        failJob(jobId, msg || 'Generation failed. Please try again.');
       }
     } finally {
       setLoading(false);

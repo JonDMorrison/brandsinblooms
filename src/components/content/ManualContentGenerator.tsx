@@ -8,6 +8,8 @@ import { useTenant } from "@/hooks/useTenant";
 import { toast } from "@/hooks/use-toast";
 import { ContentGenerationLoadingModal } from "./ContentGenerationLoadingModal";
 import { ContentViewerDialog } from "./ContentViewerDialog";
+import { useGenerationJobTracker } from "@/state/useGenerationJobTracker";
+import { useNavigate } from "react-router-dom";
 
 interface ManualContentGeneratorProps {
   campaign: any;
@@ -18,6 +20,8 @@ interface ManualContentGeneratorProps {
 export const ManualContentGenerator = ({ campaign, onContentGenerated, showAsModal = false }: ManualContentGeneratorProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const navigate = useNavigate();
+  const { startGeneration, completeJob, failJob } = useGenerationJobTracker();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
@@ -34,9 +38,22 @@ export const ManualContentGenerator = ({ campaign, onContentGenerated, showAsMod
       return;
     }
 
+    // Start job tracking
+    const jobId = startGeneration({
+      type: 'campaign',
+      title: campaign.title || campaign.theme || 'Campaign Content',
+      redirectPath: '/dashboard',
+    });
+
     setIsGenerating(true);
     setError(null);
-    setShowLoadingModal(true);
+    
+    if (showAsModal) {
+      setShowLoadingModal(true);
+    } else {
+      // Navigate to dashboard immediately to show progress
+      navigate('/dashboard');
+    }
 
     try {
       console.log('🚀 Manual content generation triggered for campaign:', campaign.id);
@@ -52,23 +69,26 @@ export const ManualContentGenerator = ({ campaign, onContentGenerated, showAsMod
 
       if (result.success) {
         setGeneratedTasks(result.tasks || []);
+        completeJob(jobId);
         setShowLoadingModal(false);
         
         if (showAsModal) {
           setShowContentModal(true);
         } else {
           toast({
-            title: "Success!",
-            description: `Successfully generated ${result.tasks?.length || 0} content pieces!`
+            title: "Content Generated Successfully!",
+            description: `Generated ${result.tasks?.length || 0} content pieces for your campaign`
           });
           onContentGenerated();
         }
       } else {
         setShowLoadingModal(false);
-        setError(result.message || 'Content generation failed');
+        const errorMsg = result.message || 'Content generation failed';
+        setError(errorMsg);
+        failJob(jobId, errorMsg);
         toast({
           title: "Generation failed",
-          description: result.message || 'Content generation failed',
+          description: errorMsg,
           variant: "destructive"
         });
       }
@@ -77,6 +97,7 @@ export const ManualContentGenerator = ({ campaign, onContentGenerated, showAsMod
       setShowLoadingModal(false);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setError(errorMessage);
+      failJob(jobId, errorMessage);
       toast({
         title: "Generation failed",
         description: `Content generation failed: ${errorMessage}`,
