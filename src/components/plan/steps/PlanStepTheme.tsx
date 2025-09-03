@@ -99,26 +99,38 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
       </div>
 
       {/* Month Selection */}
-      <Card className="bg-gradient-to-br from-background to-muted/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+      <Card className="relative overflow-hidden bg-gradient-to-br from-background via-primary/5 to-accent/10 border-primary/20 shadow-lg">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-50" />
+        <CardHeader className="relative">
+          <CardTitle className="flex items-center gap-3 text-xl">
+            <div className="p-2 bg-primary/10 rounded-full">
+              <Calendar className="h-6 w-6 text-primary" />
+            </div>
             Target Month
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-base">
             Select the month you want to plan your marketing content for
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="max-w-md">
-            <Label htmlFor="month">Month</Label>
-            <Input
-              id="month"
-              type="month"
-              value={state.month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="mt-2"
-            />
+        <CardContent className="relative">
+          <div className="space-y-3">
+            <Label htmlFor="month" className="text-sm font-medium text-foreground/80">
+              Campaign Month
+            </Label>
+            <div className="relative">
+              <Input
+                id="month"
+                type="month"
+                value={state.month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="h-12 text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-200 shadow-sm"
+              />
+              <div className="absolute inset-0 rounded-md bg-gradient-to-r from-primary/5 to-accent/5 pointer-events-none" />
+            </div>
+            <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
+              <div className="w-1 h-1 bg-primary rounded-full" />
+              Choose any upcoming month to start planning your campaigns
+            </p>
           </div>
         </CardContent>
       </Card>
