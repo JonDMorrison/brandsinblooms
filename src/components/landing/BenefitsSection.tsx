@@ -2,6 +2,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { LandingPageIcon } from "./LandingPageIcon";
 import { Calendar, Sparkles, TrendingUp, Leaf, Clock, Star, Users, Zap, LifeBuoy } from "lucide-react";
+import bloomSuiteLogo from "@/assets/bloomsuite-logo.png";
 
 export const BenefitsSection = () => {
   const benefits = [
@@ -97,7 +98,7 @@ export const BenefitsSection = () => {
                 <div className="mb-6">
                   {index === 0 ? (
                     <LandingPageIcon 
-                      logo="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png"
+                      logo={bloomSuiteLogo}
                       variant="section"
                       theme="neutral"
                       animated={true}
