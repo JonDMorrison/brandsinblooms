@@ -23,6 +23,7 @@ import { ProgressiveLoadingCard } from '@/components/dashboard/ProgressiveLoadin
 import { Skeleton } from '@/components/ui/skeleton';
 import { SocialPostPreviewModal } from '@/components/publish/preview/SocialPostPreviewModal';
 import { Eye } from 'lucide-react';
+import { MergeTagsPreviewDialog } from '@/components/crm/MergeTagsPreviewDialog';
 
 interface PlanStepCalendarProps {
   onNext: () => void;
@@ -352,43 +353,54 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                                Merge Tags
                                              </Button>
                                            </DropdownMenuTrigger>
-                                           <DropdownMenuContent align="end" className="w-48">
-                                             <DropdownMenuLabel>Personal Info</DropdownMenuLabel>
-                                              <DropdownMenuItem 
-                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{first_name}}')}
-                                              >
-                                                {'{{first_name}}'}
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem 
-                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{last_name}}')}
-                                              >
-                                                {'{{last_name}}'}
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem 
-                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{email}}')}
-                                              >
-                                                {'{{email}}'}
-                                              </DropdownMenuItem>
-                                              <DropdownMenuSeparator />
-                                              <DropdownMenuLabel>Company Info</DropdownMenuLabel>
-                                              <DropdownMenuItem 
-                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{company_name}}')}
-                                              >
-                                                {'{{company_name}}'}
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem 
-                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{website}}')}
-                                              >
-                                                {'{{website}}'}
-                                              </DropdownMenuItem>
-                                              <DropdownMenuSeparator />
-                                              <DropdownMenuLabel>Other</DropdownMenuLabel>
-                                              <DropdownMenuItem 
-                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{unsubscribe_url}}')}
-                                              >
-                                                {'{{unsubscribe_url}}'}
-                                              </DropdownMenuItem>
-                                           </DropdownMenuContent>
+                                            <DropdownMenuContent align="end" className="w-48">
+                                              <DropdownMenuLabel>Insert Tag</DropdownMenuLabel>
+                                               <DropdownMenuItem 
+                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{first_name}}')}
+                                               >
+                                                 {'{{first_name}}'}
+                                               </DropdownMenuItem>
+                                               <DropdownMenuItem 
+                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{last_name}}')}
+                                               >
+                                                 {'{{last_name}}'}
+                                               </DropdownMenuItem>
+                                               <DropdownMenuItem 
+                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{email}}')}
+                                               >
+                                                 {'{{email}}'}
+                                               </DropdownMenuItem>
+                                               <DropdownMenuSeparator />
+                                               <DropdownMenuLabel>Company Info</DropdownMenuLabel>
+                                               <DropdownMenuItem 
+                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{company_name}}')}
+                                               >
+                                                 {'{{company_name}}'}
+                                               </DropdownMenuItem>
+                                               <DropdownMenuItem 
+                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{website}}')}
+                                               >
+                                                 {'{{website}}'}
+                                               </DropdownMenuItem>
+                                               <DropdownMenuSeparator />
+                                               <DropdownMenuLabel>Preview</DropdownMenuLabel>
+                                               <MergeTagsPreviewDialog
+                                                 emailContent={{
+                                                   subject: item.emailSubject,
+                                                   preheader: item.emailPreheader,
+                                                   body: item.caption
+                                                 }}
+                                                 onMergeComplete={(content, field) => {
+                                                   if (field === 'body') {
+                                                     handleItemUpdate(item.id, 'caption', content);
+                                                   }
+                                                 }}
+                                               >
+                                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                   Preview with Customer...
+                                                 </DropdownMenuItem>
+                                               </MergeTagsPreviewDialog>
+                                            </DropdownMenuContent>
                                          </DropdownMenu>
                                        )}
                                      </div>
@@ -424,26 +436,44 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                                   Merge Tags
                                                 </Button>
                                               </DropdownMenuTrigger>
-                                              <DropdownMenuContent align="end" className="w-48">
-                                                <DropdownMenuLabel>Personal Info</DropdownMenuLabel>
-                                                 <DropdownMenuItem 
-                                                   onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{first_name}}')}
-                                                 >
-                                                   {'{{first_name}}'}
-                                                 </DropdownMenuItem>
-                                                 <DropdownMenuItem 
-                                                   onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{last_name}}')}
-                                                 >
-                                                   {'{{last_name}}'}
-                                                 </DropdownMenuItem>
-                                                 <DropdownMenuSeparator />
-                                                 <DropdownMenuLabel>Company Info</DropdownMenuLabel>
-                                                 <DropdownMenuItem 
-                                                   onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{company_name}}')}
-                                                 >
-                                                   {'{{company_name}}'}
-                                                 </DropdownMenuItem>
-                                              </DropdownMenuContent>
+                                               <DropdownMenuContent align="end" className="w-48">
+                                                 <DropdownMenuLabel>Insert Tag</DropdownMenuLabel>
+                                                  <DropdownMenuItem 
+                                                    onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{first_name}}')}
+                                                  >
+                                                    {'{{first_name}}'}
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuItem 
+                                                    onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{last_name}}')}
+                                                  >
+                                                    {'{{last_name}}'}
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuSeparator />
+                                                  <DropdownMenuLabel>Company Info</DropdownMenuLabel>
+                                                  <DropdownMenuItem 
+                                                    onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{company_name}}')}
+                                                  >
+                                                    {'{{company_name}}'}
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuSeparator />
+                                                  <DropdownMenuLabel>Preview</DropdownMenuLabel>
+                                                  <MergeTagsPreviewDialog
+                                                    emailContent={{
+                                                      subject: item.emailSubject,
+                                                      preheader: item.emailPreheader,
+                                                      body: item.caption
+                                                    }}
+                                                    onMergeComplete={(content, field) => {
+                                                      if (field === 'subject') {
+                                                        handleItemUpdate(item.id, 'emailSubject', content);
+                                                      }
+                                                    }}
+                                                  >
+                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                      Preview with Customer...
+                                                    </DropdownMenuItem>
+                                                  </MergeTagsPreviewDialog>
+                                               </DropdownMenuContent>
                                             </DropdownMenu>
                                           </div>
                                           <Input
@@ -467,26 +497,44 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                                   Merge Tags
                                                 </Button>
                                               </DropdownMenuTrigger>
-                                              <DropdownMenuContent align="end" className="w-48">
-                                                <DropdownMenuLabel>Personal Info</DropdownMenuLabel>
-                                                 <DropdownMenuItem 
-                                                   onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{first_name}}')}
-                                                 >
-                                                   {'{{first_name}}'}
-                                                 </DropdownMenuItem>
-                                                 <DropdownMenuItem 
-                                                   onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{last_name}}')}
-                                                 >
-                                                   {'{{last_name}}'}
-                                                 </DropdownMenuItem>
-                                                 <DropdownMenuSeparator />
-                                                 <DropdownMenuLabel>Company Info</DropdownMenuLabel>
-                                                 <DropdownMenuItem 
-                                                   onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{company_name}}')}
-                                                 >
-                                                   {'{{company_name}}'}
-                                                 </DropdownMenuItem>
-                                              </DropdownMenuContent>
+                                               <DropdownMenuContent align="end" className="w-48">
+                                                 <DropdownMenuLabel>Insert Tag</DropdownMenuLabel>
+                                                  <DropdownMenuItem 
+                                                    onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{first_name}}')}
+                                                  >
+                                                    {'{{first_name}}'}
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuItem 
+                                                    onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{last_name}}')}
+                                                  >
+                                                    {'{{last_name}}'}
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuSeparator />
+                                                  <DropdownMenuLabel>Company Info</DropdownMenuLabel>
+                                                  <DropdownMenuItem 
+                                                    onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{company_name}}')}
+                                                  >
+                                                    {'{{company_name}}'}
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuSeparator />
+                                                  <DropdownMenuLabel>Preview</DropdownMenuLabel>
+                                                  <MergeTagsPreviewDialog
+                                                    emailContent={{
+                                                      subject: item.emailSubject,
+                                                      preheader: item.emailPreheader,
+                                                      body: item.caption
+                                                    }}
+                                                    onMergeComplete={(content, field) => {
+                                                      if (field === 'preheader') {
+                                                        handleItemUpdate(item.id, 'emailPreheader', content);
+                                                      }
+                                                    }}
+                                                  >
+                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                      Preview with Customer...
+                                                    </DropdownMenuItem>
+                                                  </MergeTagsPreviewDialog>
+                                               </DropdownMenuContent>
                                             </DropdownMenu>
                                           </div>
                                           <Input
