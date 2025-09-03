@@ -290,20 +290,46 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                   >
                                     <Edit className="h-4 w-4" />
                                   </Button>
-                                  <div className="flex items-center gap-3 bg-muted/50 px-3 py-2 rounded-lg">
-                                    <div className="flex items-center gap-2">
-                                      <div className={`w-3 h-3 rounded-full ${item.enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                      <span className={`text-sm font-medium ${item.enabled ? 'text-green-700' : 'text-gray-500'}`}>
-                                        {item.enabled ? 'Active' : 'Inactive'}
-                                      </span>
-                                    </div>
-                                    <Switch
-                                      id={`toggle-${item.id}`}
-                                      checked={item.enabled}
-                                      onCheckedChange={() => toggleItem(item.id)}
-                                      className={`${item.enabled ? 'data-[state=checked]:bg-green-500' : ''}`}
-                                    />
-                                  </div>
+                                   <div 
+                                     className="flex items-center gap-3 bg-muted/50 hover:bg-muted/70 px-3 py-2 rounded-lg cursor-pointer transition-colors group/toggle"
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       toggleItem(item.id);
+                                     }}
+                                     onKeyDown={(e) => {
+                                       if (e.key === 'Enter' || e.key === ' ') {
+                                         e.preventDefault();
+                                         e.stopPropagation();
+                                         toggleItem(item.id);
+                                       }
+                                     }}
+                                     role="button"
+                                     tabIndex={0}
+                                     aria-label={`Toggle ${item.enabled ? 'off' : 'on'}`}
+                                     title="Click to toggle active/inactive"
+                                   >
+                                     <div className="flex items-center gap-2">
+                                       <div className={`w-3 h-3 rounded-full transition-colors ${
+                                         item.enabled ? 'bg-green-500 group-hover/toggle:bg-green-600' : 'bg-gray-300 group-hover/toggle:bg-gray-400'
+                                       }`} />
+                                       <span className={`text-sm font-medium transition-colors ${
+                                         item.enabled 
+                                           ? 'text-green-700 group-hover/toggle:text-green-800' 
+                                           : 'text-gray-500 group-hover/toggle:text-gray-600'
+                                       }`}>
+                                         {item.enabled ? 'Active' : 'Inactive'}
+                                       </span>
+                                     </div>
+                                     <Switch
+                                       id={`toggle-${item.id}`}
+                                       checked={item.enabled}
+                                       onCheckedChange={() => {}} // Handler is on container
+                                       onClick={(e) => e.stopPropagation()} // Prevent double toggle
+                                       className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300 border-2 data-[state=checked]:border-green-600 data-[state=unchecked]:border-gray-400 shadow-sm"
+                                       data-switch
+                                       aria-label={`Toggle ${item.enabled ? 'off' : 'on'}`}
+                                     />
+                                   </div>
                                 </div>
                               </div>
                               
