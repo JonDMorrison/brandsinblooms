@@ -315,11 +315,11 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                          {item.enabled ? 'Active' : 'Inactive'}
                                        </span>
                                      </div>
-                                     <Switch
-                                       id={`toggle-${item.id}`}
-                                       checked={item.enabled}
-                                       onCheckedChange={() => {}} // Handler is on container
-                                       onClick={(e) => e.stopPropagation()} // Prevent double toggle
+                                      <Switch
+                                        id={`toggle-${item.id}`}
+                                        checked={item.enabled}
+                                        onCheckedChange={() => toggleItem(item.id)}
+                                        onClick={(e) => e.stopPropagation()} // Prevent double toggle from container
                                        className="relative h-6 w-11 data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300 border-2 data-[state=checked]:border-green-600 data-[state=unchecked]:border-gray-400 shadow-md transition-all duration-300 ease-in-out hover:shadow-lg hover:scale-105 active:scale-95 [&>span]:h-4 [&>span]:w-4 [&>span]:bg-white [&>span]:shadow-lg [&>span]:transition-all [&>span]:duration-300 [&>span]:ease-in-out data-[state=checked]:[&>span]:translate-x-5 data-[state=unchecked]:[&>span]:translate-x-0.5"
                                        data-switch
                                        aria-label={`Toggle ${item.enabled ? 'off' : 'on'}`}
