@@ -3,7 +3,19 @@ import { getFallbackThemes } from '@/utils/fallbackThemes';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { PlanItem } from '@/components/plan/constants';
 import { supabase } from '@/integrations/supabase/client';
-import { sanitizeTitle } from '@/utils/contentQuality';
+import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
+
+// Simple title sanitizer to remove week references
+const sanitizeTitle = (title: string): string => {
+  if (!title) return title;
+  
+  return title
+    .replace(/Week\s+\d+\s*[-:]\s*/gi, '')
+    .replace(/\s*[-:]\s*Week\s+\d+/gi, '')
+    .replace(/Week\s+\d+/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
 export interface SeasonalPlanTheme {
   id: string;
