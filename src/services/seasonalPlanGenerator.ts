@@ -5,6 +5,7 @@ import { PlanItem } from '@/components/plan/constants';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { batchGenerateEmails } from './emailContentService';
+import { generateEnhancedBlogContent } from './blogContentGenerator';
 
 // Simple title sanitizer to remove week references
 const sanitizeTitle = (title: string): string => {
@@ -234,7 +235,7 @@ export const generateSeasonalPlanContent = async (
   const seasonalFocus = theme.seasonal_focus || '';
   
   const items: PlanItem[] = [
-    // Monthly blog post
+    // Monthly blog post with enhanced content
     {
       id: `blog-1-${Date.now()}`,
       type: 'blog',
@@ -242,7 +243,9 @@ export const generateSeasonalPlanContent = async (
       caption: generateBlogContent(theme, monthName, seasonalFocus, contentIdeas[0], holidays),
       date: new Date(firstDay.getTime() + (5 * 24 * 60 * 60 * 1000)), // First Friday
       enabled: true,
-      week: 1
+      week: 1,
+      // Add enhanced blog content
+      enhancedContent: generateEnhancedBlogContent(theme, monthName, seasonalFocus, contentIdeas[0], holidays)
     },
     
     // Email items with seasonal content

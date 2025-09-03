@@ -62,6 +62,8 @@ export interface PlanItem {
   audienceTarget?: 'all' | 'segments' | 'personas';
   selectedSegmentIds?: string[];
   selectedPersonaIds?: string[];
+  // Enhanced blog content
+  enhancedContent?: any;
 }
 
 // Template content generators

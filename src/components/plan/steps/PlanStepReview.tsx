@@ -9,6 +9,8 @@ import { useTwilioSetup } from '@/components/dashboard/TwilioSetupChecker';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useNavigate } from 'react-router-dom';
 import { AudienceTargetingSection } from '../AudienceTargetingSection';
+import { BlogContentViewer } from '../BlogContentViewer';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface PlanStepReviewProps {
   onBack: () => void;
@@ -144,14 +146,34 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                         </Badge>
                       </div>
                     )}
-                    {blogCount > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span>📝 {blogCount} Blog</span>
-                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                          ✅
-                        </Badge>
-                      </div>
-                    )}
+                     {blogCount > 0 && (
+                       <div className="flex items-center justify-between">
+                         <span>📝 {blogCount} Blog</span>
+                         <div className="flex items-center gap-2">
+                           <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                             ✅
+                           </Badge>
+                           {themeItems.some(item => item.type === 'blog' && item.enhancedContent) && (
+                             <Dialog>
+                               <DialogTrigger asChild>
+                                 <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                                   <ExternalLink className="h-3 w-3 mr-1" />
+                                   Preview
+                                 </Button>
+                               </DialogTrigger>
+                               <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+                                 <DialogHeader>
+                                   <DialogTitle>Blog Content Preview</DialogTitle>
+                                 </DialogHeader>
+                                 <BlogContentViewer 
+                                   blogItem={themeItems.find(item => item.type === 'blog' && item.enhancedContent)!}
+                                 />
+                               </DialogContent>
+                             </Dialog>
+                           )}
+                         </div>
+                       </div>
+                     )}
                   </div>
                 </div>
               );
@@ -375,8 +397,26 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <CardContent className="space-y-3">
             <div className="space-y-2">
               {blogItems.slice(0, expandedChannels.has('blog') ? blogItems.length : 3).map(item => (
-                <div key={item.id} className="text-sm text-muted-foreground flex justify-between">
-                  <span>{formatDateRange(item.date)} - {item.title}</span>
+                <div key={item.id} className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {formatDateRange(item.date)} - {item.title}
+                  </span>
+                  {item.enhancedContent && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          View
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Blog Content Preview</DialogTitle>
+                        </DialogHeader>
+                        <BlogContentViewer blogItem={item} />
+                      </DialogContent>
+                    </Dialog>
+                  )}
                 </div>
               ))}
               {blogItems.length > 3 && (
