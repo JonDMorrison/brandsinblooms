@@ -174,23 +174,6 @@ export const BloomSuiteDashboard = () => {
       statusMessage: twilioStatus.statusMessage
     },
     {
-      id: 'calendar',
-      title: 'Plan Your Content',
-      description: 'Schedule posts, campaigns, and content across all your marketing channels with visual planning tools.',
-      icon: <Calendar className="w-6 h-6 text-orange-600" />,
-      
-      primaryAction: {
-        label: 'Open Calendar',
-        onClick: () => navigate('/calendar')
-      },
-      secondaryAction: {
-        label: 'Quick Schedule',
-        onClick: () => navigate('/publish')
-      },
-      status: 'ready' as const,
-      statusMessage: 'Calendar ready'
-    },
-    {
       id: 'analytics',
       title: 'Track Your Progress',
       description: 'Monitor campaign performance, customer engagement, and ROI across all your marketing efforts.',
