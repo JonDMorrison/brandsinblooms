@@ -2,7 +2,6 @@
 import { Button } from "@/components/ui/button";
 import { LandingPageIcon } from "./LandingPageIcon";
 import { Sparkles, Leaf, Calendar, TrendingUp } from "lucide-react";
-import bloomSuiteLogo from "@/assets/bloomsuite-logo.png";
 
 interface HeroSectionProps {
   onGetStarted: () => void;
@@ -24,7 +23,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         {/* Hero Icon with enhanced styling */}
         <div className="flex justify-center mb-12">
           <LandingPageIcon 
-            logo={bloomSuiteLogo}
+            logo="/lovable-uploads/e0b56fe5-9a69-4ed9-a69a-53664e6e4c5d.png"
             variant="hero" 
             theme="spring" 
             animated={true}
