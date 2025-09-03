@@ -175,7 +175,19 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                         />
                                       </div>
                                     </div>
-                                  )}
+                                   )}
+                                   
+                                   {/* Save & Close Button */}
+                                   <div className="flex justify-end pt-2">
+                                     <Button
+                                       variant="outline"
+                                       size="sm"
+                                       onClick={() => setEditingItem(null)}
+                                       className="px-4"
+                                     >
+                                       Save & Close
+                                     </Button>
+                                   </div>
                                 </div>
                               ) : (
                                 <div className="space-y-3">
