@@ -103,6 +103,23 @@ export const BloomSuiteDashboard = () => {
 
   const dashboardActions = [
     {
+      id: 'plan-marketing',
+      title: 'Plan My Marketing',
+      description: 'Create a complete monthly marketing plan with email campaigns, SMS, and social posts. AI-powered seasonal themes.',
+      icon: <Calendar className="w-6 h-6 text-emerald-600" />,
+      
+      primaryAction: {
+        label: 'Plan My Marketing',
+        onClick: () => navigate('/plan')
+      },
+      secondaryAction: {
+        label: 'View Calendar',
+        onClick: () => navigate('/calendar')
+      },
+      status: 'ready' as const,
+      statusMessage: 'Monthly planning ready'
+    },
+    {
       id: 'create-flow',
       title: 'Create Any Content',
       description: 'We will give you ideas and write all the content for you. For social, your blog, video script, or newsletter.',
