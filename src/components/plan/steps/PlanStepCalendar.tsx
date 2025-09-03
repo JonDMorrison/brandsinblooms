@@ -21,6 +21,8 @@ import { toast } from 'sonner';
 import { useLoading } from '@/contexts/LoadingContext';
 import { ProgressiveLoadingCard } from '@/components/dashboard/ProgressiveLoadingCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SocialPostPreviewModal } from '@/components/publish/preview/SocialPostPreviewModal';
+import { Eye } from 'lucide-react';
 
 interface PlanStepCalendarProps {
   onNext: () => void;
@@ -51,6 +53,8 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [previewItem, setPreviewItem] = useState<PlanItem | null>(null);
+  const [previewPlatform, setPreviewPlatform] = useState<'instagram' | 'facebook'>('instagram');
   const { setLoading, clearLoading } = useLoading();
 
   // Generate initial seasonal content when component mounts
@@ -537,17 +541,32 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                     </div>
                                    )}
                                    
-                                   {/* Save & Close Button */}
-                                   <div className="flex justify-end pt-2">
-                                     <Button
-                                       variant="outline"
-                                       size="sm"
-                                       onClick={() => setEditingItem(null)}
-                                       className="px-4"
-                                     >
-                                       Save & Close
-                                     </Button>
-                                   </div>
+                                    {/* Action Buttons */}
+                                    <div className="flex justify-between pt-2">
+                                      {(item.type === 'facebook' || item.type === 'instagram') && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            setPreviewItem(item);
+                                            setPreviewPlatform(item.type as 'instagram' | 'facebook');
+                                          }}
+                                          className="gap-2"
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                          Preview Post
+                                        </Button>
+                                      )}
+                                      <div className="flex-1" />
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setEditingItem(null)}
+                                        className="px-4"
+                                      >
+                                        Save & Close
+                                      </Button>
+                                    </div>
                                 </div>
                                ) : (
                                  <div 
@@ -617,6 +636,19 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           Review & Launch
         </Button>
       </div>
+
+      {/* Social Post Preview Modal */}
+      {previewItem && (
+        <SocialPostPreviewModal
+          open={true}
+          onClose={() => setPreviewItem(null)}
+          platform={previewPlatform}
+          onPlatformChange={(platform) => setPreviewPlatform(platform)}
+          accountName="Your Business"
+          caption={previewItem.caption}
+          mediaUrl={previewItem.imageUrl || ''}
+        />
+      )}
     </div>
   );
 };
