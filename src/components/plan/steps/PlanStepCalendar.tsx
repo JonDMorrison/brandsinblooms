@@ -6,11 +6,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon } from 'lucide-react';
+import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePlanWizard } from '../PlanWizardContext';
-import { generatePlanContent, PlanItem } from '../constants';
+import { PlanItem } from '../constants';
+import { generateSeasonalPlanContent } from '@/services/seasonalPlanGenerator';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface PlanStepCalendarProps {
   onNext: () => void;
@@ -27,12 +30,20 @@ const typeConfig = {
 export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBack }) => {
   const { state, setItems, updateItem, toggleItem } = usePlanWizard();
   const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
-  // Generate initial content when component mounts
+  // Generate initial seasonal content when component mounts
   useEffect(() => {
     if (state.theme && state.month && state.items.length === 0) {
-      const generatedItems = generatePlanContent(state.theme, state.month);
-      setItems(generatedItems);
+      generateSeasonalPlanContent(state.theme, state.month)
+        .then(generatedItems => {
+          setItems(generatedItems);
+        })
+        .catch(error => {
+          console.error('Error generating seasonal content:', error);
+          // Fallback to basic items if seasonal generation fails
+          setItems([]);
+        });
     }
   }, [state.theme, state.month, state.items.length, setItems]);
 
@@ -42,6 +53,58 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
 
   const handleImageSelect = (itemId: string, imageUrl: string, metadata?: any) => {
     updateItem(itemId, { imageUrl });
+  };
+
+  // Regenerate content with AI
+  const handleRegenerateWithAI = async () => {
+    if (!state.theme || !state.month) return;
+    
+    setIsRegenerating(true);
+    try {
+      // Call AI content generation for enhanced content
+      const response = await supabase.functions.invoke('generate_campaign_content', {
+        body: {
+          campaignId: `plan-${Date.now()}`,
+          campaignTheme: state.theme.label,
+          campaignDescription: state.theme.description,
+          userId: 'plan-user',
+          weekNumber: 1,
+          tenantId: 'default'
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      // Regenerate content with enhanced AI-powered captions
+      const enhancedItems = await generateSeasonalPlanContent(state.theme, state.month);
+      
+      // If we got AI content, use it to enhance the items
+      if (response.data?.success && response.data?.tasks) {
+        const aiTasks = response.data.tasks;
+        enhancedItems.forEach((item, index) => {
+          if (aiTasks[index % aiTasks.length]) {
+            item.caption = aiTasks[index % aiTasks.length].task_details;
+          }
+        });
+      }
+      
+      setItems(enhancedItems);
+      toast.success('Content regenerated with AI enhancements!');
+    } catch (error) {
+      console.error('Error regenerating content:', error);
+      toast.error('Failed to regenerate content. Using seasonal templates.');
+      // Fallback to regular seasonal content
+      try {
+        const fallbackItems = await generateSeasonalPlanContent(state.theme, state.month);
+        setItems(fallbackItems);
+      } catch (fallbackError) {
+        toast.error('Unable to regenerate content');
+      }
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   // Group items by week
@@ -63,6 +126,19 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
         <p className="text-muted-foreground text-lg">
           Your {state.theme?.label} content plan for {monthName}. Edit dates, captions, and toggle items on/off.
         </p>
+        
+        {/* AI Regenerate Button */}
+        <div className="flex justify-center pt-2">
+          <Button 
+            variant="outline" 
+            onClick={handleRegenerateWithAI}
+            disabled={isRegenerating}
+            className="gap-2"
+          >
+            <Sparkles className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+            {isRegenerating ? 'Regenerating...' : 'Regenerate with AI'}
+          </Button>
+        </div>
       </div>
 
       {/* Content Calendar */}

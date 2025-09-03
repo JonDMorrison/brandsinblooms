@@ -153,8 +153,19 @@ const getQualityLevel = (score: number): 'excellent' | 'good' | 'fair' | 'poor' 
   return 'poor';
 };
 
+export const sanitizeTitle = (title: string): string => {
+  if (!title) return title;
+  
+  // Remove "Week X" patterns and clean up
+  return title
+    .replace(/Week\s+\d+\s*[-:]\s*/gi, '')
+    .replace(/\s*[-:]\s*Week\s+\d+/gi, '')
+    .replace(/Week\s+\d+/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 export const sanitizeAndImproveContent = (content: string): string => {
-  // First sanitize week numbers
   let improved = sanitizeWeekNumbers(content);
   
   // Replace generic phrases with better alternatives

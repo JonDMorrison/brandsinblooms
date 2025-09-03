@@ -1,5 +1,7 @@
 // Plan My Marketing - Constants
+import { SeasonalPlanTheme } from '@/services/seasonalPlanGenerator';
 
+// Legacy static themes (now replaced by seasonal themes)
 export const PLAN_THEMES = [
   { 
     id: "fall-planting", 
@@ -33,7 +35,7 @@ export const PLAN_THEMES = [
   }
 ];
 
-export type PlanTheme = typeof PLAN_THEMES[number];
+export type PlanTheme = SeasonalPlanTheme; // Now uses seasonal themes
 
 export interface PlanWizardState {
   month: string;

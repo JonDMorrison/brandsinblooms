@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calendar, Leaf, Gift, Sprout, Flower, Bug } from 'lucide-react';
-import { PLAN_THEMES, PlanTheme } from '../constants';
+import { PlanTheme } from '../constants';
 import { usePlanWizard } from '../PlanWizardContext';
+import { getSeasonalThemesForMonth } from '@/services/seasonalPlanGenerator';
 
 const themeIcons = {
   'fall-planting': Leaf,
@@ -22,6 +23,8 @@ interface PlanStepThemeProps {
 
 export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
   const { state, setMonth, setTheme } = usePlanWizard();
+  const [availableThemes, setAvailableThemes] = React.useState<PlanTheme[]>([]);
+  const [loadingThemes, setLoadingThemes] = React.useState(false);
 
   // Default to next month
   React.useEffect(() => {
@@ -33,6 +36,24 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
       setMonth(monthString);
     }
   }, [state.month, setMonth]);
+
+  // Load seasonal themes when month changes
+  React.useEffect(() => {
+    if (state.month) {
+      setLoadingThemes(true);
+      getSeasonalThemesForMonth(state.month)
+        .then(themes => {
+          setAvailableThemes(themes);
+        })
+        .catch(error => {
+          console.error('Error loading seasonal themes:', error);
+          // Keep existing themes as fallback
+        })
+        .finally(() => {
+          setLoadingThemes(false);
+        });
+    }
+  }, [state.month]);
 
   const handleThemeSelect = (theme: PlanTheme) => {
     setTheme(theme);
@@ -87,7 +108,23 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {PLAN_THEMES.map((theme) => {
+          {loadingThemes ? (
+            // Loading skeleton
+            Array.from({ length: 6 }).map((_, index) => (
+              <Card key={index} className="animate-pulse">
+                <CardHeader className="text-center">
+                  <div className="mx-auto mb-3">
+                    <div className="w-12 h-12 rounded-full bg-muted"></div>
+                  </div>
+                  <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-12 bg-muted rounded"></div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            availableThemes.map((theme) => {
             const IconComponent = themeIcons[theme.id as keyof typeof themeIcons] || Leaf;
             const isSelected = state.theme?.id === theme.id;
 
@@ -118,7 +155,8 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                 </CardContent>
               </Card>
             );
-          })}
+          })
+          )}
         </div>
       </div>
 
