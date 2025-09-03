@@ -15,6 +15,9 @@ import { generateMultiThemeSeasonalPlanContent } from '@/services/seasonalPlanGe
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useLoading } from '@/contexts/LoadingContext';
+import { ProgressiveLoadingCard } from '@/components/dashboard/ProgressiveLoadingCard';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PlanStepCalendarProps {
   onNext: () => void;
@@ -44,10 +47,19 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
   const { state, setItems, updateItem, toggleItem, replaceWeekContent, addWeekContent } = usePlanWizard();
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const { setLoading, clearLoading } = useLoading();
 
   // Generate initial seasonal content when component mounts
   useEffect(() => {
     if (state.themes.length > 0 && state.month && state.items.length === 0) {
+      setIsInitialLoading(true);
+      setLoading('plan-calendar', {
+        isLoading: true,
+        message: 'Generating your content calendar...',
+        priority: 'page'
+      });
+
       generateMultiThemeSeasonalPlanContent(state.themes, state.month)
         .then(generatedItems => {
           setItems(generatedItems);
@@ -56,9 +68,14 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           console.error('Error generating multi-theme content:', error);
           // Fallback to basic items if seasonal generation fails
           setItems([]);
+          toast.error('Failed to generate content. Please try regenerating.');
+        })
+        .finally(() => {
+          setIsInitialLoading(false);
+          clearLoading('plan-calendar');
         });
     }
-  }, [state.themes, state.month, state.items.length, setItems]);
+  }, [state.themes, state.month, state.items.length, setItems, setLoading, clearLoading]);
 
   const handleItemUpdate = (id: string, field: keyof PlanItem, value: any) => {
     updateItem(id, { [field]: value });
@@ -73,6 +90,11 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
     if (state.themes.length === 0 || !state.month) return;
     
     setIsRegenerating(true);
+    setLoading('plan-regenerate', {
+      isLoading: true,
+      message: 'Regenerating content with AI...',
+      priority: 'page'
+    });
     try {
       // Call AI content generation for enhanced content
       const response = await supabase.functions.invoke('generate_campaign_content', {
@@ -117,6 +139,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
       }
     } finally {
       setIsRegenerating(false);
+      clearLoading('plan-regenerate');
     }
   };
 
@@ -138,6 +161,32 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
       channels: [...new Set(themeItems.map(item => item.type))]
     };
   });
+
+  const isLoading = isInitialLoading || isRegenerating;
+
+  // Show loading state during initial generation
+  if (isInitialLoading && state.items.length === 0) {
+    return (
+      <div className="max-w-5xl mx-auto space-y-8">
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-2">
+            <Calendar className="h-8 w-8 text-primary" />
+            <h2 className="text-3xl font-bold">Review Your Content Calendar</h2>
+          </div>
+          <p className="text-muted-foreground text-lg">
+            Your multi-theme content plan for {monthName}
+          </p>
+        </div>
+
+        <ProgressiveLoadingCard
+          title="Generating Your Content Calendar"
+          description="AI is creating personalized content based on your selected themes"
+          expectedContent="Email campaigns, social media posts, and promotional content optimized for your business"
+          isLoading={true}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -378,10 +427,21 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
 
       {/* Navigation */}
       <div className="flex justify-between pt-8">
-        <Button variant="outline" onClick={onBack} size="lg" className="px-8">
+        <Button 
+          variant="outline" 
+          onClick={onBack} 
+          size="lg" 
+          className="px-8"
+          disabled={isLoading}
+        >
           Back
         </Button>
-        <Button onClick={onNext} size="lg" className="px-8">
+        <Button 
+          onClick={onNext} 
+          size="lg" 
+          className="px-8"
+          disabled={isLoading || state.items.length === 0}
+        >
           Review & Launch
         </Button>
       </div>
