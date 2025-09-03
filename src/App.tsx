@@ -331,7 +331,9 @@ function App() {
           } />
           <Route path="/plan" element={
             <ProtectedRoute>
-              <PlanPage />
+              <SidebarLayout>
+                <PlanPage />
+              </SidebarLayout>
             </ProtectedRoute>
           } />
           
