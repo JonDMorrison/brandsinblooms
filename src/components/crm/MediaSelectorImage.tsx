@@ -22,26 +22,39 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   const [isSelecting, setIsSelecting] = useState(false);
   const [defaultImageUrl, setDefaultImageUrl] = useState<string>('');
   const [isLoadingDefault, setIsLoadingDefault] = useState(false);
-  const { getCuratedCollectionImages } = useUnsplash();
+  const { getCuratedCollectionImages, getSmartImages } = useUnsplash();
 
-  // Fetch a default image when no src is provided
+  // Fetch a content-aware default image when no src is provided
   useEffect(() => {
     if (!src && !defaultImageUrl && !isLoadingDefault) {
       setIsLoadingDefault(true);
-      getCuratedCollectionImages(1)
-        .then(images => {
-          if (images && images.length > 0) {
-            setDefaultImageUrl(images[0].url);
+      
+      const fetchContentAwareImage = async () => {
+        try {
+          // Try to get a content-aware image first
+          if (contentContext?.trim()) {
+            const smartImages = await getSmartImages(contentContext, 1);
+            if (smartImages && smartImages.length > 0) {
+              setDefaultImageUrl(smartImages[0].url);
+              return;
+            }
           }
-        })
-        .catch(error => {
-          console.error('[MediaSelectorImage] Failed to fetch default image:', error);
-        })
-        .finally(() => {
+          
+          // Fallback to curated collection if no content context or smart image fails
+          const curatedImages = await getCuratedCollectionImages(1);
+          if (curatedImages && curatedImages.length > 0) {
+            setDefaultImageUrl(curatedImages[0].url);
+          }
+        } catch (error) {
+          console.error('[MediaSelectorImage] Failed to fetch content-aware image:', error);
+        } finally {
           setIsLoadingDefault(false);
-        });
+        }
+      };
+      
+      fetchContentAwareImage();
     }
-  }, [src, defaultImageUrl, isLoadingDefault, getCuratedCollectionImages]);
+  }, [src, defaultImageUrl, isLoadingDefault, contentContext, getSmartImages, getCuratedCollectionImages]);
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     console.log('[MediaSelectorImage] Image selected:', imageUrl, metadata);
