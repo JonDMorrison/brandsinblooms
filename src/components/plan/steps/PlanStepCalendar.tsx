@@ -114,14 +114,18 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                   >
                                     <Edit className="h-4 w-4" />
                                   </Button>
-                                  <div className="flex items-center gap-2">
-                                    <Label htmlFor={`toggle-${item.id}`} className="text-sm">
-                                      Enabled
-                                    </Label>
+                                  <div className="flex items-center gap-3 bg-muted/50 px-3 py-2 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-3 h-3 rounded-full ${item.enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                      <span className={`text-sm font-medium ${item.enabled ? 'text-green-700' : 'text-gray-500'}`}>
+                                        {item.enabled ? 'Active' : 'Inactive'}
+                                      </span>
+                                    </div>
                                     <Switch
                                       id={`toggle-${item.id}`}
                                       checked={item.enabled}
                                       onCheckedChange={() => toggleItem(item.id)}
+                                      className={`${item.enabled ? 'data-[state=checked]:bg-green-500' : ''}`}
                                     />
                                   </div>
                                 </div>
