@@ -59,7 +59,7 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
           image_url: item.imageUrl || null,
           user_id: user.id,
           // Add metadata to track this came from plan wizard with theme info
-          notes: `Generated from Plan My Marketing: ${planState.themes.map(t => t.label).join(' + ')} themes${item.themeName ? ` (${item.themeName})` : ''}`
+          notes: `Generated from Plan My Marketing: ${planState.themes.map(t => t.label).join(' + ')} themes${item.themeName ? ` (${item.themeName})` : ''}${item.emailSubject ? ` | Subject: ${item.emailSubject}` : ''}${item.emailPreheader ? ` | Preheader: ${item.emailPreheader}` : ''}`
         })
         .select()
         .single();

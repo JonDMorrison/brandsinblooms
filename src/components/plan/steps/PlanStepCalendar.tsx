@@ -268,18 +268,50 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                       className="mt-1"
                                     />
                                   </div>
-                                  <div>
-                                    <Label htmlFor={`caption-${item.id}`}>
-                                      {item.type === 'email' ? 'Email Content' : 'Caption'}
-                                    </Label>
-                                    <Textarea
-                                      id={`caption-${item.id}`}
-                                      value={item.caption}
-                                      onChange={(e) => handleItemUpdate(item.id, 'caption', e.target.value)}
-                                      rows={3}
-                                      className="mt-1"
-                                    />
-                                  </div>
+                                   <div>
+                                     <Label htmlFor={`caption-${item.id}`}>
+                                       {item.type === 'email' ? 'Email Content' : 'Caption'}
+                                     </Label>
+                                     <Textarea
+                                       id={`caption-${item.id}`}
+                                       value={item.caption}
+                                       onChange={(e) => handleItemUpdate(item.id, 'caption', e.target.value)}
+                                       rows={3}
+                                       className="mt-1"
+                                     />
+                                   </div>
+                                   
+                                   {/* Email-specific fields */}
+                                   {item.type === 'email' && (
+                                     <>
+                                       <div>
+                                         <Label htmlFor={`subject-${item.id}`}>Subject Line</Label>
+                                         <Input
+                                           id={`subject-${item.id}`}
+                                           value={item.emailSubject || ''}
+                                           onChange={(e) => handleItemUpdate(item.id, 'emailSubject', e.target.value)}
+                                           className="mt-1"
+                                           placeholder="Enter email subject..."
+                                         />
+                                         <p className="text-xs text-muted-foreground mt-1">
+                                           {item.emailSubject?.length || 0}/50 characters
+                                         </p>
+                                       </div>
+                                       <div>
+                                         <Label htmlFor={`preheader-${item.id}`}>Preheader</Label>
+                                         <Input
+                                           id={`preheader-${item.id}`}
+                                           value={item.emailPreheader || ''}
+                                           onChange={(e) => handleItemUpdate(item.id, 'emailPreheader', e.target.value)}
+                                           className="mt-1"
+                                           placeholder="Enter email preheader..."
+                                         />
+                                         <p className="text-xs text-muted-foreground mt-1">
+                                           {item.emailPreheader?.length || 0}/90 characters
+                                         </p>
+                                       </div>
+                                     </>
+                                   )}
                                   <div>
                                     <Label htmlFor={`date-${item.id}`}>Date</Label>
                                     <Input

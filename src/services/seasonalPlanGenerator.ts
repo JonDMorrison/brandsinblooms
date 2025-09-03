@@ -4,6 +4,7 @@ import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { PlanItem } from '@/components/plan/constants';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
+import { batchGenerateEmails } from './emailContentService';
 
 // Simple title sanitizer to remove week references
 const sanitizeTitle = (title: string): string => {
@@ -155,6 +156,14 @@ export const generateMultiThemeSeasonalPlanContent = async (
     allItems = [...allItems, ...overlayItems];
   }
   
+  // Generate enhanced email content using AI
+  try {
+    console.log('Enhancing email content with AI...');
+    allItems = await batchGenerateEmails(allItems, month, themes);
+  } catch (error) {
+    console.error('Failed to enhance emails with AI, continuing with basic content:', error);
+  }
+
   return allItems;
 };
 

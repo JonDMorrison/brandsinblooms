@@ -1,0 +1,173 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
+
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+
+interface EmailGenerationRequest {
+  month: string;
+  themes: Array<{
+    id: string;
+    label: string;
+    description?: string;
+  }>;
+  companyProfile?: {
+    company_name?: string;
+    brand_voice?: string;
+    target_audience?: string;
+  };
+  constraints?: {
+    subjectLength?: number;
+    preheaderLength?: number;
+    tone?: string;
+  };
+  emailType?: 'promotional' | 'newsletter' | 'announcement';
+}
+
+interface EmailContent {
+  subject: string;
+  preheader: string;
+  body: string;
+  cta_primary?: string;
+  alt_subjects?: string[];
+  notes?: string;
+}
+
+const serve_handler = async (req: Request): Promise<Response> => {
+  const corsResponse = handleCorsPrelight(req);
+  if (corsResponse) return corsResponse;
+
+  try {
+    const requestId = crypto.randomUUID().substring(0, 8);
+    console.log(`[${requestId}] Email generation request started`);
+
+    const {
+      month,
+      themes,
+      companyProfile,
+      constraints = {},
+      emailType = 'promotional'
+    }: EmailGenerationRequest = await req.json();
+
+    console.log(`[${requestId}] Request data:`, { month, themes: themes.map(t => t.label), emailType });
+
+    if (!openAIApiKey) {
+      console.error(`[${requestId}] OpenAI API key not configured`);
+      return corsJsonResponse({ error: 'OpenAI API key not configured' }, { status: 500 });
+    }
+
+    // Build context for the AI
+    const themeContext = themes.map(t => `${t.label}${t.description ? `: ${t.description}` : ''}`).join('; ');
+    const monthName = new Date(`${month}-01`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    
+    const companyContext = companyProfile?.company_name 
+      ? `Company: ${companyProfile.company_name}. Brand voice: ${companyProfile.brand_voice || 'professional'}. Target audience: ${companyProfile.target_audience || 'gardening enthusiasts'}.`
+      : 'Target audience: gardening enthusiasts.';
+
+    const systemPrompt = `You are an expert email copywriter specializing in gardening and seasonal marketing. Generate compelling email content that:
+
+1. NEVER uses generic openings like "Welcome to [Month]" or "As we enter [Season]"
+2. Focuses on specific benefits and seasonal timing
+3. Includes actionable gardening advice
+4. Uses clear, benefit-driven language
+5. Contains exactly ONE primary call-to-action
+6. Avoids mentioning specific "Week" numbers
+7. Speaks directly to gardening enthusiasts
+
+${companyContext}
+
+Content specifications:
+- Subject line: ${constraints.subjectLength || 50} characters max, compelling and specific
+- Preheader: ${constraints.preheaderLength || 90} characters max, complements subject
+- Body: 150-200 words, scannable with clear benefit statements
+- Tone: ${constraints.tone || 'expert yet approachable'}
+
+Return ONLY a valid JSON object with: subject, preheader, body, cta_primary`;
+
+    const userPrompt = `Create ${emailType} email content for ${monthName} focused on: ${themeContext}
+
+Requirements:
+- Make it timely and specific to ${monthName} gardening activities
+- Include seasonal urgency without being pushy  
+- Provide concrete value (tips, timing, plant recommendations)
+- End with a clear, specific call-to-action
+- No generic seasonal greetings`;
+
+    console.log(`[${requestId}] Calling OpenAI with themes: ${themeContext}`);
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        max_tokens: 800,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[${requestId}] OpenAI API error:`, response.status, errorText);
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    let generatedContent = data.choices[0].message.content;
+
+    console.log(`[${requestId}] Raw AI response:`, generatedContent);
+
+    // Clean up potential code fences
+    generatedContent = generatedContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+    // Parse JSON response
+    let emailContent: EmailContent;
+    try {
+      emailContent = JSON.parse(generatedContent);
+    } catch (parseError) {
+      console.error(`[${requestId}] JSON parse error:`, parseError);
+      // Fallback to structured extraction
+      emailContent = {
+        subject: `${themes[0]?.label || 'Seasonal'} Tips for ${monthName}`,
+        preheader: `Expert advice for your ${monthName.toLowerCase()} garden`,
+        body: `Get the most out of your garden this ${monthName} with expert timing and seasonal recommendations. Perfect conditions await for your next gardening success.`,
+        cta_primary: 'Get Started Today'
+      };
+    }
+
+    // Sanitize content to remove week references
+    const sanitizeWeekReferences = (text: string) => {
+      return text
+        .replace(/\b(Week|week)\s+\d+\b/g, 'this period')
+        .replace(/\b(Weekly|weekly)\s+/g, 'regular ')
+        .replace(/\bthis week\b/gi, 'right now')
+        .replace(/\bnext week\b/gi, 'soon');
+    };
+
+    emailContent.subject = sanitizeWeekReferences(emailContent.subject);
+    emailContent.preheader = sanitizeWeekReferences(emailContent.preheader);
+    emailContent.body = sanitizeWeekReferences(emailContent.body);
+
+    // Add generation metadata
+    emailContent.notes = `Generated for ${monthName} | Themes: ${themes.map(t => t.label).join(', ')} | AI Generated`;
+
+    console.log(`[${requestId}] Successfully generated email content`);
+
+    return corsJsonResponse(emailContent);
+
+  } catch (error: any) {
+    console.error('Error in generate-plan-email function:', error);
+    return corsJsonResponse(
+      { error: error.message || 'Failed to generate email content' }, 
+      { status: 500 }
+    );
+  }
+};
+
+serve(serve_handler);

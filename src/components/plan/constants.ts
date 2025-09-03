@@ -54,6 +54,10 @@ export interface PlanItem {
   week: number;
   themeId?: string;
   themeName?: string;
+  // Enhanced email fields
+  emailSubject?: string;
+  emailPreheader?: string;
+  notes?: string;
 }
 
 // Template content generators
