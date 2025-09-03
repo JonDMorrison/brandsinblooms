@@ -6,7 +6,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles, Replace, Plus, Clock } from 'lucide-react';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { SafeHtml } from '@/components/ui/safe-html';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles, Replace, Plus, Clock, Tag } from 'lucide-react';
 import { format } from 'date-fns';
 import { parseMonthParam } from '@/utils/dateUtils';
 import { usePlanWizard } from '../PlanWizardContext';
@@ -345,47 +348,166 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                     />
                                   </div>
                                    <div>
-                                     <Label htmlFor={`caption-${item.id}`}>
-                                       {item.type === 'email' ? 'Email Content' : 'Caption'}
-                                     </Label>
-                                     <Textarea
-                                       id={`caption-${item.id}`}
-                                       value={item.caption}
-                                       onChange={(e) => handleItemUpdate(item.id, 'caption', e.target.value)}
-                                       rows={3}
-                                       className="mt-1"
-                                     />
+                                     <div className="flex items-center justify-between">
+                                       <Label htmlFor={`caption-${item.id}`}>
+                                         {item.type === 'email' ? 'Email Content' : 'Caption'}
+                                       </Label>
+                                       {item.type === 'email' && (
+                                         <DropdownMenu>
+                                           <DropdownMenuTrigger asChild>
+                                             <Button variant="outline" size="sm" className="gap-2">
+                                               <Tag className="h-3 w-3" />
+                                               Merge Tags
+                                             </Button>
+                                           </DropdownMenuTrigger>
+                                           <DropdownMenuContent align="end" className="w-48">
+                                             <DropdownMenuLabel>Personal Info</DropdownMenuLabel>
+                                              <DropdownMenuItem 
+                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{first_name}}')}
+                                              >
+                                                {'{{first_name}}'}
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem 
+                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{last_name}}')}
+                                              >
+                                                {'{{last_name}}'}
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem 
+                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{email}}')}
+                                              >
+                                                {'{{email}}'}
+                                              </DropdownMenuItem>
+                                              <DropdownMenuSeparator />
+                                              <DropdownMenuLabel>Company Info</DropdownMenuLabel>
+                                              <DropdownMenuItem 
+                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{company_name}}')}
+                                              >
+                                                {'{{company_name}}'}
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem 
+                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{website}}')}
+                                              >
+                                                {'{{website}}'}
+                                              </DropdownMenuItem>
+                                              <DropdownMenuSeparator />
+                                              <DropdownMenuLabel>Other</DropdownMenuLabel>
+                                              <DropdownMenuItem 
+                                                onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{unsubscribe_url}}')}
+                                              >
+                                                {'{{unsubscribe_url}}'}
+                                              </DropdownMenuItem>
+                                           </DropdownMenuContent>
+                                         </DropdownMenu>
+                                       )}
+                                     </div>
+                                     {item.type === 'email' ? (
+                                       <RichTextEditor
+                                         content={item.caption}
+                                         onChange={(html) => handleItemUpdate(item.id, 'caption', html)}
+                                         placeholder="Write your email content here..."
+                                         className="mt-1"
+                                         editorClassName="min-h-[120px]"
+                                       />
+                                     ) : (
+                                       <Textarea
+                                         id={`caption-${item.id}`}
+                                         value={item.caption}
+                                         onChange={(e) => handleItemUpdate(item.id, 'caption', e.target.value)}
+                                         rows={3}
+                                         className="mt-1"
+                                       />
+                                     )}
                                    </div>
                                    
                                    {/* Email-specific fields */}
                                    {item.type === 'email' && (
                                      <>
-                                       <div>
-                                         <Label htmlFor={`subject-${item.id}`}>Subject Line</Label>
-                                         <Input
-                                           id={`subject-${item.id}`}
-                                           value={item.emailSubject || ''}
-                                           onChange={(e) => handleItemUpdate(item.id, 'emailSubject', e.target.value)}
-                                           className="mt-1"
-                                           placeholder="Enter email subject..."
-                                         />
-                                         <p className="text-xs text-muted-foreground mt-1">
-                                           {item.emailSubject?.length || 0}/50 characters
-                                         </p>
-                                       </div>
-                                       <div>
-                                         <Label htmlFor={`preheader-${item.id}`}>Preheader</Label>
-                                         <Input
-                                           id={`preheader-${item.id}`}
-                                           value={item.emailPreheader || ''}
-                                           onChange={(e) => handleItemUpdate(item.id, 'emailPreheader', e.target.value)}
-                                           className="mt-1"
-                                           placeholder="Enter email preheader..."
-                                         />
-                                         <p className="text-xs text-muted-foreground mt-1">
-                                           {item.emailPreheader?.length || 0}/90 characters
-                                         </p>
-                                       </div>
+                                        <div>
+                                          <div className="flex items-center justify-between">
+                                            <Label htmlFor={`subject-${item.id}`}>Subject Line</Label>
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" size="sm" className="gap-2">
+                                                  <Tag className="h-3 w-3" />
+                                                  Merge Tags
+                                                </Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="end" className="w-48">
+                                                <DropdownMenuLabel>Personal Info</DropdownMenuLabel>
+                                                 <DropdownMenuItem 
+                                                   onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{first_name}}')}
+                                                 >
+                                                   {'{{first_name}}'}
+                                                 </DropdownMenuItem>
+                                                 <DropdownMenuItem 
+                                                   onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{last_name}}')}
+                                                 >
+                                                   {'{{last_name}}'}
+                                                 </DropdownMenuItem>
+                                                 <DropdownMenuSeparator />
+                                                 <DropdownMenuLabel>Company Info</DropdownMenuLabel>
+                                                 <DropdownMenuItem 
+                                                   onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{company_name}}')}
+                                                 >
+                                                   {'{{company_name}}'}
+                                                 </DropdownMenuItem>
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          </div>
+                                          <Input
+                                            id={`subject-${item.id}`}
+                                            value={item.emailSubject || ''}
+                                            onChange={(e) => handleItemUpdate(item.id, 'emailSubject', e.target.value)}
+                                            className="mt-1"
+                                            placeholder="Enter email subject..."
+                                          />
+                                          <p className="text-xs text-muted-foreground mt-1">
+                                            {item.emailSubject?.length || 0}/50 characters
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <div className="flex items-center justify-between">
+                                            <Label htmlFor={`preheader-${item.id}`}>Preheader</Label>
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" size="sm" className="gap-2">
+                                                  <Tag className="h-3 w-3" />
+                                                  Merge Tags
+                                                </Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="end" className="w-48">
+                                                <DropdownMenuLabel>Personal Info</DropdownMenuLabel>
+                                                 <DropdownMenuItem 
+                                                   onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{first_name}}')}
+                                                 >
+                                                   {'{{first_name}}'}
+                                                 </DropdownMenuItem>
+                                                 <DropdownMenuItem 
+                                                   onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{last_name}}')}
+                                                 >
+                                                   {'{{last_name}}'}
+                                                 </DropdownMenuItem>
+                                                 <DropdownMenuSeparator />
+                                                 <DropdownMenuLabel>Company Info</DropdownMenuLabel>
+                                                 <DropdownMenuItem 
+                                                   onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{company_name}}')}
+                                                 >
+                                                   {'{{company_name}}'}
+                                                 </DropdownMenuItem>
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          </div>
+                                          <Input
+                                            id={`preheader-${item.id}`}
+                                            value={item.emailPreheader || ''}
+                                            onChange={(e) => handleItemUpdate(item.id, 'emailPreheader', e.target.value)}
+                                            className="mt-1"
+                                            placeholder="Enter email preheader..."
+                                          />
+                                          <p className="text-xs text-muted-foreground mt-1">
+                                            {item.emailPreheader?.length || 0}/90 characters
+                                          </p>
+                                        </div>
                                      </>
                                    )}
                                   <div>
@@ -442,8 +564,19 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                    aria-label="Click to edit content"
                                    title="Click to edit"
                                  >
-                                   <h4 className="font-medium group-hover/content:text-primary transition-colors">{item.title}</h4>
-                                   <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
+                                    <h4 className="font-medium group-hover/content:text-primary transition-colors">{item.title}</h4>
+                                    {item.type === 'email' && item.emailPreheader && (
+                                      <p className="text-xs text-muted-foreground italic group-hover/content:text-foreground transition-colors mb-2">
+                                        {item.emailPreheader}
+                                      </p>
+                                    )}
+                                    {item.type === 'email' ? (
+                                      <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
+                                        <SafeHtml content={item.caption} type="general" className="prose prose-sm max-w-none" />
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
+                                    )}
                                    {item.imageUrl && (
                                      <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
                                        <ImageIcon className="h-4 w-4" />
