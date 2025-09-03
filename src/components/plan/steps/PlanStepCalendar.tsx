@@ -215,18 +215,6 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           ))}
         </div>
         
-        {/* AI Regenerate Button */}
-        <div className="flex justify-center pt-2">
-          <Button 
-            variant="outline" 
-            onClick={handleRegenerateWithAI}
-            disabled={isRegenerating}
-            className="gap-2"
-          >
-            <Sparkles className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
-            {isRegenerating ? 'Regenerating...' : 'Regenerate with AI'}
-          </Button>
-        </div>
       </div>
 
       {/* Content Calendar */}
