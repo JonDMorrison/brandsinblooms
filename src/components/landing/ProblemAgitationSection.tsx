@@ -15,25 +15,25 @@ export const ProblemAgitationSection = () => {
       icon: DollarSign,
       title: "Paying for Multiple Tools",
       description: "Between social media schedulers, email platforms, CRM systems, and analytics tools, you're paying $200+ per month for scattered solutions.",
-      bgClass: "bg-orange-50",
-      iconClass: "text-orange-600",
-      borderClass: "border-orange-200"
+      bgClass: "bg-[#68BEB9]/10",
+      iconClass: "text-[#3E5A6B]",
+      borderClass: "border-[#68BEB9]/30"
     },
     {
       icon: TrendingDown,
       title: "Missing Sales Opportunities",
       description: "Without proper customer tracking and automated follow-ups, you're losing 30-40% of potential sales from interested customers.",
-      bgClass: "bg-rose-50",
-      iconClass: "text-rose-600",
-      borderClass: "border-rose-200"
+      bgClass: "bg-[#3E5A6B]/5",
+      iconClass: "text-[#3E5A6B]",
+      borderClass: "border-[#3E5A6B]/20"
     },
     {
       icon: AlertTriangle,
       title: "Generic Marketing That Doesn't Work",
       description: "Standard marketing tools don't understand plant seasons, garden center customers, or nursery-specific campaigns.",
-      bgClass: "bg-amber-50",
-      iconClass: "text-amber-600",
-      borderClass: "border-amber-200"
+      bgClass: "bg-[#68BEB9]/10",
+      iconClass: "text-[#3E5A6B]",
+      borderClass: "border-[#68BEB9]/30"
     }
   ];
 
