@@ -173,7 +173,12 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                     variant="ghost"
                     size="sm"
                     className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => removeTheme(theme.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      console.log('Removing theme:', theme.id);
+                      removeTheme(theme.id);
+                    }}
                   >
                     <X className="h-3 w-3" />
                   </Button>
