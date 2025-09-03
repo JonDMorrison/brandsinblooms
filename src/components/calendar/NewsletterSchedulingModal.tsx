@@ -10,8 +10,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Clock, Mail, Users, Save, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Mail, Users, Save, X, Sparkles, CheckCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { assessContentQuality, sanitizeAndImproveContent, generateContentSuggestions } from '@/utils/contentQuality';
+import { sanitizeCampaignTitle } from '@/utils/weekNumberSanitizer';
+import { usePersonaAwareGeneration } from '@/hooks/usePersonaAwareGeneration';
 
 interface NewsletterSchedulingModalProps {
   isOpen: boolean;
@@ -39,6 +42,12 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [aiSuggestions, setAiSuggestions] = useState<{
+    subjects: string[];
+    preheaders: string[];
+  }>({ subjects: [], preheaders: [] });
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const { generateSubjectLines } = usePersonaAwareGeneration();
   
   // Form state
   const [formData, setFormData] = useState({
@@ -91,13 +100,40 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
     const scheduledAt = existingNewsletter.scheduled_at ? new Date(existingNewsletter.scheduled_at) : new Date();
     
     setFormData({
-      name: existingNewsletter.name || '',
-      subject_line: existingNewsletter.subject_line || '',
-      preheader_text: existingNewsletter.preheader_text || '',
+      name: sanitizeCampaignTitle(existingNewsletter.name || ''),
+      subject_line: sanitizeAndImproveContent(existingNewsletter.subject_line || ''),
+      preheader_text: sanitizeAndImproveContent(existingNewsletter.preheader_text || ''),
       segment_id: existingNewsletter.segment_id || '',
       schedule_date: scheduledAt,
       schedule_time: format(scheduledAt, 'HH:mm')
     });
+  };
+
+  const generateAISuggestions = async () => {
+    if (!formData.name) return;
+    
+    setGeneratingAI(true);
+    try {
+      // Generate subject lines
+      const subjectResponse = await generateSubjectLines({
+        campaignTitle: formData.name,
+        numberOfSuggestions: 4
+      });
+
+      const subjects = generateContentSuggestions('subject', formData.subject_line, formData.name);
+      const preheaders = generateContentSuggestions('preheader', formData.preheader_text, formData.name);
+      
+      setAiSuggestions({ subjects, preheaders });
+    } catch (error) {
+      console.error('Error generating AI suggestions:', error);
+      toast({
+        title: "AI Generation Failed",
+        description: "Could not generate suggestions. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setGeneratingAI(false);
+    }
   };
 
   const resetForm = () => {
@@ -230,7 +266,7 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: sanitizeCampaignTitle(e.target.value) }))}
               placeholder="e.g., Spring Garden Newsletter"
               required
             />
@@ -238,26 +274,107 @@ export const NewsletterSchedulingModal: React.FC<NewsletterSchedulingModalProps>
 
           {/* Subject Line */}
           <div className="space-y-2">
-            <Label htmlFor="subject_line">Subject Line</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="subject_line">Subject Line</Label>
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const quality = assessContentQuality(formData.subject_line, 'subject');
+                  const Icon = quality.level === 'excellent' || quality.level === 'good' ? CheckCircle : AlertTriangle;
+                  const color = quality.level === 'excellent' ? 'text-green-600' : 
+                               quality.level === 'good' ? 'text-blue-600' : 
+                               quality.level === 'fair' ? 'text-yellow-600' : 'text-red-600';
+                  return formData.subject_line ? (
+                    <div className={`flex items-center gap-1 text-xs ${color}`}>
+                      <Icon className="w-3 h-3" />
+                      {quality.level}
+                    </div>
+                  ) : null;
+                })()}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generateAISuggestions}
+                  disabled={generatingAI || !formData.name}
+                  className="h-7 text-xs"
+                >
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  {generatingAI ? 'Generating...' : 'AI Suggestions'}
+                </Button>
+              </div>
+            </div>
             <Input
               id="subject_line"
               value={formData.subject_line}
-              onChange={(e) => setFormData(prev => ({ ...prev, subject_line: e.target.value }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, subject_line: sanitizeAndImproveContent(e.target.value) }))}
               placeholder="e.g., 🌱 Spring is Here - Time to Plant!"
               required
             />
+            {aiSuggestions.subjects.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">AI Suggestions:</p>
+                <div className="grid gap-1">
+                  {aiSuggestions.subjects.map((suggestion, idx) => (
+                    <Button
+                      key={idx}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-2 text-left justify-start text-xs"
+                      onClick={() => setFormData(prev => ({ ...prev, subject_line: suggestion }))}
+                    >
+                      {suggestion}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Preheader Text */}
           <div className="space-y-2">
-            <Label htmlFor="preheader_text">Preheader Text (Optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="preheader_text">Preheader Text (Optional)</Label>
+              {(() => {
+                const quality = assessContentQuality(formData.preheader_text, 'preheader');
+                const Icon = quality.level === 'excellent' || quality.level === 'good' ? CheckCircle : AlertTriangle;
+                const color = quality.level === 'excellent' ? 'text-green-600' : 
+                             quality.level === 'good' ? 'text-blue-600' : 
+                             quality.level === 'fair' ? 'text-yellow-600' : 'text-red-600';
+                return formData.preheader_text ? (
+                  <div className={`flex items-center gap-1 text-xs ${color}`}>
+                    <Icon className="w-3 h-3" />
+                    {quality.level}
+                  </div>
+                ) : null;
+              })()}
+            </div>
             <Textarea
               id="preheader_text"
               value={formData.preheader_text}
-              onChange={(e) => setFormData(prev => ({ ...prev, preheader_text: e.target.value }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, preheader_text: sanitizeAndImproveContent(e.target.value) }))}
               placeholder="Preview text that appears in email clients..."
               rows={2}
             />
+            {aiSuggestions.preheaders.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">AI Suggestions:</p>
+                <div className="grid gap-1">
+                  {aiSuggestions.preheaders.map((suggestion, idx) => (
+                    <Button
+                      key={idx}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-2 text-left justify-start text-xs"
+                      onClick={() => setFormData(prev => ({ ...prev, preheader_text: suggestion }))}
+                    >
+                      {suggestion}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Audience Segment */}

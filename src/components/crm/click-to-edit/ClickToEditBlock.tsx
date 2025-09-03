@@ -3,13 +3,14 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GripVertical, Trash2, Edit, Image } from 'lucide-react';
+import { GripVertical, Trash2, Edit, Image, Zap, CheckCircle, AlertTriangle } from 'lucide-react';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
 import { BlockLoadingOverlay } from './BlockLoadingOverlay';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 import { RegenerateBlockButton } from '../RegenerateBlockButton';
+import { assessContentQuality, sanitizeAndImproveContent } from '@/utils/contentQuality';
 
 interface ClickToEditBlockProps {
   block: ContentBlock;
@@ -87,13 +88,48 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     [block.id, onUpdate]
   );
 
-  // Handle immediate local updates for responsive UI
+  // Handle immediate local updates with content sanitization
   const handleLocalUpdate = useCallback((updates: Partial<ContentBlock>) => {
-    const updatedBlock = { ...localBlock, ...updates };
+    // Sanitize text content automatically
+    const sanitizedUpdates = { ...updates };
+    if (updates.content && typeof updates.content === 'string') {
+      sanitizedUpdates.content = sanitizeAndImproveContent(updates.content);
+    }
+    if (updates.title && typeof updates.title === 'string') {
+      sanitizedUpdates.title = sanitizeAndImproveContent(updates.title);
+    }
+    if (updates.headline && typeof updates.headline === 'string') {
+      sanitizedUpdates.headline = sanitizeAndImproveContent(updates.headline);
+    }
+    
+    const updatedBlock = { ...localBlock, ...sanitizedUpdates };
     setLocalBlock(updatedBlock);
     // Update parent immediately for all content changes
-    onUpdate(block.id, updates);
+    onUpdate(block.id, sanitizedUpdates);
   }, [localBlock, block.id, onUpdate]);
+
+  // Strengthen content function for weak blocks
+  const handleStrengthenContent = async () => {
+    try {
+      const contentToImprove = block.content || block.title || block.headline || '';
+      if (!contentToImprove.trim()) return;
+
+      // For now, use a simple AI-powered improvement approach
+      // We'll enhance this with the regeneration service when types are aligned
+      const improved = sanitizeAndImproveContent(contentToImprove);
+      
+      // Apply the improvement to the appropriate field
+      if (block.content) {
+        handleLocalUpdate({ content: improved });
+      } else if (block.title) {
+        handleLocalUpdate({ title: improved });
+      } else if (block.headline) {
+        handleLocalUpdate({ headline: improved });
+      }
+    } catch (error) {
+      console.error('Error strengthening content:', error);
+    }
+  };
 
   // Handle click outside to exit edit mode
   useEffect(() => {
@@ -217,6 +253,30 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             <Image className="w-3 h-3" />
           </Button>
           
+          {/* Content Quality Indicator & Strengthen Button */}
+          {(() => {
+            const contentToCheck = block.content || block.title || block.headline || '';
+            const quality = assessContentQuality(contentToCheck, 'body');
+            
+            if (contentToCheck && (quality.level === 'poor' || quality.level === 'fair')) {
+              return (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStrengthenContent();
+                  }}
+                  className="h-7 w-7 p-0 hover:bg-blue-100 hover:text-blue-600"
+                  title="Strengthen content"
+                >
+                  <Zap className="w-3 h-3" />
+                </Button>
+              );
+            }
+            return null;
+          })()}
+
           <RegenerateBlockButton
             block={localBlock}
             campaignName={campaignName}
@@ -246,10 +306,39 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
           "transition-all duration-200 click-to-edit-block relative",
           isAnyEditMode ? "shadow-md ring-2 ring-primary/20" : "hover:shadow-sm",
           block.visible === false && "opacity-60",
-          isGenerating && "bg-accent/10"
+          isGenerating && "bg-accent/10",
+          // Quality-based styling
+          (() => {
+            const contentToCheck = block.content || block.title || block.headline || '';
+            if (!contentToCheck) return '';
+            const quality = assessContentQuality(contentToCheck, 'body');
+            if (quality.level === 'poor') return 'border-l-4 border-l-red-400';
+            if (quality.level === 'fair') return 'border-l-4 border-l-yellow-400';
+            if (quality.level === 'good') return 'border-l-4 border-l-blue-400';
+            if (quality.level === 'excellent') return 'border-l-4 border-l-green-400';
+            return '';
+          })()
         )}
         style={{ pointerEvents: 'auto', overflow: 'visible' }}
       >
+        {/* Quality Badge */}
+        {(() => {
+          const contentToCheck = block.content || block.title || block.headline || '';
+          if (!contentToCheck) return null;
+          
+          const quality = assessContentQuality(contentToCheck, 'body');
+          const Icon = quality.level === 'excellent' || quality.level === 'good' ? CheckCircle : AlertTriangle;
+          const color = quality.level === 'excellent' ? 'text-green-600 bg-green-50' : 
+                       quality.level === 'good' ? 'text-blue-600 bg-blue-50' : 
+                       quality.level === 'fair' ? 'text-yellow-600 bg-yellow-50' : 'text-red-600 bg-red-50';
+          
+          return (
+            <div className={`absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs ${color} opacity-0 group-hover:opacity-100 transition-opacity`}>
+              <Icon className="w-3 h-3" />
+              {quality.level}
+            </div>
+          );
+        })()}
         {/* Loading overlay when content is being generated */}
         {isGenerating && <BlockLoadingOverlay />}
         {isAnyEditMode ? (
