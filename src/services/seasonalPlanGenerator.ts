@@ -1,6 +1,6 @@
 import { getSeasonalTemplates } from '@/utils/seasonalTemplateService';
 import { getFallbackThemes } from '@/utils/fallbackThemes';
-import { getCurrentWeekNumber } from '@/utils/dateUtils';
+import { getCurrentWeekNumber, parseMonthParam, getMonthWeekNumbers } from '@/utils/dateUtils';
 import { PlanItem } from '@/components/plan/constants';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
@@ -28,27 +28,12 @@ export interface SeasonalPlanTheme {
 
 // Get seasonal themes for a specific month
 export const getSeasonalThemesForMonth = async (month: string, offset = 0, limit = 6): Promise<{ themes: SeasonalPlanTheme[], hasMore: boolean }> => {
-  const monthDate = new Date(month);
+  const monthDate = parseMonthParam(month);
   const monthNumber = monthDate.getMonth() + 1; // 1-12
   
   try {
-    // Get week numbers for the selected month
-    const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-    const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
-    
-    // Calculate ISO week numbers for this month
-    const getWeekNumber = (date: Date): number => {
-      const start = new Date(date.getFullYear(), 0, 1);
-      const diff = date.getTime() - start.getTime();
-      return Math.ceil(diff / (7 * 24 * 60 * 60 * 1000));
-    };
-    
-    const startWeek = getWeekNumber(firstDay);
-    const endWeek = getWeekNumber(lastDay);
-    const monthWeeks = [];
-    for (let week = startWeek; week <= endWeek; week++) {
-      monthWeeks.push(week);
-    }
+    // Get week numbers for the selected month using accurate ISO week calculation
+    const monthWeeks = getMonthWeekNumbers(monthDate);
     
     // Fetch seasonal templates for this month's weeks
     const { data: seasonalTemplates, error } = await supabase
@@ -173,7 +158,7 @@ const generateOverlayContent = async (
   month: string,
   targetWeek: number
 ): Promise<PlanItem[]> => {
-  const monthDate = new Date(month);
+  const monthDate = parseMonthParam(month);
   const monthName = monthDate.toLocaleString('default', { month: 'long' });
   const year = monthDate.getFullYear();
   
@@ -230,7 +215,7 @@ export const generateSeasonalPlanContent = async (
   theme: SeasonalPlanTheme, 
   month: string
 ): Promise<PlanItem[]> => {
-  const monthDate = new Date(month);
+  const monthDate = parseMonthParam(month);
   const monthName = monthDate.toLocaleString('default', { month: 'long' });
   const year = monthDate.getFullYear();
   

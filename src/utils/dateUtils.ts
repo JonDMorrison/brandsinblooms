@@ -78,3 +78,36 @@ export const hasExpiredHolidays = (holidays: Array<{ holiday_date: string }>) =>
     return holidayDate < today;
   });
 };
+
+// Safe month parameter parsing to prevent off-by-one month errors
+export const parseMonthParam = (month: string): Date => {
+  // Parse YYYY-MM format safely by explicitly setting day to 1
+  // This prevents timezone-related off-by-one month errors
+  const [year, monthStr] = month.split('-').map(Number);
+  
+  // Create date with explicit values to avoid timezone parsing issues
+  // Month is 0-indexed in JS Date constructor (0 = January)
+  return new Date(year, monthStr - 1, 1);
+};
+
+// Get accurate week number for a month considering proper ISO week calculation
+export const getMonthWeekNumbers = (monthDate: Date): number[] => {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth(); // 0-indexed
+  
+  // Get first and last day of the month
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  
+  // Get ISO week numbers for first and last day
+  const startWeek = getISOWeekNumber(firstDay);
+  const endWeek = getISOWeekNumber(lastDay);
+  
+  // Build array of week numbers for this month
+  const weekNumbers = [];
+  for (let week = startWeek; week <= endWeek; week++) {
+    weekNumbers.push(week);
+  }
+  
+  return weekNumbers;
+};

@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles, Replace, Plus, Clock } from 'lucide-react';
 import { format } from 'date-fns';
+import { parseMonthParam } from '@/utils/dateUtils';
 import { usePlanWizard } from '../PlanWizardContext';
 import { PlanItem } from '../constants';
 import { generateMultiThemeSeasonalPlanContent } from '@/services/seasonalPlanGenerator';
@@ -28,7 +29,7 @@ const typeConfig = {
 };
 
 const getWeekLabel = (weekNum: number, month: string) => {
-  const monthName = month ? format(new Date(month), 'MMMM') : '';
+  const monthName = month ? format(parseMonthParam(month), 'MMMM') : '';
   
   switch (weekNum) {
     case 1: return `Early ${monthName}`;
@@ -126,7 +127,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
     return acc;
   }, {} as Record<number, PlanItem[]>);
 
-  const monthName = state.month ? format(new Date(state.month), 'MMMM yyyy') : '';
+  const monthName = state.month ? format(parseMonthParam(state.month), 'MMMM yyyy') : '';
 
   // Get theme breakdown for display
   const themeBreakdown = state.themes.map(theme => {
