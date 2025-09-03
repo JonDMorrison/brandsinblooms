@@ -62,9 +62,42 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <h2 className="text-3xl font-bold">Review Your Plan</h2>
         </div>
         <p className="text-muted-foreground text-lg">
-          Your {state.theme?.label} marketing plan for {monthName} is ready to launch.
+          Your multi-theme marketing plan for {monthName} is ready to launch.
         </p>
       </div>
+
+      {/* Theme Breakdown */}
+      {state.themes.length > 0 && (
+        <Card className="bg-gradient-to-br from-accent/5 to-primary/5 border-accent/20">
+          <CardHeader>
+            <CardTitle className="text-lg">Theme Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {state.themes.map((theme, index) => {
+                const themeItems = enabledItems.filter(item => item.themeId === theme.id);
+                const emailCount = themeItems.filter(item => item.type === 'email').length;
+                const smsCount = themeItems.filter(item => item.type === 'sms').length; 
+                const socialCount = themeItems.filter(item => ['facebook', 'instagram'].includes(item.type)).length;
+                
+                return (
+                  <div key={theme.id} className="text-center p-4 bg-background/50 rounded-lg border">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <h4 className="font-medium">{theme.label}</h4>
+                      {index === 0 && <Badge variant="outline" className="text-xs">Primary</Badge>}
+                    </div>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      {emailCount > 0 && <div>📧 {emailCount} emails</div>}
+                      {smsCount > 0 && <div>💬 {smsCount} SMS</div>}
+                      {socialCount > 0 && <div>📱 {socialCount} social posts</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Guardrails Warnings */}
       {(hasBlockedEmail || hasBlockedSMS) && (

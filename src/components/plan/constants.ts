@@ -39,7 +39,7 @@ export type PlanTheme = SeasonalPlanTheme; // Now uses seasonal themes
 
 export interface PlanWizardState {
   month: string;
-  theme: PlanTheme | null;
+  themes: PlanTheme[];
   items: PlanItem[];
 }
 
@@ -52,6 +52,8 @@ export interface PlanItem {
   enabled: boolean;
   imageUrl?: string;
   week: number;
+  themeId?: string;
+  themeName?: string;
 }
 
 // Template content generators

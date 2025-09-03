@@ -6,11 +6,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles, Replace, Plus, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePlanWizard } from '../PlanWizardContext';
 import { PlanItem } from '../constants';
-import { generateSeasonalPlanContent } from '@/services/seasonalPlanGenerator';
+import { generateMultiThemeSeasonalPlanContent } from '@/services/seasonalPlanGenerator';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -21,31 +21,43 @@ interface PlanStepCalendarProps {
 }
 
 const typeConfig = {
-  email: { icon: Mail, color: 'bg-blue-500', label: 'Email' },
-  sms: { icon: MessageSquare, color: 'bg-green-500', label: 'SMS' },
-  facebook: { icon: Facebook, color: 'bg-blue-600', label: 'Facebook' },
-  instagram: { icon: Instagram, color: 'bg-pink-500', label: 'Instagram' }
+  email: { icon: Mail, color: 'bg-blue-500', label: 'Email', emoji: '📧' },
+  sms: { icon: MessageSquare, color: 'bg-green-500', label: 'SMS', emoji: '💬' },
+  facebook: { icon: Facebook, color: 'bg-blue-600', label: 'Facebook', emoji: '📘' },
+  instagram: { icon: Instagram, color: 'bg-pink-500', label: 'Instagram', emoji: '📱' }
+};
+
+const getWeekLabel = (weekNum: number, month: string) => {
+  const monthName = month ? format(new Date(month), 'MMMM') : '';
+  
+  switch (weekNum) {
+    case 1: return `Early ${monthName}`;
+    case 2: return `Mid ${monthName}`;
+    case 3: return `Late ${monthName}`;
+    case 4: return `End ${monthName}`;
+    default: return `Week ${weekNum}`;
+  }
 };
 
 export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBack }) => {
-  const { state, setItems, updateItem, toggleItem } = usePlanWizard();
+  const { state, setItems, updateItem, toggleItem, replaceWeekContent, addWeekContent } = usePlanWizard();
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Generate initial seasonal content when component mounts
   useEffect(() => {
-    if (state.theme && state.month && state.items.length === 0) {
-      generateSeasonalPlanContent(state.theme, state.month)
+    if (state.themes.length > 0 && state.month && state.items.length === 0) {
+      generateMultiThemeSeasonalPlanContent(state.themes, state.month)
         .then(generatedItems => {
           setItems(generatedItems);
         })
         .catch(error => {
-          console.error('Error generating seasonal content:', error);
+          console.error('Error generating multi-theme content:', error);
           // Fallback to basic items if seasonal generation fails
           setItems([]);
         });
     }
-  }, [state.theme, state.month, state.items.length, setItems]);
+  }, [state.themes, state.month, state.items.length, setItems]);
 
   const handleItemUpdate = (id: string, field: keyof PlanItem, value: any) => {
     updateItem(id, { [field]: value });
@@ -57,7 +69,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
 
   // Regenerate content with AI
   const handleRegenerateWithAI = async () => {
-    if (!state.theme || !state.month) return;
+    if (state.themes.length === 0 || !state.month) return;
     
     setIsRegenerating(true);
     try {
@@ -65,8 +77,8 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
       const response = await supabase.functions.invoke('generate_campaign_content', {
         body: {
           campaignId: `plan-${Date.now()}`,
-          campaignTheme: state.theme.label,
-          campaignDescription: state.theme.description,
+          campaignTheme: state.themes.map(t => t.label).join(' + '),
+          campaignDescription: state.themes.map(t => t.description).join('; '),
           userId: 'plan-user',
           weekNumber: 1,
           tenantId: 'default'
@@ -78,7 +90,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
       }
 
       // Regenerate content with enhanced AI-powered captions
-      const enhancedItems = await generateSeasonalPlanContent(state.theme, state.month);
+      const enhancedItems = await generateMultiThemeSeasonalPlanContent(state.themes, state.month);
       
       // If we got AI content, use it to enhance the items
       if (response.data?.success && response.data?.tasks) {
@@ -97,7 +109,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
       toast.error('Failed to regenerate content. Using seasonal templates.');
       // Fallback to regular seasonal content
       try {
-        const fallbackItems = await generateSeasonalPlanContent(state.theme, state.month);
+        const fallbackItems = await generateMultiThemeSeasonalPlanContent(state.themes, state.month);
         setItems(fallbackItems);
       } catch (fallbackError) {
         toast.error('Unable to regenerate content');
@@ -116,6 +128,16 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
 
   const monthName = state.month ? format(new Date(state.month), 'MMMM yyyy') : '';
 
+  // Get theme breakdown for display
+  const themeBreakdown = state.themes.map(theme => {
+    const themeItems = state.items.filter(item => item.themeId === theme.id);
+    return {
+      theme,
+      count: themeItems.length,
+      channels: [...new Set(themeItems.map(item => item.type))]
+    };
+  });
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div className="text-center space-y-4">
@@ -124,8 +146,17 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           <h2 className="text-3xl font-bold">Review Your Content Calendar</h2>
         </div>
         <p className="text-muted-foreground text-lg">
-          Your {state.theme?.label} content plan for {monthName}. Edit dates, captions, and toggle items on/off.
+          Your multi-theme content plan for {monthName}. Edit, swap content packs, and add extra campaigns.
         </p>
+        
+        {/* Theme Breakdown */}
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
+          {themeBreakdown.map(({ theme, count, channels }) => (
+            <Badge key={theme.id} variant="secondary" className="gap-2">
+              {theme.label}: {count} items ({channels.map(c => typeConfig[c]?.emoji || c).join('')})
+            </Badge>
+          ))}
+        </div>
         
         {/* AI Regenerate Button */}
         <div className="flex justify-center pt-2">
@@ -147,13 +178,27 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           .sort((a, b) => Number(a) - Number(b))
           .map((weekNum) => {
             const weekItems = itemsByWeek[Number(weekNum)];
+            const weekLabel = getWeekLabel(Number(weekNum), state.month);
+            
             return (
               <Card key={weekNum} className="overflow-hidden">
-                <CardHeader className="bg-muted/50">
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Week {weekNum}
-                  </CardTitle>
+                <CardHeader className="bg-gradient-to-r from-muted/50 to-muted/30">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5" />
+                      {weekLabel}
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Replace className="h-4 w-4" />
+                        Replace Pack
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Add Content
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="space-y-0">
@@ -178,6 +223,11 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                   <Badge variant="outline" className="text-xs">
                                     {typeConfig[item.type].label}
                                   </Badge>
+                                  {item.themeName && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {item.themeName}
+                                    </Badge>
+                                  )}
                                   <span className="text-sm text-muted-foreground">
                                     {format(item.date, 'MMM d, yyyy')}
                                   </span>

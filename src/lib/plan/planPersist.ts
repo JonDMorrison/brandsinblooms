@@ -13,7 +13,7 @@ export interface PlanPersistResult {
 export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersistResult> => {
   console.log('[PlanPersist] Starting plan persistence:', planState);
 
-  if (!planState.theme || !planState.month || planState.items.length === 0) {
+  if (!planState.themes.length || !planState.month || planState.items.length === 0) {
     return {
       success: false,
       created: 0,
@@ -58,8 +58,8 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
           scheduled_date: item.date.toISOString().split('T')[0], // YYYY-MM-DD format
           image_url: item.imageUrl || null,
           user_id: user.id,
-          // Add metadata to track this came from plan wizard
-          notes: `Generated from Plan My Marketing: ${planState.theme.label} theme`
+          // Add metadata to track this came from plan wizard with theme info
+          notes: `Generated from Plan My Marketing: ${planState.themes.map(t => t.label).join(' + ')} themes${item.themeName ? ` (${item.themeName})` : ''}`
         })
         .select()
         .single();

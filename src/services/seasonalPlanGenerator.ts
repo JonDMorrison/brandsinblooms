@@ -61,7 +61,97 @@ export const getSeasonalThemesForMonth = async (month: string): Promise<Seasonal
   }
 };
 
-// Generate seasonal content for the selected theme and month
+// Generate seasonal content for multiple themes and month
+export const generateMultiThemeSeasonalPlanContent = async (
+  themes: SeasonalPlanTheme[], 
+  month: string
+): Promise<PlanItem[]> => {
+  if (themes.length === 0) return [];
+  
+  let allItems: PlanItem[] = [];
+  
+  // Generate content for primary theme (first theme gets all 4 weeks)
+  const primaryTheme = themes[0];
+  const primaryItems = await generateSeasonalPlanContent(primaryTheme, month);
+  
+  // Add theme information to primary items
+  const primaryItemsWithTheme = primaryItems.map(item => ({
+    ...item,
+    themeId: primaryTheme.id,
+    themeName: primaryTheme.label
+  }));
+  
+  allItems = [...primaryItemsWithTheme];
+  
+  // Generate overlay content for secondary themes (typically 1-2 weeks each)
+  for (let i = 1; i < themes.length; i++) {
+    const theme = themes[i];
+    const overlayItems = await generateOverlayContent(theme, month, i + 1); // Start from week 2
+    allItems = [...allItems, ...overlayItems];
+  }
+  
+  return allItems;
+};
+
+// Generate overlay content for secondary themes
+const generateOverlayContent = async (
+  theme: SeasonalPlanTheme,
+  month: string,
+  targetWeek: number
+): Promise<PlanItem[]> => {
+  const monthDate = new Date(month);
+  const monthName = monthDate.toLocaleString('default', { month: 'long' });
+  const year = monthDate.getFullYear();
+  
+  // Calculate target week date
+  const firstDay = new Date(year, monthDate.getMonth(), 1);
+  const weekDate = new Date(firstDay.getTime() + ((targetWeek - 1) * 7 * 24 * 60 * 60 * 1000));
+  
+  const contentIdeas = theme.content_ideas || [];
+  const seasonalFocus = theme.seasonal_focus || '';
+  
+  const items: PlanItem[] = [
+    // Email overlay
+    {
+      id: `email-overlay-${theme.id}-${Date.now()}`,
+      type: 'email',
+      title: `${sanitizeTitle(theme.label)} Special - ${monthName}`,
+      caption: generateSeasonalEmailContent(theme, monthName, seasonalFocus, contentIdeas[0]),
+      date: weekDate,
+      enabled: true,
+      week: targetWeek,
+      themeId: theme.id,
+      themeName: theme.label
+    },
+    // Social overlay
+    {
+      id: `facebook-overlay-${theme.id}-${Date.now()}`,
+      type: 'facebook',
+      title: `${sanitizeTitle(theme.label)} Feature`,
+      caption: generateSocialContent(theme, monthName, seasonalFocus, contentIdeas[0], 'facebook'),
+      date: new Date(weekDate.getTime() + (2 * 24 * 60 * 60 * 1000)),
+      enabled: true,
+      week: targetWeek,
+      themeId: theme.id,
+      themeName: theme.label
+    },
+    {
+      id: `instagram-overlay-${theme.id}-${Date.now()}`,
+      type: 'instagram',
+      title: `${sanitizeTitle(theme.label)} Story`,
+      caption: generateInstagramContent(theme, monthName, seasonalFocus, contentIdeas[0]),
+      date: new Date(weekDate.getTime() + (3 * 24 * 60 * 60 * 1000)),
+      enabled: true,
+      week: targetWeek,
+      themeId: theme.id,
+      themeName: theme.label
+    }
+  ];
+  
+  return items;
+};
+
+// Generate seasonal content for a single theme and month (used for primary theme)
 export const generateSeasonalPlanContent = async (
   theme: SeasonalPlanTheme, 
   month: string

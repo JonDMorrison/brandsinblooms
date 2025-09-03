@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Leaf, Gift, Sprout, Flower, Bug } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, Leaf, Gift, Sprout, Flower, Bug, Plus, X } from 'lucide-react';
 import { PlanTheme } from '../constants';
 import { usePlanWizard } from '../PlanWizardContext';
 import { getSeasonalThemesForMonth } from '@/services/seasonalPlanGenerator';
@@ -22,9 +24,11 @@ interface PlanStepThemeProps {
 }
 
 export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
-  const { state, setMonth, setTheme } = usePlanWizard();
+  const { state, setMonth, addTheme, removeTheme } = usePlanWizard();
   const [availableThemes, setAvailableThemes] = React.useState<PlanTheme[]>([]);
   const [loadingThemes, setLoadingThemes] = React.useState(false);
+  const [customThemeName, setCustomThemeName] = React.useState('');
+  const [showCustomTheme, setShowCustomTheme] = React.useState(false);
 
   // Default to next month
   React.useEffect(() => {
@@ -55,11 +59,32 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
     }
   }, [state.month]);
 
-  const handleThemeSelect = (theme: PlanTheme) => {
-    setTheme(theme);
+  const handleThemeToggle = (theme: PlanTheme, checked: boolean) => {
+    if (checked) {
+      addTheme(theme);
+    } else {
+      removeTheme(theme.id);
+    }
   };
 
-  const canProceed = state.month && state.theme;
+  const handleCustomThemeAdd = () => {
+    if (customThemeName.trim()) {
+      const customTheme: PlanTheme = {
+        id: `custom-${Date.now()}`,
+        label: customThemeName.trim(),
+        description: 'Custom theme - content will be generated based on your specifications'
+      };
+      addTheme(customTheme);
+      setCustomThemeName('');
+      setShowCustomTheme(false);
+    }
+  };
+
+  const isThemeSelected = (themeId: string) => {
+    return state.themes.some(t => t.id === themeId);
+  };
+
+  const canProceed = state.month && state.themes.length > 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -69,7 +94,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
           <h2 className="text-3xl font-bold">Plan Your Marketing Focus</h2>
         </div>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Choose your marketing theme and target month. We'll create a complete content plan tailored to your garden center.
+          Choose your marketing themes and target month. Select multiple themes to combine seasonal content with holidays and special events.
         </p>
       </div>
 
@@ -98,12 +123,42 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
         </CardContent>
       </Card>
 
+      {/* Selected Themes Display */}
+      {state.themes.length > 0 && (
+        <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-lg">Selected Themes ({state.themes.length})</CardTitle>
+            <CardDescription>
+              Your content will combine these themes. Primary theme (first) fills all 4 weeks, others overlay specific weeks.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {state.themes.map((theme, index) => (
+                <Badge key={theme.id} variant={index === 0 ? "default" : "secondary"} className="gap-2 py-1 px-3">
+                  {index === 0 && <span className="text-xs font-medium">PRIMARY</span>}
+                  {theme.label}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={() => removeTheme(theme.id)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Theme Selection */}
       <div className="space-y-4">
         <div className="text-center">
-          <h3 className="text-xl font-semibold mb-2">Choose Your Marketing Theme</h3>
+          <h3 className="text-xl font-semibold mb-2">Choose Your Marketing Themes</h3>
           <p className="text-muted-foreground">
-            Pick a seasonal theme that matches your marketing goals
+            Select multiple themes to create rich, layered content that combines seasonal focus with special events
           </p>
         </div>
 
@@ -125,38 +180,81 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
             ))
           ) : (
             availableThemes.map((theme) => {
-            const IconComponent = themeIcons[theme.id as keyof typeof themeIcons] || Leaf;
-            const isSelected = state.theme?.id === theme.id;
+              const IconComponent = themeIcons[theme.id as keyof typeof themeIcons] || Leaf;
+              const isSelected = isThemeSelected(theme.id);
 
-            return (
-              <Card 
-                key={theme.id}
-                className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                  isSelected 
-                    ? 'ring-2 ring-primary bg-primary/5' 
-                    : 'hover:border-primary/50'
-                }`}
-                onClick={() => handleThemeSelect(theme)}
-              >
-                <CardHeader className="text-center">
-                  <div className="mx-auto mb-3">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                    }`}>
-                      <IconComponent className="h-6 w-6" />
+              return (
+                <Card 
+                  key={theme.id}
+                  className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                    isSelected 
+                      ? 'ring-2 ring-primary bg-primary/5' 
+                      : 'hover:border-primary/50'
+                  }`}
+                  onClick={() => handleThemeToggle(theme, !isSelected)}
+                >
+                  <CardHeader className="text-center">
+                    <div className="mx-auto mb-3 flex items-center justify-between">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                      }`}>
+                        <IconComponent className="h-6 w-6" />
+                      </div>
+                      <Checkbox 
+                        checked={isSelected}
+                        onChange={() => {}} // Handled by card click
+                        className="ml-2"
+                      />
                     </div>
-                  </div>
-                  <CardTitle className="text-lg">{theme.label}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-center text-sm">
-                    {theme.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            );
-          })
+                    <CardTitle className="text-lg">{theme.label}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-center text-sm">
+                      {theme.description}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
+
+          {/* Custom Theme Card */}
+          <Card className="border-dashed border-2 border-muted-foreground/30 hover:border-primary/50 cursor-pointer transition-colors">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-3">
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <Plus className="h-6 w-6" />
+                </div>
+              </div>
+              <CardTitle className="text-lg">Custom Theme</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {showCustomTheme ? (
+                <div className="space-y-3">
+                  <Input
+                    placeholder="Theme name (e.g., 'Black Friday')"
+                    value={customThemeName}
+                    onChange={(e) => setCustomThemeName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleCustomThemeAdd()}
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleCustomThemeAdd} disabled={!customThemeName.trim()}>
+                      Add
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowCustomTheme(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div onClick={() => setShowCustomTheme(true)}>
+                  <CardDescription className="text-center text-sm">
+                    Add your own theme for specialized campaigns
+                  </CardDescription>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 

@@ -48,14 +48,14 @@ const PlanWizardContent: React.FC = () => {
       params.set('month', state.month);
     }
     
-    if (state.theme) {
-      params.set('theme', state.theme.id);
+    if (state.themes.length > 0) {
+      params.set('themes', state.themes.map(t => t.id).join(','));
     }
     
     params.set('step', currentStep.toString());
     
     setSearchParams(params);
-  }, [state.month, state.theme, currentStep, setSearchParams]);
+  }, [state.month, state.themes, currentStep, setSearchParams]);
 
   const handleNext = () => {
     if (currentStep < 3) {
@@ -70,7 +70,7 @@ const PlanWizardContent: React.FC = () => {
   };
 
   const handleLaunch = async () => {
-    if (!state.theme || !state.month) {
+    if (!state.themes.length || !state.month) {
       toast.error('Missing theme or month selection');
       return;
     }
@@ -81,7 +81,8 @@ const PlanWizardContent: React.FC = () => {
       const result = await persistPlan(state);
       
       if (result.success) {
-        toast.success(`Plan launched! Created ${result.created} items for ${state.theme.label}`);
+        const themesLabel = state.themes.map(t => t.label).join(' + ');
+        toast.success(`Plan launched! Created ${result.created} items for ${themesLabel}`);
         
         // Reset the wizard
         reset();
