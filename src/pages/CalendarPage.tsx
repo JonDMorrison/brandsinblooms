@@ -1,7 +1,7 @@
 import { CalendarView } from "@/components/CalendarView";
 import { BackfillCampaigns } from "@/components/calendar/BackfillCampaigns";
 import { PageHeader } from "@/components/common/PageHeader";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CalendarPlus, PlusCircle, Calendar } from "lucide-react";
@@ -9,6 +9,9 @@ import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { GenerationProgressBanner } from "@/components/generation/GenerationProgressBanner";
 import { ContentGenerationSkeleton } from "@/components/generation/ContentGenerationSkeleton";
+import { PlanSuccessModal } from "@/components/plan/PlanSuccessModal";
+import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useGlobalCalendarData } from "@/hooks/useGlobalCalendarData";
@@ -18,11 +21,27 @@ const CalendarPage = () => {
   const { user } = useAuth();
   const { campaigns, tasks, loading, error, stats, refetch, isCached, isRefreshing } = useGlobalCalendarData();
   const { getJobsByType } = useGenerationJobTracker();
+  const [searchParams] = useSearchParams();
   
   // Local state for UI
   const [showBackfill, setShowBackfill] = useState(false);
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
   const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
+  const [showPlanSuccessModal, setShowPlanSuccessModal] = useState(false);
+  
+  // Check for plan launch success
+  useEffect(() => {
+    const planLaunched = searchParams.get('planLaunched');
+    if (planLaunched === 'true') {
+      setShowPlanSuccessModal(true);
+      
+      // Show success toast after modal is dismissed
+      const itemCount = searchParams.get('launchItems') || '0';
+      setTimeout(() => {
+        toast.success(`✅ Plan scheduled successfully with ${itemCount} items`);
+      }, 2000);
+    }
+  }, [searchParams]);
 
   // Check if user needs backfill (less than 50 campaigns suggests incomplete set)
   const shouldShowBackfill = campaigns.length > 0 && campaigns.length < 50;
@@ -165,6 +184,12 @@ const CalendarPage = () => {
         open={showNewCampaignModal}
         onOpenChange={setShowNewCampaignModal}
         onCampaignCreated={handleCampaignCreated}
+      />
+
+      {/* Plan Success Modal */}
+      <PlanSuccessModal 
+        open={showPlanSuccessModal}
+        onOpenChange={setShowPlanSuccessModal}
       />
     </div>
   );

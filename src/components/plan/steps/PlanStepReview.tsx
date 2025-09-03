@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, Clock, Mail, MessageSquare, Facebook, Instagram, AlertTriangle, Rocket } from 'lucide-react';
+import { CheckCircle, Clock, Mail, MessageSquare, Facebook, Instagram, AlertTriangle, Rocket, ChevronDown, ChevronUp, Settings, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePlanWizard } from '../PlanWizardContext';
 import { useTwilioSetup } from '@/components/dashboard/TwilioSetupChecker';
 import { useDashboardData } from '@/hooks/useDashboardData';
+import { useNavigate } from 'react-router-dom';
 
 interface PlanStepReviewProps {
   onBack: () => void;
@@ -30,6 +30,9 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
   const { state } = usePlanWizard();
   const { data: twilioData } = useTwilioSetup();
   const { data: dashboardData } = useDashboardData();
+  const navigate = useNavigate();
+  
+  const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set());
 
   const enabledItems = state.items.filter(item => item.enabled);
   
@@ -53,6 +56,23 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
   const hasAnyContent = enabledItems.length > 0;
 
   const monthName = state.month ? format(new Date(state.month), 'MMMM yyyy') : '';
+  
+  const toggleChannelExpansion = (channel: string) => {
+    const newExpanded = new Set(expandedChannels);
+    if (newExpanded.has(channel)) {
+      newExpanded.delete(channel);
+    } else {
+      newExpanded.add(channel);
+    }
+    setExpandedChannels(newExpanded);
+  };
+
+  const formatDateRange = (date: Date) => {
+    const day = date.getDate();
+    if (day <= 10) return `Early ${format(date, 'MMM')}`;
+    if (day <= 20) return `Mid ${format(date, 'MMM')}`;
+    return `Late ${format(date, 'MMM')}`;
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -66,211 +86,304 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
         </p>
       </div>
 
-      {/* Theme Breakdown */}
-      {state.themes.length > 0 && (
-        <Card className="bg-gradient-to-br from-accent/5 to-primary/5 border-accent/20">
-          <CardHeader>
-            <CardTitle className="text-lg">Theme Breakdown</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {state.themes.map((theme, index) => {
-                const themeItems = enabledItems.filter(item => item.themeId === theme.id);
-                const emailCount = themeItems.filter(item => item.type === 'email').length;
-                const smsCount = themeItems.filter(item => item.type === 'sms').length; 
-                const socialCount = themeItems.filter(item => ['facebook', 'instagram'].includes(item.type)).length;
-                
-                return (
-                  <div key={theme.id} className="text-center p-4 bg-background/50 rounded-lg border">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <h4 className="font-medium">{theme.label}</h4>
-                      {index === 0 && <Badge variant="outline" className="text-xs">Primary</Badge>}
-                    </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      {emailCount > 0 && <div>📧 {emailCount} emails</div>}
-                      {smsCount > 0 && <div>💬 {smsCount} SMS</div>}
-                      {socialCount > 0 && <div>📱 {socialCount} social posts</div>}
-                    </div>
+      {/* Plan Overview */}
+      <Card className="bg-gradient-to-br from-accent/5 to-primary/5 border-accent/20">
+        <CardHeader>
+          <CardTitle className="text-lg">Plan Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {state.themes.map((theme, index) => {
+              const themeItems = enabledItems.filter(item => item.themeId === theme.id);
+              const emailCount = themeItems.filter(item => item.type === 'email').length;
+              const smsCount = themeItems.filter(item => item.type === 'sms').length; 
+              const socialCount = themeItems.filter(item => ['facebook', 'instagram'].includes(item.type)).length;
+              
+              const emailReady = !hasBlockedEmail;
+              const smsReady = !hasBlockedSMS;
+              
+              return (
+                <div 
+                  key={theme.id} 
+                  className={`p-4 rounded-lg border ${
+                    index === 0 
+                      ? 'bg-primary/5 border-primary/30' 
+                      : 'bg-background/50 border-border'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <h4 className="font-medium">{theme.label}</h4>
+                    {index === 0 && <Badge variant="outline" className="text-xs">Primary</Badge>}
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  <div className="space-y-2 text-sm">
+                    {emailCount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span>📧 {emailCount} Email{emailCount > 1 ? 's' : ''}</span>
+                        <Badge variant={emailReady ? "outline" : "destructive"} className="text-xs">
+                          {emailReady ? "✅" : "⚠️"}
+                        </Badge>
+                      </div>
+                    )}
+                    {smsCount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span>💬 {smsCount} SMS</span>
+                        <Badge variant={smsReady ? "outline" : "destructive"} className="text-xs">
+                          {smsReady ? "✅" : "⚠️"}
+                        </Badge>
+                      </div>
+                    )}
+                    {socialCount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span>📱 {socialCount} Social</span>
+                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                          ✅
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="text-center py-4 bg-background/30 rounded-lg border">
+            <div className="text-lg font-semibold">Total: {enabledItems.length} items scheduled</div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Guardrails Warnings */}
-      {(hasBlockedEmail || hasBlockedSMS) && (
-        <Alert className="border-amber-200 bg-amber-50">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription>
-            <div className="space-y-2">
-              <p className="font-medium text-amber-800">Setup Required</p>
-              <ul className="text-sm space-y-1 text-amber-700">
-                {hasBlockedEmail && (
-                  <li>• Email items require domain verification in Settings</li>
-                )}
-                {hasBlockedSMS && (
-                  <li>• SMS items require Twilio connection in Settings</li>
-                )}
-              </ul>
-              <p className="text-sm text-amber-700">
-                Items that can't be created will be skipped during launch.
-              </p>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Content Summary */}
+      {/* Channel Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Email Summary */}
-        <Card>
+        {/* Email Channel */}
+        <Card className="h-fit">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                <Mail className="h-4 w-4 text-white" />
-              </div>
-              Email Campaigns
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold">{emailItems.length}</span>
-              {hasBlockedEmail && (
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Email</CardTitle>
+                  <div className="text-sm text-muted-foreground">{emailItems.length} items</div>
+                </div>
+              </div>
+              {hasBlockedEmail ? (
                 <Badge variant="destructive" className="text-xs">
-                  Setup Required
+                  ⚠️ Setup Required
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                  ✅ Ready
                 </Badge>
               )}
             </div>
-            <div className="space-y-1">
-              {emailItems.slice(0, 3).map(item => (
-                <div key={item.id} className="text-sm text-muted-foreground">
-                  {format(item.date, 'MMM d')} - {item.title}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              {emailItems.slice(0, expandedChannels.has('email') ? emailItems.length : 3).map(item => (
+                <div key={item.id} className="text-sm text-muted-foreground flex justify-between">
+                  <span>{formatDateRange(item.date)} - {item.title}</span>
                 </div>
               ))}
               {emailItems.length > 3 && (
-                <div className="text-xs text-muted-foreground">
-                  +{emailItems.length - 3} more
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleChannelExpansion('email')}
+                  className="w-full h-8 text-xs text-muted-foreground"
+                >
+                  {expandedChannels.has('email') ? (
+                    <>
+                      <ChevronUp className="h-3 w-3 mr-1" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-3 w-3 mr-1" />
+                      +{emailItems.length - 3} more
+                    </>
+                  )}
+                </Button>
               )}
             </div>
+            {hasBlockedEmail && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/settings/email')}
+                className="w-full text-xs"
+              >
+                <Settings className="h-3 w-3 mr-1" />
+                Fix Now
+              </Button>
+            )}
           </CardContent>
         </Card>
 
-        {/* SMS Summary */}
-        <Card>
+        {/* SMS Channel */}
+        <Card className="h-fit">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                <MessageSquare className="h-4 w-4 text-white" />
-              </div>
-              SMS Messages
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold">{smsItems.length}</span>
-              {hasBlockedSMS && (
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                  <MessageSquare className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">SMS</CardTitle>
+                  <div className="text-sm text-muted-foreground">{smsItems.length} items</div>
+                </div>
+              </div>
+              {hasBlockedSMS ? (
                 <Badge variant="destructive" className="text-xs">
-                  Setup Required
+                  ⚠️ Setup Required
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                  ✅ Ready
                 </Badge>
               )}
             </div>
-            <div className="space-y-1">
-              {smsItems.slice(0, 3).map(item => (
-                <div key={item.id} className="text-sm text-muted-foreground">
-                  {format(item.date, 'MMM d')} - {item.title}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              {smsItems.slice(0, expandedChannels.has('sms') ? smsItems.length : 3).map(item => (
+                <div key={item.id} className="text-sm text-muted-foreground flex justify-between">
+                  <span>{formatDateRange(item.date)} - {item.title}</span>
                 </div>
               ))}
               {smsItems.length > 3 && (
-                <div className="text-xs text-muted-foreground">
-                  +{smsItems.length - 3} more
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleChannelExpansion('sms')}
+                  className="w-full h-8 text-xs text-muted-foreground"
+                >
+                  {expandedChannels.has('sms') ? (
+                    <>
+                      <ChevronUp className="h-3 w-3 mr-1" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-3 w-3 mr-1" />
+                      +{smsItems.length - 3} more
+                    </>
+                  )}
+                </Button>
               )}
             </div>
+            {hasBlockedSMS && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/settings/sms')}
+                className="w-full text-xs"
+              >
+                <Settings className="h-3 w-3 mr-1" />
+                Fix Now
+              </Button>
+            )}
+            {smsItems.length > 0 && hasBlockedSMS && (
+              <div className="text-xs text-muted-foreground">
+                Items in this channel will be skipped until setup is complete.
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Social Summary */}
-        <Card>
+        {/* Social Channel */}
+        <Card className="h-fit">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-pink-500 rounded-full flex items-center justify-center">
-                <Facebook className="h-4 w-4 text-white" />
-              </div>
-              Social Posts
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold">{socialItems.length}</span>
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-pink-500 rounded-full flex items-center justify-center">
+                  <Facebook className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Social</CardTitle>
+                  <div className="text-sm text-muted-foreground">{socialItems.length} items</div>
+                </div>
+              </div>
               <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                Ready
+                ✅ Ready
               </Badge>
             </div>
-            <div className="space-y-1">
-              {socialItems.slice(0, 3).map(item => (
-                <div key={item.id} className="text-sm text-muted-foreground">
-                  {format(item.date, 'MMM d')} - {item.type} post
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              {socialItems.slice(0, expandedChannels.has('social') ? socialItems.length : 3).map(item => (
+                <div key={item.id} className="text-sm text-muted-foreground flex justify-between">
+                  <span>{formatDateRange(item.date)} - {item.type}</span>
                 </div>
               ))}
               {socialItems.length > 3 && (
-                <div className="text-xs text-muted-foreground">
-                  +{socialItems.length - 3} more
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleChannelExpansion('social')}
+                  className="w-full h-8 text-xs text-muted-foreground"
+                >
+                  {expandedChannels.has('social') ? (
+                    <>
+                      <ChevronUp className="h-3 w-3 mr-1" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-3 w-3 mr-1" />
+                      +{socialItems.length - 3} more
+                    </>
+                  )}
+                </Button>
               )}
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Launch Info */}
-      <Card className="bg-gradient-to-br from-green-50 to-blue-50 border-green-200">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <Rocket className="h-6 w-6 text-white" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-semibold text-green-800">Ready to Launch</h3>
-              <p className="text-sm text-green-700">
-                Your content will be saved as drafts and scheduled items. No content will be sent immediately - 
-                you can review and publish each item when you're ready.
-              </p>
-              <div className="flex items-center gap-2 text-sm text-green-600">
-                <Clock className="h-4 w-4" />
-                <span>Total items: {enabledItems.length}</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Navigation */}
       <div className="flex justify-between pt-8">
         <Button variant="outline" onClick={onBack} size="lg" className="px-8" disabled={isLaunching}>
           Back
         </Button>
-        <Button 
-          onClick={onLaunch} 
-          disabled={!hasAnyContent || isLaunching}
-          size="lg" 
-          className="px-8 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
-        >
-          {isLaunching ? (
-            <>
-              <Clock className="h-4 w-4 mr-2 animate-spin" />
-              Launching Plan...
-            </>
-          ) : (
-            <>
-              <Rocket className="h-4 w-4 mr-2" />
-              Launch Plan
-            </>
-          )}
-        </Button>
       </div>
+      
+      {/* Sticky Footer - Ready to Launch */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-border p-4 z-50">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+              <CheckCircle className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="font-semibold">✅ Plan Ready to Launch</div>
+              <div className="text-sm text-muted-foreground">
+                {enabledItems.length} items will be scheduled. No content is sent immediately.
+              </div>
+            </div>
+          </div>
+          <Button 
+            onClick={onLaunch} 
+            disabled={!hasAnyContent || isLaunching}
+            size="lg" 
+            className="px-8 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+          >
+            {isLaunching ? (
+              <>
+                <Clock className="h-4 w-4 mr-2 animate-spin" />
+                Launching...
+              </>
+            ) : (
+              <>
+                <Rocket className="h-4 w-4 mr-2" />
+                Launch My Plan
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+      
+      {/* Spacer for sticky footer */}
+      <div className="h-20"></div>
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
+import { format } from 'date-fns';
 import { PlanWizardProvider, usePlanWizard } from './PlanWizardContext';
 import { PlanStepTheme } from './steps/PlanStepTheme';
 import { PlanStepCalendar } from './steps/PlanStepCalendar';
@@ -91,8 +92,9 @@ const PlanWizardContent: React.FC = () => {
         // Reset the wizard
         reset();
         
-        // Navigate to relevant view
-        navigate('/calendar');
+        // Navigate to calendar with launch success params
+        const month = state.month ? format(new Date(state.month), 'MMMM yyyy') : 'Your plan';
+        navigate(`/calendar?planLaunched=true&launchMonth=${encodeURIComponent(month)}&launchItems=${result.created}`);
         
       } else {
         const errorMsg = result.error || 'Failed to create plan items';
