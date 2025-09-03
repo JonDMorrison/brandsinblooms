@@ -109,7 +109,7 @@ export const BloomSuiteDashboard = () => {
       icon: <Calendar className="w-6 h-6 text-emerald-600" />,
       
       primaryAction: {
-        label: 'Plan My Marketing',
+        label: 'Get Started',
         onClick: () => navigate('/plan')
       },
       secondaryAction: {
