@@ -48,12 +48,35 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
     try {
       console.log('[PlanPersist] Processing item:', item.type, item.title);
 
+      // Skip unsupported post types
+      if (item.type === 'sms') {
+        results.skipped++;
+        results.details.push(`SMS "${item.title}": SMS posts not supported yet`);
+        console.log('[PlanPersist] Skipping SMS item:', item.title);
+        continue;
+      }
+
+      // Map post types to database values
+      const postTypeMap = {
+        'email': 'newsletter',
+        'facebook': 'facebook',
+        'instagram': 'instagram'
+      } as const;
+
+      const mappedPostType = postTypeMap[item.type as keyof typeof postTypeMap];
+      if (!mappedPostType) {
+        results.skipped++;
+        results.details.push(`${item.type} "${item.title}": Unsupported post type`);
+        console.log('[PlanPersist] Skipping unsupported type:', item.type);
+        continue;
+      }
+
       // Create content_tasks entry
       const { data: contentTask, error: taskError } = await supabase
         .from('content_tasks')
         .insert({
-          post_type: item.type,
-          status: 'scheduled',
+          post_type: mappedPostType,
+          status: 'pending',
           ai_output: item.caption,
           scheduled_date: item.date.toISOString().split('T')[0], // YYYY-MM-DD format
           image_url: item.imageUrl || null,
@@ -125,6 +148,21 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
   }
 
   console.log('[PlanPersist] Completed - Created:', results.created, 'Skipped:', results.skipped);
+
+  // If no items were created, provide a helpful error message
+  if (results.created === 0) {
+    const errorMsg = results.skipped > 0 
+      ? `No supported content could be created. ${results.details.join('. ')}`
+      : 'No enabled items found to create';
+    
+    return {
+      success: false,
+      created: results.created,
+      skipped: results.skipped,
+      error: errorMsg,
+      details: results.details
+    };
+  }
 
   return {
     success: results.created > 0,

@@ -82,7 +82,11 @@ const PlanWizardContent: React.FC = () => {
       
       if (result.success) {
         const themesLabel = state.themes.map(t => t.label).join(' + ');
-        toast.success(`Plan launched! Created ${result.created} items for ${themesLabel}`);
+        let successMsg = `Plan launched! Created ${result.created} items for ${themesLabel}`;
+        if (result.skipped > 0) {
+          successMsg += ` (${result.skipped} items skipped)`;
+        }
+        toast.success(successMsg);
         
         // Reset the wizard
         reset();
@@ -91,7 +95,13 @@ const PlanWizardContent: React.FC = () => {
         navigate('/calendar');
         
       } else {
-        toast.error(`Launch failed: ${result.error}`);
+        const errorMsg = result.error || 'Failed to create plan items';
+        toast.error(errorMsg);
+        
+        // Show details if available
+        if (result.details && result.details.length > 0) {
+          console.log('[PlanWizard] Launch details:', result.details);
+        }
       }
     } catch (error) {
       console.error('Plan launch error:', error);
