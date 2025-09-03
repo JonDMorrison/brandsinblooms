@@ -26,38 +26,103 @@ export interface SeasonalPlanTheme {
 }
 
 // Get seasonal themes for a specific month
-export const getSeasonalThemesForMonth = async (month: string): Promise<SeasonalPlanTheme[]> => {
+export const getSeasonalThemesForMonth = async (month: string, offset = 0, limit = 6): Promise<{ themes: SeasonalPlanTheme[], hasMore: boolean }> => {
   const monthDate = new Date(month);
+  const monthNumber = monthDate.getMonth() + 1; // 1-12
   
   try {
-    // First try to get seasonal templates from database
-    const seasonalTemplates = await getSeasonalTemplates();
+    // Get week numbers for the selected month
+    const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
     
-    if (seasonalTemplates.length > 0) {
+    // Calculate ISO week numbers for this month
+    const getWeekNumber = (date: Date): number => {
+      const start = new Date(date.getFullYear(), 0, 1);
+      const diff = date.getTime() - start.getTime();
+      return Math.ceil(diff / (7 * 24 * 60 * 60 * 1000));
+    };
+    
+    const startWeek = getWeekNumber(firstDay);
+    const endWeek = getWeekNumber(lastDay);
+    const monthWeeks = [];
+    for (let week = startWeek; week <= endWeek; week++) {
+      monthWeeks.push(week);
+    }
+    
+    // Fetch seasonal templates for this month's weeks
+    const { data: seasonalTemplates, error } = await supabase
+      .from('master_campaign_templates')
+      .select('*')
+      .in('week_number', monthWeeks)
+      .range(offset, offset + limit - 1);
+    
+    if (error) throw error;
+    
+    let themes: SeasonalPlanTheme[] = [];
+    let hasMore = false;
+    
+    if (seasonalTemplates && seasonalTemplates.length > 0) {
       // Convert seasonal templates to plan themes
-      return seasonalTemplates.slice(0, 6).map((template, index) => ({
+      themes = seasonalTemplates.map((template) => ({
         id: template.id,
         label: sanitizeTitle(template.title),
         description: template.seasonal_focus || template.theme || 'Seasonal marketing content',
         seasonal_focus: template.seasonal_focus,
         content_ideas: Array.isArray(template.content_ideas) ? template.content_ideas : []
       }));
+      
+      // Check if there are more themes
+      const { count } = await supabase
+        .from('master_campaign_templates')
+        .select('*', { count: 'exact', head: true })
+        .in('week_number', monthWeeks);
+      
+      hasMore = count ? count > offset + limit : false;
     }
     
-    // Fallback to static seasonal themes based on month
-    const fallbackThemes = getFallbackThemes();
-    return fallbackThemes.map((theme, index) => ({
-      id: `seasonal-${index}`,
-      label: sanitizeTitle(theme.title),
-      description: theme.description,
-      content_ideas: theme.content_ideas
-    }));
+    // If no themes from DB or this is the first load, add fallback themes
+    if (themes.length === 0 || offset === 0) {
+      const fallbackThemes = getMonthBasedThemes(monthDate);
+      const holidayThemes = getHolidayThemesForMonth(monthNumber);
+      
+      // Add month-specific themes first
+      const monthSpecificThemes = [...fallbackThemes, ...holidayThemes].map((theme, index) => ({
+        id: `theme-${monthNumber}-${index}`,
+        label: theme.label,
+        description: theme.description,
+        content_ideas: theme.content_ideas || []
+      }));
+      
+      // Combine with database themes, removing duplicates
+      const allThemes = [...themes, ...monthSpecificThemes];
+      const uniqueThemes = allThemes.filter((theme, index, arr) => 
+        arr.findIndex(t => t.label.toLowerCase() === theme.label.toLowerCase()) === index
+      );
+      
+      themes = uniqueThemes.slice(0, limit);
+      hasMore = uniqueThemes.length > limit || hasMore;
+    }
+    
+    return { themes, hasMore };
     
   } catch (error) {
     console.error('Error fetching seasonal themes:', error);
     
     // Final fallback to month-based themes
-    return getMonthBasedThemes(monthDate);
+    const fallbackThemes = getMonthBasedThemes(monthDate);
+    const holidayThemes = getHolidayThemesForMonth(monthNumber);
+    
+    const themes = [...fallbackThemes, ...holidayThemes].map((theme, index) => ({
+      id: `fallback-${monthNumber}-${index}`,
+      label: theme.label,
+      description: theme.description,
+      content_ideas: theme.content_ideas || []
+    }));
+    
+    return { 
+      themes: themes.slice(offset, offset + limit), 
+      hasMore: themes.length > offset + limit 
+    };
   }
 };
 
@@ -356,35 +421,85 @@ const generateWorkshopContent = (theme: SeasonalPlanTheme, month: string, season
 
 // Fallback themes based on month when no templates are available
 const getMonthBasedThemes = (monthDate: Date): SeasonalPlanTheme[] => {
-  const month = monthDate.getMonth();
+  const month = monthDate.getMonth(); // 0-11
   
   if (month >= 2 && month <= 4) {
-    // Spring themes
+    // Spring themes (March-May)
     return [
-      { id: 'spring-planting', label: 'Spring Planting', description: 'Early season planting and garden preparation' },
-      { id: 'seed-starting', label: 'Seed Starting', description: 'Indoor seed starting and transplant preparation' },
-      { id: 'spring-cleanup', label: 'Spring Cleanup', description: 'Garden cleanup and soil preparation' }
+      { id: 'spring-planting', label: 'Spring Planting Festival', description: 'Early season planting and garden preparation for spring growth' },
+      { id: 'seed-starting', label: 'Seed Starting Workshop', description: 'Indoor seed starting and transplant preparation techniques' },
+      { id: 'spring-cleanup', label: 'Spring Garden Renewal', description: 'Garden cleanup, pruning, and soil preparation for the growing season' },
+      { id: 'pollinator-garden', label: 'Pollinator Garden Design', description: 'Creating bee and butterfly-friendly garden spaces' }
     ];
   } else if (month >= 5 && month <= 7) {
-    // Summer themes  
+    // Summer themes (June-August) 
     return [
-      { id: 'summer-care', label: 'Summer Care', description: 'Heat protection and summer plant care' },
-      { id: 'watering-tips', label: 'Watering Tips', description: 'Efficient watering and irrigation systems' },
-      { id: 'harvest-time', label: 'Harvest Time', description: 'Harvesting and preserving summer crops' }
+      { id: 'summer-care', label: 'Summer Garden Mastery', description: 'Heat protection, watering strategies, and summer plant care' },
+      { id: 'harvest-preservation', label: 'Harvest & Preservation', description: 'Harvesting techniques and preserving summer abundance' },
+      { id: 'container-gardening', label: 'Container Garden Magic', description: 'Maximizing small spaces with container gardening solutions' },
+      { id: 'drought-resistant', label: 'Drought-Resistant Gardens', description: 'Water-wise gardening with drought-tolerant plants' }
     ];
   } else if (month >= 8 && month <= 10) {
-    // Fall themes
+    // Fall themes (September-November)
     return [
-      { id: 'fall-planting', label: 'Fall Planting', description: 'Fall planting and winter preparation' },
-      { id: 'fall-cleanup', label: 'Fall Cleanup', description: 'Garden cleanup and winterizing' },
-      { id: 'bulb-planting', label: 'Bulb Planting', description: 'Spring bulb planting for next year' }
+      { id: 'fall-planting', label: 'Fall Planting Success', description: 'Fall planting strategies and winter preparation' },
+      { id: 'autumn-color', label: 'Autumn Color Spectacular', description: 'Designing for fall color with trees, shrubs, and perennials' },
+      { id: 'bulb-planting', label: 'Spring Bulb Planning', description: 'Planting spring-flowering bulbs for next year\'s garden' },
+      { id: 'harvest-festival', label: 'Harvest Festival Celebration', description: 'Celebrating the fall harvest with seasonal decorations' }
     ];
   } else {
-    // Winter themes
+    // Winter themes (December-February)
     return [
-      { id: 'houseplant-month', label: 'Houseplant Care', description: 'Indoor plant care and winter gardening' },
-      { id: 'holiday-plants', label: 'Holiday Plants', description: 'Holiday plant care and gift ideas' },
-      { id: 'winter-planning', label: 'Winter Planning', description: 'Planning next year\'s garden' }
+      { id: 'houseplant-care', label: 'Houseplant Winter Care', description: 'Indoor plant care and winter gardening techniques' },
+      { id: 'holiday-gardening', label: 'Holiday Garden Magic', description: 'Holiday decorations, plants, and seasonal arrangements' },
+      { id: 'winter-planning', label: 'Garden Planning Season', description: 'Planning and designing next year\'s garden layout and goals' },
+      { id: 'indoor-growing', label: 'Indoor Growing Systems', description: 'Year-round growing with indoor gardening setups' }
     ];
   }
+};
+
+// Holiday-specific themes based on month
+const getHolidayThemesForMonth = (monthNumber: number): SeasonalPlanTheme[] => {
+  const holidayThemes: Record<number, SeasonalPlanTheme[]> = {
+    1: [
+      { id: 'new-year-planning', label: 'New Year Garden Goals', description: 'Setting garden resolutions and planning for the year ahead' }
+    ],
+    2: [
+      { id: 'valentines-flowers', label: 'Valentine\'s Day Blooms', description: 'Romantic flowers and plants perfect for Valentine\'s Day gifts' }
+    ],
+    3: [
+      { id: 'spring-equinox', label: 'Spring Equinox Celebration', description: 'Welcoming spring with seasonal planting and garden awakening' }
+    ],
+    4: [
+      { id: 'easter-gardens', label: 'Easter Garden Revival', description: 'Spring gardens and Easter-themed planting ideas' },
+      { id: 'earth-day', label: 'Earth Day Gardening', description: 'Sustainable gardening practices for Earth Day and beyond' }
+    ],
+    5: [
+      { id: 'mothers-day-garden', label: 'Mother\'s Day Garden Gifts', description: 'Beautiful plants and garden gifts perfect for celebrating mothers' }
+    ],
+    6: [
+      { id: 'fathers-day-garden', label: 'Father\'s Day Garden Projects', description: 'Garden tools, projects, and plants that dads will love' }
+    ],
+    7: [
+      { id: 'july-fourth-garden', label: 'July 4th Patriotic Gardens', description: 'Red, white, and blue themed garden designs and celebrations' }
+    ],
+    8: [
+      { id: 'late-summer-harvest', label: 'Late Summer Abundance', description: 'Maximizing late summer harvests and preserving techniques' }
+    ],
+    9: [
+      { id: 'fall-equinox', label: 'Fall Equinox Transition', description: 'Transitioning gardens from summer to fall growing season' }
+    ],
+    10: [
+      { id: 'halloween-gardens', label: 'Halloween Harvest Decor', description: 'Pumpkins, gourds, and spooky garden decorations' }
+    ],
+    11: [
+      { id: 'thanksgiving-harvest', label: 'Thanksgiving Garden Gratitude', description: 'Celebrating the harvest season with gratitude and abundance' }
+    ],
+    12: [
+      { id: 'holiday-plants', label: 'Holiday Plant Traditions', description: 'Poinsettias, Christmas trees, and festive holiday plant care' },
+      { id: 'winter-solstice', label: 'Winter Solstice Gardens', description: 'Embracing the longest night with evergreen beauty and winter interest' }
+    ]
+  };
+  
+  return holidayThemes[monthNumber] || [];
 };

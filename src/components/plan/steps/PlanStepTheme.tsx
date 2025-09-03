@@ -29,6 +29,8 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
   const [loadingThemes, setLoadingThemes] = React.useState(false);
   const [customThemeName, setCustomThemeName] = React.useState('');
   const [showCustomTheme, setShowCustomTheme] = React.useState(false);
+  const [hasMoreThemes, setHasMoreThemes] = React.useState(false);
+  const [loadingMore, setLoadingMore] = React.useState(false);
 
   // Default to next month
   React.useEffect(() => {
@@ -45,9 +47,10 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
   React.useEffect(() => {
     if (state.month) {
       setLoadingThemes(true);
-      getSeasonalThemesForMonth(state.month)
-        .then(themes => {
-          setAvailableThemes(themes);
+      getSeasonalThemesForMonth(state.month, 0, 6)
+        .then(result => {
+          setAvailableThemes(result.themes);
+          setHasMoreThemes(result.hasMore);
         })
         .catch(error => {
           console.error('Error loading seasonal themes:', error);
@@ -58,6 +61,22 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
         });
     }
   }, [state.month]);
+
+  // Load more themes
+  const handleLoadMore = async () => {
+    if (!state.month || loadingMore || !hasMoreThemes) return;
+    
+    setLoadingMore(true);
+    try {
+      const result = await getSeasonalThemesForMonth(state.month, availableThemes.length, 6);
+      setAvailableThemes(prev => [...prev, ...result.themes]);
+      setHasMoreThemes(result.hasMore);
+    } catch (error) {
+      console.error('Error loading more themes:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleThemeToggle = (theme: PlanTheme, checked: boolean) => {
     if (checked) {
@@ -268,6 +287,20 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Load More Button */}
+        {hasMoreThemes && (
+          <div className="flex justify-center mt-6">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="px-8"
+            >
+              {loadingMore ? 'Loading...' : 'Load More Themes'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Next Button */}

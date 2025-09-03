@@ -1,10 +1,12 @@
 
-export const getFallbackThemes = () => {
+export const getFallbackThemes = (targetMonth?: Date) => {
+  // Use target month if provided, otherwise current month
+  const monthDate = targetMonth || new Date();
   const currentWeek = Math.ceil(
-    ((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7
+    ((monthDate.getTime() - new Date(monthDate.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7
   );
   
-  const month = new Date().getMonth() + 1;
+  const month = monthDate.getMonth() + 1;
   let seasonalThemes;
   
   if (month >= 3 && month <= 5) {
