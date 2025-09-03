@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MediaSelectorSidebar } from './MediaSelectorSidebar';
 import { Camera, Upload } from 'lucide-react';
+import { useUnsplash } from '@/hooks/useUnsplash';
 
 interface MediaSelectorImageProps {
   src?: string;
@@ -19,6 +20,28 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   console.log('[MediaSelectorImage] Component props:', { src, hasOnChange: !!onChange, contentContext });
   
   const [isSelecting, setIsSelecting] = useState(false);
+  const [defaultImageUrl, setDefaultImageUrl] = useState<string>('');
+  const [isLoadingDefault, setIsLoadingDefault] = useState(false);
+  const { getCuratedCollectionImages } = useUnsplash();
+
+  // Fetch a default image when no src is provided
+  useEffect(() => {
+    if (!src && !defaultImageUrl && !isLoadingDefault) {
+      setIsLoadingDefault(true);
+      getCuratedCollectionImages(1)
+        .then(images => {
+          if (images && images.length > 0) {
+            setDefaultImageUrl(images[0].url);
+          }
+        })
+        .catch(error => {
+          console.error('[MediaSelectorImage] Failed to fetch default image:', error);
+        })
+        .finally(() => {
+          setIsLoadingDefault(false);
+        });
+    }
+  }, [src, defaultImageUrl, isLoadingDefault, getCuratedCollectionImages]);
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     console.log('[MediaSelectorImage] Image selected:', imageUrl, metadata);
@@ -54,6 +77,19 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
             onLoad={() => console.log('🖼️ Image loaded successfully:', src)}
             onError={(e) => console.error('🖼️ Image failed to load:', src, e)}
           />
+        ) : defaultImageUrl ? (
+          <img 
+            src={defaultImageUrl} 
+            alt="Default garden image" 
+            className="object-cover w-full h-full opacity-80"
+            onLoad={() => console.log('🖼️ Default image loaded successfully:', defaultImageUrl)}
+            onError={(e) => console.error('🖼️ Default image failed to load:', defaultImageUrl, e)}
+          />
+        ) : isLoadingDefault ? (
+          <div className="text-center text-gray-400">
+            <Camera className="w-12 h-12 mx-auto mb-2 animate-pulse" />
+            <span className="text-sm">Loading default image...</span>
+          </div>
         ) : (
           <div className="text-center text-gray-400">
             <Camera className="w-12 h-12 mx-auto mb-2" />
