@@ -20,9 +20,9 @@ export const PricingPreviewSection = ({ onSeePricing }: PricingPreviewSectionPro
         
         <Button 
           onClick={onSeePricing}
-          className="bg-[#47B881] hover:bg-[#3A9B6C] text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group border-0 animate-pulse-hover"
+          className="bg-primary hover:bg-primary-700 text-primary-foreground px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group border-0 animate-pulse-hover"
           style={{
-            boxShadow: '0 8px 16px rgba(71, 184, 129, 0.2)'
+            boxShadow: '0 8px 16px rgba(34, 197, 94, 0.2)'
           }}
         >
           <Leaf className="mr-2 h-5 w-5 text-white" />

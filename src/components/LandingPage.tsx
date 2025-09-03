@@ -19,14 +19,14 @@ export const LandingPage = () => {
         <div className="space-x-4">
           <Button 
             onClick={() => navigate('/auth')}
-            className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+            className="bg-primary hover:bg-primary-700 text-primary-foreground px-8 py-3 text-lg"
           >
             Get Started
           </Button>
           <Button 
             variant="outline"
             onClick={() => navigate('/pricing')}
-            className="border-green-600 text-green-600 hover:bg-green-50 px-8 py-3 text-lg"
+            className="border-primary text-primary hover:bg-primary-50 px-8 py-3 text-lg"
           >
             View Pricing
           </Button>
