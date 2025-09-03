@@ -312,7 +312,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
             <div className="space-y-2">
               {socialItems.slice(0, expandedChannels.has('social') ? socialItems.length : 3).map(item => (
                 <div key={item.id} className="text-sm text-muted-foreground flex justify-between">
-                  <span>{formatDateRange(item.date)} - {item.type}</span>
+                  <span>{formatDateRange(item.date)} - {item.title}</span>
                 </div>
               ))}
               {socialItems.length > 3 && (
