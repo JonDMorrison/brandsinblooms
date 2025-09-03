@@ -36,7 +36,7 @@ export const SegmentChip = ({
       <span className="font-medium">{segment.name}</span>
       
       {segment.suggested && (
-        <Sparkles className="h-3 w-3 text-yellow-600" />
+        <Sparkles className="h-3 w-3 text-primary-600" />
       )}
       
       {segment.customer_count !== undefined && (

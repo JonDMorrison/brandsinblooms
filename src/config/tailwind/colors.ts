@@ -119,19 +119,19 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     900: '#0F172A',   
   },
   
-  // Updated primary colors using brand palette
+  // Updated primary colors using harmonious green palette
   primary: {
-    DEFAULT: '#68BEB9', // Brand teal-mint
-    50: '#F0FFFE',
-    100: '#E1FFFE',
-    200: '#C3FFFC',
-    300: '#A5FFFA',
-    400: '#87DFD8',
-    500: '#68BEB9',
-    600: '#5AA8A3',
-    700: '#4C928D',
-    800: '#3E7C77',
-    900: '#306661',
+    DEFAULT: '#22C55E', // Fresh garden green that harmonizes with logo
+    50: '#F0FDF4',
+    100: '#DCFCE7',
+    200: '#BBF7D0',
+    300: '#86EFAC',
+    400: '#4ADE80',
+    500: '#22C55E',
+    600: '#16A34A',
+    700: '#15803D',
+    800: '#166534',
+    900: '#14532D',
     foreground: '#FFFFFF'
   },
   secondary: {
@@ -179,10 +179,10 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     foreground: '#64748B'
   },
   accent: {
-    DEFAULT: '#68BEB9', // Brand teal-mint
-    50: '#F0FFFE',
-    100: '#E1FFFE',
-    500: '#68BEB9',
+    DEFAULT: '#22C55E', // Fresh garden green
+    50: '#F0FDF4',
+    100: '#DCFCE7',
+    500: '#22C55E',
     foreground: '#FFFFFF'
   },
   popover: {
