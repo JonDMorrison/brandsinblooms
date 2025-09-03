@@ -2,7 +2,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
-import { processLogoBackground } from "@/utils/backgroundRemoval";
+import logoImage from "@/assets/bloomsuite-logo.png";
 
 interface LandingPageIconProps {
   icon?: LucideIcon;
@@ -49,23 +49,6 @@ export const LandingPageIcon = ({
   style
 }: LandingPageIconProps) => {
   const styles = variantStyles[variant];
-  const [processedLogo, setProcessedLogo] = React.useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = React.useState(false);
-
-  // Process logo to remove background when component mounts
-  React.useEffect(() => {
-    if (logo && !processedLogo && !isProcessing) {
-      setIsProcessing(true);
-      processLogoBackground(logo)
-        .then(setProcessedLogo)
-        .catch((error) => {
-          console.error('Failed to process logo background:', error);
-          // Fallback to original logo if processing fails
-          setProcessedLogo(logo);
-        })
-        .finally(() => setIsProcessing(false));
-    }
-  }, [logo, processedLogo, isProcessing]);
   
   // Special handling for logos - no border, smaller size (50% of previous)
   if (logo) {
@@ -83,13 +66,12 @@ export const LandingPageIcon = ({
         style={style}
       >
         <img 
-          src={processedLogo || logo}
+          src={logo || logoImage}
           alt="BloomSuite Logo"
           className={cn(
             "transition-all duration-300 object-contain",
             logoSize,
             animated && "group-hover:scale-110",
-            isProcessing && "opacity-50",
             className
           )}
         />

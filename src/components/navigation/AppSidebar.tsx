@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import logoImage from "@/assets/bloomsuite-logo.png";
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -175,7 +176,7 @@ export function AppSidebar() {
         <div className="flex items-center justify-between px-4 py-2 h-12">
           <Link to="/" className="flex items-center gap-2">
             <img 
-              src="/lovable-uploads/4e4d6a04-896e-4cad-97dd-dd0cbfb802f6.png" 
+              src={logoImage} 
               alt="BloomSuite Logo" 
               className="h-6 w-6" 
             />

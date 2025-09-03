@@ -1,4 +1,5 @@
 import React from "react";
+import logoImage from "@/assets/bloomsuite-logo.png";
 import {
   LayoutDashboard,
   Send,
@@ -182,7 +183,7 @@ const AppSidebar: React.FC = () => {
       <SidebarHeader className="flex flex-row items-center justify-between p-4">
         <NavLink to="/dashboard" className="font-semibold flex items-center gap-2">
           <img 
-            src="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png" 
+            src={logoImage} 
             alt="BloomSuite Logo" 
             className="h-6 w-6 flex-shrink-0" 
           />
