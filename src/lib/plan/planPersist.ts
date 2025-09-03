@@ -60,7 +60,8 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
       const postTypeMap = {
         'email': 'newsletter',
         'facebook': 'facebook',
-        'instagram': 'instagram'
+        'instagram': 'instagram',
+        'blog': 'blog'
       } as const;
 
       const mappedPostType = postTypeMap[item.type as keyof typeof postTypeMap];
@@ -82,7 +83,7 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
           image_url: item.imageUrl || null,
           user_id: user.id,
           // Add metadata to track this came from plan wizard with theme info
-          notes: `Generated from Plan My Marketing: ${planState.themes.map(t => t.label).join(' + ')} themes${item.themeName ? ` (${item.themeName})` : ''}${item.emailSubject ? ` | Subject: ${item.emailSubject}` : ''}${item.emailPreheader ? ` | Preheader: ${item.emailPreheader}` : ''}`
+          notes: `Generated from Plan My Marketing: ${planState.themes.map(t => t.label).join(' + ')} themes${item.themeName ? ` (${item.themeName})` : ''}${item.emailSubject ? ` | Subject: ${item.emailSubject}` : ''}${item.emailPreheader ? ` | Preheader: ${item.emailPreheader}` : ''}${item.audienceTarget ? ` | Audience: ${item.audienceTarget}` : ''}${item.selectedSegmentIds?.length ? ` | Segments: ${item.selectedSegmentIds.length}` : ''}${item.selectedPersonaIds?.length ? ` | Personas: ${item.selectedPersonaIds.length}` : ''}`
         })
         .select()
         .single();

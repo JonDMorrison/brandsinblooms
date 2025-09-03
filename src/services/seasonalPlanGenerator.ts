@@ -234,9 +234,20 @@ export const generateSeasonalPlanContent = async (
   const seasonalFocus = theme.seasonal_focus || '';
   
   const items: PlanItem[] = [
+    // Monthly blog post
+    {
+      id: `blog-1-${Date.now()}`,
+      type: 'blog',
+      title: `${monthName} ${sanitizeTitle(theme.label)} Guide`,
+      caption: generateBlogContent(theme, monthName, seasonalFocus, contentIdeas[0], holidays),
+      date: new Date(firstDay.getTime() + (5 * 24 * 60 * 60 * 1000)), // First Friday
+      enabled: true,
+      week: 1
+    },
+    
     // Email items with seasonal content
     {
-      id: `email-1-${Date.now()}`,
+      id: `email-1-${Date.now() + 1}`,
       type: 'email',
       title: `${sanitizeTitle(theme.label)} Newsletter - ${monthName} Tips`,
       caption: generateSeasonalEmailContent(theme, monthName, seasonalFocus, contentIdeas[0], holidays),
@@ -245,7 +256,7 @@ export const generateSeasonalPlanContent = async (
       week: 1
     },
     {
-      id: `email-2-${Date.now() + 1}`,
+      id: `email-2-${Date.now() + 2}`,
       type: 'email',
       title: `${monthName} ${sanitizeTitle(theme.label)} Special`,
       caption: generatePromotionalContent(theme, monthName, seasonalFocus, holidays),
@@ -256,7 +267,7 @@ export const generateSeasonalPlanContent = async (
     
     // SMS items with seasonal urgency
     {
-      id: `sms-1-${Date.now() + 2}`,
+      id: `sms-1-${Date.now() + 3}`,
       type: 'sms',
       title: `${monthName} ${sanitizeTitle(theme.label)} Workshop`,
       caption: generateSMSContent(theme, monthName, seasonalFocus, 'workshop'),
@@ -265,7 +276,7 @@ export const generateSeasonalPlanContent = async (
       week: 2
     },
     {
-      id: `sms-2-${Date.now() + 3}`,
+      id: `sms-2-${Date.now() + 4}`,
       type: 'sms',
       title: `${monthName} ${sanitizeTitle(theme.label)} Final Days`,
       caption: generateSMSContent(theme, monthName, seasonalFocus, 'urgency'),
@@ -276,7 +287,7 @@ export const generateSeasonalPlanContent = async (
     
     // Facebook posts with seasonal engagement
     {
-      id: `facebook-1-${Date.now() + 4}`,
+      id: `facebook-1-${Date.now() + 5}`,
       type: 'facebook',
       title: `${monthName} ${sanitizeTitle(theme.label)} Monday Tips`,
       caption: generateSocialContent(theme, monthName, seasonalFocus, contentIdeas[1], 'facebook'),
@@ -285,7 +296,7 @@ export const generateSeasonalPlanContent = async (
       week: 1
     },
     {
-      id: `facebook-2-${Date.now() + 5}`,
+      id: `facebook-2-${Date.now() + 6}`,
       type: 'facebook',
       title: `${monthName} ${sanitizeTitle(theme.label)} Feature Friday`,
       caption: generateSocialContent(theme, monthName, seasonalFocus, contentIdeas[2], 'facebook', 'friday'),
@@ -294,7 +305,7 @@ export const generateSeasonalPlanContent = async (
       week: 1
     },
     {
-      id: `facebook-3-${Date.now() + 6}`,
+      id: `facebook-3-${Date.now() + 7}`,
       type: 'facebook',
       title: `${sanitizeTitle(theme.label)} Workshop - This Weekend`,
       caption: generateWorkshopContent(theme, monthName, seasonalFocus),
@@ -305,7 +316,7 @@ export const generateSeasonalPlanContent = async (
     
     // Instagram posts with visual focus
     {
-      id: `instagram-1-${Date.now() + 7}`,
+      id: `instagram-1-${Date.now() + 8}`,
       type: 'instagram',
       title: `${monthName} ${sanitizeTitle(theme.label)} Inspiration`,
       caption: generateInstagramContent(theme, monthName, seasonalFocus, contentIdeas[0]),
@@ -314,7 +325,7 @@ export const generateSeasonalPlanContent = async (
       week: 1
     },
     {
-      id: `instagram-2-${Date.now() + 8}`,
+      id: `instagram-2-${Date.now() + 9}`,
       type: 'instagram',
       title: `Behind the Scenes: ${sanitizeTitle(theme.label)}`,
       caption: generateBehindScenesContent(theme, monthName, seasonalFocus),
@@ -323,7 +334,7 @@ export const generateSeasonalPlanContent = async (
       week: 2
     },
     {
-      id: `instagram-3-${Date.now() + 9}`,
+      id: `instagram-3-${Date.now() + 10}`,
       type: 'instagram',
       title: `Customer Success: ${sanitizeTitle(theme.label)}`,
       caption: generateCustomerSpotlightContent(theme, monthName),
@@ -332,7 +343,7 @@ export const generateSeasonalPlanContent = async (
       week: 3
     },
     {
-      id: `instagram-4-${Date.now() + 10}`,
+      id: `instagram-4-${Date.now() + 11}`,
       type: 'instagram',
       title: `${monthName} ${sanitizeTitle(theme.label)} Transformation`,
       caption: generateTransformationContent(theme, monthName, seasonalFocus),
@@ -411,6 +422,13 @@ const generateTransformationContent = (theme: SeasonalPlanTheme, month: string, 
 
 const generateWorkshopContent = (theme: SeasonalPlanTheme, month: string, seasonalFocus: string) => {
   return `Join us this weekend for hands-on ${theme.label.toLowerCase()} activities! 🛠️ Perfect for ${month} conditions. Learn seasonal techniques from our experts. Great for all skill levels!`;
+};
+
+const generateBlogContent = (theme: SeasonalPlanTheme, month: string, seasonalFocus: string, contentIdea?: string, holidays?: any[]) => {
+  const focus = contentIdea || seasonalFocus || 'seasonal gardening';
+  const holidayContext = holidays && holidays.length > 0 ? ` Plus, discover how to make the most of ${holidays[0].holiday_name} with your garden.` : '';
+  
+  return `Your complete guide to ${focus.toLowerCase()} in ${month}. From expert tips and timing to plant selection and care techniques - everything you need for success this season.${holidayContext} Includes step-by-step instructions, troubleshooting guide, and seasonal recipes.`;
 };
 
 // Fallback themes based on month when no templates are available

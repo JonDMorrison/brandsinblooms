@@ -45,7 +45,7 @@ export interface PlanWizardState {
 
 export interface PlanItem {
   id: string;
-  type: 'email' | 'sms' | 'facebook' | 'instagram';
+  type: 'email' | 'sms' | 'facebook' | 'instagram' | 'blog';
   title: string;
   caption: string;
   date: Date;
@@ -58,6 +58,10 @@ export interface PlanItem {
   emailSubject?: string;
   emailPreheader?: string;
   notes?: string;
+  // Audience targeting
+  audienceTarget?: 'all' | 'segments' | 'personas';
+  selectedSegmentIds?: string[];
+  selectedPersonaIds?: string[];
 }
 
 // Template content generators

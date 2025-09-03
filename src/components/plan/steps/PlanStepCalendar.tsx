@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { SafeHtml } from '@/components/ui/safe-html';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
-import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles, Replace, Plus, Clock, Tag } from 'lucide-react';
+import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles, Replace, Plus, Clock, Tag, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { parseMonthParam } from '@/utils/dateUtils';
 import { usePlanWizard } from '../PlanWizardContext';
@@ -34,7 +34,8 @@ const typeConfig = {
   email: { icon: Mail, color: 'bg-blue-500', label: 'Email', emoji: '📧' },
   sms: { icon: MessageSquare, color: 'bg-green-500', label: 'SMS', emoji: '💬' },
   facebook: { icon: Facebook, color: 'bg-blue-600', label: 'Facebook', emoji: '📘' },
-  instagram: { icon: Instagram, color: 'bg-pink-500', label: 'Instagram', emoji: '📱' }
+  instagram: { icon: Instagram, color: 'bg-pink-500', label: 'Instagram', emoji: '📱' },
+  blog: { icon: FileText, color: 'bg-purple-500', label: 'Blog', emoji: '📝' }
 };
 
 const getWeekLabel = (weekNum: number, month: string) => {

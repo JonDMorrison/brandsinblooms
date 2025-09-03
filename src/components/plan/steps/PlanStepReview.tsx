@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Clock, Mail, MessageSquare, Facebook, Instagram, AlertTriangle, Rocket, ChevronDown, ChevronUp, Settings, ExternalLink } from 'lucide-react';
+import { CheckCircle, Clock, Mail, MessageSquare, Facebook, Instagram, AlertTriangle, Rocket, ChevronDown, ChevronUp, Settings, ExternalLink, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePlanWizard } from '../PlanWizardContext';
 import { useTwilioSetup } from '@/components/dashboard/TwilioSetupChecker';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useNavigate } from 'react-router-dom';
+import { AudienceTargetingSection } from '../AudienceTargetingSection';
 
 interface PlanStepReviewProps {
   onBack: () => void;
@@ -19,7 +20,8 @@ const typeConfig = {
   email: { icon: Mail, color: 'bg-blue-500', label: 'Email' },
   sms: { icon: MessageSquare, color: 'bg-green-500', label: 'SMS' },
   facebook: { icon: Facebook, color: 'bg-blue-600', label: 'Facebook' },
-  instagram: { icon: Instagram, color: 'bg-pink-500', label: 'Instagram' }
+  instagram: { icon: Instagram, color: 'bg-pink-500', label: 'Instagram' },
+  blog: { icon: FileText, color: 'bg-purple-500', label: 'Blog' }
 };
 
 export const PlanStepReview: React.FC<PlanStepReviewProps> = ({ 
@@ -50,6 +52,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
   const emailItems = itemsByType.email || [];
   const smsItems = itemsByType.sms || [];
   const socialItems = [...(itemsByType.facebook || []), ...(itemsByType.instagram || [])];
+  const blogItems = itemsByType.blog || [];
 
   const hasBlockedEmail = emailItems.length > 0 && !isDomainVerified;
   const hasBlockedSMS = smsItems.length > 0 && !isTwilioConnected;
@@ -98,6 +101,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
               const emailCount = themeItems.filter(item => item.type === 'email').length;
               const smsCount = themeItems.filter(item => item.type === 'sms').length; 
               const socialCount = themeItems.filter(item => ['facebook', 'instagram'].includes(item.type)).length;
+              const blogCount = themeItems.filter(item => item.type === 'blog').length;
               
               const emailReady = !hasBlockedEmail;
               const smsReady = !hasBlockedSMS;
@@ -140,6 +144,14 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                         </Badge>
                       </div>
                     )}
+                    {blogCount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span>📝 {blogCount} Blog</span>
+                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                          ✅
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -151,8 +163,11 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
         </CardContent>
       </Card>
 
+      {/* Audience Targeting */}
+      <AudienceTargetingSection />
+
       {/* Channel Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Email Channel */}
         <Card className="h-fit">
           <CardHeader className="pb-3">
@@ -331,6 +346,55 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                     <>
                       <ChevronDown className="h-3 w-3 mr-1" />
                       +{socialItems.length - 3} more
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Blog Channel */}
+        <Card className="h-fit">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Blog</CardTitle>
+                  <div className="text-sm text-muted-foreground">{blogItems.length} items</div>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                ✅ Ready
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              {blogItems.slice(0, expandedChannels.has('blog') ? blogItems.length : 3).map(item => (
+                <div key={item.id} className="text-sm text-muted-foreground flex justify-between">
+                  <span>{formatDateRange(item.date)} - {item.title}</span>
+                </div>
+              ))}
+              {blogItems.length > 3 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleChannelExpansion('blog')}
+                  className="w-full h-8 text-xs text-muted-foreground"
+                >
+                  {expandedChannels.has('blog') ? (
+                    <>
+                      <ChevronUp className="h-3 w-3 mr-1" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-3 w-3 mr-1" />
+                      +{blogItems.length - 3} more
                     </>
                   )}
                 </Button>
