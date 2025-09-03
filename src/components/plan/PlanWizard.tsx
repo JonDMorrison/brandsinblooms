@@ -138,12 +138,6 @@ const PlanWizardContent: React.FC = () => {
             </div>
           </div>
 
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-2">Plan My Marketing</h1>
-            <p className="text-xl text-muted-foreground">
-              Create a complete monthly marketing plan in minutes
-            </p>
-          </div>
 
           {/* Progress */}
           <Card className="mb-8">
