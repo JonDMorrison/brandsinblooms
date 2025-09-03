@@ -31,6 +31,18 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
 
   console.log('[PlanPersist] Processing', enabledItems.length, 'enabled items');
 
+  // Get current user once at the beginning
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !user) {
+    return {
+      success: false,
+      created: 0,
+      skipped: 0,
+      error: 'User not authenticated'
+    };
+  }
+
   // Process each enabled item
   for (const item of enabledItems) {
     try {
@@ -45,7 +57,7 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
           ai_output: item.caption,
           scheduled_date: item.date.toISOString().split('T')[0], // YYYY-MM-DD format
           image_url: item.imageUrl || null,
-          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_id: user.id,
           // Add metadata to track this came from plan wizard
           notes: `Generated from Plan My Marketing: ${planState.theme.label} theme`
         })
@@ -81,7 +93,8 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
             platform: platformMap[item.type as keyof typeof platformMap],
             publish_at: item.date.toISOString(),
             status: 'QUEUED',
-            mode: 'MANUAL' // User will need to review and publish
+            mode: 'MANUAL', // User will need to review and publish
+            user_id: user.id
           });
 
         if (scheduleError) {
