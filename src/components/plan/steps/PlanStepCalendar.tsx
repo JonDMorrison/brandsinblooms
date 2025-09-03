@@ -401,18 +401,31 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                      </Button>
                                    </div>
                                 </div>
-                              ) : (
-                                <div className="space-y-3">
-                                  <h4 className="font-medium">{item.title}</h4>
-                                  <p className="text-sm text-muted-foreground">{item.caption}</p>
-                                  {item.imageUrl && (
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                      <ImageIcon className="h-4 w-4" />
-                                      <span>Image selected</span>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                               ) : (
+                                 <div 
+                                   className="space-y-3 cursor-pointer hover:bg-muted/20 -m-2 p-2 rounded-md transition-colors group/content"
+                                   onClick={() => setEditingItem(item.id)}
+                                   onKeyDown={(e) => {
+                                     if (e.key === 'Enter' || e.key === ' ') {
+                                       e.preventDefault();
+                                       setEditingItem(item.id);
+                                     }
+                                   }}
+                                   role="button"
+                                   tabIndex={0}
+                                   aria-label="Click to edit content"
+                                   title="Click to edit"
+                                 >
+                                   <h4 className="font-medium group-hover/content:text-primary transition-colors">{item.title}</h4>
+                                   <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
+                                   {item.imageUrl && (
+                                     <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
+                                       <ImageIcon className="h-4 w-4" />
+                                       <span>Image selected</span>
+                                     </div>
+                                   )}
+                                 </div>
+                               )}
                             </div>
                           </div>
                         </div>
