@@ -18,11 +18,6 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
       
       <div className="max-w-6xl mx-auto relative z-10">
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 bg-green-500/10 text-green-400 px-4 py-2 rounded-full text-sm font-medium mb-6">
-            <Sparkles className="w-4 h-4" />
-            Join 500+ Successful Garden Centers
-          </div>
-          
           <h2 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
             Ready to Transform Your
             <span className="block text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text">
