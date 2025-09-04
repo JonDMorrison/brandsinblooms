@@ -32,6 +32,16 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const { toast } = useToast();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Debug PersonaLibrary mounting
+  console.log('PersonaLibrary component mounted/rendered with:', { customerId });
+  
+  useEffect(() => {
+    console.log('PersonaLibrary mounted successfully');
+    return () => {
+      console.log('PersonaLibrary unmounting');
+    };
+  }, []);
 
   // Lock background scroll when modal is open
   useEffect(() => {
