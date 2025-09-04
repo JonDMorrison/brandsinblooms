@@ -8,12 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign } from 'lucide-react';
 import { CustomerImportDialog } from '@/components/crm/customers/CustomerImportDialog';
+import { CustomerDetailsSheet } from '@/components/crm/customers/CustomerDetailsSheet';
 import { useCustomers } from '@/hooks/useCustomers';
 import { format } from 'date-fns';
 
 export const CRMCustomersPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   
   const { data: customers = [], isLoading, invalidateCustomers } = useCustomers({ 
     search: searchQuery 
@@ -27,6 +30,20 @@ export const CRMCustomersPage: React.FC = () => {
   };
 
   const handleImportComplete = () => {
+    invalidateCustomers();
+  };
+
+  const handleCustomerClick = (customer: any) => {
+    setSelectedCustomer(customer);
+    setIsSheetOpen(true);
+  };
+
+  const handleCloseSheet = () => {
+    setIsSheetOpen(false);
+    setSelectedCustomer(null);
+  };
+
+  const handleCustomerUpdated = () => {
     invalidateCustomers();
   };
 
@@ -110,11 +127,11 @@ export const CRMCustomersPage: React.FC = () => {
                   </TableHeader>
                   <TableBody>
                     {customers.map((customer) => (
-                      <TableRow 
-                        key={customer.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => navigate(`/crm/customers/${customer.id}`)}
-                      >
+                       <TableRow 
+                         key={customer.id}
+                         className="cursor-pointer hover:bg-muted/50"
+                         onClick={() => handleCustomerClick(customer)}
+                       >
                         <TableCell>
                           <div>
                             <div className="font-medium">
@@ -185,6 +202,13 @@ export const CRMCustomersPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <CustomerDetailsSheet 
+        customer={selectedCustomer}
+        isOpen={isSheetOpen}
+        onClose={handleCloseSheet}
+        onCustomerUpdated={handleCustomerUpdated}
+      />
     </div>
   );
 };
