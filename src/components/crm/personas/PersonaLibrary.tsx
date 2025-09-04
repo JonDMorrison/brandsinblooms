@@ -111,7 +111,7 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="bg-white p-6 rounded-lg">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
         </div>
@@ -120,8 +120,8 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-background rounded-lg shadow-lg max-w-6xl w-full h-[90vh] flex flex-col overflow-hidden border">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white text-slate-800 rounded-lg shadow-lg w-[85vw] max-w-[1600px] h-[90vh] flex flex-col overflow-hidden border">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border bg-background">
           <div className="flex items-center gap-3">
