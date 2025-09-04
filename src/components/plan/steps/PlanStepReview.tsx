@@ -153,24 +153,24 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                              ✅
                            </Badge>
-                           {themeItems.some(item => item.type === 'blog' && item.enhancedContent) && (
-                             <Dialog>
-                               <DialogTrigger asChild>
-                                 <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-                                   <ExternalLink className="h-3 w-3 mr-1" />
-                                   Preview
-                                 </Button>
-                               </DialogTrigger>
-                               <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-                                 <DialogHeader>
-                                   <DialogTitle>Blog Content Preview</DialogTitle>
-                                 </DialogHeader>
-                                 <BlogContentViewer 
-                                   blogItem={themeItems.find(item => item.type === 'blog' && item.enhancedContent)!}
-                                 />
-                               </DialogContent>
-                             </Dialog>
-                           )}
+                            {themeItems.some(item => item.type === 'blog' && item.enhancedContent) && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" size="sm" className="h-8 px-3 text-xs gap-2">
+                                    <FileText className="h-4 w-4" />
+                                    View Full Blog ({themeItems.find(item => item.type === 'blog' && item.enhancedContent)?.enhancedContent?.readingTime})
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+                                  <DialogHeader>
+                                    <DialogTitle>Blog Content Preview</DialogTitle>
+                                  </DialogHeader>
+                                  <BlogContentViewer 
+                                    blogItem={themeItems.find(item => item.type === 'blog' && item.enhancedContent)!}
+                                  />
+                                </DialogContent>
+                              </Dialog>
+                            )}
                          </div>
                        </div>
                      )}
@@ -397,29 +397,62 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <CardContent className="space-y-3">
             <div className="space-y-2">
               {blogItems.slice(0, expandedChannels.has('blog') ? blogItems.length : 3).map(item => (
-                <div key={item.id} className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    {formatDateRange(item.date)} - {item.title}
-                  </span>
-                  {item.enhancedContent && (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          View
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Blog Content Preview</DialogTitle>
-                        </DialogHeader>
-                        <BlogContentViewer blogItem={item} />
-                      </DialogContent>
-                    </Dialog>
-                  )}
-                </div>
-              ))}
-              {blogItems.length > 3 && (
+                 <div key={item.id} className="flex items-center justify-between">
+                   <span className="text-sm text-muted-foreground">
+                     {formatDateRange(item.date)} - {item.title}
+                   </span>
+                   {item.enhancedContent && (
+                     <Dialog>
+                       <DialogTrigger asChild>
+                         <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1">
+                           <FileText className="h-3 w-3" />
+                           Full Blog ({item.enhancedContent?.readingTime})
+                         </Button>
+                       </DialogTrigger>
+                       <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+                         <DialogHeader>
+                           <DialogTitle>Blog Content Preview</DialogTitle>
+                         </DialogHeader>
+                         <BlogContentViewer blogItem={item} />
+                       </DialogContent>
+                     </Dialog>
+                   )}
+                 </div>
+               ))}
+               {/* Always show blog preview for blog items */}
+               {blogItems.length > 0 && expandedChannels.has('blog') && (
+                 <div className="mt-4 space-y-3">
+                   {blogItems.slice(0, expandedChannels.has('blog') ? blogItems.length : 3).map(item => (
+                     <div key={`preview-${item.id}`} className="p-4 bg-muted/30 rounded-lg border">
+                       <div className="flex items-center gap-2 mb-2">
+                         <FileText className="h-4 w-4 text-purple-600" />
+                         <span className="font-medium text-sm">Blog Post Preview</span>
+                         {item.enhancedContent && (
+                           <Badge variant="secondary" className="text-xs">
+                             {item.enhancedContent.readingTime}
+                           </Badge>
+                         )}
+                       </div>
+                       {item.enhancedContent ? (
+                         <div className="space-y-2">
+                           <h4 className="font-medium text-sm">{item.enhancedContent.title}</h4>
+                           <p className="text-xs text-muted-foreground">{item.enhancedContent.description}</p>
+                           <div className="flex flex-wrap gap-1">
+                             {item.enhancedContent.tags?.slice(0, 3).map((tag: string, i: number) => (
+                               <Badge key={i} variant="outline" className="text-xs px-1 py-0">
+                                 {tag}
+                               </Badge>
+                             ))}
+                           </div>
+                         </div>
+                       ) : (
+                         <p className="text-sm text-muted-foreground">{item.caption}</p>
+                       )}
+                     </div>
+                   ))}
+                 </div>
+                )}
+               {blogItems.length > 3 && (
                 <Button
                   variant="ghost"
                   size="sm"

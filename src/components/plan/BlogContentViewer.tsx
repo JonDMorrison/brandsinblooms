@@ -106,6 +106,53 @@ export const BlogContentViewer: React.FC<BlogContentViewerProps> = ({ blogItem }
               <ExternalLink className="h-4 w-4" />
               Copy Markdown
             </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                window.open('data:text/html;charset=utf-8,' + encodeURIComponent(`
+                  <html>
+                    <head>
+                      <title>${enhanced.title}</title>
+                      <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+                        h1 { color: #1f2937; border-bottom: 3px solid #10b981; padding-bottom: 10px; }
+                        h2 { color: #374151; margin-top: 2em; }
+                        h3 { color: #4b5563; }
+                        ul, ol { margin: 1em 0; }
+                        li { margin: 0.5em 0; }
+                        p { margin: 1em 0; }
+                        strong { color: #1f2937; }
+                        code { background: #f3f4f6; padding: 2px 4px; border-radius: 3px; }
+                        pre { background: #f3f4f6; padding: 15px; border-radius: 6px; overflow-x: auto; }
+                        blockquote { border-left: 4px solid #10b981; margin: 0; padding-left: 20px; font-style: italic; }
+                        .highlight { background: #fef3c7; padding: 2px 4px; border-radius: 3px; }
+                      </style>
+                    </head>
+                    <body>
+                      ${enhanced.fullContent
+                        .replace(/\n/g, '<br>')
+                        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                        .replace(/<h[1-3]>([^<]+)<br>/g, '<h$1>$2</h$1>')
+                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                        .replace(/^\* (.+)$/gm, '<li>$1</li>')
+                        .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+                        .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+                        .replace(/<br><br>/g, '</p><p>')
+                        .replace(/^/, '<p>')
+                        .replace(/$/, '</p>')
+                      }
+                    </body>
+                  </html>
+                `), '_blank');
+              }}
+              className="flex items-center gap-2"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open in New Tab
+            </Button>
           </div>
         </CardContent>
       </Card>

@@ -287,6 +287,40 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                   >
                                     <Edit className="h-4 w-4" />
                                   </Button>
+                                  {/* Blog Content Preview Button */}
+                                  {item.type === 'blog' && item.enhancedContent && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Open blog preview modal
+                                        window.open('data:text/html;charset=utf-8,' + encodeURIComponent(`
+                                          <html>
+                                            <head>
+                                              <title>${item.enhancedContent.title}</title>
+                                              <style>
+                                                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+                                                h1 { color: #1f2937; border-bottom: 3px solid #10b981; padding-bottom: 10px; }
+                                                h2 { color: #374151; margin-top: 2em; }
+                                                h3 { color: #4b5563; }
+                                                code { background: #f3f4f6; padding: 2px 4px; border-radius: 3px; }
+                                                pre { background: #f3f4f6; padding: 15px; border-radius: 6px; overflow-x: auto; }
+                                                blockquote { border-left: 4px solid #10b981; margin: 0; padding-left: 20px; font-style: italic; }
+                                              </style>
+                                            </head>
+                                            <body>
+                                              ${item.enhancedContent.fullContent.replace(/\n/g, '<br>').replace(/#{3} /g, '<h3>').replace(/#{2} /g, '<h2>').replace(/#{1} /g, '<h1>').replace(/<h([1-3])>([^<]+)<br>/g, '<h$1>$2</h$1>')}
+                                            </body>
+                                          </html>
+                                        `), '_blank');
+                                      }}
+                                      className="gap-1 text-xs h-7"
+                                    >
+                                      <FileText className="h-3 w-3" />
+                                      Preview Full Blog
+                                    </Button>
+                                  )}
                                    <div 
                                      className="flex items-center gap-3 bg-muted/50 hover:bg-muted/70 px-3 py-2 rounded-lg cursor-pointer transition-colors group/toggle"
                                      onClick={(e) => {

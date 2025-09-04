@@ -17,13 +17,18 @@ export const generateEnhancedBlogContent = (
   holidays?: any[]
 ): BlogContentResult => {
   const focus = contentIdea || seasonalFocus || 'seasonal gardening';
-  const holidayContext = holidays && holidays.length > 0 ? ` Plus, discover how to make the most of ${holidays[0].holiday_name} with your garden.` : '';
+  
+  // Only include relevant holidays that match the theme/focus
+  const relevantHoliday = holidays?.find(holiday => 
+    isRelevantHoliday(holiday.holiday_name, focus, theme.label)
+  );
+  const holidayContext = relevantHoliday ? ` Plus, discover how to make the most of ${relevantHoliday.holiday_name} with your garden.` : '';
   
   // Generate comprehensive blog content
   const title = `Complete Guide to ${focus.charAt(0).toUpperCase() + focus.slice(1)} in ${month}`;
   const description = `Your complete guide to ${focus.toLowerCase()} in ${month}. From expert tips and timing to plant selection and care techniques - everything you need for success this season.${holidayContext} Includes step-by-step instructions, troubleshooting guide, and seasonal recipes.`;
   
-  const fullContent = generateFullBlogContent(theme, month, focus, holidayContext, holidays);
+  const fullContent = generateFullBlogContent(theme, month, focus, holidayContext, relevantHoliday ? [relevantHoliday] : []);
   
   return {
     title,
@@ -310,6 +315,35 @@ Take time to enjoy the process, document your successes, and learn from any chal
 ---
 
 *Happy Gardening! For more seasonal gardening tips and expert advice, visit our garden center or contact our horticultural specialists.*`;
+};
+
+// Helper function to check if a holiday is relevant to the garden theme
+const isRelevantHoliday = (holidayName: string, focus: string, themeLabel: string): boolean => {
+  const holiday = holidayName.toLowerCase();
+  const focusLower = focus.toLowerCase();
+  const themeLower = themeLabel.toLowerCase();
+  
+  // Define relevant keyword mappings
+  const relevantMappings = {
+    vegetarian: ['vegetable', 'harvest', 'garden', 'plant', 'grow'],
+    thanksgiving: ['harvest', 'autumn', 'fall', 'gratitude', 'garden'],
+    earth: ['garden', 'plant', 'eco', 'green', 'sustainable'],
+    harvest: ['harvest', 'autumn', 'fall', 'crop', 'garden'],
+    spring: ['spring', 'plant', 'seed', 'grow', 'garden'],
+    summer: ['summer', 'garden', 'plant', 'grow'],
+    winter: ['winter', 'indoor', 'plant', 'garden']
+  };
+  
+  // Check if holiday matches any relevant themes
+  for (const [holidayType, keywords] of Object.entries(relevantMappings)) {
+    if (holiday.includes(holidayType)) {
+      return keywords.some(keyword => 
+        focusLower.includes(keyword) || themeLower.includes(keyword)
+      );
+    }
+  }
+  
+  return false;
 };
 
 const generateHolidaySection = (holidayName: string | null, month: string, focus: string): string => {
