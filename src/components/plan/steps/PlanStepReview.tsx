@@ -477,50 +477,49 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
         </Card>
       </div>
 
+      {/* Launch Section */}
+      <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200 mt-8">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <div className="font-semibold">✅ Plan Ready to Launch</div>
+                <div className="text-sm text-muted-foreground">
+                  {enabledItems.length} items will be scheduled. No content is sent immediately.
+                </div>
+              </div>
+            </div>
+            <Button 
+              onClick={onLaunch} 
+              disabled={!hasAnyContent || isLaunching}
+              size="lg" 
+              className="px-8 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+            >
+              {isLaunching ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Launching...
+                </>
+              ) : (
+                <>
+                  <Rocket className="h-4 w-4 mr-2" />
+                  Launch My Plan
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Navigation */}
       <div className="flex justify-between pt-8">
         <Button variant="outline" onClick={onBack} size="lg" className="px-8" disabled={isLaunching}>
           Back
         </Button>
       </div>
-      
-      {/* Sticky Footer - Ready to Launch */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-border p-4 z-50">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-              <CheckCircle className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <div className="font-semibold">✅ Plan Ready to Launch</div>
-              <div className="text-sm text-muted-foreground">
-                {enabledItems.length} items will be scheduled. No content is sent immediately.
-              </div>
-            </div>
-          </div>
-          <Button 
-            onClick={onLaunch} 
-            disabled={!hasAnyContent || isLaunching}
-            size="lg" 
-            className="px-8 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
-          >
-            {isLaunching ? (
-              <>
-                <Clock className="h-4 w-4 mr-2 animate-spin" />
-                Launching...
-              </>
-            ) : (
-              <>
-                <Rocket className="h-4 w-4 mr-2" />
-                Launch My Plan
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-      
-      {/* Spacer for sticky footer */}
-      <div className="h-20"></div>
     </div>
   );
 };
