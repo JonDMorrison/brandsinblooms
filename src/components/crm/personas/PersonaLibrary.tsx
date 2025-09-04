@@ -81,7 +81,11 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
       try {
         const { error } = await supabase
           .from('crm_customers')
-          .update({ persona_id: persona.id })
+          .update({ 
+            persona: persona.name,
+            persona_id: persona.id,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', customerId);
 
         if (error) throw error;
@@ -91,6 +95,7 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
           description: `${persona.name} has been assigned to this customer.`,
         });
       } catch (error) {
+        console.error('Error assigning persona:', error);
         toast({
           title: "Error",
           description: "Failed to assign persona to customer.",
@@ -116,7 +121,7 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-lg max-w-7xl w-full max-h-[95vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center gap-3">
@@ -162,7 +167,7 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
         </div>
 
         {/* Personas Grid */}
-        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 220px)' }}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredPersonas.map((persona) => (
               <Card 
