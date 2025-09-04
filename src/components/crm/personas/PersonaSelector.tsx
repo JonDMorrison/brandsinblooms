@@ -34,15 +34,29 @@ export function PersonaSelector({
 }: PersonaSelectorProps) {
   const [showLibrary, setShowLibrary] = useState(false);
 
+  // Add component instance debugging
+  const componentId = useState(() => Math.random().toString(36).substr(2, 9))[0];
+  
+  console.log(`PersonaSelector ${componentId} rendered with:`, { 
+    value, 
+    customerId, 
+    showFullCard, 
+    showLibrary 
+  });
+
   const handleOpenLibrary = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Opening persona library...', { showLibrary });
+    console.log(`PersonaSelector ${componentId} - Opening persona library...`, { 
+      showLibrary, 
+      value, 
+      customerId 
+    });
     setShowLibrary(true);
   };
 
   const handleCloseLibrary = () => {
-    console.log('Closing persona library...');
+    console.log(`PersonaSelector ${componentId} - Closing persona library...`);
     setShowLibrary(false);
   };
 
