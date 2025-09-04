@@ -34,6 +34,18 @@ export function PersonaSelector({
 }: PersonaSelectorProps) {
   const [showLibrary, setShowLibrary] = useState(false);
 
+  const handleOpenLibrary = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Opening persona library...', { showLibrary });
+    setShowLibrary(true);
+  };
+
+  const handleCloseLibrary = () => {
+    console.log('Closing persona library...');
+    setShowLibrary(false);
+  };
+
   const { data: selectedPersona } = useQuery({
     queryKey: ['persona', value],
     queryFn: async () => {
@@ -80,7 +92,7 @@ export function PersonaSelector({
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setShowLibrary(true)}
+                onClick={handleOpenLibrary}
               >
                 <Edit3 className="h-4 w-4 mr-1" />
                 Change
@@ -137,7 +149,7 @@ export function PersonaSelector({
 
         {showLibrary && (
           <PersonaLibrary
-            onClose={() => setShowLibrary(false)}
+            onClose={handleCloseLibrary}
             onPersonaSelect={handlePersonaSelect}
             customerId={customerId}
           />
@@ -164,7 +176,7 @@ export function PersonaSelector({
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => setShowLibrary(true)}
+              onClick={handleOpenLibrary}
             >
               <Edit3 className="h-4 w-4 mr-1" />
               Change
@@ -173,7 +185,7 @@ export function PersonaSelector({
         ) : (
           <Button 
             variant="outline" 
-            onClick={() => setShowLibrary(true)}
+            onClick={handleOpenLibrary}
             className="w-full justify-start"
           >
             <User className="h-4 w-4 mr-2" />
@@ -184,7 +196,7 @@ export function PersonaSelector({
 
       {showLibrary && (
         <PersonaLibrary
-          onClose={() => setShowLibrary(false)}
+          onClose={handleCloseLibrary}
           onPersonaSelect={handlePersonaSelect}
           customerId={customerId}
         />
