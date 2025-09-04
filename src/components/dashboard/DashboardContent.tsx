@@ -45,6 +45,8 @@ export const DashboardContent = ({
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isContentGenerating, setIsContentGenerating] = useState(false);
+  const [showMicroTour, setShowMicroTour] = useState(false);
+  const [showTourBanner, setShowTourBanner] = useState(false);
   
   // Get approved tasks for the Ready to Publish section
   const approvedTasks = tasks?.filter(task => task.status === TASK_STATUS.APPROVED) || [];
@@ -347,7 +349,8 @@ export const DashboardContent = ({
     
     const status = scheduledTime ? TASK_STATUS.SCHEDULED : TASK_STATUS.PUBLISHED;
     
-    toast.success(
+    // Success notification would be shown here
+    console.log(
       scheduledTime 
         ? `Post scheduled for ${scheduledTime.toLocaleString()}`
         : 'Post published successfully!'
@@ -395,6 +398,28 @@ export const DashboardContent = ({
     }
   }, [flowState.isFirstTimeConnection, loading, navigateToTargetSection]);
 
+  // Check for manual tour start from sessionStorage
+  useEffect(() => {
+    const shouldStartTour = sessionStorage.getItem('startProductTour');
+    if (shouldStartTour) {
+      sessionStorage.removeItem('startProductTour');
+      setShowMicroTour(true);
+    }
+  }, []);
+
+  // Show tour banner for eligible users who haven't seen it
+  useEffect(() => {
+    if (user && !loading) {
+      const hasSeenTourBanner = localStorage.getItem(`tour_banner_dismissed_${user.id}`);
+      const hasCompletedTour = localStorage.getItem(`micro_tour_completed_${user.id}`);
+      
+      if (!hasSeenTourBanner && !hasCompletedTour) {
+        // Small delay to ensure page is loaded
+        setTimeout(() => setShowTourBanner(true), 2000);
+      }
+    }
+  }, [user, loading]);
+
   const handleDismissQuickstart = () => {
     setShowQuickstartChecklist(false);
     if (user) {
@@ -420,6 +445,32 @@ export const DashboardContent = ({
           readyElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         break;
+    }
+  };
+
+  const handleStartTour = () => {
+    setShowTourBanner(false);
+    setShowMicroTour(true);
+  };
+
+  const handleDismissTourBanner = () => {
+    setShowTourBanner(false);
+    if (user) {
+      localStorage.setItem(`tour_banner_dismissed_${user.id}`, 'true');
+    }
+  };
+
+  const handleTourComplete = () => {
+    setShowMicroTour(false);
+    if (user) {
+      localStorage.setItem(`micro_tour_completed_${user.id}`, 'true');
+    }
+  };
+
+  const handleTourSkip = () => {
+    setShowMicroTour(false);
+    if (user) {
+      localStorage.setItem(`micro_tour_completed_${user.id}`, 'true');
     }
   };
 
@@ -461,6 +512,37 @@ export const DashboardContent = ({
       <ProgressiveDashboardShell>
         <div className="w-full overflow-x-hidden bg-gray-50">
           <div className="space-y-4 p-4 md:p-6 w-full">
+          {/* Tour Banner for new users */}
+          {showTourBanner && (
+            <div className="bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                    <span className="text-primary-foreground text-sm font-semibold">✨</span>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-foreground">New here? Take a 2‑min tour</h4>
+                    <p className="text-sm text-muted-foreground">Learn how to create and publish content in minutes</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleStartTour}
+                    className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    Start Tour
+                  </button>
+                  <button
+                    onClick={handleDismissTourBanner}
+                    className="text-muted-foreground hover:text-foreground p-2"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Quickstart Checklist - only show after social connection */}
           {showQuickstartChecklist && (
             <QuickstartChecklist
@@ -551,11 +633,11 @@ export const DashboardContent = ({
           )}
         </div>
 
-        {/* Micro Walkthrough Tour */}
+        {/* Manual Micro Walkthrough Tour */}
         <MicroWalkthroughTour
-          isVisible={flowState.shouldShowOnboarding}
-          onComplete={completeOnboarding}
-          onSkip={completeOnboarding}
+          isVisible={showMicroTour}
+          onComplete={handleTourComplete}
+          onSkip={handleTourSkip}
         />
         
         {/* Quick Publish Modal */}

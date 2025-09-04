@@ -12,7 +12,7 @@ interface EnhancedSeasonalHolidaysCardProps {
 
 export const EnhancedSeasonalHolidaysCard = ({ onContentGenerated }: EnhancedSeasonalHolidaysCardProps) => {
   const { isNewUser } = useUser();
-  const [showGuide, setShowGuide] = useState(isNewUser);
+  const [showGuide, setShowGuide] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState(0);

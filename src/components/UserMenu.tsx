@@ -13,7 +13,8 @@ import {
   Building2,
   Users,
   CreditCard,
-  TrendingUp
+  TrendingUp,
+  PlayCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -167,6 +168,15 @@ export const UserMenu = () => {
               <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/social')}>
                 <Share2 className="mr-2 h-4 w-4" />
                 Content Planner
+              </button>
+              
+              <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => {
+                sessionStorage.setItem('startProductTour', 'true');
+                navigate('/dashboard');
+                setIsDropdownOpen(false);
+              }}>
+                <PlayCircle className="mr-2 h-4 w-4" />
+                Start Product Tour
               </button>
               
               <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/social-media')}>
