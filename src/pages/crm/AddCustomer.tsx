@@ -181,25 +181,24 @@ const AddCustomer = () => {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
-      <div className="flex items-center gap-4 mb-6">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => {
-            console.log('Back to Customers button clicked, attempting navigation...');
-            navigate('/crm/customers');
-          }}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Customers
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Add New Customer</h1>
-          <p className="text-muted-foreground">
-            Add a new customer to your garden center database
-          </p>
-        </div>
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={() => {
+          console.log('Back to Customers button clicked, attempting navigation...');
+          navigate('/crm/customers');
+        }}
+        className="flex items-center gap-2 mb-4"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Customers
+      </Button>
+      
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-foreground">Add New Customer</h1>
+        <p className="text-muted-foreground">
+          Add a new customer to your garden center database
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
