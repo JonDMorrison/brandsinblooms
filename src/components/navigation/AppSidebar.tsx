@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import logoImage from "@/assets/bloomsuite-logo.png";
+// import logoImage from "@/assets/bloomsuite-logo.png";
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -175,11 +175,9 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center justify-between px-4 py-2 h-12">
           <Link to="/" className="flex items-center gap-2">
-            <img 
-              src={logoImage} 
-              alt="BloomSuite Logo" 
-              className="h-6 w-6" 
-            />
+            <div className="w-6 h-6 bg-gradient-to-br from-teal-500 to-teal-700 rounded-md flex items-center justify-center">
+              <span className="text-white font-bold text-sm">B</span>
+            </div>
             {state !== "collapsed" && (
               <span className="font-bold text-xl tracking-tight">BloomSuite</span>
             )}

@@ -2,7 +2,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
-import logoImage from "@/assets/bloomsuite-logo.png";
+// import logoImage from "@/assets/bloomsuite-logo.png";
 
 interface LandingPageIconProps {
   icon?: LucideIcon;
@@ -65,16 +65,10 @@ export const LandingPageIcon = ({
         )}
         style={style}
       >
-        <img 
-          src={logo || logoImage}
-          alt="BloomSuite Logo"
-          className={cn(
-            "transition-all duration-300 object-contain",
-            logoSize,
-            animated && "group-hover:scale-110",
-            className
-          )}
-        />
+        <div 
+          className="w-full h-full bg-gradient-to-br from-teal-500 to-teal-700 rounded-md flex items-center justify-center">
+          <span className="text-white font-bold text-lg">B</span>
+        </div>
       </div>
     );
   }

@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signInWithCleanup, signUpWithCleanup } from "@/integrations/supabase/client";
 
-import bloomSuiteLogo from "@/assets/bloomsuite-logo.png";
+// import bloomSuiteLogo from "@/assets/bloomsuite-logo.png";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
