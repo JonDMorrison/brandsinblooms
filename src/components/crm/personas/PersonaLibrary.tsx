@@ -121,15 +121,15 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-7xl w-full max-h-[95vh] overflow-hidden">
+      <div className="bg-background rounded-lg shadow-lg max-w-6xl w-full h-[90vh] flex flex-col overflow-hidden border">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
+        <div className="flex items-center justify-between p-6 border-b border-border bg-background">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
               <Users className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold">Customer Personas</h2>
+              <h2 className="text-xl font-semibold text-foreground">Customer Personas</h2>
               <p className="text-sm text-muted-foreground">
                 Choose a persona to help personalize content and campaigns
               </p>
@@ -141,51 +141,56 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
         </div>
 
         {/* Search and Filters */}
-        <div className="p-6 border-b space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search personas..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {filterTypes.map((type) => (
-              <Button
-                key={type.label}
-                variant={selectedType === type.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedType(type.value)}
-              >
-                {type.label}
-              </Button>
-            ))}
+        <div className="p-6 border-b border-border bg-background/50 flex-shrink-0">
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search personas..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              {filterTypes.map((type) => (
+                <Button
+                  key={type.label}
+                  variant={selectedType === type.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedType(type.value)}
+                >
+                  {type.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Personas Grid */}
-        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 220px)' }}>
+        {/* Personas Grid - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredPersonas.map((persona) => (
               <Card 
                 key={persona.id} 
-                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/20"
+                className="cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-primary/20 bg-card"
                 onClick={() => handlePersonaSelect(persona)}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
                     <div 
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
-                      style={{ backgroundColor: persona.color_theme + '20' }}
+                      className="w-12 h-12 rounded-full flex items-center justify-center text-2xl border"
+                      style={{ 
+                        backgroundColor: `${persona.color_theme}20`,
+                        borderColor: `${persona.color_theme}40`
+                      }}
                     >
                       {persona.icon}
                     </div>
                     <div className="flex-1">
-                      <CardTitle className="text-lg">{persona.name}</CardTitle>
-                      <CardDescription className="text-xs font-medium">
+                      <CardTitle className="text-lg text-foreground">{persona.name}</CardTitle>
+                      <CardDescription className="text-xs font-medium text-muted-foreground">
                         {persona.tone}
                       </CardDescription>
                     </div>
@@ -227,9 +232,13 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
                   </div>
                   
                   <Button 
-                    className="w-full mt-3" 
+                    className="w-full mt-3 text-white" 
                     size="sm"
                     style={{ backgroundColor: persona.color_theme }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePersonaSelect(persona);
+                    }}
                   >
                     Assign This Persona
                   </Button>
@@ -241,7 +250,7 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
           {filteredPersonas.length === 0 && (
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-muted-foreground">No personas found</h3>
+              <h3 className="text-lg font-medium text-foreground">No personas found</h3>
               <p className="text-sm text-muted-foreground">
                 Try adjusting your search or filter criteria
               </p>
@@ -250,7 +259,7 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
         </div>
 
         {/* Help Text */}
-        <div className="p-4 bg-muted/50 border-t">
+        <div className="p-4 bg-muted/30 border-t border-border flex-shrink-0">
           <p className="text-xs text-muted-foreground text-center">
             <strong>What this does:</strong> Assigning a persona helps personalize content, trigger smarter automations, 
             and unlock AI-generated campaigns tailored to your customers' values and habits.
