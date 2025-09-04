@@ -160,7 +160,8 @@ export function PersonaSelector({
 
   return (
     <>
-      <div className="space-y-2">
+      {console.log('PersonaSelector rendering, showLibrary:', showLibrary)}
+      <div className="space-y-2" style={{ position: 'relative', zIndex: 1 }}>
         {selectedPersona ? (
           <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
             <div 
@@ -186,7 +187,11 @@ export function PersonaSelector({
           <Button 
             variant="outline" 
             onClick={handleOpenLibrary}
-            className="w-full justify-start"
+            className="w-full justify-start relative z-10"
+            style={{ pointerEvents: 'auto' }}
+            onMouseEnter={() => console.log('Button hovered')}
+            onMouseDown={() => console.log('Button mouse down')}
+            onFocus={() => console.log('Button focused')}
           >
             <User className="h-4 w-4 mr-2" />
             Assign Persona
