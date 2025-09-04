@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -13,10 +12,7 @@ import {
   Plus, 
   Megaphone, 
   Filter,
-  Search,
   List,
-  Eye,
-  EyeOff,
   RefreshCw,
   Star
 } from 'lucide-react';
@@ -181,29 +177,6 @@ export const CalendarHeader = ({
             </Button>
           </div>
 
-          {/* Search Only */}
-          {filters && onFiltersChange && (
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search content..."
-                  value={filters.searchQuery}
-                  onChange={(e) => onFiltersChange({ ...filters, searchQuery: e.target.value })}
-                  className="pl-9 w-48 h-8"
-                />
-              </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onFiltersChange({ ...filters, showPublished: !filters.showPublished })}
-                className={`h-8 px-3 ${filters.showPublished ? 'text-blue-700' : 'text-muted-foreground'}`}
-              >
-                {filters.showPublished ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </Button>
-            </div>
-          )}
         </div>
         
         {/* Bulk Action Buttons - only show when tasks are selected */}
