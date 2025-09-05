@@ -78,21 +78,9 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         <div className="apple-fade-in-stagger mx-auto px-4" style={{animationDelay: '0.4s'}}>
           <Button 
             onClick={onGetStarted}
-            className="bg-cta hover:bg-cta/90 text-white font-semibold rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 mx-auto block border-0 text-center cursor-pointer"
-            style={{
-              padding: '16px 20px',
-              fontSize: '15px',
-              maxWidth: 'calc(100vw - 32px)',
-              width: 'auto',
-              whiteSpace: 'normal',
-              lineHeight: '1.2',
-              boxShadow: '0 8px 16px rgba(230, 126, 72, 0.2)',
-              textAlign: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'auto'
-            }}
+            variant="cta"
+            size="cta"
+            className="mx-auto"
           >
             Get Started In Less Than A Minute
           </Button>

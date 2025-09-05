@@ -21,6 +21,7 @@ const buttonVariants = cva(
         link: "text-brand-teal underline-offset-4 hover:underline",
         success: "bg-green-600 text-white hover:bg-green-700 shadow-sm",
         "soft-blue": "bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200",
+        cta: "bg-cta text-white hover:bg-cta/90 rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold w-full sm:w-auto border-0",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -28,6 +29,7 @@ const buttonVariants = cva(
         lg: "h-11 rounded-md px-8",
         icon: "h-10 w-10",
         pill: "h-9 px-4 py-2",
+        cta: "px-8 py-4 text-lg sm:px-12 sm:py-6 sm:text-xl",
       },
     },
     defaultVariants: {

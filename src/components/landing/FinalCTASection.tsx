@@ -61,8 +61,8 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
         <div className="text-center">
           <Button 
             onClick={onGetStarted}
-            size="lg"
-            className="bg-cta hover:bg-cta/90 text-white font-semibold px-12 py-6 text-lg shadow-2xl hover:shadow-cta/25 transition-all duration-300 hover:scale-105 border-0"
+            variant="cta"
+            size="cta"
           >
             Start Your Free Trial Today
             <ArrowRight className="ml-2 h-5 w-5" />
