@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Circle, Smartphone, TestTube, Shield, ArrowRight } from 'lucide-react';
+import { CheckCircle, Circle, Smartphone, TestTube, Shield, ArrowRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { twilioClient } from '@/lib/sms/twilioClient';
 import { supabase } from '@/integrations/supabase/client';
@@ -186,8 +186,13 @@ export const SMSSetupWizard: React.FC<SMSSetupWizardProps> = ({ trigger, onCompl
         {trigger}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
+        <DialogClose asChild>
+          <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-6 w-6">
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogClose>
         <DialogHeader>
-          <DialogTitle>SMS Setup Wizard</DialogTitle>
+          <DialogTitle className="pr-8">SMS Setup Wizard</DialogTitle>
           <DialogDescription>
             Let's get your SMS campaigns ready in just a few steps
           </DialogDescription>
