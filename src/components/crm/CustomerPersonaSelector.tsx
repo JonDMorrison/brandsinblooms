@@ -27,14 +27,11 @@ export const CustomerPersonaSelector = ({
 
   const { personas, loading: personasLoading } = useAllPersonas();
 
-  // Find the selected persona - check both persona_id and persona fields
-  // Handle both UUID (custom personas) and string (predefined personas) IDs
-  const selectedPersona = personas.find(p => 
-    p.id === value || p.persona_name === value
-  );
+  // Find the selected persona by ID (UUID) - now using unified approach
+  const selectedPersona = personas.find(p => p.id === value);
 
-  // Determine the current value for comparison - could be UUID or string
-  const currentSelectedId = value;
+  // Check if persona is selected
+  const isPersonaSelected = (personaId: string) => value === personaId;
 
   const handlePersonaToggle = async (personaId: string) => {
     if (isUpdating) return;
@@ -43,15 +40,14 @@ export const CustomerPersonaSelector = ({
     
     try {
       const newPersonaId = value === personaId ? null : personaId;
-      const selectedPersona = personas.find(p => p.id === personaId);
       
-      // For predefined personas, store the persona_name in persona field (must match constraint values)
-      // For custom personas (UUID IDs), store in persona_id field
-      const updateData = newPersonaId === null 
-        ? { persona_id: null, persona: null }
-        : selectedPersona?.is_custom 
-          ? { persona_id: newPersonaId, persona: null }  // Custom persona - use UUID field
-          : { persona_id: null, persona: selectedPersona.persona_name }; // Predefined persona - use persona_name
+      // Unified approach: Always store persona references in the persona_id field using UUIDs
+      // This works for both predefined personas (which have UUIDs in the personas table) 
+      // and custom personas (which also have UUIDs)
+      const updateData = {
+        persona_id: newPersonaId,
+        persona: null // Clear legacy field to avoid confusion
+      };
       
       // Update in database
       const { error } = await supabase
