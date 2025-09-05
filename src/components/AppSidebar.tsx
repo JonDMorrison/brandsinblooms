@@ -1,5 +1,5 @@
 import React from "react";
-// import logoImage from "@/assets/bloomsuite-logo.png";
+import logoImage from "@/assets/bloomsuite-logo-correct.png";
 import {
   LayoutDashboard,
   Send,
@@ -183,8 +183,13 @@ const AppSidebar: React.FC = () => {
     <Sidebar collapsible="icon">
       <SidebarHeader className="flex flex-row items-center justify-between p-4">
         <NavLink to="/dashboard" className="font-semibold flex items-center gap-2">
-          <div className="w-6 h-6 bg-gradient-to-br from-teal-500 to-teal-700 rounded-md flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-sm">B</span>
+          <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+            <img 
+              src={logoImage} 
+              alt="BloomSuite Logo" 
+              className="w-full h-full object-contain"
+              style={{ background: 'transparent' }}
+            />
           </div>
           {!isCollapsed && <span>BloomSuite</span>}
         </NavLink>
