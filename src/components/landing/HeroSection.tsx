@@ -32,7 +32,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         </div>
         
         {/* Enhanced Typography */}
-        <h1 className="text-6xl md:text-7xl font-bold text-accent mb-8 leading-tight tracking-tight apple-fade-in-stagger">
+        <h1 className="text-4xl md:text-7xl font-bold text-accent mb-8 leading-tight tracking-tight apple-fade-in-stagger">
           The Most Powerful Marketing Tool Ever Built for <span className="text-secondary">Garden Centers</span>
         </h1>
         
