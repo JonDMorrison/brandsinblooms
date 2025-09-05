@@ -10,6 +10,7 @@ import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign } from 'lucide-r
 import { CustomerImportDialog } from '@/components/crm/customers/CustomerImportDialog';
 import { CustomerDetailsSheet } from '@/components/crm/customers/CustomerDetailsSheet';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { format } from 'date-fns';
 
 export const CRMCustomersPage: React.FC = () => {
@@ -21,12 +22,30 @@ export const CRMCustomersPage: React.FC = () => {
   const { data: customers = [], isLoading, invalidateCustomers } = useCustomers({ 
     search: searchQuery 
   });
+  const { personas } = useAllPersonas();
 
-  const personaColors: Record<string, string> = {
-    newbie: 'bg-blue-100 text-blue-800',
-    struggler: 'bg-yellow-100 text-yellow-800',
-    regular: 'bg-green-100 text-green-800',
-    expert: 'bg-purple-100 text-purple-800',
+  // Get persona details for a customer using unified approach
+  const getCustomerPersona = (customer: any) => {
+    if (customer.persona_id && personas) {
+      return personas.find(p => p.id === customer.persona_id);
+    }
+    return null;
+  };
+
+  // Dynamic persona colors based on the actual personas
+  const getPersonaColor = (personaName: string) => {
+    const colorMap: Record<string, string> = {
+      'Plant-Killer Pam': 'bg-green-100 text-green-800',
+      'Pet-Friendly Hannah': 'bg-purple-100 text-purple-800',
+      'Vegetable Garden Veronica': 'bg-amber-100 text-amber-800',
+      'Sustainable Susie': 'bg-teal-100 text-teal-800',
+      'Patio Gardener Gail': 'bg-red-100 text-red-800',
+      'Pollinator Paula': 'bg-orange-100 text-orange-800',
+      'Curb Appeal Ashley': 'bg-pink-100 text-pink-800',
+      'DIY Dana': 'bg-indigo-100 text-indigo-800',
+      'Wellness Whitney': 'bg-cyan-100 text-cyan-800',
+    };
+    return colorMap[personaName] || 'bg-gray-100 text-gray-800';
   };
 
   const handleImportComplete = () => {
@@ -157,16 +176,19 @@ export const CRMCustomersPage: React.FC = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          {customer.persona ? (
-                            <Badge 
-                              variant="secondary" 
-                              className={personaColors[customer.persona] || 'bg-gray-100 text-gray-800'}
-                            >
-                              {customer.persona}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">No persona</span>
-                          )}
+                          {(() => {
+                            const persona = getCustomerPersona(customer);
+                            return persona ? (
+                              <Badge 
+                                variant="secondary" 
+                                className={getPersonaColor(persona.persona_name)}
+                              >
+                                {persona.persona_name}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">No persona</span>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           {customer.total_spent ? (

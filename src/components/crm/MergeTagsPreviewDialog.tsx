@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Monitor, Smartphone, User, Building } from 'lucide-react';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { processEmailTokens, getDefaultTokenData, type TokenData } from '@/utils/emailTokenProcessor';
 import { SafeHtml } from '@/components/ui/safe-html';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,7 @@ export const MergeTagsPreviewDialog: React.FC<MergeTagsPreviewDialogProps> = ({
   const [previewMode, setPreviewMode] = useState<'email' | 'fields'>('email');
   
   const { data: customers, isLoading } = useCustomers();
+  const { personas } = useAllPersonas();
 
   // Get merge data based on selection
   const mergeData = useMemo(() => {
@@ -76,6 +78,12 @@ export const MergeTagsPreviewDialog: React.FC<MergeTagsPreviewDialogProps> = ({
   }, [emailContent, mergeData]);
 
   const selectedCustomer = customers?.find(c => c.id === selectedCustomerId);
+  
+  // Look up the selected customer's persona
+  const selectedCustomerPersona = useMemo(() => {
+    if (!selectedCustomer?.persona_id || !personas) return null;
+    return personas.find(p => p.id === selectedCustomer.persona_id);
+  }, [selectedCustomer?.persona_id, personas]);
 
   const handleCopyMerged = (field: 'subject' | 'preheader' | 'body') => {
     const content = processedContent[field];
@@ -153,8 +161,8 @@ export const MergeTagsPreviewDialog: React.FC<MergeTagsPreviewDialogProps> = ({
                       </span>
                     </div>
                     <Badge variant="outline">{selectedCustomer.email}</Badge>
-                    {selectedCustomer.persona && (
-                      <Badge variant="secondary">{selectedCustomer.persona}</Badge>
+                    {selectedCustomer.persona_id && selectedCustomerPersona && (
+                      <Badge variant="secondary">{selectedCustomerPersona.persona_name}</Badge>
                     )}
                   </div>
                 </CardContent>

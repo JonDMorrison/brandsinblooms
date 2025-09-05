@@ -8,7 +8,8 @@ interface Customer {
   first_name?: string;
   last_name?: string;
   phone?: string;
-  persona?: string;
+  persona?: string; // Legacy field - will be phased out
+  persona_id?: string; // New unified persona reference
   tags?: string[];
   total_spent?: number;
   last_purchase_date?: string;

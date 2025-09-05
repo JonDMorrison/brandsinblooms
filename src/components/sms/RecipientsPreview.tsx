@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Phone, Mail } from 'lucide-react';
+import { useAllPersonas } from '@/hooks/useAllPersonas';
 
 interface CRMCustomer {
   id: string;
@@ -10,7 +11,8 @@ interface CRMCustomer {
   first_name?: string;
   last_name?: string;
   phone?: string;
-  persona?: string;
+  persona?: string; // Legacy field
+  persona_id?: string; // New unified persona reference
 }
 
 interface RecipientsPreviewProps {
@@ -24,11 +26,23 @@ export const RecipientsPreview: React.FC<RecipientsPreviewProps> = ({
   onClose,
   customers
 }) => {
+  const { personas } = useAllPersonas();
+  
   const getCustomerName = (customer: CRMCustomer) => {
     if (customer.first_name || customer.last_name) {
       return `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
     }
     return customer.email.split('@')[0];
+  };
+
+  // Get persona name for a customer using unified approach
+  const getCustomerPersonaName = (customer: CRMCustomer) => {
+    if (customer.persona_id && personas) {
+      const persona = personas.find(p => p.id === customer.persona_id);
+      return persona?.persona_name;
+    }
+    // Fallback to legacy persona field if persona_id not available
+    return customer.persona;
   };
 
   return (
@@ -55,9 +69,9 @@ export const RecipientsPreview: React.FC<RecipientsPreviewProps> = ({
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-medium">{getCustomerName(customer)}</h4>
-                      {customer.persona && (
+                      {getCustomerPersonaName(customer) && (
                         <Badge variant="secondary" className="text-xs">
-                          {customer.persona}
+                          {getCustomerPersonaName(customer)}
                         </Badge>
                       )}
                     </div>
