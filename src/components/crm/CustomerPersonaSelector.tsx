@@ -25,6 +25,9 @@ export const CustomerPersonaSelector = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
+  // Debug: Log when component re-renders with new value
+  console.log('🔍 CustomerPersonaSelector render:', { customerId, value, isUpdating });
+
   // Query personas directly from the database (UUIDs only)
   const { data: personas = [], isLoading: personasLoading } = useQuery({
     queryKey: ['personas'],
@@ -41,6 +44,7 @@ export const CustomerPersonaSelector = ({
 
   // Find the selected persona by ID (UUID) - now using unified approach
   const selectedPersona = personas.find(p => p.id === value);
+  console.log('🔍 Selected persona found:', { value, selectedPersona: selectedPersona?.name });
 
   // Check if persona is selected
   const isPersonaSelected = (personaId: string) => value === personaId;
@@ -74,6 +78,7 @@ export const CustomerPersonaSelector = ({
 
       // Call onChange to update parent state (no parameters expected)
       onChange?.();
+      console.log('📞 Called onChange callback');
       
       const selectedPersonaName = personas.find(p => p.id === newPersonaId)?.name;
       if (newPersonaId) {
