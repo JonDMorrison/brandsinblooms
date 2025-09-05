@@ -302,8 +302,8 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
             {(imagePreview || externalImageUrl) ? (
               <div className="space-y-3">
                 {/* Image Controls - Stack on small screens */}
-                <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col space-y-2">
+                  <div className="flex flex-wrap items-center gap-2 justify-center">
                     <Button
                       type="button"
                       variant="outline"
@@ -338,16 +338,18 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                       </DialogContent>
                     </Dialog>
                   </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleRemoveImage}
-                    className="h-8 flex-shrink-0 self-start sm:self-auto"
-                    disabled={processingImage}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <div className="flex justify-center">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleRemoveImage}
+                      className="h-8 flex-shrink-0"
+                      disabled={processingImage}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 
                 {/* Image Preview */}
@@ -443,7 +445,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                         Drag and drop or click to browse • JPG, PNG, GIF up to 500KB
                       </p>
                     </div>
-                    <div className="flex flex-col items-center justify-center space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3">
+                    <div className="flex flex-col items-center justify-center space-y-3">
                       <Button 
                         type="button" 
                         variant="outline" 
@@ -452,7 +454,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                           e.stopPropagation();
                           handleBrowseClick();
                         }}
-                        className="w-full sm:w-auto"
+                        className="w-full max-w-xs"
                       >
                         <Upload className="h-4 w-4 mr-2" />
                         Upload Image
