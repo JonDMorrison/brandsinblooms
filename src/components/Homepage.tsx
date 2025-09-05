@@ -163,7 +163,7 @@ const HomepageContent = () => {
 
   return (
     <HomepageErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 p-6">
+      <div className="theme-core-home min-h-screen bg-offwhite p-6">
         <div className="max-w-4xl mx-auto space-y-8">
           
           {/* Auto-generate weekly content for new users */}

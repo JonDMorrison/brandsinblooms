@@ -6,6 +6,7 @@
 @import './styles/mobile/campaign-creator.css';
 @import './styles/click-to-edit.css';
 @import './styles/newsletter-layouts.css';
+@import './styles/themes/core-palette-home.css';
 
 /* Checkered background pattern for image transparency */
 .bg-checkered {
@@ -90,9 +91,9 @@ html {
   transition: stroke-dashoffset 0.3s ease-in-out;
 }
 
-/* Premium card gradients */
+/* Premium card gradients - Core Palette */
 .premium-gradient {
-  background: linear-gradient(135deg, #FCFEFD 0%, #F9FBFA 50%, #F1F4F3 100%);
+  background: linear-gradient(135deg, #fbfdfa 0%, #f8faf9 50%, #f3f6f5 100%);
 }
 
 /* Botanical dashboard card gradients - Muted Brand Colors */

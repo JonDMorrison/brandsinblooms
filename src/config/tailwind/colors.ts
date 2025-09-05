@@ -119,34 +119,34 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     900: '#0F172A',   
   },
   
-  // Updated primary colors using harmonious green palette
+  // Core Palette - Dark Teal Primary
   primary: {
-    DEFAULT: '#22C55E', // Fresh garden green that harmonizes with logo
-    50: '#F0FDF4',
-    100: '#DCFCE7',
-    200: '#BBF7D0',
-    300: '#86EFAC',
-    400: '#4ADE80',
-    500: '#22C55E',
-    600: '#16A34A',
-    700: '#15803D',
-    800: '#166534',
-    900: '#14532D',
+    DEFAULT: '#06495d', // Dark Teal (Primary)
+    50: '#f0f9fb',
+    100: '#d9f0f4',
+    200: '#b7e2ea',
+    300: '#86cdd9',
+    400: '#4eb0c1',
+    500: '#2c9da3', // Bright Teal (Secondary)
+    600: '#06495d', // Dark Teal (Primary)
+    700: '#053d4a',
+    800: '#043137',
+    900: '#032024',
     foreground: '#FFFFFF'
   },
   secondary: {
-    DEFAULT: '#F1F5F9',
-    50: '#F8FAFC',
-    100: '#F1F5F9',
-    200: '#E2E8F0',
-    300: '#CBD5E1',
-    400: '#94A3B8',
-    500: '#64748B',
-    600: '#475569',
-    700: '#334155',
-    800: '#1E293B',
-    900: '#0F172A',
-    foreground: '#000000'
+    DEFAULT: '#2c9da3', // Bright Teal (Secondary)
+    50: '#f0f9fb',
+    100: '#d9f0f4', 
+    200: '#b7e2ea',
+    300: '#86cdd9',
+    400: '#4eb0c1',
+    500: '#2c9da3', // Bright Teal (Secondary)
+    600: '#24858a',
+    700: '#1c6c71',
+    800: '#145458',
+    900: '#0c3b3f',
+    foreground: '#FFFFFF'
   },
   success: {
     DEFAULT: '#68BEB9',
@@ -179,10 +179,11 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     foreground: '#64748B'
   },
   accent: {
-    DEFAULT: '#22C55E', // Fresh garden green
-    50: '#F0FDF4',
-    100: '#DCFCE7',
-    500: '#22C55E',
+    DEFAULT: '#2f3a75', // Deep Indigo (Accent / Depth)
+    50: '#f4f5f9',
+    100: '#e8eaf3',
+    500: '#2f3a75', // Deep Indigo (Accent / Depth)
+    600: '#252f5f',
     foreground: '#FFFFFF'
   },
   popover: {
@@ -190,8 +191,43 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     foreground: '#000000'
   },
   card: {
-    DEFAULT: '#FFFFFF',
-    foreground: '#000000'
+    DEFAULT: '#fbfdfa', // Off-White (Background)
+    foreground: '#2f3a75' // Deep Indigo text
+  },
+  
+  // New Core Palette Colors
+  'dark-teal': {
+    DEFAULT: '#06495d',
+    50: '#f0f9fb',
+    500: '#06495d',
+    600: '#053d4a',
+  },
+  'bright-teal': {
+    DEFAULT: '#2c9da3',
+    50: '#f0f9fb', 
+    500: '#2c9da3',
+    600: '#24858a',
+  },
+  'deep-indigo': {
+    DEFAULT: '#2f3a75',
+    50: '#f4f5f9',
+    500: '#2f3a75',
+    600: '#252f5f',
+  },
+  'offwhite': {
+    DEFAULT: '#fbfdfa',
+    50: '#fbfdfa',
+  },
+  'coolgray': {
+    DEFAULT: '#a3aaaa',
+    50: '#f7f8f8',
+    500: '#a3aaaa',
+  },
+  'cta': {
+    DEFAULT: '#e67e48', // Warm Coral (Contrast CTA)
+    50: '#fdf4f0',
+    500: '#e67e48',
+    600: '#d4693d',
   },
   // Semantic color system - clean with brand colors
   surface: {

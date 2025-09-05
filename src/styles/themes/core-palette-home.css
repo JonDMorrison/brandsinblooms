@@ -1,0 +1,97 @@
+/* Core Palette Homepage Theme */
+
+.theme-core-home {
+  /* Core Palette CSS Variables */
+  --core-dark-teal: 193 81% 20%;      /* #06495d */
+  --core-bright-teal: 184 55% 41%;    /* #2c9da3 */  
+  --core-deep-indigo: 225 42% 32%;    /* #2f3a75 */
+  --core-offwhite: 120 25% 98%;       /* #fbfdfa */
+  --core-cool-gray: 180 3% 66%;       /* #a3aaaa */
+  --core-warm-coral: 20 77% 58%;      /* #e67e48 */
+  
+  /* Override semantic tokens for homepage */
+  --primary: var(--core-dark-teal);
+  --secondary: var(--core-bright-teal);
+  --accent: var(--core-deep-indigo);
+  --background: var(--core-offwhite);
+  --muted: var(--core-cool-gray);
+  --card: var(--core-offwhite);
+  --foreground: var(--core-deep-indigo);
+}
+
+/* Override legacy garden/green classes */
+.theme-core-home .bg-garden-background,
+.theme-core-home .bg-gradient-to-br {
+  background: hsl(var(--core-offwhite)) !important;
+}
+
+.theme-core-home .bg-garden-green,
+.theme-core-home .bg-primary {
+  background: hsl(var(--core-dark-teal)) !important;
+}
+
+.theme-core-home .text-garden-green,
+.theme-core-home .text-primary {
+  color: hsl(var(--core-dark-teal)) !important;
+}
+
+/* CTA Button Styling */
+.theme-core-home .cta-button,
+.theme-core-home .btn-cta {
+  background: hsl(var(--core-warm-coral)) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.theme-core-home .cta-button:hover,
+.theme-core-home .btn-cta:hover {
+  background: hsl(var(--core-warm-coral) / 0.9) !important;
+  filter: brightness(0.95);
+}
+
+/* Secondary buttons with bright teal */
+.theme-core-home .btn-secondary {
+  background: hsl(var(--core-bright-teal)) !important;
+  color: white !important;
+}
+
+.theme-core-home .btn-secondary:hover {
+  background: hsl(var(--core-bright-teal) / 0.9) !important;
+}
+
+/* Accent elements with deep indigo */
+.theme-core-home .accent-element,
+.theme-core-home .focus-ring,
+.theme-core-home *:focus-visible {
+  border-color: hsl(var(--core-deep-indigo)) !important;
+  outline-color: hsl(var(--core-deep-indigo)) !important;
+}
+
+/* Text colors using the palette */
+.theme-core-home .text-primary {
+  color: hsl(var(--core-dark-teal)) !important;
+}
+
+.theme-core-home .text-secondary {
+  color: hsl(var(--core-bright-teal)) !important;
+}
+
+.theme-core-home .text-accent {
+  color: hsl(var(--core-deep-indigo)) !important;
+}
+
+.theme-core-home .text-muted {
+  color: hsl(var(--core-cool-gray)) !important;
+}
+
+/* Card backgrounds */
+.theme-core-home .card,
+.theme-core-home .bg-card {
+  background: hsl(var(--core-offwhite)) !important;
+  color: hsl(var(--core-deep-indigo)) !important;
+}
+
+/* Subtle borders */
+.theme-core-home .border {
+  border-color: hsl(var(--core-cool-gray) / 0.3) !important;
+}
