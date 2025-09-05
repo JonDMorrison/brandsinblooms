@@ -26,7 +26,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
           <Button 
             onClick={onLogin}
             variant="outline"
-            className="border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary focus:border-primary transition-all duration-200"
+            className="border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-300 focus:border-gray-300 transition-all duration-200"
           >
             <LogIn className="w-4 h-4 mr-2" />
             Login
