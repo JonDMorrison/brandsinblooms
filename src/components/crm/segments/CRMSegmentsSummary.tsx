@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Crown, UserPlus, Clock, ShoppingBag, Repeat } from 'lucide-react';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { Button } from '@/components/ui/button';
-import { NavLink } from 'react-router-dom';
+import { NavLink } from '@/components/ui/link';
 
 const segmentConfig = [
   {

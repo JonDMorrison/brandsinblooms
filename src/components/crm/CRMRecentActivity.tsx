@@ -12,7 +12,7 @@ import {
   ExternalLink,
   Clock
 } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink } from '@/components/ui/link';
 
 interface ActivityItem {
   id: string;

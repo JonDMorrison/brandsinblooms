@@ -20,7 +20,8 @@ import {
   Mail,
   BarChart3,
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { NavLink } from '@/components/ui/link';
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,

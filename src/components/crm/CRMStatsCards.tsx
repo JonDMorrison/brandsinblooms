@@ -10,7 +10,7 @@ import {
   TrendingUp,
   ArrowRight
 } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink } from '@/components/ui/link';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { usePersonaCustomerCounts } from '@/hooks/usePersonaCustomerCounts';
 import { useCRMRealStats } from '@/hooks/useCRMRealStats';
