@@ -3,7 +3,6 @@ import { ReactNode } from "react";
 import AppSidebar from "@/components/AppSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserMenu } from "@/components/UserMenu";
-import { SidebarProvider } from "@/components/ui/sidebar";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -26,9 +25,7 @@ export const DashboardLayout = ({
 
   return (
     <>
-      <SidebarProvider>
-        <AppSidebar />
-      </SidebarProvider>
+      <AppSidebar />
       
       {/* Fixed UserMenu - always visible in top-right */}
       <div className={`fixed top-6 right-6 z-[150] ${isMobile ? 'top-2 right-2' : ''}`}>

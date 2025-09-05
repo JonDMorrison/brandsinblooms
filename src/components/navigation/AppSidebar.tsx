@@ -41,7 +41,6 @@ import {
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
-  useOptionalSidebar,
 } from '@/components/ui/sidebar';
 // import { LogoWithText } from '@/components/ui/logo';
 
@@ -60,20 +59,7 @@ interface SidebarGroup {
 
 export function AppSidebar() {
   const location = useLocation();
-  const sidebar = useOptionalSidebar();
-  
-  if (!sidebar) {
-    // Defensive fallback - render minimal sidebar to avoid crash
-    return (
-      <aside className="w-0 md:w-60 border-r bg-background flex-shrink-0">
-        <div className="p-4">
-          <div className="text-sm text-muted-foreground">Navigation unavailable</div>
-        </div>
-      </aside>
-    );
-  }
-  
-  const { state } = sidebar;
+  const { state } = useSidebar();
 
   const sidebarGroups: SidebarGroup[] = [
     {
