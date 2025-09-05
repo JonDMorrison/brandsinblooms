@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 interface CustomerPersonaSelectorProps {
   customerId: string;
   value?: string | null;
-  onChange?: () => void;
+  onChange?: (personaId: string | null) => void;
 }
 
 export const CustomerPersonaSelector = ({ 
@@ -24,9 +24,6 @@ export const CustomerPersonaSelector = ({
   const [showAllPersonas, setShowAllPersonas] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
-
-  // Debug: Log when component re-renders with new value
-  console.log('🔍 CustomerPersonaSelector render:', { customerId, value, isUpdating });
 
   // Query personas directly from the database (UUIDs only)
   const { data: personas = [], isLoading: personasLoading } = useQuery({
@@ -44,7 +41,6 @@ export const CustomerPersonaSelector = ({
 
   // Find the selected persona by ID (UUID) - now using unified approach
   const selectedPersona = personas.find(p => p.id === value);
-  console.log('🔍 Selected persona found:', { value, selectedPersona: selectedPersona?.name });
 
   // Check if persona is selected
   const isPersonaSelected = (personaId: string) => value === personaId;
@@ -52,12 +48,10 @@ export const CustomerPersonaSelector = ({
   const handlePersonaToggle = async (personaId: string) => {
     if (isUpdating) return;
     
-    console.log('🎯 Persona toggle started:', { personaId, currentValue: value, customerId });
     setIsUpdating(true);
     
     try {
       const newPersonaId = value === personaId ? null : personaId;
-      console.log('🔄 Toggling persona:', { from: value, to: newPersonaId });
       
       // Update in database
       const { data, error } = await supabase
@@ -70,15 +64,11 @@ export const CustomerPersonaSelector = ({
         .select();
 
       if (error) {
-        console.error('❌ Database error:', error);
         throw error;
       }
-      
-      console.log('✅ Database updated successfully:', data);
 
-      // Call onChange to update parent state (no parameters expected)
-      onChange?.();
-      console.log('📞 Called onChange callback');
+      // Call onChange to update parent state with new persona ID
+      onChange?.(newPersonaId);
       
       const selectedPersonaName = personas.find(p => p.id === newPersonaId)?.name;
       if (newPersonaId) {
@@ -100,7 +90,6 @@ export const CustomerPersonaSelector = ({
         variant: "destructive"
       });
     } finally {
-      console.log('🏁 Persona toggle finished');
       setIsUpdating(false);
     }
   };
@@ -120,7 +109,7 @@ export const CustomerPersonaSelector = ({
       if (error) throw error;
 
       // Call onChange to update parent state
-      onChange?.();
+      onChange?.(null);
       
       toast({
         title: "Persona removed",

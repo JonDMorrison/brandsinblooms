@@ -101,7 +101,7 @@ export const CustomerDetailsSheet: React.FC<CustomerDetailsSheetProps> = ({
     }
   };
 
-  const handlePersonaUpdate = () => {
+  const handlePersonaUpdate = (personaId: string | null) => {
     onCustomerUpdated();
   };
 

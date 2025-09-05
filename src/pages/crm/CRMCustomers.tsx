@@ -467,14 +467,15 @@ const CRMCustomers = () => {
 
                 {/* Persona Selection */}
                 <div className="space-y-4">
-                  <CustomerPersonaSelector 
-                    value={selectedCustomer.persona_id}
-                    onChange={() => {
-                      // Refresh customer data after persona update
-                      queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
-                    }}
-                    customerId={selectedCustomer.id}
-                  />
+                   <CustomerPersonaSelector 
+                     value={selectedCustomer.persona_id}
+                     onChange={(personaId) => {
+                       // Update local state and refresh customer data 
+                       setSelectedCustomer(prev => prev ? { ...prev, persona_id: personaId } : null);
+                       queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
+                     }}
+                     customerId={selectedCustomer.id}
+                   />
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
