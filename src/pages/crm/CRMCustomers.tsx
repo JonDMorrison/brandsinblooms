@@ -469,7 +469,10 @@ const CRMCustomers = () => {
                 <div className="space-y-4">
                   <CustomerPersonaSelector 
                     value={selectedCustomer.persona_id}
-                    onChange={(personaId) => updateCustomer({ persona_id: personaId })}
+                    onChange={() => {
+                      // Refresh customer data after persona update
+                      queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
+                    }}
                     customerId={selectedCustomer.id}
                   />
 

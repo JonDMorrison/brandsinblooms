@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 interface CustomerPersonaSelectorProps {
   customerId: string;
   value?: string | null;
-  onChange?: (personaId: string | null) => void;
+  onChange?: () => void;
 }
 
 export const CustomerPersonaSelector = ({ 
@@ -27,8 +27,10 @@ export const CustomerPersonaSelector = ({
 
   const { personas, loading: personasLoading } = useAllPersonas();
 
-  // Find the selected persona
-  const selectedPersona = personas.find(p => p.id === value);
+  // Find the selected persona - check both persona_id and persona fields
+  const selectedPersona = personas.find(p => 
+    p.id === value || p.persona_name === value
+  );
 
   const handlePersonaToggle = async (personaId: string) => {
     if (isUpdating) return;
@@ -55,8 +57,8 @@ export const CustomerPersonaSelector = ({
 
       if (error) throw error;
 
-      // Call onChange to update parent state
-      onChange?.(newPersonaId);
+      // Call onChange to update parent state (no parameters expected)
+      onChange?.();
       
       const selectedPersonaName = personas.find(p => p.id === newPersonaId)?.persona_name;
       if (newPersonaId) {
