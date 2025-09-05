@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { SidebarLayout } from '@/components/SidebarLayout';
@@ -341,6 +342,7 @@ function App() {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         <Toaster />
+        <ShadcnToaster />
       </ErrorBoundary>
     </div>
   );
