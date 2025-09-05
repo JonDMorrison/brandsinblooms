@@ -9,7 +9,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { NativeSelect } from "@/components/ui/native-select";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MonthPickerProps {
   value?: string; // YYYY-MM format
@@ -19,7 +18,6 @@ interface MonthPickerProps {
 
 export function MonthPicker({ value, onChange, className }: MonthPickerProps) {
   const [isOpen, setIsOpen] = React.useState(false);
-  const isMobile = useIsMobile();
   
   const selectedDate = value ? new Date(`${value}-01`) : undefined;
   const currentDate = new Date();
@@ -47,37 +45,14 @@ export function MonthPicker({ value, onChange, className }: MonthPickerProps) {
   
   // Current month/year for the picker
   const pickerDate = selectedDate || addMonths(currentDate, 1);
-  const [pickerMonth, setPickerMonth] = React.useState(pickerDate.getMonth());
   const [pickerYear, setPickerYear] = React.useState(pickerDate.getFullYear());
 
-  // Mobile native input fallback
-  if (isMobile) {
-    return (
-      <div className={cn("space-y-3", className)}>
-        <input
-          type="month"
-          value={value || nextMonth}
-          onChange={(e) => onChange?.(e.target.value)}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        />
-        
-        {/* Quick picks for mobile */}
-        <div className="flex flex-wrap gap-2">
-          {quickPicks.map((pick) => (
-            <Button
-              key={pick.value}
-              variant={value === pick.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => onChange?.(pick.value)}
-              className="text-xs"
-            >
-              {pick.label}
-            </Button>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // Update picker year when value changes
+  React.useEffect(() => {
+    if (selectedDate) {
+      setPickerYear(selectedDate.getFullYear());
+    }
+  }, [selectedDate]);
 
   return (
     <div className={cn("space-y-4", className)}>
