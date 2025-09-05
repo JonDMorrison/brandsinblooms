@@ -301,15 +301,15 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
 
             {(imagePreview || externalImageUrl) ? (
               <div className="space-y-3">
-                {/* Image Controls */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
+                {/* Image Controls - Stack on small screens */}
+                <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => setObjectFit(objectFit === 'contain' ? 'cover' : 'contain')}
-                      className="h-8 text-xs"
+                      className="h-8 text-xs flex-shrink-0"
                       aria-pressed={objectFit === 'cover'}
                     >
                       <RotateCcw className="h-3 w-3 mr-1" />
@@ -321,7 +321,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-8 text-xs"
+                          className="h-8 text-xs flex-shrink-0"
                         >
                           <Maximize2 className="h-3 w-3 mr-1" />
                           View Full
@@ -343,7 +343,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                     variant="secondary"
                     size="sm"
                     onClick={handleRemoveImage}
-                    className="h-8"
+                    className="h-8 flex-shrink-0 self-start sm:self-auto"
                     disabled={processingImage}
                   >
                     <X className="h-4 w-4" />
@@ -443,7 +443,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                         Drag and drop or click to browse • JPG, PNG, GIF up to 500KB
                       </p>
                     </div>
-                    <div className="flex items-center justify-center space-x-3">
+                    <div className="flex flex-col items-center justify-center space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3">
                       <Button 
                         type="button" 
                         variant="outline" 
@@ -452,6 +452,7 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
                           e.stopPropagation();
                           handleBrowseClick();
                         }}
+                        className="w-full sm:w-auto"
                       >
                         <Upload className="h-4 w-4 mr-2" />
                         Upload Image
