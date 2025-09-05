@@ -53,4 +53,16 @@
     width: 32px;
     height: 32px;
   }
+  
+  /* Sheet and dialog mobile fixes */
+  [data-radix-dialog-content] {
+    background-color: white !important;
+  }
+  
+  /* Ensure solid backgrounds for mobile sheets */
+  .sheet-content,
+  [role="dialog"] {
+    background-color: white !important;
+    opacity: 1 !important;
+  }
 }
