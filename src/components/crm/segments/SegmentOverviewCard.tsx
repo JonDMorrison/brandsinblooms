@@ -74,7 +74,16 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
             <Button 
               variant="outline" 
               size={isMobile ? "default" : "sm"} 
-              onClick={onViewDetails}
+              onClick={(e) => {
+                console.log('SegmentOverviewCard: View Details button clicked', { name, onViewDetails });
+                e.preventDefault();
+                e.stopPropagation();
+                if (onViewDetails) {
+                  onViewDetails();
+                } else {
+                  console.log('SegmentOverviewCard: onViewDetails callback is missing');
+                }
+              }}
               className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
             >
               View Details
