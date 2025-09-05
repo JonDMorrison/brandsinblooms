@@ -11,7 +11,7 @@ import { Calendar, Users, MessageSquare, Send, CheckCircle, User, Target, Eye, A
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
-import { useCRMPersonas } from '@/hooks/useCRMPersonas';
+import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { toast } from 'sonner';
 import { SMSComposer } from './SMSComposer';
 import { RecipientsPreview } from './RecipientsPreview';
@@ -52,7 +52,7 @@ export const SMSCampaignWizard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const { personas, loading: personasLoading } = useCRMPersonas();
+  const { personas, loading: personasLoading } = useAllPersonas();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [campaignName, setCampaignName] = useState('');

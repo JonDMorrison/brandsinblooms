@@ -10,6 +10,7 @@ import { NativeSelect } from '@/components/ui/NativeSelect';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, Download, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAllPersonas } from '@/hooks/useAllPersonas';
 import * as XLSX from 'xlsx';
 
 interface CustomerImportDialogProps {
@@ -21,7 +22,8 @@ interface ParsedCustomer {
   first_name?: string;
   last_name?: string;
   phone?: string;
-  persona?: string;
+  persona?: string; // Legacy field for parsing
+  persona_id?: string; // New unified persona reference
   tags?: string[];
   lifetime_value?: number;
   last_purchase_date?: string;
@@ -42,6 +44,7 @@ interface FieldMapping {
 
 export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onImportComplete }) => {
   const { toast } = useToast();
+  const { personas } = useAllPersonas();
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedCustomer[]>([]);
@@ -52,6 +55,48 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
   const [updateExisting, setUpdateExisting] = useState(false);
   const [appendTags, setAppendTags] = useState(true);
   const [defaultPersona, setDefaultPersona] = useState<string>('');
+
+  // Helper function to map persona names to UUIDs
+  const mapPersonaNameToId = (personaName: string): string | null => {
+    if (!personaName || !personas) return null;
+    
+    const normalizedInput = personaName.toLowerCase().trim();
+    
+    // Direct name match
+    const directMatch = personas.find(p => 
+      p.persona_name.toLowerCase() === normalizedInput
+    );
+    if (directMatch) return directMatch.id;
+    
+    // Partial matching for common variations
+    const partialMatch = personas.find(p => {
+      const name = p.persona_name.toLowerCase();
+      return name.includes(normalizedInput) || normalizedInput.includes(name);
+    });
+    if (partialMatch) return partialMatch.id;
+    
+    // Legacy mapping for old persona system
+    const legacyMapping: Record<string, string> = {
+      'newbie': 'Plant-Killer Pam',
+      'beginner': 'Plant-Killer Pam',
+      'struggler': 'Plant-Killer Pam',
+      'regular': 'Sustainable Susie',
+      'loyal': 'Sustainable Susie',
+      'expert': 'DIY Dana',
+      'advanced': 'DIY Dana',
+      'experienced': 'DIY Dana'
+    };
+    
+    const legacyPersonaName = legacyMapping[normalizedInput];
+    if (legacyPersonaName) {
+      const legacyMatch = personas.find(p => 
+        p.persona_name.toLowerCase() === legacyPersonaName.toLowerCase()
+      );
+      return legacyMatch?.id || null;
+    }
+    
+    return null;
+  };
 
   // Smart field detection mappings
   const fieldMappings = {
@@ -128,25 +173,22 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
             customer.phone = value.replace(/\D/g, ''); // Remove non-digits
             break;
           case 'persona':
-            // Normalize persona to match database constraints
-            const normalizedPersona = value.toLowerCase();
-            const allowedPersonas = ['newbie', 'struggler', 'regular', 'expert'];
-            if (allowedPersonas.includes(normalizedPersona)) {
-              customer.persona = normalizedPersona;
-            } else {
-              // Map common variations to allowed values
-              const personaMapping: Record<string, string> = {
-                'new-customer': 'newbie',
-                'new': 'newbie',
-                'beginner': 'newbie',
-                'loyal-customer': 'regular',
-                'loyal': 'regular',
-                'experienced': 'expert',
-                'advanced': 'expert',
-                'seasonal-shopper': 'regular',
-                'high-value': 'expert'
-              };
-              customer.persona = personaMapping[normalizedPersona] || null;
+            // Map persona name to UUID using unified system
+            if (value) {
+              const personaId = mapPersonaNameToId(value);
+              if (personaId) {
+                customer.persona_id = personaId;
+                // Keep the original name for preview purposes
+                customer.persona = value;
+              } else {
+                // Log unmapped personas for user awareness
+                importErrors.push({
+                  row: i + 1,
+                  field: 'persona',
+                  message: `Unknown persona "${value}" - will be skipped`,
+                  data: { persona: value }
+                });
+              }
             }
             break;
           case 'tags':
@@ -287,13 +329,31 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 
       const existingEmails = new Set(existingCustomers?.map(c => c.email) || []);
       
-      let customersToInsert = parsedData.map(customer => ({
-        ...customer,
-        tenant_id: userRecord.tenant_id,
-        user_id: user.user.id,
-        persona: customer.persona || defaultPersona || null,
-        pos_source: 'import'
-      }));
+      let customersToInsert = parsedData.map(customer => {
+        // Determine the persona_id to use (from parsed data or default)
+        let finalPersonaId = customer.persona_id;
+        
+        // If no persona_id from parsing and defaultPersona is selected, use it
+        if (!finalPersonaId && defaultPersona) {
+          finalPersonaId = mapPersonaNameToId(defaultPersona);
+        }
+        
+        return {
+          email: customer.email,
+          first_name: customer.first_name,
+          last_name: customer.last_name,
+          phone: customer.phone,
+          persona_id: finalPersonaId, // Use persona_id for unified system
+          persona: null, // Clear legacy field
+          tags: customer.tags,
+          lifetime_value: customer.lifetime_value,
+          last_purchase_date: customer.last_purchase_date,
+          sms_opt_in: customer.sms_opt_in,
+          tenant_id: userRecord.tenant_id,
+          user_id: user.user.id,
+          pos_source: 'import'
+        };
+      });
 
       if (!updateExisting) {
         customersToInsert = customersToInsert.filter(c => !existingEmails.has(c.email));
@@ -460,12 +520,10 @@ jane@example.com,Jane,Smith,5559876543,newbie,"plants,seeds",75.25,2024-01-10,fa
                     value={defaultPersona}
                     onChange={(e) => setDefaultPersona(e.target.value)}
                     placeholder="Select a persona (optional)"
-                    options={[
-                      { value: 'newbie', label: 'Newbie' },
-                      { value: 'struggler', label: 'Struggler' },
-                      { value: 'regular', label: 'Regular' },
-                      { value: 'expert', label: 'Expert' }
-                    ]}
+                    options={personas ? personas.map(persona => ({
+                      value: persona.persona_name,
+                      label: persona.persona_name
+                    })) : []}
                   />
                 </div>
               </CardContent>

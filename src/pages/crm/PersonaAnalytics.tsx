@@ -9,6 +9,7 @@ import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { HeadlineLarge, BodyMedium } from '@/components/ui/typography';
 import { TrendingUp, Users, DollarSign, Mail, MessageSquare, ArrowUpIcon, ArrowDownIcon, ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
+import { useAllPersonas } from '@/hooks/useAllPersonas';
 
 interface PersonaMetrics {
   persona_id: string;
