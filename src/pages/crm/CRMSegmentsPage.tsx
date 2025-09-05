@@ -199,9 +199,9 @@ export const CRMSegmentsPage: React.FC = () => {
                   <div
                     key={segment.id}
                     ref={(el) => (segmentRefs.current[segment.id] = el)}
-                    className={`transition-all duration-300 ${
+                    className={`transition-all duration-500 ${
                       highlightedSegment === segment.id 
-                        ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' 
+                        ? 'ring-4 ring-primary ring-offset-4 bg-primary/20 shadow-2xl scale-105 rounded-lg' 
                         : ''
                     }`}
                   >
