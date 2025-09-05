@@ -408,7 +408,7 @@ export const CRMAutomationBuilder = () => {
 
       <div className="flex-1 flex">
         {!automationId && flowState.nodes.length === 0 && (
-          <aside className="hidden md:block md:w-72 border-r p-4 overflow-y-auto">
+          <aside className="hidden md:block md:w-80 border-r p-6 overflow-y-auto">
             <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
               <GuidedAutomationBuilder 
                 onComplete={handleGuideComplete}
