@@ -38,7 +38,7 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
         .eq('id', user.user.id)
         .single();
 
-      if (!userRecord?.tenant_id) throw new Error('User tenant not found');
+      if (!userRecord?.tenant_id) throw new Error('You are not assigned to a tenant. Please contact support or create an organization to continue.');
 
       let query = supabase
         .from('crm_customers')

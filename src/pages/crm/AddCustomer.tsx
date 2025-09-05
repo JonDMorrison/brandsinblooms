@@ -46,7 +46,7 @@ const AddCustomer = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { tenant } = useTenant();
+  const { tenant, loading: tenantLoading, error: tenantError } = useTenant();
   
   const [formData, setFormData] = useState<CustomerFormData>({
     email: '',
@@ -78,7 +78,7 @@ const AddCustomer = () => {
       }
       
       if (!tenant?.id) {
-        throw new Error('Tenant not found');
+        throw new Error('You are not assigned to a tenant. Please contact support or create an organization to continue.');
       }
 
       const dataToInsert = {
@@ -178,6 +178,57 @@ const AddCustomer = () => {
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
   };
+
+  // Show loading state while checking tenant
+  if (tenantLoading) {
+    return (
+      <div className="container mx-auto p-6 max-w-4xl">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading organization information...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if tenant is missing
+  if (tenantError) {
+    return (
+      <div className="container mx-auto p-6 max-w-4xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground">Add New Customer</h1>
+          <p className="text-muted-foreground">
+            Add a new customer to your garden center database
+          </p>
+        </div>
+        
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 text-center">
+          <div className="mb-4">
+            <svg className="mx-auto h-12 w-12 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-destructive mb-2">Organization Required</h3>
+          <p className="text-muted-foreground mb-4">{tenantError}</p>
+          <div className="flex justify-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/crm/customers')}
+            >
+              Go Back
+            </Button>
+            <Button
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
