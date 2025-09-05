@@ -82,14 +82,14 @@
 /* Button Overrides */
 .theme-core-home .cta-button,
 .theme-core-home .btn-cta {
-  background: hsl(var(--core-warm-coral)) !important;
+  background: hsl(var(--core-bright-teal)) !important;
   color: white !important;
   border: none !important;
 }
 
 .theme-core-home .cta-button:hover,
 .theme-core-home .btn-cta:hover {
-  background: hsl(var(--core-warm-coral) / 0.9) !important;
+  background: hsl(var(--core-bright-teal) / 0.9) !important;
 }
 
 /* Focus and Accent States */
