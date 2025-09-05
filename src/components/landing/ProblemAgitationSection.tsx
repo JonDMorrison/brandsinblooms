@@ -6,25 +6,29 @@ export const ProblemAgitationSection = () => {
       icon: Clock,
       title: "Wasting Hours on Marketing",
       description: "You're spending 10+ hours a week creating social media posts, writing emails, and planning campaigns instead of running your business.",
-      colorVariant: "secondary"
+      accentColor: "hsl(var(--secondary))",
+      glowColor: "hsl(var(--secondary) / 0.1)"
     },
     {
       icon: DollarSign,
       title: "Paying for Multiple Tools",
       description: "Between social media schedulers, email platforms, CRM systems, and analytics tools, you're paying $200+ per month for scattered solutions.",
-      colorVariant: "primary"
+      accentColor: "hsl(var(--primary))",
+      glowColor: "hsl(var(--primary) / 0.1)"
     },
     {
       icon: TrendingDown,
       title: "Missing Sales Opportunities",
       description: "Without proper customer tracking and automated follow-ups, you're losing 30-40% of potential sales from interested customers.",
-      colorVariant: "accent"
+      accentColor: "hsl(var(--accent))",
+      glowColor: "hsl(var(--accent) / 0.1)"
     },
     {
       icon: AlertTriangle,
       title: "Generic Marketing That Doesn't Work",
       description: "Standard marketing tools don't understand plant seasons, garden center customers, or nursery-specific campaigns.",
-      colorVariant: "secondary"
+      accentColor: "#2c9da3",
+      glowColor: "rgba(44, 157, 163, 0.1)"
     }
   ];
 
@@ -57,12 +61,16 @@ export const ProblemAgitationSection = () => {
               
               {/* Subtle gradient blob inside */}
               <div 
-                className={`absolute -top-20 -right-20 w-40 h-40 rounded-full bg-${problem.colorVariant}/5 blur-3xl`}
+                className="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-3xl"
+                style={{ backgroundColor: problem.glowColor }}
                 aria-hidden="true"
               />
               
               <div className="relative flex items-start gap-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 mt-1 bg-white/60 backdrop-blur-sm border border-white/40 text-${problem.colorVariant}`}>
+                <div 
+                  className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 mt-1 bg-white/60 backdrop-blur-sm border border-white/40"
+                  style={{ color: problem.accentColor }}
+                >
                   <problem.icon className="w-6 h-6" />
                 </div>
                 <div>
