@@ -19,6 +19,7 @@ interface PersonaCardProps {
 
 export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onDelete }) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const isMobile = useIsMobile();
 
   const handleDelete = async () => {
@@ -39,16 +40,18 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onDelete }) =
           </Badge>
         </div>
         {persona.is_custom && (
-          <DropdownMenu>
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 
                 className={`h-8 w-8 p-0 ${isMobile ? 'mobile-touch-target' : ''} mobile-focus-ring`}
+                aria-label="Persona options"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen((o) => !o); }}
               >
                 <MoreHorizontal className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'}`} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="z-[1000010] bg-popover text-popover-foreground border border-border shadow-lg">
               <DropdownMenuItem>
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
