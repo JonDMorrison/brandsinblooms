@@ -213,9 +213,7 @@ html body .menu *[class*="pink"] {
 
 /* Ultimate override for any missed elements */
 html body * {
-  --tw-text-opacity: 1 !important;
-  --tw-bg-opacity: 1 !important;
-  --tw-border-opacity: 1 !important;
+  /* Removed opacity overrides that break transparency effects */
 }
 
 /* Force brand colors on common elements */

@@ -6,11 +6,11 @@ interface PricingPreviewSectionProps {
 export const PricingPreviewSection = ({
   onSeePricing
 }: PricingPreviewSectionProps) => {
-  return <section className="py-12 px-6 bg-white">
+  return <section className="py-12 px-6 bg-offwhite">
       <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-4xl font-bold mb-6 text-gray-900">Stop Paying Thousands Every Month That Gets You Disconnected Marketing</h2>
+        <h2 className="text-4xl font-bold mb-6 text-accent">Stop Paying Thousands Every Month That Gets You Disconnected Marketing</h2>
         
-        <p className="text-xl text-[#6B7280] mb-10">
+        <p className="text-xl text-muted-foreground mb-10">
           Get everything you need for less than what you're probably paying for just social media scheduling. AI content creation, CRM, automation, analytics, email marketing, and more — all for one low price.
         </p>
         

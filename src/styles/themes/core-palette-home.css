@@ -76,13 +76,8 @@
 .theme-core-home .bg-secondary { background-color: hsl(var(--core-bright-teal)) !important; }
 .theme-core-home .text-secondary { color: hsl(var(--core-bright-teal)) !important; }
 
-/* Gradient Overrides */
-.theme-core-home .bg-gradient-to-br { background: hsl(var(--core-offwhite)) !important; }
-.theme-core-home .bg-gradient-to-r { background: linear-gradient(to right, hsl(var(--core-dark-teal)), hsl(var(--core-bright-teal))) !important; }
-
 /* Card and Background Overrides */
 .theme-core-home .bg-card { background-color: hsl(var(--core-offwhite)) !important; }
-.theme-core-home .bg-white { background-color: hsl(var(--core-offwhite)) !important; }
 
 /* Button Overrides */
 .theme-core-home .cta-button,
