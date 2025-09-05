@@ -37,11 +37,20 @@ export const CustomerPersonaSelector = ({
     
     try {
       const newPersonaId = value === personaId ? null : personaId;
+      const selectedPersona = personas.find(p => p.id === personaId);
+      
+      // For predefined personas (string IDs), store in persona field
+      // For custom personas (UUID IDs), store in persona_id field
+      const updateData = newPersonaId === null 
+        ? { persona_id: null, persona: null }
+        : selectedPersona?.is_custom 
+          ? { persona_id: newPersonaId, persona: null }  // Custom persona - use UUID field
+          : { persona_id: null, persona: newPersonaId }; // Predefined persona - use text field
       
       // Update in database
       const { error } = await supabase
         .from('crm_customers')
-        .update({ persona_id: newPersonaId })
+        .update(updateData)
         .eq('id', customerId);
 
       if (error) throw error;
