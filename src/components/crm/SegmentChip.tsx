@@ -30,13 +30,13 @@ export const SegmentChip = ({
   return (
     <Badge 
       variant="outline" 
-      className={`inline-flex items-center gap-1.5 bg-brand-teal/10 border-brand-teal/20 text-brand-teal hover:bg-brand-teal/20 ${sizeClasses[size]}`}
+      className={`inline-flex items-center gap-1.5 bg-white border-gray-300 text-black hover:bg-gray-50 ${sizeClasses[size]}`}
     >
       <Users className="h-3 w-3" />
       <span className="font-medium">{segment.name}</span>
       
       {segment.suggested && (
-        <Sparkles className="h-3 w-3 text-primary-600" />
+        <Sparkles className="h-3 w-3 text-black" />
       )}
       
       {segment.customer_count !== undefined && (
