@@ -6,10 +6,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Mail, Settings } from 'lucide-react';
+import { AlertTriangle, Mail, Settings, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { SenderConfig } from '@/hooks/useSenderConfiguration';
 
@@ -33,8 +34,13 @@ export const SharedSenderConfirmationModal: React.FC<SharedSenderConfirmationMod
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] flex flex-col">
+        <DialogClose asChild>
+          <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-6 w-6">
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogClose>
         <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
+          <DialogTitle className="flex items-center space-x-2 pr-8">
             <AlertTriangle className="h-5 w-5 text-orange-600" />
             <span>Confirm Shared Sender</span>
           </DialogTitle>

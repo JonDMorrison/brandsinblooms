@@ -1,12 +1,12 @@
 // src/components/publish/preview/SocialPostPreviewModal.tsx
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { InstagramPreview } from './InstagramPreview';
 import { FacebookPreview } from './FacebookPreview';
 import { getAspectHint, getValidationFor } from './useAspectInfo';
-import { AlertTriangle, Info, Eye } from 'lucide-react';
+import { AlertTriangle, Info, Eye, X } from 'lucide-react';
 import type { PreviewPlatform, PreviewProps } from './types';
 
 interface SocialPostPreviewModalProps {
@@ -70,8 +70,13 @@ export const SocialPostPreviewModal = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogClose asChild>
+          <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-6 w-6 z-10">
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogClose>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
+          <DialogTitle className="flex items-center gap-3 pr-8">
             <Eye className="w-5 h-5" />
             Post Preview
             <Badge variant="outline" className="text-xs">

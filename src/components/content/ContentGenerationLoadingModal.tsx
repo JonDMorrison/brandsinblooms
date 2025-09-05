@@ -1,8 +1,9 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Progress } from '@/components/ui/progress';
-import { Sparkles, FileText, Users, Mail, Video } from 'lucide-react';
+import { Sparkles, FileText, Users, Mail, Video, X } from 'lucide-react';
 
 interface ContentGenerationLoadingModalProps {
   isOpen: boolean;
@@ -51,9 +52,14 @@ export const ContentGenerationLoadingModal: React.FC<ContentGenerationLoadingMod
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md [&>button]:hidden">
+      <DialogContent className="sm:max-w-md">
+        <DialogClose asChild>
+          <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-6 w-6">
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogClose>
         <DialogHeader>
-          <DialogTitle className="text-center">
+          <DialogTitle className="text-center pr-8">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Sparkles className="w-5 h-5 text-primary animate-pulse" />
               Generating Your Content

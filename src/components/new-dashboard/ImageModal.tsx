@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 
 interface UnsplashImage {
   id: string;
@@ -34,8 +34,13 @@ export const ImageModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+        <DialogClose asChild>
+          <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-6 w-6">
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogClose>
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">Image Preview</DialogTitle>
+          <DialogTitle className="text-lg font-semibold pr-8">Image Preview</DialogTitle>
         </DialogHeader>
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
           <div className="relative mb-4">

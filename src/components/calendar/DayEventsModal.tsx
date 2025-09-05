@@ -4,10 +4,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { CalendarListView } from './CalendarListView';
 import { format } from 'date-fns';
 import { UnifiedCalendarEvent } from '@/hooks/useUnifiedCalendarData';
+import { X } from 'lucide-react';
 
 interface DayEventsModalProps {
   isOpen: boolean;
@@ -34,8 +37,13 @@ export const DayEventsModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+        <DialogClose asChild>
+          <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-6 w-6">
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogClose>
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">
+          <DialogTitle className="text-lg font-semibold pr-8">
             Events for {formattedDate}
           </DialogTitle>
         </DialogHeader>

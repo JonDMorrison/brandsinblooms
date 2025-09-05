@@ -1,7 +1,8 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ContentBlock } from '@/types/emailBuilder';
+import { X } from 'lucide-react';
 
 interface AddBlockModalProps {
   isOpen: boolean;
@@ -61,8 +62,13 @@ export const AddBlockModal: React.FC<AddBlockModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
+        <DialogClose asChild>
+          <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-6 w-6">
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogClose>
         <DialogHeader>
-          <DialogTitle>Add Content Block</DialogTitle>
+          <DialogTitle className="pr-8">Add Content Block</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3 py-4">
           {blockTypes.map(({ type, label, icon, description }) => (
