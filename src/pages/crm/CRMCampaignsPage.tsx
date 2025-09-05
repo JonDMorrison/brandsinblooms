@@ -157,8 +157,10 @@ export const CRMCampaignsPage: React.FC = () => {
                   {campaigns.map((campaign) => (
                     <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                        <h3 className="font-semibold">{campaign.name}</h3>
-                        <p className="text-sm text-muted-foreground">{campaign.subject_line}</p>
+                        <NavLink to={`/crm/campaigns/${campaign.id}`} className="block group">
+                          <h3 className="font-semibold group-hover:text-primary transition-colors cursor-pointer">{campaign.name}</h3>
+                          <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{campaign.subject_line}</p>
+                        </NavLink>
                         <p className="text-xs text-muted-foreground">
                           Created: {new Date(campaign.created_at).toLocaleDateString()}
                         </p>
