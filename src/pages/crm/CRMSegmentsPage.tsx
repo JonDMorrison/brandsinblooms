@@ -78,6 +78,8 @@ export const CRMSegmentsPage: React.FC = () => {
   };
 
   const handleViewSegmentDetails = (segmentId: string) => {
+    console.log('View details for segment:', segmentId);
+    
     // Update URL with highlight parameter
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.set('highlight', segmentId);

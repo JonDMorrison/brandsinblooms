@@ -65,6 +65,7 @@ export const CustomerSegmentsSection: React.FC = () => {
   };
 
   const handleViewSegmentDetails = (segmentId: string) => {
+    console.log('View details for segment:', segmentId);
     navigate(`/crm/segments?highlight=${segmentId}`);
   };
 
