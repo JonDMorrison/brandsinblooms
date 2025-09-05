@@ -224,10 +224,10 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     500: '#a3aaaa',
   },
   'cta': {
-    DEFAULT: '#e67e48', // Warm Coral (Contrast CTA)
-    50: '#fdf4f0',
-    500: '#e67e48',
-    600: '#d4693d',
+    DEFAULT: '#2c9da3', // Updated to requested teal color
+    50: '#f0f9fb',
+    500: '#2c9da3',
+    600: '#24858a',
   },
   // Semantic color system - clean with brand colors
   surface: {
