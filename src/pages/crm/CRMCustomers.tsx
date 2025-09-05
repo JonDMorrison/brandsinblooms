@@ -30,7 +30,7 @@ import {
   X
 } from 'lucide-react';
 import { CustomerImportModal } from '@/components/crm/CustomerImportModal';
-import { PersonaSelector } from '@/components/crm/personas/PersonaSelector';
+import { CustomerPersonaSelector } from '@/components/crm/CustomerPersonaSelector';
 import { CustomerSegmentSelector } from '@/components/crm/CustomerSegmentSelector';
 
 type Customer = {
@@ -467,7 +467,7 @@ const CRMCustomers = () => {
 
                 {/* Persona Selection */}
                 <div className="space-y-4">
-                  <PersonaSelector 
+                  <CustomerPersonaSelector 
                     value={selectedCustomer.persona_id}
                     onChange={(personaId) => updateCustomer({ persona_id: personaId })}
                     customerId={selectedCustomer.id}

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { PersonaSelector } from '@/components/crm/personas/PersonaSelector';
+import { CustomerPersonaSelector } from '@/components/crm/CustomerPersonaSelector';
 import { CustomerSegmentSelector } from '@/components/crm/CustomerSegmentSelector';
 import { Mail, Phone, Calendar, DollarSign, Save, User } from 'lucide-react';
 import { format } from 'date-fns';
@@ -20,6 +20,7 @@ interface Customer {
   last_name?: string;
   phone?: string;
   persona?: string;
+  persona_id?: string;
   tags?: string[];
   total_spent?: number;
   last_purchase_date?: string;
@@ -236,11 +237,10 @@ export const CustomerDetailsSheet: React.FC<CustomerDetailsSheetProps> = ({
               <CardTitle className="text-lg">Customer Persona</CardTitle>
             </CardHeader>
             <CardContent>
-              <PersonaSelector 
-                value={customer.persona} 
+              <CustomerPersonaSelector 
+                value={customer.persona_id} 
                 onChange={handlePersonaUpdate}
                 customerId={customer.id}
-                showFullCard={false}
               />
             </CardContent>
           </Card>
