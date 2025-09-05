@@ -45,13 +45,13 @@ export const CustomerPersonaSelector = ({
       const newPersonaId = value === personaId ? null : personaId;
       const selectedPersona = personas.find(p => p.id === personaId);
       
-      // For predefined personas (string IDs), store in persona field
+      // For predefined personas, store the persona_name in persona field (must match constraint values)
       // For custom personas (UUID IDs), store in persona_id field
       const updateData = newPersonaId === null 
         ? { persona_id: null, persona: null }
         : selectedPersona?.is_custom 
           ? { persona_id: newPersonaId, persona: null }  // Custom persona - use UUID field
-          : { persona_id: null, persona: newPersonaId }; // Predefined persona - use text field
+          : { persona_id: null, persona: selectedPersona.persona_name }; // Predefined persona - use persona_name
       
       // Update in database
       const { error } = await supabase
