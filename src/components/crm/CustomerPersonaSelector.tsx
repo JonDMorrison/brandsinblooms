@@ -48,26 +48,29 @@ export const CustomerPersonaSelector = ({
   const handlePersonaToggle = async (personaId: string) => {
     if (isUpdating) return;
     
+    console.log('🎯 Persona toggle started:', { personaId, currentValue: value, customerId });
     setIsUpdating(true);
     
     try {
       const newPersonaId = value === personaId ? null : personaId;
-      
-      // Unified approach: Always store persona references in the persona_id field using UUIDs
-      // This works for both predefined personas (which have UUIDs in the personas table) 
-      // and custom personas (which also have UUIDs)
-      const updateData = {
-        persona_id: newPersonaId,
-        persona: null // Clear legacy field to avoid confusion
-      };
+      console.log('🔄 Toggling persona:', { from: value, to: newPersonaId });
       
       // Update in database
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('crm_customers')
-        .update(updateData)
-        .eq('id', customerId);
+        .update({ 
+          persona_id: newPersonaId,
+          persona: null // Clear legacy field
+        })
+        .eq('id', customerId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Database error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Database updated successfully:', data);
 
       // Call onChange to update parent state (no parameters expected)
       onChange?.();
@@ -80,18 +83,19 @@ export const CustomerPersonaSelector = ({
         });
       } else {
         toast({
-          title: "Persona removed",
+          title: "Persona removed", 
           description: "Removed persona assignment from customer."
         });
       }
     } catch (error) {
-      console.error('Error updating persona:', error);
+      console.error('❌ Error updating persona:', error);
       toast({
         title: "Error",
         description: "Failed to update persona assignment.",
         variant: "destructive"
       });
     } finally {
+      console.log('🏁 Persona toggle finished');
       setIsUpdating(false);
     }
   };
