@@ -390,8 +390,8 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
             ) : (
               <div 
                 className={`
-                  border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
-                  transition-colors duration-200 hover:bg-muted/50
+                  w-full max-w-full border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
+                  transition-colors duration-200 hover:bg-muted/50 flex flex-col items-center
                   ${isDragActive 
                     ? 'border-primary bg-primary/5' 
                     : processingImage 
