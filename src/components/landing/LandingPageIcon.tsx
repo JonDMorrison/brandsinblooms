@@ -2,7 +2,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
-import logoImage from "@/assets/bloomsuite-logo.png";
+import logoImage from "@/assets/bloomsuite-logo-correct.png";
 
 interface LandingPageIconProps {
   icon?: LucideIcon;
