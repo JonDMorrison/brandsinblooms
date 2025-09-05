@@ -6,34 +6,42 @@ export const ProblemAgitationSection = () => {
       icon: Clock,
       title: "Wasting Hours on Marketing",
       description: "You're spending 10+ hours a week creating social media posts, writing emails, and planning campaigns instead of running your business.",
-      accentColor: "hsl(var(--secondary))",
-      glowColor: "hsl(var(--secondary) / 0.1)"
+      accentColor: "#68BEB9",
+      glowColor: "rgba(104, 190, 185, 0.15)",
+      cardBg: "rgba(104, 190, 185, 0.08)"
     },
     {
       icon: DollarSign,
-      title: "Paying for Multiple Tools",
+      title: "Paying for Multiple Tools", 
       description: "Between social media schedulers, email platforms, CRM systems, and analytics tools, you're paying $200+ per month for scattered solutions.",
-      accentColor: "hsl(var(--primary))",
-      glowColor: "hsl(var(--primary) / 0.1)"
+      accentColor: "#22C55E",
+      glowColor: "rgba(34, 197, 94, 0.15)",
+      cardBg: "rgba(34, 197, 94, 0.08)"
     },
     {
       icon: TrendingDown,
       title: "Missing Sales Opportunities",
       description: "Without proper customer tracking and automated follow-ups, you're losing 30-40% of potential sales from interested customers.",
-      accentColor: "hsl(var(--accent))",
-      glowColor: "hsl(var(--accent) / 0.1)"
+      accentColor: "#3E5A6B",
+      glowColor: "rgba(62, 90, 107, 0.15)",
+      cardBg: "rgba(62, 90, 107, 0.08)"
     },
     {
       icon: AlertTriangle,
       title: "Generic Marketing That Doesn't Work",
       description: "Standard marketing tools don't understand plant seasons, garden center customers, or nursery-specific campaigns.",
       accentColor: "#2c9da3",
-      glowColor: "rgba(44, 157, 163, 0.1)"
+      glowColor: "rgba(44, 157, 163, 0.15)",
+      cardBg: "rgba(44, 157, 163, 0.08)"
     }
   ];
 
   return (
-    <section className="py-24 px-6 bg-offwhite">
+    <section className="py-24 px-6 bg-gradient-to-br from-offwhite via-white to-gray-50 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5" aria-hidden="true" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl" aria-hidden="true" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" aria-hidden="true" />
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20">
           <h2 className="text-4xl font-bold mb-6 text-accent">
@@ -48,9 +56,11 @@ export const ProblemAgitationSection = () => {
           {problems.map((problem, index) => (
             <div
               key={index}
-              className="apple-fade-in-stagger relative overflow-hidden rounded-2xl bg-white/40 backdrop-blur-xl border border-white/20 shadow-lg hover:shadow-xl hover:ring-2 hover:ring-white/30 transition-all duration-300 p-8"
+              className="apple-fade-in-stagger relative overflow-hidden rounded-2xl backdrop-blur-xl border shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 p-8"
               style={{ 
-                animationDelay: `${index * 0.1}s`
+                animationDelay: `${index * 0.1}s`,
+                background: `linear-gradient(135deg, ${problem.cardBg}, rgba(255, 255, 255, 0.3))`,
+                borderColor: problem.accentColor + '40'
               }}
             >
               {/* Gradient top border */}
