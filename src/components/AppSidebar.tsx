@@ -38,6 +38,7 @@ import {
   SidebarMenuSubItem,
   SidebarTrigger,
   useSidebar,
+  useOptionalSidebar,
 } from "@/components/ui/sidebar";
 import {
   Collapsible,
@@ -58,7 +59,20 @@ const AppSidebar: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { isPro } = useProFeatures();
   const location = useLocation();
-  const { state } = useSidebar();
+  const sidebar = useOptionalSidebar();
+  
+  if (!sidebar) {
+    // Defensive fallback - render minimal sidebar to avoid crash
+    return (
+      <aside className="w-0 md:w-60 border-r bg-background flex-shrink-0">
+        <div className="p-4">
+          <div className="text-sm text-muted-foreground">Navigation unavailable</div>
+        </div>
+      </aside>
+    );
+  }
+  
+  const { state } = sidebar;
   
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
