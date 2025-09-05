@@ -169,15 +169,27 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
+  // Add request tracking to prevent duplicate requests
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
+  const [lastFetchUser, setLastFetchUser] = useState<string | null>(null);
+
   const fetchSubscription = useCallback(async () => {
-    if (!user) {
+    if (!user?.id) {
       setLoading(false);
       return;
     }
 
+    // Prevent duplicate requests for the same user
+    if (isLoadingSubscription || lastFetchUser === user.id) {
+      console.log('⏭️ Skipping duplicate subscription fetch for user:', user.id);
+      return;
+    }
+
     try {
+      setIsLoadingSubscription(true);
       console.log('🔍 Fetching subscription for user:', user.id);
       setSubscriptionError(null);
+      setLastFetchUser(user.id);
       
       // Ensure test accounts have PRO access
       if (isTestUser) {
@@ -242,13 +254,26 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       setSubscriptionError(`Failed to fetch subscription: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
+      setIsLoadingSubscription(false);
     }
-  }, [user, isTestUser, hasPrivilegedAccess]);
+  }, [user?.id, isTestUser, hasPrivilegedAccess]); // Remove user object to prevent re-runs
+
+  const [isCheckingStripe, setIsCheckingStripe] = useState(false);
+  const [lastStripeCheck, setLastStripeCheck] = useState<number>(0);
 
   const checkStripeSubscription = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) return;
+
+    // Throttle Stripe checks to prevent excessive requests (max once every 30 seconds)
+    const now = Date.now();
+    if (isCheckingStripe || (now - lastStripeCheck) < 30000) {
+      console.log('⏭️ Throttling Stripe subscription check');
+      return;
+    }
 
     try {
+      setIsCheckingStripe(true);
+      setLastStripeCheck(now);
       console.log('💳 Checking Stripe subscription status');
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
@@ -263,13 +288,17 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       // If Stripe returns subscription data, refresh our local state
       if (data && (data.subscribed || data.plan)) {
         console.log('🔄 Stripe data found, refreshing local subscription');
+        // Reset last fetch user to allow refetch
+        setLastFetchUser(null);
         await fetchSubscription();
       }
     } catch (error) {
       console.error('❌ Error in checkStripeSubscription:', error);
       setSubscriptionError(`Stripe verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsCheckingStripe(false);
     }
-  }, [user, fetchSubscription]);
+  }, [user?.id, fetchSubscription]); // Use user.id instead of user object
 
   const updateSubscription = useCallback(async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
     await updateSubscriptionPlan(plan, billingInterval);
@@ -335,17 +364,18 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     return Math.max(0, diffDays);
   })();
 
+  // Only fetch subscription when user changes, not on every render
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchSubscription();
-      // Also check with Stripe on load
+      // Also check with Stripe on load, but with a longer delay
       const stripeTimer = setTimeout(() => {
         checkStripeSubscription();
-      }, 1000); // Delay Stripe check to avoid overloading
+      }, 3000); // Increased delay to reduce overlapping requests
       
       return () => clearTimeout(stripeTimer);
     }
-  }, [user?.id, fetchSubscription, checkStripeSubscription]); // Include the memoized functions
+  }, [user?.id]); // Only depend on user.id, not the functions
 
   // Enhanced trial expiration handling - skip for privileged users
   useEffect(() => {
@@ -371,19 +401,19 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   }, [isInLimboState, subscriptionError, forceReset]);
 
-  // Auto-refresh subscription status periodically when user is active
+  // Auto-refresh subscription status periodically when user is active (reduced frequency)
   useEffect(() => {
     if (!user?.id || !subscription) return;
 
     const interval = setInterval(() => {
       // Only auto-refresh if user is on a trial or paid plan and no errors
-      if ((subscription.plan === 'free_trial' || subscription.plan === 'sprout' || subscription.plan === 'bloom') && !subscriptionError) {
+      if ((subscription.plan === 'free_trial' || subscription.plan === 'sprout' || subscription.plan === 'bloom') && !subscriptionError && !isCheckingStripe) {
         checkStripeSubscription();
       }
-    }, 300000); // Check every 5 minutes instead of every minute
+    }, 600000); // Check every 10 minutes instead of 5 to reduce load
 
     return () => clearInterval(interval);
-  }, [user?.id, subscription?.plan, subscriptionError, checkStripeSubscription]); // Include checkStripeSubscription
+  }, [user?.id, subscription?.plan, subscriptionError]); // Remove checkStripeSubscription from dependencies
 
   const value = useMemo(() => ({
     subscription,

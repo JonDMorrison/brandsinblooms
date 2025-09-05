@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { CompanyProfileForm } from './CompanyProfileForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,35 +12,39 @@ export const CompanyProfilePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
+  // Memoize the fetch function to prevent unnecessary re-renders
+  const fetchProfile = useCallback(async () => {
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
 
-      try {
-        setIsLoading(true);
-        const { data, error } = await supabase
-          .from('company_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('company_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no data
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching profile:', error);
-          
-          return;
-        }
-
-        setProfile(data || null);
-      } catch (error) {
-        console.error('Error in fetchProfile:', error);
-        
-      } finally {
-        setIsLoading(false);
+      if (error) {
+        console.error('Error fetching profile:', error);
+        setProfile(null);
+        return;
       }
-    };
 
+      setProfile(data || null);
+    } catch (error) {
+      console.error('Error in fetchProfile:', error);
+      setProfile(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]); // Only depend on user.id
+
+  useEffect(() => {
     fetchProfile();
-  }, [user]);
+  }, [fetchProfile]);
 
   const handleToggleEdit = () => {
     setIsEditing(!isEditing);
