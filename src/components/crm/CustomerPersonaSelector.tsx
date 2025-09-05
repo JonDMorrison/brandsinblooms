@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { User, X, Loader2 } from "lucide-react";
-import { useAllPersonas } from "@/hooks/useAllPersonas";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,7 +25,19 @@ export const CustomerPersonaSelector = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
-  const { personas, loading: personasLoading } = useAllPersonas();
+  // Query personas directly from the database (UUIDs only)
+  const { data: personas = [], isLoading: personasLoading } = useQuery({
+    queryKey: ['personas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('personas')
+        .select('id, name, description, tone, icon, color_theme')
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
   // Find the selected persona by ID (UUID) - now using unified approach
   const selectedPersona = personas.find(p => p.id === value);
@@ -60,7 +72,7 @@ export const CustomerPersonaSelector = ({
       // Call onChange to update parent state (no parameters expected)
       onChange?.();
       
-      const selectedPersonaName = personas.find(p => p.id === newPersonaId)?.persona_name;
+      const selectedPersonaName = personas.find(p => p.id === newPersonaId)?.name;
       if (newPersonaId) {
         toast({
           title: "Persona assigned",
@@ -156,7 +168,7 @@ export const CustomerPersonaSelector = ({
             className="inline-flex items-center gap-1.5 bg-brand-teal/10 border-brand-teal/20 text-brand-teal"
           >
             <User className="h-3 w-3" />
-            <span className="font-medium">{selectedPersona.persona_name}</span>
+            <span className="font-medium">{selectedPersona.name}</span>
             <Button
               variant="ghost"
               size="sm"
@@ -211,17 +223,12 @@ export const CustomerPersonaSelector = ({
                           <label htmlFor={persona.id} className="cursor-pointer">
                             <div className="flex items-center gap-2">
                               <span className={`font-medium text-sm ${isSelected ? 'text-brand-teal' : ''}`}>
-                                {persona.persona_name}
+                                {persona.name}
                               </span>
-                              {!persona.is_custom && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Predefined
-                                </Badge>
-                              )}
                               {isSelected && <Badge variant="outline" className="text-xs bg-brand-teal/10 border-brand-teal/20 text-brand-teal">Assigned</Badge>}
                             </div>
-                            {persona.persona_description && (
-                              <p className="text-xs text-muted-foreground mt-1">{persona.persona_description}</p>
+                            {persona.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{persona.description}</p>
                             )}
                           </label>
                         </div>
