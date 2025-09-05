@@ -52,8 +52,8 @@ export const LandingPageIcon = ({
   
   // Special handling for logos - no border, smaller size (50% of previous)
   if (logo) {
-    const logoSize = variant === 'hero' ? 'w-16 h-16 md:w-24 md:h-24' : 
-                     variant === 'section' ? 'w-10 h-10 md:w-12 md:h-12' : 'w-8 h-8 md:w-9 md:h-9';
+    const logoSize = variant === 'hero' ? 'w-20 h-20 md:w-24 md:h-24' : 
+                     variant === 'section' ? 'w-12 h-12 md:w-12 md:h-12' : 'w-10 h-10 md:w-9 md:h-9';
     
     return (
       <div 
