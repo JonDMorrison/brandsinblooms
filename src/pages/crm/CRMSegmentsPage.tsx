@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,7 +56,10 @@ export const CRMSegmentsPage: React.FC = () => {
   const { counts, loading: countsLoading } = useSegmentCounts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
+  const [highlightedSegment, setHighlightedSegment] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
+  const segmentRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const handleCreateSegment = () => {
     setShowCustomBuilder(true);
@@ -74,8 +78,58 @@ export const CRMSegmentsPage: React.FC = () => {
   };
 
   const handleViewSegmentDetails = (segmentId: string) => {
-    console.log('View segment details:', segmentId);
+    // Update URL with highlight parameter
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set('highlight', segmentId);
+    setSearchParams(newSearchParams);
+    
+    // Set highlighted segment
+    setHighlightedSegment(segmentId);
+    
+    // Scroll to segment
+    const segmentElement = segmentRefs.current[segmentId];
+    if (segmentElement) {
+      segmentElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+    }
+    
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      setHighlightedSegment(null);
+      const params = new URLSearchParams(searchParams);
+      params.delete('highlight');
+      setSearchParams(params);
+    }, 3000);
   };
+
+  // Handle URL highlight parameter on page load
+  useEffect(() => {
+    const highlightParam = searchParams.get('highlight');
+    if (highlightParam) {
+      setHighlightedSegment(highlightParam);
+      
+      // Scroll to segment after a brief delay to ensure rendering
+      setTimeout(() => {
+        const segmentElement = segmentRefs.current[highlightParam];
+        if (segmentElement) {
+          segmentElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+        }
+      }, 100);
+      
+      // Clear highlight after 3 seconds
+      setTimeout(() => {
+        setHighlightedSegment(null);
+        const params = new URLSearchParams(searchParams);
+        params.delete('highlight');
+        setSearchParams(params);
+      }, 3000);
+    }
+  }, [searchParams, setSearchParams]);
 
   // Filter predefined segments based on search term
   const filteredPredefinedSegments = predefinedSegments.filter(segment =>
@@ -140,16 +194,25 @@ export const CRMSegmentsPage: React.FC = () => {
             <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
               <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
                 {filteredPredefinedSegments.map((segment) => (
-                  <SegmentOverviewCard
+                  <div
                     key={segment.id}
-                    name={segment.name}
-                    description={segment.description}
-                    estimatedCount={counts[segment.id as keyof typeof counts] || 0}
-                    icon={segment.icon}
-                    isSystem={true}
-                    onCreateCampaign={() => handleCreateCampaign(segment.id)}
-                    onViewDetails={() => handleViewSegmentDetails(segment.id)}
-                  />
+                    ref={(el) => (segmentRefs.current[segment.id] = el)}
+                    className={`transition-all duration-300 ${
+                      highlightedSegment === segment.id 
+                        ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' 
+                        : ''
+                    }`}
+                  >
+                    <SegmentOverviewCard
+                      name={segment.name}
+                      description={segment.description}
+                      estimatedCount={counts[segment.id as keyof typeof counts] || 0}
+                      icon={segment.icon}
+                      isSystem={true}
+                      onCreateCampaign={() => handleCreateCampaign(segment.id)}
+                      onViewDetails={() => handleViewSegmentDetails(segment.id)}
+                    />
+                  </div>
                 ))}
               </div>
             </CardContent>
