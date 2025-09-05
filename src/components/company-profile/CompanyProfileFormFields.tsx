@@ -1,6 +1,8 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Plus, X } from "lucide-react";
 
 interface CompanyProfileFormFieldsProps {
   formData: {
@@ -21,7 +23,102 @@ interface CompanyProfileFormFieldsProps {
   onInputChange: (field: string, value: string) => void;
 }
 
+const parseArrayField = (value: string): string[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [value];
+  } catch {
+    return value.split('\n').filter(item => item.trim());
+  }
+};
+
+const stringifyArrayField = (array: string[]): string => {
+  return JSON.stringify(array);
+};
+
 export const CompanyProfileFormFields = ({ formData, isEditing, onInputChange }: CompanyProfileFormFieldsProps) => {
+  const handleArrayFieldChange = (field: string, newArray: string[]) => {
+    onInputChange(field, stringifyArrayField(newArray));
+  };
+
+  const addArrayItem = (field: string) => {
+    const currentArray = parseArrayField(formData[field as keyof typeof formData]);
+    handleArrayFieldChange(field, [...currentArray, '']);
+  };
+
+  const removeArrayItem = (field: string, index: number) => {
+    const currentArray = parseArrayField(formData[field as keyof typeof formData]);
+    const newArray = currentArray.filter((_, i) => i !== index);
+    handleArrayFieldChange(field, newArray);
+  };
+
+  const updateArrayItem = (field: string, index: number, value: string) => {
+    const currentArray = parseArrayField(formData[field as keyof typeof formData]);
+    const newArray = [...currentArray];
+    newArray[index] = value;
+    handleArrayFieldChange(field, newArray);
+  };
+
+  const renderArrayField = (field: string, label: string, placeholder: string) => {
+    const items = parseArrayField(formData[field as keyof typeof formData]);
+    
+    if (!isEditing) {
+      return (
+        <div>
+          <Label className="text-lg font-semibold">{label}</Label>
+          {items.length > 0 ? (
+            <ul className="mt-2 space-y-2">
+              {items.map((item, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="mr-2 text-primary">•</span>
+                  <span className="text-lg">{item}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground mt-2">No {label.toLowerCase()} added yet.</p>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <Label className="text-lg font-semibold">{label}</Label>
+        <div className="space-y-3 mt-2">
+          {items.map((item, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <Input
+                placeholder={placeholder}
+                value={item}
+                onChange={(e) => updateArrayItem(field, index, e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => removeArrayItem(field, index)}
+                className="flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => addArrayItem(field)}
+            className="w-full"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add {label.slice(0, -1)}
+          </Button>
+        </div>
+      </div>
+    );
+  };
   return (
     <div className="grid grid-cols-1 gap-6">
       <div>
@@ -101,31 +198,9 @@ export const CompanyProfileFormFields = ({ formData, isEditing, onInputChange }:
         />
       </div>
 
-      <div>
-        <Label htmlFor="unique_selling_points" className="text-lg font-semibold">Unique Selling Points</Label>
-        <Textarea
-          id="unique_selling_points"
-          placeholder="What sets you apart from other garden centers? (e.g., expert advice, rare plants, local focus)"
-          value={formData.unique_selling_points}
-          onChange={(e) => onInputChange('unique_selling_points', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
+      {renderArrayField('unique_selling_points', 'Unique Selling Points', 'Enter a unique selling point')}
 
-      <div>
-        <Label htmlFor="company_values" className="text-lg font-semibold">Company Values</Label>
-        <Textarea
-          id="company_values"
-          placeholder="Core values that drive your business (e.g., sustainability, community support, quality)"
-          value={formData.company_values}
-          onChange={(e) => onInputChange('company_values', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
+      {renderArrayField('company_values', 'Company Values', 'Enter a company value')}
 
       <div>
         <Label htmlFor="seasonal_focus" className="text-lg font-semibold">Seasonal Focus</Label>
