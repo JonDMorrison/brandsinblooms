@@ -35,9 +35,11 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
   
   // Debug PersonaLibrary mounting
   console.log('PersonaLibrary component mounted/rendered with:', { customerId });
+  console.log('PersonaLibrary - document.body available:', !!document.body);
   
   useEffect(() => {
     console.log('PersonaLibrary mounted successfully');
+    console.log('PersonaLibrary useEffect - document.body:', !!document.body);
     return () => {
       console.log('PersonaLibrary unmounting');
     };
@@ -334,5 +336,13 @@ export function PersonaLibrary({ onClose, onPersonaSelect, customerId }: Persona
     </>
   );
 
+  // Debug portal rendering
+  console.log('PersonaLibrary - About to render portal, document.body:', !!document.body);
+  
+  if (!document.body) {
+    console.error('PersonaLibrary - document.body not available for portal');
+    return null;
+  }
+  
   return createPortal(modalContent, document.body);
 }
