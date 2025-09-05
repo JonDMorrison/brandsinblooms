@@ -1,4 +1,4 @@
-/* Core Palette Homepage Theme */
+/* Core Palette Homepage Theme - Comprehensive Override */
 
 .theme-core-home {
   /* Core Palette CSS Variables */
@@ -19,23 +19,72 @@
   --foreground: var(--core-deep-indigo);
 }
 
-/* Override legacy garden/green classes */
-.theme-core-home .bg-garden-background,
-.theme-core-home .bg-gradient-to-br {
-  background: hsl(var(--core-offwhite)) !important;
-}
+/* === AGGRESSIVE COLOR OVERRIDES FOR NEW PALETTE === */
 
+/* Garden Green Classes - Map to Dark Teal */
 .theme-core-home .bg-garden-green,
-.theme-core-home .bg-primary {
-  background: hsl(var(--core-dark-teal)) !important;
+.theme-core-home .bg-garden-green-dark {
+  background-color: hsl(var(--core-dark-teal)) !important;
 }
 
 .theme-core-home .text-garden-green,
-.theme-core-home .text-primary {
+.theme-core-home .text-garden-green-dark {
   color: hsl(var(--core-dark-teal)) !important;
 }
 
-/* CTA Button Styling */
+.theme-core-home .border-garden-green,
+.theme-core-home .border-garden-green-dark {
+  border-color: hsl(var(--core-dark-teal)) !important;
+}
+
+.theme-core-home .hover\:bg-garden-green:hover,
+.theme-core-home .hover\:bg-garden-green-dark:hover {
+  background-color: hsl(var(--core-dark-teal) / 0.9) !important;
+}
+
+/* Generic Green Classes - Map to Bright Teal */
+.theme-core-home .bg-green-50 { background-color: hsl(var(--core-offwhite)) !important; }
+.theme-core-home .bg-green-100 { background-color: hsl(var(--core-bright-teal) / 0.1) !important; }
+.theme-core-home .bg-green-200 { background-color: hsl(var(--core-bright-teal) / 0.2) !important; }
+.theme-core-home .bg-green-500 { background-color: hsl(var(--core-bright-teal)) !important; }
+.theme-core-home .bg-green-600 { background-color: hsl(var(--core-dark-teal)) !important; }
+.theme-core-home .bg-green-700 { background-color: hsl(var(--core-deep-indigo)) !important; }
+
+.theme-core-home .text-green-500 { color: hsl(var(--core-bright-teal)) !important; }
+.theme-core-home .text-green-600 { color: hsl(var(--core-dark-teal)) !important; }
+.theme-core-home .text-green-700 { color: hsl(var(--core-deep-indigo)) !important; }
+.theme-core-home .text-green-800 { color: hsl(var(--core-deep-indigo)) !important; }
+
+.theme-core-home .border-green-200 { border-color: hsl(var(--core-bright-teal) / 0.3) !important; }
+.theme-core-home .border-green-300 { border-color: hsl(var(--core-bright-teal) / 0.4) !important; }
+
+/* Emerald Classes - Map to Bright Teal */
+.theme-core-home .bg-emerald-500 { background-color: hsl(var(--core-bright-teal)) !important; }
+.theme-core-home .text-emerald-600 { color: hsl(var(--core-bright-teal)) !important; }
+.theme-core-home .from-emerald-500 { --tw-gradient-from: hsl(var(--core-bright-teal)) !important; }
+.theme-core-home .to-emerald-500 { --tw-gradient-to: hsl(var(--core-bright-teal)) !important; }
+
+/* Teal Classes - Use Bright Teal */
+.theme-core-home .bg-teal-500 { background-color: hsl(var(--core-bright-teal)) !important; }
+.theme-core-home .to-teal-600 { --tw-gradient-to: hsl(var(--core-bright-teal)) !important; }
+
+/* Primary/Secondary Semantic Classes */
+.theme-core-home .bg-primary { background-color: hsl(var(--core-dark-teal)) !important; }
+.theme-core-home .text-primary { color: hsl(var(--core-dark-teal)) !important; }
+.theme-core-home .border-primary { border-color: hsl(var(--core-dark-teal)) !important; }
+
+.theme-core-home .bg-secondary { background-color: hsl(var(--core-bright-teal)) !important; }
+.theme-core-home .text-secondary { color: hsl(var(--core-bright-teal)) !important; }
+
+/* Gradient Overrides */
+.theme-core-home .bg-gradient-to-br { background: hsl(var(--core-offwhite)) !important; }
+.theme-core-home .bg-gradient-to-r { background: linear-gradient(to right, hsl(var(--core-dark-teal)), hsl(var(--core-bright-teal))) !important; }
+
+/* Card and Background Overrides */
+.theme-core-home .bg-card { background-color: hsl(var(--core-offwhite)) !important; }
+.theme-core-home .bg-white { background-color: hsl(var(--core-offwhite)) !important; }
+
+/* Button Overrides */
 .theme-core-home .cta-button,
 .theme-core-home .btn-cta {
   background: hsl(var(--core-warm-coral)) !important;
@@ -46,20 +95,9 @@
 .theme-core-home .cta-button:hover,
 .theme-core-home .btn-cta:hover {
   background: hsl(var(--core-warm-coral) / 0.9) !important;
-  filter: brightness(0.95);
 }
 
-/* Secondary buttons with bright teal */
-.theme-core-home .btn-secondary {
-  background: hsl(var(--core-bright-teal)) !important;
-  color: white !important;
-}
-
-.theme-core-home .btn-secondary:hover {
-  background: hsl(var(--core-bright-teal) / 0.9) !important;
-}
-
-/* Accent elements with deep indigo */
+/* Focus and Accent States */
 .theme-core-home .accent-element,
 .theme-core-home .focus-ring,
 .theme-core-home *:focus-visible {
@@ -67,31 +105,47 @@
   outline-color: hsl(var(--core-deep-indigo)) !important;
 }
 
-/* Text colors using the palette */
-.theme-core-home .text-primary {
+/* Text Colors */
+.theme-core-home .text-slate-900 { color: hsl(var(--core-deep-indigo)) !important; }
+.theme-core-home .text-slate-800 { color: hsl(var(--core-deep-indigo)) !important; }
+.theme-core-home .text-slate-600 { color: hsl(var(--core-cool-gray)) !important; }
+
+/* Gradients with Core Colors */
+.theme-core-home .from-slate-800 { --tw-gradient-from: hsl(var(--core-deep-indigo)) !important; }
+.theme-core-home .to-slate-600 { --tw-gradient-to: hsl(var(--core-cool-gray)) !important; }
+
+/* Additional Button and Hover States */
+.theme-core-home .hover\:bg-green-600:hover,
+.theme-core-home .hover\:bg-green-700:hover {
+  background-color: hsl(var(--core-dark-teal) / 0.9) !important;
+}
+
+.theme-core-home .hover\:bg-green-50:hover {
+  background-color: hsl(var(--core-offwhite)) !important;
+}
+
+/* Badge and Chip Overrides */
+.theme-core-home .bg-green-100.text-green-800 {
+  background-color: hsl(var(--core-bright-teal) / 0.1) !important;
   color: hsl(var(--core-dark-teal)) !important;
 }
 
-.theme-core-home .text-secondary {
-  color: hsl(var(--core-bright-teal)) !important;
+.theme-core-home .border-green-200,
+.theme-core-home .border-green-300 {
+  border-color: hsl(var(--core-bright-teal) / 0.3) !important;
 }
 
-.theme-core-home .text-accent {
-  color: hsl(var(--core-deep-indigo)) !important;
+/* Icon Colors */
+.theme-core-home .text-green-500,
+.theme-core-home .text-green-600 {
+  color: hsl(var(--core-dark-teal)) !important;
 }
 
-.theme-core-home .text-muted {
-  color: hsl(var(--core-cool-gray)) !important;
+/* Specific Overrides for Common Components */
+.theme-core-home .bg-gradient-to-br.from-emerald-500 {
+  background: linear-gradient(to bottom right, hsl(var(--core-bright-teal)), hsl(var(--core-dark-teal))) !important;
 }
 
-/* Card backgrounds */
-.theme-core-home .card,
-.theme-core-home .bg-card {
+.theme-core-home .bg-gradient-to-br.from-white {
   background: hsl(var(--core-offwhite)) !important;
-  color: hsl(var(--core-deep-indigo)) !important;
-}
-
-/* Subtle borders */
-.theme-core-home .border {
-  border-color: hsl(var(--core-cool-gray) / 0.3) !important;
 }

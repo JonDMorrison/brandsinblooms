@@ -131,14 +131,14 @@ const HomepageContent = () => {
   // Show error state
   if (error) {
     return (
-      <div className="min-h-screen bg-garden-background">
+      <div className="theme-core-home min-h-screen bg-offwhite">
         <div className="max-w-5xl mx-auto p-6">
           <div className="flex justify-center items-center py-20">
             <div className="text-center">
               <p className="text-red-600 font-medium text-lg">{error}</p>
               <button 
                 onClick={refreshData}
-                className="mt-4 px-4 py-2 bg-garden-green text-white rounded hover:bg-garden-green/90"
+                className="mt-4 px-4 py-2 bg-dark-teal text-white rounded hover:bg-dark-teal/90"
                 aria-label="Retry loading content"
               >
                 Try Again
@@ -164,7 +164,7 @@ const HomepageContent = () => {
   return (
     <HomepageErrorBoundary>
       <div className="theme-core-home min-h-screen bg-offwhite p-6">
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-4xl mx-auto space-y-8 theme-core-home">{/* Double wrapper to ensure all components get the theme */}
           
           {/* Auto-generate weekly content for new users */}
           <WeeklyContentUpdater />
