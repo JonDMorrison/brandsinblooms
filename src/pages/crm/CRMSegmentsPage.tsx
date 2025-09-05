@@ -9,7 +9,9 @@ import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { SegmentCard } from '@/components/crm/segments/SegmentCard';
 import { CustomSegmentModal } from '@/components/crm/segments/CustomSegmentModal';
 import { SegmentOverviewCard } from '@/components/crm/segments/SegmentOverviewCard';
+import { SegmentCustomersModal } from '@/components/crm/segments/SegmentCustomersModal';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNavigate } from 'react-router-dom';
 
 // Predefined segments data (without hardcoded counts)
 const predefinedSegments = [
@@ -57,7 +59,9 @@ export const CRMSegmentsPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const [highlightedSegment, setHighlightedSegment] = useState<string | null>(null);
+  const [selectedSegment, setSelectedSegment] = useState<{ id: string; name: string } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const segmentRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -73,13 +77,21 @@ export const CRMSegmentsPage: React.FC = () => {
   };
 
   const handleCreateCampaign = (segmentId: string) => {
-    // Future: Navigate to campaign creation with pre-selected segment
     console.log('Create campaign for segment:', segmentId);
+    navigate(`/crm/campaigns/new?segment=${segmentId}`);
   };
 
   const handleViewSegmentDetails = (segmentId: string) => {
     console.log('View details for segment:', segmentId);
     
+    // Find segment name
+    const segment = predefinedSegments.find(s => s.id === segmentId);
+    if (segment) {
+      setSelectedSegment({ id: segmentId, name: segment.name });
+      return;
+    }
+    
+    // If not found in predefined, try highlighting (for navigation effect)
     // Update URL with highlight parameter
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.set('highlight', segmentId);
@@ -276,6 +288,16 @@ export const CRMSegmentsPage: React.FC = () => {
         onSave={handleSaveCustomSegment}
         onCancel={() => setShowCustomBuilder(false)}
       />
+
+      {/* Segment Customers Modal */}
+      {selectedSegment && (
+        <SegmentCustomersModal
+          open={!!selectedSegment}
+          onClose={() => setSelectedSegment(null)}
+          segmentId={selectedSegment.id}
+          segmentName={selectedSegment.name}
+        />
+      )}
     </div>
   );
 };

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Target, ArrowRight } from 'lucide-react';
 import { SegmentOverviewCard } from './SegmentOverviewCard';
+import { SegmentCustomersModal } from './SegmentCustomersModal';
 import { useNavigate } from 'react-router-dom';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { usePOSConnection } from '@/hooks/usePOSConnection';
@@ -54,19 +55,23 @@ export const CustomerSegmentsSection: React.FC = () => {
   const { counts, loading } = useSegmentCounts();
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
   const isMobile = useIsMobile();
+  const [selectedSegment, setSelectedSegment] = useState<{ id: string; name: string } | null>(null);
 
   const handleViewAllSegments = () => {
     navigate('/crm/segments');
   };
 
   const handleCreateCampaign = (segmentId: string) => {
-    // Future: Navigate to campaign creation with pre-selected segment
     console.log('Create campaign for segment:', segmentId);
+    navigate(`/crm/campaigns/new?segment=${segmentId}`);
   };
 
   const handleViewSegmentDetails = (segmentId: string) => {
     console.log('View details for segment:', segmentId);
-    navigate(`/crm/segments?highlight=${segmentId}`);
+    const segment = predefinedSegments.find(s => s.id === segmentId);
+    if (segment) {
+      setSelectedSegment({ id: segmentId, name: segment.name });
+    }
   };
 
   return (
@@ -108,6 +113,16 @@ export const CustomerSegmentsSection: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Segment Customers Modal */}
+      {selectedSegment && (
+        <SegmentCustomersModal
+          open={!!selectedSegment}
+          onClose={() => setSelectedSegment(null)}
+          segmentId={selectedSegment.id}
+          segmentName={selectedSegment.name}
+        />
+      )}
     </div>
   );
 };
