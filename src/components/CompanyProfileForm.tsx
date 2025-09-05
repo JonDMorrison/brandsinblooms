@@ -135,36 +135,46 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
 
     setIsSaving(true);
     try {
-      const profileData = {
-        ...formData,
-        user_id: user.id
+      // Only send columns that exist in company_profiles (exclude mission_statement)
+      const payload = {
+        user_id: user.id,
+        company_name: formData.company_name || null,
+        company_overview: formData.company_overview || null,
+        brand_voice: formData.brand_voice || null,
+        tone_of_writing: formData.tone_of_writing || null,
+        target_audience: formData.target_audience || null,
+        ideal_customer: formData.ideal_customer || null,
+        unique_selling_points: formData.unique_selling_points || null,
+        company_values: formData.company_values || null,
+        seasonal_focus: formData.seasonal_focus || null,
+        specializations: formData.specializations || null,
+        location_info: formData.location_info || null,
       };
 
       let result;
-      if (profile) {
+      if (profile?.id) {
         // Update existing profile
         result = await supabase
           .from('company_profiles')
-          .update(profileData)
+          .update(payload)
           .eq('id', profile.id)
           .select()
-          .single();
+          .maybeSingle();
       } else {
         // Create new profile
         result = await supabase
           .from('company_profiles')
-          .insert(profileData)
+          .insert(payload)
           .select()
-          .single();
+          .maybeSingle();
       }
 
       if (result.error) {
-        // Error saving profile
-        
+        console.error('Error saving profile:', result.error);
         return;
       }
 
-      // If company name was updated, sync with localStorage for consistency
+      // If company name was updated, sync a friendly blurb in onboarding localStorage
       if (formData.company_name) {
         const onboardingKey = `garden-center-onboarding-${user.id}`;
         const existingData = localStorage.getItem(onboardingKey);
@@ -174,16 +184,14 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
             parsedData.aboutBusiness = `${formData.company_name} has been serving the community with quality gardening products and expert advice.`;
             localStorage.setItem(onboardingKey, JSON.stringify(parsedData));
           } catch (error) {
-            // Error updating localStorage
+            console.warn('Failed to sync onboarding storage:', error);
           }
         }
       }
 
-      
       onProfileUpdate(result.data);
     } catch (error) {
-      // Error in handleSave
-      
+      console.error('Unexpected error in handleSave:', error);
     } finally {
       setIsSaving(false);
     }
