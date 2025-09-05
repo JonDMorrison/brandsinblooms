@@ -36,12 +36,13 @@ export interface AppleButtonProps
 }
 
 const AppleButton = React.forwardRef<HTMLButtonElement, AppleButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, type = "button", ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
         className={cn(appleButtonVariants({ variant, size, className }))}
         ref={ref}
+        type={type}
         {...props}
       />
     )

@@ -1,8 +1,9 @@
 import * as React from "react";
 import { format, addMonths } from "date-fns";
-import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
+import { Calendar, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { FieldTrigger } from "@/components/ui/field-trigger";
 import {
   Popover,
   PopoverContent,
@@ -59,19 +60,12 @@ export function MonthPicker({ value, onChange, className }: MonthPickerProps) {
       {/* Month Picker Button */}
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={cn(
-              "w-full justify-between text-left font-normal h-10",
-              !value && "text-muted-foreground"
-            )}
+          <FieldTrigger
+            leadingIcon={<Calendar className="h-4 w-4" />}
+            placeholder="Pick a month"
           >
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4" />
-              {value ? format(new Date(`${value}-01`), "MMMM yyyy") : "Pick a month"}
-            </div>
-            <ChevronDown className="h-4 w-4 opacity-50" />
-          </Button>
+            {value ? format(new Date(`${value}-01`), "MMMM yyyy") : null}
+          </FieldTrigger>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <div className="p-4 space-y-4">
@@ -136,7 +130,7 @@ export function MonthPicker({ value, onChange, className }: MonthPickerProps) {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>Selected:</span>
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary font-medium">
-            <CalendarIcon className="h-3 w-3" />
+            <Calendar className="h-3 w-3" />
             {format(new Date(`${value}-01`), "MMMM yyyy")}
           </span>
         </div>
