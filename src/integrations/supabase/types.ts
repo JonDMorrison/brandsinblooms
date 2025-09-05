@@ -2686,6 +2686,39 @@ export type Database = {
         }
         Relationships: []
       }
+      google_analytics_settings: {
+        Row: {
+          connection_status: string
+          created_at: string
+          id: string
+          last_test_at: string | null
+          property_id: string
+          service_account_configured: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          connection_status?: string
+          created_at?: string
+          id?: string
+          last_test_at?: string | null
+          property_id: string
+          service_account_configured?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          connection_status?: string
+          created_at?: string
+          id?: string
+          last_test_at?: string | null
+          property_id?: string
+          service_account_configured?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       holiday_generation_logs: {
         Row: {
           created_at: string
