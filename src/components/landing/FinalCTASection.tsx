@@ -8,19 +8,19 @@ interface FinalCTASectionProps {
 
 export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
   return (
-    <section className="py-24 px-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white relative overflow-hidden">
+    <section className="py-24 px-6 bg-gradient-to-br from-accent to-primary text-white relative overflow-hidden">
       {/* Modern geometric background */}
       <div className="absolute inset-0">
-        <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-green-500/20 to-emerald-500/10 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-blue-500/20 to-green-500/10 rounded-full blur-3xl transform translate-x-1/2 translate-y-1/2"></div>
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-full blur-2xl transform -translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-secondary/20 to-primary/10 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-primary/20 to-secondary/10 rounded-full blur-3xl transform translate-x-1/2 translate-y-1/2"></div>
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-secondary/10 to-primary/10 rounded-full blur-2xl transform -translate-x-1/2 -translate-y-1/2"></div>
       </div>
       
       <div className="max-w-6xl mx-auto relative z-10">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
             Ready to Transform Your
-            <span className="block text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text">
+            <span className="block text-transparent bg-gradient-to-r from-secondary to-cta bg-clip-text">
               Garden Center?
             </span>
           </h2>
@@ -33,7 +33,7 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
         {/* Three-column feature highlights */}
         <div className="grid md:grid-cols-3 gap-8 mb-16">
           <div className="text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-secondary to-primary rounded-xl flex items-center justify-center mx-auto mb-4">
               <Users className="w-6 h-6 text-white" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Smart CRM</h3>
@@ -41,7 +41,7 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
           </div>
           
           <div className="text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-cta to-secondary rounded-xl flex items-center justify-center mx-auto mb-4">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <h3 className="text-lg font-semibold mb-2">AI Content</h3>
@@ -49,7 +49,7 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
           </div>
           
           <div className="text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary to-cta rounded-xl flex items-center justify-center mx-auto mb-4">
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Real ROI</h3>
@@ -62,7 +62,7 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
           <Button 
             onClick={onGetStarted}
             size="lg"
-            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-12 py-6 text-lg shadow-2xl hover:shadow-green-500/25 transition-all duration-300 hover:scale-105 border-0"
+            className="bg-cta hover:bg-cta/90 text-white font-semibold px-12 py-6 text-lg shadow-2xl hover:shadow-cta/25 transition-all duration-300 hover:scale-105 border-0"
           >
             Start Your Free Trial Today
             <ArrowRight className="ml-2 h-5 w-5" />

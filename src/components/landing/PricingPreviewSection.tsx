@@ -14,8 +14,8 @@ export const PricingPreviewSection = ({
           Get everything you need for less than what you're probably paying for just social media scheduling. AI content creation, CRM, automation, analytics, email marketing, and more — all for one low price.
         </p>
         
-        <Button onClick={onSeePricing} className="bg-primary hover:bg-primary-700 text-primary-foreground px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group border-0 animate-pulse-hover" style={{
-        boxShadow: '0 8px 16px rgba(34, 197, 94, 0.2)'
+        <Button onClick={onSeePricing} className="bg-cta hover:bg-cta/90 text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group border-0 animate-pulse-hover" style={{
+        boxShadow: '0 8px 16px rgba(230, 126, 72, 0.2)'
       }}>
           <Leaf className="mr-2 h-5 w-5 text-white" />
           See Pricing Plans

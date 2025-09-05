@@ -38,13 +38,13 @@ export const ProblemAgitationSection = () => {
   ];
 
   return (
-    <section className="py-24 px-6 bg-gray-50">
+    <section className="py-24 px-6 bg-offwhite">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20">
-          <h2 className="text-4xl font-bold mb-6 text-gray-900">
+          <h2 className="text-4xl font-bold mb-6 text-accent">
             Are You Tired of Marketing That Feels Like Work?
           </h2>
-          <p className="text-xl text-[#6B7280] max-w-3xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Most garden center owners are frustrated with marketing because they're using the wrong tools. Sound familiar?
           </p>
         </div>
@@ -53,7 +53,7 @@ export const ProblemAgitationSection = () => {
           {problems.map((problem, index) => (
             <Card 
               key={index} 
-              className={`apple-fade-in-stagger p-8 rounded-2xl border-2 hover:shadow-lg transition-all duration-300 ${problem.bgClass} ${problem.borderClass}`}
+              className="apple-fade-in-stagger p-8 rounded-2xl border-2 hover:shadow-lg transition-all duration-300 bg-card border-accent/20"
               style={{ 
                 animationDelay: `${index * 0.1}s`
               }}
@@ -61,15 +61,15 @@ export const ProblemAgitationSection = () => {
               <CardContent className="p-0">
                 <div className="flex items-start gap-4">
                   <div 
-                    className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 mt-1 bg-white border-2"
+                    className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 mt-1 bg-white border-2 border-secondary/30"
                   >
-                    <problem.icon className={`w-6 h-6 ${problem.iconClass}`} />
+                    <problem.icon className="w-6 h-6 text-secondary" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-3 text-gray-900">
+                    <h3 className="text-xl font-semibold mb-3 text-accent">
                       {problem.title}
                     </h3>
-                    <p className="text-[#6B7280] leading-relaxed">
+                    <p className="text-muted-foreground leading-relaxed">
                       {problem.description}
                     </p>
                   </div>
@@ -80,7 +80,7 @@ export const ProblemAgitationSection = () => {
         </div>
         
         <div className="text-center mt-16">
-          <p className="text-lg text-gray-700 font-medium">
+          <p className="text-lg text-accent font-medium">
             What if there was a better way? A tool built specifically for garden centers that understands your unique needs?
           </p>
         </div>

@@ -15,7 +15,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   return (
     <nav className="flex justify-between items-center px-6 py-4 relative z-50">
       <div className="flex items-center gap-4">
-        <div className="text-2xl font-bold text-garden-green-dark">
+        <div className="text-2xl font-bold text-primary">
           BloomSuite
         </div>
       </div>
@@ -26,7 +26,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
           <Button 
             onClick={onLogin}
             variant="outline"
-            className="!border-garden-green !text-garden-green hover:!bg-garden-green hover:!text-white focus:!ring-garden-green focus:!border-garden-green transition-all duration-200"
+            className="border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary focus:border-primary transition-all duration-200"
           >
             <LogIn className="w-4 h-4 mr-2" />
             Login

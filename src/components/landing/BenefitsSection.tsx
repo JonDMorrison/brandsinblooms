@@ -71,13 +71,13 @@ export const BenefitsSection = () => {
   ];
 
   return (
-    <section className="py-24 px-6 bg-white">
+    <section className="py-24 px-6 bg-offwhite">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20">
-          <h2 className="text-4xl font-bold mb-6 text-gray-900">
+          <h2 className="text-4xl font-bold mb-6 text-accent">
             What You Get: Everything to Dominate Your Market
           </h2>
-          <p className="text-xl text-[#6B7280] max-w-3xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Stop paying for multiple tools. Get everything you need to attract customers, increase sales, and build loyalty — all in one platform.
           </p>
         </div>
@@ -86,10 +86,8 @@ export const BenefitsSection = () => {
           {benefits.map((benefit, index) => (
             <Card 
               key={index} 
-              className="apple-fade-in-stagger p-8 rounded-2xl border-2 hover:shadow-lg transition-all duration-300 group"
+              className="apple-fade-in-stagger p-8 rounded-2xl border-2 hover:shadow-lg transition-all duration-300 group bg-card border-secondary/20"
               style={{ 
-                backgroundColor: benefit.bg,
-                borderColor: `${benefit.iconColor}20`,
                 animationDelay: `${index * 0.1}s`
               }}
             >
@@ -101,11 +99,7 @@ export const BenefitsSection = () => {
                       variant="section"
                       theme="neutral"
                       animated={true}
-                      containerClassName="shadow-md"
-                      style={{ 
-                        backgroundColor: 'white',
-                        borderColor: `${benefit.iconColor}30`,
-                      }}
+                      containerClassName="shadow-md bg-white border-secondary/30"
                     />
                   ) : (
                     <LandingPageIcon 
@@ -113,19 +107,14 @@ export const BenefitsSection = () => {
                       variant="section"
                       theme="neutral"
                       animated={true}
-                      containerClassName="shadow-md"
-                      style={{ 
-                        backgroundColor: 'white',
-                        borderColor: `${benefit.iconColor}30`,
-                        color: benefit.iconColor
-                      }}
+                      containerClassName="shadow-md bg-white border-secondary/30 text-secondary"
                     />
                   )}
                 </div>
-                <h3 className="text-xl font-semibold mb-4 text-gray-900">
+                <h3 className="text-xl font-semibold mb-4 text-accent">
                   {benefit.title}
                 </h3>
-                <p className="text-[#6B7280] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   {benefit.description}
                 </p>
               </CardContent>
