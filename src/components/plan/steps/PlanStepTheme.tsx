@@ -131,8 +131,8 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
         </CardHeader>
         <CardContent>
           <MonthPicker
-            value={state.month}
-            onChange={setMonth}
+            value={state.month ? new Date(`${state.month}-01`) : new Date()}
+            onChange={(date) => setMonth(date.toISOString().slice(0, 7))}
           />
         </CardContent>
       </Card>

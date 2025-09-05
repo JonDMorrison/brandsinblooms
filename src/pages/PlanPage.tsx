@@ -1,8 +1,8 @@
 import React from 'react';
-import { PlanWizard } from '@/components/plan/PlanWizard';
+import PlanningPage from './plan/PlanningPage';
 
 const PlanPage: React.FC = () => {
-  return <PlanWizard />;
+  return <PlanningPage />;
 };
 
 export default PlanPage;
