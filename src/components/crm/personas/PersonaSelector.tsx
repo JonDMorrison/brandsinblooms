@@ -201,11 +201,7 @@ export function PersonaSelector({
           <Button 
             variant="outline" 
             onClick={handleOpenLibrary}
-            className="w-full justify-start relative z-10"
-            style={{ pointerEvents: 'auto' }}
-            onMouseEnter={() => console.log('Button hovered')}
-            onMouseDown={() => console.log('Button mouse down')}
-            onFocus={() => console.log('Button focused')}
+            className="w-full justify-start"
           >
             <User className="h-4 w-4 mr-2" />
             Assign Persona
