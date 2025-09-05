@@ -28,9 +28,13 @@ export const CustomerPersonaSelector = ({
   const { personas, loading: personasLoading } = useAllPersonas();
 
   // Find the selected persona - check both persona_id and persona fields
+  // Handle both UUID (custom personas) and string (predefined personas) IDs
   const selectedPersona = personas.find(p => 
     p.id === value || p.persona_name === value
   );
+
+  // Determine the current value for comparison - could be UUID or string
+  const currentSelectedId = value;
 
   const handlePersonaToggle = async (personaId: string) => {
     if (isUpdating) return;
@@ -84,9 +88,36 @@ export const CustomerPersonaSelector = ({
     }
   };
 
-  const handleRemovePersona = () => {
-    if (value) {
-      handlePersonaToggle(value);
+  const handleRemovePersona = async () => {
+    if (!value) return;
+    
+    setIsUpdating(true);
+    
+    try {
+      // Clear both persona_id and persona fields completely
+      const { error } = await supabase
+        .from('crm_customers')
+        .update({ persona_id: null, persona: null })
+        .eq('id', customerId);
+
+      if (error) throw error;
+
+      // Call onChange to update parent state
+      onChange?.();
+      
+      toast({
+        title: "Persona removed",
+        description: "Removed persona assignment from customer."
+      });
+    } catch (error) {
+      console.error('Error removing persona:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove persona assignment.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -102,6 +133,26 @@ export const CustomerPersonaSelector = ({
       </div>
 
       {/* Display assigned persona as badge */}
+      {value && !selectedPersona && (
+        <div className="flex flex-wrap gap-2">
+          <Badge 
+            variant="outline" 
+            className="inline-flex items-center gap-1.5 bg-destructive/10 border-destructive/20 text-destructive"
+          >
+            <User className="h-3 w-3" />
+            <span className="font-medium">Invalid Persona</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-4 w-4 p-0 hover:bg-transparent"
+              onClick={handleRemovePersona}
+              disabled={isUpdating}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </Badge>
+        </div>
+      )}
       {selectedPersona && (
         <div className="flex flex-wrap gap-2">
           <Badge 
