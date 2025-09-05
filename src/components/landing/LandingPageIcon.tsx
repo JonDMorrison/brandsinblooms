@@ -68,7 +68,7 @@ export const LandingPageIcon = ({
         <img 
           src={logoImage} 
           alt="BloomSuite Logo" 
-          className="w-full h-full object-contain"
+          className="w-full h-full object-contain rounded-md"
         />
       </div>
     );
