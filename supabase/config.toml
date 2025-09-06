@@ -44,3 +44,12 @@ verify_jwt = false
 
 [functions.watchdog]
 verify_jwt = false
+
+[functions.oauth-initiate]
+verify_jwt = true
+
+[functions.oauth-callback]
+verify_jwt = false
+
+[functions.ga-report-data]
+verify_jwt = true

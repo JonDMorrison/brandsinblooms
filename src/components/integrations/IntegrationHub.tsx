@@ -22,6 +22,7 @@ import {
   Instagram
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { GoogleAnalyticsConnection } from './GoogleAnalyticsConnection';
 
 interface Integration {
   id: string;
@@ -240,8 +241,20 @@ export const IntegrationHub = () => {
         </div>
 
         <TabsContent value="marketplace" className="space-y-6">
+          {/* Special Analytics Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold capitalize flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Analytics Integrations
+            </h3>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <GoogleAnalyticsConnection />
+            </div>
+          </div>
+
           {/* Categories */}
-          {['social', 'automation', 'email', 'crm', 'analytics'].map(category => {
+          {['social', 'automation', 'email', 'crm'].map(category => {
             const categoryIntegrations = getIntegrationsByCategory(category);
             if (categoryIntegrations.length === 0) return null;
 
@@ -252,7 +265,6 @@ export const IntegrationHub = () => {
                   {category === 'automation' && <Zap className="w-5 h-5" />}
                   {category === 'email' && <Mail className="w-5 h-5" />}
                   {category === 'crm' && <Users className="w-5 h-5" />}
-                  {category === 'analytics' && <BarChart3 className="w-5 h-5" />}
                   {category} Integrations
                 </h3>
                 

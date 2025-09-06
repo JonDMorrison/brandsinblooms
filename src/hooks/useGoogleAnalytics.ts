@@ -35,37 +35,34 @@ export const useGoogleAnalytics = (propertyId?: string, dateRange: number = 30) 
 
   const fetchAnalytics = async () => {
     if (!propertyId) {
-      setError('Google Analytics Property ID not configured');
+      setError('Property ID is required');
       return;
     }
 
-    setLoading(true);
-    setError(null);
-
     try {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - dateRange);
+      setLoading(true);
+      setError(null);
 
-      const { data: result, error: functionError } = await supabase.functions.invoke('google-analytics', {
+      const { data, error } = await supabase.functions.invoke('ga-report-data', {
         body: {
           propertyId,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
-          metrics: ['sessions', 'pageviews', 'users', 'averageSessionDuration']
+          dateRange
         }
       });
 
-      if (functionError) throw functionError;
-
-      if (result.success) {
-        setData(result.data);
-      } else {
-        throw new Error(result.error || 'Failed to fetch analytics data');
+      if (error) {
+        throw new Error(error.message || 'Failed to fetch analytics data');
       }
-    } catch (error) {
-      console.error('Error fetching Google Analytics:', error);
+
+      if (data?.success && data?.data) {
+        setData(data.data);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (error: any) {
+      console.error('Analytics fetch error:', error);
       setError(error.message || 'Failed to fetch analytics data');
+      setData(null);
     } finally {
       setLoading(false);
     }
