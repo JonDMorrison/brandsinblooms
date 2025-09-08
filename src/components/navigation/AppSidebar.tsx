@@ -173,7 +173,7 @@ export function AppSidebar() {
   return (
     <Sidebar variant="inset">
       <SidebarHeader>
-        <div className="flex items-center justify-between px-4 py-2 h-12">
+        <div className="flex items-center px-4 py-2 h-12">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-6 h-6 flex items-center justify-center">
               <img 
@@ -187,7 +187,6 @@ export function AppSidebar() {
               <span className="font-bold text-xl tracking-tight">BloomSuite</span>
             )}
           </Link>
-          <SidebarTrigger aria-label="Collapse sidebar" />
         </div>
       </SidebarHeader>
       <SidebarContent>
