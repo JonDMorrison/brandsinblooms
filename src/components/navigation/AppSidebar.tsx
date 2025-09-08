@@ -24,7 +24,9 @@ import {
   Palette,
   Share2,
   BookOpen,
-  User
+  User,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,7 +41,6 @@ import {
   SidebarRail,
   SidebarFooter,
   SidebarSeparator,
-  SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
 // import { LogoWithText } from '@/components/ui/logo';
@@ -59,7 +60,8 @@ interface SidebarGroup {
 
 export function AppSidebar() {
   const location = useLocation();
-  const { state } = useSidebar();
+  const { state, toggleSidebar } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   const sidebarGroups: SidebarGroup[] = [
     {
@@ -173,7 +175,7 @@ export function AppSidebar() {
   return (
     <Sidebar variant="inset">
       <SidebarHeader>
-        <div className="flex items-center px-4 py-2 h-12">
+        <div className="flex items-center justify-between px-4 py-2 h-12">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-6 h-6 flex items-center justify-center">
               <img 
@@ -183,10 +185,23 @@ export function AppSidebar() {
                 style={{ background: 'transparent' }}
               />
             </div>
-            {state !== "collapsed" && (
+            {!isCollapsed && (
               <span className="font-bold text-xl tracking-tight">BloomSuite</span>
             )}
           </Link>
+          <Button
+            onClick={toggleSidebar}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 hover:bg-accent"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
         </div>
       </SidebarHeader>
       <SidebarContent>
