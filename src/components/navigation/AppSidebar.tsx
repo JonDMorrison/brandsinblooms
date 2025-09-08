@@ -173,7 +173,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar variant="inset">
+    <Sidebar variant="inset" className="relative">
       <SidebarHeader>
         <div className="flex items-center justify-between px-4 py-2 h-12">
           <Link to="/" className="flex items-center gap-2">
@@ -242,6 +242,22 @@ export function AppSidebar() {
           );
         })}
       </SidebarContent>
+      
+      {/* Collapsed state toggle button */}
+      {isCollapsed && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+          <Button
+            onClick={toggleSidebar}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 hover:bg-accent rounded-full"
+            aria-label="Expand sidebar"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+      
       <SidebarRail />
     </Sidebar>
   );
