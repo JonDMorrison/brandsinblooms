@@ -204,7 +204,7 @@ export function AppSidebar() {
           </Button>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="md:bg-transparent bg-white">
         {sidebarGroups.map((group, groupIndex) => {
           const isExpanded = isGroupActive(group.items);
           return (
