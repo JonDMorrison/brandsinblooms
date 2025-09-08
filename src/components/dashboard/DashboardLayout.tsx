@@ -3,7 +3,9 @@ import { ReactNode } from "react";
 import AppSidebar from "@/components/AppSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserMenu } from "@/components/UserMenu";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -13,6 +15,30 @@ interface DashboardLayoutProps {
   onBusinessNameChange?: (newName: string) => void;
   onCampaignCreated?: () => void;
 }
+
+const SidebarToggleButton = () => {
+  const { state, toggleSidebar } = useSidebar();
+  const isMobile = useIsMobile();
+  const isCollapsed = state === "collapsed";
+
+  return (
+    <div className={`fixed top-4 left-4 z-[150] ${isMobile ? 'top-2 left-2' : ''}`}>
+      <Button
+        onClick={toggleSidebar}
+        variant="outline"
+        size="icon"
+        className="bg-background border shadow-sm hover:bg-accent h-10 w-10"
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {isCollapsed ? (
+          <ChevronRight className="h-4 w-4" />
+        ) : (
+          <ChevronLeft className="h-4 w-4" />
+        )}
+      </Button>
+    </div>
+  );
+};
 
 export const DashboardLayout = ({
   children,
@@ -27,10 +53,8 @@ export const DashboardLayout = ({
   return (
     <SidebarProvider>
       <div className="min-h-screen w-full flex">
-        {/* Global Sidebar Toggle - Always visible, including on mobile */}
-        <div className={`fixed top-4 left-4 z-[150] ${isMobile ? 'top-2 left-2' : ''}`}>
-          <SidebarTrigger className="bg-background border shadow-sm hover:bg-accent" />
-        </div>
+        {/* Global Sidebar Toggle with directional arrows */}
+        <SidebarToggleButton />
 
         <AppSidebar />
         

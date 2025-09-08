@@ -36,7 +36,6 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -181,7 +180,7 @@ const AppSidebar: React.FC = () => {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="flex flex-row items-center justify-between p-4">
+      <SidebarHeader className="flex flex-row items-center p-4">
         <NavLink to="/dashboard" className="font-semibold flex items-center gap-2">
           <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
             <img 
@@ -193,7 +192,6 @@ const AppSidebar: React.FC = () => {
           </div>
           {!isCollapsed && <span>BloomSuite</span>}
         </NavLink>
-        <SidebarTrigger className="ml-auto" />
       </SidebarHeader>
       
       <SidebarContent>
