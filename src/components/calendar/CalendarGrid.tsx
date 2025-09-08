@@ -193,7 +193,62 @@ export const CalendarGrid = React.memo(({
         backfaceVisibility: 'hidden'
       }}
     >
-      <div className={`relative grid ${gridCols} ${dayHeight}`}>
+      {/* Mobile: Horizontal scroll container */}
+      <div className="md:hidden overflow-x-auto">
+        <div className="grid grid-cols-7 min-w-[700px]">
+          {/* Clean Day headers */}
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
+            <div key={day} className="bg-slate-100 p-3 text-sm font-bold text-slate-700 h-12 flex items-center justify-center border-b border-slate-200 min-w-[100px]">
+              <span className="tracking-wide">{day}</span>
+            </div>
+          ))}
+          
+          {/* Calendar days with clean styling */}
+          {days.map((date) => {
+            const dateKey = format(date, 'yyyy-MM-dd');
+            
+            // Get campaigns, tasks, newsletters, holidays, and scheduled posts for this specific date only
+            const dayCampaigns = campaignsByDate.get(dateKey) || [];
+            const dayTasks = tasksByDate.get(dateKey) || [];
+            const dayNewsletters = newslettersByDate.get(dateKey) || [];
+            const dayHolidays = holidaysByDate.get(dateKey) || [];
+            const dayScheduledPosts = scheduledPostsByDate.get(dateKey) || [];
+
+            const isCurrentMonth = viewMode === 'week' || isSameMonth(date, currentDate);
+            const isToday = date.toDateString() === new Date().toDateString();
+
+            return (
+              <CalendarDayCell
+                key={date.toISOString()}
+                date={date}
+                campaigns={dayCampaigns}
+                tasks={dayTasks}
+                newsletters={dayNewsletters}
+                holidays={dayHolidays}
+                scheduledPosts={dayScheduledPosts}
+                onTaskClick={onTaskClick}
+                onTaskLongPress={onTaskLongPress}
+                onCampaignClick={onCampaignClick}
+                onNewsletterClick={onNewsletterClick}
+                onHolidayClick={onHolidayClick}
+                onDateClick={onDateClick}
+                isCurrentMonth={isCurrentMonth}
+                isToday={isToday}
+                selectionMode={true}
+                onDrop={onDrop}
+                isTaskSelected={isTaskSelected}
+                isDragging={isDragging}
+                draggedTask={draggedTask}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+              />
+            );
+          })}
+        </div>
+      </div>
+      
+      {/* Desktop: Standard grid */}
+      <div className={`hidden md:block relative grid ${gridCols} ${dayHeight}`}>
         {/* Clean Day headers */}
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
           <div key={day} className="bg-slate-100 p-3 text-sm font-bold text-slate-700 h-12 flex items-center justify-center border-b border-slate-200">
