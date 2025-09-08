@@ -72,7 +72,10 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 };
 
 const SidebarToggleButton = () => {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  if (!isCollapsed) return null;
 
   return (
     <div className="fixed top-4 left-4 z-50">
