@@ -83,7 +83,7 @@ const SidebarToggleButton = () => {
         onClick={toggleSidebar}
         variant="outline"
         size="icon"
-        className="bg-background border shadow-sm hover:bg-accent h-10 w-10"
+        className="bg-transparent border shadow-sm hover:bg-[#68beb9] hover:text-white h-10 w-10"
         aria-label="Toggle sidebar"
       >
         <ChevronRight className="h-4 w-4" />
