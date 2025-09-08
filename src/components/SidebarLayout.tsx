@@ -3,8 +3,10 @@ import { ReactNode, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { TrialBanner } from "@/components/TrialBanner";
 import { UserMenu } from "@/components/UserMenu";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
+import { Button } from "@/components/ui/button";
+import { ChevronRight } from "lucide-react";
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -49,6 +51,9 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         <AppSidebar />
         
         <main className="flex-1 w-full min-h-screen overflow-auto">
+          {/* Floating sidebar toggle button */}
+          <SidebarToggleButton />
+          
           {/* Fixed UserMenu - always visible in top-right */}
           <div className="fixed top-6 right-6 z-40">
             <UserMenu />
@@ -63,5 +68,23 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         </main>
       </div>
     </SidebarProvider>
+  );
+};
+
+const SidebarToggleButton = () => {
+  const { toggleSidebar } = useSidebar();
+
+  return (
+    <div className="fixed top-4 left-4 z-50">
+      <Button
+        onClick={toggleSidebar}
+        variant="outline"
+        size="icon"
+        className="bg-background border shadow-sm hover:bg-accent h-10 w-10"
+        aria-label="Toggle sidebar"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
   );
 };
