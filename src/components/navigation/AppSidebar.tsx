@@ -193,7 +193,7 @@ export function AppSidebar() {
             onClick={toggleSidebar}
             variant="ghost"
             size="icon"
-            className="h-8 w-8 hover:bg-accent"
+            className="h-8 w-8 hover:bg-accent hover:text-white"
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? (
