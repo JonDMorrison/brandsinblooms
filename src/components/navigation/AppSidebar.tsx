@@ -174,7 +174,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar variant="inset" className="md:bg-transparent bg-white">
-      <SidebarHeader>
+      <SidebarHeader className="md:bg-transparent bg-white">
         <div className="flex items-center justify-between px-4 py-2 h-12">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-6 h-6 flex items-center justify-center">
