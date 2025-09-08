@@ -173,7 +173,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar variant="inset">
+    <Sidebar variant="inset" className="md:bg-transparent bg-white">
       <SidebarHeader>
         <div className="flex items-center justify-between px-4 py-2 h-12">
           <Link to="/" className="flex items-center gap-2">
