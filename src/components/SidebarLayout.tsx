@@ -51,8 +51,11 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         <AppSidebar />
         
         <main className="flex-1 w-full min-h-screen overflow-auto">
-          {/* Floating sidebar toggle button */}
+          {/* Floating sidebar toggle button - desktop only when collapsed */}
           <SidebarToggleButton />
+          
+          {/* Mobile floating toggle button - always visible on mobile */}
+          <MobileToggleButton />
           
           {/* Fixed UserMenu - always visible in top-right */}
           <div className="fixed top-6 right-6 z-40">
@@ -78,7 +81,25 @@ const SidebarToggleButton = () => {
   if (!isCollapsed) return null;
 
   return (
-    <div className="fixed top-4 left-4 z-50">
+    <div className="fixed top-4 left-4 z-50 hidden md:block">
+      <Button
+        onClick={toggleSidebar}
+        variant="outline"
+        size="icon"
+        className="bg-transparent shadow-sm hover:bg-[#68beb9] hover:text-white h-10 w-10"
+        aria-label="Toggle sidebar"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+};
+
+const MobileToggleButton = () => {
+  const { toggleSidebar } = useSidebar();
+
+  return (
+    <div className="fixed top-4 left-4 z-50 md:hidden">
       <Button
         onClick={toggleSidebar}
         variant="outline"
