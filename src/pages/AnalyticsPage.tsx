@@ -7,8 +7,10 @@ import { useAnalyticsOverview } from "@/hooks/useAnalyticsOverview";
 import { AnalyticsPeriodSelector } from "@/components/analytics/AnalyticsPeriodSelector";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { GoogleAnalyticsCard } from "@/components/analytics/GoogleAnalyticsCard";
+import { GoogleAnalyticsConnection } from "@/components/integrations/GoogleAnalyticsConnection";
 import { CRMAnalyticsCard } from "@/components/analytics/CRMAnalyticsCard";
 import { RealAnalyticsData } from "@/components/analytics/RealAnalyticsData";
+import { useGASettings } from "@/hooks/useGASettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -16,6 +18,7 @@ import { toast } from "sonner";
 const AnalyticsPage = () => {
   const [selectedPeriod, setSelectedPeriod] = useState(30);
   const [syncing, setSyncing] = useState(false);
+  const { settings: gaSettings, isConnected: gaConnected, propertyId } = useGASettings();
   const { totalViews, engagementRate, clicks, conversions, growth, loading, error, refetch } = useAnalyticsOverview(selectedPeriod);
 
   // Check if user has any meaningful data
@@ -92,10 +95,14 @@ const AnalyticsPage = () => {
 
       {/* Analytics Cards Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <GoogleAnalyticsCard 
-          propertyId="YOUR_GA_PROPERTY_ID" 
-          dateRange={selectedPeriod} 
-        />
+        {gaConnected && propertyId ? (
+          <GoogleAnalyticsCard 
+            propertyId={propertyId} 
+            dateRange={selectedPeriod} 
+          />
+        ) : (
+          <GoogleAnalyticsConnection />
+        )}
         <CRMAnalyticsCard />
       </div>
 
