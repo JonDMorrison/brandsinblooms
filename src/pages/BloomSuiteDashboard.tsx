@@ -175,7 +175,7 @@ export const BloomSuiteDashboard = () => {
     },
     {
       id: 'analytics',
-      title: 'Track Your Progress',
+      title: 'Track Progress',
       description: 'Monitor campaign performance, customer engagement, and ROI across all your marketing efforts.',
       icon: <BarChart3 className="w-6 h-6" style={{ color: 'hsl(var(--brand-navy))' }} />,
       
