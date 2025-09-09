@@ -3,6 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Mail, MessageSquare, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTenant } from '@/hooks/useTenant';
 
 interface CRMMetrics {
   totalCustomers: number;
@@ -20,32 +23,89 @@ interface CRMMetrics {
 export const CRMAnalyticsCard = () => {
   const [metrics, setMetrics] = useState<CRMMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { tenant } = useTenant();
 
   useEffect(() => {
-    fetchCRMMetrics();
-  }, []);
+    if (user && tenant?.id) {
+      fetchCRMMetrics();
+    }
+  }, [user, tenant?.id]);
 
   const fetchCRMMetrics = async () => {
-    try {
-      // Simulate loading time
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!user || !tenant?.id) return;
 
-      // Mock data for now to avoid TypeScript issues
-      const mockMetrics: CRMMetrics = {
-        totalCustomers: 1247,
-        activeCampaigns: 5,
-        totalMessages: 8943,
-        engagementRate: 24.5,
-        recentCampaigns: [
-          { name: 'Summer Sale', sent: 1200, opened: 850, clicked: 320 },
-          { name: 'Product Launch', sent: 980, opened: 720, clicked: 250 },
-          { name: 'Newsletter', sent: 1500, opened: 900, clicked: 180 },
-          { name: 'Black Friday', sent: 2100, opened: 1400, clicked: 680 },
-          { name: 'Holiday Promo', sent: 800, opened: 520, clicked: 140 }
-        ]
+    try {
+      setLoading(true);
+
+      // Fetch total customers
+      const { data: customers, error: customersError } = await supabase
+        .from('crm_customers')
+        .select('id', { count: 'exact' })
+        .eq('tenant_id', tenant.id);
+
+      if (customersError) throw customersError;
+
+      // Fetch active campaigns
+      const { data: campaigns, error: campaignsError } = await supabase
+        .from('crm_campaigns')
+        .select('id', { count: 'exact' })
+        .eq('tenant_id', tenant.id)
+        .eq('status', 'active');
+
+      if (campaignsError) throw campaignsError;
+
+      // Fetch total messages sent
+      const { data: smsMessages, error: smsError } = await supabase
+        .from('sms_messages')
+        .select('id', { count: 'exact' })
+        .eq('status', 'sent');
+
+      if (smsError) throw smsError;
+
+      // Fetch recent campaign data with metrics
+      const { data: recentCampaigns, error: recentError } = await supabase
+        .from('crm_campaigns')
+        .select('name, metrics')
+        .eq('tenant_id', tenant.id)
+        .not('metrics', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (recentError) throw recentError;
+
+      // Calculate total engagement rate from all campaigns
+      let totalSent = 0;
+      let totalEngaged = 0;
+      
+      const campaignData = recentCampaigns?.map(campaign => {
+        const metrics = campaign.metrics as any;
+        const sent = metrics?.sent || 0;
+        const opened = metrics?.opened || 0;
+        const clicked = metrics?.clicked || 0;
+        
+        totalSent += sent;
+        totalEngaged += (opened + clicked);
+
+        return {
+          name: campaign.name,
+          sent,
+          opened,
+          clicked
+        };
+      }) || [];
+
+      const engagementRate = totalSent > 0 ? (totalEngaged / totalSent) * 100 : 0;
+
+      const realMetrics: CRMMetrics = {
+        totalCustomers: customers?.length || 0,
+        activeCampaigns: campaigns?.length || 0,
+        totalMessages: smsMessages?.length || 0,
+        engagementRate,
+        recentCampaigns: campaignData
       };
 
-      setMetrics(mockMetrics);
+      setMetrics(realMetrics);
     } catch (error) {
       console.error('Error fetching CRM metrics:', error);
       setMetrics({
@@ -125,7 +185,6 @@ export const CRMAnalyticsCard = () => {
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5" />
           CRM Analytics
-          <Badge variant="outline">Demo Data</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
