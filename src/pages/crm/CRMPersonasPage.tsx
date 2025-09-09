@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Target, Plus, Search, RefreshCw } from 'lucide-react';
 import { useCRMPersonas } from '@/hooks/useCRMPersonas';
 import { PersonaCard } from '@/components/crm/personas/PersonaCard';
@@ -73,6 +74,8 @@ export const CRMPersonasPage: React.FC = () => {
   const { counts: personaCounts, loading: countsLoading } = usePersonaCustomerCounts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState<any>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const isMobile = useIsMobile();
 
   const handleCreatePersona = () => {
@@ -93,7 +96,11 @@ export const CRMPersonasPage: React.FC = () => {
   };
 
   const handleViewPersonaDetails = (personaId: string) => {
-    console.log('View persona details:', personaId);
+    const persona = predefinedPersonas.find(p => p.id === personaId);
+    if (persona) {
+      setSelectedPersona(persona);
+      setShowDetailsModal(true);
+    }
   };
 
   // Filter predefined personas based on search term
@@ -230,6 +237,28 @@ export const CRMPersonasPage: React.FC = () => {
         onSave={handleSaveCustomPersona}
         onCancel={() => setShowCustomBuilder(false)}
       />
+
+      {/* Persona Details Modal */}
+      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              {selectedPersona?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Description</h4>
+              <p className="text-sm">{selectedPersona?.description}</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Customer Count</h4>
+              <p className="text-sm">{personaCounts[selectedPersona?.name] || 0} matching customers</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
