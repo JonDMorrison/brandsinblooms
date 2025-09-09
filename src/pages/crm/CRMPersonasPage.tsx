@@ -3,8 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Target, Plus, Search, RefreshCw } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Target, Plus, Search, RefreshCw, Users, UserPlus } from 'lucide-react';
 import { useCRMPersonas } from '@/hooks/useCRMPersonas';
+import { useCRMCustomers } from '@/hooks/useCRMCustomers';
 import { PersonaCard } from '@/components/crm/personas/PersonaCard';
 import { CustomPersonaModal } from '@/components/crm/personas/CustomPersonaModal';
 import { PersonaOverviewCard } from '@/components/crm/personas/PersonaOverviewCard';
@@ -71,11 +74,13 @@ const predefinedPersonas = [
 
 export const CRMPersonasPage: React.FC = () => {
   const { personas, loading, searchTerm, setSearchTerm, fetchPersonas, createPersona, deletePersona } = useCRMPersonas();
+  const { customers, loading: customersLoading, assignPersonaToCustomer, getCustomersByPersona, getUnassignedCustomers } = useCRMCustomers();
   const { counts: personaCounts, loading: countsLoading } = usePersonaCustomerCounts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const isMobile = useIsMobile();
 
   const handleCreatePersona = () => {
@@ -101,6 +106,42 @@ export const CRMPersonasPage: React.FC = () => {
       setSelectedPersona(persona);
       setShowDetailsModal(true);
     }
+  };
+
+  const handleAssignCustomer = async (customerId: string) => {
+    if (!selectedPersona) return;
+    
+    const success = await assignPersonaToCustomer(customerId, selectedPersona.name);
+    if (success) {
+      // Refresh persona counts after assignment
+      // This will be handled automatically by the customers hook updating
+    }
+  };
+
+  // Get customers for the selected persona and filter by search
+  const getFilteredPersonaCustomers = () => {
+    if (!selectedPersona) return [];
+    
+    const personaCustomers = getCustomersByPersona(selectedPersona.name);
+    if (!customerSearchTerm) return personaCustomers;
+    
+    return personaCustomers.filter(customer => 
+      customer.email.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+      (customer.first_name?.toLowerCase().includes(customerSearchTerm.toLowerCase())) ||
+      (customer.last_name?.toLowerCase().includes(customerSearchTerm.toLowerCase()))
+    );
+  };
+
+  // Get unassigned customers filtered by search
+  const getFilteredUnassignedCustomers = () => {
+    const unassigned = getUnassignedCustomers();
+    if (!customerSearchTerm) return unassigned.slice(0, 10); // Limit to 10 for performance
+    
+    return unassigned.filter(customer => 
+      customer.email.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+      (customer.first_name?.toLowerCase().includes(customerSearchTerm.toLowerCase())) ||
+      (customer.last_name?.toLowerCase().includes(customerSearchTerm.toLowerCase()))
+    ).slice(0, 10);
   };
 
   // Filter predefined personas based on search term
@@ -240,21 +281,118 @@ export const CRMPersonasPage: React.FC = () => {
 
       {/* Persona Details Modal */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Target className="h-5 w-5" />
               {selectedPersona?.name}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Description</h4>
-              <p className="text-sm">{selectedPersona?.description}</p>
+          <div className="space-y-6">
+            {/* Basic Info */}
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold text-sm text-muted-foreground mb-2">Description</h4>
+                <p className="text-sm">{selectedPersona?.description}</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-sm text-muted-foreground mb-2">Customer Count</h4>
+                <p className="text-sm">{personaCounts[selectedPersona?.name] || 0} matching customers</p>
+              </div>
             </div>
-            <div>
-              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Customer Count</h4>
-              <p className="text-sm">{personaCounts[selectedPersona?.name] || 0} matching customers</p>
+
+            {/* Customer Management */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                <h4 className="font-semibold">Customer Management</h4>
+              </div>
+              
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search customers..."
+                  value={customerSearchTerm}
+                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {customersLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Current Persona Customers */}
+                  <div>
+                    <h5 className="font-medium text-sm mb-2 flex items-center gap-1">
+                      Assigned Customers
+                      <Badge variant="secondary" className="text-xs">
+                        {getFilteredPersonaCustomers().length}
+                      </Badge>
+                    </h5>
+                    <ScrollArea className="h-48 border rounded-md p-2">
+                      <div className="space-y-2">
+                        {getFilteredPersonaCustomers().map((customer) => (
+                          <div key={customer.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                            <div>
+                              <p className="font-medium">
+                                {customer.first_name} {customer.last_name}
+                              </p>
+                              <p className="text-xs text-muted-foreground">{customer.email}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {getFilteredPersonaCustomers().length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-4">
+                            No customers assigned to this persona
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+
+                  {/* Unassigned Customers */}
+                  <div>
+                    <h5 className="font-medium text-sm mb-2 flex items-center gap-1">
+                      Available to Assign
+                      <Badge variant="outline" className="text-xs">
+                        {getFilteredUnassignedCustomers().length}
+                      </Badge>
+                    </h5>
+                    <ScrollArea className="h-48 border rounded-md p-2">
+                      <div className="space-y-2">
+                        {getFilteredUnassignedCustomers().map((customer) => (
+                          <div key={customer.id} className="flex items-center justify-between p-2 bg-background border rounded text-sm">
+                            <div>
+                              <p className="font-medium">
+                                {customer.first_name} {customer.last_name}
+                              </p>
+                              <p className="text-xs text-muted-foreground">{customer.email}</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleAssignCustomer(customer.id)}
+                              className="h-7 w-7 p-0"
+                              title="Assign to persona"
+                            >
+                              <UserPlus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                        {getFilteredUnassignedCustomers().length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-4">
+                            No unassigned customers found
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
