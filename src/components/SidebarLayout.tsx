@@ -79,7 +79,7 @@ const HeaderToggleButton = () => {
       onClick={toggleSidebar}
       variant="ghost" 
       size="icon"
-      className="hover:bg-primary hover:text-primary-foreground h-8 w-8"
+      className="hover:bg-teal-600 hover:text-white h-8 w-8"
       aria-label="Toggle sidebar"
     >
       <ChevronRight className="h-4 w-4" />
