@@ -28,7 +28,7 @@ export const TrialBanner = () => {
               : `${trialDaysLeft} days left in your trial`
             }
           </span>
-          <span>
+          <span className="hidden md:inline">
             {isTrialExpired 
               ? "Upgrade now to continue using BloomSuite" 
               : "Upgrade to Pro to unlock unlimited features"
