@@ -135,7 +135,7 @@ const AccountPage = () => {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-4 gap-2">
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="billing">Billing & Subscription</TabsTrigger>
               <TabsTrigger value="usage">Usage & Analytics</TabsTrigger>
