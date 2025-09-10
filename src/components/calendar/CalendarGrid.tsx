@@ -195,10 +195,10 @@ export const CalendarGrid = React.memo(({
     >
       {/* Mobile: Horizontal scroll container */}
       <div className="md:hidden overflow-x-auto">
-        <div className="grid grid-cols-7 min-w-[700px]">
+        <div className="grid grid-cols-7 min-w-[980px]">
           {/* Clean Day headers */}
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
-            <div key={day} className="bg-slate-100 p-3 text-sm font-bold text-slate-700 h-12 flex items-center justify-center border-b border-slate-200 min-w-[100px]">
+            <div key={day} className="bg-slate-100 p-3 text-sm font-bold text-slate-700 h-12 flex items-center justify-center border-b border-slate-200 min-w-[140px]">
               <span className="tracking-wide">{day}</span>
             </div>
           ))}
