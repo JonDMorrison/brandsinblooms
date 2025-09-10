@@ -1,14 +1,70 @@
-import { POSAdapter, NormalizedCustomer, NormalizedOrder } from './POSAdapter';
+import { POSAdapter, NormalizedCustomer, NormalizedOrder, TestConnectionResult, SyncOptions, PaginatedResult } from './POSAdapter';
 
 export class VMXAdapter extends POSAdapter {
   // VMX doesn't have an API, so we work with CSV data directly
+  protected rateLimit = 0; // No rate limiting for CSV processing
   
-  async fetchCustomers(csvData: any[]): Promise<any> {
-    return csvData;
+  async testConnection(csvData: any[]): Promise<TestConnectionResult> {
+    if (!csvData || !Array.isArray(csvData) || csvData.length === 0) {
+      return {
+        success: false,
+        message: 'No valid CSV data provided'
+      };
+    }
+    
+    // Check if CSV has required fields
+    const sampleRow = csvData[0];
+    const hasEmail = 'email' in sampleRow;
+    const hasName = 'name' in sampleRow || ('first_name' in sampleRow && 'last_name' in sampleRow);
+    
+    if (!hasEmail || !hasName) {
+      return {
+        success: false,
+        message: 'CSV must contain email and name fields'
+      };
+    }
+    
+    return {
+      success: true,
+      message: `Successfully validated CSV with ${csvData.length} rows`,
+      details: { rowCount: csvData.length, sampleFields: Object.keys(sampleRow) }
+    };
+  }
+  
+  async fetchCustomers(csvData: any[], options?: SyncOptions): Promise<PaginatedResult<any>> {
+    const pageLimit = options?.pageLimit || csvData.length;
+    const startIndex = options?.cursor ? parseInt(options.cursor) : 0;
+    const endIndex = Math.min(startIndex + pageLimit, csvData.length);
+    
+    return {
+      data: csvData.slice(startIndex, endIndex),
+      nextCursor: endIndex < csvData.length ? endIndex.toString() : undefined,
+      hasMore: endIndex < csvData.length
+    };
   }
 
-  async fetchOrders(csvData: any[]): Promise<any> {
-    return csvData;
+  async fetchOrders(csvData: any[], options?: SyncOptions): Promise<PaginatedResult<any>> {
+    const pageLimit = options?.pageLimit || csvData.length;
+    const startIndex = options?.cursor ? parseInt(options.cursor) : 0;
+    const endIndex = Math.min(startIndex + pageLimit, csvData.length);
+    
+    return {
+      data: csvData.slice(startIndex, endIndex),
+      nextCursor: endIndex < csvData.length ? endIndex.toString() : undefined,
+      hasMore: endIndex < csvData.length
+    };
+  }
+
+  async fetchProducts(csvData: any[], options?: SyncOptions): Promise<PaginatedResult<any>> {
+    const pageLimit = options?.pageLimit || csvData.length;
+    const startIndex = options?.cursor ? parseInt(options.cursor) : 0;
+    const endIndex = Math.min(startIndex + pageLimit, csvData.length);
+    
+    return {
+      data: csvData.slice(startIndex, endIndex),
+      nextCursor: endIndex < csvData.length ? endIndex.toString() : undefined,
+      hasMore: endIndex < csvData.length
+    };
   }
 
   adaptCustomers(csvData: any[]): NormalizedCustomer[] {
