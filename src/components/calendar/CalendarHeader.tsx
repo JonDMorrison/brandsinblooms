@@ -118,8 +118,52 @@ export const CalendarHeader = ({
           </div>
         </div>
 
-        {/* Second line: View Toggle and Today button */}
+        {/* Second line: Filters (left) and View Toggle (right) */}
         <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {filters && onFiltersChange && filterOptions && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-slate-600">
+                    <Filter className="w-4 h-4 mr-1" />
+                    Filters
+                    {(filters.types.length < filterOptions.types.length || 
+                      filters.platforms.length > 0 || 
+                      filters.statuses.length > 0) && (
+                      <Badge variant="secondary" className="ml-1 h-4 text-xs">
+                        Active
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {filterOptions.types.map(type => (
+                    <DropdownMenuCheckboxItem
+                      key={type}
+                      checked={filters.types.includes(type)}
+                      onCheckedChange={(checked) => {
+                        const newTypes = checked 
+                          ? [...filters.types, type]
+                          : filters.types.filter(t => t !== type);
+                        onFiltersChange({ ...filters, types: newTypes });
+                      }}
+                    >
+                      {type.replace('_', ' ')}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onToday}
+              className="h-8 px-3 text-slate-600 hover:bg-slate-50 hover:border-slate-200 transition-colors duration-200"
+            >
+              Today
+            </Button>
+          </div>
+
           <div className="flex items-center bg-slate-50 rounded-xl p-1 border border-slate-200" role="tablist">
             <Button
               variant="ghost"
@@ -167,16 +211,21 @@ export const CalendarHeader = ({
               List
             </Button>
           </div>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onToday}
-            className="h-9 px-4 hover:bg-slate-50 text-slate-700 font-medium transition-colors duration-200"
-          >
-            Today
-          </Button>
         </div>
+
+        {/* Third line: Full-width Create Campaign button on mobile */}
+        {onCreateCampaign && (
+          <div className="w-full">
+            <Button
+              size="sm"
+              onClick={onCreateCampaign}
+              className="w-full h-10 px-4 transition-colors duration-200"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Campaign
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Desktop Layout - Keep original layout */}
@@ -365,7 +414,6 @@ export const CalendarHeader = ({
               Planning
             </Button>
           )}
-
 
           {onCreateCampaign && (
             <Button
