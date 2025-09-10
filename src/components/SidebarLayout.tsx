@@ -56,7 +56,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           
           {/* Sticky Top Bar with Toggle Button and UserMenu */}
           <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-            <div className="flex justify-between items-center p-4">
+            <div className="flex justify-between items-center px-4 py-2">
               <HeaderToggleButton />
               <UserMenu />
             </div>
