@@ -180,11 +180,9 @@ export function AppSidebar() {
             to="/" 
             className="flex items-center gap-2"
             onClick={() => {
-              // Auto-collapse sidebar on logo navigation for better UX
+              // Auto-collapse sidebar only on mobile for better UX
               if (isMobile) {
                 setOpenMobile(false);
-              } else {
-                setOpen(false);
               }
             }}
           >
@@ -236,11 +234,9 @@ export function AppSidebar() {
                           <Link 
                             to={item.url}
                             onClick={() => {
-                              // Auto-collapse sidebar on navigation for better UX
+                              // Auto-collapse sidebar only on mobile for better UX
                               if (isMobile) {
                                 setOpenMobile(false);
-                              } else {
-                                setOpen(false);
                               }
                             }}
                           >
