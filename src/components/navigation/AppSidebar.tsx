@@ -233,6 +233,12 @@ export function AppSidebar() {
                         >
                           <Link 
                             to={item.url}
+                            className={cn(
+                              "flex items-center gap-3 w-full transition-colors",
+                              isActive 
+                                ? "text-primary font-semibold bg-primary/10" 
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
                             onClick={() => {
                               // Auto-collapse sidebar only on mobile for better UX
                               if (isMobile) {
