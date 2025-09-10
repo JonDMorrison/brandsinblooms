@@ -51,18 +51,13 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         <AppSidebar />
         
         <main className="flex-1 w-full min-h-screen overflow-auto">
-          {/* Floating sidebar toggle button - desktop only when collapsed */}
-          <SidebarToggleButton />
-          
-          {/* Mobile floating toggle button - always visible on mobile */}
-          <MobileToggleButton />
-          
           {/* Trial Banner */}
           <TrialBanner />
           
-          {/* Sticky Top Bar with UserMenu */}
+          {/* Sticky Top Bar with Toggle Button and UserMenu */}
           <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-            <div className="flex justify-end items-center p-4">
+            <div className="flex justify-between items-center p-4">
+              <HeaderToggleButton />
               <UserMenu />
             </div>
           </header>
@@ -76,41 +71,18 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   );
 };
 
-const SidebarToggleButton = () => {
-  const { toggleSidebar, state } = useSidebar();
-  const isCollapsed = state === "collapsed";
-
-  if (!isCollapsed) return null;
-
-  return (
-    <div className="fixed top-4 left-4 z-50 hidden md:block">
-      <Button
-        onClick={toggleSidebar}
-        variant="outline"
-        size="icon"
-        className="bg-transparent shadow-sm hover:bg-[#68beb9] hover:text-white h-10 w-10"
-        aria-label="Toggle sidebar"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  );
-};
-
-const MobileToggleButton = () => {
+const HeaderToggleButton = () => {
   const { toggleSidebar } = useSidebar();
 
   return (
-    <div className="fixed top-4 left-4 z-50 md:hidden">
-      <Button
-        onClick={toggleSidebar}
-        variant="outline"
-        size="icon"
-        className="bg-transparent shadow-sm hover:bg-[#68beb9] hover:text-white h-10 w-10"
-        aria-label="Toggle sidebar"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
+    <Button
+      onClick={toggleSidebar}
+      variant="outline" 
+      size="icon"
+      className="bg-transparent shadow-sm hover:bg-primary hover:text-primary-foreground h-10 w-10"
+      aria-label="Toggle sidebar"
+    >
+      <ChevronRight className="h-4 w-4" />
+    </Button>
   );
 };
