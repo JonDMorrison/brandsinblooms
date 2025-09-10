@@ -7,12 +7,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ContentBlock } from '@/types/emailBuilder';
@@ -97,40 +91,32 @@ export const RegenerateBlockButton: React.FC<RegenerateBlockButtonProps> = ({
   };
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={regenerating}
-                className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground"
-              >
-                {regenerating ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3 h-3" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleAction('regenerate')}>
-                <Sparkles className="w-3 h-3 mr-2" />
-                Regenerate (fresh)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleAction('shorten')}>
-                <Scissors className="w-3 h-3 mr-2" />
-                Shorten by 50%
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>AI Options</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={regenerating}
+          className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground"
+          title="AI Options"
+        >
+          {regenerating ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Sparkles className="w-3 h-3" />
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => handleAction('regenerate')}>
+          <Sparkles className="w-3 h-3 mr-2" />
+          Regenerate (fresh)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleAction('shorten')}>
+          <Scissors className="w-3 h-3 mr-2" />
+          Shorten by 50%
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
