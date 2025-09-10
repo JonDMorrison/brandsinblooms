@@ -451,8 +451,8 @@ export const CalendarView = React.memo(({
         onRefresh={refetch}
       />
 
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1">
+      <div className="flex-1 flex overflow-hidden md:overflow-visible">
+        <div className="flex-1 md:overflow-visible overflow-x-auto">
           {viewMode === 'list' ? (
             <CalendarListView 
               events={events}
