@@ -2,6 +2,7 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 
 import { cn } from "@/lib/utils"
 
@@ -60,6 +61,22 @@ const DialogContent = React.forwardRef<
     return () => observer.disconnect()
   }, [])
 
+  // Detect if DialogTitle exists anywhere in children
+  const hasTitle = React.useMemo(() => {
+    const containsTitle = (node: React.ReactNode): boolean => {
+      if (!node) return false;
+      if (Array.isArray(node)) return node.some(containsTitle);
+      if (React.isValidElement(node)) {
+        const type: any = node.type as any;
+        const displayName = type?.displayName || type?.name;
+        if (displayName === DialogPrimitive.Title.displayName || displayName === 'DialogTitle') return true;
+        return containsTitle((node.props as any)?.children);
+      }
+      return false;
+    };
+    return containsTitle(children);
+  }, [children]);
+
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -72,6 +89,13 @@ const DialogContent = React.forwardRef<
         )}
         {...props}
       >
+        {!hasTitle && (
+          <VisuallyHidden.Root>
+            <DialogHeader>
+              <DialogTitle>Dialog</DialogTitle>
+            </DialogHeader>
+          </VisuallyHidden.Root>
+        )}
         {children}
       </DialogPrimitive.Content>
     </DialogPortal>
