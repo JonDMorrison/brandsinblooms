@@ -158,9 +158,9 @@ export const EnhancedCalendarTaskItem = ({
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1 mb-1">
-            <span>{getPostTypeIcon(task.post_type)}</span>
-            <span className="font-semibold text-green-800 capitalize">
+          <div className="flex items-center gap-1 mb-1 min-w-0">
+            <span className="flex-shrink-0">{getPostTypeIcon(task.post_type)}</span>
+            <span className="font-semibold text-green-800 capitalize truncate">
               {task.post_type}
             </span>
             {isPastDate && (
@@ -171,7 +171,7 @@ export const EnhancedCalendarTaskItem = ({
             )}
           </div>
           
-          <Badge className={`text-xs px-1 py-0.5 ${statusBadge.className}`}>
+          <Badge className={`text-xs px-1 py-0.5 truncate ${statusBadge.className}`}>
             {statusBadge.text}
           </Badge>
           
