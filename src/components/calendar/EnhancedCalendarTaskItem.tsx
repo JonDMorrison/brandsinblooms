@@ -76,6 +76,15 @@ export const EnhancedCalendarTaskItem = ({
     }
   };
 
+  const handleDirectClick = (e: React.MouseEvent) => {
+    // Prevent event propagation and default behavior to ensure only dialog opens
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragReady) {
+      onTaskClick(task);
+    }
+  };
+
   const longPressResult = useLongPress({
     onLongPress: handleLongPressStart,
     onClick: handleClick,
@@ -120,6 +129,7 @@ export const EnhancedCalendarTaskItem = ({
 
   return (
     <div
+      onClick={handleDirectClick}
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
