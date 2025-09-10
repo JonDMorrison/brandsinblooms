@@ -214,7 +214,7 @@ export const MagazineContentDisplay = ({
 
   return (
     <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}>
-      <div className="p-6">
+      <div className="p-6 overflow-hidden max-w-full break-words">
         {postType === 'video' ? (
           // Video content gets special formatting as conversational script
           <div className="prose prose-lg max-w-none">
