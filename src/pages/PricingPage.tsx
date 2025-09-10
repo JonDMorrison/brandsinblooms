@@ -11,6 +11,7 @@ import { PricingPlans } from "@/components/pricing/PricingPlans";
 import { FAQSection } from "@/components/pricing/FAQSection";
 import { FinalCTA } from "@/components/pricing/FinalCTA";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
+import { FullWidthLayout } from "@/components/FullWidthLayout";
 
 const PricingPage = () => {
   const navigate = useNavigate();
@@ -158,7 +159,11 @@ const PricingPage = () => {
   );
 
   if (user) {
-    return pricingContent;
+    return (
+      <FullWidthLayout>
+        {pricingContent}
+      </FullWidthLayout>
+    );
   }
 
   return (
