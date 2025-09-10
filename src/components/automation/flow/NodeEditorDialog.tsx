@@ -1,5 +1,6 @@
 import React from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { EmailNodeEditor } from './editors/EmailNodeEditor';
 import { SMSNodeEditor } from './editors/SMSNodeEditor';
 import { DelayNodeEditor } from './editors/DelayNodeEditor';
@@ -82,6 +83,13 @@ export const NodeEditorDialog: React.FC<NodeEditorDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-0 gap-0 max-w-none w-auto bg-transparent border-none shadow-none">
+        <VisuallyHidden.Root>
+          <DialogHeader>
+            <DialogTitle>
+              Edit {nodeType ? nodeType.charAt(0).toUpperCase() + nodeType.slice(1) : 'Node'}
+            </DialogTitle>
+          </DialogHeader>
+        </VisuallyHidden.Root>
         {renderEditor()}
       </DialogContent>
     </Dialog>
