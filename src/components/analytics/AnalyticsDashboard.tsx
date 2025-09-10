@@ -3,60 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, Users, Heart, MessageCircle, Share2, BarChart3, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Heart, MessageCircle, Share2, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Link } from 'react-router-dom';
 
-const EmptyAnalyticsState = () => (
-  <div className="text-center py-12 px-6">
-    <div className="max-w-md mx-auto">
-      <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-6">
-        <BarChart3 className="w-12 h-12 text-blue-600" />
-      </div>
-      
-      <h3 className="text-2xl font-bold text-gray-900 mb-4">
-        Welcome to Analytics
-      </h3>
-      
-      <p className="text-gray-600 mb-8 leading-relaxed">
-        Your analytics dashboard is ready to track your marketing performance. 
-        Connect your social media accounts and start creating content to see your data here.
-      </p>
-      
-      <div className="space-y-3">        
-        <Button variant="outline" asChild className="w-full">
-          <Link to="/content">
-            Create Content
-          </Link>
-        </Button>
-      </div>
-      
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <h4 className="font-semibold text-gray-900 mb-3">What you'll see here:</h4>
-        <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-blue-500" />
-            <span>Reach & Views</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Heart className="w-4 h-4 text-red-500" />
-            <span>Engagement</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-green-500" />
-            <span>Comments</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-purple-500" />
-            <span>Growth Trends</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
 
 export const AnalyticsDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -115,7 +65,7 @@ export const AnalyticsDashboard: React.FC = () => {
   }
 
   if (!hasData) {
-    return <EmptyAnalyticsState />;
+    return null;
   }
 
   // Original dashboard content for users with data
