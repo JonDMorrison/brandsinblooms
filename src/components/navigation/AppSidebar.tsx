@@ -176,7 +176,16 @@ export function AppSidebar() {
     <Sidebar variant="inset" className="md:bg-transparent bg-white">
       <SidebarHeader className="md:bg-transparent bg-white">
         <div className="flex items-center justify-between px-4 py-2 h-12">
-          <Link to="/" className="flex items-center gap-2">
+          <Link 
+            to="/" 
+            className="flex items-center gap-2"
+            onClick={() => {
+              // Auto-collapse sidebar on logo navigation for better UX
+              if (state !== "collapsed") {
+                toggleSidebar();
+              }
+            }}
+          >
             <div className="w-6 h-6 flex items-center justify-center">
               <img 
                 src={logoImage} 
@@ -222,7 +231,15 @@ export function AppSidebar() {
                           className="group"
                           data-testid={`sidebar-link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
                         >
-                          <Link to={item.url}>
+                          <Link 
+                            to={item.url}
+                            onClick={() => {
+                              // Auto-collapse sidebar on navigation for better UX
+                              if (state !== "collapsed") {
+                                toggleSidebar();
+                              }
+                            }}
+                          >
                             <item.icon className="w-4 h-4" />
                             <span>{item.title}</span>
                             {item.badge && (
