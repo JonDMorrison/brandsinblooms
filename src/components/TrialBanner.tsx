@@ -39,7 +39,7 @@ export const TrialBanner = () => {
           <Button
             variant="ghost"
             size="sm"
-            className="text-white hover:bg-white/20"
+            className="text-white hover:bg-white/20 text-xs md:text-sm"
             onClick={() => window.location.href = '/pricing'}
           >
             Upgrade Now
