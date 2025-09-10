@@ -25,14 +25,7 @@ const EmptyAnalyticsState = () => (
         Connect your social media accounts and start creating content to see your data here.
       </p>
       
-      <div className="space-y-3">
-        <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-          <Link to="/social-accounts">
-            Connect Social Accounts
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Link>
-        </Button>
-        
+      <div className="space-y-3">        
         <Button variant="outline" asChild className="w-full">
           <Link to="/content">
             Create Content

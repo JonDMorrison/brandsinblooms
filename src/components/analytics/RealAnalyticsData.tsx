@@ -1,9 +1,13 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { TrendingUp, TrendingDown, Eye, Heart, Phone, MapPin } from "lucide-react";
+import { TrendingUp, TrendingDown, Eye, Heart, Phone, MapPin, Link, RefreshCw } from "lucide-react";
+import { ConnectSocialCTA } from "@/components/social/ConnectSocialCTA";
+import { useConnectedAccounts } from "@/components/dashboard/ConnectedAccountChecker";
+import { useToast } from "@/hooks/use-toast";
 
 interface AnalyticsMetric {
   platform: string;
@@ -33,6 +37,9 @@ export const RealAnalyticsData = () => {
   const { user } = useAuth();
   const [metrics, setMetrics] = useState<AnalyticsMetric[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const { data: connections, refetch: refetchConnections } = useConnectedAccounts();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -67,6 +74,29 @@ export const RealAnalyticsData = () => {
     }
   };
 
+  const handleSyncAnalytics = async () => {
+    setSyncing(true);
+    try {
+      const { error } = await supabase.functions.invoke('sync-analytics');
+      if (error) throw error;
+      
+      await fetchAnalyticsData();
+      toast({
+        title: "Success",
+        description: "Analytics data synced successfully!"
+      });
+    } catch (error) {
+      console.error('Error syncing analytics:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync analytics data",
+        variant: "destructive"
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const getMetricIcon = (metricType: string) => {
     switch (metricType) {
       case 'reach':
@@ -85,11 +115,12 @@ export const RealAnalyticsData = () => {
   };
 
   const getMetricsByPlatform = () => {
-    const platforms = ['facebook', 'instagram', 'google_my_business'];
+    const platforms = ['facebook', 'instagram', 'google_business_profile'];
     const result: Record<string, AnalyticsMetric[]> = {};
 
     platforms.forEach(platform => {
-      const platformMetrics = metrics.filter(m => m.platform === platform);
+      const platformMetrics = metrics.filter(m => m.platform === platform || 
+        (platform === 'google_business_profile' && m.platform === 'google_my_business'));
       if (platformMetrics.length > 0) {
         result[platform] = platformMetrics;
       }
@@ -108,7 +139,7 @@ export const RealAnalyticsData = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Real Analytics Data</CardTitle>
+          <CardTitle>Social Media</CardTitle>
           <CardDescription>Loading your social media performance...</CardDescription>
         </CardHeader>
         <CardContent>
@@ -123,20 +154,51 @@ export const RealAnalyticsData = () => {
   }
 
   const platformData = getMetricsByPlatform();
+  const hasConnections = connections && connections.length > 0;
 
   if (Object.keys(platformData).length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Real Analytics Data</CardTitle>
-          <CardDescription>Connect your social media accounts to see real analytics</CardDescription>
+          <CardTitle className="flex items-center justify-between">
+            Social Media
+            {hasConnections && (
+              <Button 
+                onClick={handleSyncAnalytics} 
+                disabled={syncing}
+                size="sm"
+                variant="outline"
+              >
+                {syncing ? (
+                  <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Sync Data
+              </Button>
+            )}
+          </CardTitle>
+          <CardDescription>
+            {hasConnections 
+              ? "Sync your social media accounts to see performance data"
+              : "Connect your social media accounts to track performance"
+            }
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-gray-500">
-            <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="mb-2">No analytics data available yet</p>
-            <p className="text-sm">Connect your social media accounts above to start tracking performance</p>
-          </div>
+          {!hasConnections ? (
+            <div className="text-center py-8">
+              <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50 text-gray-400" />
+              <p className="mb-4 text-gray-600">Connect your social media accounts to start tracking performance</p>
+              <ConnectSocialCTA variant="button" />
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p className="mb-2">No analytics data available yet</p>
+              <p className="text-sm">Click "Sync Data" to fetch your latest social media metrics</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -144,8 +206,31 @@ export const RealAnalyticsData = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header with sync button */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Social Media
+            <Button 
+              onClick={handleSyncAnalytics} 
+              disabled={syncing}
+              size="sm"
+              variant="outline"
+            >
+              {syncing ? (
+                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Sync Data
+            </Button>
+          </CardTitle>
+          <CardDescription>Latest performance metrics from your connected social accounts</CardDescription>
+        </CardHeader>
+      </Card>
+
       {Object.entries(platformData).map(([platform, platformMetrics]) => {
-        const platformName = platform === 'google_my_business' ? 'Google My Business' : 
+        const platformName = platform === 'google_business_profile' || platform === 'google_my_business' ? 'Google Business Profile' : 
                            platform.charAt(0).toUpperCase() + platform.slice(1);
         
         // Group metrics by type and get the latest value
