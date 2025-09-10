@@ -2,6 +2,8 @@
 import { CalendarCampaignList } from "./CalendarCampaignList";
 import { EnhancedCalendarTaskItem } from "./EnhancedCalendarTaskItem";
 import { NewsletterCalendarBlock } from "./NewsletterCalendarBlock";
+import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface Campaign {
   id: number;
@@ -81,9 +83,11 @@ export const CalendarDayContent = ({
   onDragStart,
   onDragEnd,
 }: CalendarDayContentProps) => {
+  const [isTasksExpanded, setIsTasksExpanded] = useState(false);
+  
   // Calculate how many items we can show based on available space
   const maxCampaignsToShow = 1;
-  const maxTasksToShow = campaigns.length > 0 ? 2 : 3;
+  const maxTasksToShow = isTasksExpanded ? tasks.length : 1;
   const maxNewslettersToShow = 2;
   
   const totalItemsShown = Math.min(campaigns.length, maxCampaignsToShow) + 
@@ -92,10 +96,7 @@ export const CalendarDayContent = ({
                           holidays.length + 
                           Math.min(scheduledPosts.length, 2);
   const totalItems = campaigns.length + tasks.length + newsletters.length + holidays.length + scheduledPosts.length;
-  const hasMoreItems = (campaigns.length > maxCampaignsToShow) || 
-                       (tasks.length > maxTasksToShow) || 
-                       (newsletters.length > maxNewslettersToShow) || 
-                       (scheduledPosts.length > 2);
+  const hasMoreTasks = tasks.length > 1;
 
   return (
     <div className="space-y-1.5">
@@ -172,13 +173,29 @@ export const CalendarDayContent = ({
               onDragEnd={onDragEnd}
             />
           ))}
-        </div>
-      )}
-      
-      {/* Show more indicator - only if there are actually more items */}
-      {hasMoreItems && (
-        <div className="text-xs text-gray-500 text-center py-1 bg-gray-50/50 rounded border border-gray-100">
-          +{totalItems - totalItemsShown} more
+          
+          {/* Expand/Collapse button for tasks */}
+          {hasMoreTasks && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsTasksExpanded(!isTasksExpanded);
+              }}
+              className="w-full text-xs text-slate-600 hover:text-slate-800 py-1 px-2 bg-slate-50 hover:bg-slate-100 rounded border border-slate-200 transition-colors duration-200 flex items-center justify-center gap-1"
+            >
+              {isTasksExpanded ? (
+                <>
+                  <ChevronUp className="w-3 h-3" />
+                  Show less
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-3 h-3" />
+                  +{tasks.length - 1} more tasks
+                </>
+              )}
+            </button>
+          )}
         </div>
       )}
     </div>
