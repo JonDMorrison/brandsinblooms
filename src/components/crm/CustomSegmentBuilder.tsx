@@ -476,7 +476,7 @@ export const CustomSegmentBuilder = ({ onSave, onCancel }: CustomSegmentBuilderP
       <div className="flex justify-end space-x-3 pt-4 border-t border-border">
         <button
           onClick={onCancel}
-          className="px-4 py-2 text-muted-foreground hover:text-foreground border border-border rounded-md hover:bg-accent"
+          className="px-4 py-2 text-muted-foreground hover:text-foreground border border-border rounded-md bg-gray-100/50 hover:bg-gray-200"
         >
           Cancel
         </button>
