@@ -42,6 +42,7 @@ import CalendarPage from '@/pages/CalendarPage';
 import AccountPage from '@/pages/AccountPage';
 import ProfilePage from '@/pages/ProfilePage';
 import IntegrationsPage from '@/pages/IntegrationsPage';
+import POSIntegrationsPage from '@/pages/POSIntegrationsPage';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
 import PublishPage from '@/pages/PublishPage';
@@ -299,6 +300,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <IntegrationsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/pos" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <POSIntegrationsPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />

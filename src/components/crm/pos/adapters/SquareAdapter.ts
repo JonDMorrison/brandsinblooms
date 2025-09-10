@@ -14,39 +14,118 @@ export class SquareAdapter extends POSAdapter {
       : 'https://connect.squareupsandbox.com';
   }
 
-  async fetchCustomers(credentials?: any): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/v2/customers`, {
+  async testConnection(credentials: any): Promise<TestConnectionResult> {
+    try {
+      const response = await fetch(`${this.baseUrl}/v2/locations`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+          'Square-Version': '2023-10-18'
+        },
+      });
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: `Square API error: ${response.status} ${response.statusText}`
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        message: 'Successfully connected to Square',
+        details: { 
+          locations: data.locations?.length || 0,
+          features: ['customers', 'payments', 'catalog']
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown connection error'
+      };
+    }
+  }
+
+  async fetchCustomers(credentials: any, options?: SyncOptions): Promise<PaginatedResult<any>> {
+    await this.waitForRateLimit();
+    
+    const response = await fetch(`${this.baseUrl}/v2/customers/search`, {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
-        'Square-Version': '2024-01-18',
+        'Square-Version': '2023-10-18'
       },
+      body: JSON.stringify({
+        limit: options?.pageLimit || 100,
+        cursor: options?.cursor
+      })
     });
 
     if (!response.ok) {
-      throw new Error(`Square API error: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.customers || [];
+    return {
+      data: data.customers || [],
+      nextCursor: data.cursor,
+      hasMore: !!data.cursor
+    };
   }
 
-  async fetchOrders(credentials?: any): Promise<any> {
-    // Square uses "orders" for cart-level data, but we need "payments" for actual transactions
+  async fetchOrders(credentials: any, options?: SyncOptions): Promise<PaginatedResult<any>> {
+    await this.waitForRateLimit();
+    
     const response = await fetch(`${this.baseUrl}/v2/payments`, {
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
-        'Square-Version': '2024-01-18',
+        'Square-Version': '2023-10-18'
       },
     });
 
     if (!response.ok) {
-      throw new Error(`Square API error: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.payments || [];
+    return {
+      data: data.payments?.filter((payment: any) => payment.status === 'COMPLETED') || [],
+      nextCursor: data.cursor,
+      hasMore: !!data.cursor
+    };
+  }
+
+  async fetchProducts(credentials: any, options?: SyncOptions): Promise<PaginatedResult<any>> {
+    await this.waitForRateLimit();
+    
+    const response = await fetch(`${this.baseUrl}/v2/catalog/search`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+        'Square-Version': '2023-10-18'
+      },
+      body: JSON.stringify({
+        object_types: ['ITEM'],
+        limit: options?.pageLimit || 100,
+        cursor: options?.cursor
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      data: data.objects || [],
+      nextCursor: data.cursor,
+      hasMore: !!data.cursor
+    };
   }
 
   adaptCustomers(rawCustomers: any[]): NormalizedCustomer[] {

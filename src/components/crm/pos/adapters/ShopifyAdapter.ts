@@ -6,28 +6,55 @@ export class ShopifyAdapter extends POSAdapter {
 
   constructor(shopDomain: string, accessToken: string) {
     super();
-    this.baseUrl = `https://${shopDomain}`;
+    this.baseUrl = `https://${shopDomain}/admin/api/2024-01`;
     this.accessToken = accessToken;
   }
 
-  async fetchCustomers(credentials?: any): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/admin/api/2024-01/customers.json`, {
-      headers: {
-        'X-Shopify-Access-Token': this.accessToken,
-        'Content-Type': 'application/json',
-      },
-    });
+  async testConnection(credentials: any): Promise<TestConnectionResult> {
+    try {
+      const response = await fetch(`${this.baseUrl}/shop.json`, {
+        headers: {
+          'X-Shopify-Access-Token': this.accessToken,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error(`Shopify API error: ${response.statusText}`);
+      if (!response.ok) {
+        return {
+          success: false,
+          message: `Shopify API error: ${response.status} ${response.statusText}`
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        message: 'Successfully connected to Shopify',
+        details: { 
+          shop: data.shop.name,
+          domain: data.shop.domain,
+          features: ['customers', 'orders', 'products']
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown connection error'
+      };
     }
-
-    const data = await response.json();
-    return data.customers || [];
   }
 
-  async fetchOrders(credentials?: any): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/admin/api/2024-01/orders.json?status=any&limit=250`, {
+  async fetchCustomers(credentials: any, options?: SyncOptions): Promise<PaginatedResult<any>> {
+    await this.waitForRateLimit();
+    
+    const limit = options?.pageLimit || 50;
+    let url = `${this.baseUrl}/customers.json?limit=${limit}`;
+    
+    if (options?.cursor) {
+      url += `&page_info=${options.cursor}`;
+    }
+
+    const response = await fetch(url, {
       headers: {
         'X-Shopify-Access-Token': this.accessToken,
         'Content-Type': 'application/json',
@@ -35,11 +62,104 @@ export class ShopifyAdapter extends POSAdapter {
     });
 
     if (!response.ok) {
-      throw new Error(`Shopify API error: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.orders || [];
+    
+    // Get pagination info from Link header
+    const linkHeader = response.headers.get('Link');
+    const hasNextPage = linkHeader?.includes('rel="next"') || false;
+    const nextCursor = hasNextPage ? this.extractCursorFromLink(linkHeader, 'next') : undefined;
+
+    return {
+      data: data.customers || [],
+      nextCursor,
+      hasMore: hasNextPage
+    };
+  }
+
+  async fetchOrders(credentials: any, options?: SyncOptions): Promise<PaginatedResult<any>> {
+    await this.waitForRateLimit();
+    
+    const limit = options?.pageLimit || 50;
+    let url = `${this.baseUrl}/orders.json?limit=${limit}&status=any`;
+    
+    if (options?.cursor) {
+      url += `&page_info=${options.cursor}`;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'X-Shopify-Access-Token': this.accessToken,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Get pagination info from Link header
+    const linkHeader = response.headers.get('Link');
+    const hasNextPage = linkHeader?.includes('rel="next"') || false;
+    const nextCursor = hasNextPage ? this.extractCursorFromLink(linkHeader, 'next') : undefined;
+
+    return {
+      data: data.orders || [],
+      nextCursor,
+      hasMore: hasNextPage
+    };
+  }
+
+  async fetchProducts(credentials: any, options?: SyncOptions): Promise<PaginatedResult<any>> {
+    await this.waitForRateLimit();
+    
+    const limit = options?.pageLimit || 50;
+    let url = `${this.baseUrl}/products.json?limit=${limit}`;
+    
+    if (options?.cursor) {
+      url += `&page_info=${options.cursor}`;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'X-Shopify-Access-Token': this.accessToken,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Get pagination info from Link header
+    const linkHeader = response.headers.get('Link');
+    const hasNextPage = linkHeader?.includes('rel="next"') || false;
+    const nextCursor = hasNextPage ? this.extractCursorFromLink(linkHeader, 'next') : undefined;
+
+    return {
+      data: data.products || [],
+      nextCursor,
+      hasMore: hasNextPage
+    };
+  }
+
+  private extractCursorFromLink(linkHeader: string | null, rel: string): string | undefined {
+    if (!linkHeader) return undefined;
+    
+    const links = linkHeader.split(',');
+    for (const link of links) {
+      if (link.includes(`rel="${rel}"`)) {
+        const match = link.match(/page_info=([^&>]+)/);
+        return match ? match[1] : undefined;
+      }
+    }
+    return undefined;
   }
 
   adaptCustomers(rawCustomers: any[]): NormalizedCustomer[] {

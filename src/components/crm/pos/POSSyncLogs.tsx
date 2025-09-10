@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle, AlertCircle, RefreshCw, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,12 +9,11 @@ import { formatDistanceToNow, format } from 'date-fns';
 
 interface SyncLog {
   id: string;
-  connection_id: string;
+  pos_connection_id: string;
   status: string;
   started_at: string;
   completed_at: string | null;
   customers_synced: number;
-  products_synced: number;
   orders_synced: number;
   error_message: string | null;
   metadata: any;
@@ -100,12 +98,11 @@ export const POSSyncLogs: React.FC = () => {
           .from('pos_sync_logs')
           .select(`
             id,
-            connection_id,
+            pos_connection_id,
             status,
             started_at,
             completed_at,
             customers_synced,
-            products_synced:orders_synced,
             orders_synced,
             error_message,
             metadata,
@@ -120,7 +117,7 @@ export const POSSyncLogs: React.FC = () => {
           .limit(50);
 
         if (selectedConnection !== 'all') {
-          query = query.eq('connection_id', selectedConnection);
+          query = query.eq('pos_connection_id', selectedConnection);
         }
 
         const { data, error } = await query;
@@ -203,19 +200,18 @@ export const POSSyncLogs: React.FC = () => {
         <CardContent>
           <div className="flex items-center gap-4">
             <div className="flex-1 max-w-xs">
-              <Select value={selectedConnection} onValueChange={setSelectedConnection}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by connection" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Connections</SelectItem>
-                  {connections.map((conn) => (
-                    <SelectItem key={conn.id} value={conn.id}>
-                      {conn.name} ({conn.platform})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select 
+                value={selectedConnection} 
+                onChange={(e) => setSelectedConnection(e.target.value)}
+                className="w-full border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-md"
+              >
+                <option value="all">All Connections</option>
+                {connections.map((conn) => (
+                  <option key={conn.id} value={conn.id}>
+                    {conn.name} ({conn.platform})
+                  </option>
+                ))}
+              </select>
             </div>
             <Button variant="outline" onClick={fetchSyncLogs}>
               <RefreshCw className="w-4 h-4 mr-2" />
@@ -258,14 +254,10 @@ export const POSSyncLogs: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Customers:</span>
                       <p className="font-medium">{log.customers_synced}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Products:</span>
-                      <p className="font-medium">{log.products_synced}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Orders:</span>
