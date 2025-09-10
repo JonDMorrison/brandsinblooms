@@ -200,7 +200,7 @@ export const CRMCustomersPage: React.FC = () => {
                             <span className="text-muted-foreground text-sm">$0.00</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           {customer.last_purchase_date ? (
                             <div className="flex items-center gap-1 text-sm">
                               <Calendar className="h-3 w-3" />
