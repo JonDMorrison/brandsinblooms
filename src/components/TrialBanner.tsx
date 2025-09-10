@@ -15,7 +15,7 @@ export const TrialBanner = () => {
   const isUrgent = trialDaysLeft <= 3;
 
   return (
-    <div className={`w-full px-4 py-2 text-sm ${
+    <div className={`w-full px-2 py-1 text-xs md:px-4 md:py-2 md:text-sm ${
       isUrgent 
         ? 'bg-red-500 text-white' 
         : 'bg-orange-500 text-white'
