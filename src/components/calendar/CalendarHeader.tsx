@@ -90,32 +90,30 @@ export const CalendarHeader = ({
       {/* Mobile Layout - Stack navigation and filters */}
       <div className="md:hidden space-y-3">
         {/* First line: Navigation Controls (arrows + month/year) */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onPrevious}
-              aria-label="Previous period"
-              className="h-9 w-9 p-0 hover:bg-slate-50 transition-colors duration-200"
-            >
-              <ChevronLeft className="w-4 h-4 text-slate-600" />
-            </Button>
-            
-            <div className="text-lg font-bold text-slate-800 flex-1 text-center px-4 py-2 bg-slate-50 rounded-xl border border-slate-200">
-              {getDisplayTitle()}
-            </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onNext}
-              aria-label="Next period"
-              className="h-9 w-9 p-0 hover:bg-slate-50 transition-colors duration-200"
-            >
-              <ChevronRight className="w-4 h-4 text-slate-600" />
-            </Button>
+        <div className="flex items-center justify-between w-full">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onPrevious}
+            aria-label="Previous period"
+            className="h-10 w-12 p-0 hover:bg-slate-50 transition-colors duration-200 flex-shrink-0"
+          >
+            <ChevronLeft className="w-5 h-5 text-slate-600" />
+          </Button>
+          
+          <div className="text-lg font-bold text-slate-800 flex-1 text-center mx-3 px-4 py-2 bg-slate-50 rounded-xl border border-slate-200">
+            {getDisplayTitle()}
           </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onNext}
+            aria-label="Next period"
+            className="h-10 w-12 p-0 hover:bg-slate-50 transition-colors duration-200 flex-shrink-0"
+          >
+            <ChevronRight className="w-5 h-5 text-slate-600" />
+          </Button>
         </div>
 
         {/* Second line: Filters (left) and View Toggle (right) */}
