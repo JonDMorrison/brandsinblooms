@@ -162,7 +162,7 @@ export const useNewsletterIdeas = () => {
       }
       
       return {
-        id: `weekly-theme-${weekNumber}`,
+        id: `weekly-theme-${weekNumber}-${index}`,
         title: theme.title,
         description: theme.description,
         category: 'weekly' as const,
