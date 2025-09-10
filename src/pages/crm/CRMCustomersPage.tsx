@@ -210,7 +210,7 @@ export const CRMCustomersPage: React.FC = () => {
                             <span className="text-muted-foreground text-sm">No purchases</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           <span className="text-sm text-muted-foreground">
                             {format(new Date(customer.created_at), 'MMM d, yyyy')}
                           </span>
