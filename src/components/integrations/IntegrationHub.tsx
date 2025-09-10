@@ -19,7 +19,8 @@ import {
   X,
   AlertCircle,
   Facebook,
-  Instagram
+  Instagram,
+  Store
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { GoogleAnalyticsConnection } from './GoogleAnalyticsConnection';
@@ -99,6 +100,17 @@ export const IntegrationHub = () => {
       icon: <Mail className="w-6 h-6 text-yellow-600" />,
       isConnected: false,
       provider: 'mailchimp',
+      isActive: true
+    },
+    {
+      id: 'pos_sync',
+      name: 'Point of Sale (POS) Sync',
+      description: 'Connect Shopify, Square, and other POS systems to sync customer data',
+      category: 'crm',
+      icon: <Store className="w-6 h-6 text-green-600" />,
+      isConnected: false,
+      provider: 'pos',
+      setupUrl: '/crm/pos',
       isActive: true
     },
     {
@@ -241,6 +253,51 @@ export const IntegrationHub = () => {
         </div>
 
         <TabsContent value="marketplace" className="space-y-6">
+          {/* Featured POS Integration */}
+          <div className="space-y-4">
+            <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                      <Store className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl text-green-900">
+                        Point of Sale (POS) Sync
+                      </CardTitle>
+                      <p className="text-green-700 mt-1">
+                        Connect your POS system to automatically sync customer data with your CRM
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className="bg-green-600 text-white">
+                    Popular
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <p className="text-sm text-green-800">
+                      <strong>Supported platforms:</strong> Shopify, Square, VMX CSV Import, and more
+                    </p>
+                    <p className="text-sm text-green-700">
+                      Automatically import customers, orders, and purchase history
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => window.location.href = '/crm/pos'}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Store className="w-4 h-4 mr-2" />
+                    Connect POS System
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Special Analytics Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold capitalize flex items-center gap-2">
