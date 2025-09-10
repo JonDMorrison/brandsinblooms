@@ -186,7 +186,7 @@ export const CRMCustomersPage: React.FC = () => {
                                 {persona.persona_name}
                               </Badge>
                             ) : (
-                              <span className="text-muted-foreground text-sm">No persona</span>
+                              <span className="text-muted-foreground text-sm whitespace-nowrap">No persona</span>
                             );
                           })()}
                         </TableCell>
