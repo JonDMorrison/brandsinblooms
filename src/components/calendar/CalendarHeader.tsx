@@ -305,8 +305,8 @@ export const CalendarHeader = ({
         )}
       </div>
 
-      {/* Action Buttons Row */}
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
+      {/* Action Buttons Row (desktop only) */}
+      <div className="hidden md:flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
         <div className="flex items-center gap-2">
           {filters && onFiltersChange && filterOptions && (
             <DropdownMenu>
