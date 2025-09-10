@@ -50,16 +50,19 @@ export const AuthenticatedLayout = ({ children }: AuthenticatedLayoutProps) => {
         {/* Global Sidebar Toggle with directional arrows */}
         <SidebarToggleButton />
         
-        {/* Fixed UserMenu - always visible in top-right */}
-        <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
-          <UserMenu />
-        </div>
-        
         <AppSidebar />
         <main className="flex-1 w-full h-full overflow-x-hidden flex flex-col">
           {/* Trial Banner */}
           <TrialBanner />
-          <div className="flex-1 w-full h-full px-4 pt-16">
+          
+          {/* Sticky Top Bar with UserMenu */}
+          <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+            <div className="flex justify-end items-center p-4">
+              <UserMenu />
+            </div>
+          </header>
+          
+          <div className="flex-1 w-full h-full px-4">
             {children}
           </div>
         </main>

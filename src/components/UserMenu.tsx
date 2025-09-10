@@ -142,7 +142,7 @@ export const UserMenu = () => {
         </Button>
         
         {isDropdownOpen && (
-          <div className="absolute right-0 top-12 w-60 z-[200] bg-white text-black border border-gray-300 shadow-xl rounded-md p-2">
+          <div className="absolute right-0 top-12 w-60 z-10 bg-white text-black border border-gray-300 shadow-xl rounded-md p-2">
             <div className="flex items-center justify-start gap-2 p-2">
               <div className="flex flex-col space-y-1 leading-none">
                 <p className="font-medium text-sm">{user?.email}</p>
