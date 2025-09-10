@@ -89,7 +89,10 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 };
 
 const HeaderToggleButton = () => {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  if (!isCollapsed) return null;
 
   return (
     <Button
