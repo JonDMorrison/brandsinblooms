@@ -92,7 +92,20 @@ const HeaderToggleButton = () => {
   const { toggleSidebar, state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
-  if (!isCollapsed) return null;
+  // Always show on mobile, only show when collapsed on desktop
+  if (!isCollapsed) {
+    return (
+      <Button
+        onClick={toggleSidebar}
+        variant="ghost" 
+        size="icon"
+        className="hover:bg-teal-600 hover:text-white h-8 w-8 md:hidden"
+        aria-label="Toggle sidebar"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    );
+  }
 
   return (
     <Button
