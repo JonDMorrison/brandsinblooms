@@ -60,7 +60,7 @@ interface SidebarGroup {
 
 export function AppSidebar() {
   const location = useLocation();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, isMobile, setOpen, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
 
   const sidebarGroups: SidebarGroup[] = [
@@ -181,8 +181,10 @@ export function AppSidebar() {
             className="flex items-center gap-2"
             onClick={() => {
               // Auto-collapse sidebar on logo navigation for better UX
-              if (state !== "collapsed") {
-                toggleSidebar();
+              if (isMobile) {
+                setOpenMobile(false);
+              } else {
+                setOpen(false);
               }
             }}
           >
@@ -235,8 +237,10 @@ export function AppSidebar() {
                             to={item.url}
                             onClick={() => {
                               // Auto-collapse sidebar on navigation for better UX
-                              if (state !== "collapsed") {
-                                toggleSidebar();
+                              if (isMobile) {
+                                setOpenMobile(false);
+                              } else {
+                                setOpen(false);
                               }
                             }}
                           >
