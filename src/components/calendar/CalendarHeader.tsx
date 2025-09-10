@@ -87,7 +87,100 @@ export const CalendarHeader = ({
 
   return (
     <div className="bg-white border border-border rounded-xl px-4 py-3 shadow-sm">
-      <div className="flex items-center justify-between">
+      {/* Mobile Layout - Stack navigation and filters */}
+      <div className="md:hidden space-y-3">
+        {/* First line: Navigation Controls (arrows + month/year) */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPrevious}
+              aria-label="Previous period"
+              className="h-9 w-9 p-0 hover:bg-slate-50 transition-colors duration-200"
+            >
+              <ChevronLeft className="w-4 h-4 text-slate-600" />
+            </Button>
+            
+            <div className="text-lg font-bold text-slate-800 flex-1 text-center px-4 py-2 bg-slate-50 rounded-xl border border-slate-200">
+              {getDisplayTitle()}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onNext}
+              aria-label="Next period"
+              className="h-9 w-9 p-0 hover:bg-slate-50 transition-colors duration-200"
+            >
+              <ChevronRight className="w-4 h-4 text-slate-600" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Second line: View Toggle and Today button */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center bg-slate-50 rounded-xl p-1 border border-slate-200" role="tablist">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onViewModeChange('month')}
+              className={`h-8 px-3 text-sm font-medium transition-colors duration-200 ${
+                viewMode === 'month' 
+                  ? 'bg-white text-blue-700 border border-blue-200' 
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
+              }`}
+              role="tab"
+              aria-selected={viewMode === 'month'}
+            >
+              <Calendar className="w-4 h-4 mr-1" />
+              Month
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onViewModeChange('week')}
+              className={`h-8 px-3 text-sm font-medium transition-colors duration-200 ${
+                viewMode === 'week' 
+                  ? 'bg-white text-blue-700 border border-blue-200' 
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
+              }`}
+              role="tab"
+              aria-selected={viewMode === 'week'}
+            >
+              <CalendarDays className="w-4 h-4 mr-1" />
+              Week
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onViewModeChange('list')}
+              className={`h-8 px-3 text-sm font-medium transition-colors duration-200 ${
+                viewMode === 'list' 
+                  ? 'bg-white text-blue-700 border border-blue-200' 
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
+              }`}
+              role="tab"
+              aria-selected={viewMode === 'list'}
+            >
+              <List className="w-4 h-4 mr-1" />
+              List
+            </Button>
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onToday}
+            className="h-9 px-4 hover:bg-slate-50 text-slate-700 font-medium transition-colors duration-200"
+          >
+            Today
+          </Button>
+        </div>
+      </div>
+
+      {/* Desktop Layout - Keep original layout */}
+      <div className="hidden md:flex items-center justify-between">
         <div className="flex items-center gap-6">
           
           {/* Navigation Controls */}
@@ -124,8 +217,6 @@ export const CalendarHeader = ({
             >
               Today
             </Button>
-            
-
           </div>
 
           {/* View Toggle */}
