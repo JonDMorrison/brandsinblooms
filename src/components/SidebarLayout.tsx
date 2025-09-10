@@ -7,6 +7,7 @@ import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
+import logoImage from "@/assets/bloomsuite-logo-correct.png";
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -57,7 +58,23 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           {/* Sticky Top Bar with Toggle Button and UserMenu */}
           <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
             <div className="flex justify-between items-center px-4 py-2">
-              <HeaderToggleButton />
+              <div className="flex items-center gap-3 md:hidden">
+                <HeaderToggleButton />
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 flex items-center justify-center">
+                    <img 
+                      src={logoImage} 
+                      alt="BloomSuite Logo" 
+                      className="w-full h-full object-contain"
+                      style={{ background: 'transparent' }}
+                    />
+                  </div>
+                  <span className="font-bold text-lg tracking-tight">BloomSuite</span>
+                </div>
+              </div>
+              <div className="hidden md:block">
+                <HeaderToggleButton />
+              </div>
               <UserMenu />
             </div>
           </header>
