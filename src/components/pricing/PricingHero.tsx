@@ -24,11 +24,11 @@ export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) =>
       <div className="relative max-w-4xl mx-auto">
         <div className="bg-white/60 backdrop-blur-md border border-white/50 rounded-2xl p-6 md:p-8 shadow-2xl shadow-brand-teal-mint/10">
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight bg-gradient-to-r from-brand-steel-blue via-text-primary to-brand-steel-blue bg-clip-text text-transparent">
-            Simple Pricing for Growing Garden Centers
+            Transform Your Garden Center with BloomSuite
           </h1>
           
           <p className="text-lg md:text-xl lg:text-2xl text-text-secondary mb-6 md:mb-8 max-w-3xl mx-auto leading-relaxed">
-            Whether you're just getting started or managing a full retail team, we've got a plan to fit your season.
+            Everything you need to grow your business - AI content creation, CRM, automation, analytics, and more - all for one simple annual price.
           </p>
           
           {!subscription && (

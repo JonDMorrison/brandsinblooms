@@ -1,95 +1,111 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Star } from "lucide-react";
+import { CheckCircle, Star, Leaf } from "lucide-react";
+
 interface PricingPlansProps {
-  isAnnual: boolean;
   subscription: any;
   loading: boolean;
-  loadingPlan: string | null;
-  onSelectPlan: (plan: 'sprout' | 'bloom') => void;
+  onSelectPlan: () => void;
   onStartTrial: () => void;
 }
 export const PricingPlans = ({
-  isAnnual,
   subscription,
   loading,
-  loadingPlan,
   onSelectPlan,
   onStartTrial
 }: PricingPlansProps) => {
-  const sproutFeatures = ["Weekly AI-generated campaign prompts", "Seasonal content calendar", "Email + social post generation", "1 user", "Unlimited scheduling", "Email support"];
-  const bloomFeatures = ["Everything in Sprout, plus:", "Multi-user access", "Custom brand voice tuning", "Priority support", "Image asset library access", "Dedicated success check-in (monthly)"];
-  return <section className="py-12 px-6 bg-white/60">
-      <div className="max-w-6xl mx-auto">
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {/* Sprout Plan */}
-          <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl">
-            <CardContent className="pt-4">
-              <h3 className="text-xl font-semibold text-garden-green-dark mb-2">Sprout</h3>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-garden-green-dark">
-                  ${isAnnual ? '32' : '39'}
-                </span>
-                <span className="text-gray-600">/month</span>
-                {isAnnual && <p className="text-sm text-gray-500 mt-1">Billed annually at $390</p>}
-              </div>
-              
-              
-              <ul className="space-y-3 mb-8">
-                {sproutFeatures.map((feature, index) => <li key={index} className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-garden-green mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">{feature}</span>
-                  </li>)}
-              </ul>
-              
-              <Button onClick={() => subscription ? onSelectPlan('sprout') : onStartTrial()} disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-200 hover:scale-105 shadow-xl border-2 border-transparent hover:border-primary focus:ring-4 focus:ring-primary/30">
-                {loadingPlan === 'sprout' ? <div className="flex items-center gap-2">
-                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                    Processing...
-                  </div> : subscription ? 'Choose Sprout' : 'Start Free Trial'}
-              </Button>
-            </CardContent>
-          </Card>
+  const bloomSuiteFeatures = [
+    "Complete AI-powered content creation suite",
+    "Advanced seasonal marketing campaigns", 
+    "Multi-channel content distribution",
+    "Smart CRM with customer lifecycle tracking",
+    "Automated email marketing sequences",
+    "Social media scheduling & management",
+    "Performance analytics & insights",
+    "Custom brand voice & style training",
+    "Priority support & dedicated success manager",
+    "Unlimited team members",
+    "Advanced automation workflows",
+    "Custom integrations & API access"
+  ];
 
-          {/* Bloom Plan */}
-          <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl relative border-garden-green border-2">
+  return (
+    <section className="py-16 px-6 bg-white/60">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-accent mb-4">
+            One Complete Solution for Garden Centers
+          </h2>
+          <p className="text-xl text-muted-foreground">
+            Everything you need to grow your business, all in one platform
+          </p>
+        </div>
+        
+        <div className="max-w-2xl mx-auto">
+          <Card className="p-8 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 rounded-2xl relative border-primary border-2 bg-gradient-to-br from-white to-background/50">
             <CardContent className="pt-4">
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <Badge className="bg-garden-green text-white px-4 py-1 flex items-center gap-1">
-                  <Star className="h-4 w-4" />
-                  Most Popular
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <Badge className="bg-gradient-to-r from-primary to-brand-teal-mint text-white px-6 py-2 flex items-center gap-2 text-lg">
+                  <Leaf className="h-5 w-5" />
+                  BloomSuite Complete
                 </Badge>
               </div>
               
-              <h3 className="text-xl font-semibold text-garden-green-dark mb-2">Bloom</h3>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-garden-green-dark">
-                  ${isAnnual ? '66' : '79'}
-                </span>
-                <span className="text-gray-600">/month</span>
-                {isAnnual && <p className="text-sm text-gray-500 mt-1">Billed annually at $790</p>}
+              <div className="text-center mb-8 mt-4">
+                <h3 className="text-2xl font-bold text-accent mb-4">BloomSuite</h3>
+                <div className="mb-6">
+                  <div className="flex items-baseline justify-center gap-2">
+                    <span className="text-5xl font-bold text-primary">$2,999</span>
+                    <span className="text-xl text-muted-foreground">/year</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    That's just $250/month - billed annually
+                  </p>
+                  <p className="text-xs text-primary font-medium mt-1">
+                    Save thousands compared to using separate tools
+                  </p>
+                </div>
               </div>
               
-              
-              <ul className="space-y-3 mb-8">
-                {bloomFeatures.map((feature, index) => <li key={index} className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-garden-green mt-0.5 flex-shrink-0" />
-                    <span className={`text-gray-700 ${index === 0 ? 'font-semibold' : ''}`}>
-                      {feature}
-                    </span>
-                  </li>)}
+              <ul className="space-y-4 mb-10">
+                {bloomSuiteFeatures.map((feature, index) => (
+                  <li key={index} className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-accent-foreground">{feature}</span>
+                  </li>
+                ))}
               </ul>
               
-              <Button onClick={() => subscription ? onSelectPlan('bloom') : onStartTrial()} disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-200 hover:scale-105 shadow-xl border-2 border-transparent hover:border-primary focus:ring-4 focus:ring-primary/30">
-                {loadingPlan === 'bloom' ? <div className="flex items-center gap-2">
-                    
-                    Processing...
-                  </div> : subscription ? 'Choose Bloom' : 'Start Free Trial'}
-              </Button>
+              <div className="space-y-4">
+                <Button 
+                  onClick={() => subscription ? onSelectPlan() : onStartTrial()} 
+                  disabled={loading} 
+                  size="lg"
+                  className="w-full bg-gradient-to-r from-primary to-brand-teal-mint hover:from-brand-teal-mint hover:to-primary text-white py-6 px-8 rounded-xl text-xl font-semibold transition-all duration-300 hover:scale-105 shadow-2xl border-2 border-transparent hover:border-white/20"
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                      Processing...
+                    </div>
+                  ) : subscription ? (
+                    'Upgrade to BloomSuite'
+                  ) : (
+                    'Start Free Trial'
+                  )}
+                </Button>
+                
+                {!subscription && (
+                  <p className="text-center text-sm text-muted-foreground">
+                    30-day free trial • No credit card required • Cancel anytime
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
       </div>
-    </section>;
+    </section>
+  );
 };

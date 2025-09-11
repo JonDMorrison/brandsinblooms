@@ -140,6 +140,7 @@ serve(async (req) => {
       'sprout_annual': 'price_1RbUQNDmtxsdhOlWf2vCkehE',
       'bloom_monthly': 'price_1RbUUUDmtxsdhOlWrjI1a1jC',
       'bloom_annual': 'price_1RbUVODmtxsdhOlW7mrK3Q9y',
+      'bloomsuite_year': 'price_CHANGEME_BLOOMSUITE_ANNUAL', // UPDATE THIS WITH YOUR STRIPE PRICE ID
     };
 
     const priceKey = `${plan}_${billingInterval}` as keyof typeof priceMapping;

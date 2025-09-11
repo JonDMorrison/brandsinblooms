@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/contexts/SubscriptionContext";
@@ -6,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
 import { PricingHero } from "@/components/pricing/PricingHero";
-import { PricingToggle } from "@/components/pricing/PricingToggle";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
 import { FAQSection } from "@/components/pricing/FAQSection";
 import { FinalCTA } from "@/components/pricing/FinalCTA";
@@ -15,98 +13,44 @@ import { FullWidthLayout } from "@/components/FullWidthLayout";
 
 const PricingPage = () => {
   const navigate = useNavigate();
-  const { updateSubscription, subscription } = useSubscription();
-  const [isAnnual, setIsAnnual] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const { refreshSubscription, subscription } = useSubscription();
   const { user } = useAuth();
-
-  const handleAnnualToggle = (checked: boolean) => {
-    setIsAnnual(checked);
-  };
+  const [loading, setLoading] = useState(false);
 
   const handleStartTrial = () => {
     navigate('/auth');
   };
 
-  const handleSelectPlan = async (plan: 'sprout' | 'bloom') => {
+  const handleSelectPlan = async () => {
     if (!user) {
-      console.log('No user found, redirecting to auth');
       navigate('/auth');
       return;
     }
 
     setLoading(true);
-    setLoadingPlan(plan);
-    
-    try {
-      console.log('=== CHECKOUT DEBUG START ===');
-      console.log('User:', { id: user.id, email: user.email });
-      console.log('Plan selection:', { plan, billingInterval: isAnnual ? 'annual' : 'monthly' });
-      console.log('Current user session:', await supabase.auth.getSession());
 
-      const requestBody = {
-        plan: plan,
-        billingInterval: isAnnual ? 'annual' : 'monthly'
-      };
-      
-      console.log('Calling create-checkout function with:', requestBody);
-      
+    try {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: requestBody
+        body: {
+          plan: 'bloomsuite',
+          billingInterval: 'year'
+        }
       });
 
-      console.log('=== FUNCTION RESPONSE ===');
-      console.log('Data:', data);
-      console.log('Error:', error);
-
       if (error) {
-        console.error('=== FUNCTION ERROR ===');
-        console.error('Error details:', error);
-        
-        // More specific error handling
-        if (error.message?.includes('Failed to send a request') || error.message?.includes('network')) {
-          
-        } else if (error.message?.includes('authentication') || error.message?.includes('unauthorized')) {
-          
-        } else {
-          
-        }
-        return;
-      }
-
-      if (data?.error) {
-        console.error('=== FUNCTION RETURNED ERROR ===');
-        console.error('Function error:', data.error);
-        
+        console.error('Checkout error:', error);
         return;
       }
 
       if (data?.url) {
-        console.log('=== CHECKOUT SUCCESS ===');
-        console.log('Redirecting to:', data.url);
-        // Open in new tab to prevent losing the current page
-        window.open(data.url, '_blank');
+        window.location.href = data.url;
       } else {
-        console.error('=== NO CHECKOUT URL ===');
-        console.error('Response data:', data);
-        
+        console.error('No checkout URL received');
       }
     } catch (error) {
-      console.error('=== UNEXPECTED ERROR ===');
-      console.error('Caught error:', error);
-      
-      if (error instanceof Error) {
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        
-      } else {
-        
-      }
+      console.error('Unexpected error during checkout:', error);
     } finally {
-      console.log('=== CHECKOUT DEBUG END ===');
       setLoading(false);
-      setLoadingPlan(null);
     }
   };
 
@@ -116,63 +60,44 @@ const PricingPage = () => {
     const checkout = urlParams.get('checkout');
     
     if (checkout === 'success') {
-      
+      refreshSubscription();
       window.history.replaceState({}, document.title, window.location.pathname);
       navigate('/');
     } else if (checkout === 'cancelled') {
-      
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [navigate]);
-
-  const pricingContent = (
-    <div className="min-h-screen bg-garden-background">
-      <PricingHero 
-        subscription={subscription}
-        onStartTrial={handleStartTrial}
-      />
-
-      <section className="py-12 px-6 bg-white/60">
-        <div className="max-w-6xl mx-auto">
-          <PricingToggle 
-            isAnnual={isAnnual}
-            onToggle={handleAnnualToggle}
-          />
-
-          <PricingPlans
-            isAnnual={isAnnual}
-            subscription={subscription}
-            loading={loading}
-            loadingPlan={loadingPlan}
-            onSelectPlan={handleSelectPlan}
-            onStartTrial={handleStartTrial}
-          />
-        </div>
-      </section>
-
-      <FAQSection />
-      <FinalCTA 
-        subscription={subscription}
-        onStartTrial={handleStartTrial}
-      />
-    </div>
-  );
+  }, [navigate, refreshSubscription]);
 
   if (user) {
     return (
       <FullWidthLayout>
-        {pricingContent}
+        <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
+          <PricingHero subscription={subscription} onStartTrial={handleStartTrial} />
+          <PricingPlans 
+            subscription={subscription}
+            loading={loading}
+            onSelectPlan={handleSelectPlan}
+            onStartTrial={handleStartTrial}
+          />
+          <FAQSection />
+          <FinalCTA subscription={subscription} onStartTrial={handleStartTrial} />
+        </div>
       </FullWidthLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-garden-background">
-      <LandingPageHeader 
-        onLogin={() => navigate('/auth')}
-        showUserMenu={true}
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
+      <LandingPageHeader onLogin={() => navigate('/auth')} />
+      <PricingHero subscription={subscription} onStartTrial={handleStartTrial} />
+      <PricingPlans 
+        subscription={subscription}
+        loading={loading}
+        onSelectPlan={handleSelectPlan}
+        onStartTrial={handleStartTrial}
       />
-      {pricingContent}
+      <FAQSection />
+      <FinalCTA subscription={subscription} onStartTrial={handleStartTrial} />
     </div>
   );
 };
