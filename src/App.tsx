@@ -47,6 +47,8 @@ import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
 import PublishPage from '@/pages/PublishPage';
 import PlanPage from '@/pages/PlanPage';
+import { AboutPage } from '@/pages/AboutPage';
+import { FeaturesPage } from '@/pages/FeaturesPage';
 
 function App() {
   return (
@@ -70,6 +72,8 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/features" element={<FeaturesPage />} />
           <Route path="/" element={<SmartRootRoute />} />
           
           {/* Protected routes with sidebar */}
