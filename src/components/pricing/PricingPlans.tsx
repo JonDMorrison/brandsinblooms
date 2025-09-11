@@ -72,7 +72,7 @@ export const PricingPlans = ({
                 {bloomSuiteFeatures.map((feature, index) => (
                   <li key={index} className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-accent-foreground">{feature}</span>
+                    <span className="text-foreground font-medium">{feature}</span>
                   </li>
                 ))}
               </ul>
