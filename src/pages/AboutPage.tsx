@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Leaf, Users, Target, TrendingUp, Heart, Award, Sprout } from 'lucide-react';
+import brandInBloomsImage from '@/assets/brands-in-blooms-jon-and-jeff.jpg';
 
 export const AboutPage = () => {
   const navigate = useNavigate();
@@ -94,7 +95,11 @@ export const AboutPage = () => {
               <Card className="p-8 bg-gradient-to-br from-green-100 to-blue-100 border-none">
                 <CardContent className="p-0">
                   <div className="text-center">
-                    <Leaf className="h-16 w-16 text-primary mx-auto mb-4" />
+                    <img 
+                      src={brandInBloomsImage} 
+                      alt="Brands In Blooms Jon And Jeff" 
+                      className="w-full h-48 object-cover rounded-lg mb-4"
+                    />
                     <h3 className="text-2xl font-bold text-foreground mb-4">Built for Garden Centers</h3>
                     <p className="text-muted-foreground">
                       Every feature, every template, and every automation is designed specifically 
