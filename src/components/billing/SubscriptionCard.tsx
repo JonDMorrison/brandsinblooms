@@ -62,23 +62,26 @@ export const SubscriptionCard = () => {
   const { subscription, loading, trialDaysLeft, isTrialExpired } = useSubscription();
   const [upgradeLoading, setUpgradeLoading] = useState(false);
 
-  const handleUpgrade = async (plan: 'sprout' | 'bloom', billingInterval: 'monthly' | 'annual' = 'monthly') => {
+  const handleUpgrade = async (plan: 'bloomsuite' = 'bloomsuite', billingInterval: 'year' = 'year') => {
     setUpgradeLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { plan, billing_interval: billingInterval }
+        body: { plan, billingInterval }
       });
       
       if (error) throw error;
       
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.location.href = data.url;
       } else {
         throw new Error('No checkout URL received');
       }
     } catch (error) {
       console.error('Error creating checkout:', error);
-      toast.error('Failed to start checkout. Please try again.');
+      // Global toast replacement
+      if (window.toast?.error) {
+        window.toast.error('Failed to start checkout. Please try again.');
+      }
     } finally {
       setUpgradeLoading(false);
     }
@@ -183,7 +186,7 @@ export const SubscriptionCard = () => {
                 {!isTrialExpired && (
                   <div className="ml-4">
                     <Button 
-                      onClick={() => handleUpgrade('bloom')}
+                      onClick={() => handleUpgrade()}
                       disabled={upgradeLoading}
                       className={`bg-gradient-to-r ${planInfo.gradient} hover:opacity-90 text-white border-0 shadow-lg`}
                       size="sm"
@@ -229,7 +232,7 @@ export const SubscriptionCard = () => {
           <div className="flex space-x-3">
             {(isTrialExpired || isExpired) && (
               <Button 
-                onClick={() => handleUpgrade('bloom')}
+                onClick={() => handleUpgrade()}
                 disabled={upgradeLoading}
                 className={`bg-gradient-to-r ${planInfo.gradient} hover:opacity-90 text-white border-0 shadow-lg`}
               >

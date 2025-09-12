@@ -6,6 +6,7 @@ import { CreditCard, Star, Shield, Link, Crown, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { SocialConnectionManager } from "@/components/analytics/SocialConnectionManager";
 import { AnalyticsSetupWizard } from "@/components/analytics/AnalyticsSetupWizard";
 import { TokenUsageDashboard } from "@/components/tokens/TokenUsageDashboard";
@@ -18,6 +19,7 @@ import { CustomerPortalButton } from "@/components/subscription/CustomerPortalBu
 
 const SubscriptionPage = () => {
   const [loading, setLoading] = useState(true);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
   const { subscription, refreshSubscription } = useSubscription();
   const { tokenBalance, getOverageAmount, getOverageCost } = useTokens();
   const navigate = useNavigate();
@@ -27,8 +29,32 @@ const SubscriptionPage = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleUpgradePlan = () => {
-    navigate('/pricing');
+  const handleUpgradePlan = async () => {
+    setUpgradeLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { 
+          plan: 'bloomsuite', 
+          billingInterval: 'year' 
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error) {
+      console.error('Error creating checkout:', error);
+      // Global toast replacement  
+      if (window.toast?.error) {
+        window.toast.error('Failed to start checkout. Please try again.');
+      }
+    } finally {
+      setUpgradeLoading(false);
+    }
   };
 
   const handleBillingHistory = () => {
@@ -120,11 +146,12 @@ const SubscriptionPage = () => {
           
           <Button
             onClick={handleUpgradePlan}
+            disabled={upgradeLoading}
             className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-md"
             size="lg"
           >
             <Star className="w-5 h-5" />
-            {subscription?.plan === 'free_trial' ? 'Upgrade Now' : 'Change Plan'}
+            {upgradeLoading ? 'Processing...' : (subscription?.plan === 'free_trial' ? 'Upgrade Now' : 'Change Plan')}
           </Button>
         </div>
       </div>
@@ -161,10 +188,11 @@ const SubscriptionPage = () => {
               <div className="space-y-3">
                 <Button 
                   onClick={handleUpgradePlan}
+                  disabled={upgradeLoading}
                   className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
                 >
                   <Star className="w-4 h-4 mr-2" />
-                  {subscription?.plan === 'free_trial' ? 'Upgrade Now' : 'Change Plan'}
+                  {upgradeLoading ? 'Processing...' : (subscription?.plan === 'free_trial' ? 'Upgrade Now' : 'Change Plan')}
                 </Button>
                 
                 {(subscription?.plan === 'sprout' || subscription?.plan === 'bloom') && (
