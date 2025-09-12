@@ -52,7 +52,7 @@ export const PricingHero = ({ subscription, onStartTrial, onBuyNow }: PricingHer
                   >
                     Buy Now
                   </Button>
-                  <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
+                  <div className="absolute inset-0 pointer-events-none bg-primary/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
                 </div>
               )}
             </div>
