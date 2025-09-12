@@ -98,7 +98,7 @@ export const AboutPage = () => {
                     <img 
                       src={brandInBloomsImage} 
                       alt="Brands In Blooms Jon And Jeff" 
-                      className="w-full h-48 object-cover rounded-lg mb-4"
+                      className="w-full h-96 object-cover object-center rounded-lg mb-4"
                     />
                   </div>
                 </CardContent>
