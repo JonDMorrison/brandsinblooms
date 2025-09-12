@@ -42,7 +42,15 @@ const SubscriptionPage = () => {
       if (error) throw error;
       
       if (data?.url) {
-        window.location.href = data.url;
+        try {
+          if (window.top) {
+            window.top.location.href = data.url;
+          } else {
+            window.location.href = data.url;
+          }
+        } catch {
+          window.open(data.url, '_blank', 'noopener,noreferrer');
+        }
       } else {
         throw new Error('No checkout URL received');
       }
