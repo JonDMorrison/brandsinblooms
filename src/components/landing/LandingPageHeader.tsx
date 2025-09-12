@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserMenu } from "@/components/UserMenu";
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
+import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 
 interface LandingPageHeaderProps {
   onLogin: () => void;
@@ -32,7 +33,8 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   return (
     <nav className="flex justify-between items-center px-6 py-4 relative z-50">
       <div className="flex items-center gap-4">
-        <Link to="/" className="text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
+        <Link to="/" className="flex items-center gap-2 text-2xl font-bold text-foreground hover:text-foreground/80 transition-colors">
+          <img src={bloomsuiteLogo} alt="BloomSuite Logo" className="h-8 w-8" />
           BloomSuite
         </Link>
       </div>
