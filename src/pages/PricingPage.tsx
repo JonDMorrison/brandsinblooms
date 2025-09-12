@@ -72,7 +72,7 @@ const PricingPage = () => {
     return (
       <FullWidthLayout>
         <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
-          <PricingHero subscription={subscription} onStartTrial={handleStartTrial} />
+        <PricingHero subscription={subscription} onStartTrial={handleStartTrial} onBuyNow={handleSelectPlan} />
           <PricingPlans 
             subscription={subscription}
             loading={loading}
@@ -89,7 +89,7 @@ const PricingPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
       <LandingPageHeader onLogin={() => navigate('/auth')} />
-      <PricingHero subscription={subscription} onStartTrial={handleStartTrial} />
+      <PricingHero subscription={subscription} onStartTrial={handleStartTrial} onBuyNow={handleSelectPlan} />
       <PricingPlans 
         subscription={subscription}
         loading={loading}

@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 interface PricingHeroProps {
   subscription: any;
   onStartTrial: () => void;
+  onBuyNow?: () => void;
 }
 
-export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) => {
+export const PricingHero = ({ subscription, onStartTrial, onBuyNow }: PricingHeroProps) => {
   return (
     <section className="relative py-12 md:py-16 px-6 text-center overflow-hidden bg-white">
       {/* Bright Background Elements */}
@@ -32,14 +33,28 @@ export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) =>
           </p>
           
           {!subscription && (
-            <div className="relative group">
-              <Button 
-                onClick={onStartTrial}
-                className="bg-gradient-to-r from-brand-teal-mint via-brand-teal-mint to-brand-steel-blue hover:from-brand-steel-blue hover:to-brand-teal-mint text-white px-8 py-3 text-lg rounded-2xl shadow-2xl hover:shadow-brand-teal-mint/25 transition-all duration-300 hover:scale-105 border border-white/20"
-              >
-                Start Free Trial
-              </Button>
-              <div className="absolute inset-0 bg-gradient-to-r from-brand-teal-mint/20 to-brand-steel-blue/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <div className="relative group">
+                <Button 
+                  onClick={onStartTrial}
+                  className="bg-gradient-to-r from-brand-teal-mint via-brand-teal-mint to-brand-steel-blue hover:from-brand-steel-blue hover:to-brand-teal-mint text-white px-8 py-3 text-lg rounded-2xl shadow-2xl hover:shadow-brand-teal-mint/25 transition-all duration-300 hover:scale-105 border border-white/20"
+                >
+                  Start Free Trial
+                </Button>
+                <div className="absolute inset-0 bg-gradient-to-r from-brand-teal-mint/20 to-brand-steel-blue/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
+              </div>
+              
+              {onBuyNow && (
+                <div className="relative group">
+                  <Button 
+                    onClick={onBuyNow}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg rounded-2xl shadow-2xl hover:shadow-primary/25 transition-all duration-300 hover:scale-105 border border-white/20"
+                  >
+                    Buy Now
+                  </Button>
+                  <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
+                </div>
+              )}
             </div>
           )}
 
