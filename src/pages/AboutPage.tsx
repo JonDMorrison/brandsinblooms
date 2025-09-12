@@ -100,10 +100,6 @@ export const AboutPage = () => {
                       alt="Brands In Blooms Jon And Jeff" 
                       className="w-full h-48 object-cover rounded-lg mb-4"
                     />
-                    <p className="text-muted-foreground">
-                      Every feature, every template, and every automation is designed specifically 
-                      for the garden center industry.
-                    </p>
                   </div>
                 </CardContent>
               </Card>
