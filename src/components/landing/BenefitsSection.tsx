@@ -60,7 +60,7 @@ export const BenefitsSection = () => {
   return <section className="py-24 px-6 bg-offwhite">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20">
-          <h2 className="text-4xl font-bold mb-6 text-accent">What You Get: Everything You Need
+          <h2 className="text-4xl font-bold mb-6 text-accent">Everything You Need
 To Market Your Garden Center</h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Stop paying for multiple tools. Get everything you need to attract customers, increase sales, and build loyalty — all in one platform.
