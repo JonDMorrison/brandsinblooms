@@ -92,7 +92,7 @@ export const AboutPage = () => {
               </div>
             </div>
             <div className="relative">
-              <Card className="p-8 bg-gradient-to-br from-green-100 to-blue-100 border-none">
+              <Card className="p-8 border-none">
                 <CardContent className="p-0">
                   <div className="text-center">
                     <img 
