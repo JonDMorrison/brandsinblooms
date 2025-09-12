@@ -33,7 +33,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   return (
     <nav className="flex justify-between items-center px-6 py-4 relative z-50">
       <div className="flex items-center gap-4">
-        <Link to="/" className="flex items-center gap-2 text-2xl font-bold text-foreground hover:text-foreground/80 transition-colors">
+        <Link to="/" className="flex items-center gap-2 text-2xl font-bold text-black hover:text-black/80 transition-colors">
           <img src={bloomsuiteLogo} alt="BloomSuite Logo" className="h-8 w-8" />
           BloomSuite
         </Link>
