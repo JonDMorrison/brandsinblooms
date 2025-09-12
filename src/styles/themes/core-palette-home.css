@@ -105,6 +105,9 @@
 .theme-core-home .text-slate-800 { color: hsl(var(--core-deep-indigo)) !important; }
 .theme-core-home .text-slate-600 { color: hsl(var(--core-cool-gray)) !important; }
 
+/* Black Text Override */
+.theme-core-home .text-black { color: #000000 !important; }
+
 /* Gradients with Core Colors */
 .theme-core-home .from-slate-800 { --tw-gradient-from: hsl(var(--core-deep-indigo)) !important; }
 .theme-core-home .to-slate-600 { --tw-gradient-to: hsl(var(--core-cool-gray)) !important; }
