@@ -2,6 +2,7 @@
 import * as React from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase, forceLogout } from "@/integrations/supabase/client";
+import { analytics } from "@/lib/analytics";
 
 interface AuthContextType {
   user: User | null;
@@ -92,6 +93,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(null);
           setAuthError(null);
           setIsInLimboState(false);
+          analytics.reset();
+          analytics.trackBehaviorOnly(); // Track as anonymous user
         }
         
         if (event === 'TOKEN_REFRESHED') {
@@ -101,9 +104,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('✅ User signed in successfully:', session.user.email);
           
-          // Defer any additional data fetching to prevent deadlocks
+          // Initialize analytics with proper user identification
           setTimeout(() => {
-            console.log('📊 Auth state settled, ready for data fetching');
+            analytics.identifyUser(session.user);
+            console.log('📊 Auth state settled, analytics initialized');
           }, 0);
         }
       }
@@ -123,6 +127,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      // Initialize analytics based on user status
+      if (session?.user) {
+        analytics.identifyUser(session.user);
+      } else {
+        analytics.trackBehaviorOnly();
+      }
     });
 
     return () => {
