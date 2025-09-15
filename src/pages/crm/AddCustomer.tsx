@@ -32,7 +32,8 @@ type CustomerFormData = {
   first_name: string;
   last_name: string;
   phone: string;
-  persona: string;
+  persona_id?: string; // New unified persona reference
+  persona?: string; // Legacy string - not used, will be null
   tags: string[];
   sms_opt_in: boolean;
   lifetime_value: number;
@@ -53,6 +54,7 @@ const AddCustomer = () => {
     first_name: '',
     last_name: '',
     phone: '',
+    persona_id: '',
     persona: '',
     tags: [],
     sms_opt_in: false,
@@ -64,12 +66,18 @@ const AddCustomer = () => {
 
   const [newTag, setNewTag] = useState('');
 
-  const customerPersonas = [
-    { value: 'newbie', label: 'Newbie Gardener' },
-    { value: 'struggler', label: 'Struggling Gardener' }, 
-    { value: 'regular', label: 'Regular Gardener' },
-    { value: 'expert', label: 'Expert Gardener' }
-  ];
+  // Fetch CRM personas for selection
+  const { data: crmPersonas = [], isLoading: personasLoading } = useQuery({
+    queryKey: ['crm-personas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('crm_personas')
+        .select('id, persona_name, persona_description')
+        .order('persona_name');
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
   const addCustomerMutation = useMutation({
     mutationFn: async (customerData: CustomerFormData) => {
@@ -86,7 +94,8 @@ const AddCustomer = () => {
         first_name: customerData.first_name || null,
         last_name: customerData.last_name || null,
         phone: customerData.phone || null,
-        persona: customerData.persona || null,
+        persona_id: customerData.persona_id || null,
+        persona: null, // clear legacy string field
         tags: customerData.tags.length > 0 ? customerData.tags : null,
         sms_opt_in: customerData.sms_opt_in,
         sms_opt_in_at: customerData.sms_opt_in ? new Date().toISOString() : null,
@@ -113,7 +122,7 @@ const AddCustomer = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({ 
         title: "Customer added successfully",
         description: "The new customer has been added to your database."
@@ -328,10 +337,11 @@ const AddCustomer = () => {
               <div>
                 <Label htmlFor="persona">Gardening Persona</Label>
                 <NativeSelect 
-                  value={formData.persona} 
-                  onChange={(e) => handleInputChange('persona', e.target.value)}
+                  value={formData.persona_id || ''}
+                  onChange={(e) => handleInputChange('persona_id', e.target.value)}
                   placeholder="Select a persona..."
-                  options={customerPersonas}
+                  options={crmPersonas.map(p => ({ value: p.id, label: p.persona_name }))}
+                  disabled={personasLoading}
                 />
               </div>
 

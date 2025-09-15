@@ -27,15 +27,20 @@ export const CustomerPersonaSelector = ({
 
   // Query personas directly from the database (UUIDs only)
   const { data: personas = [], isLoading: personasLoading } = useQuery({
-    queryKey: ['personas'],
+    queryKey: ['crm-personas'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('personas')
-        .select('id, name, description, tone, icon, color_theme')
-        .order('name');
+        .from('crm_personas')
+        .select('id, persona_name, persona_description')
+        .order('persona_name');
       
       if (error) throw error;
-      return data || [];
+      // Map to a uniform shape for this component
+      return (data || []).map((p) => ({
+        id: p.id,
+        name: p.persona_name,
+        description: p.persona_description,
+      }));
     }
   });
 
