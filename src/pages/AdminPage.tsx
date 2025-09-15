@@ -162,71 +162,41 @@ const AdminPage = () => {
                 </span>
               </div>
               
-              {totalPages > 1 && (
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (currentPage > 1) {
-                            const newPage = currentPage - 1;
-                            goToPage(newPage);
-                            fetchTenants(currentSearch, currentStatus, newPage);
-                          }
-                        }}
-                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                      />
-                    </PaginationItem>
-                    
-                    {/* Show page numbers */}
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      
-                      return (
-                        <PaginationItem key={pageNum}>
-                          <PaginationLink
-                            href="#"
-                            isActive={pageNum === currentPage}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              goToPage(pageNum);
-                              fetchTenants(currentSearch, currentStatus, pageNum);
-                            }}
-                          >
-                            {pageNum}
-                          </PaginationLink>
-                        </PaginationItem>
-                      );
-                    })}
-                    
-                    <PaginationItem>
-                      <PaginationNext 
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (currentPage < totalPages) {
-                            const newPage = currentPage + 1;
-                            goToPage(newPage);
-                            fetchTenants(currentSearch, currentStatus, newPage);
-                          }
-                        }}
-                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (currentPage > 1) {
+                      const newPage = currentPage - 1;
+                      goToPage(newPage);
+                      fetchTenants(currentSearch, currentStatus, newPage);
+                    }
+                  }}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                
+                <span className="text-sm text-muted-foreground px-2">
+                  Page {currentPage} of {totalPages}
+                </span>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (currentPage < totalPages) {
+                      const newPage = currentPage + 1;
+                      goToPage(newPage);
+                      fetchTenants(currentSearch, currentStatus, newPage);
+                    }
+                  }}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </div>
