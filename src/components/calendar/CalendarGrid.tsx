@@ -247,56 +247,60 @@ export const CalendarGrid = React.memo(({
         </div>
       </div>
       
-      {/* Desktop: Standard grid */}
-      <div className={`hidden md:block relative grid ${gridCols} ${dayHeight}`}>
-        {/* Clean Day headers */}
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
-          <div key={day} className="bg-slate-100 p-3 text-sm font-bold text-slate-700 h-12 flex items-center justify-center border-b border-slate-200">
-            <span className="tracking-wide">{day}</span>
-          </div>
-        ))}
+      {/* Desktop: Traditional calendar grid */}
+      <div className="hidden md:block">
+        {/* Day headers row */}
+        <div className="grid grid-cols-7 border-b border-slate-200">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+            <div key={day} className="bg-slate-100 p-3 text-sm font-bold text-slate-700 h-12 flex items-center justify-center border-r border-slate-200 last:border-r-0">
+              <span className="tracking-wide">{day}</span>
+            </div>
+          ))}
+        </div>
         
-        {/* Calendar days with clean styling */}
-        {days.map((date) => {
-          const dateKey = format(date, 'yyyy-MM-dd');
-          
-          // Get campaigns, tasks, newsletters, holidays, and scheduled posts for this specific date only
-          const dayCampaigns = campaignsByDate.get(dateKey) || [];
-          const dayTasks = tasksByDate.get(dateKey) || [];
-          const dayNewsletters = newslettersByDate.get(dateKey) || [];
-          const dayHolidays = holidaysByDate.get(dateKey) || [];
-          const dayScheduledPosts = scheduledPostsByDate.get(dateKey) || [];
+        {/* Calendar days grid */}
+        <div className={`grid grid-cols-7 ${viewMode === 'week' ? 'h-full' : ''}`}>
+          {days.map((date) => {
+            const dateKey = format(date, 'yyyy-MM-dd');
+            
+            // Get campaigns, tasks, newsletters, holidays, and scheduled posts for this specific date only
+            const dayCampaigns = campaignsByDate.get(dateKey) || [];
+            const dayTasks = tasksByDate.get(dateKey) || [];
+            const dayNewsletters = newslettersByDate.get(dateKey) || [];
+            const dayHolidays = holidaysByDate.get(dateKey) || [];
+            const dayScheduledPosts = scheduledPostsByDate.get(dateKey) || [];
 
-          const isCurrentMonth = viewMode === 'week' || isSameMonth(date, currentDate);
-          const isToday = date.toDateString() === new Date().toDateString();
+            const isCurrentMonth = viewMode === 'week' || isSameMonth(date, currentDate);
+            const isToday = date.toDateString() === new Date().toDateString();
 
-          return (
-            <CalendarDayCell
-              key={date.toISOString()}
-              date={date}
-              campaigns={dayCampaigns}
-              tasks={dayTasks}
-              newsletters={dayNewsletters}
-              holidays={dayHolidays}
-              scheduledPosts={dayScheduledPosts}
-              onTaskClick={onTaskClick}
-              onTaskLongPress={onTaskLongPress}
-              onCampaignClick={onCampaignClick}
-              onNewsletterClick={onNewsletterClick}
-              onHolidayClick={onHolidayClick}
-              onDateClick={onDateClick}
-              isCurrentMonth={isCurrentMonth}
-              isToday={isToday}
-              selectionMode={true}
-              onDrop={onDrop}
-              isTaskSelected={isTaskSelected}
-              isDragging={isDragging}
-              draggedTask={draggedTask}
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
-            />
-          );
-        })}
+            return (
+              <CalendarDayCell
+                key={date.toISOString()}
+                date={date}
+                campaigns={dayCampaigns}
+                tasks={dayTasks}
+                newsletters={dayNewsletters}
+                holidays={dayHolidays}
+                scheduledPosts={dayScheduledPosts}
+                onTaskClick={onTaskClick}
+                onTaskLongPress={onTaskLongPress}
+                onCampaignClick={onCampaignClick}
+                onNewsletterClick={onNewsletterClick}
+                onHolidayClick={onHolidayClick}
+                onDateClick={onDateClick}
+                isCurrentMonth={isCurrentMonth}
+                isToday={isToday}
+                selectionMode={true}
+                onDrop={onDrop}
+                isTaskSelected={isTaskSelected}
+                isDragging={isDragging}
+                draggedTask={draggedTask}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );
