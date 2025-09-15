@@ -142,3 +142,70 @@ class AnalyticsService {
 }
 
 export const analytics = new AnalyticsService();
+
+// Safeguard to intercept direct analytics calls and route them through our safe service
+if (typeof window !== 'undefined') {
+  const originalAnalytics = (window as any).analytics;
+  const originalRudderAnalytics = (window as any).rudderanalytics;
+  
+  // Override window.analytics.identify to use our safe implementation
+  const safeAnalyticsProxy = {
+    identify: (userId: string, traits: Record<string, any>) => {
+      console.warn('⚠️ Direct analytics.identify() call intercepted - using safe implementation');
+      // Don't call identify if we don't have minimum required fields
+      const hasEmailOrPhone = traits.email || traits.phone;
+      const hasAdditionalField = traits.firstName || traits.lastName || traits.postalCode || traits.country;
+      
+      if (hasEmailOrPhone && hasAdditionalField) {
+        // Only call original if we have required fields
+        if (originalAnalytics?.identify) {
+          originalAnalytics.identify(userId, traits);
+        }
+        if (originalRudderAnalytics?.identify) {
+          originalRudderAnalytics.identify(userId, traits);
+        }
+      } else {
+        console.log('🚫 Skipping identify call - insufficient data for Google Ads requirements');
+      }
+    },
+    track: (event: string, properties?: Record<string, any>) => {
+      if (originalAnalytics?.track) originalAnalytics.track(event, properties);
+      if (originalRudderAnalytics?.track) originalRudderAnalytics.track(event, properties);
+    },
+    page: (name?: string, properties?: Record<string, any>) => {
+      if (originalAnalytics?.page) originalAnalytics.page(name, properties);
+      if (originalRudderAnalytics?.page) originalRudderAnalytics.page(name, properties);
+    }
+  };
+
+  // Override both possible analytics objects
+  if (originalAnalytics) {
+    (window as any).analytics = { ...originalAnalytics, ...safeAnalyticsProxy };
+  }
+  if (originalRudderAnalytics) {
+    (window as any).rudderanalytics = { ...originalRudderAnalytics, ...safeAnalyticsProxy };
+  }
+
+  // Set up a periodic check to override analytics when it gets loaded
+  const setupAnalyticsOverride = () => {
+    const currentAnalytics = (window as any).analytics;
+    const currentRudder = (window as any).rudderanalytics;
+    
+    if (currentAnalytics && !currentAnalytics._safeOverrideApplied) {
+      (window as any).analytics = { ...currentAnalytics, ...safeAnalyticsProxy, _safeOverrideApplied: true };
+      console.log('✅ Analytics safe override applied');
+    }
+    
+    if (currentRudder && !currentRudder._safeOverrideApplied) {
+      (window as any).rudderanalytics = { ...currentRudder, ...safeAnalyticsProxy, _safeOverrideApplied: true };
+      console.log('✅ RudderStack safe override applied');
+    }
+  };
+
+  // Apply override immediately and periodically for dynamic loading
+  setupAnalyticsOverride();
+  const intervalId = setInterval(setupAnalyticsOverride, 1000); // Check every second for the first 10 seconds
+  setTimeout(() => {
+    clearInterval(intervalId);
+  }, 10000);
+}
