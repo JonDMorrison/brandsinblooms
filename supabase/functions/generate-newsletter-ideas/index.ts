@@ -74,16 +74,27 @@ serve(async (req) => {
     try {
       // Clean the content by removing markdown code blocks
       let cleanContent = content.trim();
+      console.log('🔍 Original content length:', content.length);
+      console.log('🔍 Content starts with:', content.substring(0, 20));
+      console.log('🔍 Content ends with:', content.substring(content.length - 20));
+      
       if (cleanContent.startsWith('```json')) {
         cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        console.log('🔧 Removed ```json wrapper');
       } else if (cleanContent.startsWith('```')) {
         cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        console.log('🔧 Removed ``` wrapper');
       }
       
+      console.log('🧹 Cleaned content length:', cleanContent.length);
+      console.log('🧹 Cleaned content preview:', cleanContent.substring(0, 100));
+      
       parsedContent = JSON.parse(cleanContent);
+      console.log('✅ Successfully parsed JSON with', parsedContent.ideas?.length || 0, 'ideas');
     } catch (parseError) {
-      console.error('Failed to parse OpenAI response as JSON:', content);
-      throw new Error('Invalid response format from AI');
+      console.error('❌ Parse error details:', parseError.message);
+      console.error('❌ Failed content:', content);
+      throw new Error(`Invalid response format from AI: ${parseError.message}`);
     }
 
     if (!parsedContent.ideas || !Array.isArray(parsedContent.ideas)) {
