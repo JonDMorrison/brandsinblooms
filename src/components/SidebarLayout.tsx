@@ -62,7 +62,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       <div className="min-h-screen w-full flex">        
         <AppSidebar />
         
-        <main className="flex-1 w-full min-h-screen overflow-auto">
+        <main className="flex-1 w-full min-h-screen flex flex-col">
           {/* Trial Banner */}
           <TrialBanner />
           
@@ -90,8 +90,10 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
             </div>
           </header>
           
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            {children}
+          <div className="flex-1 overflow-auto">
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              {children}
+            </div>
           </div>
         </main>
       </div>
