@@ -41,53 +41,53 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   };
 
   return (
-    <nav className={`flex justify-between items-center px-6 py-4 sticky top-0 z-50 bg-background/80 backdrop-blur-md transition-shadow duration-300 ${isScrolled ? 'shadow-lg shadow-black/10' : ''}`}>
-      <div className="flex items-center gap-4">
+    <nav className={`flex items-center px-6 py-4 sticky top-0 z-50 bg-background/80 backdrop-blur-md transition-shadow duration-300 ${isScrolled ? 'shadow-lg shadow-black/10' : ''}`}>
+      {/* Logo */}
+      <div className="flex items-center">
         <Link to="/" className="flex items-center gap-2 text-2xl font-bold text-black hover:text-black/80 transition-colors">
           <img src={bloomsuiteLogo} alt="BloomSuite Logo" className="h-8 w-8" />
           BloomSuite
         </Link>
       </div>
 
-      {/* Desktop Navigation */}
-      <div className="hidden md:flex items-center gap-8">
-        <div className="flex items-center gap-6">
-          {navItems.map((item) => (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActiveRoute(item.href) 
-                  ? "text-primary border-b-2 border-primary pb-1" 
-                  : "text-muted-foreground"
-              }`}
-            >
-              {item.name}
-            </Link>
-          ))}
-        </div>
+      {/* Navigation Links - Right after logo */}
+      <div className="hidden md:flex items-center gap-8 ml-12">
+        {navItems.map((item) => (
+          <Link
+            key={item.name}
+            to={item.href}
+            className={`text-sm font-medium transition-colors hover:text-primary ${
+              isActiveRoute(item.href) 
+                ? "text-primary border-b-2 border-primary pb-1" 
+                : "text-muted-foreground"
+            }`}
+          >
+            {item.name}
+          </Link>
+        ))}
+      </div>
         
-        <div className="flex items-center gap-3">
-          {user && showUserMenu ? (
-            <UserMenu />
-          ) : !user ? (
-            <>
-              <Button 
-                onClick={onLogin}
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Client Login
-              </Button>
-              <Button 
-                onClick={onLogin}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                Start For Free
-              </Button>
-            </>
-          ) : null}
-        </div>
+      {/* Auth Buttons - Far right */}
+      <div className="hidden md:flex items-center gap-3 ml-auto">
+        {user && showUserMenu ? (
+          <UserMenu />
+        ) : !user ? (
+          <>
+            <Button 
+              onClick={onLogin}
+              variant="ghost"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Client Login
+            </Button>
+            <Button 
+              onClick={onLogin}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              Start For Free
+            </Button>
+          </>
+        ) : null}
       </div>
 
       {/* Mobile Menu Button */}
