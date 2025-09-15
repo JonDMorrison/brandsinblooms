@@ -1,5 +1,5 @@
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { TrialBanner } from "@/components/TrialBanner";
 import { UserMenu } from "@/components/UserMenu";
@@ -15,6 +15,17 @@ interface SidebarLayoutProps {
 
 export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const { user } = useAuth();
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Track scroll position for header styling
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Defensive: ensure nothing marks the sidebar wrapper aria-hidden
   useEffect(() => {
@@ -56,7 +67,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           <TrialBanner />
           
           {/* Sticky Top Bar with Toggle Button and UserMenu */}
-          <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+          <header className={`sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b transition-shadow duration-300 ${isScrolled ? 'shadow-lg shadow-black/10' : ''}`}>
             <div className="flex justify-between items-center px-4 py-2">
               <div className="flex items-center gap-3 md:hidden">
                 <HeaderToggleButton />
