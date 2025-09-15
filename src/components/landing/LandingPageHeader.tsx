@@ -70,7 +70,15 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
       {/* Auth Buttons - Far right */}
       <div className="hidden md:flex items-center gap-3 ml-auto">
         {user && showUserMenu ? (
-          <UserMenu />
+          <Button 
+            asChild
+            variant="outline"
+            className="text-foreground border-border hover:bg-accent"
+          >
+            <Link to="/dashboard">
+              Your Account
+            </Link>
+          </Button>
         ) : !user ? (
           <>
             <Button 
@@ -78,13 +86,13 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
               variant="ghost"
               className="text-muted-foreground hover:text-foreground"
             >
-              Client Login
+              Sign In
             </Button>
             <Button 
               onClick={onLogin}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              Start For Free
+              Sign Up
             </Button>
           </>
         ) : null}
@@ -93,7 +101,16 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
       {/* Mobile Menu Button */}
       <div className="md:hidden flex items-center gap-4">
         {user && showUserMenu ? (
-          <UserMenu />
+          <Button 
+            asChild
+            variant="outline"
+            size="sm"
+            className="text-foreground border-border hover:bg-accent"
+          >
+            <Link to="/dashboard">
+              Your Account
+            </Link>
+          </Button>
         ) : null}
         <Button
           variant="ghost"
@@ -131,7 +148,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
                   variant="ghost"
                   className="justify-start text-muted-foreground hover:text-foreground"
                 >
-                  Client Login
+                  Sign In
                 </Button>
                 <Button 
                   onClick={() => {
@@ -140,7 +157,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
                   }}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
-                  Start For Free
+                  Sign Up
                 </Button>
               </div>
             )}
