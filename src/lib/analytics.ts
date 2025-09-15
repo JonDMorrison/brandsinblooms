@@ -32,11 +32,25 @@ class AnalyticsService {
   }
 
   private hasMinimumRequiredFields(userData: UserIdentityData): boolean {
-    // Check if we have email/phone AND at least one of: firstName, lastName, postalCode, country
-    const hasEmailOrPhone = userData.email || userData.phone;
-    const hasAdditionalField = userData.firstName || userData.lastName || userData.postalCode || userData.country;
+    // Google Ads requirements: Email OR Phone is mandatory AND at least one of: firstName, lastName, postalCode, country
+    const hasEmailOrPhone = !!(userData.email && userData.email.trim()) || !!(userData.phone && userData.phone.trim());
+    const hasAdditionalField = !!(userData.firstName && userData.firstName.trim()) || 
+                               !!(userData.lastName && userData.lastName.trim()) || 
+                               !!(userData.postalCode && userData.postalCode.trim()) || 
+                               !!(userData.country && userData.country.trim());
     
-    return !!(hasEmailOrPhone && hasAdditionalField);
+    console.log('🔍 Analytics: Field validation:', {
+      hasEmailOrPhone,
+      hasAdditionalField,
+      email: userData.email ? 'present' : 'missing',
+      phone: userData.phone ? 'present' : 'missing',
+      firstName: userData.firstName ? 'present' : 'missing',
+      lastName: userData.lastName ? 'present' : 'missing',
+      postalCode: userData.postalCode ? 'present' : 'missing',
+      country: userData.country ? 'present' : 'missing'
+    });
+    
+    return hasEmailOrPhone && hasAdditionalField;
   }
 
   private extractUserData(user: User): UserIdentityData | null {
@@ -49,7 +63,20 @@ class AnalyticsService {
       postalCode: user.user_metadata?.postal_code || user.user_metadata?.zip_code || ''
     };
 
-    return this.hasMinimumRequiredFields(userData) ? userData : null;
+    console.log('🔍 Analytics: Extracted user data:', {
+      hasEmail: !!userData.email,
+      hasPhone: !!userData.phone,
+      hasFirstName: !!userData.firstName,
+      hasLastName: !!userData.lastName,
+      hasCountry: !!userData.country,
+      hasPostalCode: !!userData.postalCode,
+      userData: userData // Full data for debugging
+    });
+
+    const isValid = this.hasMinimumRequiredFields(userData);
+    console.log(`🔍 Analytics: User data validation result: ${isValid}`);
+    
+    return isValid ? userData : null;
   }
 
   /**
@@ -57,13 +84,19 @@ class AnalyticsService {
    * Only calls identify if we have the minimum required fields
    */
   identifyUser(user: User): void {
+    console.log('🔍 Analytics: identifyUser called for user:', user.id);
+    
     const analytics = this.getAnalyticsInstance();
-    if (!analytics) return;
+    if (!analytics) {
+      console.log('⚠️ Analytics: No analytics instance found');
+      return;
+    }
 
     const userData = this.extractUserData(user);
     
     if (userData) {
       try {
+        console.log('✅ Analytics: Calling identify with validated data');
         analytics.identify(user.id, {
           email: userData.email,
           firstName: userData.firstName,
@@ -82,6 +115,7 @@ class AnalyticsService {
       }
     } else {
       console.warn('⚠️ Analytics: Skipping user identification - insufficient data for Google Ads requirements');
+      console.warn('⚠️ Analytics: Required: (email OR phone) AND (firstName OR lastName OR postalCode OR country)');
       // For users without sufficient data, we only track behavior, no identify
       this.trackBehaviorOnly();
     }
@@ -152,11 +186,23 @@ if (typeof window !== 'undefined') {
   const safeAnalyticsProxy = {
     identify: (userId: string, traits: Record<string, any>) => {
       console.warn('⚠️ Direct analytics.identify() call intercepted - using safe implementation');
+      console.log('🔍 Direct identify call with traits:', traits);
+      
       // Don't call identify if we don't have minimum required fields
-      const hasEmailOrPhone = traits.email || traits.phone;
-      const hasAdditionalField = traits.firstName || traits.lastName || traits.postalCode || traits.country;
+      const hasEmailOrPhone = (traits.email && traits.email.trim()) || (traits.phone && traits.phone.trim());
+      const hasAdditionalField = (traits.firstName && traits.firstName.trim()) || 
+                                 (traits.lastName && traits.lastName.trim()) || 
+                                 (traits.postalCode && traits.postalCode.trim()) || 
+                                 (traits.country && traits.country.trim());
+      
+      console.log('🔍 Direct identify validation:', {
+        hasEmailOrPhone,
+        hasAdditionalField,
+        willExecute: hasEmailOrPhone && hasAdditionalField
+      });
       
       if (hasEmailOrPhone && hasAdditionalField) {
+        console.log('✅ Direct identify: Executing with sufficient data');
         // Only call original if we have required fields
         if (originalAnalytics?.identify) {
           originalAnalytics.identify(userId, traits);
@@ -165,7 +211,8 @@ if (typeof window !== 'undefined') {
           originalRudderAnalytics.identify(userId, traits);
         }
       } else {
-        console.log('🚫 Skipping identify call - insufficient data for Google Ads requirements');
+        console.log('🚫 Skipping direct identify call - insufficient data for Google Ads requirements');
+        console.log('🚫 Required: (email OR phone) AND (firstName OR lastName OR postalCode OR country)');
       }
     },
     track: (event: string, properties?: Record<string, any>) => {
