@@ -67,7 +67,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           <TrialBanner />
           
           {/* Sticky Top Bar with Toggle Button and UserMenu */}
-          <header className={`sticky top-0 z-40 transition-all duration-300 ${isScrolled ? 'bg-white shadow-lg shadow-black/10' : 'bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'}`}>
+          <header className={`sticky top-0 z-40 transition-all duration-300 ${isScrolled ? 'bg-white shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)]' : 'bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'}`}>
             <div className="flex justify-between items-center px-4 py-2">
               <div className="flex items-center gap-3 md:hidden">
                 <HeaderToggleButton />
