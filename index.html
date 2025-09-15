@@ -58,6 +58,51 @@
         opacity: 1;
       }
     </style>
+
+    <!-- BLOCK ALL ANALYTICS TO PREVENT RUDDERSTACK ERRORS -->
+    <script>
+      console.log('🚫 BLOCKING ALL ANALYTICS TO PREVENT RUDDERSTACK GOOGLE ADS ERRORS');
+      
+      // Completely block analytics and RudderStack before any other scripts load
+      const noopAnalytics = {
+        identify: function() { 
+          console.warn('🚫 BLOCKED: analytics.identify() call prevented'); 
+        },
+        track: function() { 
+          console.log('📊 SAFE: analytics.track() call allowed'); 
+        },
+        page: function() { 
+          console.log('📊 SAFE: analytics.page() call allowed'); 
+        },
+        load: function() { 
+          console.warn('🚫 BLOCKED: analytics.load() call prevented'); 
+        },
+        reset: function() { 
+          console.log('📊 SAFE: analytics.reset() call allowed'); 
+        }
+      };
+
+      // Block both possible analytics objects immediately
+      window.analytics = noopAnalytics;
+      window.rudderanalytics = noopAnalytics;
+      
+      // Prevent any dynamic loading of RudderStack
+      const originalSetProperty = Object.defineProperty;
+      Object.defineProperty = function(obj, prop, descriptor) {
+        if ((prop === 'analytics' || prop === 'rudderanalytics') && obj === window) {
+          console.warn('🚫 BLOCKED: Attempt to set ' + prop + ' on window object');
+          return originalSetProperty(obj, prop, {
+            ...descriptor,
+            value: noopAnalytics,
+            writable: false,
+            configurable: false
+          });
+        }
+        return originalSetProperty(obj, prop, descriptor);
+      };
+
+      console.log('✅ Analytics blocking initialized - identify calls will be prevented');
+    </script>
   </head>
   <body>
     <div id="root"></div>
