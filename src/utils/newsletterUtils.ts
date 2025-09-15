@@ -31,9 +31,18 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
   try {
     // Decode URL-encoded content first and fix line breaks
     let decodedContent = yamlContent;
+    const safeDecodeURIComponent = (value: string) => {
+      try {
+        return decodeURIComponent(value);
+      } catch (error) {
+        console.warn('Failed to decode URI component:', value, error);
+        return value; // Return original value if decoding fails
+      }
+    };
+    
     try {
       if (yamlContent.includes('%')) {
-        decodedContent = decodeURIComponent(yamlContent);
+        decodedContent = safeDecodeURIComponent(yamlContent);
       }
       
       // Fix malformed YAML structure

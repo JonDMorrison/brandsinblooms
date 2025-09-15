@@ -16,7 +16,16 @@ export interface NewsletterToCRMConversion {
 
 // New standalone function for direct YAML to ContentBlock conversion
 export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlock[] {
-  const decoded = decodeURIComponent(newsletterRaw);
+  const safeDecodeURIComponent = (value: string) => {
+    try {
+      return decodeURIComponent(value);
+    } catch (error) {
+      console.warn('Failed to decode URI component:', value, error);
+      return value; // Return original value if decoding fails
+    }
+  };
+  
+  const decoded = safeDecodeURIComponent(newsletterRaw);
   let parsedBlocks: ContentBlock[] = [];
 
   // First try YAML parsing
@@ -164,9 +173,18 @@ export const convertNewsletterToCRM = (
   
   // Enhanced URL decode and YAML structure preprocessing
   let decodedContent = newsletterContent;
+  const safeDecodeURIComponent = (value: string) => {
+    try {
+      return decodeURIComponent(value);
+    } catch (error) {
+      console.warn('Failed to decode URI component:', value, error);
+      return value; // Return original value if decoding fails
+    }
+  };
+  
   try {
     if (newsletterContent.includes('%')) {
-      decodedContent = decodeURIComponent(newsletterContent);
+      decodedContent = safeDecodeURIComponent(newsletterContent);
       console.log('[NEWSLETTER TO CRM] URL decoded, length:', decodedContent.length);
       
       // Comprehensive YAML structure fixes

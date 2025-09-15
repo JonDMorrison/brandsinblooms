@@ -887,8 +887,17 @@ cleanUrl();
             console.warn('⚠️ Template not found, using URL parameters as fallback:', templateId);
             
             // Extract title and description from URL parameters as fallback
-            const urlTitle = decodeURIComponent(searchParams.get('title') || '');
-            const urlDescription = decodeURIComponent(searchParams.get('description') || '');
+            const safeDecodeURIComponent = (value: string) => {
+              try {
+                return decodeURIComponent(value);
+              } catch (error) {
+                console.warn('Failed to decode URI component:', value, error);
+                return value; // Return original value if decoding fails
+              }
+            };
+            
+            const urlTitle = safeDecodeURIComponent(searchParams.get('title') || '');
+            const urlDescription = safeDecodeURIComponent(searchParams.get('description') || '');
             
             const topic = urlTitle || 'Newsletter Campaign';
             const description = urlDescription || topic;

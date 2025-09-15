@@ -333,12 +333,21 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
   });
 
   // Extract persona tags and segments (from URL params or content analysis)
+  const safeDecodeURIComponent = (value: string) => {
+    try {
+      return decodeURIComponent(value);
+    } catch (error) {
+      console.warn('Failed to decode URI component:', value, error);
+      return value; // Return original value if decoding fails
+    }
+  };
+  
   const personaTags = urlParams?.get('personaTags') 
-    ? JSON.parse(decodeURIComponent(urlParams.get('personaTags')!))
+    ? JSON.parse(safeDecodeURIComponent(urlParams.get('personaTags')!))
     : extractPersonaTagsFromContent(content);
 
   const segmentSuggestions = urlParams?.get('segmentSuggestions')
-    ? JSON.parse(decodeURIComponent(urlParams.get('segmentSuggestions')!))
+    ? JSON.parse(safeDecodeURIComponent(urlParams.get('segmentSuggestions')!))
     : generateSegmentSuggestionsFromContent(content, campaign?.theme || '');
 
   return {
