@@ -64,13 +64,16 @@ export const useAdminTenants = () => {
       
       console.log('fetchTenants called with:', { search, status, page, limit, actualPage, actualLimit, offset });
       
-      // Get total count first
-      const { count } = await supabase
-        .from('tenants')
-        .select('*', { count: 'exact', head: true });
-        
-      console.log('Total count from database:', count);
-      setTotalCount(count || 0);
+      // Get total count from the admin function instead of direct table access
+      const { data: statsData, error: statsError } = await supabase.rpc('admin_get_stats');
+      
+      if (statsError) {
+        console.error('Error fetching stats for count:', statsError);
+      } else if (statsData && statsData.length > 0) {
+        const totalFromStats = Number(statsData[0].total_tenants);
+        console.log('Total count from admin_get_stats:', totalFromStats);
+        setTotalCount(totalFromStats);
+      }
 
       const { data: tenantsData, error: tenantsError } = await supabase.rpc(
         'admin_list_tenants',

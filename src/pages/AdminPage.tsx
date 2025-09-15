@@ -167,7 +167,7 @@ const AdminPage = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    console.log('Previous button clicked, currentPage:', currentPage);
+                    console.log('Previous button clicked, currentPage:', currentPage, 'totalPages:', totalPages, 'totalCount:', totalCount);
                     if (currentPage > 1) {
                       const newPage = currentPage - 1;
                       console.log('Going to previous page:', newPage);
@@ -181,14 +181,14 @@ const AdminPage = () => {
                 </Button>
                 
                 <span className="text-sm text-muted-foreground px-2">
-                  Page {currentPage} of {totalPages}
+                  Page {currentPage} of {totalPages} (Total: {totalCount})
                 </span>
                 
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    console.log('Next button clicked, currentPage:', currentPage, 'totalPages:', totalPages);
+                    console.log('Next button clicked, currentPage:', currentPage, 'totalPages:', totalPages, 'totalCount:', totalCount);
                     if (currentPage < totalPages) {
                       const newPage = currentPage + 1;
                       console.log('Going to next page:', newPage);
@@ -196,7 +196,7 @@ const AdminPage = () => {
                       fetchTenants(currentSearch, currentStatus, newPage);
                     }
                   }}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || totalPages === 0}
                 >
                   Next
                 </Button>
