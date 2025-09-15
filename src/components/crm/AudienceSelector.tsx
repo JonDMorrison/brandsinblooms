@@ -373,6 +373,42 @@ export const AudienceSelector = ({
           </div>
           
           <div className="space-y-2 max-h-80 overflow-y-auto scroll-container border border-border rounded-lg p-3">
+            {/* Add "All Contacts" Option */}
+            <div
+              className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                selectedSegments.length === 0 && selectedPersonas.length === 0
+                  ? 'border-brand-teal bg-brand-teal/5' 
+                  : 'border-border hover:border-brand-teal/30 hover:bg-brand-teal/5'
+              }`}
+            >
+              <Checkbox
+                id="all-contacts"
+                checked={selectedSegments.length === 0 && selectedPersonas.length === 0}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    onPersonasChange([]);
+                    onSegmentsChange([]);
+                  }
+                }}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <label 
+                    htmlFor="all-contacts"
+                    className="font-medium cursor-pointer"
+                  >
+                    All Contacts
+                  </label>
+                  <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
+                    Entire List
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Send to your entire contact database
+                </p>
+              </div>
+            </div>
+            
             {filteredSegments.map((segment) => {
               const mappedSegment: Segment = {
                 id: segment.id,

@@ -44,6 +44,7 @@ export const CustomerDetailsSheet: React.FC<CustomerDetailsSheetProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [personaId, setPersonaId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -60,6 +61,7 @@ export const CustomerDetailsSheet: React.FC<CustomerDetailsSheetProps> = ({
         email: customer.email || '',
         phone: customer.phone || ''
       });
+      setPersonaId(customer.persona_id || null);
     }
   }, [customer]);
 
@@ -102,6 +104,7 @@ export const CustomerDetailsSheet: React.FC<CustomerDetailsSheetProps> = ({
   };
 
   const handlePersonaUpdate = (personaId: string | null) => {
+    setPersonaId(personaId);
     onCustomerUpdated();
   };
 
@@ -238,7 +241,7 @@ export const CustomerDetailsSheet: React.FC<CustomerDetailsSheetProps> = ({
             </CardHeader>
             <CardContent>
               <CustomerPersonaSelector 
-                value={customer.persona_id} 
+                value={personaId} 
                 onChange={handlePersonaUpdate}
                 customerId={customer.id}
               />
