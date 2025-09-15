@@ -53,7 +53,7 @@ export const AboutPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <LandingPageHeader onLogin={handleLogin} showUserMenu={false} />
+      <LandingPageHeader onLogin={handleLogin} />
       
       {/* Hero Section */}
       <section className="py-20 px-6 bg-gradient-to-br from-green-50 to-blue-50">
