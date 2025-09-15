@@ -12,11 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye, Clock, MoreHorizontal } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { formatDistanceToNow, format } from "date-fns";
 
 interface AdminTenant {
@@ -58,6 +57,7 @@ export const TenantTable = ({
   onExtendTrial,
   onToggleActive,
 }: TenantTableProps) => {
+  const [openPopovers, setOpenPopovers] = useState<Set<string>>(new Set());
   const getStatusBadge = (tenant: AdminTenant) => {
     if (!tenant.is_active) {
       return <Badge variant="secondary">Inactive</Badge>;
@@ -216,43 +216,77 @@ export const TenantTable = ({
               </TableCell>
               
               <TableCell>
-                  <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                <Popover 
+                  open={openPopovers.has(tenant.tenant_id)} 
+                  onOpenChange={(open) => {
+                    const newSet = new Set(openPopovers);
+                    if (open) {
+                      newSet.add(tenant.tenant_id);
+                    } else {
+                      newSet.delete(tenant.tenant_id);
+                    }
+                    setOpenPopovers(newSet);
+                  }}
+                >
+                  <PopoverTrigger asChild>
                     <Button 
                       variant="ghost" 
                       size="sm"
-                      onClick={() => console.log("Dropdown button clicked for tenant:", tenant.tenant_id)}
+                      aria-label={`Actions for ${tenant.company_name || 'tenant'}`}
+                      data-testid={`tenant-actions-${tenant.tenant_id}`}
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => {
-                      console.log("View tenant clicked:", tenant.tenant_id);
-                      onViewTenant(tenant);
-                    }}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View Details
-                    </DropdownMenuItem>
-                    {tenant.is_trialing && (
-                      <DropdownMenuItem onClick={() => {
-                        console.log("Extend trial clicked:", tenant.tenant_id);
-                        onExtendTrial(tenant.tenant_id, 7);
-                      }}>
-                        <Clock className="mr-2 h-4 w-4" />
-                        Extend Trial (+7 days)
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem 
-                      onClick={() => {
-                        console.log("Toggle active clicked:", tenant.tenant_id, !tenant.is_active);
-                        onToggleActive(tenant.tenant_id, !tenant.is_active);
-                      }}
-                    >
-                      {tenant.is_active ? "Deactivate" : "Activate"}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    align="end" 
+                    className="w-48 p-2"
+                    style={{ zIndex: 1000010, pointerEvents: 'auto' }}
+                  >
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start"
+                        onClick={() => {
+                          console.log("View tenant clicked:", tenant.tenant_id);
+                          onViewTenant(tenant);
+                          setOpenPopovers(new Set());
+                        }}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Details
+                      </Button>
+                      {tenant.is_trialing && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="justify-start"
+                          onClick={() => {
+                            console.log("Extend trial clicked:", tenant.tenant_id);
+                            onExtendTrial(tenant.tenant_id, 7);
+                            setOpenPopovers(new Set());
+                          }}
+                        >
+                          <Clock className="mr-2 h-4 w-4" />
+                          Extend Trial (+7 days)
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start"
+                        onClick={() => {
+                          console.log("Toggle active clicked:", tenant.tenant_id, !tenant.is_active);
+                          onToggleActive(tenant.tenant_id, !tenant.is_active);
+                          setOpenPopovers(new Set());
+                        }}
+                      >
+                        {tenant.is_active ? "Deactivate" : "Activate"}
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </TableCell>
             </TableRow>
           ))}

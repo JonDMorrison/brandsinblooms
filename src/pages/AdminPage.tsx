@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
@@ -12,6 +12,7 @@ import { AdminFilters } from "@/components/admin/AdminFilters";
 import { TenantTable } from "@/components/admin/TenantTable";
 import { TenantDrawer } from "@/components/admin/TenantDrawer";
 import { Button } from "@/components/ui/button";
+import { removeAllInertAttributes } from "@/utils/emergency-cleanup";
 
 const AdminPage = () => {
   const { user } = useAuth();
@@ -30,6 +31,11 @@ const AdminPage = () => {
     extendTrial,
     refetch,
   } = useAdminTenants();
+
+  // Emergency cleanup on mount to prevent unclickable elements
+  useEffect(() => {
+    removeAllInertAttributes();
+  }, []);
 
   console.log("AdminPage data:", { tenants, stats, loading, error });
 
