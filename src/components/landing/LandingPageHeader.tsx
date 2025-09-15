@@ -69,7 +69,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
         
       {/* Auth Buttons - Far right */}
       <div className="hidden md:flex items-center gap-3 ml-auto">
-        {user && showUserMenu ? (
+        {user && showUserMenu && (
           <Button 
             asChild
             variant="outline"
@@ -79,23 +79,21 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
               Your Account
             </Link>
           </Button>
-        ) : !user ? (
-          <>
-            <Button 
-              onClick={onLogin}
-              variant="ghost"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Sign In
-            </Button>
-            <Button 
-              onClick={onLogin}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              Sign Up
-            </Button>
-          </>
-        ) : null}
+        )}
+        
+        <Button 
+          onClick={onLogin}
+          variant="ghost"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          Sign In
+        </Button>
+        <Button 
+          onClick={onLogin}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+        >
+          Sign Up
+        </Button>
       </div>
 
       {/* Mobile Menu Button */}
@@ -138,29 +136,29 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
                 {item.name}
               </Link>
             ))}
-            {!user && (
-              <div className="flex flex-col gap-3 pt-4 border-t border-border">
-                <Button 
-                  onClick={() => {
-                    onLogin();
-                    setMobileMenuOpen(false);
-                  }}
-                  variant="ghost"
-                  className="justify-start text-muted-foreground hover:text-foreground"
-                >
-                  Sign In
-                </Button>
-                <Button 
-                  onClick={() => {
-                    onLogin();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  Sign Up
-                </Button>
-              </div>
-            )}
+            
+            {/* Auth buttons for mobile */}
+            <div className="flex flex-col gap-3 pt-4 border-t border-border">
+              <Button 
+                onClick={() => {
+                  onLogin();
+                  setMobileMenuOpen(false);
+                }}
+                variant="ghost"
+                className="justify-start text-muted-foreground hover:text-foreground"
+              >
+                Sign In
+              </Button>
+              <Button 
+                onClick={() => {
+                  onLogin();
+                  setMobileMenuOpen(false);
+                }}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                Sign Up
+              </Button>
+            </div>
           </div>
         </div>
       )}
