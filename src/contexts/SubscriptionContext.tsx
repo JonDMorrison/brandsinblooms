@@ -181,30 +181,39 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
     // Prevent duplicate requests for the same user
     if (isLoadingSubscription || lastFetchUser === user.id) {
-      console.log('⏭️ Skipping duplicate subscription fetch for user:', user.id);
       return;
     }
 
     try {
       setIsLoadingSubscription(true);
-      console.log('🔍 Fetching subscription for user:', user.id);
       setSubscriptionError(null);
       setLastFetchUser(user.id);
       
-      // Ensure test accounts have PRO access
+      // Ensure test accounts have PRO access (non-blocking)
       if (isTestUser) {
-        await ensureTestAccountHasProAccess(user.id, user.email!);
+        const testAccountPromise = ensureTestAccountHasProAccess(user.id, user.email!);
+        testAccountPromise.catch(console.error);
       }
 
-      // Fetch subscription from database
-      const { data: allSubscriptions, error: countError } = await supabase
+      // Optimized query - fetch only what we need
+      const queryPromise = supabase
         .from('subscriptions')
-        .select('*')
+        .select('id, plan, start_date, end_date, billing_interval, created_at')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(5); // Limit results
+
+      // Set timeout for the query
+      const timeoutId = setTimeout(() => {
+        throw new Error('Subscription fetch timed out');
+      }, 8000);
+
+      const result = await queryPromise;
+      clearTimeout(timeoutId);
+
+      const { data: allSubscriptions, error: countError } = result;
 
       if (countError) {
-        console.error('❌ Error fetching subscription:', countError);
         setSubscriptionError(`Database error: ${countError.message}`);
         return;
       }
@@ -212,51 +221,63 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       let data = null;
       
       if (allSubscriptions && allSubscriptions.length > 1) {
-        console.log(`📊 Found ${allSubscriptions.length} subscriptions for user, using most recent`);
         data = allSubscriptions[0]; // Use the most recent one
         
-        // Clean up duplicates by keeping only the most recent one
+        // Clean up duplicates asynchronously to avoid blocking
         const duplicateIds = allSubscriptions.slice(1).map(sub => sub.id);
         if (duplicateIds.length > 0) {
-          console.log('🧹 Cleaning up duplicate subscriptions');
-          await supabase
-            .from('subscriptions')
-            .delete()
-            .in('id', duplicateIds);
+          (async () => {
+            try {
+              await supabase
+                .from('subscriptions')
+                .delete()
+                .in('id', duplicateIds);
+              console.log('🧹 Cleaned up duplicate subscriptions');
+            } catch (error) {
+              console.error('Failed to cleanup duplicate subscriptions:', error);
+            }
+          })();
         }
       } else if (allSubscriptions && allSubscriptions.length === 1) {
         data = allSubscriptions[0];
       }
 
       if (data) {
-        console.log('✅ Found existing subscription:', { plan: data.plan, endDate: data.end_date });
         setSubscription(data);
         
-        // Check if trial has expired and update if needed (skip for privileged users)
+        // Check expiry asynchronously to avoid blocking UI
         const endDate = new Date(data.end_date);
         const now = new Date();
         
         if (data.plan === 'free_trial' && now > endDate && !hasPrivilegedAccess) {
-          console.log('⚠️ Trial has expired, updating to expired status');
-          await updateSubscriptionPlan('expired', data.billing_interval);
+          (async () => {
+            try {
+              await updateSubscriptionPlan('expired', data.billing_interval);
+              console.log('✅ Updated expired subscription');
+            } catch (error) {
+              console.error('Failed to update expired subscription:', error);
+            }
+          })();
         }
       } else {
-        console.log('❌ No subscription found, creating default subscription');
-        const newSubscription = await createDefaultSubscription();
-        if (newSubscription) {
-          setSubscription(newSubscription);
-        }
+        // Create default subscription asynchronously
+        createDefaultSubscription().then(newSub => {
+          if (newSub) setSubscription(newSub);
+        }).catch(console.error);
       }
       
       setLastCheckTime(new Date());
     } catch (error) {
-      console.error('❌ Error in fetchSubscription:', error);
-      setSubscriptionError(`Failed to fetch subscription: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      if (error instanceof Error && error.message === 'Subscription fetch timed out') {
+        setSubscriptionError('Subscription check timed out');
+      } else {
+        setSubscriptionError(`Failed to fetch subscription: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     } finally {
       setLoading(false);
       setIsLoadingSubscription(false);
     }
-  }, [user?.id, isTestUser, hasPrivilegedAccess]); // Remove user object to prevent re-runs
+  }, [user?.id, isTestUser, hasPrivilegedAccess]);
 
   const [isCheckingStripe, setIsCheckingStripe] = useState(false);
   const [lastStripeCheck, setLastStripeCheck] = useState<number>(0);
@@ -264,41 +285,48 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const checkStripeSubscription = useCallback(async () => {
     if (!user?.id) return;
 
-    // Throttle Stripe checks to prevent excessive requests (max once every 30 seconds)
+    // Throttle Stripe checks more aggressively (max once every 2 minutes)
     const now = Date.now();
-    if (isCheckingStripe || (now - lastStripeCheck) < 30000) {
-      console.log('⏭️ Throttling Stripe subscription check');
+    if (isCheckingStripe || (now - lastStripeCheck) < 120000) {
       return;
     }
 
     try {
       setIsCheckingStripe(true);
       setLastStripeCheck(now);
-      console.log('💳 Checking Stripe subscription status');
-      const { data, error } = await supabase.functions.invoke('check-subscription');
+      
+      // Add timeout for Stripe calls
+      const stripePromise = supabase.functions.invoke('check-subscription');
+      
+      const timeoutId = setTimeout(() => {
+        throw new Error('Stripe check timed out');
+      }, 10000);
+      
+      const result = await stripePromise;
+      clearTimeout(timeoutId);
+      
+      const { data, error } = result;
       
       if (error) {
-        console.error('❌ Error checking Stripe subscription:', error);
         setSubscriptionError(`Stripe check failed: ${error.message}`);
         return;
       }
-
-      console.log('💳 Stripe subscription check result:', data);
       
-      // If Stripe returns subscription data, refresh our local state
+      // Only refresh if there's actually new data
       if (data && (data.subscribed || data.plan)) {
-        console.log('🔄 Stripe data found, refreshing local subscription');
-        // Reset last fetch user to allow refetch
         setLastFetchUser(null);
         await fetchSubscription();
       }
     } catch (error) {
-      console.error('❌ Error in checkStripeSubscription:', error);
-      setSubscriptionError(`Stripe verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      if (error instanceof Error && error.message === 'Stripe check timed out') {
+        console.warn('⚠️ Stripe check timed out');
+      } else {
+        setSubscriptionError(`Stripe verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     } finally {
       setIsCheckingStripe(false);
     }
-  }, [user?.id, fetchSubscription]); // Use user.id instead of user object
+  }, [user?.id, fetchSubscription]);
 
   const updateSubscription = useCallback(async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
     await updateSubscriptionPlan(plan, billingInterval);
@@ -368,14 +396,14 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (user?.id) {
       fetchSubscription();
-      // Also check with Stripe on load, but with a longer delay
+      // Delay Stripe check much longer to let initial load complete
       const stripeTimer = setTimeout(() => {
         checkStripeSubscription();
-      }, 3000); // Increased delay to reduce overlapping requests
+      }, 15000); // Much longer delay to avoid startup bottleneck
       
       return () => clearTimeout(stripeTimer);
     }
-  }, [user?.id]); // Only depend on user.id, not the functions
+  }, [user?.id]);
 
   // Enhanced trial expiration handling - skip for privileged users
   useEffect(() => {
@@ -401,7 +429,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   }, [isInLimboState, subscriptionError, forceReset]);
 
-  // Auto-refresh subscription status periodically when user is active (reduced frequency)
+  // Auto-refresh subscription status periodically when user is active (much less frequent)
   useEffect(() => {
     if (!user?.id || !subscription) return;
 
@@ -410,10 +438,10 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       if ((subscription.plan === 'free_trial' || subscription.plan === 'sprout' || subscription.plan === 'bloom') && !subscriptionError && !isCheckingStripe) {
         checkStripeSubscription();
       }
-    }, 600000); // Check every 10 minutes instead of 5 to reduce load
+    }, 1800000); // Check every 30 minutes to significantly reduce load
 
     return () => clearInterval(interval);
-  }, [user?.id, subscription?.plan, subscriptionError]); // Remove checkStripeSubscription from dependencies
+  }, [user?.id, subscription?.plan, subscriptionError]);
 
   const value = useMemo(() => ({
     subscription,

@@ -7,6 +7,7 @@ import { SubscriptionProvider } from '@/contexts/SubscriptionContext'
 import { OnboardingStatusProvider } from '@/contexts/OnboardingStatusContext'
 import { LoadingProvider } from '@/contexts/LoadingContext'
 import { GlobalLoadingOverlay } from '@/components/loading/GlobalLoadingOverlay'
+import { StartupLoadingManager } from '@/components/loading/StartupLoadingManager'
 import { GlobalVisibilityManager } from '@/components/GlobalVisibilityManager'
 import { initSentry } from '@/lib/sentry'
 import App from './App.tsx'
@@ -18,14 +19,20 @@ import './utils/globalToastReplace'
 initSentry();
 
 
-// Create a client
+// Create a client with optimized settings for better performance
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: 1, // Reduce retries to fail faster
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
-      staleTime: 60_000, // 1 minute default staleTime
+      staleTime: 300_000, // 5 minutes default staleTime (increased)
+      gcTime: 300_000, // Keep in cache for 5 minutes
+      networkMode: 'online', // Only run queries when online
+    },
+    mutations: {
+      retry: 1,
+      networkMode: 'online',
     },
   },
 })
@@ -39,6 +46,7 @@ createRoot(document.getElementById("root")!).render(
             <OnboardingStatusProvider>
               <App />
               <GlobalLoadingOverlay />
+              <StartupLoadingManager />
               <GlobalVisibilityManager />
             </OnboardingStatusProvider>
           </SubscriptionProvider>

@@ -52,57 +52,58 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
     }
   }, [user]);
 
-  // Fetch onboarding status with stable React Query
+  // Fetch onboarding status with optimized React Query
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['onboarding_status', user?.id],
     queryFn: async () => {
       if (!user) {
-        console.log('🔍 OnboardingStatusProvider: No user, setting incomplete');
         return { isCompleted: false };
       }
-
-      console.log('🔍 OnboardingStatusProvider: Checking status for user:', user.id);
       
-      // Use order and limit to get the most recent profile (handles duplicates)
-      const { data: profile, error: dbError } = await supabase
-        .from('company_profiles')
-        .select('onboarding_completed_at, company_name, first_content_generated')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Optimized query with timeout
+      try {
+        const queryPromise = supabase
+          .from('company_profiles')
+          .select('onboarding_completed_at, company_name, first_content_generated')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (dbError && dbError.code !== 'PGRST116') {
-        console.error('❌ OnboardingStatusProvider: Database error:', dbError);
-        throw new Error(dbError.message);
-      } else if (!profile) {
-        // No profile found - definitely not completed
-        console.log('📝 OnboardingStatusProvider: No profile found');
-        return { isCompleted: false };
-      } else {
-        // Consider complete if has onboarding_completed_at OR first_content_generated
-        // This provides multiple completion criteria and better handles edge cases
+        // Set a timeout for the query
+        const timeoutId = setTimeout(() => {
+          throw new Error('Onboarding status check timed out');
+        }, 5000);
+
+        const result = await queryPromise;
+        clearTimeout(timeoutId);
+
+        const { data: profile, error: dbError } = result;
+
+        if (dbError && dbError.code !== 'PGRST116') {
+          throw new Error(dbError.message);
+        }
+        
+        if (!profile) {
+          return { isCompleted: false };
+        }
+        
         const completed = !!(
           (profile.onboarding_completed_at && profile.company_name) ||
           profile.first_content_generated
         );
         
-        console.log('✅ OnboardingStatusProvider: Status check complete', {
-          hasProfile: !!profile,
-          hasCompletedAt: !!profile?.onboarding_completed_at,
-          hasCompanyName: !!profile?.company_name,
-          hasFirstContent: !!profile?.first_content_generated,
-          completed
-        });
-        
         return { isCompleted: completed };
+      } catch (error) {
+        throw error;
       }
     },
     enabled: !!user,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    staleTime: 60_000, // 1 minute
+    staleTime: 300_000, // 5 minutes - longer cache
     retry: 1,
+    gcTime: 300_000, // Keep in cache for 5 minutes
   });
 
   const isCompleted = data?.isCompleted ?? false;
