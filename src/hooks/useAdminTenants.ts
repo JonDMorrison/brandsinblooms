@@ -62,11 +62,14 @@ export const useAdminTenants = () => {
       const actualLimit = limit !== undefined ? limit : pageSize;
       const offset = (actualPage - 1) * actualLimit;
       
+      console.log('fetchTenants called with:', { search, status, page, limit, actualPage, actualLimit, offset });
+      
       // Get total count first
       const { count } = await supabase
         .from('tenants')
         .select('*', { count: 'exact', head: true });
         
+      console.log('Total count from database:', count);
       setTotalCount(count || 0);
 
       const { data: tenantsData, error: tenantsError } = await supabase.rpc(
@@ -81,6 +84,7 @@ export const useAdminTenants = () => {
 
       if (tenantsError) throw tenantsError;
 
+      console.log('Fetched tenants data:', tenantsData?.length, 'records');
       setTenants(tenantsData || []);
     } catch (err: any) {
       console.error('Error fetching tenants:', err);

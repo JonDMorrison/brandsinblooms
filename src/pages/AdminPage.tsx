@@ -167,8 +167,10 @@ const AdminPage = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
+                    console.log('Previous button clicked, currentPage:', currentPage);
                     if (currentPage > 1) {
                       const newPage = currentPage - 1;
+                      console.log('Going to previous page:', newPage);
                       goToPage(newPage);
                       fetchTenants(currentSearch, currentStatus, newPage);
                     }
@@ -186,8 +188,10 @@ const AdminPage = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
+                    console.log('Next button clicked, currentPage:', currentPage, 'totalPages:', totalPages);
                     if (currentPage < totalPages) {
                       const newPage = currentPage + 1;
+                      console.log('Going to next page:', newPage);
                       goToPage(newPage);
                       fetchTenants(currentSearch, currentStatus, newPage);
                     }
