@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/NativeSelect";
@@ -12,27 +12,47 @@ interface AdminFiltersProps {
 export const AdminFilters = ({ onFilterChange, loading }: AdminFiltersProps) => {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Debounce search input
+  // Debounced filter function
+  const debouncedFilterChange = useCallback((searchValue: string, statusValue: string) => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    debounceTimer.current = setTimeout(() => {
+      onFilterChange(searchValue, statusValue);
+    }, 500);
+  }, [onFilterChange]);
+
+  // Clean up timer on unmount
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      onFilterChange(search, status);
-    }, 500); // Wait 500ms after user stops typing
-
-    return () => clearTimeout(timeoutId);
-  }, [search, status, onFilterChange]);
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, []);
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
-    // Remove immediate call to onFilterChange - now handled by useEffect
+    debouncedFilterChange(value, status);
   };
 
   const handleStatusChange = (value: string) => {
     setStatus(value);
-    // Remove immediate call to onFilterChange - now handled by useEffect
+    // Status changes should be immediate for better UX
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    onFilterChange(search, value);
   };
 
   const clearFilters = () => {
+    // Cancel any pending debounced search
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
     setSearch("");
     setStatus("");
     // Clear filters immediately, bypassing debounce
