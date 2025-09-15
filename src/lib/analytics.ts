@@ -81,10 +81,11 @@ class AnalyticsService {
 
   /**
    * Initialize analytics for an authenticated user
-   * Only calls identify if we have the minimum required fields
+   * TEMPORARILY DISABLED: Only tracks behavior until we can guarantee proper data validation
    */
   identifyUser(user: User): void {
     console.log('🔍 Analytics: identifyUser called for user:', user.id);
+    console.log('⚠️ ANALYTICS IDENTIFY TEMPORARILY DISABLED TO PREVENT RUDDERSTACK ERRORS');
     
     const analytics = this.getAnalyticsInstance();
     if (!analytics) {
@@ -92,33 +93,22 @@ class AnalyticsService {
       return;
     }
 
-    const userData = this.extractUserData(user);
+    console.log('🔍 User data available:', {
+      email: user.email || 'MISSING',
+      metadata: user.user_metadata || {},
+      phone: user.phone || 'MISSING',
+      full_user: user
+    });
+
+    // TEMPORARILY: Only track behavior, never identify to prevent Google Ads errors
+    console.warn('⚠️ Analytics: Using behavior-only tracking until identify validation is fixed');
+    this.trackBehaviorOnly();
     
-    if (userData) {
-      try {
-        console.log('✅ Analytics: Calling identify with validated data');
-        analytics.identify(user.id, {
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          phone: userData.phone,
-          country: userData.country,
-          postalCode: userData.postalCode,
-          createdAt: user.created_at,
-          userId: user.id
-        });
-        
-        console.log('✅ Analytics: User identified successfully');
-        this.isInitialized = true;
-      } catch (error) {
-        console.error('❌ Analytics: Failed to identify user:', error);
-      }
-    } else {
-      console.warn('⚠️ Analytics: Skipping user identification - insufficient data for Google Ads requirements');
-      console.warn('⚠️ Analytics: Required: (email OR phone) AND (firstName OR lastName OR postalCode OR country)');
-      // For users without sufficient data, we only track behavior, no identify
-      this.trackBehaviorOnly();
-    }
+    // TODO: Re-enable identify once we can guarantee proper validation
+    // const userData = this.extractUserData(user);
+    // if (userData && this.hasMinimumRequiredFields(userData)) {
+    //   analytics.identify(user.id, userData);
+    // }
   }
 
   /**
@@ -182,38 +172,17 @@ if (typeof window !== 'undefined') {
   const originalAnalytics = (window as any).analytics;
   const originalRudderAnalytics = (window as any).rudderanalytics;
   
-  // Override window.analytics.identify to use our safe implementation
+  // COMPLETELY BLOCK all analytics.identify calls to prevent Google Ads errors
   const safeAnalyticsProxy = {
     identify: (userId: string, traits: Record<string, any>) => {
-      console.warn('⚠️ Direct analytics.identify() call intercepted - using safe implementation');
-      console.log('🔍 Direct identify call with traits:', traits);
+      console.warn('🚫 ANALYTICS IDENTIFY COMPLETELY BLOCKED');
+      console.warn('🚫 Direct analytics.identify() call intercepted and blocked to prevent RudderStack errors');
+      console.log('🔍 Blocked identify call with traits:', traits);
+      console.log('🔍 This call would have failed Google Ads validation - identify calls are temporarily disabled');
       
-      // Don't call identify if we don't have minimum required fields
-      const hasEmailOrPhone = (traits.email && traits.email.trim()) || (traits.phone && traits.phone.trim());
-      const hasAdditionalField = (traits.firstName && traits.firstName.trim()) || 
-                                 (traits.lastName && traits.lastName.trim()) || 
-                                 (traits.postalCode && traits.postalCode.trim()) || 
-                                 (traits.country && traits.country.trim());
-      
-      console.log('🔍 Direct identify validation:', {
-        hasEmailOrPhone,
-        hasAdditionalField,
-        willExecute: hasEmailOrPhone && hasAdditionalField
-      });
-      
-      if (hasEmailOrPhone && hasAdditionalField) {
-        console.log('✅ Direct identify: Executing with sufficient data');
-        // Only call original if we have required fields
-        if (originalAnalytics?.identify) {
-          originalAnalytics.identify(userId, traits);
-        }
-        if (originalRudderAnalytics?.identify) {
-          originalRudderAnalytics.identify(userId, traits);
-        }
-      } else {
-        console.log('🚫 Skipping direct identify call - insufficient data for Google Ads requirements');
-        console.log('🚫 Required: (email OR phone) AND (firstName OR lastName OR postalCode OR country)');
-      }
+      // COMPLETELY BLOCK all identify calls until we can guarantee proper validation
+      // TODO: Re-enable with proper validation once the issue is resolved
+      return;
     },
     track: (event: string, properties?: Record<string, any>) => {
       if (originalAnalytics?.track) originalAnalytics.track(event, properties);
