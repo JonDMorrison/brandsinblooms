@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/NativeSelect";
@@ -13,19 +13,29 @@ export const AdminFilters = ({ onFilterChange, loading }: AdminFiltersProps) => 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
 
+  // Debounce search input
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      onFilterChange(search, status);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timeoutId);
+  }, [search, status, onFilterChange]);
+
   const handleSearchChange = (value: string) => {
     setSearch(value);
-    onFilterChange(value, status);
+    // Remove immediate call to onFilterChange - now handled by useEffect
   };
 
   const handleStatusChange = (value: string) => {
     setStatus(value);
-    onFilterChange(search, value);
+    // Remove immediate call to onFilterChange - now handled by useEffect
   };
 
   const clearFilters = () => {
     setSearch("");
     setStatus("");
+    // Clear filters immediately, bypassing debounce
     onFilterChange("", "");
   };
 
