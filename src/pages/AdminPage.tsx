@@ -11,6 +11,15 @@ import { AdminStats } from "@/components/admin/AdminStats";
 import { AdminFilters } from "@/components/admin/AdminFilters";
 import { TenantTable } from "@/components/admin/TenantTable";
 import { TenantDrawer } from "@/components/admin/TenantDrawer";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from "@/components/ui/pagination";
+import { NativeSelect } from "@/components/ui/NativeSelect";
 import { Button } from "@/components/ui/button";
 import { removeAllInertAttributes } from "@/utils/emergency-cleanup";
 
@@ -26,9 +35,15 @@ const AdminPage = () => {
     stats,
     loading,
     error,
+    currentPage,
+    pageSize,
+    totalCount,
+    totalPages,
     fetchTenants,
     toggleTenantActive,
     extendTrial,
+    goToPage,
+    changePageSize,
     refetch,
   } = useAdminTenants();
 
@@ -47,12 +62,14 @@ const AdminPage = () => {
   const handleFilterChange = (search: string, status: string) => {
     setCurrentSearch(search);
     setCurrentStatus(status);
-    fetchTenants(search, status);
+    goToPage(1); // Reset to first page when filters change
+    fetchTenants(search, status, 1);
   };
 
   const handleStatFilterClick = (status: string) => {
     setCurrentStatus(status);
-    fetchTenants(currentSearch, status);
+    goToPage(1); // Reset to first page when filters change
+    fetchTenants(currentSearch, status, 1);
   };
 
   const handleViewTenant = (tenant: any) => {
@@ -117,6 +134,101 @@ const AdminPage = () => {
             onExtendTrial={extendTrial}
             onToggleActive={toggleTenantActive}
           />
+
+          {/* Pagination Controls */}
+          {!loading && tenants.length > 0 && (
+            <div className="flex items-center justify-between px-4 py-4 bg-card rounded-lg border mt-6">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Rows per page:</span>
+                  <NativeSelect
+                    value={pageSize.toString()}
+                    onChange={(e) => {
+                      const newSize = parseInt(e.target.value);
+                      changePageSize(newSize);
+                      fetchTenants(currentSearch, currentStatus, 1, newSize);
+                    }}
+                    className="w-16"
+                    options={[
+                      { value: "10", label: "10" },
+                      { value: "25", label: "25" },
+                      { value: "50", label: "50" },
+                      { value: "100", label: "100" },
+                    ]}
+                  />
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  Showing {Math.min((currentPage - 1) * pageSize + 1, totalCount)}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount} tenants
+                </span>
+              </div>
+              
+              {totalPages > 1 && (
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (currentPage > 1) {
+                            const newPage = currentPage - 1;
+                            goToPage(newPage);
+                            fetchTenants(currentSearch, currentStatus, newPage);
+                          }
+                        }}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    
+                    {/* Show page numbers */}
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <PaginationItem key={pageNum}>
+                          <PaginationLink
+                            href="#"
+                            isActive={pageNum === currentPage}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              goToPage(pageNum);
+                              fetchTenants(currentSearch, currentStatus, pageNum);
+                            }}
+                          >
+                            {pageNum}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    })}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (currentPage < totalPages) {
+                            const newPage = currentPage + 1;
+                            goToPage(newPage);
+                            fetchTenants(currentSearch, currentStatus, newPage);
+                          }
+                        }}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tenant Details Drawer */}

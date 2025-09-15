@@ -43,24 +43,38 @@ export const useAdminTenants = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [totalCount, setTotalCount] = useState(0);
   const { toast } = useToast();
 
   const fetchTenants = async (
     search?: string,
     status?: string,
-    limit = 50,
-    offset = 0
+    page?: number,
+    limit?: number
   ) => {
     try {
       setLoading(true);
       setError(null);
+
+      const actualPage = page !== undefined ? page : currentPage;
+      const actualLimit = limit !== undefined ? limit : pageSize;
+      const offset = (actualPage - 1) * actualLimit;
+      
+      // Get total count first
+      const { count } = await supabase
+        .from('tenants')
+        .select('*', { count: 'exact', head: true });
+        
+      setTotalCount(count || 0);
 
       const { data: tenantsData, error: tenantsError } = await supabase.rpc(
         'admin_list_tenants',
         {
           p_search: search || null,
           p_status: status || null,
-          p_limit: limit,
+          p_limit: actualLimit,
           p_offset: offset,
         }
       );
@@ -160,6 +174,15 @@ export const useAdminTenants = () => {
     }
   };
 
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+  
+  const changePageSize = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+
   useEffect(() => {
     fetchTenants();
     fetchStats();
@@ -170,10 +193,16 @@ export const useAdminTenants = () => {
     stats,
     loading,
     error,
+    currentPage,
+    pageSize,
+    totalCount,
+    totalPages: Math.ceil(totalCount / pageSize),
     fetchTenants,
     fetchStats,
     toggleTenantActive,
     extendTrial,
+    goToPage,
+    changePageSize,
     refetch: () => {
       fetchTenants();
       fetchStats();
