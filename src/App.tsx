@@ -49,6 +49,7 @@ import PublishPage from '@/pages/PublishPage';
 import PlanPage from '@/pages/PlanPage';
 import { AboutPage } from '@/pages/AboutPage';
 import { FeaturesPage } from '@/pages/FeaturesPage';
+import AdminPage from '@/pages/AdminPage';
 
 function App() {
   return (
@@ -347,6 +348,11 @@ function App() {
               <SidebarLayout>
                 <PlanPage />
               </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <AdminPage />
             </ProtectedRoute>
           } />
           
