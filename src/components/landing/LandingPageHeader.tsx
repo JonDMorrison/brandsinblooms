@@ -90,7 +90,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
         </Button>
         <Button 
           onClick={onLogin}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+          className="bg-[#2c9da3] hover:bg-[#2c9da3]/90 text-white"
         >
           Sign Up
         </Button>
@@ -154,7 +154,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
                   onLogin();
                   setMobileMenuOpen(false);
                 }}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                className="bg-[#2c9da3] hover:bg-[#2c9da3]/90 text-white"
               >
                 Sign Up
               </Button>
