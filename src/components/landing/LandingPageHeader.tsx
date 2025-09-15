@@ -4,7 +4,7 @@ import { LogIn, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserMenu } from "@/components/UserMenu";
 import { Link, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 
 interface LandingPageHeaderProps {
@@ -16,6 +16,16 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   const { user } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const navItems = [
     { name: "Home", href: "/" },
@@ -31,7 +41,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   };
 
   return (
-    <nav className="flex justify-between items-center px-6 py-4 sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
+    <nav className={`flex justify-between items-center px-6 py-4 sticky top-0 z-50 bg-background/80 backdrop-blur-md transition-shadow duration-300 ${isScrolled ? 'shadow-lg shadow-black/10' : ''}`}>
       <div className="flex items-center gap-4">
         <Link to="/" className="flex items-center gap-2 text-2xl font-bold text-black hover:text-black/80 transition-colors">
           <img src={bloomsuiteLogo} alt="BloomSuite Logo" className="h-8 w-8" />
