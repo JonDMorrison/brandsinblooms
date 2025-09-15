@@ -41,7 +41,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   };
 
   return (
-    <nav className={`flex items-center px-6 py-4 sticky top-0 z-50 bg-background/80 backdrop-blur-md transition-shadow duration-300 ${isScrolled ? 'shadow-lg shadow-black/10' : ''}`}>
+    <nav className={`flex items-center px-6 py-4 sticky top-0 z-50 bg-white/10 backdrop-blur-lg border-b border-white/20 transition-all duration-300 ${isScrolled ? 'shadow-lg shadow-black/10 bg-white/20' : ''}`}>
       {/* Logo */}
       <div className="flex items-center">
         <Link to="/" className="flex items-center gap-2 text-2xl font-bold text-black hover:text-black/80 transition-colors">
