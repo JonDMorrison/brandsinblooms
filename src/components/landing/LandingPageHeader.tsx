@@ -84,7 +84,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
         <Button 
           onClick={onLogin}
           variant="ghost"
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-[#2c9da3]"
         >
           Sign In
         </Button>
@@ -146,7 +146,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
                   setMobileMenuOpen(false);
                 }}
                 variant="ghost"
-                className="justify-start text-muted-foreground hover:text-foreground"
+                className="justify-start text-muted-foreground hover:text-[#2c9da3]"
               >
                 Sign In
               </Button>
