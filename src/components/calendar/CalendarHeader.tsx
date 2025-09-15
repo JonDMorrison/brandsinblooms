@@ -116,99 +116,98 @@ export const CalendarHeader = ({
           </Button>
         </div>
 
-        {/* Second line: Filters (left) and View Toggle (right) */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {filters && onFiltersChange && filterOptions && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-slate-600">
-                    <Filter className="w-4 h-4 mr-1" />
-                    Filters
-                    {(filters.types.length < filterOptions.types.length || 
-                      filters.platforms.length > 0 || 
-                      filters.statuses.length > 0) && (
-                      <Badge variant="secondary" className="ml-1 h-4 text-xs">
-                        Active
-                      </Badge>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
-                  {filterOptions.types.map(type => (
-                    <DropdownMenuCheckboxItem
-                      key={type}
-                      checked={filters.types.includes(type)}
-                      onCheckedChange={(checked) => {
-                        const newTypes = checked 
-                          ? [...filters.types, type]
-                          : filters.types.filter(t => t !== type);
-                        onFiltersChange({ ...filters, types: newTypes });
-                      }}
-                    >
-                      {type.replace('_', ' ')}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onToday}
-              className="h-8 px-3 text-slate-600 hover:bg-slate-50 hover:border-slate-200 transition-colors duration-200"
-            >
-              Today
-            </Button>
-          </div>
+        {/* Second line: Filters and Today button */}
+        <div className="flex items-center gap-2">
+          {filters && onFiltersChange && filterOptions && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-slate-600">
+                  <Filter className="w-4 h-4 mr-1" />
+                  Filters
+                  {(filters.types.length < filterOptions.types.length || 
+                    filters.platforms.length > 0 || 
+                    filters.statuses.length > 0) && (
+                    <Badge variant="secondary" className="ml-1 h-4 text-xs">
+                      Active
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 bg-white z-50">
+                {filterOptions.types.map(type => (
+                  <DropdownMenuCheckboxItem
+                    key={type}
+                    checked={filters.types.includes(type)}
+                    onCheckedChange={(checked) => {
+                      const newTypes = checked 
+                        ? [...filters.types, type]
+                        : filters.types.filter(t => t !== type);
+                      onFiltersChange({ ...filters, types: newTypes });
+                    }}
+                  >
+                    {type.replace('_', ' ')}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onToday}
+            className="h-8 px-3 text-slate-600 hover:bg-slate-50 hover:border-slate-200 transition-colors duration-200"
+          >
+            Today
+          </Button>
+        </div>
 
-          <div className="flex items-center bg-slate-50 rounded-xl p-1 border border-slate-200" role="tablist">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onViewModeChange('month')}
-              className={`h-8 px-3 text-sm font-medium transition-colors duration-200 ${
-                viewMode === 'month' 
-                  ? 'bg-white text-blue-700 border border-blue-200' 
-                  : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
-              }`}
-              role="tab"
-              aria-selected={viewMode === 'month'}
-            >
-              <Calendar className="w-4 h-4 mr-1" />
-              Month
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onViewModeChange('week')}
-              className={`h-8 px-3 text-sm font-medium transition-colors duration-200 ${
-                viewMode === 'week' 
-                  ? 'bg-white text-blue-700 border border-blue-200' 
-                  : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
-              }`}
-              role="tab"
-              aria-selected={viewMode === 'week'}
-            >
-              <CalendarDays className="w-4 h-4 mr-1" />
-              Week
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onViewModeChange('list')}
-              className={`h-8 px-3 text-sm font-medium transition-colors duration-200 ${
-                viewMode === 'list' 
-                  ? 'bg-white text-blue-700 border border-blue-200' 
-                  : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
-              }`}
-              role="tab"
-              aria-selected={viewMode === 'list'}
-            >
-              <List className="w-4 h-4 mr-1" />
-              List
-            </Button>
-          </div>
+        {/* Third line: View Toggle - Full width */}
+        <div className="w-full flex items-center bg-slate-50 rounded-xl p-1 border border-slate-200" role="tablist">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onViewModeChange('month')}
+            className={`flex-1 h-8 px-3 text-sm font-medium transition-colors duration-200 ${
+              viewMode === 'month' 
+                ? 'bg-white text-blue-700 border border-blue-200' 
+                : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
+            }`}
+            role="tab"
+            aria-selected={viewMode === 'month'}
+          >
+            <Calendar className="w-4 h-4 mr-1" />
+            Month
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onViewModeChange('week')}
+            className={`flex-1 h-8 px-3 text-sm font-medium transition-colors duration-200 ${
+              viewMode === 'week' 
+                ? 'bg-white text-blue-700 border border-blue-200' 
+                : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
+            }`}
+            role="tab"
+            aria-selected={viewMode === 'week'}
+          >
+            <CalendarDays className="w-4 h-4 mr-1" />
+            Week
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onViewModeChange('list')}
+            className={`flex-1 h-8 px-3 text-sm font-medium transition-colors duration-200 ${
+              viewMode === 'list' 
+                ? 'bg-white text-blue-700 border border-blue-200' 
+                : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
+            }`}
+            role="tab"
+            aria-selected={viewMode === 'list'}
+          >
+            <List className="w-4 h-4 mr-1" />
+            List
+          </Button>
         </div>
 
         {/* Third line: Full-width Create Campaign button on mobile */}
