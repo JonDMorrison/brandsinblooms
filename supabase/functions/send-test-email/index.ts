@@ -158,8 +158,9 @@ const handler = async (req: Request): Promise<Response> => {
           senderEmail = sender.sender_email;
           senderDisplayName = sender.display_name || '';
         } else {
-          // Fallback to default sender
-          senderEmail = 'noreply@bloomsuite.email';
+          // Fallback to verified sender from environment
+          const fallbackFromAddress = Deno.env.get('RESEND_FROM_ADDRESS') || 'onboarding@resend.dev';
+          senderEmail = fallbackFromAddress;
           senderDisplayName = 'BloomSuite';
         }
       }
