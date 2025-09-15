@@ -14,16 +14,9 @@ export const AdminFilters = ({ onFilterChange, loading }: AdminFiltersProps) => 
   const [status, setStatus] = useState("");
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Debounced filter function
-  const debouncedFilterChange = useCallback((searchValue: string, statusValue: string) => {
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-    
-    debounceTimer.current = setTimeout(() => {
-      onFilterChange(searchValue, statusValue);
-    }, 500);
-  }, [onFilterChange]);
+  // Stable reference to onFilterChange to prevent recreating debounce
+  const onFilterChangeRef = useRef(onFilterChange);
+  onFilterChangeRef.current = onFilterChange;
 
   // Clean up timer on unmount
   useEffect(() => {
@@ -36,7 +29,16 @@ export const AdminFilters = ({ onFilterChange, loading }: AdminFiltersProps) => 
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
-    debouncedFilterChange(value, status);
+    
+    // Clear existing timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    // Set new timer
+    debounceTimer.current = setTimeout(() => {
+      onFilterChangeRef.current(value, status);
+    }, 500);
   };
 
   const handleStatusChange = (value: string) => {
@@ -45,7 +47,7 @@ export const AdminFilters = ({ onFilterChange, loading }: AdminFiltersProps) => 
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
-    onFilterChange(search, value);
+    onFilterChangeRef.current(search, value);
   };
 
   const clearFilters = () => {
@@ -56,7 +58,7 @@ export const AdminFilters = ({ onFilterChange, loading }: AdminFiltersProps) => 
     setSearch("");
     setStatus("");
     // Clear filters immediately, bypassing debounce
-    onFilterChange("", "");
+    onFilterChangeRef.current("", "");
   };
 
   const hasActiveFilters = search || status;
