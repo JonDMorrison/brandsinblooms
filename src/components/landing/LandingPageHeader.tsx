@@ -89,6 +89,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
           Sign In
         </Button>
         <Button 
+          variant="ghost"
           onClick={onLogin}
           className="bg-[#2c9da3] hover:bg-[#2c9da3]/90 text-white"
         >
@@ -149,7 +150,8 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
               >
                 Sign In
               </Button>
-              <Button 
+              <Button
+                variant="ghost"
                 onClick={() => {
                   onLogin();
                   setMobileMenuOpen(false);
