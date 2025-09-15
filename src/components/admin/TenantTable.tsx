@@ -216,25 +216,38 @@ export const TenantTable = ({
               </TableCell>
               
               <TableCell>
-                <DropdownMenu>
+                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => console.log("Dropdown button clicked for tenant:", tenant.tenant_id)}
+                    >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onViewTenant(tenant)}>
+                    <DropdownMenuItem onClick={() => {
+                      console.log("View tenant clicked:", tenant.tenant_id);
+                      onViewTenant(tenant);
+                    }}>
                       <Eye className="mr-2 h-4 w-4" />
                       View Details
                     </DropdownMenuItem>
                     {tenant.is_trialing && (
-                      <DropdownMenuItem onClick={() => onExtendTrial(tenant.tenant_id, 7)}>
+                      <DropdownMenuItem onClick={() => {
+                        console.log("Extend trial clicked:", tenant.tenant_id);
+                        onExtendTrial(tenant.tenant_id, 7);
+                      }}>
                         <Clock className="mr-2 h-4 w-4" />
                         Extend Trial (+7 days)
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem 
-                      onClick={() => onToggleActive(tenant.tenant_id, !tenant.is_active)}
+                      onClick={() => {
+                        console.log("Toggle active clicked:", tenant.tenant_id, !tenant.is_active);
+                        onToggleActive(tenant.tenant_id, !tenant.is_active);
+                      }}
                     >
                       {tenant.is_active ? "Deactivate" : "Activate"}
                     </DropdownMenuItem>

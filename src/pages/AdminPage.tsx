@@ -31,6 +31,8 @@ const AdminPage = () => {
     refetch,
   } = useAdminTenants();
 
+  console.log("AdminPage data:", { tenants, stats, loading, error });
+
   // Only allow access to super admins - redirect to root instead of /app
   if (!user || !isSuperAdmin(user.email)) {
     return <Navigate to="/" replace />;
