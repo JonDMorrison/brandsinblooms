@@ -154,6 +154,24 @@ export type Database = {
         }
         Relationships: []
       }
+      app_admin_emails: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          email: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          email: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          email?: string
+        }
+        Relationships: []
+      }
       automation_events: {
         Row: {
           automation_id: string | null
@@ -556,6 +574,13 @@ export type Database = {
             foreignKeyName: "campaigns_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "campaigns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -951,6 +976,13 @@ export type Database = {
             foreignKeyName: "content_tasks_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "content_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -1276,6 +1308,13 @@ export type Database = {
             foreignKeyName: "crm_campaigns_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "crm_campaigns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -1373,6 +1412,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "personas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "crm_customers_tenant_id_fkey"
@@ -1675,6 +1721,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "personas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_segments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "crm_segments_tenant_id_fkey"
@@ -2810,6 +2863,13 @@ export type Database = {
             foreignKeyName: "holiday_tasks_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "holiday_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -3917,6 +3977,13 @@ export type Database = {
             foreignKeyName: "sms_automations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "sms_automations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -4282,31 +4349,49 @@ export type Database = {
       }
       tenants: {
         Row: {
+          archived_at: string | null
+          city: string | null
+          country: string | null
           created_at: string
           id: string
           is_active: boolean
+          last_event_at: string | null
           name: string
+          region: string | null
           settings: Json | null
           slug: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
+          archived_at?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
+          last_event_at?: string | null
           name: string
+          region?: string | null
           settings?: Json | null
           slug?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
+          archived_at?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
+          last_event_at?: string | null
           name?: string
+          region?: string | null
           settings?: Json | null
           slug?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -4504,6 +4589,13 @@ export type Database = {
             foreignKeyName: "user_theme_status_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "user_theme_status_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -4514,7 +4606,9 @@ export type Database = {
           created_at: string
           created_by_user_id: string | null
           email: string
+          full_name: string | null
           id: string
+          last_sign_in_at: string | null
           name: string
           role: string
           tenant_id: string | null
@@ -4523,7 +4617,9 @@ export type Database = {
           created_at?: string
           created_by_user_id?: string | null
           email: string
+          full_name?: string | null
           id?: string
+          last_sign_in_at?: string | null
           name: string
           role?: string
           tenant_id?: string | null
@@ -4532,12 +4628,21 @@ export type Database = {
           created_at?: string
           created_by_user_id?: string | null
           email?: string
+          full_name?: string | null
           id?: string
+          last_sign_in_at?: string | null
           name?: string
           role?: string
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "users_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
           {
             foreignKeyName: "users_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -4573,6 +4678,33 @@ export type Database = {
       }
     }
     Views: {
+      admin_tenant_overview: {
+        Row: {
+          archived_at: string | null
+          city: string | null
+          company_name: string | null
+          country: string | null
+          current_period_end: string | null
+          is_active: boolean | null
+          is_paid_active: boolean | null
+          is_trialing: boolean | null
+          last_activity_at: string | null
+          onboarding_completed_at: string | null
+          plan: Database["public"]["Enums"]["subscription_plan"] | null
+          primary_contact_email: string | null
+          primary_contact_last_login: string | null
+          primary_contact_name: string | null
+          region: string | null
+          subscription_status: string | null
+          tenant_created_at: string | null
+          tenant_id: string | null
+          trial_end: string | null
+          trial_not_expired: boolean | null
+          trial_start: string | null
+          website: string | null
+        }
+        Relationships: []
+      }
       content_library_view: {
         Row: {
           approved_count: number | null
@@ -4640,6 +4772,13 @@ export type Database = {
             foreignKeyName: "crm_customers_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "crm_customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -4650,6 +4789,54 @@ export type Database = {
       admin_delete_user: {
         Args: { target_user_id: string }
         Returns: boolean
+      }
+      admin_extend_trial: {
+        Args: { p_days: number; p_tenant_id: string }
+        Returns: undefined
+      }
+      admin_get_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active_trials: number
+          inactive_tenants: number
+          paid_active: number
+          total_tenants: number
+        }[]
+      }
+      admin_list_tenants: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: string
+        }
+        Returns: {
+          city: string
+          company_name: string
+          country: string
+          current_period_end: string
+          is_active: boolean
+          is_paid_active: boolean
+          is_trialing: boolean
+          last_activity_at: string
+          onboarding_completed_at: string
+          plan: string
+          primary_contact_email: string
+          primary_contact_last_login: string
+          primary_contact_name: string
+          region: string
+          subscription_status: string
+          tenant_created_at: string
+          tenant_id: string
+          trial_end: string
+          trial_not_expired: boolean
+          trial_start: string
+          website: string
+        }[]
+      }
+      admin_toggle_tenant_active: {
+        Args: { p_active: boolean; p_tenant_id: string }
+        Returns: undefined
       }
       bundle_approved_counts: {
         Args: { j: Json }
