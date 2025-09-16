@@ -5,14 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart3, Target, Smartphone, Users, TrendingUp, Heart, Brain } from 'lucide-react';
-import { useLongPress } from '@/hooks/useLongPress';
 
 export const Home1Page = () => {
+  console.log('🏠 Home1Page: Component rendering...');
+  
   const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(2); // Start with slide 3 (index 2) in center
   const sliderRef = useRef<HTMLDivElement>(null);
   const startX = useRef<number>(0);
   const isDragging = useRef<boolean>(false);
+
+  console.log('🏠 Home1Page: Current slide:', currentSlide);
 
   const slides = [
     {
@@ -181,58 +184,32 @@ export const Home1Page = () => {
         </div>
       </section>
 
-      {/* Slider Section */}
+      {/* Simplified Slider Section for debugging */}
       <section className="py-16 px-6 bg-muted/30">
         <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold">Features Slider</h2>
+            <p>Current slide: {currentSlide}</p>
+          </div>
+          
           <div className="relative overflow-hidden">
-            <div 
-              ref={sliderRef}
-              className="flex transition-transform duration-500 ease-in-out cursor-grab active:cursor-grabbing"
-              style={{ 
-                transform: `translateX(calc(-${currentSlide * 70}% + 30%))` 
-              }}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseLeave}
-            >
-              {slides.map((slide, index) => {
-                const Icon = slide.icon;
-                const isCenter = index === currentSlide;
-                
-                return (
-                  <div 
-                    key={slide.id} 
-                    className="w-[70%] flex-shrink-0 px-4"
-                  >
-                    <div className={`bg-gradient-to-br ${slide.gradient} rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6 transition-all duration-300 ${
-                      isCenter ? 'ring-2 ring-primary/20 scale-105' : 'opacity-60 scale-95'
-                    }`}>
-                      <div className={`w-20 h-20 ${slide.iconBg} rounded-full flex items-center justify-center`}>
-                        <Icon className={`w-10 h-10 ${slide.iconColor}`} />
-                      </div>
-                      <h3 className="text-2xl font-bold text-foreground">{slide.title}</h3>
-                      <p className="text-muted-foreground max-w-md">{slide.description}</p>
-                    </div>
+            <div className="flex justify-center">
+              <div className="w-full max-w-md">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center">
+                    <BarChart3 className="w-10 h-10 text-blue-600" />
                   </div>
-                );
-              })}
+                  <h3 className="text-2xl font-bold text-foreground">Test Slide</h3>
+                  <p className="text-muted-foreground max-w-md">This is a test to see if the component renders</p>
+                </div>
+              </div>
             </div>
 
-            {/* Navigation dots */}
+            {/* Simple navigation dots */}
             <div className="flex justify-center space-x-2 mt-8">
-              {slides.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => goToSlide(index)}
-                  className={`w-3 h-3 rounded-full transition-colors duration-200 ${
-                    index === currentSlide ? 'bg-primary' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                  }`}
-                />
-              ))}
+              <button className="w-3 h-3 rounded-full bg-primary"></button>
+              <button className="w-3 h-3 rounded-full bg-muted-foreground/30"></button>
+              <button className="w-3 h-3 rounded-full bg-muted-foreground/30"></button>
             </div>
           </div>
         </div>
