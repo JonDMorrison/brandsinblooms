@@ -166,12 +166,12 @@ export const Home1Page = () => {
               
               return (
                 <SwiperSlide key={slide.id} className="!h-auto">
-                  <div className={`bg-gradient-to-br ${slide.gradient} rounded-3xl p-12 aspect-[21/9] flex flex-col items-center justify-center text-center space-y-6 transition-all duration-300 transform hover:scale-105`}>
-                    <div className={`w-20 h-20 ${slide.iconBg} rounded-full flex items-center justify-center`}>
-                      <Icon className={`w-10 h-10 ${slide.iconColor}`} />
+                  <div className={`bg-gradient-to-br ${slide.gradient} rounded-3xl p-8 aspect-[9/16] flex flex-col items-center justify-center text-center space-y-4 transition-all duration-300 transform hover:scale-105`}>
+                    <div className={`w-16 h-16 ${slide.iconBg} rounded-full flex items-center justify-center`}>
+                      <Icon className={`w-8 h-8 ${slide.iconColor}`} />
                     </div>
-                    <h3 className="text-2xl font-bold text-foreground">{slide.title}</h3>
-                    <p className="text-muted-foreground max-w-md">{slide.description}</p>
+                    <h3 className="text-xl font-bold text-foreground">{slide.title}</h3>
+                    <p className="text-muted-foreground text-sm px-2">{slide.description}</p>
                   </div>
                 </SwiperSlide>
               );
