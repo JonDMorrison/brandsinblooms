@@ -121,57 +121,75 @@ export const Home1Page = () => {
         </div>
       </section>
 
-      {/* Swiper Slider Section */}
-      <section className="py-16 px-6 bg-muted/30">
-        <div className="max-w-7xl mx-auto">
+      {/* MUI Style Slider Section */}
+      <section className="py-16 px-6 bg-background">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-foreground mb-4">Powerful Features</h2>
+            <p className="text-muted-foreground text-lg">Everything you need to transform your nutrition habits</p>
+          </div>
+          
           <Swiper
-            modules={[Navigation, Pagination, EffectCoverflow]}
-            effect="coverflow"
+            modules={[Navigation, Pagination]}
             grabCursor={true}
             centeredSlides={true}
             slidesPerView={2.2}
-            spaceBetween={20}
+            spaceBetween={24}
             initialSlide={2}
-            coverflowEffect={{
-              rotate: 50,
-              stretch: 0,
-              depth: 100,
-              modifier: 1,
-              slideShadows: true,
-            }}
             pagination={{
               clickable: true,
-              bulletClass: 'swiper-pagination-bullet !bg-primary',
-              bulletActiveClass: 'swiper-pagination-bullet-active !bg-primary'
+              bulletClass: 'swiper-pagination-bullet !w-2 !h-2 !bg-muted-foreground/30 !opacity-100',
+              bulletActiveClass: 'swiper-pagination-bullet-active !bg-primary !w-8 !rounded-full',
+              dynamicBullets: true,
             }}
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
             breakpoints={{
+              320: {
+                slidesPerView: 1.1,
+                spaceBetween: 16,
+              },
               640: {
                 slidesPerView: 1.5,
-                spaceBetween: 15,
+                spaceBetween: 20,
               },
               768: {
                 slidesPerView: 2.2,
-                spaceBetween: 20,
+                spaceBetween: 24,
               },
               1024: {
-                slidesPerView: 2.2,
-                spaceBetween: 20,
+                slidesPerView: 2.5,
+                spaceBetween: 24,
               },
             }}
-            className="!pb-12"
+            className="!pb-16 mui-slider"
           >
             {slides.map((slide, index) => {
               const Icon = slide.icon;
+              const isActive = index === currentSlide;
               
               return (
                 <SwiperSlide key={slide.id} className="!h-auto">
-                  <div className={`bg-gradient-to-br ${slide.gradient} rounded-3xl p-8 aspect-[9/16] flex flex-col items-center justify-center text-center space-y-4 transition-all duration-300 transform hover:scale-105`}>
-                    <div className={`w-16 h-16 ${slide.iconBg} rounded-full flex items-center justify-center`}>
-                      <Icon className={`w-8 h-8 ${slide.iconColor}`} />
+                  <div className={`
+                    bg-card border border-border rounded-xl p-6 aspect-[4/3] 
+                    flex flex-col justify-between text-left space-y-4
+                    transition-all duration-300 ease-out
+                    shadow-sm hover:shadow-md
+                    ${isActive ? 'scale-105 shadow-lg' : 'scale-100'}
+                  `}>
+                    <div className="space-y-4">
+                      <div className={`w-12 h-12 ${slide.iconBg} rounded-lg flex items-center justify-center`}>
+                        <Icon className={`w-6 h-6 ${slide.iconColor}`} />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-semibold text-card-foreground leading-tight">{slide.title}</h3>
+                        <p className="text-muted-foreground text-sm leading-relaxed">{slide.description}</p>
+                      </div>
                     </div>
-                    <h3 className="text-xl font-bold text-foreground">{slide.title}</h3>
-                    <p className="text-muted-foreground text-sm px-2">{slide.description}</p>
+                    <div className="pt-2">
+                      <div className="w-8 h-1 bg-primary/20 rounded-full">
+                        <div className="w-4 h-1 bg-primary rounded-full"></div>
+                      </div>
+                    </div>
                   </div>
                 </SwiperSlide>
               );
