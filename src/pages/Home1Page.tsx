@@ -174,8 +174,8 @@ export const Home1Page = () => {
                     transition-all duration-500 ease-out
                     ${isActive ? 'scale-105' : 'scale-95 opacity-70'}
                   `}>
-                    {/* Gradient Background */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${slide.gradient.replace('50', '900').replace('100', '800')} opacity-90`} />
+                     {/* Gradient Background */}
+                     <div className={`absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-90`} />
                     
                     {/* Content */}
                     <div className="relative z-10 h-full flex flex-col justify-between p-8 text-white">
