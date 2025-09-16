@@ -121,12 +121,12 @@ export const Home1Page = () => {
         </div>
       </section>
 
-      {/* MUI Style Slider Section */}
-      <section className="py-16 px-6 bg-background">
+      {/* Material You Style Slider Section */}
+      <section className="py-20 px-6 bg-gray-900">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4">Powerful Features</h2>
-            <p className="text-muted-foreground text-lg">Everything you need to transform your nutrition habits</p>
+            <h2 className="text-4xl font-bold text-white mb-4">Powerful Features</h2>
+            <p className="text-gray-300 text-lg">Everything you need to transform your nutrition habits</p>
           </div>
           
           <Swiper
@@ -134,34 +134,34 @@ export const Home1Page = () => {
             grabCursor={true}
             centeredSlides={true}
             slidesPerView={2.2}
-            spaceBetween={24}
+            spaceBetween={16}
             initialSlide={2}
             pagination={{
               clickable: true,
-              bulletClass: 'swiper-pagination-bullet !w-2 !h-2 !bg-muted-foreground/30 !opacity-100',
-              bulletActiveClass: 'swiper-pagination-bullet-active !bg-primary !w-8 !rounded-full',
+              bulletClass: 'swiper-pagination-bullet !w-2 !h-2 !bg-white/30 !opacity-100 !rounded-full',
+              bulletActiveClass: 'swiper-pagination-bullet-active !bg-primary !w-6 !rounded-full',
               dynamicBullets: true,
             }}
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
             breakpoints={{
               320: {
-                slidesPerView: 1.1,
-                spaceBetween: 16,
+                slidesPerView: 1.2,
+                spaceBetween: 12,
               },
               640: {
-                slidesPerView: 1.5,
-                spaceBetween: 20,
+                slidesPerView: 1.8,
+                spaceBetween: 14,
               },
               768: {
                 slidesPerView: 2.2,
-                spaceBetween: 24,
+                spaceBetween: 16,
               },
               1024: {
                 slidesPerView: 2.5,
-                spaceBetween: 24,
+                spaceBetween: 20,
               },
             }}
-            className="!pb-16 mui-slider"
+            className="!pb-16 material-you-slider"
           >
             {slides.map((slide, index) => {
               const Icon = slide.icon;
@@ -170,25 +170,39 @@ export const Home1Page = () => {
               return (
                 <SwiperSlide key={slide.id} className="!h-auto">
                   <div className={`
-                    bg-card border border-border rounded-xl p-6 aspect-[4/3] 
-                    flex flex-col justify-between text-left space-y-4
-                    transition-all duration-300 ease-out
-                    shadow-sm hover:shadow-md
-                    ${isActive ? 'scale-105 shadow-lg' : 'scale-100'}
+                    relative overflow-hidden rounded-3xl aspect-[3/4] 
+                    transition-all duration-500 ease-out
+                    ${isActive ? 'scale-105' : 'scale-95 opacity-70'}
                   `}>
-                    <div className="space-y-4">
-                      <div className={`w-12 h-12 ${slide.iconBg} rounded-lg flex items-center justify-center`}>
-                        <Icon className={`w-6 h-6 ${slide.iconColor}`} />
+                    {/* Gradient Background */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${slide.gradient.replace('50', '900').replace('100', '800')} opacity-90`} />
+                    
+                    {/* Content */}
+                    <div className="relative z-10 h-full flex flex-col justify-between p-8 text-white">
+                      <div className="flex-1 flex flex-col justify-center items-center text-center space-y-6">
+                        <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                          <Icon className="w-10 h-10 text-white" />
+                        </div>
+                        <div className="space-y-3">
+                          <h3 className="text-2xl font-bold leading-tight">{slide.title}</h3>
+                          <p className="text-white/80 text-sm leading-relaxed px-2">{slide.description}</p>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-semibold text-card-foreground leading-tight">{slide.title}</h3>
-                        <p className="text-muted-foreground text-sm leading-relaxed">{slide.description}</p>
+                      
+                      {/* Bottom accent */}
+                      <div className="flex justify-center mt-6">
+                        <div className="w-12 h-1 bg-white/30 rounded-full">
+                          <div className="w-6 h-1 bg-white rounded-full"></div>
+                        </div>
                       </div>
                     </div>
-                    <div className="pt-2">
-                      <div className="w-8 h-1 bg-primary/20 rounded-full">
-                        <div className="w-4 h-1 bg-primary rounded-full"></div>
-                      </div>
+                    
+                    {/* Material You inspired overlay pattern */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+                    
+                    {/* Slide label */}
+                    <div className="absolute top-4 left-4 bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">
+                      <span className="text-white/90 text-xs font-medium">Feature {index + 1}</span>
                     </div>
                   </div>
                 </SwiperSlide>
