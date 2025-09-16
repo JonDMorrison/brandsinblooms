@@ -108,7 +108,7 @@ export const Home1Page = () => {
               </div>
             </div>
             <div className="relative">
-              <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-3xl p-8 aspect-[9/16] flex items-center justify-center">
+              <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-3xl p-8 aspect-[9/13] flex items-center justify-center">
                 <div className="w-64 h-80 bg-white rounded-2xl shadow-xl p-4 flex items-center justify-center">
                   <div className="text-center space-y-4">
                     <Smartphone className="w-16 h-16 text-primary mx-auto" />
