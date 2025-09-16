@@ -1,7 +1,6 @@
 
-@layer utilities {
-  /* Campaign Creator Mobile Optimizations */
-  @media (max-width: 768px) {
+/* Campaign Creator Mobile Optimizations */
+@media (max-width: 768px) {
     
     /* Campaign Creator Container */
     .campaign-creator-container {
@@ -102,4 +101,3 @@
       @apply grid-cols-3 gap-6 !important;
     }
   }
-}

@@ -1,13 +1,12 @@
 
-@layer utilities {
-  /* Enhanced responsive utilities - Mobile-first approach with tighter spacing */
-  .responsive-grid-auto {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  }
+/* Enhanced responsive utilities - Mobile-first approach with tighter spacing */
+.responsive-grid-auto {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
 
-  .responsive-grid-auto-sm {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  }
+.responsive-grid-auto-sm {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
 
   .responsive-grid-auto-lg {
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -131,4 +130,3 @@
       @apply space-y-4;
     }
   }
-}

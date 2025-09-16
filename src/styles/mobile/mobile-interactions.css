@@ -1,7 +1,6 @@
 
-@layer utilities {
-  /* Mobile-first interaction and accessibility optimizations */
-  @media (max-width: 768px) {
+/* Mobile-first interaction and accessibility optimizations */
+@media (max-width: 768px) {
     /* Fix background elements that might be blocking touches */
     .absolute:not(button):not([role="button"]),
     .bg-gradient-to-br:not(button):not(.final-cta-section),
@@ -83,4 +82,3 @@
       color: white !important;
     }
   }
-}

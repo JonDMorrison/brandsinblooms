@@ -1,7 +1,6 @@
 
-@layer utilities {
-  /* Mobile-first button optimizations */
-  @media (max-width: 768px) {
+/* Mobile-first button optimizations */
+@media (max-width: 768px) {
     /* COMPREHENSIVE MOBILE BUTTON FIXES */
     
     /* Base button styling - Complete mobile optimization */
@@ -120,4 +119,3 @@
       background-color: white !important;
     }
   }
-}

@@ -1,7 +1,6 @@
 
-@layer utilities {
-  /* Mobile-first typography optimizations */
-  @media (max-width: 768px) {
+/* Mobile-first typography optimizations */
+@media (max-width: 768px) {
     /* TYPOGRAPHY RESPONSIVE SCALING */
     
     /* Hero text scaling - but preserve Final CTA section */
@@ -100,4 +99,3 @@
       opacity: 0.8 !important;
     }
   }
-}

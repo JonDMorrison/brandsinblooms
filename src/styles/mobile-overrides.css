@@ -1,10 +1,8 @@
 
-@layer utilities {
-  /* Import mobile-specific CSS modules with correct paths */
-  @import './mobile-buttons.css';
-  @import './mobile-layout.css';
-  @import './mobile-typography.css';
-  @import './mobile-components.css';
-  @import './mobile-interactions.css';
-  @import './modal-isolation.css';
-}
+/* Import mobile-specific CSS modules with correct paths */
+@import './mobile-buttons.css';
+@import './mobile-layout.css';
+@import './mobile-typography.css';
+@import './mobile-components.css';
+@import './mobile-interactions.css';
+@import './modal-isolation.css';

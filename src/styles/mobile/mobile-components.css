@@ -1,7 +1,6 @@
 
-@layer utilities {
-  /* Mobile-first component-specific optimizations */
-  @media (max-width: 768px) {
+/* Mobile-first component-specific optimizations */
+@media (max-width: 768px) {
     /* ICON VISIBILITY FIXES */
     
     /* Base icon sizing - Make icons more visible */
@@ -209,4 +208,3 @@
       color: black !important;
     }
   }
-}

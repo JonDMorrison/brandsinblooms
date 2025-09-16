@@ -1,7 +1,6 @@
 
-@layer utilities {
-  /* Mobile-first layout and spacing optimizations */
-  @media (max-width: 768px) {
+/* Mobile-first layout and spacing optimizations */
+@media (max-width: 768px) {
     /* MOBILE CONTAINER AND PADDING FIXES - OPTIMIZED */
     
     /* Global mobile container constraints */
@@ -175,4 +174,3 @@
       @apply mx-auto !important;
     }
   }
-}
