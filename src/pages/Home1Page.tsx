@@ -1,13 +1,134 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart3, Target, Smartphone, Users, TrendingUp, Heart, Brain } from 'lucide-react';
+import { useLongPress } from '@/hooks/useLongPress';
 
 export const Home1Page = () => {
   const navigate = useNavigate();
+  const [currentSlide, setCurrentSlide] = useState(2); // Start with slide 3 (index 2) in center
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const startX = useRef<number>(0);
+  const isDragging = useRef<boolean>(false);
+
+  const slides = [
+    {
+      id: 1,
+      title: "Nutrition Tracking",
+      description: "Track your calories, macros, and nutrients effortlessly",
+      icon: BarChart3,
+      gradient: "from-blue-50 to-indigo-50",
+      iconBg: "bg-blue-500/20",
+      iconColor: "text-blue-600"
+    },
+    {
+      id: 2,
+      title: "Personalized Goals",
+      description: "Set and achieve your health goals with AI guidance",
+      icon: Target,
+      gradient: "from-green-50 to-emerald-50",
+      iconBg: "bg-green-500/20",
+      iconColor: "text-green-600"
+    },
+    {
+      id: 3,
+      title: "AI Assistant",
+      description: "Get intelligent recommendations and insights",
+      icon: Brain,
+      gradient: "from-purple-50 to-violet-50",
+      iconBg: "bg-purple-500/20",
+      iconColor: "text-purple-600"
+    },
+    {
+      id: 4,
+      title: "Progress Tracking",
+      description: "Monitor your health journey with detailed analytics",
+      icon: TrendingUp,
+      gradient: "from-orange-50 to-amber-50",
+      iconBg: "bg-orange-500/20",
+      iconColor: "text-orange-600"
+    },
+    {
+      id: 5,
+      title: "Wellness Community",
+      description: "Connect with others on their health journey",
+      icon: Heart,
+      gradient: "from-pink-50 to-rose-50",
+      iconBg: "bg-pink-500/20",
+      iconColor: "text-pink-600"
+    }
+  ];
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  };
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index);
+  };
+
+  // Touch and mouse handlers for swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    isDragging.current = true;
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    startX.current = e.clientX;
+    isDragging.current = true;
+    e.preventDefault();
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current) return;
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    e.preventDefault();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!isDragging.current) return;
+    const endX = e.changedTouches[0].clientX;
+    const deltaX = startX.current - endX;
+    
+    if (Math.abs(deltaX) > 50) { // Minimum swipe distance
+      if (deltaX > 0) {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
+    }
+    isDragging.current = false;
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    const endX = e.clientX;
+    const deltaX = startX.current - endX;
+    
+    if (Math.abs(deltaX) > 50) { // Minimum swipe distance
+      if (deltaX > 0) {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
+    }
+    isDragging.current = false;
+  };
+
+  const handleMouseLeave = () => {
+    isDragging.current = false;
+  };
 
   const handleLogin = () => {
     navigate('/auth');
@@ -64,78 +185,54 @@ export const Home1Page = () => {
       <section className="py-16 px-6 bg-muted/30">
         <div className="max-w-7xl mx-auto">
           <div className="relative overflow-hidden">
-            <div className="flex transition-transform duration-500 ease-in-out">
-              {/* Slide 1 */}
-              <div className="w-full flex-shrink-0 px-4">
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6">
-                  <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center">
-                    <BarChart3 className="w-10 h-10 text-blue-600" />
+            <div 
+              ref={sliderRef}
+              className="flex transition-transform duration-500 ease-in-out cursor-grab active:cursor-grabbing"
+              style={{ 
+                transform: `translateX(calc(-${currentSlide * 70}% + 30%))` 
+              }}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+            >
+              {slides.map((slide, index) => {
+                const Icon = slide.icon;
+                const isCenter = index === currentSlide;
+                
+                return (
+                  <div 
+                    key={slide.id} 
+                    className="w-[70%] flex-shrink-0 px-4"
+                  >
+                    <div className={`bg-gradient-to-br ${slide.gradient} rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6 transition-all duration-300 ${
+                      isCenter ? 'ring-2 ring-primary/20 scale-105' : 'opacity-60 scale-95'
+                    }`}>
+                      <div className={`w-20 h-20 ${slide.iconBg} rounded-full flex items-center justify-center`}>
+                        <Icon className={`w-10 h-10 ${slide.iconColor}`} />
+                      </div>
+                      <h3 className="text-2xl font-bold text-foreground">{slide.title}</h3>
+                      <p className="text-muted-foreground max-w-md">{slide.description}</p>
+                    </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-foreground">Nutrition Tracking</h3>
-                  <p className="text-muted-foreground max-w-md">Track your calories, macros, and nutrients effortlessly</p>
-                </div>
-              </div>
-              
-              {/* Slide 2 */}
-              <div className="w-full flex-shrink-0 px-4">
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6">
-                  <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
-                    <Target className="w-10 h-10 text-green-600" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-foreground">Personalized Goals</h3>
-                  <p className="text-muted-foreground max-w-md">Set and achieve your health goals with AI guidance</p>
-                </div>
-              </div>
-              
-              {/* Slide 3 - Center/Active */}
-              <div className="w-full flex-shrink-0 px-4">
-                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6 ring-2 ring-primary/20">
-                  <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center">
-                    <Brain className="w-10 h-10 text-purple-600" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-foreground">AI Assistant</h3>
-                  <p className="text-muted-foreground max-w-md">Get intelligent recommendations and insights</p>
-                </div>
-              </div>
-              
-              {/* Slide 4 */}
-              <div className="w-full flex-shrink-0 px-4">
-                <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6">
-                  <div className="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center">
-                    <TrendingUp className="w-10 h-10 text-orange-600" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-foreground">Progress Tracking</h3>
-                  <p className="text-muted-foreground max-w-md">Monitor your health journey with detailed analytics</p>
-                </div>
-              </div>
-              
-              {/* Slide 5 */}
-              <div className="w-full flex-shrink-0 px-4">
-                <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6">
-                  <div className="w-20 h-20 bg-pink-500/20 rounded-full flex items-center justify-center">
-                    <Heart className="w-10 h-10 text-pink-600" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-foreground">Wellness Community</h3>
-                  <p className="text-muted-foreground max-w-md">Connect with others on their health journey</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Partial visibility effect - showing 35% of side slides */}
-            <div className="absolute inset-0 pointer-events-none">
-              {/* Left fade overlay to hide 65% of left side */}
-              <div className="absolute left-0 top-0 w-[65%] h-full bg-gradient-to-r from-muted/30 to-transparent z-10"></div>
-              {/* Right fade overlay to hide 65% of right side */}
-              <div className="absolute right-0 top-0 w-[65%] h-full bg-gradient-to-l from-muted/30 to-transparent z-10"></div>
+                );
+              })}
             </div>
 
             {/* Navigation dots */}
             <div className="flex justify-center space-x-2 mt-8">
-              <button className="w-3 h-3 rounded-full bg-muted-foreground/30"></button>
-              <button className="w-3 h-3 rounded-full bg-muted-foreground/30"></button>
-              <button className="w-3 h-3 rounded-full bg-primary"></button>
-              <button className="w-3 h-3 rounded-full bg-muted-foreground/30"></button>
-              <button className="w-3 h-3 rounded-full bg-muted-foreground/30"></button>
+              {slides.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => goToSlide(index)}
+                  className={`w-3 h-3 rounded-full transition-colors duration-200 ${
+                    index === currentSlide ? 'bg-primary' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                  }`}
+                />
+              ))}
             </div>
           </div>
         </div>
