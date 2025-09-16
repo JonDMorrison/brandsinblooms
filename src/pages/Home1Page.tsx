@@ -129,8 +129,8 @@ export const Home1Page = () => {
             effect="coverflow"
             grabCursor={true}
             centeredSlides={true}
-            slidesPerView={1.7}
-            spaceBetween={30}
+            slidesPerView={3.3}
+            spaceBetween={20}
             initialSlide={2}
             coverflowEffect={{
               rotate: 50,
@@ -147,16 +147,16 @@ export const Home1Page = () => {
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
             breakpoints={{
               640: {
-                slidesPerView: 1.7,
-                spaceBetween: 20,
+                slidesPerView: 2.2,
+                spaceBetween: 15,
               },
               768: {
-                slidesPerView: 2.2,
-                spaceBetween: 30,
+                slidesPerView: 3.3,
+                spaceBetween: 20,
               },
               1024: {
-                slidesPerView: 2.5,
-                spaceBetween: 40,
+                slidesPerView: 3.3,
+                spaceBetween: 20,
               },
             }}
             className="!pb-12"
