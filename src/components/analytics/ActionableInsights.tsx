@@ -34,47 +34,169 @@ export const ActionableInsights = ({
   growth = 0,
   conversions = 0
 }: ActionableInsightsProps) => {
-  const insights: Insight[] = [
-    {
-      id: 'engagement-trend',
-      type: 'opportunity',
-      title: 'Customer Engagement is Growing',
-      description: `Your interaction rate increased by 12.5% this month. Consider scaling your most successful content formats.`,
-      impact: 'high',
-      actionable: true,
-      metric: 'Engagement Rate',
-      change: 12.5
-    },
-    {
-      id: 'conversion-optimization',
-      type: 'recommendation',
-      title: 'Optimize Landing Pages',
-      description: 'Your traffic is up 15% but conversions are flat. Focus on improving your call-to-action buttons and page load speed.',
-      impact: 'high',
-      actionable: true,
-      metric: 'Conversion Rate'
-    },
-    {
-      id: 'social-performance',
+  // Generate real insights based on actual data
+  const insights: Insight[] = [];
+
+  // Growth-based insights
+  if (growth > 20) {
+    insights.push({
+      id: 'high-growth',
       type: 'achievement',
-      title: 'Social Media Milestone',
-      description: 'You reached 1,000 social media interactions this week - a 25% increase from last week.',
-      impact: 'medium',
+      title: 'Exceptional Growth Performance',
+      description: `Outstanding! Your metrics grew by ${growth.toFixed(1)}% this period. This momentum suggests your current strategies are highly effective.`,
+      impact: 'high',
       actionable: false,
-      metric: 'Social Engagement',
-      change: 25
-    },
-    {
-      id: 'email-open-rate',
-      type: 'alert',
-      title: 'Email Performance Declining',
-      description: 'Your email open rates dropped by 8% this week. Consider testing new subject lines or send times.',
+      metric: 'Overall Growth',
+      change: growth
+    });
+  } else if (growth > 10) {
+    insights.push({
+      id: 'good-growth',
+      type: 'opportunity',
+      title: 'Strong Growth Momentum',
+      description: `Your performance improved by ${growth.toFixed(1)}% this period. Consider doubling down on your most successful campaigns.`,
+      impact: 'high',
+      actionable: true,
+      metric: 'Growth Rate',
+      change: growth
+    });
+  } else if (growth > 0) {
+    insights.push({
+      id: 'moderate-growth',
+      type: 'recommendation',
+      title: 'Steady Progress',
+      description: `You're growing at ${growth.toFixed(1)}% this period. Look for opportunities to accelerate by optimizing underperforming channels.`,
       impact: 'medium',
       actionable: true,
-      metric: 'Email Open Rate',
-      change: -8
-    }
-  ];
+      metric: 'Growth Rate',
+      change: growth
+    });
+  } else if (growth < -10) {
+    insights.push({
+      id: 'declining-performance',
+      type: 'alert',
+      title: 'Performance Decline Needs Attention',
+      description: `Your metrics dropped by ${Math.abs(growth).toFixed(1)}% this period. Immediate action needed to identify and address the root causes.`,
+      impact: 'high',
+      actionable: true,
+      metric: 'Performance Decline',
+      change: growth
+    });
+  } else if (growth < 0) {
+    insights.push({
+      id: 'slight-decline',
+      type: 'alert',
+      title: 'Small Performance Dip',
+      description: `Your performance decreased by ${Math.abs(growth).toFixed(1)}% this period. Monitor closely and consider adjusting your strategy.`,
+      impact: 'medium',
+      actionable: true,
+      metric: 'Performance Change',
+      change: growth
+    });
+  }
+
+  // Engagement-based insights
+  if (engagementRate > 15) {
+    insights.push({
+      id: 'high-engagement',
+      type: 'achievement',
+      title: 'Excellent Customer Engagement',
+      description: `Your ${engagementRate.toFixed(1)}% engagement rate is exceptional. Your audience is highly engaged with your content.`,
+      impact: 'high',
+      actionable: false,
+      metric: 'Engagement Rate',
+      change: engagementRate
+    });
+  } else if (engagementRate > 8) {
+    insights.push({
+      id: 'good-engagement',
+      type: 'opportunity',
+      title: 'Strong Customer Interaction',
+      description: `With a ${engagementRate.toFixed(1)}% engagement rate, you're doing well. Test different content formats to push even higher.`,
+      impact: 'medium',
+      actionable: true,
+      metric: 'Engagement Rate'
+    });
+  } else if (engagementRate > 3) {
+    insights.push({
+      id: 'moderate-engagement',
+      type: 'recommendation',
+      title: 'Room for Engagement Growth',
+      description: `Your ${engagementRate.toFixed(1)}% engagement rate has potential. Focus on creating more interactive and valuable content.`,
+      impact: 'medium',
+      actionable: true,
+      metric: 'Engagement Rate'
+    });
+  } else if (engagementRate > 0) {
+    insights.push({
+      id: 'low-engagement',
+      type: 'alert',
+      title: 'Low Customer Engagement',
+      description: `Your ${engagementRate.toFixed(1)}% engagement rate needs improvement. Review your content strategy and posting times.`,
+      impact: 'high',
+      actionable: true,
+      metric: 'Engagement Rate'
+    });
+  }
+
+  // Conversion-based insights
+  if (conversions > 100) {
+    insights.push({
+      id: 'high-conversions',
+      type: 'achievement',
+      title: 'Strong Conversion Performance',
+      description: `You achieved ${conversions} conversions this period. Your funnel is working effectively.`,
+      impact: 'high',
+      actionable: false,
+      metric: 'Conversions'
+    });
+  } else if (conversions > 20) {
+    insights.push({
+      id: 'good-conversions',
+      type: 'opportunity',
+      title: 'Solid Conversion Results',
+      description: `With ${conversions} conversions, you're on the right track. Consider A/B testing your landing pages for even better results.`,
+      impact: 'medium',
+      actionable: true,
+      metric: 'Conversions'
+    });
+  } else if (conversions > 5) {
+    insights.push({
+      id: 'moderate-conversions',
+      type: 'recommendation',
+      title: 'Conversion Optimization Opportunity',
+      description: `You have ${conversions} conversions this period. Focus on improving your call-to-action and user experience.`,
+      impact: 'medium',
+      actionable: true,
+      metric: 'Conversions'
+    });
+  } else if (conversions > 0) {
+    insights.push({
+      id: 'low-conversions',
+      type: 'alert',
+      title: 'Low Conversion Rate',
+      description: `Only ${conversions} conversions this period. Review your funnel and identify where prospects are dropping off.`,
+      impact: 'high',
+      actionable: true,
+      metric: 'Conversions'
+    });
+  }
+
+  // Default insights if no data
+  if (insights.length === 0) {
+    insights.push({
+      id: 'getting-started',
+      type: 'recommendation',
+      title: 'Start Tracking Your Performance',
+      description: 'Connect your data sources to get personalized insights about your business performance.',
+      impact: 'medium',
+      actionable: true,
+      metric: 'Setup Required'
+    });
+  }
+
+  // Limit to top 3 most important insights
+  const topInsights = insights.slice(0, 3);
 
   const getInsightIcon = (type: string) => {
     switch (type) {
@@ -131,7 +253,7 @@ export const ActionableInsights = ({
       </div>
 
       <div className="space-y-4">
-        {insights.map((insight) => {
+        {topInsights.map((insight) => {
           const Icon = getInsightIcon(insight.type);
           const ChangeIcon = getChangeIcon(insight.change);
           

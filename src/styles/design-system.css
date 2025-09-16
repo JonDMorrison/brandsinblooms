@@ -332,15 +332,15 @@
   }
   
   .garden-text-secondary {
-    @apply text-garden-green;
+    @apply text-green-600;
   }
   
   .garden-bg-primary {
-    @apply bg-garden-background;
+    @apply bg-green-50;
   }
   
   .garden-bg-secondary {
-    @apply bg-garden-sage;
+    @apply bg-green-100;
   }
 
   /* Enhanced Brand Color Utilities */
@@ -420,15 +420,15 @@
 
   /* Fix dialog and form styling - Remove yellow, use garden green */
   .dialog-content {
-    @apply border-garden-green-light;
+    @apply border-green-300;
   }
   
   .select-trigger-focus {
-    @apply focus:border-garden-green focus:ring-garden-green;
+    @apply focus:border-green-500 focus:ring-green-500;
   }
   
   .input-focus {
-    @apply focus:border-garden-green focus:ring-garden-green;
+    @apply focus:border-green-500 focus:ring-green-500;
   }
   
   .button-cancel {
@@ -436,7 +436,7 @@
   }
   
   .button-primary {
-    @apply bg-garden-green text-white hover:bg-garden-green-dark;
+    @apply bg-green-600 text-white hover:bg-green-700;
   }
 
   /* COMPREHENSIVE YELLOW/AMBER ELIMINATION - COMPONENT LEVEL */

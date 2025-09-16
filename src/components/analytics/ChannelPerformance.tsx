@@ -6,6 +6,7 @@ import { Globe, Mail, Share2, Megaphone, BarChart3 } from 'lucide-react';
 import { GoogleAnalyticsCard } from './GoogleAnalyticsCard';
 import { CRMAnalyticsCard } from './CRMAnalyticsCard';
 import { RealAnalyticsData } from './RealAnalyticsData';
+import { PostPerformanceTracker } from './PostPerformanceTracker';
 
 interface ChannelPerformanceProps {
   gaConnected?: boolean;
@@ -154,6 +155,9 @@ export const ChannelPerformance = ({
 
         <TabsContent value="social" className="space-y-4">
           <RealAnalyticsData />
+          <div className="mt-6">
+            <PostPerformanceTracker />
+          </div>
         </TabsContent>
 
         <TabsContent value="email" className="space-y-4">
