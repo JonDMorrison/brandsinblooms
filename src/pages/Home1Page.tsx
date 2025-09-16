@@ -138,8 +138,8 @@ export const Home1Page = () => {
             initialSlide={2}
             pagination={{
               clickable: true,
-              bulletClass: 'swiper-pagination-bullet !w-2 !h-2 !bg-white/30 !opacity-100 !rounded-full',
-              bulletActiveClass: 'swiper-pagination-bullet-active !bg-primary !w-6 !rounded-full',
+              bulletClass: 'swiper-pagination-bullet',
+              bulletActiveClass: 'swiper-pagination-bullet-active',
               dynamicBullets: true,
             }}
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
@@ -162,6 +162,13 @@ export const Home1Page = () => {
               },
             }}
             className="!pb-16 material-you-slider"
+            style={{
+              '--swiper-pagination-color': '#22c55e',
+              '--swiper-pagination-bullet-inactive-color': 'rgba(255, 255, 255, 0.3)',
+              '--swiper-pagination-bullet-inactive-opacity': '1',
+              '--swiper-pagination-bullet-size': '8px',
+              '--swiper-pagination-bullet-horizontal-gap': '4px'
+            } as React.CSSProperties}
           >
             {slides.map((slide, index) => {
               const Icon = slide.icon;
