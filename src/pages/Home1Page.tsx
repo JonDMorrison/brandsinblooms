@@ -4,7 +4,7 @@ import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3, Target, Smartphone, Users, TrendingUp, Heart } from 'lucide-react';
+import { BarChart3, Target, Smartphone, Users, TrendingUp, Heart, Brain } from 'lucide-react';
 
 export const Home1Page = () => {
   const navigate = useNavigate();
@@ -60,66 +60,82 @@ export const Home1Page = () => {
         </div>
       </section>
 
-      {/* Nutrition Tracking Section */}
+      {/* Slider Section */}
       <section className="py-16 px-6 bg-muted/30">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm">
-                <BarChart3 className="w-4 h-4" />
-                About AI Your Care Way
+          <div className="relative overflow-hidden">
+            <div className="flex transition-transform duration-500 ease-in-out">
+              {/* Slide 1 */}
+              <div className="w-full flex-shrink-0 px-4">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center">
+                    <BarChart3 className="w-10 h-10 text-blue-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-foreground">Nutrition Tracking</h3>
+                  <p className="text-muted-foreground max-w-md">Track your calories, macros, and nutrients effortlessly</p>
+                </div>
               </div>
-              <h2 className="text-4xl font-bold text-foreground">
-                Effortless <span className="text-primary">Nutrition</span> Tracking,{' '}
-                <span className="text-primary">Tailored for You</span>
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                Keep an eye on calories, macros, and nutrients in a snap—no fuss, no guessing.
-              </p>
-              <Button 
-                size="lg"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg rounded-full w-full sm:w-auto"
-              >
-                Get Instant Insights On Calories, Macros, And Nutrients
-              </Button>
+              
+              {/* Slide 2 */}
+              <div className="w-full flex-shrink-0 px-4">
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
+                    <Target className="w-10 h-10 text-green-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-foreground">Personalized Goals</h3>
+                  <p className="text-muted-foreground max-w-md">Set and achieve your health goals with AI guidance</p>
+                </div>
+              </div>
+              
+              {/* Slide 3 - Center/Active */}
+              <div className="w-full flex-shrink-0 px-4">
+                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6 ring-2 ring-primary/20">
+                  <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center">
+                    <Brain className="w-10 h-10 text-purple-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-foreground">AI Assistant</h3>
+                  <p className="text-muted-foreground max-w-md">Get intelligent recommendations and insights</p>
+                </div>
+              </div>
+              
+              {/* Slide 4 */}
+              <div className="w-full flex-shrink-0 px-4">
+                <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center">
+                    <TrendingUp className="w-10 h-10 text-orange-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-foreground">Progress Tracking</h3>
+                  <p className="text-muted-foreground max-w-md">Monitor your health journey with detailed analytics</p>
+                </div>
+              </div>
+              
+              {/* Slide 5 */}
+              <div className="w-full flex-shrink-0 px-4">
+                <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-20 h-20 bg-pink-500/20 rounded-full flex items-center justify-center">
+                    <Heart className="w-10 h-10 text-pink-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-foreground">Wellness Community</h3>
+                  <p className="text-muted-foreground max-w-md">Connect with others on their health journey</p>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-6">
-              <Card className="p-6 bg-primary text-primary-foreground">
-                <CardContent className="p-0 space-y-4">
-                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Target className="w-6 h-6" />
-                  </div>
-                  <h3 className="font-semibold">Macro Tracking</h3>
-                  <p className="text-sm opacity-90">Track proteins, carbs, and fats effortlessly</p>
-                </CardContent>
-              </Card>
-              <Card className="p-6">
-                <CardContent className="p-0 space-y-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <BarChart3 className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-semibold">Smart Analytics</h3>
-                  <p className="text-sm text-muted-foreground">Get insights on your nutrition patterns</p>
-                </CardContent>
-              </Card>
-              <Card className="p-6">
-                <CardContent className="p-0 space-y-4">
-                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <Heart className="w-6 h-6 text-orange-500" />
-                  </div>
-                  <h3 className="font-semibold">Health Insights</h3>
-                  <p className="text-sm text-muted-foreground">Personalized recommendations based on your data</p>
-                </CardContent>
-              </Card>
-              <Card className="p-6 bg-primary text-primary-foreground">
-                <CardContent className="p-0 space-y-4">
-                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="w-6 h-6" />
-                  </div>
-                  <h3 className="font-semibold">Progress Tracking</h3>
-                  <p className="text-sm opacity-90">Monitor your health journey over time</p>
-                </CardContent>
-              </Card>
+            
+            {/* Partial visibility effect - showing 35% of side slides */}
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Left fade overlay to hide 65% of left side */}
+              <div className="absolute left-0 top-0 w-[65%] h-full bg-gradient-to-r from-muted/30 to-transparent z-10"></div>
+              {/* Right fade overlay to hide 65% of right side */}
+              <div className="absolute right-0 top-0 w-[65%] h-full bg-gradient-to-l from-muted/30 to-transparent z-10"></div>
+            </div>
+
+            {/* Navigation dots */}
+            <div className="flex justify-center space-x-2 mt-8">
+              <button className="w-3 h-3 rounded-full bg-muted-foreground/30"></button>
+              <button className="w-3 h-3 rounded-full bg-muted-foreground/30"></button>
+              <button className="w-3 h-3 rounded-full bg-primary"></button>
+              <button className="w-3 h-3 rounded-full bg-muted-foreground/30"></button>
+              <button className="w-3 h-3 rounded-full bg-muted-foreground/30"></button>
             </div>
           </div>
         </div>
