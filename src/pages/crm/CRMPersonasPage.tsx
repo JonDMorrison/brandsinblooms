@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Target, Plus, Search, RefreshCw, Users, UserPlus } from 'lucide-react';
+import { Target, Plus, Search, RefreshCw, Users, UserPlus, X } from 'lucide-react';
 import { useCRMPersonas } from '@/hooks/useCRMPersonas';
 import { useCRMCustomers } from '@/hooks/useCRMCustomers';
 import { PersonaCard } from '@/components/crm/personas/PersonaCard';
@@ -281,14 +281,24 @@ export const CRMPersonasPage: React.FC = () => {
 
       {/* Persona Details Modal */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogContent className="max-w-2xl max-h-[80vh] relative">
+          {/* X Close Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowDetailsModal(false)}
+            className="absolute top-4 right-4 h-6 w-6 rounded-full z-50"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 pr-8">
               <Target className="h-5 w-5" />
               {selectedPersona?.name}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-6">
+          <div className="space-y-6 pb-16">
             {/* Basic Info */}
             <div className="space-y-4">
               <div>
@@ -394,6 +404,13 @@ export const CRMPersonasPage: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Save & Close Button */}
+          <div className="absolute bottom-4 right-4">
+            <Button onClick={() => setShowDetailsModal(false)}>
+              Save & Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
