@@ -5,15 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart3, Target, Smartphone, Users, TrendingUp, Heart, Brain } from 'lucide-react';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, EffectCoverflow } from 'swiper/modules';
+
+// Import Swiper styles
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import 'swiper/css/effect-coverflow';
 
 export const Home1Page = () => {
   console.log('🏠 Home1Page: Component rendering...');
   
   const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(2); // Start with slide 3 (index 2) in center
-  const sliderRef = useRef<HTMLDivElement>(null);
-  const startX = useRef<number>(0);
-  const isDragging = useRef<boolean>(false);
 
   console.log('🏠 Home1Page: Current slide:', currentSlide);
 
@@ -64,74 +69,6 @@ export const Home1Page = () => {
       iconColor: "text-pink-600"
     }
   ];
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-  };
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index);
-  };
-
-  // Touch and mouse handlers for swipe
-  const handleTouchStart = (e: React.TouchEvent) => {
-    startX.current = e.touches[0].clientX;
-    isDragging.current = true;
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    startX.current = e.clientX;
-    isDragging.current = true;
-    e.preventDefault();
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging.current) return;
-    e.preventDefault();
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current) return;
-    e.preventDefault();
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!isDragging.current) return;
-    const endX = e.changedTouches[0].clientX;
-    const deltaX = startX.current - endX;
-    
-    if (Math.abs(deltaX) > 50) { // Minimum swipe distance
-      if (deltaX > 0) {
-        nextSlide();
-      } else {
-        prevSlide();
-      }
-    }
-    isDragging.current = false;
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (!isDragging.current) return;
-    const endX = e.clientX;
-    const deltaX = startX.current - endX;
-    
-    if (Math.abs(deltaX) > 50) { // Minimum swipe distance
-      if (deltaX > 0) {
-        nextSlide();
-      } else {
-        prevSlide();
-      }
-    }
-    isDragging.current = false;
-  };
-
-  const handleMouseLeave = () => {
-    isDragging.current = false;
-  };
 
   const handleLogin = () => {
     navigate('/auth');
@@ -184,60 +121,62 @@ export const Home1Page = () => {
         </div>
       </section>
 
-      {/* Interactive Slider Section */}
+      {/* Swiper Slider Section */}
       <section className="py-16 px-6 bg-muted/30">
         <div className="max-w-7xl mx-auto">
-          <div className="relative overflow-hidden">
-            <div 
-              ref={sliderRef}
-              className="flex transition-transform duration-500 ease-in-out cursor-grab active:cursor-grabbing select-none"
-              style={{ 
-                transform: `translateX(calc(-${currentSlide * 70}% + 30%))` 
-              }}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseLeave}
-            >
-              {slides.map((slide, index) => {
-                const Icon = slide.icon;
-                const isCenter = index === currentSlide;
-                
-                return (
-                  <div 
-                    key={slide.id} 
-                    className="w-[70%] flex-shrink-0 px-4"
-                  >
-                    <div className={`bg-gradient-to-br ${slide.gradient} rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6 transition-all duration-300 ${
-                      isCenter ? 'ring-2 ring-primary/20 scale-105' : 'opacity-60 scale-95'
-                    }`}>
-                      <div className={`w-20 h-20 ${slide.iconBg} rounded-full flex items-center justify-center`}>
-                        <Icon className={`w-10 h-10 ${slide.iconColor}`} />
-                      </div>
-                      <h3 className="text-2xl font-bold text-foreground">{slide.title}</h3>
-                      <p className="text-muted-foreground max-w-md">{slide.description}</p>
+          <Swiper
+            modules={[Navigation, Pagination, EffectCoverflow]}
+            effect="coverflow"
+            grabCursor={true}
+            centeredSlides={true}
+            slidesPerView={1.7}
+            spaceBetween={30}
+            initialSlide={2}
+            coverflowEffect={{
+              rotate: 50,
+              stretch: 0,
+              depth: 100,
+              modifier: 1,
+              slideShadows: true,
+            }}
+            pagination={{
+              clickable: true,
+              bulletClass: 'swiper-pagination-bullet !bg-primary',
+              bulletActiveClass: 'swiper-pagination-bullet-active !bg-primary'
+            }}
+            onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
+            breakpoints={{
+              640: {
+                slidesPerView: 1.7,
+                spaceBetween: 20,
+              },
+              768: {
+                slidesPerView: 2.2,
+                spaceBetween: 30,
+              },
+              1024: {
+                slidesPerView: 2.5,
+                spaceBetween: 40,
+              },
+            }}
+            className="!pb-12"
+          >
+            {slides.map((slide, index) => {
+              const Icon = slide.icon;
+              
+              return (
+                <SwiperSlide key={slide.id} className="!h-auto">
+                  <div className={`bg-gradient-to-br ${slide.gradient} rounded-3xl p-12 h-96 flex flex-col items-center justify-center text-center space-y-6 transition-all duration-300 transform hover:scale-105`}>
+                    <div className={`w-20 h-20 ${slide.iconBg} rounded-full flex items-center justify-center`}>
+                      <Icon className={`w-10 h-10 ${slide.iconColor}`} />
                     </div>
+                    <h3 className="text-2xl font-bold text-foreground">{slide.title}</h3>
+                    <p className="text-muted-foreground max-w-md">{slide.description}</p>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Navigation dots */}
-            <div className="flex justify-center space-x-2 mt-8">
-              {slides.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => goToSlide(index)}
-                  className={`w-3 h-3 rounded-full transition-colors duration-200 ${
-                    index === currentSlide ? 'bg-primary' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
+                </SwiperSlide>
+              );
+            })}
+          </Swiper>
         </div>
       </section>
 
