@@ -1,237 +1,235 @@
 
-@layer utilities {
-  /* Enhanced Typography System */
-  .apple-headline-large {
-    @apply text-2xl font-semibold leading-tight tracking-tight text-gray-900 transition-colors duration-200;
-  }
-  
-  .apple-headline-medium {
-    @apply text-xl font-medium leading-snug tracking-tight text-gray-800 transition-colors duration-200;
-  }
-  
-  .apple-body-enhanced {
-    @apply text-base leading-relaxed text-gray-700 transition-colors duration-200;
-    line-height: 1.7; /* Enhanced readability */
-  }
-  
-  .apple-caption-enhanced {
-    @apply text-sm leading-relaxed text-gray-600 transition-colors duration-200;
-    line-height: 1.6;
-  }
+/* Enhanced Typography System */
+.apple-headline-large {
+  @apply text-2xl font-semibold leading-tight tracking-tight text-gray-900 transition-colors duration-200;
+}
 
-  /* Enhanced Breathing Room */
-  .apple-section-spacing {
-    @apply space-y-8; /* Increased from 6 to 8 for better breathing room */
-  }
-  
-  .apple-card-spacing {
-    @apply space-y-6; /* Consistent spacing within cards */
-  }
+.apple-headline-medium {
+  @apply text-xl font-medium leading-snug tracking-tight text-gray-800 transition-colors duration-200;
+}
 
-  /* Premium Microinteractions */
-  .apple-hover-premium {
-    @apply transition-all duration-300 ease-apple hover:scale-[1.02] hover:shadow-lg active:scale-[0.98];
-    will-change: transform, box-shadow;
-  }
+.apple-body-enhanced {
+  @apply text-base leading-relaxed text-gray-700 transition-colors duration-200;
+  line-height: 1.7; /* Enhanced readability */
+}
 
-  .apple-spring-bounce {
-    @apply transition-all duration-200 ease-apple active:scale-95 hover:scale-[1.05];
-    transform-origin: center;
-  }
+.apple-caption-enhanced {
+  @apply text-sm leading-relaxed text-gray-600 transition-colors duration-200;
+  line-height: 1.6;
+}
 
-  .apple-ripple-effect {
-    @apply relative overflow-hidden;
-  }
+/* Enhanced Breathing Room */
+.apple-section-spacing {
+  @apply space-y-8; /* Increased from 6 to 8 for better breathing room */
+}
 
-  .apple-ripple-effect::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-  }
+.apple-card-spacing {
+  @apply space-y-6; /* Consistent spacing within cards */
+}
 
-  .apple-ripple-effect:active::before {
-    width: 300px;
-    height: 300px;
-  }
+/* Premium Microinteractions */
+.apple-hover-premium {
+  @apply transition-all duration-300 ease-apple hover:scale-[1.02] hover:shadow-lg active:scale-[0.98];
+  will-change: transform, box-shadow;
+}
 
-  /* Enhanced Icon Containers */
-  .apple-icon-container {
-    @apply flex items-center justify-center rounded-xl transition-all duration-300 ease-apple;
-    background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(129, 199, 132, 0.1) 100%);
-  }
+.apple-spring-bounce {
+  @apply transition-all duration-200 ease-apple active:scale-95 hover:scale-[1.05];
+  transform-origin: center;
+}
 
-  .apple-icon-container:hover {
-    @apply scale-110 shadow-md;
-    background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(129, 199, 132, 0.15) 100%);
-  }
+.apple-ripple-effect {
+  @apply relative overflow-hidden;
+}
 
-  /* Garden Theme Icons */
-  .apple-garden-icon {
-    @apply transition-all duration-300 ease-apple;
-  }
+.apple-ripple-effect::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
 
-  .apple-garden-icon:hover {
-    @apply scale-110 drop-shadow-sm;
-    filter: hue-rotate(10deg) brightness(1.1);
-  }
+.apple-ripple-effect:active::before {
+  width: 300px;
+  height: 300px;
+}
 
-  /* Seasonal Elements */
-  .seasonal-indicator {
-    @apply inline-flex items-center justify-center w-6 h-6 rounded-full transition-all duration-300;
-    background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
-  }
+/* Enhanced Icon Containers */
+.apple-icon-container {
+  @apply flex items-center justify-center rounded-xl transition-all duration-300 ease-apple;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(129, 199, 132, 0.1) 100%);
+}
 
-  .seasonal-indicator.summer {
-    background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
-    animation: gentle-glow 3s ease-in-out infinite alternate;
-  }
+.apple-icon-container:hover {
+  @apply scale-110 shadow-md;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(129, 199, 132, 0.15) 100%);
+}
 
-  .seasonal-indicator.spring {
-    background: linear-gradient(135deg, #E8F5E8 0%, #C8E6C9 100%);
-  }
+/* Garden Theme Icons */
+.apple-garden-icon {
+  @apply transition-all duration-300 ease-apple;
+}
 
-  .seasonal-indicator.fall {
-    background: linear-gradient(135deg, #FFF3E0 0%, #FFCC80 100%);
-  }
+.apple-garden-icon:hover {
+  @apply scale-110 drop-shadow-sm;
+  filter: hue-rotate(10deg) brightness(1.1);
+}
 
-  .seasonal-indicator.winter {
-    background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
-  }
+/* Seasonal Elements */
+.seasonal-indicator {
+  @apply inline-flex items-center justify-center w-6 h-6 rounded-full transition-all duration-300;
+  background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
+}
 
-  /* Enhanced Progress Elements */
-  .apple-progress-container {
-    @apply relative overflow-hidden rounded-full bg-gray-100;
-  }
+.seasonal-indicator.summer {
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+  animation: gentle-glow 3s ease-in-out infinite alternate;
+}
 
-  .apple-progress-bar {
-    @apply h-2 rounded-full transition-all duration-700 ease-apple;
-    background: linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%);
-  }
+.seasonal-indicator.spring {
+  background: linear-gradient(135deg, #E8F5E8 0%, #C8E6C9 100%);
+}
 
-  .apple-progress-bar::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    animation: shimmer 2s infinite;
-  }
+.seasonal-indicator.fall {
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFCC80 100%);
+}
 
-  /* Premium Button Enhancements */
-  .apple-button-premium {
-    @apply relative overflow-hidden shadow-sm hover:shadow-lg active:shadow-sm;
-    background: linear-gradient(135deg, #4CAF50 0%, #43A047 100%);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
+.seasonal-indicator.winter {
+  background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+}
 
-  .apple-button-premium:hover {
-    background: linear-gradient(135deg, #43A047 0%, #388E3C 100%);
-    transform: translateY(-1px);
-  }
+/* Enhanced Progress Elements */
+.apple-progress-container {
+  @apply relative overflow-hidden rounded-full bg-gray-100;
+}
 
-  .apple-button-premium:active {
-    transform: translateY(0px);
-  }
+.apple-progress-bar {
+  @apply h-2 rounded-full transition-all duration-700 ease-apple;
+  background: linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%);
+}
 
-  /* Enhanced Loading States */
-  .shimmer-enhanced {
-    @apply relative overflow-hidden;
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: shimmer-premium 1.5s infinite;
-  }
+.apple-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shimmer 2s infinite;
+}
 
-  /* Celebration Effects */
-  .celebration-burst {
-    animation: celebration 0.6s ease-out;
-  }
+/* Premium Button Enhancements */
+.apple-button-premium {
+  @apply relative overflow-hidden shadow-sm hover:shadow-lg active:shadow-sm;
+  background: linear-gradient(135deg, #4CAF50 0%, #43A047 100%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-  .garden-breathing {
-    animation: gentle-pulse 2s ease-in-out infinite;
-  }
+.apple-button-premium:hover {
+  background: linear-gradient(135deg, #43A047 0%, #388E3C 100%);
+  transform: translateY(-1px);
+}
 
-  /* Warm Neutral Accents */
-  .apple-warm-neutral {
-    background-color: #FAF9F7;
-    border-color: #F0EDE8;
-  }
+.apple-button-premium:active {
+  transform: translateY(0px);
+}
 
-  /* Enhanced Empty States */
-  .apple-empty-state {
-    @apply bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-200;
-    transition: all 0.3s ease-apple;
-  }
+/* Enhanced Loading States */
+.shimmer-enhanced {
+  @apply relative overflow-hidden;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer-premium 1.5s infinite;
+}
 
-  .apple-empty-state:hover {
-    @apply border-gray-300 bg-gradient-to-br from-gray-50 to-gray-200;
-  }
+/* Celebration Effects */
+.celebration-burst {
+  animation: celebration 0.6s ease-out;
+}
 
-  /* Success State Enhancements */
-  .apple-success-glow {
-    background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(129, 199, 132, 0.05) 100%);
-    border: 1px solid rgba(76, 175, 80, 0.2);
-  }
+.garden-breathing {
+  animation: gentle-pulse 2s ease-in-out infinite;
+}
 
-  /* Apple-inspired staggered animations */
-  .apple-slide-up {
-    animation: apple-slide-up 0.8s ease-out;
-  }
+/* Warm Neutral Accents */
+.apple-warm-neutral {
+  background-color: #FAF9F7;
+  border-color: #F0EDE8;
+}
 
-  .apple-fade-in-stagger {
-    animation: apple-fade-in 0.6s ease-out;
-  }
+/* Enhanced Empty States */
+.apple-empty-state {
+  @apply bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-200;
+  transition: all 0.3s ease-apple;
+}
 
-  @keyframes apple-slide-up {
-    0% {
-      opacity: 0;
-      transform: translateY(24px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+.apple-empty-state:hover {
+  @apply border-gray-300 bg-gradient-to-br from-gray-50 to-gray-200;
+}
 
-  @keyframes apple-fade-in {
-    0% {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
+/* Success State Enhancements */
+.apple-success-glow {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(129, 199, 132, 0.05) 100%);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
 
-  /* Enhanced interactive cards */
-  .card-interactive {
-    @apply transition-all duration-300 ease-apple;
-  }
+/* Apple-inspired staggered animations */
+.apple-slide-up {
+  animation: apple-slide-up 0.8s ease-out;
+}
 
-  .card-interactive:hover {
-    @apply scale-[1.02] shadow-lg;
-    transform: translateY(-2px) scale(1.02);
-  }
+.apple-fade-in-stagger {
+  animation: apple-fade-in 0.6s ease-out;
+}
 
-  .card-interactive:active {
-    @apply scale-[0.98];
-    transform: translateY(0px) scale(0.98);
+@keyframes apple-slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(24px);
   }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-  /* Apple focus ring */
-  .apple-focus-ring:focus {
-    @apply outline-none;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.5);
+@keyframes apple-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
   }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Enhanced interactive cards */
+.card-interactive {
+  @apply transition-all duration-300 ease-apple;
+}
+
+.card-interactive:hover {
+  @apply scale-[1.02] shadow-lg;
+  transform: translateY(-2px) scale(1.02);
+}
+
+.card-interactive:active {
+  @apply scale-[0.98];
+  transform: translateY(0px) scale(0.98);
+}
+
+/* Apple focus ring */
+.apple-focus-ring:focus {
+  @apply outline-none;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.5);
 }
 
 /* Enhanced Keyframes */

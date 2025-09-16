@@ -1,75 +1,73 @@
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+* {
+  @apply border-border;
+}
 
-  body {
-    @apply bg-background text-foreground font-quicksand antialiased;
-    /* Apple-inspired font smoothing */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+body {
+  @apply bg-background text-foreground font-quicksand antialiased;
+  /* Apple-inspired font smoothing */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-  /* Enhanced form controls with Apple styling */
-  input,
-  textarea,
-  select {
-    background-color: #ffffff !important;
-    color: #202124 !important;
-    border-color: #e0e0e0 !important;
-    border-radius: 8px !important;
-    transition: all 150ms ease !important;
-  }
+/* Enhanced form controls with Apple styling */
+input,
+textarea,
+select {
+  background-color: #ffffff !important;
+  color: #202124 !important;
+  border-color: #e0e0e0 !important;
+  border-radius: 8px !important;
+  transition: all 150ms ease !important;
+}
 
-  input:focus,
-  textarea:focus,
-  select:focus {
-    border-color: #4CAF50 !important;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1) !important;
-    outline: none !important;
-  }
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #4CAF50 !important;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1) !important;
+  outline: none !important;
+}
 
-  /* Enhanced autofill styling */
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus,
-  input:-webkit-autofill:active {
-    background-color: #ffffff !important;
-    -webkit-box-shadow: 0 0 0px 1000px white inset !important;
-    -webkit-text-fill-color: #202124 !important;
-    box-shadow: 0 0 0px 1000px white inset !important;
-    transition: background-color 5000s ease-in-out 0s !important;
-  }
+/* Enhanced autofill styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  background-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0px 1000px white inset !important;
+  -webkit-text-fill-color: #202124 !important;
+  box-shadow: 0 0 0px 1000px white inset !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
 
-  /* Apple-inspired scrollbars */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
+/* Apple-inspired scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
 
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 
-  ::-webkit-scrollbar-thumb {
-    background: #bdbdbd;
-    border-radius: 4px;
-  }
+::-webkit-scrollbar-thumb {
+  background: #bdbdbd;
+  border-radius: 4px;
+}
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: #9e9e9e;
-  }
+::-webkit-scrollbar-thumb:hover {
+  background: #9e9e9e;
+}
 
-  /* Selection styling */
-  ::selection {
-    background-color: rgba(76, 175, 80, 0.2);
-    color: #202124;
-  }
+/* Selection styling */
+::selection {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: #202124;
+}
 
-  /* Focus ring consistency */
-  .apple-focus:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.5);
-  }
+/* Focus ring consistency */
+.apple-focus:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.5);
 }

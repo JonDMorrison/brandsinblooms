@@ -1,9 +1,8 @@
 
-@layer base {
-  :root {
-    /* Enhanced Brand Tokens */
-    --brand-green-rgb: 34, 197, 94; /* #22C55E */
-    --brand-blue-rgb: 37, 99, 235; /* #2563EB */
+:root {
+  /* Enhanced Brand Tokens */
+  --brand-green-rgb: 34, 197, 94; /* #22C55E */
+  --brand-blue-rgb: 37, 99, 235; /* #2563EB */
     
     /* Enhanced Gray Scale */
     --gray-50-rgb: 249, 250, 251; /* #F9FAFB */
@@ -158,12 +157,11 @@
     --amber-500-rgb: 255, 152, 0; /* Orange */
     --amber-600-rgb: 251, 140, 0; /* Orange dark */
   }
-}
 
 /* Apple-inspired component styles with garden colors */
-@layer components {
-  .apple-card {
-    @apply bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-300 ease-apple;
+/* Apple-inspired component styles with garden colors */
+.apple-card {
+  @apply bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-300;
   }
   
   .apple-card:hover {
@@ -176,19 +174,19 @@
   }
   
   .apple-button-primary {
-    @apply apple-button bg-garden-green text-white hover:bg-garden-green-dark active:scale-[0.98];
+    @apply bg-green-600 text-white hover:bg-green-700 active:scale-[0.98] px-4 py-2 rounded-lg transition-all;
   }
   
   .apple-button-secondary {
-    @apply apple-button bg-transparent border border-garden-green text-garden-green hover:bg-garden-green hover:text-white active:scale-[0.98];
+    @apply bg-transparent border border-green-600 text-green-600 hover:bg-green-600 hover:text-white active:scale-[0.98] px-4 py-2 rounded-lg transition-all;
   }
   
   .apple-button-tertiary {
-    @apply apple-button bg-transparent text-garden-green hover:bg-garden-green/10 active:scale-[0.98];
+    @apply bg-transparent text-green-600 hover:bg-green-50 active:scale-[0.98] px-4 py-2 rounded-lg transition-all;
   }
   
   .apple-focus {
-    @apply focus:outline-none focus:ring-2 focus:ring-garden-green focus:ring-offset-2;
+    @apply focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2;
   }
   
   .apple-surface-1 {
@@ -330,7 +328,7 @@
 
   /* Garden-specific utility classes */
   .garden-text-primary {
-    @apply text-garden-green-dark;
+    @apply text-green-700;
   }
   
   .garden-text-secondary {
@@ -557,4 +555,3 @@
     background-color: rgb(76 175 80) !important;
     border-color: rgb(76 175 80) !important;
   }
-}
