@@ -166,7 +166,7 @@ export const Home1Page = () => {
               
               return (
                 <SwiperSlide key={slide.id} className="!h-auto">
-                  <div className={`bg-gradient-to-br ${slide.gradient} rounded-3xl p-12 aspect-[12/9] flex flex-col items-center justify-center text-center space-y-6 transition-all duration-300 transform hover:scale-105`}>
+                  <div className={`bg-gradient-to-br ${slide.gradient} rounded-3xl p-12 aspect-[21/9] flex flex-col items-center justify-center text-center space-y-6 transition-all duration-300 transform hover:scale-105`}>
                     <div className={`w-20 h-20 ${slide.iconBg} rounded-full flex items-center justify-center`}>
                       <Icon className={`w-10 h-10 ${slide.iconColor}`} />
                     </div>
