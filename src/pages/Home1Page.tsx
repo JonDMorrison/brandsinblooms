@@ -167,6 +167,18 @@ export const Home1Page = () => {
               const Icon = slide.icon;
               const isActive = index === currentSlide;
               
+              // Define proper gradients for each slide
+              const getGradientClasses = (slideId: number) => {
+                switch(slideId) {
+                  case 1: return "from-blue-800 to-blue-900";
+                  case 2: return "from-green-800 to-green-900"; 
+                  case 3: return "from-purple-800 to-purple-900";
+                  case 4: return "from-orange-800 to-orange-900";
+                  case 5: return "from-pink-800 to-pink-900";
+                  default: return "from-gray-800 to-gray-900";
+                }
+              };
+              
               return (
                 <SwiperSlide key={slide.id} className="!h-auto">
                   <div className={`
@@ -174,8 +186,8 @@ export const Home1Page = () => {
                     transition-all duration-500 ease-out
                     ${isActive ? 'scale-105' : 'scale-95 opacity-70'}
                   `}>
-                     {/* Gradient Background */}
-                     <div className={`absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-90`} />
+                    {/* Gradient Background */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${getGradientClasses(slide.id)} opacity-90`} />
                     
                     {/* Content */}
                     <div className="relative z-10 h-full flex flex-col justify-between p-8 text-white">
