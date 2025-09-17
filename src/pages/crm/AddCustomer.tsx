@@ -68,11 +68,13 @@ const AddCustomer = () => {
 
   // Fetch CRM personas for selection
   const { data: crmPersonas = [], isLoading: personasLoading } = useQuery({
-    queryKey: ['crm-personas'],
+    queryKey: ['crm-personas', tenant?.id],
+    enabled: !!tenant?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('crm_personas')
         .select('id, persona_name, persona_description')
+        .eq('tenant_id', tenant!.id)
         .order('persona_name');
       if (error) throw error;
       return data || [];

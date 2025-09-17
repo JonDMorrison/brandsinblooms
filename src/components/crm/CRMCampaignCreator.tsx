@@ -2024,14 +2024,19 @@ cleanUrl();
     }
 
     // Check if audience is selected
-    if (selectedSegments.length === 0) {
-      toast({
-        title: "Audience required",
-        description: "Please select customer segments in the Audience section before sending.",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Allow sending to All Contacts when no segments/personas are selected
+    // Previously blocked when selectedSegments.length === 0
+    // This change enables "All Contacts" default audience
+    // (Backend should handle empty segments as all contacts)
+    // If you want to force targeting, re-enable this validation.
+    // if (selectedSegments.length === 0) {
+    //   toast({
+    //     title: "Audience required",
+    //     description: "Please select customer segments in the Audience section before sending.",
+    //     variant: "destructive"
+    //   });
+    //   return;
+    // }
 
     // Check sender configuration
     if (!senderConfig?.isVerified) {
