@@ -58,7 +58,24 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [previewItem, setPreviewItem] = useState<PlanItem | null>(null);
   const [previewPlatform, setPreviewPlatform] = useState<'instagram' | 'facebook'>('instagram');
+  const [expandedBlogs, setExpandedBlogs] = useState<Set<string>>(new Set());
   const { setLoading, clearLoading } = useLoading();
+
+  // Helper functions for blog expansion
+  const toggleBlogExpansion = (itemId: string) => {
+    const newExpanded = new Set(expandedBlogs);
+    if (newExpanded.has(itemId)) {
+      newExpanded.delete(itemId);
+    } else {
+      newExpanded.add(itemId);
+    }
+    setExpandedBlogs(newExpanded);
+  };
+
+  const truncateText = (text: string, maxLength: number = 300) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
 
   // Generate initial seasonal content when component mounts
   useEffect(() => {
@@ -684,17 +701,41 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                         </div>
                                        ) : item.type === 'blog' ? (
                                          <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
-                                           <div 
-                                             className="prose prose-sm max-w-none [&>*]:text-justify"
-                                             dangerouslySetInnerHTML={{ 
-                                               __html: renderMarkdownToMagazineHtml(item.enhancedContent?.fullContent || item.caption) 
-                                             }}
-                                           />
-                                           {item.enhancedContent?.fullContent && item.enhancedContent.fullContent.length > 200 && (
-                                             <div className="text-xs text-muted-foreground mt-2">
-                                               {item.enhancedContent.fullContent.length} characters
-                                             </div>
-                                           )}
+                                           {(() => {
+                                             const fullContent = item.enhancedContent?.fullContent || item.caption;
+                                             const isExpanded = expandedBlogs.has(item.id);
+                                             const shouldTruncate = fullContent.length > 300;
+                                             const displayContent = isExpanded || !shouldTruncate 
+                                               ? fullContent 
+                                               : truncateText(fullContent, 300);
+                                             
+                                             return (
+                                               <>
+                                                 <div 
+                                                   className="prose prose-sm max-w-none [&>*]:text-justify"
+                                                   dangerouslySetInnerHTML={{ 
+                                                     __html: renderMarkdownToMagazineHtml(displayContent) 
+                                                   }}
+                                                 />
+                                                 {shouldTruncate && (
+                                                   <button
+                                                     onClick={(e) => {
+                                                       e.stopPropagation();
+                                                       toggleBlogExpansion(item.id);
+                                                     }}
+                                                     className="text-xs text-primary hover:text-primary/80 font-medium mt-2 block transition-colors"
+                                                   >
+                                                     {isExpanded ? "Show less" : "Click to see more"}
+                                                   </button>
+                                                 )}
+                                                 {item.enhancedContent?.fullContent && item.enhancedContent.fullContent.length > 200 && (
+                                                   <div className="text-xs text-muted-foreground mt-2">
+                                                     {item.enhancedContent.fullContent.length} characters
+                                                   </div>
+                                                 )}
+                                               </>
+                                             );
+                                           })()}
                                          </div>
                                       ) : (
                                         <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
