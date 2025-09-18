@@ -31,12 +31,7 @@ export const useCustomerPersonas = (customerId: string) => {
         .select(`
           id,
           persona_id,
-          predefined_persona_id,
-          crm_personas (
-            id,
-            persona_name,
-            persona_description
-          )
+          predefined_persona_id
         `)
         .eq('customer_id', customerId);
       
