@@ -103,8 +103,9 @@ export const CustomerDetailsSheet: React.FC<CustomerDetailsSheetProps> = ({
     }
   };
 
-  const handlePersonaUpdate = (personaId: string | null) => {
-    setPersonaId(personaId);
+  const handlePersonaUpdate = (personaIds: string[]) => {
+    // For now, just use the first persona ID for backward compatibility
+    setPersonaId(personaIds[0] || null);
     onCustomerUpdated();
   };
 

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTenant } from "@/hooks/useTenant";
 import { useCRMPersonas } from "@/hooks/useCRMPersonas";
+import { useCustomerPersonas } from "@/hooks/useCustomerPersonas";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,12 +18,12 @@ import { useAuth } from "@/contexts/AuthContext";
 interface CustomerPersonaSelectorProps {
   customerId: string;
   value?: string | null;
-  onChange?: (personaId: string | null) => void;
+  onChange?: (personaIds: string[]) => void;
 }
 
 export const CustomerPersonaSelector = ({ 
   customerId, 
-  value, 
+  value, // Legacy prop - ignored in multi-select
   onChange 
 }: CustomerPersonaSelectorProps) => {
   const [showAllPersonas, setShowAllPersonas] = useState(true);
@@ -34,110 +35,132 @@ export const CustomerPersonaSelector = ({
   const { toast } = useToast();
   const { tenant } = useTenant();
   const { user } = useAuth();
-const { personas: customPersonas, loading: personasLoading, fetchPersonas } = useCRMPersonas();
 
-// Predefined personas available to every tenant
-const predefinedPersonas = [
-  {
-    id: 'plant-killer-pam',
-    persona_name: 'Plant-Killer Pam',
-    persona_description: 'Customers who struggle with keeping plants alive and need low-maintenance options',
-    is_custom: false,
-  },
-  {
-    id: 'pet-friendly-hannah',
-    persona_name: 'Pet-Friendly Hannah',
-    persona_description: 'Pet owners looking for safe, non-toxic plants and garden solutions',
-    is_custom: false,
-  },
-  {
-    id: 'vegetable-garden-veronica',
-    persona_name: 'Vegetable Garden Veronica',
-    persona_description: 'Customers focused on growing their own food and organic gardening',
-    is_custom: false,
-  },
-  {
-    id: 'sustainable-susie',
-    persona_name: 'Sustainable Susie',
-    persona_description: 'Environmentally conscious gardeners seeking eco-friendly solutions',
-    is_custom: false,
-  },
-  {
-    id: 'patio-gardener-gail',
-    persona_name: 'Patio Gardener Gail',
-    persona_description: 'Urban gardeners with limited space focusing on container gardening',
-    is_custom: false,
-  },
-  {
-    id: 'pollinator-paula',
-    persona_name: 'Pollinator Paula',
-    persona_description: 'Customers interested in attracting bees, butterflies, and beneficial insects',
-    is_custom: false,
-  },
-  {
-    id: 'curb-appeal-ashley',
-    persona_name: 'Curb Appeal Ashley',
-    persona_description: 'Homeowners focused on front yard landscaping and property aesthetics',
-    is_custom: false,
-  },
-  {
-    id: 'diy-dana',
-    persona_name: 'DIY Dana',
-    persona_description: 'Hands-on gardeners who love projects and building garden features',
-    is_custom: false,
-  },
-  {
-    id: 'wellness-whitney',
-    persona_name: 'Wellness Whitney',
-    persona_description: 'Customers interested in therapeutic gardening and mental health',
-    is_custom: false,
-  },
-];
+  const { personas: customPersonas, loading: personasLoading, fetchPersonas } = useCRMPersonas();
+  const { 
+    assignments, 
+    assignedPersonaIds, 
+    isLoading: assignmentsLoading,
+    assignPersona, 
+    unassignPersona, 
+    isPersonaAssigned,
+    refetch: refetchAssignments
+  } = useCustomerPersonas(customerId);
 
-const personas = useMemo(() => [...predefinedPersonas, ...customPersonas], [customPersonas]);
+  // Predefined personas available to every tenant
+  const predefinedPersonas = [
+    {
+      id: 'plant-killer-pam',
+      persona_name: 'Plant-Killer Pam',
+      persona_description: 'Customers who struggle with keeping plants alive and need low-maintenance options',
+      is_custom: false,
+    },
+    {
+      id: 'pet-friendly-hannah',
+      persona_name: 'Pet-Friendly Hannah',
+      persona_description: 'Pet owners looking for safe, non-toxic plants and garden solutions',
+      is_custom: false,
+    },
+    {
+      id: 'vegetable-garden-veronica',
+      persona_name: 'Vegetable Garden Veronica',
+      persona_description: 'Customers focused on growing their own food and organic gardening',
+      is_custom: false,
+    },
+    {
+      id: 'sustainable-susie',
+      persona_name: 'Sustainable Susie',
+      persona_description: 'Environmentally conscious gardeners seeking eco-friendly solutions',
+      is_custom: false,
+    },
+    {
+      id: 'patio-gardener-gail',
+      persona_name: 'Patio Gardener Gail',
+      persona_description: 'Urban gardeners with limited space focusing on container gardening',
+      is_custom: false,
+    },
+    {
+      id: 'pollinator-paula',
+      persona_name: 'Pollinator Paula',
+      persona_description: 'Customers interested in attracting bees, butterflies, and beneficial insects',
+      is_custom: false,
+    },
+    {
+      id: 'curb-appeal-ashley',
+      persona_name: 'Curb Appeal Ashley',
+      persona_description: 'Homeowners focused on front yard landscaping and property aesthetics',
+      is_custom: false,
+    },
+    {
+      id: 'diy-dana',
+      persona_name: 'DIY Dana',
+      persona_description: 'Hands-on gardeners who love projects and building garden features',
+      is_custom: false,
+    },
+    {
+      id: 'wellness-whitney',
+      persona_name: 'Wellness Whitney',
+      persona_description: 'Customers interested in therapeutic gardening and mental health',
+      is_custom: false,
+    },
+  ];
 
-  // Find the selected persona by ID (UUID) - now using unified approach
-  const selectedPersona = personas.find(p => p.id === value);
+  const personas = useMemo(() => [...predefinedPersonas, ...customPersonas], [customPersonas]);
 
-  // Check if persona is selected
-  const isPersonaSelected = (personaId: string) => value === personaId;
+  // Get assigned personas for display
+  const assignedPersonas = useMemo(() => {
+    const assigned = [];
+    
+    // Add predefined personas
+    predefinedPersonas.forEach(p => {
+      if (isPersonaAssigned(p.id)) {
+        assigned.push(p);
+      }
+    });
+    
+    // Add custom personas
+    customPersonas.forEach(p => {
+      if (isPersonaAssigned(p.id)) {
+        assigned.push(p);
+      }
+    });
+    
+    return assigned;
+  }, [predefinedPersonas, customPersonas, isPersonaAssigned]);
 
-  const handlePersonaToggle = async (personaId: string) => {
+  const handlePersonaToggle = async (personaId: string, isCustom: boolean) => {
     if (isUpdating) return;
     
     setIsUpdating(true);
     
     try {
-      const newPersonaId = value === personaId ? null : personaId;
-      
-      // Update in database
-      const { data, error } = await supabase
-        .from('crm_customers')
-        .update({ 
-          persona_id: newPersonaId,
-          persona: null // Clear legacy field
-        })
-        .eq('id', customerId)
-        .select();
+      const isCurrentlyAssigned = isPersonaAssigned(personaId);
+      let success = false;
 
-      if (error) {
-        throw error;
+      if (isCurrentlyAssigned) {
+        success = await unassignPersona(personaId, isCustom);
+        if (success) {
+          const personaName = personas.find(p => p.id === personaId)?.persona_name;
+          toast({
+            title: "Persona removed",
+            description: `Removed "${personaName}" from customer.`
+          });
+        }
+      } else {
+        success = await assignPersona(personaId, isCustom);
+        if (success) {
+          const personaName = personas.find(p => p.id === personaId)?.persona_name;
+          toast({
+            title: "Persona assigned",
+            description: `Assigned "${personaName}" to customer.`
+          });
+        }
       }
 
-      // Call onChange to update parent state with new persona ID
-      onChange?.(newPersonaId);
-      
-      const selectedPersonaName = personas.find(p => p.id === newPersonaId)?.persona_name;
-      if (newPersonaId) {
-        toast({
-          title: "Persona assigned",
-          description: `Assigned "${selectedPersonaName}" to customer.`
-        });
-      } else {
-        toast({
-          title: "Persona removed", 
-          description: "Removed persona assignment from customer."
-        });
+      if (success && onChange) {
+        // Call onChange with updated persona IDs
+        await refetchAssignments();
+        onChange(assignedPersonaIds);
       }
     } catch (error) {
       console.error('❌ Error updating persona:', error);
@@ -151,37 +174,8 @@ const personas = useMemo(() => [...predefinedPersonas, ...customPersonas], [cust
     }
   };
 
-  const handleRemovePersona = async () => {
-    if (!value) return;
-    
-    setIsUpdating(true);
-    
-    try {
-      // Clear both persona_id and persona fields completely
-      const { error } = await supabase
-        .from('crm_customers')
-        .update({ persona_id: null, persona: null })
-        .eq('id', customerId);
-
-      if (error) throw error;
-
-      // Call onChange to update parent state
-      onChange?.(null);
-      
-      toast({
-        title: "Persona removed",
-        description: "Removed persona assignment from customer."
-      });
-    } catch (error) {
-      console.error('Error removing persona:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove persona assignment.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsUpdating(false);
-    }
+  const handleRemovePersona = async (personaId: string, isCustom: boolean) => {
+    await handlePersonaToggle(personaId, isCustom);
   };
 
   const handleCreatePersona = async () => {
@@ -212,10 +206,10 @@ const personas = useMemo(() => [...predefinedPersonas, ...customPersonas], [cust
 
       // Assign newly created persona to this customer
       if (data?.id) {
-        await handlePersonaToggle(data.id);
+        await handlePersonaToggle(data.id, true);
       }
 
-      toast({ title: 'Persona created', description: `"${newPersonaName}" added.` });
+      toast({ title: 'Persona created', description: `"${newPersonaName}" added and assigned.` });
       setShowCreateForm(false);
       setNewPersonaName('');
       setNewPersonaDesc('');
@@ -227,60 +221,52 @@ const personas = useMemo(() => [...predefinedPersonas, ...customPersonas], [cust
     }
   };
 
-  const assignedCount = selectedPersona ? 1 : 0;
+  const assignedCount = assignedPersonas.length;
   const totalCount = personas.length;
+  const isLoading = personasLoading || assignmentsLoading;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium">
-          Persona ({assignedCount}/{totalCount})
+          Personas ({assignedCount}/{totalCount})
         </Label>
       </div>
 
-      {/* Display assigned persona as badge */}
-      {value && !selectedPersona && (
+      {/* Display assigned personas as badges */}
+      {assignedPersonas.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          <Badge 
-            variant="outline" 
-            className="inline-flex items-center gap-1.5 bg-destructive/10 border-destructive/20 text-destructive"
-          >
-            <User className="h-3 w-3" />
-            <span className="font-medium">Invalid Persona</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-4 w-4 p-0 hover:bg-transparent"
-              onClick={handleRemovePersona}
-              disabled={isUpdating}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </Badge>
-        </div>
-      )}
-      {selectedPersona && (
-        <div className="flex flex-wrap gap-2">
-          <Badge 
-            variant="outline" 
-            className="inline-flex items-center gap-1.5 bg-brand-teal/10 border-brand-teal/20 text-brand-teal"
-          >
-            <User className="h-3 w-3" />
-            <span className="font-medium">{selectedPersona.persona_name}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-4 w-4 p-0 hover:bg-transparent"
-              onClick={handleRemovePersona}
-              disabled={isUpdating}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </Badge>
+          {assignedPersonas.map((persona) => {
+            const isCustom = persona.is_custom ?? true; // Custom personas don't have is_custom = false
+            const actualIsCustom = !predefinedPersonas.find(p => p.id === persona.id);
+            
+            return (
+              <Badge 
+                key={persona.id}
+                variant="outline" 
+                className="inline-flex items-center gap-1.5 bg-brand-teal/10 border-brand-teal/20 text-brand-teal"
+              >
+                <User className="h-3 w-3" />
+                <span className="font-medium">{persona.persona_name}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-4 w-4 p-0 hover:bg-transparent"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemovePersona(persona.id, actualIsCustom);
+                  }}
+                  disabled={isUpdating}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            );
+          })}
         </div>
       )}
 
-      {/* All personas list with single-select toggle */}
+      {/* All personas list with multi-select checkboxes */}
       {showAllPersonas ? (
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -324,13 +310,14 @@ const personas = useMemo(() => [...predefinedPersonas, ...customPersonas], [cust
                 </div>
               </div>
             )}
-            {personasLoading ? (
+            {isLoading ? (
               <div className="text-sm text-muted-foreground py-4">Loading personas...</div>
             ) : personas.length > 0 ? (
               <ScrollArea className="h-64">
                 <div className="space-y-2 pr-4">
                   {personas.map((persona) => {
-                    const isSelected = value === persona.id;
+                    const isSelected = isPersonaAssigned(persona.id);
+                    const isCustom = !predefinedPersonas.find(p => p.id === persona.id);
                     
                     return (
                       <div key={persona.id} className="flex items-start space-x-3 p-3 hover:bg-muted/50 rounded-md border border-transparent hover:border-border/50 transition-colors">
@@ -341,7 +328,7 @@ const personas = useMemo(() => [...predefinedPersonas, ...customPersonas], [cust
                             <Checkbox
                               id={persona.id}
                               checked={isSelected}
-                              onCheckedChange={() => handlePersonaToggle(persona.id)}
+                              onCheckedChange={() => handlePersonaToggle(persona.id, isCustom)}
                               disabled={isUpdating}
                             />
                           )}
@@ -353,10 +340,11 @@ const personas = useMemo(() => [...predefinedPersonas, ...customPersonas], [cust
                                 {persona.persona_name}
                               </span>
                               {isSelected && <Badge variant="outline" className="text-xs bg-brand-teal/10 border-brand-teal/20 text-brand-teal">Assigned</Badge>}
+                              {isCustom && <Badge variant="outline" className="text-xs">Custom</Badge>}
                             </div>
-                              {persona.persona_description && (
-                                <p className="text-xs text-muted-foreground mt-1">{persona.persona_description}</p>
-                              )}
+                            {persona.persona_description && (
+                              <p className="text-xs text-muted-foreground mt-1">{persona.persona_description}</p>
+                            )}
                           </label>
                         </div>
                       </div>
@@ -377,7 +365,7 @@ const personas = useMemo(() => [...predefinedPersonas, ...customPersonas], [cust
           onClick={() => setShowAllPersonas(true)}
           className="w-full justify-center"
         >
-          Show All Personas
+          Show All Personas ({totalCount} available)
         </Button>
       )}
     </div>
