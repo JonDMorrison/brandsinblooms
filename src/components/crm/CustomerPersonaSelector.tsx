@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTenant } from "@/hooks/useTenant";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,14 +25,17 @@ export const CustomerPersonaSelector = ({
   const [showAllPersonas, setShowAllPersonas] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
+  const { tenant } = useTenant();
 
   // Query personas directly from the database (UUIDs only)
   const { data: personas = [], isLoading: personasLoading } = useQuery({
-    queryKey: ['crm-personas'],
+    queryKey: ['crm-personas', tenant?.id],
+    enabled: !!tenant?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('crm_personas')
         .select('id, persona_name, persona_description')
+        .eq('tenant_id', tenant!.id)
         .order('persona_name');
       
       if (error) throw error;
