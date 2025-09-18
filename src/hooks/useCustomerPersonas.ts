@@ -51,6 +51,18 @@ export const useCustomerPersonas = (customerId: string) => {
     try {
       console.log('🔄 Assigning persona:', { personaId, isCustom, customerId });
       
+      // Check if this persona is already assigned
+      const existingAssignment = assignments.find(assignment => 
+        isCustom 
+          ? assignment.persona_id === personaId
+          : assignment.predefined_persona_id === personaId
+      );
+      
+      if (existingAssignment) {
+        console.log('⚠️ Persona already assigned, skipping');
+        return true; // Return success since the persona is already assigned
+      }
+      
       const insertData = {
         customer_id: customerId,
         ...(isCustom 
@@ -67,6 +79,11 @@ export const useCustomerPersonas = (customerId: string) => {
         .select();
 
       if (error) {
+        // Check if it's a unique constraint violation
+        if (error.code === '23505') { // Unique violation error code
+          console.log('⚠️ Duplicate persona assignment prevented by database constraint');
+          return true; // Return success since the persona is effectively assigned
+        }
         console.error('❌ Database error:', error);
         throw error;
       }
