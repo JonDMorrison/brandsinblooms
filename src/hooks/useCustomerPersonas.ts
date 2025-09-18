@@ -54,11 +54,10 @@ export const useCustomerPersonas = (customerId: string) => {
     if (!user || !tenant?.id) return false;
 
     try {
-      console.log('🔄 Assigning persona:', { personaId, isCustom, customerId, tenantId: tenant.id });
+      console.log('🔄 Assigning persona:', { personaId, isCustom, customerId });
       
       const insertData = {
         customer_id: customerId,
-        tenant_id: tenant.id, // Add missing tenant_id
         ...(isCustom 
           ? { persona_id: personaId, predefined_persona_id: null }
           : { predefined_persona_id: personaId, persona_id: null }
