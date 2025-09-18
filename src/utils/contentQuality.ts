@@ -168,13 +168,24 @@ export const sanitizeTitle = (title: string): string => {
 export const sanitizeAndImproveContent = (content: string): string => {
   let improved = sanitizeWeekNumbers(content);
   
+  // Convert markdown-style formatting to HTML if needed
+  if (!improved.includes('<') && improved.includes('**')) {
+    improved = improved.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  }
+  
+  // Handle escaped newlines from AI
+  improved = improved.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n');
+  
   // Replace generic phrases with better alternatives
   const improvements = {
     'Get ready for': 'Discover the secrets of',
     'Welcome to October!': 'October brings exciting opportunities for',
     'expert tips and seasonal advice': 'proven strategies and actionable insights',
     'with expert tips': 'with proven techniques',
-    'seasonal advice': 'timely guidance'
+    'seasonal advice': 'timely guidance',
+    'As we enter': 'This',
+    'As [month] unfolds': 'This month brings',
+    'Welcome to [month]': 'This month offers'
   };
 
   Object.entries(improvements).forEach(([generic, improved_text]) => {

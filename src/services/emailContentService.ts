@@ -110,14 +110,14 @@ export async function batchGenerateEmails(
             emailSubject: finalContent.subject,
             emailPreheader: finalContent.preheader,
             title: finalContent.subject, // Keep backward compatibility
-            caption: sanitizeAndImproveContent(finalContent.body),
+            caption: formatEmailContent(finalContent.body),
             notes: finalContent.notes
           };
 
           processedEmailItems.push(updatedItem);
         } else {
           // Fallback: use existing content but improve it
-          const improvedCaption = item.caption ? sanitizeAndImproveContent(item.caption) : item.caption;
+          const improvedCaption = item.caption ? formatEmailContent(sanitizeAndImproveContent(item.caption)) : item.caption;
           processedEmailItems.push({
             ...item,
             caption: improvedCaption
@@ -126,7 +126,7 @@ export async function batchGenerateEmails(
       } catch (error) {
         console.error(`Failed to generate content for email ${item.id}:`, error);
         // Fallback: use existing content
-        const improvedCaption = item.caption ? sanitizeAndImproveContent(item.caption) : item.caption;
+        const improvedCaption = item.caption ? formatEmailContent(sanitizeAndImproveContent(item.caption)) : item.caption;
         processedEmailItems.push({
           ...item,
           caption: improvedCaption
@@ -208,6 +208,16 @@ export async function improveEmailWithAI(
  * Shorten email content by approximately 20%
  */
 export function shortenEmailContent(content: string): string {
+  // If content is already short enough, return as-is
+  if (content.length <= 150) {
+    return content;
+  }
+  
+  // For HTML content, work with text between tags
+  if (content.includes('<')) {
+    return shortenHtmlEmailContent(content);
+  }
+  
   // Split into sentences
   const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
   
@@ -235,4 +245,65 @@ export function shortenEmailContent(content: string): string {
     .sort((a, b) => a.originalIndex - b.originalIndex);
   
   return kept.map(s => s.sentence).join('. ') + '.';
+}
+
+/**
+ * Shorten HTML email content while preserving structure
+ */
+function shortenHtmlEmailContent(content: string): string {
+  // Extract text content while preserving HTML structure
+  const htmlTagRegex = /<[^>]*>/g;
+  const textOnly = content.replace(htmlTagRegex, ' ').replace(/\s+/g, ' ').trim();
+  
+  if (textOnly.length <= 150) {
+    return content;
+  }
+  
+  // Shorten paragraphs - keep first 2-3 sentences per paragraph
+  return content.replace(/<p>(.*?)<\/p>/g, (match, paragraphContent) => {
+    const sentences = paragraphContent.split(/[.!?]+/).filter((s: string) => s.trim().length > 0);
+    if (sentences.length <= 2) return match;
+    
+    // Keep first 2 sentences of each paragraph
+    const shortened = sentences.slice(0, 2).join('. ').trim() + '.';
+    return `<p>${shortened}</p>`;
+  });
+}
+
+/**
+ * Ensure email content is properly formatted with HTML structure
+ */
+export function formatEmailContent(content: string): string {
+  if (!content) return content;
+  
+  // If content already has HTML tags, return as-is
+  if (content.includes('<h') || content.includes('<p>')) {
+    return content;
+  }
+  
+  // Convert markdown-style bold to HTML
+  content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  
+  // Handle newlines and structure
+  const lines = content.split(/\n+/).filter(line => line.trim().length > 0);
+  
+  if (lines.length === 0) return content;
+  
+  let formatted = '';
+  
+  // First line might be a heading if it's short and impactful
+  if (lines[0].length < 60 && !lines[0].includes('.')) {
+    formatted += `<h3>${lines[0].trim()}</h3>\n`;
+    lines.shift(); // Remove the heading from remaining lines
+  }
+  
+  // Wrap remaining lines in paragraphs
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    if (trimmedLine.length > 0) {
+      formatted += `<p>${trimmedLine}</p>\n`;
+    }
+  });
+  
+  return formatted.trim();
 }

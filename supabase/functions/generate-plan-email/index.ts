@@ -79,8 +79,9 @@ ${companyContext}
 Content specifications:
 - Subject line: ${constraints.subjectLength || 50} characters max, compelling and specific
 - Preheader: ${constraints.preheaderLength || 90} characters max, complements subject
-- Body: 150-200 words, scannable with clear benefit statements
+- Body: 100-150 words MAX, scannable with short paragraphs (2-3 sentences each)
 - Tone: ${constraints.tone || 'expert yet approachable'}
+- Format: Use HTML tags for structure (<h3> for headings, <p> for paragraphs, <strong> for emphasis)
 
 Return ONLY a valid JSON object with: subject, preheader, body, cta_primary`;
 
@@ -91,7 +92,18 @@ Requirements:
 - Include seasonal urgency without being pushy  
 - Provide concrete value (tips, timing, plant recommendations)
 - End with a clear, specific call-to-action
-- No generic seasonal greetings`;
+- No generic seasonal greetings
+- Use HTML formatting: <h3> for main heading, <p> for short paragraphs, <strong> for key points
+- Keep paragraphs to 2-3 sentences maximum
+- Maximum 150 words total
+- Structure: Brief intro + 2-3 key points + call to action
+
+Example format:
+<h3>Main Benefit/Heading</h3>
+<p>Short intro paragraph (2-3 sentences).</p>
+<p><strong>Key Point 1:</strong> Brief explanation with benefit.</p>
+<p><strong>Key Point 2:</strong> Another brief tip or recommendation.</p>
+<p>Closing with urgency and transition to CTA.</p>`;
 
     console.log(`[${requestId}] Calling OpenAI with themes: ${themeContext}`);
 
@@ -107,8 +119,8 @@ Requirements:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_tokens: 800,
-        temperature: 0.7,
+        max_tokens: 600,
+        temperature: 0.8,
       }),
     });
 
@@ -136,7 +148,7 @@ Requirements:
       emailContent = {
         subject: `${themes[0]?.label || 'Seasonal'} Tips for ${monthName}`,
         preheader: `Expert advice for your ${monthName.toLowerCase()} garden`,
-        body: `Get the most out of your garden this ${monthName} with expert timing and seasonal recommendations. Perfect conditions await for your next gardening success.`,
+        body: `<h3>Perfect Timing for Your Garden</h3><p>Get the most out of your garden this ${monthName} with expert timing and seasonal recommendations.</p><p><strong>This Month's Focus:</strong> Perfect conditions await for your next gardening success.</p>`,
         cta_primary: 'Get Started Today'
       };
     }
