@@ -548,9 +548,9 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                    
                                    <div>
                                      <div className="flex items-center justify-between">
-                                       <Label htmlFor={`caption-${item.id}`}>
-                                         {item.type === 'email' ? 'Email Content' : 'Caption'}
-                                       </Label>
+                                        <Label htmlFor={`caption-${item.id}`}>
+                                          {item.type === 'email' ? 'Email Content' : item.type === 'blog' ? 'Blog Content' : 'Caption'}
+                                        </Label>
                                        {item.type === 'email' && (
                                          <DropdownMenu>
                                            <DropdownMenuTrigger asChild>
@@ -610,23 +610,38 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                          </DropdownMenu>
                                        )}
                                      </div>
-                                     {item.type === 'email' ? (
-                                       <RichTextEditor
-                                         content={item.caption}
-                                         onChange={(html) => handleItemUpdate(item.id, 'caption', html)}
-                                         placeholder="Write your email content here..."
-                                         className="mt-1"
-                                         editorClassName="min-h-[120px]"
-                                       />
-                                     ) : (
-                                       <Textarea
-                                         id={`caption-${item.id}`}
-                                         value={item.caption}
-                                         onChange={(e) => handleItemUpdate(item.id, 'caption', e.target.value)}
-                                         rows={3}
-                                         className="mt-1"
-                                       />
-                                     )}
+                                      {item.type === 'email' ? (
+                                        <RichTextEditor
+                                          content={item.caption}
+                                          onChange={(html) => handleItemUpdate(item.id, 'caption', html)}
+                                          placeholder="Write your email content here..."
+                                          className="mt-1"
+                                          editorClassName="min-h-[120px]"
+                                        />
+                                      ) : item.type === 'blog' ? (
+                                        <RichTextEditor
+                                          content={item.enhancedContent?.fullContent || item.caption}
+                                          onChange={(html) => {
+                                            const updatedEnhancedContent = {
+                                              ...item.enhancedContent,
+                                              fullContent: html,
+                                              title: item.enhancedContent?.title || item.title
+                                            };
+                                            handleItemUpdate(item.id, 'enhancedContent', updatedEnhancedContent);
+                                          }}
+                                          placeholder="Write your blog content here..."
+                                          className="mt-1"
+                                          editorClassName="min-h-[200px]"
+                                        />
+                                      ) : (
+                                        <Textarea
+                                          id={`caption-${item.id}`}
+                                          value={item.caption}
+                                          onChange={(e) => handleItemUpdate(item.id, 'caption', e.target.value)}
+                                          rows={3}
+                                          className="mt-1"
+                                        />
+                                      )}
                                    </div>
                                   {(item.type === 'facebook' || item.type === 'instagram') && (
                                     <div>
@@ -699,14 +714,23 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                      
                                      <h4 className="font-medium group-hover/content:text-primary transition-colors">{item.title}</h4>
                                      
-                                     {/* Email body content */}
-                                     {item.type === 'email' ? (
-                                       <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
-                                         <SafeHtml content={item.caption} type="general" className="prose prose-sm max-w-none" />
-                                       </div>
-                                     ) : (
-                                       <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
-                                     )}
+                                      {/* Content display */}
+                                      {item.type === 'email' ? (
+                                        <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
+                                          <SafeHtml content={item.caption} type="general" className="prose prose-sm max-w-none" />
+                                        </div>
+                                      ) : item.type === 'blog' ? (
+                                        <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
+                                          <SafeHtml content={item.enhancedContent?.fullContent || item.caption} type="general" className="prose prose-sm max-w-none" />
+                                          {item.enhancedContent?.fullContent && item.enhancedContent.fullContent.length > 200 && (
+                                            <div className="text-xs text-muted-foreground mt-2">
+                                              {item.enhancedContent.fullContent.length} characters
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
+                                      )}
                                     {item.imageUrl && (
                                       <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
                                         <ImageIcon className="h-4 w-4" />
