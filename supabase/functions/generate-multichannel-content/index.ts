@@ -493,25 +493,6 @@ async function generateNewsletterWithCRMBlocks(supabase: any, userId: string, to
       padding: "medium",
       visible: true,
       collapsed: false,
-    },
-    {
-      id: `content2_${now}`,
-      type: "image-text",
-      title: "Main Article",
-      content: "This is your main content area. Share your expertise, tips, or latest news here.",
-      headline: "Main Article",
-      body: "This is your main content area. Share your expertise, tips, or latest news here.",
-      imageUrl: "",
-      ctaText: "",
-      ctaUrl: "",
-      source: "template",
-      personaTag: "general",
-      layout: "image-left",
-      alignment: "left",
-      textAlign: "left",
-      padding: "medium",
-      visible: true,
-      collapsed: false,
     };
     blocks.push(block);
   }
