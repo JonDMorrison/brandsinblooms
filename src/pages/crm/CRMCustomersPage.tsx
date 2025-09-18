@@ -26,10 +26,51 @@ export const CRMCustomersPage: React.FC = () => {
 
   // Get persona details for a customer using unified approach
   const getCustomerPersona = (customer: any) => {
+    // First check the new junction table for persona assignments
+    if (customer.customer_personas && customer.customer_personas.length > 0) {
+      const assignment = customer.customer_personas[0]; // Get first persona assignment
+      
+      // Check if it's a predefined persona
+      if (assignment.predefined_persona_id && personas) {
+        return personas.find(p => p.id === assignment.predefined_persona_id);
+      }
+      
+      // Check if it's a custom persona
+      if (assignment.persona_id && personas) {
+        return personas.find(p => p.id === assignment.persona_id);
+      }
+    }
+    
+    // Fallback to legacy persona_id field
     if (customer.persona_id && personas) {
       return personas.find(p => p.id === customer.persona_id);
     }
+    
     return null;
+  };
+
+  // Get all assigned persona names for display (in case multiple are assigned)
+  const getCustomerPersonas = (customer: any) => {
+    if (!customer.customer_personas || customer.customer_personas.length === 0) {
+      return [];
+    }
+    
+    const personaNames = [];
+    for (const assignment of customer.customer_personas) {
+      let persona = null;
+      
+      if (assignment.predefined_persona_id && personas) {
+        persona = personas.find(p => p.id === assignment.predefined_persona_id);
+      } else if (assignment.persona_id && personas) {
+        persona = personas.find(p => p.id === assignment.persona_id);
+      }
+      
+      if (persona) {
+        personaNames.push(persona.persona_name);
+      }
+    }
+    
+    return personaNames;
   };
 
   // Dynamic persona colors based on the actual personas
@@ -175,21 +216,26 @@ export const CRMCustomersPage: React.FC = () => {
                             <span className="text-muted-foreground text-sm">No phone</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          {(() => {
-                            const persona = getCustomerPersona(customer);
-                            return persona ? (
-                              <Badge 
-                                variant="secondary" 
-                                className={getPersonaColor(persona.persona_name)}
-                              >
-                                {persona.persona_name}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground text-sm whitespace-nowrap">No persona</span>
-                            );
-                          })()}
-                        </TableCell>
+                         <TableCell>
+                           {(() => {
+                             const assignedPersonas = getCustomerPersonas(customer);
+                             return assignedPersonas.length > 0 ? (
+                               <div className="flex flex-wrap gap-1">
+                                 {assignedPersonas.map((personaName, index) => (
+                                   <Badge 
+                                     key={index}
+                                     variant="secondary" 
+                                     className={getPersonaColor(personaName)}
+                                   >
+                                     {personaName}
+                                   </Badge>
+                                 ))}
+                               </div>
+                             ) : (
+                               <span className="text-muted-foreground text-sm whitespace-nowrap">No persona</span>
+                             );
+                           })()}
+                         </TableCell>
                         <TableCell>
                           {customer.total_spent ? (
                             <div className="flex items-center gap-1">

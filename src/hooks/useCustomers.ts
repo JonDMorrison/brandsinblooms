@@ -16,6 +16,10 @@ interface Customer {
   sms_opt_in?: boolean;
   created_at: string;
   updated_at: string;
+  customer_personas?: {
+    persona_id?: string;
+    predefined_persona_id?: string;
+  }[];
 }
 
 interface UseCustomersOptions {
@@ -42,7 +46,13 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
 
       let query = supabase
         .from('crm_customers')
-        .select('*')
+        .select(`
+          *,
+          customer_personas (
+            persona_id,
+            predefined_persona_id
+          )
+        `)
         .eq('tenant_id', userRecord.tenant_id)
         .order('created_at', { ascending: false });
 
