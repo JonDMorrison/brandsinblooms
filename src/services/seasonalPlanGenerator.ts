@@ -227,6 +227,11 @@ export const generateSeasonalPlanContent = async (
   const week3 = new Date(firstDay.getTime() + (21 * 24 * 60 * 60 * 1000));
   const week4 = new Date(Math.min(firstDay.getTime() + (28 * 24 * 60 * 60 * 1000), new Date(year, monthDate.getMonth() + 1, 0).getTime()));
 
+  // Helpers to land on specific weekdays within a week block
+  const dayMs = 24 * 60 * 60 * 1000;
+  const fridayOfWeek2 = new Date(week2.getTime() + (((5 - week2.getDay() + 7) % 7) * dayMs)); // 5 = Friday
+  const saturdayOfWeek3 = new Date(week3.getTime() + (((6 - week3.getDay() + 7) % 7) * dayMs)); // 6 = Saturday
+
   // Fetch holidays for the month to enrich content
   const holidays = await getHolidaysForMonth(monthDate);
   
@@ -303,7 +308,7 @@ export const generateSeasonalPlanContent = async (
       type: 'facebook',
       title: `${monthName} ${sanitizeTitle(theme.label)} Feature Friday`,
       caption: generateSocialContent(theme, monthName, seasonalFocus, contentIdeas[2], 'facebook', 'friday'),
-      date: new Date(week2.getTime() + (4 * 24 * 60 * 60 * 1000)),
+      date: fridayOfWeek2,
       enabled: true,
       week: 2
     },
@@ -312,9 +317,9 @@ export const generateSeasonalPlanContent = async (
       type: 'facebook',
       title: `${sanitizeTitle(theme.label)} Workshop - This Weekend`,
       caption: generateWorkshopContent(theme, monthName, seasonalFocus),
-      date: new Date(week2.getTime() + (5 * 24 * 60 * 60 * 1000)),
+      date: saturdayOfWeek3,
       enabled: true,
-      week: 2
+      week: 3
     },
     
     // Instagram posts with visual focus
