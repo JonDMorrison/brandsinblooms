@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTenant } from "@/hooks/useTenant";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,9 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { User, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CustomerPersonaSelectorProps {
   customerId: string;
@@ -24,8 +27,14 @@ export const CustomerPersonaSelector = ({
 }: CustomerPersonaSelectorProps) => {
   const [showAllPersonas, setShowAllPersonas] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newPersonaName, setNewPersonaName] = useState("");
+  const [newPersonaDesc, setNewPersonaDesc] = useState("");
+  const [creating, setCreating] = useState(false);
   const { toast } = useToast();
   const { tenant } = useTenant();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Query personas directly from the database (UUIDs only)
   const { data: personas = [], isLoading: personasLoading } = useQuery({
@@ -136,6 +145,49 @@ export const CustomerPersonaSelector = ({
     }
   };
 
+  const handleCreatePersona = async () => {
+    if (!tenant?.id || !user) {
+      toast({ title: "Missing context", description: "Please sign in and select a workspace.", variant: "destructive" });
+      return;
+    }
+    if (!newPersonaName.trim()) return;
+
+    setCreating(true);
+    try {
+      const { data, error } = await supabase
+        .from('crm_personas')
+        .insert({
+          persona_name: newPersonaName.trim(),
+          persona_description: newPersonaDesc || null,
+          tenant_id: tenant.id,
+          user_id: user.id,
+          is_custom: true
+        })
+        .select('id, persona_name, persona_description')
+        .single();
+
+      if (error) throw error;
+
+      // Refresh list
+      await queryClient.invalidateQueries({ queryKey: ['crm-personas', tenant.id] });
+
+      // Assign newly created persona to this customer
+      if (data?.id) {
+        await handlePersonaToggle(data.id);
+      }
+
+      toast({ title: 'Persona created', description: `"${newPersonaName}" added.` });
+      setShowCreateForm(false);
+      setNewPersonaName('');
+      setNewPersonaDesc('');
+    } catch (e) {
+      console.error('Error creating persona', e);
+      toast({ title: 'Error', description: 'Failed to create persona.', variant: 'destructive' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const assignedCount = selectedPersona ? 1 : 0;
   const totalCount = personas.length;
 
@@ -194,16 +246,45 @@ export const CustomerPersonaSelector = ({
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-base">All Personas</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              onClick={() => setShowAllPersonas(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCreateForm((v) => !v)}
+              >
+                {showCreateForm ? 'Close' : 'New'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setShowAllPersonas(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
+            {showCreateForm && (
+              <div className="mb-4 space-y-3">
+                <Input
+                  placeholder="Persona name"
+                  value={newPersonaName}
+                  onChange={(e) => setNewPersonaName(e.target.value)}
+                />
+                <Textarea
+                  placeholder="Description (optional)"
+                  value={newPersonaDesc}
+                  onChange={(e) => setNewPersonaDesc(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowCreateForm(false)} disabled={creating}>Cancel</Button>
+                  <Button onClick={handleCreatePersona} disabled={creating || !newPersonaName.trim()}>
+                    {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create & Assign'}
+                  </Button>
+                </div>
+              </div>
+            )}
             {personasLoading ? (
               <div className="text-sm text-muted-foreground py-4">Loading personas...</div>
             ) : personas.length > 0 ? (
