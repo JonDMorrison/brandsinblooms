@@ -404,90 +404,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                       className="mt-1"
                                     />
                                   </div>
-                                   <div>
-                                     <div className="flex items-center justify-between">
-                                       <Label htmlFor={`caption-${item.id}`}>
-                                         {item.type === 'email' ? 'Email Content' : 'Caption'}
-                                       </Label>
-                                       {item.type === 'email' && (
-                                         <DropdownMenu>
-                                           <DropdownMenuTrigger asChild>
-                                             <Button variant="outline" size="sm" className="gap-2">
-                                               <Tag className="h-3 w-3" />
-                                               Merge Tags
-                                             </Button>
-                                           </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-48">
-                                              <DropdownMenuLabel>Insert Tag</DropdownMenuLabel>
-                                               <DropdownMenuItem 
-                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{first_name}}')}
-                                               >
-                                                 {'{{first_name}}'}
-                                               </DropdownMenuItem>
-                                               <DropdownMenuItem 
-                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{last_name}}')}
-                                               >
-                                                 {'{{last_name}}'}
-                                               </DropdownMenuItem>
-                                               <DropdownMenuItem 
-                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{email}}')}
-                                               >
-                                                 {'{{email}}'}
-                                               </DropdownMenuItem>
-                                               <DropdownMenuSeparator />
-                                               <DropdownMenuLabel>Company Info</DropdownMenuLabel>
-                                               <DropdownMenuItem 
-                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{company_name}}')}
-                                               >
-                                                 {'{{company_name}}'}
-                                               </DropdownMenuItem>
-                                               <DropdownMenuItem 
-                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{website}}')}
-                                               >
-                                                 {'{{website}}'}
-                                               </DropdownMenuItem>
-                                               <DropdownMenuSeparator />
-                                               <DropdownMenuLabel>Preview</DropdownMenuLabel>
-                                               <MergeTagsPreviewDialog
-                                                 emailContent={{
-                                                   subject: item.emailSubject,
-                                                   preheader: item.emailPreheader,
-                                                   body: item.caption
-                                                 }}
-                                                 onMergeComplete={(content, field) => {
-                                                   if (field === 'body') {
-                                                     handleItemUpdate(item.id, 'caption', content);
-                                                   }
-                                                 }}
-                                               >
-                                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                                   Preview with Customer...
-                                                 </DropdownMenuItem>
-                                               </MergeTagsPreviewDialog>
-                                            </DropdownMenuContent>
-                                         </DropdownMenu>
-                                       )}
-                                     </div>
-                                     {item.type === 'email' ? (
-                                       <RichTextEditor
-                                         content={item.caption}
-                                         onChange={(html) => handleItemUpdate(item.id, 'caption', html)}
-                                         placeholder="Write your email content here..."
-                                         className="mt-1"
-                                         editorClassName="min-h-[120px]"
-                                       />
-                                     ) : (
-                                       <Textarea
-                                         id={`caption-${item.id}`}
-                                         value={item.caption}
-                                         onChange={(e) => handleItemUpdate(item.id, 'caption', e.target.value)}
-                                         rows={3}
-                                         className="mt-1"
-                                       />
-                                     )}
-                                   </div>
-                                   
-                                   {/* Email-specific fields */}
+                                   {/* Email-specific fields first */}
                                    {item.type === 'email' && (
                                      <>
                                         <div>
@@ -614,19 +531,103 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                         </div>
                                      </>
                                    )}
-                                  <div>
-                                    <Label htmlFor={`date-${item.id}`}>Date</Label>
-                                    <Input
-                                      id={`date-${item.id}`}
-                                      type="date"
-                                      value={format(item.date, 'yyyy-MM-dd')}
-                                      onChange={(e) => {
-                                        const newDate = new Date(e.target.value);
-                                        handleItemUpdate(item.id, 'date', newDate);
-                                      }}
-                                      className="mt-1 max-w-xs"
-                                    />
-                                  </div>
+                                   
+                                   <div>
+                                     <Label htmlFor={`date-${item.id}`}>Date</Label>
+                                     <Input
+                                       id={`date-${item.id}`}
+                                       type="date"
+                                       value={format(item.date, 'yyyy-MM-dd')}
+                                       onChange={(e) => {
+                                         const newDate = new Date(e.target.value);
+                                         handleItemUpdate(item.id, 'date', newDate);
+                                       }}
+                                       className="mt-1 max-w-xs"
+                                     />
+                                   </div>
+                                   
+                                   <div>
+                                     <div className="flex items-center justify-between">
+                                       <Label htmlFor={`caption-${item.id}`}>
+                                         {item.type === 'email' ? 'Email Content' : 'Caption'}
+                                       </Label>
+                                       {item.type === 'email' && (
+                                         <DropdownMenu>
+                                           <DropdownMenuTrigger asChild>
+                                             <Button variant="outline" size="sm" className="gap-2">
+                                               <Tag className="h-3 w-3" />
+                                               Merge Tags
+                                             </Button>
+                                           </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-48">
+                                              <DropdownMenuLabel>Insert Tag</DropdownMenuLabel>
+                                               <DropdownMenuItem 
+                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{first_name}}')}
+                                               >
+                                                 {'{{first_name}}'}
+                                               </DropdownMenuItem>
+                                               <DropdownMenuItem 
+                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{last_name}}')}
+                                               >
+                                                 {'{{last_name}}'}
+                                               </DropdownMenuItem>
+                                               <DropdownMenuItem 
+                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{email}}')}
+                                               >
+                                                 {'{{email}}'}
+                                               </DropdownMenuItem>
+                                               <DropdownMenuSeparator />
+                                               <DropdownMenuLabel>Company Info</DropdownMenuLabel>
+                                               <DropdownMenuItem 
+                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{company_name}}')}
+                                               >
+                                                 {'{{company_name}}'}
+                                               </DropdownMenuItem>
+                                               <DropdownMenuItem 
+                                                 onClick={() => handleItemUpdate(item.id, 'caption', item.caption + '{{website}}')}
+                                               >
+                                                 {'{{website}}'}
+                                               </DropdownMenuItem>
+                                               <DropdownMenuSeparator />
+                                               <DropdownMenuLabel>Preview</DropdownMenuLabel>
+                                               <MergeTagsPreviewDialog
+                                                 emailContent={{
+                                                   subject: item.emailSubject,
+                                                   preheader: item.emailPreheader,
+                                                   body: item.caption
+                                                 }}
+                                                 onMergeComplete={(content, field) => {
+                                                   if (field === 'body') {
+                                                     handleItemUpdate(item.id, 'caption', content);
+                                                   }
+                                                 }}
+                                               >
+                                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                   Preview with Customer...
+                                                 </DropdownMenuItem>
+                                               </MergeTagsPreviewDialog>
+                                            </DropdownMenuContent>
+                                         </DropdownMenu>
+                                       )}
+                                     </div>
+                                     {item.type === 'email' ? (
+                                       <RichTextEditor
+                                         content={item.caption}
+                                         onChange={(html) => handleItemUpdate(item.id, 'caption', html)}
+                                         placeholder="Write your email content here..."
+                                         className="mt-1"
+                                         editorClassName="min-h-[120px]"
+                                       />
+                                     ) : (
+                                       <Textarea
+                                         id={`caption-${item.id}`}
+                                         value={item.caption}
+                                         onChange={(e) => handleItemUpdate(item.id, 'caption', e.target.value)}
+                                         rows={3}
+                                         className="mt-1"
+                                       />
+                                     )}
+                                   </div>
                                   {(item.type === 'facebook' || item.type === 'instagram') && (
                                     <div>
                                       <Label>Featured Image</Label>
