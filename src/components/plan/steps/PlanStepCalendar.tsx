@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { SafeHtml } from '@/components/ui/safe-html';
+import { renderMarkdownToMagazineHtml } from '@/utils/renderMarkdown';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles, Replace, Plus, Clock, Tag, FileText } from 'lucide-react';
 import { format } from 'date-fns';
@@ -719,15 +720,20 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                         <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
                                           <SafeHtml content={item.caption} type="general" className="prose prose-sm max-w-none" />
                                         </div>
-                                      ) : item.type === 'blog' ? (
-                                        <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
-                                          <SafeHtml content={item.enhancedContent?.fullContent || item.caption} type="general" className="prose prose-sm max-w-none" />
-                                          {item.enhancedContent?.fullContent && item.enhancedContent.fullContent.length > 200 && (
-                                            <div className="text-xs text-muted-foreground mt-2">
-                                              {item.enhancedContent.fullContent.length} characters
-                                            </div>
-                                          )}
-                                        </div>
+                                       ) : item.type === 'blog' ? (
+                                         <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
+                                           <div 
+                                             className="prose prose-sm max-w-none [&>*]:text-justify"
+                                             dangerouslySetInnerHTML={{ 
+                                               __html: renderMarkdownToMagazineHtml(item.enhancedContent?.fullContent || item.caption) 
+                                             }}
+                                           />
+                                           {item.enhancedContent?.fullContent && item.enhancedContent.fullContent.length > 200 && (
+                                             <div className="text-xs text-muted-foreground mt-2">
+                                               {item.enhancedContent.fullContent.length} characters
+                                             </div>
+                                           )}
+                                         </div>
                                       ) : (
                                         <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
                                       )}
