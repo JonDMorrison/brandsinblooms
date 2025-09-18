@@ -158,9 +158,22 @@ export const CustomerPersonaSelector = ({
       }
 
       if (success && onChange) {
-        // Call onChange with updated persona IDs
+        // Refresh the assignments data
         await refetchAssignments();
-        onChange(assignedPersonaIds);
+        
+        // Calculate new persona IDs directly (since state won't update immediately)
+        let newPersonaIds = [...assignedPersonaIds];
+        if (isCurrentlyAssigned) {
+          // Remove the persona
+          newPersonaIds = newPersonaIds.filter(id => id !== personaId);
+        } else {
+          // Add the persona if not already present
+          if (!newPersonaIds.includes(personaId)) {
+            newPersonaIds.push(personaId);
+          }
+        }
+        
+        onChange(newPersonaIds);
       }
     } catch (error) {
       console.error('❌ Error updating persona:', error);
