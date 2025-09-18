@@ -303,16 +303,16 @@ export const generateSeasonalPlanContent = async (
       type: 'facebook',
       title: `${monthName} ${sanitizeTitle(theme.label)} Feature Friday`,
       caption: generateSocialContent(theme, monthName, seasonalFocus, contentIdeas[2], 'facebook', 'friday'),
-      date: new Date(week1.getTime() + (4 * 24 * 60 * 60 * 1000)),
+      date: new Date(week2.getTime() + (4 * 24 * 60 * 60 * 1000)),
       enabled: true,
-      week: 1
+      week: 2
     },
     {
       id: `facebook-3-${Date.now() + 7}`,
       type: 'facebook',
       title: `${sanitizeTitle(theme.label)} Workshop - This Weekend`,
       caption: generateWorkshopContent(theme, monthName, seasonalFocus),
-      date: new Date(week2.getTime() - (2 * 24 * 60 * 60 * 1000)),
+      date: new Date(week2.getTime() + (5 * 24 * 60 * 60 * 1000)),
       enabled: true,
       week: 2
     },
