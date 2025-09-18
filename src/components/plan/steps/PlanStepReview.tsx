@@ -79,6 +79,11 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
     return `Late ${format(date, 'MMM')}`;
   };
 
+  const truncateTitle = (title: string, maxLength: number = 45) => {
+    if (title.length <= maxLength) return title;
+    return title.substring(0, maxLength).trim() + '...';
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="text-center space-y-4">
@@ -215,18 +220,25 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="space-y-2">
-              {emailItems.slice(0, expandedChannels.has('email') ? emailItems.length : 3).map(item => (
-                <div key={item.id} className="text-sm text-muted-foreground flex justify-between">
-                  <span>{formatDateRange(item.date)} - {item.title}</span>
+            <div className="space-y-3">
+              {emailItems.slice(0, expandedChannels.has('email') ? emailItems.length : 2).map(item => (
+                <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-blue-500">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-blue-600 font-medium mb-1">
+                      {formatDateRange(item.date)}
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-foreground line-clamp-2">
+                    {truncateTitle(item.title)}
+                  </div>
                 </div>
               ))}
-              {emailItems.length > 3 && (
+              {emailItems.length > 2 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => toggleChannelExpansion('email')}
-                  className="w-full h-8 text-xs text-muted-foreground"
+                  className="w-full h-8 text-xs text-muted-foreground hover:bg-muted/50"
                 >
                   {expandedChannels.has('email') ? (
                     <>
@@ -236,7 +248,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                   ) : (
                     <>
                       <ChevronDown className="h-3 w-3 mr-1" />
-                      +{emailItems.length - 3} more
+                      +{emailItems.length - 2} more
                     </>
                   )}
                 </Button>
@@ -281,18 +293,25 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="space-y-2">
-              {smsItems.slice(0, expandedChannels.has('sms') ? smsItems.length : 3).map(item => (
-                <div key={item.id} className="text-sm text-muted-foreground flex justify-between">
-                  <span>{formatDateRange(item.date)} - {item.title}</span>
+            <div className="space-y-3">
+              {smsItems.slice(0, expandedChannels.has('sms') ? smsItems.length : 2).map(item => (
+                <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-green-500">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-green-600 font-medium mb-1">
+                      {formatDateRange(item.date)}
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-foreground line-clamp-2">
+                    {truncateTitle(item.title)}
+                  </div>
                 </div>
               ))}
-              {smsItems.length > 3 && (
+              {smsItems.length > 2 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => toggleChannelExpansion('sms')}
-                  className="w-full h-8 text-xs text-muted-foreground"
+                  className="w-full h-8 text-xs text-muted-foreground hover:bg-muted/50"
                 >
                   {expandedChannels.has('sms') ? (
                     <>
@@ -302,7 +321,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                   ) : (
                     <>
                       <ChevronDown className="h-3 w-3 mr-1" />
-                      +{smsItems.length - 3} more
+                      +{smsItems.length - 2} more
                     </>
                   )}
                 </Button>
@@ -346,18 +365,28 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="space-y-2">
-              {socialItems.slice(0, expandedChannels.has('social') ? socialItems.length : 3).map(item => (
-                <div key={item.id} className="text-sm text-muted-foreground flex justify-between">
-                  <span>{formatDateRange(item.date)} - {item.title}</span>
+            <div className="space-y-3">
+              {socialItems.slice(0, expandedChannels.has('social') ? socialItems.length : 2).map(item => (
+                <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-gradient-to-r from-blue-600 to-pink-500">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-medium mb-1 bg-gradient-to-r from-blue-600 to-pink-500 bg-clip-text text-transparent">
+                      {formatDateRange(item.date)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.type === 'facebook' ? '📘' : '📷'}
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-foreground line-clamp-2">
+                    {truncateTitle(item.title)}
+                  </div>
                 </div>
               ))}
-              {socialItems.length > 3 && (
+              {socialItems.length > 2 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => toggleChannelExpansion('social')}
-                  className="w-full h-8 text-xs text-muted-foreground"
+                  className="w-full h-8 text-xs text-muted-foreground hover:bg-muted/50"
                 >
                   {expandedChannels.has('social') ? (
                     <>
@@ -367,7 +396,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                   ) : (
                     <>
                       <ChevronDown className="h-3 w-3 mr-1" />
-                      +{socialItems.length - 3} more
+                      +{socialItems.length - 2} more
                     </>
                   )}
                 </Button>
@@ -395,83 +424,55 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="space-y-2">
-              {blogItems.slice(0, expandedChannels.has('blog') ? blogItems.length : 3).map(item => (
-                 <div key={item.id} className="flex items-center justify-between">
-                   <span className="text-sm text-muted-foreground">
-                     {formatDateRange(item.date)} - {item.title}
-                   </span>
-                   {item.enhancedContent && (
-                     <Dialog>
-                       <DialogTrigger asChild>
-                         <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1">
-                           <FileText className="h-3 w-3" />
-                           Full Blog ({item.enhancedContent?.readingTime})
-                         </Button>
-                       </DialogTrigger>
-                       <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-                         <DialogHeader>
-                           <DialogTitle>Blog Content Preview</DialogTitle>
-                         </DialogHeader>
-                         <BlogContentViewer blogItem={item} />
-                       </DialogContent>
-                     </Dialog>
-                   )}
+            <div className="space-y-3">
+              {blogItems.slice(0, expandedChannels.has('blog') ? blogItems.length : 2).map(item => (
+                 <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-purple-500">
+                   <div className="flex items-center justify-between mb-2">
+                     <div className="text-xs text-purple-600 font-medium">
+                       {formatDateRange(item.date)}
+                     </div>
+                     {item.enhancedContent && (
+                       <Dialog>
+                         <DialogTrigger asChild>
+                           <Button variant="outline" size="sm" className="h-6 px-2 text-xs gap-1">
+                             <FileText className="h-3 w-3" />
+                             Preview
+                           </Button>
+                         </DialogTrigger>
+                         <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+                           <DialogHeader>
+                             <DialogTitle>Blog Content Preview</DialogTitle>
+                           </DialogHeader>
+                           <BlogContentViewer blogItem={item} />
+                         </DialogContent>
+                       </Dialog>
+                     )}
+                   </div>
+                   <div className="text-sm font-medium text-foreground line-clamp-2">
+                     {truncateTitle(item.title)}
+                   </div>
                  </div>
                ))}
-               {/* Always show blog preview for blog items */}
-               {blogItems.length > 0 && expandedChannels.has('blog') && (
-                 <div className="mt-4 space-y-3">
-                   {blogItems.slice(0, expandedChannels.has('blog') ? blogItems.length : 3).map(item => (
-                     <div key={`preview-${item.id}`} className="p-4 bg-muted/30 rounded-lg border">
-                       <div className="flex items-center gap-2 mb-2">
-                         <FileText className="h-4 w-4 text-purple-600" />
-                         <span className="font-medium text-sm">Blog Post Preview</span>
-                         {item.enhancedContent && (
-                           <Badge variant="secondary" className="text-xs">
-                             {item.enhancedContent.readingTime}
-                           </Badge>
-                         )}
-                       </div>
-                       {item.enhancedContent ? (
-                         <div className="space-y-2">
-                           <h4 className="font-medium text-sm">{item.enhancedContent.title}</h4>
-                           <p className="text-xs text-muted-foreground">{item.enhancedContent.description}</p>
-                           <div className="flex flex-wrap gap-1">
-                             {item.enhancedContent.tags?.slice(0, 3).map((tag: string, i: number) => (
-                               <Badge key={i} variant="outline" className="text-xs px-1 py-0">
-                                 {tag}
-                               </Badge>
-                             ))}
-                           </div>
-                         </div>
-                       ) : (
-                         <p className="text-sm text-muted-foreground">{item.caption}</p>
-                       )}
-                     </div>
-                   ))}
-                 </div>
-                )}
-               {blogItems.length > 3 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleChannelExpansion('blog')}
-                  className="w-full h-8 text-xs text-muted-foreground"
-                >
-                  {expandedChannels.has('blog') ? (
-                    <>
-                      <ChevronUp className="h-3 w-3 mr-1" />
-                      Show Less
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="h-3 w-3 mr-1" />
-                      +{blogItems.length - 3} more
-                    </>
-                  )}
-                </Button>
-              )}
+                {blogItems.length > 2 && (
+                 <Button
+                   variant="ghost"
+                   size="sm"
+                   onClick={() => toggleChannelExpansion('blog')}
+                   className="w-full h-8 text-xs text-muted-foreground hover:bg-muted/50"
+                 >
+                   {expandedChannels.has('blog') ? (
+                     <>
+                       <ChevronUp className="h-3 w-3 mr-1" />
+                       Show Less
+                     </>
+                   ) : (
+                     <>
+                       <ChevronDown className="h-3 w-3 mr-1" />
+                       +{blogItems.length - 2} more
+                     </>
+                   )}
+                 </Button>
+               )}
             </div>
           </CardContent>
         </Card>
