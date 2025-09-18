@@ -641,39 +641,49 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                 </div>
                                ) : (
                                  <div 
-                                   className="space-y-3 cursor-pointer hover:bg-muted/20 -m-2 p-2 rounded-md transition-colors group/content"
-                                   onClick={() => setEditingItem(item.id)}
-                                   onKeyDown={(e) => {
-                                     if (e.key === 'Enter' || e.key === ' ') {
-                                       e.preventDefault();
-                                       setEditingItem(item.id);
-                                     }
-                                   }}
-                                   role="button"
-                                   tabIndex={0}
-                                   aria-label="Click to edit content"
-                                   title="Click to edit"
-                                 >
-                                    <h4 className="font-medium group-hover/content:text-primary transition-colors">{item.title}</h4>
-                                    {item.type === 'email' && item.emailPreheader && (
-                                      <p className="text-xs text-muted-foreground italic group-hover/content:text-foreground transition-colors mb-2">
-                                        {item.emailPreheader}
-                                      </p>
-                                    )}
-                                    {item.type === 'email' ? (
-                                      <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
-                                        <SafeHtml content={item.caption} type="general" className="prose prose-sm max-w-none" />
+                                    className="space-y-3 cursor-pointer hover:bg-muted/20 -m-2 p-2 rounded-md transition-colors group/content"
+                                    onClick={() => setEditingItem(item.id)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setEditingItem(item.id);
+                                      }
+                                    }}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label="Click to edit content"
+                                    title="Click to edit"
+                                  >
+                                     {/* Email header info at the top */}
+                                     {item.type === 'email' && (
+                                       <div className="space-y-1 text-xs text-muted-foreground mb-3 p-2 bg-muted/30 rounded">
+                                         {item.emailSubject && (
+                                           <div><span className="font-medium">Subject:</span> {item.emailSubject}</div>
+                                         )}
+                                         {item.emailPreheader && (
+                                           <div><span className="font-medium">Preheader:</span> {item.emailPreheader}</div>
+                                         )}
+                                         <div><span className="font-medium">Date:</span> {format(item.date, 'MMM d, yyyy')}</div>
+                                       </div>
+                                     )}
+                                     
+                                     <h4 className="font-medium group-hover/content:text-primary transition-colors">{item.title}</h4>
+                                     
+                                     {/* Email body content */}
+                                     {item.type === 'email' ? (
+                                       <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
+                                         <SafeHtml content={item.caption} type="general" className="prose prose-sm max-w-none" />
+                                       </div>
+                                     ) : (
+                                       <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
+                                     )}
+                                    {item.imageUrl && (
+                                      <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
+                                        <ImageIcon className="h-4 w-4" />
+                                        <span>Image selected</span>
                                       </div>
-                                    ) : (
-                                      <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
                                     )}
-                                   {item.imageUrl && (
-                                     <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
-                                       <ImageIcon className="h-4 w-4" />
-                                       <span>Image selected</span>
-                                     </div>
-                                   )}
-                                 </div>
+                                  </div>
                                )}
                             </div>
                           </div>
