@@ -54,24 +54,34 @@ export const useCustomerPersonas = (customerId: string) => {
     if (!user || !tenant?.id) return false;
 
     try {
+      console.log('🔄 Assigning persona:', { personaId, isCustom, customerId, tenantId: tenant.id });
+      
       const insertData = {
         customer_id: customerId,
+        tenant_id: tenant.id, // Add missing tenant_id
         ...(isCustom 
           ? { persona_id: personaId, predefined_persona_id: null }
           : { predefined_persona_id: personaId, persona_id: null }
         )
       };
 
-      const { error } = await supabase
-        .from('customer_personas')
-        .insert(insertData);
+      console.log('💾 Insert data:', insertData);
 
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from('customer_personas')
+        .insert(insertData)
+        .select();
+
+      if (error) {
+        console.error('❌ Database error:', error);
+        throw error;
+      }
       
+      console.log('✅ Successfully inserted:', data);
       await refetch();
       return true;
     } catch (error) {
-      console.error('Error assigning persona:', error);
+      console.error('❌ Error assigning persona:', error);
       toast({
         title: "Error",
         description: "Failed to assign persona to customer.",
