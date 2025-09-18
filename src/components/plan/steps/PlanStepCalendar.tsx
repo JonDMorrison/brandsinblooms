@@ -101,19 +101,32 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
     setIsRegenerating(true);
     setLoading('plan-regenerate', {
       isLoading: true,
-      message: 'Regenerating content with AI...',
+      message: 'Regenerating content with proper templates and MediaSelector...',
       priority: 'page'
     });
     try {
-      // Call AI content generation for enhanced content
-      const response = await supabase.functions.invoke('generate_campaign_content', {
+      // Use the new multichannel content generation with proper templates
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error('User not authenticated');
+
+      const { data: me } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', currentUser.id)
+        .single();
+      
+      const workspaceId = me?.tenant_id || currentUser.id;
+
+      const response = await supabase.functions.invoke('generate-multichannel-content', {
         body: {
-          campaignId: `plan-${Date.now()}`,
-          campaignTheme: state.themes.map(t => t.label).join(' + '),
-          campaignDescription: state.themes.map(t => t.description).join('; '),
-          userId: 'plan-user',
-          weekNumber: 1,
-          tenantId: 'default'
+          mode: 'custom',
+          userIdea: {
+            title: state.themes.map(t => t.label).join(' + '),
+            notes: state.themes.map(t => t.description).join('; '),
+            tone: 'professional and helpful'
+          },
+          workspaceId,
+          channels: ['newsletter', 'instagram', 'facebook', 'blog', 'video']
         }
       });
 
@@ -121,21 +134,37 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
         throw new Error(response.error.message);
       }
 
-      // Regenerate content with enhanced AI-powered captions
-      const enhancedItems = await generateMultiThemeSeasonalPlanContent(state.themes, state.month);
-      
-      // If we got AI content, use it to enhance the items
-      if (response.data?.success && response.data?.tasks) {
-        const aiTasks = response.data.tasks;
-        enhancedItems.forEach((item, index) => {
-          if (aiTasks[index % aiTasks.length]) {
-            item.caption = aiTasks[index % aiTasks.length].task_details;
+      // Convert the multichannel response back to plan items
+      if (response.data?.items) {
+        const enhancedItems = await generateMultiThemeSeasonalPlanContent(state.themes, state.month);
+        
+        // Enhance with AI-generated content from proper templates
+        response.data.items.forEach((aiItem: any, index: number) => {
+          const matchingItem = enhancedItems[index % enhancedItems.length];
+          if (matchingItem) {
+            if (aiItem.channel === 'newsletter') {
+              matchingItem.caption = aiItem.body || aiItem.content || '';
+              matchingItem.enhancedContent = {
+                title: aiItem.title || matchingItem.title,
+                fullContent: aiItem.body || '',
+                blocks: aiItem.blocks || []
+              };
+            } else if (aiItem.channel === 'instagram' || aiItem.channel === 'facebook') {
+              matchingItem.caption = aiItem.caption || aiItem.body || '';
+            } else if (aiItem.channel === 'blog') {
+              matchingItem.enhancedContent = {
+                title: aiItem.title || matchingItem.title,
+                fullContent: aiItem.markdown || aiItem.body || '',
+                summary: aiItem.summary || ''
+              };
+            }
           }
         });
+        
+        setItems(enhancedItems);
       }
       
-      setItems(enhancedItems);
-      toast.success('Content regenerated with AI enhancements!');
+      toast.success('Content regenerated with CRM templates and MediaSelector!');
     } catch (error) {
       console.error('Error regenerating content:', error);
       toast.error('Failed to regenerate content. Using seasonal templates.');

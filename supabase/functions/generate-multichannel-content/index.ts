@@ -241,6 +241,9 @@ async function generateForChannel(
 
   switch (channel) {
     case "newsletter": {
+      // Always use proper CRM block templates for newsletters
+      const blocks = await generateNewsletterWithCRMBlocks(supabase, userId, topic, context);
+      
       try {
         const content = await callGenerateStructuredNewsletter(supabase, {
           campaignTitle: topic,
@@ -250,48 +253,14 @@ async function generateForChannel(
           weekNumber: 0,
         });
         if (content) {
-          return { channel: "newsletter", title: topic, body: content, media: null };
+          return { channel: "newsletter", title: topic, body: content, blocks, media: null };
         }
       } catch (e) {
-        console.warn("[generate-multichannel-content] structured newsletter failed, falling back", e);
+        console.warn("[generate-multichannel-content] structured newsletter failed, using blocks only", e);
       }
-      // Robust server-side fallback with proper newsletter structure
-      const fallbackContent = `newsletter_md: |
-  # ${topic} Newsletter
-  *Expert gardening insights for ${topic.toLowerCase()} success*
-
-  ## Transform Your Garden with ${topic} Expertise
-  Many gardeners struggle to know the best approach for ${topic.toLowerCase()}.  At your local garden center, our experts understand this challenge and have solutions ready to help you succeed.
-
-  ## Discover Professional ${topic} Solutions  
-  Our team has years of experience helping customers achieve their ${topic.toLowerCase()} goals.  We provide personalized advice and premium supplies to ensure your garden thrives throughout the season.
-
-  ## Prevent Common ${topic} Problems
-  Don't let common mistakes derail your ${topic.toLowerCase()} success.  Our knowledgeable staff can guide you through proper techniques and timing to avoid costly setbacks.
-
-  ## Plan Your ${topic} Success Story
-  Picture your garden flourishing with the right ${topic.toLowerCase()} approach.  Visit us today to create your personalized action plan and get started on your journey to gardening success.
-
-blocks:
-  - title: "Transform Your Garden with ${topic} Expertise"
-    body: "Many gardeners struggle to know the best approach for ${topic.toLowerCase()}.  At your local garden center, our experts understand this challenge and have solutions ready to help you succeed."
-    cta: "Get ${topic.toLowerCase()} guidance"
-    link: "#"
-  - title: "Discover Professional ${topic} Solutions"
-    body: "Our team has years of experience helping customers achieve their ${topic.toLowerCase()} goals.  We provide personalized advice and premium supplies to ensure your garden thrives throughout the season."
-    cta: "Shop ${topic.toLowerCase()} supplies"
-    link: "#"
-  - title: "Prevent Common ${topic} Problems"
-    body: "Don't let common mistakes derail your ${topic.toLowerCase()} success.  Our knowledgeable staff can guide you through proper techniques and timing to avoid costly setbacks."
-    cta: "Learn ${topic.toLowerCase()} tips"
-    link: "#"
-  - title: "Plan Your ${topic} Success Story"
-    body: "Picture your garden flourishing with the right ${topic.toLowerCase()} approach.  Visit us today to create your personalized action plan and get started on your journey to gardening success."
-    cta: "Start planning"
-    link: "#"`;
       
-      const blocks = generateNewsletterBlocksServer(topic);
-      return { channel: "newsletter", title: topic, body: fallbackContent, blocks, media: null };
+      // Use CRM blocks as primary template structure
+      return { channel: "newsletter", title: topic, blocks, media: null };
     }
     case "instagram": {
       const content = await callGenerateContent(supabase, {
@@ -466,10 +435,16 @@ meta:
   return await openAIChat(systemPrompt, userPrompt);
 }
 
-function generateNewsletterBlocksServer(topic: string) {
-  // Mirrors src/services/newsletterBlockGenerator.ts (block-builder variant)
+// Generate newsletter blocks using CRM block templates
+async function generateNewsletterWithCRMBlocks(supabase: any, userId: string, topic: string, context: any) {
+  // Try to get existing CRM content blocks as templates
+  const { data: existingBlocks } = await supabase
+    .from('campaign_blocks')
+    .select('block_type, content, cta_text, cta_url, image_url')
+    .limit(5);
+
   const now = Date.now();
-  return [
+  const blocks = [
     {
       id: `header_${now}`,
       type: "header",
@@ -486,17 +461,30 @@ function generateNewsletterBlocksServer(topic: string) {
       padding: "large",
       visible: true,
       collapsed: false,
-    },
-    {
-      id: `content1_${now}`,
-      type: "image-text",
-      title: "Featured Story",
-      content: "Welcome to this week's newsletter featuring the latest updates and insights.",
-      headline: "Featured Story",
-      body: "Welcome to this week's newsletter featuring the latest updates and insights.",
-      imageUrl: "",
-      ctaText: "",
-      ctaUrl: "",
+    }
+  ];
+
+  // Generate 4 content blocks using existing CRM blocks as templates if available
+  const contentTitles = ["Featured Story", "Main Article", "Seasonal Spotlight", "Call to Action"];
+  const defaultContents = [
+    `Welcome to this week's newsletter about ${topic}. Our expert team has prepared valuable insights to help you succeed.`,
+    `Discover the latest trends and best practices for ${topic}. Learn from our years of experience and proven strategies.`,
+    `Seasonal tips and advice specifically tailored for ${topic}. Make the most of the current season with professional guidance.`,
+    `Ready to take action? Visit us today to learn more about ${topic} and get personalized recommendations from our experts.`
+  ];
+
+  for (let i = 0; i < 4; i++) {
+    const existingBlock = existingBlocks && existingBlocks[i % existingBlocks.length];
+    const block = {
+      id: `content${i + 1}_${now}`,
+      type: existingBlock?.block_type || "image-text",
+      title: contentTitles[i],
+      content: defaultContents[i],
+      headline: contentTitles[i],
+      body: defaultContents[i],
+      imageUrl: existingBlock?.image_url || "",
+      ctaText: existingBlock?.cta_text || (i === 3 ? "Learn More" : ""),
+      ctaUrl: existingBlock?.cta_url || "#",
       source: "template",
       personaTag: "general",
       layout: "image-left",
@@ -516,6 +504,34 @@ function generateNewsletterBlocksServer(topic: string) {
       imageUrl: "",
       ctaText: "",
       ctaUrl: "",
+      source: "template",
+      personaTag: "general",
+      layout: "image-left",
+      alignment: "left",
+      textAlign: "left",
+      padding: "medium",
+      visible: true,
+      collapsed: false,
+    };
+    blocks.push(block);
+  }
+
+  console.log(`[generate-multichannel-content] Generated ${blocks.length} CRM template blocks for "${topic}"`);
+  return blocks;
+}
+
+function generateNewsletterBlocksServer(topic: string) {
+  // Fallback function - should not be used anymore
+  const now = Date.now();
+  return [
+    {
+      id: `header_${now}`,
+      type: "header",
+      title: topic,
+      headline: topic,
+      content: "",
+      body: "",
+      imageUrl: "",
       source: "template",
       personaTag: "general",
       layout: "image-left",

@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import { useGeneratedBundle } from "@/hooks/useGeneratedBundle";
@@ -148,128 +149,158 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Review & Approve</DialogTitle>
-          <DialogDescription>Edit copy, choose media, then approve.</DialogDescription>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle>Review & Approve Content</DialogTitle>
+          <DialogDescription>Edit copy, choose images with MediaSelector, then approve for publishing.</DialogDescription>
         </DialogHeader>
 
-        {query.isLoading ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">Loading generated content…</div>
-        ) : (draftItems?.length || 0) === 0 ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">No generated items yet.</div>
-        ) : (
-          <div className="space-y-4">
-            {draftItems.map((item: any, idx: number) => (
-              <div key={idx} className="rounded-2xl border p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="font-medium capitalize">{item.channel}</div>
-                  <div className="flex items-center gap-2">
-                    {dirty.has(idx) && (
-                      <>
-                        <Button size="sm" variant="secondary" onClick={() => handleSaveItem(idx)} disabled={update.isPending}>
+        <div className="flex-1 overflow-y-auto pr-2">
+          {query.isLoading ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">Loading generated content…</div>
+          ) : (draftItems?.length || 0) === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">No generated items yet.</div>
+          ) : (
+            <div className="space-y-6">
+              {draftItems.map((item: any, idx: number) => (
+                <div key={idx} className="rounded-lg border p-6 bg-card">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="font-semibold capitalize text-lg">{item.channel}</div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${item._approved ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {item._approved ? 'Approved' : 'Draft'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {dirty.has(idx) && (
+                        <>
+                          <Button size="sm" variant="secondary" onClick={() => handleSaveItem(idx)} disabled={update.isPending}>
+                            {update.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Save
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleCancelItem(idx)} disabled={update.isPending}>
+                            Cancel
+                          </Button>
+                        </>
+                      )}
+                      {!item._approved ? (
+                        <Button size="sm" onClick={() => handleApproveItem(idx)} disabled={update.isPending}>
                           {update.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                          Save
+                          Approve
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleCancelItem(idx)} disabled={update.isPending}>
-                          Cancel
+                      ) : item.channel === 'instagram' || item.channel === 'facebook' ? (
+                        <Button size="sm" onClick={() => handoffPublish(item.channel as 'instagram'|'facebook')}>
+                          → Publish Portal
                         </Button>
-                      </>
-                    )}
-                    <span className={`text-xs ${item._approved ? 'text-green-600' : 'text-muted-foreground'}`}>{item._approved ? 'Approved' : 'Draft'}</span>
-                    {!item._approved ? (
-                      <Button size="sm" variant="outline" onClick={() => handleApproveItem(idx)} disabled={update.isPending}>
-                        {update.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Approve
-                      </Button>
-                    ) : item.channel === 'instagram' || item.channel === 'facebook' ? (
-                      <Button size="sm" onClick={() => handoffPublish(item.channel as 'instagram'|'facebook')}>Post to Social</Button>
-                    ) : item.channel === 'newsletter' ? (
-                      <Button size="sm" onClick={handoffNewsletter}>Send to CRM</Button>
-                    ) : item.channel === 'blog' ? (
-                      <Button size="sm" variant="outline" disabled title="Send to Website – Coming Soon">
-                        Send to Website – Coming Soon
-                      </Button>
-                    ) : null}
+                      ) : item.channel === 'newsletter' ? (
+                        <Button size="sm" onClick={handoffNewsletter}>
+                          → Send to CRM
+                        </Button>
+                      ) : item.channel === 'blog' ? (
+                        <Button size="sm" variant="outline" disabled title="Send to Website – Coming Soon">
+                          → Send to Website (Coming Soon)
+                        </Button>
+                      ) : item.channel === 'video' ? (
+                        <Button size="sm" variant="outline" disabled title="Video publishing coming soon">
+                          → Video Publisher (Coming Soon)
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2 space-y-2">
-                    <Input
-                      value={sanitizeWeekNumbers(item.title || '')}
-                      onChange={(e) => editItem(idx, { title: e.target.value })}
-                      placeholder="Title (optional)"
-                    />
-                    {item.channel === 'instagram' || item.channel === 'facebook' ? (
-                      <textarea
-                        className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
-                        value={sanitizeWeekNumbers(item.caption || '')}
-                        onChange={(e) => editItem(idx, { caption: e.target.value })}
-                        placeholder="Write a caption"
-                      />
-                    ) : item.channel === 'video' ? (
-                      <textarea
-                        className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
-                        value={sanitizeWeekNumbers(item.script || '')}
-                        onChange={(e) => editItem(idx, { script: e.target.value })}
-                        placeholder="Write a short video script"
-                      />
-                     ) : item.channel === 'blog' ? (
-                       <div className="w-full">
-                         <RichTextEditor
-                           content={convertMarkdownToHtml(sanitizeWeekNumbers(item.markdown || item.body || ''))}
-                           onChange={(html) => editItem(idx, { markdown: html })}
-                           placeholder="Write and format your blog content"
-                           className="w-full"
-                         />
-                       </div>
-                     ) : (
-                       item.channel === 'newsletter' ? (
-                         <EditableNewsletterPreview
-                           content={sanitizeWeekNumbers(item.body || '')}
-                           title={item.title || 'Newsletter'}
-                           onChange={(content) => editItem(idx, { body: content })}
-                           onSave={() => handleSaveItem(idx)}
-                           className="w-full"
-                         />
-                       ) : (
-                        <textarea
-                          className="w-full min-h-[240px] md:min-h-[320px] rounded-md border p-3 text-sm leading-relaxed resize-y"
-                          value={sanitizeWeekNumbers(item.body || '')}
-                          onChange={(e) => editItem(idx, { body: e.target.value })}
-                          placeholder="Write body"
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Title</Label>
+                        <Input
+                          value={sanitizeWeekNumbers(item.title || '')}
+                          onChange={(e) => editItem(idx, { title: e.target.value })}
+                          placeholder="Enter title (optional)"
+                          className="w-full"
                         />
-                      )
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <MediaSelector
-                      compact
-                      selectedImageUrl={item.media?.url}
-                      contentContext={item.title || item.caption || item.script || item.markdown || item.body}
-                      onImageSelect={(url: string, metadata?: any) =>
-                        editItem(idx, { media: { url, alt: metadata?.alt_text || item.media?.alt } })
-                      }
-                      autoSelectFirst={true}
-                    />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Content</Label>
+                        {item.channel === 'instagram' || item.channel === 'facebook' ? (
+                          <textarea
+                            className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y"
+                            value={sanitizeWeekNumbers(item.caption || '')}
+                            onChange={(e) => editItem(idx, { caption: e.target.value })}
+                            placeholder="Write your social media caption..."
+                          />
+                        ) : item.channel === 'video' ? (
+                          <textarea
+                            className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y"
+                            value={sanitizeWeekNumbers(item.script || '')}
+                            onChange={(e) => editItem(idx, { script: e.target.value })}
+                            placeholder="Write your video script..."
+                          />
+                         ) : item.channel === 'blog' ? (
+                           <div className="w-full">
+                             <RichTextEditor
+                               content={convertMarkdownToHtml(sanitizeWeekNumbers(item.markdown || item.body || ''))}
+                               onChange={(html) => editItem(idx, { markdown: html })}
+                               placeholder="Write and format your blog content..."
+                               className="w-full min-h-[200px]"
+                             />
+                           </div>
+                         ) : item.channel === 'newsletter' ? (
+                           <div className="space-y-2">
+                             <p className="text-xs text-muted-foreground">Newsletter will use CRM block templates when approved</p>
+                             <EditableNewsletterPreview
+                               content={sanitizeWeekNumbers(item.body || '')}
+                               title={item.title || 'Newsletter'}
+                               onChange={(content) => editItem(idx, { body: content })}
+                               onSave={() => handleSaveItem(idx)}
+                               className="w-full"
+                             />
+                           </div>
+                         ) : (
+                          <textarea
+                            className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y"
+                            value={sanitizeWeekNumbers(item.body || '')}
+                            onChange={(e) => editItem(idx, { body: e.target.value })}
+                            placeholder="Write content..."
+                          />
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Featured Image</Label>
+                        <MediaSelector
+                          compact
+                          selectedImageUrl={item.media?.url}
+                          contentContext={item.title || item.caption || item.script || item.markdown || item.body}
+                          onImageSelect={(url: string, metadata?: any) =>
+                            editItem(idx, { media: { url, alt: metadata?.alt_text || item.media?.alt } })
+                          }
+                          autoSelectFirst={true}
+                        />
+                        <p className="text-xs text-muted-foreground mt-2">
+                          MediaSelector automatically finds relevant images
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
 
-        <div className="flex items-center justify-between mt-4">
+        <div className="flex-shrink-0 flex items-center justify-between mt-6 pt-4 border-t">
           <Button variant="outline" onClick={handleClose}>Close</Button>
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={handleSaveAll} disabled={dirty.size === 0 || update.isPending}>
               {update.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Save All
+              Save All Changes
             </Button>
             <Button onClick={handleApproveAll} disabled={update.isPending}>
               {update.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Approve All
+              Approve All Content
             </Button>
           </div>
         </div>
