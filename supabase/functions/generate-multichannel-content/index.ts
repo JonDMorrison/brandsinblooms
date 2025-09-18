@@ -37,6 +37,9 @@ interface GeneratedItem {
   media?: { url?: string; alt?: string } | null;
   // Newsletter blocks for Block Builder
   blocks?: any[];
+  // MediaSelector integration flags
+  requiresMediaSelector?: boolean;
+  autoSelectImage?: boolean;
 }
 
 const corsHeaders = {
@@ -100,11 +103,27 @@ serve(async (req) => {
 // Channels to generate (required)
 const channels: Array<GeneratedItem["channel"]> = (input.channels || []) as any;
 
-const items: GeneratedItem[] = [];
-for (const channel of channels) {
-  const item = await generateForChannel(supabase, user.id, channel, context, input.userIdea?.tone);
-  items.push(item);
-}
+  // Enhanced content generation for better MediaSelector integration
+  for (const channel of channels) {
+    const item = await generateForChannel(supabase, user.id, channel, context, input.userIdea?.tone);
+    
+    // Add MediaSelector trigger flag for all content types
+    if (item) {
+      item.requiresMediaSelector = true;
+      item.autoSelectImage = true; // Automatically trigger MediaSelector
+      
+      // For Instagram and Facebook, ensure hashtags are properly formatted
+      if ((channel === 'instagram' || channel === 'facebook') && item.caption) {
+        const hashtags = extractHashtags(item.caption);
+        item.hashtags = hashtags;
+        
+        // Clean caption by removing inline hashtags if they exist at the end
+        item.caption = item.caption.replace(/(#\w+\s*)+$/, '').trim();
+      }
+    }
+    
+    items.push(item);
+  }
 
     // Recommended images via existing function
     const queryForImages = buildImageQuery(context);
@@ -230,6 +249,7 @@ async function resolveContext(supabase: any, input: GenerateInput) {
   };
 }
 
+// Enhanced MediaSelector integration - auto-trigger image selection
 async function generateForChannel(
   supabase: any,
   userId: string,
@@ -253,14 +273,29 @@ async function generateForChannel(
           weekNumber: 0,
         });
         if (content) {
-          return { channel: "newsletter", title: topic, body: content, blocks, media: null };
+          return { 
+            channel: "newsletter", 
+            title: topic, 
+            body: content, 
+            blocks, 
+            media: null,
+            requiresMediaSelector: true,
+            autoSelectImage: true
+          };
         }
       } catch (e) {
         console.warn("[generate-multichannel-content] structured newsletter failed, using blocks only", e);
       }
       
       // Use CRM blocks as primary template structure
-      return { channel: "newsletter", title: topic, blocks, media: null };
+      return { 
+        channel: "newsletter", 
+        title: topic, 
+        blocks, 
+        media: null,
+        requiresMediaSelector: true,
+        autoSelectImage: true
+      };
     }
     case "instagram": {
       const content = await callGenerateContent(supabase, {
@@ -269,7 +304,15 @@ async function generateForChannel(
         userId,
         weekDescription: context.description,
       });
-      return { channel: "instagram", title: topic, caption: content, hashtags: extractHashtags(content), media: null };
+      return { 
+        channel: "instagram", 
+        title: topic, 
+        caption: content, 
+        hashtags: extractHashtags(content), 
+        media: null,
+        requiresMediaSelector: true,
+        autoSelectImage: true
+      };
     }
     case "facebook": {
       const content = await callGenerateContent(supabase, {
@@ -278,7 +321,15 @@ async function generateForChannel(
         userId,
         weekDescription: context.description,
       });
-      return { channel: "facebook", title: topic, caption: content, hashtags: extractHashtags(content), media: null };
+      return { 
+        channel: "facebook", 
+        title: topic, 
+        caption: content, 
+        hashtags: extractHashtags(content), 
+        media: null,
+        requiresMediaSelector: true,
+        autoSelectImage: true
+      };
     }
     case "video": {
       const content = await callGenerateContent(supabase, {
@@ -287,7 +338,14 @@ async function generateForChannel(
         userId,
         weekDescription: context.description,
       });
-      return { channel: "video", title: topic, script: content, media: null };
+      return { 
+        channel: "video", 
+        title: topic, 
+        script: content, 
+        media: null,
+        requiresMediaSelector: true,
+        autoSelectImage: true
+      };
     }
     case "blog": {
       const content = await callGenerateContent(supabase, {
@@ -296,10 +354,24 @@ async function generateForChannel(
         userId,
         weekDescription: context.description,
       });
-      return { channel: "blog", title: topic, markdown: content, media: null };
+      return { 
+        channel: "blog", 
+        title: topic, 
+        markdown: content, 
+        media: null,
+        requiresMediaSelector: true,
+        autoSelectImage: true
+      };
     }
     default:
-      return { channel, title: topic, body: "", media: null } as GeneratedItem;
+      return { 
+        channel, 
+        title: topic, 
+        body: "", 
+        media: null,
+        requiresMediaSelector: true,
+        autoSelectImage: true
+      } as GeneratedItem;
   }
 }
 
@@ -437,67 +509,123 @@ meta:
 
 // Generate newsletter blocks using CRM block templates
 async function generateNewsletterWithCRMBlocks(supabase: any, userId: string, topic: string, context: any) {
-  // Try to get existing CRM content blocks as templates
-  const { data: existingBlocks } = await supabase
+  console.log(`[generateNewsletterWithCRMBlocks] Generating CRM blocks for topic: ${topic}`);
+  
+  // Get user's workspace ID
+  const { data: userData } = await supabase
+    .from('users')
+    .select('tenant_id')
+    .eq('id', userId)
+    .single();
+  
+  const workspaceId = userData?.tenant_id || userId;
+  
+  // Try to get existing CRM content blocks as templates from user's workspace
+  const { data: existingBlocks, error: blocksError } = await supabase
     .from('campaign_blocks')
-    .select('block_type, content, cta_text, cta_url, image_url')
-    .limit(5);
+    .select('block_type, content, headline, cta_text, cta_url, image_url, layout_settings')
+    .eq('tenant_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(10);
+    
+  if (blocksError) {
+    console.warn(`[generateNewsletterWithCRMBlocks] Error fetching CRM blocks:`, blocksError);
+  }
+  
+  console.log(`[generateNewsletterWithCRMBlocks] Found ${existingBlocks?.length || 0} existing CRM blocks to use as templates`);
 
   const now = Date.now();
+  
+  // Always start with a header block using proper CRM structure
   const blocks = [
     {
       id: `header_${now}`,
-      type: "header",
+      type: "newsletter-header",
       title: topic,
       headline: topic,
-      content: "",
+      subheadline: `Expert insights and guidance for ${topic.toLowerCase()}`,
+      content: `Your trusted source for ${topic.toLowerCase()} information and advice`,
       body: "",
-      imageUrl: "",
-      source: "template",
+      imageUrl: "", // MediaSelector will handle this
+      source: "crm_template",
       personaTag: "general",
-      layout: "full-width",
+      layout: "full-width", 
       alignment: "center",
       textAlign: "center",
       padding: "large",
+      backgroundColor: "#ffffff",
+      textColor: "#333333",
       visible: true,
       collapsed: false,
+      requiresMediaSelector: true, // Flag to trigger MediaSelector
     }
   ];
 
-  // Generate 4 content blocks using existing CRM blocks as templates if available
-  const contentTitles = ["Featured Story", "Main Article", "Seasonal Spotlight", "Call to Action"];
-  const defaultContents = [
-    `Welcome to this week's newsletter about ${topic}. Our expert team has prepared valuable insights to help you succeed.`,
-    `Discover the latest trends and best practices for ${topic}. Learn from our years of experience and proven strategies.`,
-    `Seasonal tips and advice specifically tailored for ${topic}. Make the most of the current season with professional guidance.`,
-    `Ready to take action? Visit us today to learn more about ${topic} and get personalized recommendations from our experts.`
+  // Generate content blocks using CRM templates with enhanced structure
+  const blockTypes = ["image-text", "text", "image-text", "cta-button"];
+  const contentTemplates = [
+    {
+      title: "Welcome & Featured Content",
+      content: `Welcome to this week's newsletter focusing on ${topic}. Our expert team has curated the most valuable insights to help you achieve success with your gardening goals.`,
+      type: "image-text",
+      ctaText: "Read More",
+    },
+    {
+      title: "Expert Insights",
+      content: `Our experienced team shares proven strategies and best practices for ${topic}. Learn from years of professional expertise and customer success stories.`,
+      type: "text",
+      ctaText: "",
+    },
+    {
+      title: "Seasonal Focus",
+      content: `Current seasonal considerations for ${topic}. Make the most of this time of year with our professional recommendations and timely advice.`,
+      type: "image-text", 
+      ctaText: "Get Advice",
+    },
+    {
+      title: "Take Action Today",
+      content: `Ready to get started with ${topic}? Visit us for personalized recommendations, expert guidance, and everything you need for success.`,
+      type: "cta-button",
+      ctaText: "Visit Us Today",
+    }
   ];
 
-  for (let i = 0; i < 4; i++) {
-    const existingBlock = existingBlocks && existingBlocks[i % existingBlocks.length];
+  for (let i = 0; i < contentTemplates.length; i++) {
+    const template = contentTemplates[i];
+    
+    // Use existing CRM block as template if available
+    const existingTemplate = existingBlocks && existingBlocks[i % existingBlocks.length];
+    
     const block = {
-      id: `content${i + 1}_${now}`,
-      type: existingBlock?.block_type || "image-text",
-      title: contentTitles[i],
-      content: defaultContents[i],
-      headline: contentTitles[i],
-      body: defaultContents[i],
-      imageUrl: existingBlock?.image_url || "",
-      ctaText: existingBlock?.cta_text || (i === 3 ? "Learn More" : ""),
-      ctaUrl: existingBlock?.cta_url || "#",
-      source: "template",
+      id: `${template.type}_${i + 1}_${now}`,
+      type: existingTemplate?.block_type || template.type,
+      title: template.title,
+      headline: template.title,
+      content: template.content,
+      body: template.content,
+      imageUrl: existingTemplate?.image_url || "", // Will be set by MediaSelector
+      ctaText: existingTemplate?.cta_text || template.ctaText,
+      ctaUrl: existingTemplate?.cta_url || "#",
+      source: "crm_template",
       personaTag: "general",
-      layout: "image-left",
+      layout: existingTemplate?.layout_settings?.layout || (template.type === "image-text" ? "image-left" : "full-width"),
       alignment: "left",
-      textAlign: "left",
+      textAlign: "left", 
       padding: "medium",
+      backgroundColor: "#ffffff",
+      textColor: "#333333",
       visible: true,
       collapsed: false,
+      requiresMediaSelector: template.type.includes("image"), // Flag blocks that need images
+      // Copy any additional settings from existing templates
+      ...(existingTemplate?.layout_settings || {}),
     };
+    
     blocks.push(block);
   }
 
-  console.log(`[generate-multichannel-content] Generated ${blocks.length} CRM template blocks for "${topic}"`);
+  console.log(`[generate-multichannel-content] Generated ${blocks.length} CRM template blocks for "${topic}" using ${existingBlocks?.length || 0} existing templates`);
+  
   return blocks;
 }
 

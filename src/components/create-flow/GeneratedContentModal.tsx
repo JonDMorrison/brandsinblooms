@@ -194,7 +194,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                         </Button>
                       ) : item.channel === 'newsletter' ? (
                         <Button size="sm" onClick={handoffNewsletter}>
-                          → Send to CRM
+                          → Send to CRM Block Builder
                         </Button>
                       ) : item.channel === 'blog' ? (
                         <Button size="sm" variant="outline" disabled title="Send to Website – Coming Soon">
@@ -245,17 +245,17 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                                className="w-full min-h-[200px]"
                              />
                            </div>
-                         ) : item.channel === 'newsletter' ? (
-                           <div className="space-y-2">
-                             <p className="text-xs text-muted-foreground">Newsletter will use CRM block templates when approved</p>
-                             <EditableNewsletterPreview
-                               content={sanitizeWeekNumbers(item.body || '')}
-                               title={item.title || 'Newsletter'}
-                               onChange={(content) => editItem(idx, { body: content })}
-                               onSave={() => handleSaveItem(idx)}
-                               className="w-full"
-                             />
-                           </div>
+                          ) : item.channel === 'newsletter' ? (
+                            <div className="space-y-2">
+                              <p className="text-xs text-muted-foreground">Newsletter will use CRM block templates when approved</p>
+                              <EditableNewsletterPreview
+                                content={sanitizeWeekNumbers(item.body || '')}
+                                title={item.title || 'Newsletter'}
+                                onChange={(content) => editItem(idx, { body: content })}
+                                onSave={() => handleSaveItem(idx)}
+                                className="w-full"
+                              />
+                            </div>
                          ) : (
                           <textarea
                             className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y"
@@ -267,23 +267,23 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                       </div>
                     </div>
                     
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-sm font-medium mb-2 block">Featured Image</Label>
-                        <MediaSelector
-                          compact
-                          selectedImageUrl={item.media?.url}
-                          contentContext={item.title || item.caption || item.script || item.markdown || item.body}
-                          onImageSelect={(url: string, metadata?: any) =>
-                            editItem(idx, { media: { url, alt: metadata?.alt_text || item.media?.alt } })
-                          }
-                          autoSelectFirst={true}
-                        />
-                        <p className="text-xs text-muted-foreground mt-2">
-                          MediaSelector automatically finds relevant images
-                        </p>
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium mb-2 block">Featured Image</Label>
+                          <MediaSelector
+                            compact
+                            selectedImageUrl={item.media?.url}
+                            contentContext={item.title || item.caption || item.script || item.markdown || item.body}
+                            onImageSelect={(url: string, metadata?: any) =>
+                              editItem(idx, { media: { url, alt: metadata?.alt_text || item.media?.alt } })
+                            }
+                            autoSelectFirst={item.requiresMediaSelector || item.autoSelectImage || true}
+                          />
+                          <p className="text-xs text-muted-foreground mt-2">
+                            MediaSelector automatically opens and finds relevant images based on your content
+                          </p>
+                        </div>
                       </div>
-                    </div>
                   </div>
                 </div>
               ))}
