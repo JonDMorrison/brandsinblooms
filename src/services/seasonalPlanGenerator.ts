@@ -393,43 +393,97 @@ const generateSeasonalEmailContent = (theme: SeasonalPlanTheme, month: string, s
 };
 
 const generatePromotionalContent = (theme: SeasonalPlanTheme, month: string, seasonalFocus: string, holidays?: any[]) => {
-  const holidayOffer = holidays && holidays.length > 0 ? ` ${holidays[0].holiday_name} Special:` : '';
-  return `🌱${holidayOffer} ${month} ${theme.label} Sale! Save on everything you need for ${seasonalFocus.toLowerCase() || 'seasonal gardening'}. Limited time offers on featured plants, tools, and supplies. Perfect timing for ${month} planting and care.`;
+  const holidayOffer = holidays && holidays.length > 0 ? `${holidays[0].holiday_name} Special: ` : '';
+  const focus = seasonalFocus || theme.label;
+  
+  return `${holidayOffer}${month} ${theme.label} Sale - Save on premium plants and expert supplies for ${focus.toLowerCase()}.  Limited-time pricing on seasonal favorites perfect for ${month} planting success.  Professional-grade tools and guidance included.`;
 };
 
 const generateSMSContent = (theme: SeasonalPlanTheme, month: string, seasonalFocus: string, type: 'workshop' | 'urgency') => {
   if (type === 'workshop') {
-    return `🌿 ${month} ${theme.label} Workshop this weekend! Learn seasonal techniques perfect for this time of year. Register now!`;
+    return `${month} ${theme.label} Workshop - This weekend only. Learn seasonal techniques from our garden experts. Perfect timing for ${month} success. Reserve your spot now.`;
   }
-  return `⏰ Final days! ${month} ${theme.label} promotion ends soon. Don't miss out on seasonal favorites. Shop now!`;
+  return `Final opportunity: ${month} ${theme.label} promotion ends this week. Don't miss premium plants and expert guidance for seasonal success. Visit soon.`;
 };
 
 const generateSocialContent = (theme: SeasonalPlanTheme, month: string, seasonalFocus: string, contentIdea?: string, platform?: string, timing?: string) => {
-  const focus = contentIdea || seasonalFocus || 'seasonal gardening';
+  const focus = contentIdea || seasonalFocus || theme.label;
   const timeContext = timing === 'friday' ? 'Feature Friday: ' : '';
   
-  return `${timeContext}${month} is perfect for ${focus.toLowerCase()}! 🌿 ${platform === 'facebook' ? 'Share your progress with us and tag friends who love gardening!' : ''} #${month}Gardening #${theme.id.replace(/[^a-zA-Z]/g, '')}`;
+  const socialContent = [
+    `${timeContext}${month} brings perfect conditions for ${focus.toLowerCase()}.  Our experts recommend starting now for best results.`,
+    `${timeContext}Timing matters for ${focus.toLowerCase()} success.  ${month} offers the ideal window for remarkable garden achievements.`,
+    `${timeContext}Local gardeners are seeing amazing ${focus.toLowerCase()} results this ${month}.  Here's what makes the difference.`,
+    `${timeContext}${month} is nature's signal for ${focus.toLowerCase()}.  Smart gardeners take advantage of these seasonal conditions.`
+  ];
+  
+  const randomContent = socialContent[Math.floor(Math.random() * socialContent.length)];
+  const engagement = platform === 'facebook' ? '  What gardening goals are you tackling this month?' : '';
+  
+  return `${randomContent}${engagement}  Stop by for expert guidance tailored to your garden's needs.`;
 };
 
 const generateInstagramContent = (theme: SeasonalPlanTheme, month: string, seasonalFocus: string, contentIdea?: string) => {
-  const focus = contentIdea || seasonalFocus || 'seasonal inspiration';
-  return `${month} ${focus.toLowerCase()} is here! ✨ Swipe for seasonal tips and inspiration. What's growing in your garden this month? #${month}Garden #SeasonalGardening #PlantLife`;
+  const focus = contentIdea || seasonalFocus || theme.label;
+  
+  // Expert-level Instagram content without emojis or hashtags
+  const expertContent = [
+    `${month} is prime time for ${focus.toLowerCase()}.  Here's what successful gardeners are doing right now.`,
+    `The secret to ${focus.toLowerCase()} success?  Timing is everything, and ${month} offers the perfect window.`,
+    `Your ${focus.toLowerCase()} can thrive this ${month} with these proven techniques from our garden experts.`,
+    `${month} weather creates ideal conditions for ${focus.toLowerCase()}.  Don't miss this seasonal opportunity.`
+  ];
+  
+  const randomContent = expertContent[Math.floor(Math.random() * expertContent.length)];
+  return `${randomContent}  Stop by for specific plant recommendations and expert timing advice for your garden's success.`;
 };
 
 const generateBehindScenesContent = (theme: SeasonalPlanTheme, month: string, seasonalFocus: string) => {
-  return `Behind the scenes: Getting ready for ${month} ${theme.label.toLowerCase()}! 🎬 Our team's seasonal picks and preparation tips. See what we're excited about this month!`;
+  const expertInsights = [
+    `Our growers are prepping the greenhouse for ${month} ${theme.label.toLowerCase()}.  Here's what we're selecting for peak performance this season.`,
+    `Inside our propagation house: choosing the healthiest ${month} varieties.  Quality starts with careful selection and expert timing.`,
+    `Early morning at the nursery: our team's selecting premium ${theme.label.toLowerCase()} plants.  We hand-pick every variety for ${month} success.`,
+    `Behind the growing tables: why we choose these specific ${theme.label.toLowerCase()} varieties for ${month} conditions.`
+  ];
+  
+  const randomInsight = expertInsights[Math.floor(Math.random() * expertInsights.length)];
+  return `${randomInsight}  Visit us to see the difference expert selection makes for your garden.`;
 };
 
 const generateCustomerSpotlightContent = (theme: SeasonalPlanTheme, month: string) => {
-  return `Customer spotlight! 🌟 Amazing ${month} ${theme.label.toLowerCase()} results from our community. Tag us @YourGardenCenter to be featured! #CustomerSuccess #${month}Results`;
+  const successStories = [
+    `Local gardener Sarah transformed her ${month} garden using our ${theme.label.toLowerCase()} recommendations.  Her results show what's possible with the right plant choices and timing.`,
+    `This customer's ${theme.label.toLowerCase()} success proves that ${month} planting can exceed expectations.  Proper plant selection and expert advice make all the difference.`,
+    `From struggling garden to ${month} showpiece: how our ${theme.label.toLowerCase()} guidance helped this customer achieve remarkable results.`,
+    `Real results from a local garden: witness the transformation possible with expert ${theme.label.toLowerCase()} techniques and quality plants.`
+  ];
+  
+  const randomStory = successStories[Math.floor(Math.random() * successStories.length)];
+  return `${randomStory}  Ready to create your own success story this ${month}?  Our experts are here to help.`;
 };
 
 const generateTransformationContent = (theme: SeasonalPlanTheme, month: string, seasonalFocus: string) => {
-  return `${month} transformation magic! 🌱➡️🌺 See what's possible with the right seasonal care. What will you transform this ${month}? #BeforeAndAfter #${month}Transformation`;
+  const transformationIdeas = [
+    `From bare soil to blooming garden: ${month} offers the perfect conditions for dramatic ${theme.label.toLowerCase()} transformations.  Proper plant selection and timing create stunning results.`,
+    `Witness the power of seasonal planting: this ${month} makeover shows what expert ${theme.label.toLowerCase()} techniques can achieve in just weeks.`,
+    `Dead space to garden paradise: ${month} is ideal for ${theme.label.toLowerCase()} projects that deliver immediate visual impact.`,
+    `Before and after: how strategic ${month} planting transforms ordinary spaces into extraordinary gardens using proven ${theme.label.toLowerCase()} methods.`
+  ];
+  
+  const randomTransformation = transformationIdeas[Math.floor(Math.random() * transformationIdeas.length)];
+  return `${randomTransformation}  Let our garden experts help you plan your own remarkable transformation.`;
 };
 
 const generateWorkshopContent = (theme: SeasonalPlanTheme, month: string, seasonalFocus: string) => {
-  return `Join us this weekend for hands-on ${theme.label.toLowerCase()} activities! 🛠️ Perfect for ${month} conditions. Learn seasonal techniques from our experts. Great for all skill levels!`;
+  const workshopContent = [
+    `This weekend: hands-on ${theme.label.toLowerCase()} workshop perfect for ${month} conditions.  Learn proven techniques that ensure your garden's success this season.`,
+    `Saturday morning workshop: master ${theme.label.toLowerCase()} techniques with our garden experts.  Small class size means personalized attention for every skill level.`,
+    `Join our ${month} ${theme.label.toLowerCase()} intensive: practical skills you'll use immediately in your garden.  Perfect timing for seasonal planting success.`,
+    `Weekend workshop alert: expert-led ${theme.label.toLowerCase()} training designed for ${month} gardening success.  Bring your questions and leave with confidence.`
+  ];
+  
+  const randomWorkshop = workshopContent[Math.floor(Math.random() * workshopContent.length)];
+  return `${randomWorkshop}  Registration includes take-home materials and ongoing expert support.`;
 };
 
 const generateBlogContent = (theme: SeasonalPlanTheme, month: string, seasonalFocus: string, contentIdea?: string, holidays?: any[]) => {
