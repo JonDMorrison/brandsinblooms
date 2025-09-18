@@ -19,11 +19,11 @@ interface PlanStepReviewProps {
 }
 
 const typeConfig = {
-  email: { icon: Mail, color: 'bg-blue-500', label: 'Email' },
-  sms: { icon: MessageSquare, color: 'bg-green-500', label: 'SMS' },
-  facebook: { icon: Facebook, color: 'bg-blue-600', label: 'Facebook' },
-  instagram: { icon: Instagram, color: 'bg-pink-500', label: 'Instagram' },
-  blog: { icon: FileText, color: 'bg-purple-500', label: 'Blog' }
+  email: { icon: Mail, color: 'bg-primary', label: 'Email' },
+  sms: { icon: MessageSquare, color: 'bg-primary', label: 'SMS' },
+  facebook: { icon: Facebook, color: 'bg-primary', label: 'Facebook' },
+  instagram: { icon: Instagram, color: 'bg-primary', label: 'Instagram' },
+  blog: { icon: FileText, color: 'bg-primary', label: 'Blog' }
 };
 
 export const PlanStepReview: React.FC<PlanStepReviewProps> = ({ 
@@ -146,7 +146,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                     {socialCount > 0 && (
                       <div className="flex items-center justify-between">
                         <span>📱 {socialCount} Social</span>
-                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
                           ✅
                         </Badge>
                       </div>
@@ -155,9 +155,9 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                        <div className="flex items-center justify-between">
                          <span>📝 {blogCount} Blog</span>
                          <div className="flex items-center gap-2">
-                           <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                             ✅
-                           </Badge>
+                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                              ✅
+                            </Badge>
                             {themeItems.some(item => item.type === 'blog' && item.enhancedContent) && (
                               <Dialog>
                                 <DialogTrigger asChild>
@@ -200,7 +200,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                   <Mail className="h-5 w-5 text-white" />
                 </div>
                 <div>
@@ -213,7 +213,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                   ⚠️ Setup Required
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
                   ✅ Ready
                 </Badge>
               )}
@@ -222,9 +222,9 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <CardContent className="space-y-3">
             <div className="space-y-3">
               {emailItems.slice(0, expandedChannels.has('email') ? emailItems.length : 2).map(item => (
-                <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-blue-500">
+                <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-primary">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs text-blue-600 font-medium mb-1">
+                    <div className="text-xs text-primary font-medium mb-1">
                       {formatDateRange(item.date)}
                     </div>
                   </div>
@@ -273,7 +273,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                   <MessageSquare className="h-5 w-5 text-white" />
                 </div>
                 <div>
@@ -286,7 +286,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                   ⚠️ Setup Required
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
                   ✅ Ready
                 </Badge>
               )}
@@ -295,9 +295,9 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <CardContent className="space-y-3">
             <div className="space-y-3">
               {smsItems.slice(0, expandedChannels.has('sms') ? smsItems.length : 2).map(item => (
-                <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-green-500">
+                <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-primary">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs text-green-600 font-medium mb-1">
+                    <div className="text-xs text-primary font-medium mb-1">
                       {formatDateRange(item.date)}
                     </div>
                   </div>
@@ -351,7 +351,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-pink-500 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                   <Facebook className="h-5 w-5 text-white" />
                 </div>
                 <div>
@@ -359,7 +359,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                   <div className="text-sm text-muted-foreground">{socialItems.length} items</div>
                 </div>
               </div>
-              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+              <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
                 ✅ Ready
               </Badge>
             </div>
@@ -367,9 +367,9 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <CardContent className="space-y-3">
             <div className="space-y-3">
               {socialItems.slice(0, expandedChannels.has('social') ? socialItems.length : 2).map(item => (
-                <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-gradient-to-r from-blue-600 to-pink-500">
+                <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-primary">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs font-medium mb-1 bg-gradient-to-r from-blue-600 to-pink-500 bg-clip-text text-transparent">
+                    <div className="text-xs text-primary font-medium mb-1">
                       {formatDateRange(item.date)}
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -410,7 +410,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                   <FileText className="h-5 w-5 text-white" />
                 </div>
                 <div>
@@ -418,7 +418,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
                   <div className="text-sm text-muted-foreground">{blogItems.length} items</div>
                 </div>
               </div>
-              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+              <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
                 ✅ Ready
               </Badge>
             </div>
@@ -426,9 +426,9 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
           <CardContent className="space-y-3">
             <div className="space-y-3">
               {blogItems.slice(0, expandedChannels.has('blog') ? blogItems.length : 2).map(item => (
-                 <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-purple-500">
+                 <div key={item.id} className="p-3 bg-muted/30 rounded-lg border-l-2 border-primary">
                    <div className="flex items-center justify-between mb-2">
-                     <div className="text-xs text-purple-600 font-medium">
+                     <div className="text-xs text-primary font-medium">
                        {formatDateRange(item.date)}
                      </div>
                      {item.enhancedContent && (
@@ -479,11 +479,11 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
       </div>
 
       {/* Launch Section */}
-      <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200 mt-8">
+      <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20 mt-8">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                 <CheckCircle className="h-5 w-5 text-white" />
               </div>
               <div>
@@ -497,7 +497,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
               onClick={onLaunch} 
               disabled={!hasAnyContent || isLaunching}
               size="lg" 
-              className="px-8 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+              className="px-8 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
             >
               {isLaunching ? (
                 <>
