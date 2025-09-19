@@ -71,26 +71,40 @@ const handler = async (req: Request): Promise<Response> => {
       if (userError || !userData?.user) {
         return new Response(
           JSON.stringify({ success: false, error: 'Unauthorized: user not found' }),
-          { headers: { 'Content-Type': 'application/json', ...corsHeaders }, status: 401 }
+          { headers: { 'Content-Type': 'application/json', ...corsHeaders }, status: 200 }
         );
       }
 
-      // Derive tenant_id from latest campaign for this user (reliable source in current schema)
-      const { data: latestCampaign, error: tenantLookupError } = await supabaseAdmin
-        .from('crm_campaigns')
+      // First try to get tenant from users table (authoritative)
+      const { data: userRow, error: userRowError } = await supabaseAdmin
+        .from('users')
         .select('tenant_id')
-        .eq('user_id', userData.user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .eq('id', userData.user.id)
         .maybeSingle();
 
-      if (tenantLookupError) {
-        throw new Error(`Failed to resolve tenant: ${tenantLookupError.message}`);
+      let tenantId = userRow?.tenant_id as string | null | undefined;
+
+      // Fallback: derive tenant from latest campaign for this user
+      if (!tenantId) {
+        const { data: latestCampaign, error: tenantLookupError } = await supabaseAdmin
+          .from('crm_campaigns')
+          .select('tenant_id')
+          .eq('user_id', userData.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (tenantLookupError) {
+          console.warn('Tenant lookup fallback error:', tenantLookupError.message);
+        }
+        tenantId = latestCampaign?.tenant_id as string | null | undefined;
       }
 
-      const tenantId = latestCampaign?.tenant_id;
       if (!tenantId) {
-        throw new Error('No tenant found for user; cannot create domain.');
+        return new Response(
+          JSON.stringify({ success: false, error: 'No tenant found for user; please complete onboarding.' }),
+          { headers: { 'Content-Type': 'application/json', ...corsHeaders }, status: 200 }
+        );
       }
 
       // Get or create domain record
@@ -222,15 +236,14 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error) {
     console.error('Domain Connect error:', error);
-    
+    const message = (error as any)?.message ?? 'Unknown error';
     const response: DomainConnectResponse = {
       success: false,
-      error: error.message
+      error: message,
     };
-
     return new Response(JSON.stringify(response), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 400,
+      status: 200,
     });
   }
 };
