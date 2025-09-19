@@ -105,7 +105,7 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
               key={item.id}
               className={cn(
                 "flex items-center space-x-2 text-sm",
-                isClickable && "cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-colors"
+                isClickable && "cursor-pointer hover:bg-muted/50 rounded-md transition-colors"
               )}
               onClick={isClickable ? onEditAudience : undefined}
             >
