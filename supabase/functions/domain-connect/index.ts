@@ -26,35 +26,97 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const supabase = createClient(
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Create an authed client using the caller's JWT to identify the user
+    const supabaseAuthed = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization') ?? '' },
+        },
+      }
+    );
+
     if (req.method === 'POST') {
-      const { domain, registrar, templateId, params }: DomainConnectRequest = await req.json();
+      const body = await req.json();
+      const { domain, registrar, templateId, params }: DomainConnectRequest = body;
+
+      // Allow status polling via POST override to support functions.invoke
+      if (body?.method === 'GET') {
+        const headerToken = req.headers.get('X-Session-Token') ?? '';
+        const sessionToken = body.sessionToken ?? headerToken;
+        if (!sessionToken) throw new Error('Session token required');
+
+        const { data: session, error: pollError } = await supabaseAdmin
+          .from('domain_connect_sessions')
+          .select('*')
+          .eq('session_token', sessionToken)
+          .single();
+
+        if (pollError) throw new Error(`Session not found: ${pollError.message}`);
+
+        return new Response(
+          JSON.stringify({ success: true, status: session.status, completedAt: session.completed_at }),
+          { headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+
+      // Identify user to resolve tenant_id
+      const { data: userData, error: userError } = await supabaseAuthed.auth.getUser();
+      if (userError || !userData?.user) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized: user not found' }),
+          { headers: { 'Content-Type': 'application/json', ...corsHeaders }, status: 401 }
+        );
+      }
+
+      // Derive tenant_id from latest campaign for this user (reliable source in current schema)
+      const { data: latestCampaign, error: tenantLookupError } = await supabaseAdmin
+        .from('crm_campaigns')
+        .select('tenant_id')
+        .eq('user_id', userData.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (tenantLookupError) {
+        throw new Error(`Failed to resolve tenant: ${tenantLookupError.message}`);
+      }
+
+      const tenantId = latestCampaign?.tenant_id;
+      if (!tenantId) {
+        throw new Error('No tenant found for user; cannot create domain.');
+      }
 
       // Get or create domain record
-      let { data: domainRecord, error: domainError } = await supabase
+      let { data: domainRecord, error: domainError } = await supabaseAdmin
         .from('domains')
         .select('*')
         .eq('domain', domain)
+        .eq('tenant_id', tenantId)
         .maybeSingle();
 
       if (domainError) {
         throw new Error(`Error fetching domain: ${domainError.message}`);
       }
 
-      // If domain doesn't exist, create it
+      // If domain doesn't exist, create it with tenant_id
       if (!domainRecord) {
-        const { data: newDomain, error: createError } = await supabase
+        const domainType = templateId === 'landing_page' ? 'website' : 'email_sending';
+        const { data: newDomain, error: createError } = await supabaseAdmin
           .from('domains')
           .insert({
+            tenant_id: tenantId,
             domain: domain,
-            type: 'email_sending',
+            type: domainType,
             status: 'pending',
             dns_status: 'pending',
-            tls_status: 'pending'
+            tls_status: 'pending',
           })
           .select()
           .single();
@@ -70,7 +132,7 @@ const handler = async (req: Request): Promise<Response> => {
       const sessionToken = crypto.randomUUID();
 
       // Create Domain Connect session
-      const { data: session, error: sessionError } = await supabase
+      const { data: session, error: sessionError } = await supabaseAdmin
         .from('domain_connect_sessions')
         .insert({
           domain_id: domainRecord.id,
@@ -78,7 +140,7 @@ const handler = async (req: Request): Promise<Response> => {
           registrar_name: registrar,
           template_id: templateId,
           params: params,
-          status: 'pending'
+          status: 'pending',
         })
         .select()
         .single();
@@ -89,15 +151,15 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Check if registrar supports Domain Connect
       const supportedRegistrars = [
-        'godaddy.com', 
-        'namecheap.com', 
+        'godaddy.com',
+        'namecheap.com',
         'google.com',
         'cloudflare.com',
         '1and1.com',
-        'hover.com'
+        'hover.com',
       ];
 
-      const isDomainConnectSupported = supportedRegistrars.some(reg => 
+      const isDomainConnectSupported = supportedRegistrars.some((reg) =>
         domain.includes(reg) || registrar?.toLowerCase().includes(reg)
       );
 
@@ -105,9 +167,9 @@ const handler = async (req: Request): Promise<Response> => {
         // Fallback to manual DNS instructions
         const response: DomainConnectResponse = {
           success: false,
-          error: 'Domain Connect not supported by registrar. Manual DNS setup required.'
+          error: 'Domain Connect not supported by registrar. Manual DNS setup required.',
         };
-        
+
         return new Response(JSON.stringify(response), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
           status: 200,
@@ -120,7 +182,7 @@ const handler = async (req: Request): Promise<Response> => {
       const response: DomainConnectResponse = {
         success: true,
         sessionToken,
-        redirectUrl: domainConnectUrl
+        redirectUrl: domainConnectUrl,
       };
 
       return new Response(JSON.stringify(response), {
