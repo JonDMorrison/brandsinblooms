@@ -202,6 +202,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     preheaderText: string;
     blocks: ContentBlock[];
     showPreview: boolean;
+    selectedPersonas: any[];
+    selectedSegments: any[];
   }>({
     key: `campaign_creator_${campaignSlug || 'new'}`,
     ttl: 2 * 60 * 60 * 1000, // 2 hours for campaign data
@@ -212,7 +214,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         subjectLine,
         preheaderText,
         blocks,
-        showPreview
+        showPreview,
+        selectedPersonas,
+        selectedSegments
       });
     }
   });
@@ -666,6 +670,16 @@ cleanUrl();
         setPreheaderText(persistedState.preheaderText);
         setBlocks(persistedState.blocks);
         setShowPreview(persistedState.showPreview);
+        if (persistedState.selectedPersonas) {
+          setSelectedPersonas(persistedState.selectedPersonas);
+        }
+        if (persistedState.selectedSegments) {
+          setSelectedSegments(persistedState.selectedSegments);
+        }
+        console.log('📋 Restored audience selection:', { 
+          personas: persistedState.selectedPersonas?.length || 0,
+          segments: persistedState.selectedSegments?.length || 0
+        });
       }
       
       // Handle newsletter template processing (from picker)
@@ -2267,7 +2281,23 @@ cleanUrl();
        {/* Campaign Setup Wizard */}
        <CampaignSetupWizard
          open={showSetupWizard}
-         onClose={() => setShowSetupWizard(false)}
+         onClose={() => {
+           setShowSetupWizard(false);
+           // Immediately persist audience data when wizard closes
+           persistState({
+             campaignName,
+             subjectLine,
+             preheaderText,
+             blocks,
+             showPreview,
+             selectedPersonas,
+             selectedSegments
+           });
+           console.log('📋 Wizard closed - persisted audience data:', { 
+             personas: selectedPersonas.length,
+             segments: selectedSegments.length
+           });
+         }}
          selectedPersonas={selectedPersonas}
          selectedSegments={selectedSegments}
          onPersonasChange={setSelectedPersonas}
