@@ -99,7 +99,7 @@ export const Home1Page = () => {
                   Try NutriBot
                 </Button>
               </div>
-              <div className="flex items-center gap-6 pt-6">
+              <div className="flex flex-wrap items-center gap-6 pt-6 whitespace-nowrap">
                 <div className="text-sm text-muted-foreground">Features:</div>
                 <Badge variant="secondary" className="text-xs">Nutrition</Badge>
                 <Badge variant="secondary" className="text-xs">Healthy Food</Badge>
