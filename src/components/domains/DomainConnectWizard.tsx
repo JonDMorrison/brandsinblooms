@@ -51,6 +51,21 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
     }
   ]);
 
+  // Debug logging
+  console.log('DomainConnectWizard state:', { 
+    isProcessing, 
+    firstStepStatus: steps[0].status,
+    domain 
+  });
+
+  const resetWizard = () => {
+    console.log('Resetting wizard state');
+    setIsProcessing(false);
+    setCurrentStep(0);
+    setSessionToken(null);
+    setSteps(prev => prev.map(step => ({ ...step, status: 'pending' as const })));
+  };
+
   const updateStepStatus = (stepId: string, status: Step['status']) => {
     setSteps(prev => prev.map(step => 
       step.id === stepId ? { ...step, status } : step
@@ -58,6 +73,13 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
   };
 
   const startDomainConnect = async () => {
+    console.log('Starting domain connect, current isProcessing:', isProcessing);
+    
+    if (isProcessing) {
+      console.log('Already processing, ignoring click');
+      return;
+    }
+
     setIsProcessing(true);
     
     // Reset all steps to pending when starting/retrying
@@ -274,7 +296,14 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
         {/* Action Button */}
         <div className="flex gap-2">
           <Button 
-            onClick={startDomainConnect}
+            onClick={() => {
+              console.log('Button clicked, isProcessing:', isProcessing, 'stepStatus:', steps[0].status);
+              if (isProcessing) {
+                console.log('Button disabled, not executing');
+                return;
+              }
+              startDomainConnect();
+            }}
             disabled={isProcessing}
             className="flex-1"
           >
@@ -288,7 +317,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
             ) : steps[0].status === 'completed' ? (
               'Setup Complete'
             ) : (
-              'Start Automatic Setup'
+              'Detect Registrar'
             )}
           </Button>
           
