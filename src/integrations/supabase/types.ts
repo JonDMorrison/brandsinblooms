@@ -4912,6 +4912,10 @@ export type Database = {
         Args: { draft_id: string; template_key?: string }
         Returns: string
       }
+      enable_crm_for_user: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       feature_enabled: {
         Args: { feature_name: string }
         Returns: boolean
