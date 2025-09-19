@@ -109,23 +109,23 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
             {/* Option 2: Custom Domain */}
             <div className="border rounded-lg p-4 space-y-3">
               <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-blue-600" />
+                <Shield className="h-5 w-5 text-brand-steel-blue-600" />
                 <h3 className="font-semibold">Professional Setup - Custom Domain</h3>
-                <Badge variant="outline" className="text-blue-600 border-blue-200">
+                <Badge variant="outline" className="text-brand-steel-blue-600 border-brand-steel-blue-200">
                   Better Results
                 </Badge>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-blue-600" />
+                  <CheckCircle className="h-4 w-4 text-brand-steel-blue-600" />
                   <span>Higher email deliverability</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-blue-600" />
+                  <CheckCircle className="h-4 w-4 text-brand-steel-blue-600" />
                   <span>Professional branding with your domain</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-blue-600" />
+                  <CheckCircle className="h-4 w-4 text-brand-steel-blue-600" />
                   <span>Better spam folder protection</span>
                 </div>
               </div>
@@ -142,9 +142,9 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
           </div>
 
           {/* Why This Matters */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-800 mb-2">💡 Why does this matter?</h4>
-            <div className="text-sm text-blue-700 space-y-1">
+          <div className="bg-brand-steel-blue-50 border border-brand-steel-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-brand-steel-blue-800 mb-2">💡 Why does this matter?</h4>
+            <div className="text-sm text-brand-steel-blue-700 space-y-1">
               <p>• <strong>Deliverability:</strong> Custom domains have better inbox placement rates</p>
               <p>• <strong>Trust:</strong> Recipients see emails from your business domain</p>
               <p>• <strong>Branding:</strong> Consistent professional appearance across all communications</p>
