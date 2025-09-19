@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     proxy: {
       '/_sandbox': {
-        target: 'https://be93a2db-7d1b-4b46-8348-60c7c8b0b42f.lovableprojects.com',
+        target: 'https://be93ec50-2043-42c4-b91c-5d7c30f0ef2d.lovableproject.com',
         changeOrigin: true,
         secure: true,
         headers: {
