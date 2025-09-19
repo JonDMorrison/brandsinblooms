@@ -83,9 +83,11 @@ export const Home1Page = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
-              <h1 className="text-5xl lg:text-6xl font-bold text-foreground leading-tight">
-                A Simplified Way to Start{' '}
-                <span className="text-primary">Losing Weight.</span>
+              <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
+                <span className="text-foreground">The Most Powerful</span>{' '}
+                <span className="text-primary">Marketing Tool</span>{' '}
+                <span className="text-foreground">Ever Built for</span>{' '}
+                <span className="text-primary">Garden Centers</span>
               </h1>
               <p className="text-xl text-muted-foreground max-w-lg">
                 Track your calories and protein intake with NutriBot. That's it.
