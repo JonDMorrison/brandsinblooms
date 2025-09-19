@@ -6,11 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Slider } from '@/components/ui/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
-import { Edit, Copy, Trash2 } from 'lucide-react';
+import { Edit, Copy, Trash2, RefreshCw, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContextualToolbar } from '../contextual/ContextualToolbar';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
+import { useAutoBackgroundImage } from '@/hooks/useAutoBackgroundImage';
 
 interface HeaderBlockProps {
   block: ContentBlock;
@@ -31,6 +32,22 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
   editMode,
   onModeChange 
 }) => {
+  // Use auto background image hook
+  const { isLoading: isLoadingBgImage, refetchImage } = useAutoBackgroundImage({
+    headline: block.headline || block.title,
+    currentBackgroundUrl: block.backgroundImageUrl,
+    onImageSelected: (imageUrl, metadata) => {
+      console.log('[HeaderBlock] Auto-selected background:', imageUrl, metadata);
+      onUpdate({ 
+        backgroundImageUrl: imageUrl,
+        // Set a subtle dark overlay for better text readability
+        backgroundColor: '#000000',
+        colorOverlayOpacity: 30,
+        backgroundOpacity: 80
+      });
+    },
+    enabled: !isPreview // Only auto-fetch in edit mode
+  });
   // Live preview component that can be reused
   const PreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group min-h-[300px]">
@@ -95,16 +112,19 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       {/* Content - top layer */}
       <div className={cn(
         "relative z-10 p-12 text-white flex items-center justify-center min-h-[300px]",
-        // Add dark background only if no background image or color
-        !block.backgroundImageUrl && !block.backgroundColor && "bg-slate-800/80",
+        // Use a beautiful gradient fallback instead of grey when no background
+        !block.backgroundImageUrl && !block.backgroundColor && [
+          "bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800",
+          "bg-[length:400%_400%] animate-gradient-x"
+        ],
         block.textAlign === 'center' && "text-center",
         block.textAlign === 'right' && "text-right"
       )}>
         <div className="max-w-2xl">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight drop-shadow-lg">
             {sanitizeWeekNumbers(block.headline || block.title || "Your Headline Here")}
           </h1>
-          <p className="text-lg md:text-xl opacity-90 leading-relaxed">
+          <p className="text-lg md:text-xl opacity-90 leading-relaxed drop-shadow-md">
             {sanitizeWeekNumbers(block.body || "Add your subtitle or description text here.")}
           </p>
         </div>
@@ -191,19 +211,50 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label>Background Image</Label>
-          {block.backgroundImageUrl && (
+          <div className="flex items-center gap-2">
+            {isLoadingBgImage && (
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                <span>Finding image...</span>
+              </div>
+            )}
             <button
-              onClick={() => onUpdate({ backgroundImageUrl: undefined })}
-              className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-md transition-colors"
+              onClick={refetchImage}
+              disabled={isLoadingBgImage || !block.headline}
+              className="flex items-center gap-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Find new background image based on headline"
             >
-              Remove Image
+              <Sparkles className="h-3 w-3" />
+              Auto-select
             </button>
-          )}
+            {block.backgroundImageUrl && (
+              <button
+                onClick={() => onUpdate({ backgroundImageUrl: undefined })}
+                className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-md transition-colors"
+              >
+                Remove Image
+              </button>
+            )}
+          </div>
         </div>
+        
+        {/* Auto-background info */}
+        {!block.backgroundImageUrl && block.headline && (
+          <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md border border-blue-200">
+            <div className="flex items-start gap-2">
+              <Sparkles className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-blue-800">Smart Background</p>
+                <p>We'll automatically find a beautiful background image based on your headline: "<em>{block.headline}</em>"</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <MediaSelectorImage
           src={block.backgroundImageUrl}
           onChange={(imageUrl, metadata) => {
-            console.log('[HeaderBlock] Image selected:', imageUrl, metadata);
+            console.log('[HeaderBlock] Image manually selected:', imageUrl, metadata);
             onUpdate({ backgroundImageUrl: imageUrl });
           }}
           contentContext={block.headline || block.body || 'header background'}
