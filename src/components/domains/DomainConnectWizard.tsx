@@ -60,6 +60,11 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
   const startDomainConnect = async () => {
     setIsProcessing(true);
     
+    // Reset all steps to pending when starting/retrying
+    setSteps(prev => prev.map(step => ({ ...step, status: 'pending' as const })));
+    setCurrentStep(0);
+    setSessionToken(null);
+    
     try {
       // Step 1: Detect registrar and check Domain Connect support
       updateStepStatus('detect', 'in-progress');
@@ -270,7 +275,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
         <div className="flex gap-2">
           <Button 
             onClick={startDomainConnect}
-            disabled={isProcessing || steps[0].status === 'completed'}
+            disabled={isProcessing}
             className="flex-1"
           >
             {isProcessing ? (
@@ -278,6 +283,10 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Setting up...
               </>
+            ) : steps[0].status === 'error' ? (
+              'Try Again'
+            ) : steps[0].status === 'completed' ? (
+              'Setup Complete'
             ) : (
               'Start Automatic Setup'
             )}
