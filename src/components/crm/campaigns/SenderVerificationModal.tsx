@@ -27,18 +27,20 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Email Sending Options
-          </DialogTitle>
-          <DialogDescription>
-            Choose how you want to send your email campaigns
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl p-0">
+        <div className="p-6 pb-0">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Email Sending Options
+            </DialogTitle>
+            <DialogDescription>
+              Choose how you want to send your email campaigns
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="space-y-6">
+        <div className="px-6 pb-6 space-y-6">
           {/* Current Status */}
           <div className="p-4 bg-muted/50 rounded-lg">
             <div className="flex items-center justify-between mb-2">
