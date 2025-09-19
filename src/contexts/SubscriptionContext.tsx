@@ -350,34 +350,10 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   }, [fetchSubscription, checkStripeSubscription]);
 
   const checkAccess = useCallback((requiredPlan: SubscriptionPlan): boolean => {
-    // Privileged access: super admins and test accounts have access to everything
-    if (hasPrivilegedAccess) {
-      console.log('🔓 Privileged access granted');
-      return true;
-    }
-
-    if (!subscription) {
-      console.log('❌ No subscription found, access denied');
-      return false;
-    }
-    
-    // Give trial users full Bloom-level access
-    const planHierarchy = {
-      'expired': 0,
-      'free_trial': 3, // Equivalent to Bloom level
-      'sprout': 2,
-      'bloom': 3
-    };
-
-    const hasAccess = planHierarchy[subscription.plan] >= planHierarchy[requiredPlan];
-    console.log('🔍 Access check:', { 
-      userPlan: subscription.plan, 
-      requiredPlan, 
-      hasAccess 
-    });
-    
-    return hasAccess;
-  }, [subscription, hasPrivilegedAccess]);
+    // Under the new plan, all users have access to all features
+    console.log('🔓 Universal access granted - all features available to all users');
+    return true;
+  }, []);
 
   // Modified to account for privileged access
   const isTrialExpired = subscription?.plan === 'expired' && !hasPrivilegedAccess;
