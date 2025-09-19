@@ -135,8 +135,8 @@ export const QuickStartTour = ({ isOpen, onClose }: QuickStartTourProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl p-8">
+        <DialogHeader className="space-y-4">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl">Quick Start Tour</DialogTitle>
             <div className="flex items-center gap-2">
@@ -184,7 +184,7 @@ export const QuickStartTour = ({ isOpen, onClose }: QuickStartTourProps) => {
           </Card>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-6">
           <Button 
             variant="outline" 
             onClick={handlePrevious}
