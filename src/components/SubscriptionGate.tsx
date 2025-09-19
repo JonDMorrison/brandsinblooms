@@ -1,11 +1,5 @@
 
-import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { isSuperAdmin } from "@/utils/adminUtils";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Crown, Lock } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 interface SubscriptionGateProps {
   requiredPlan: 'free_trial' | 'sprout' | 'bloom';

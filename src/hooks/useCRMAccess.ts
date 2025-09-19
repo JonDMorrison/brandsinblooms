@@ -9,7 +9,8 @@ interface CRMAccessControl {
 export const useCRMAccess = (): CRMAccessControl => {
   const { subscription, loading } = useSubscription();
   
-  const hasCRMAccess = Boolean(subscription?.crm_enabled);
+  // Under the new plan, all users have CRM access
+  const hasCRMAccess = true;
   
   return {
     hasCRMAccess,
