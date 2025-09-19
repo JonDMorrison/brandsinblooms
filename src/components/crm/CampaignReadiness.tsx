@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Circle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SenderVerificationModal } from '@/components/crm/campaigns/SenderVerificationModal';
 
 interface ReadinessItem {
   id: string;
@@ -30,6 +31,7 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
   className = '',
   onEditAudience
 }) => {
+  const [showSenderModal, setShowSenderModal] = useState(false);
   const items: ReadinessItem[] = [
     {
       id: 'name',
@@ -98,7 +100,15 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
 
       <div className="grid grid-cols-1 gap-2">
         {items.map((item) => {
-          const isClickable = item.id === 'audience' && onEditAudience;
+          const isClickable = (item.id === 'audience' && onEditAudience) || item.id === 'sender';
+          
+          const handleClick = () => {
+            if (item.id === 'audience' && onEditAudience) {
+              onEditAudience();
+            } else if (item.id === 'sender') {
+              setShowSenderModal(true);
+            }
+          };
           
           return (
             <div
@@ -107,7 +117,7 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
                 "flex items-center space-x-2 text-sm",
                 isClickable && "cursor-pointer hover:bg-muted/50 rounded-md transition-colors"
               )}
-              onClick={isClickable ? onEditAudience : undefined}
+              onClick={isClickable ? handleClick : undefined}
             >
               {item.completed ? (
                 <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
@@ -133,6 +143,12 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
           );
         })}
       </div>
+
+      <SenderVerificationModal 
+        open={showSenderModal}
+        onOpenChange={setShowSenderModal}
+        senderConfig={senderConfig}
+      />
     </div>
   );
 };
