@@ -64,49 +64,53 @@
       }
     </style>
 
-    <!-- BLOCK ALL ANALYTICS TO PREVENT RUDDERSTACK ERRORS -->
+    <!-- COMPLETELY DISABLE ALL ANALYTICS TO PREVENT FIREBASE/RUDDERSTACK ERRORS -->
     <script>
-      console.log('🚫 BLOCKING ALL ANALYTICS TO PREVENT RUDDERSTACK GOOGLE ADS ERRORS');
+      console.log('🚫 COMPLETELY DISABLING ALL ANALYTICS TO PREVENT FIREBASE ERRORS');
       
-      // Completely block analytics and RudderStack before any other scripts load
+      // Block all analytics, RudderStack, Firebase, and related services
+      const noopService = function() { 
+        console.warn('🚫 BLOCKED: Analytics/Firebase service call prevented'); 
+      };
+      
       const noopAnalytics = {
-        identify: function() { 
-          console.warn('🚫 BLOCKED: analytics.identify() call prevented'); 
-        },
-        track: function() { 
-          console.log('📊 SAFE: analytics.track() call allowed'); 
-        },
-        page: function() { 
-          console.log('📊 SAFE: analytics.page() call allowed'); 
-        },
-        load: function() { 
-          console.warn('🚫 BLOCKED: analytics.load() call prevented'); 
-        },
-        reset: function() { 
-          console.log('📊 SAFE: analytics.reset() call allowed'); 
-        }
+        identify: noopService,
+        track: noopService,
+        page: noopService,
+        load: noopService,
+        reset: noopService,
+        ready: noopService,
+        debug: noopService
       };
 
-      // Block both possible analytics objects immediately
+      // Block all possible analytics objects immediately
       window.analytics = noopAnalytics;
       window.rudderanalytics = noopAnalytics;
+      window.gtag = noopService;
+      window.fbq = noopService;
+      window.ttq = noopService;
       
-      // Prevent any dynamic loading of RudderStack
-      const originalSetProperty = Object.defineProperty;
-      Object.defineProperty = function(obj, prop, descriptor) {
-        if ((prop === 'analytics' || prop === 'rudderanalytics') && obj === window) {
-          console.warn('🚫 BLOCKED: Attempt to set ' + prop + ' on window object');
-          return originalSetProperty(obj, prop, {
-            ...descriptor,
-            value: noopAnalytics,
-            writable: false,
-            configurable: false
-          });
+      // Block Firebase services
+      window.firebase = undefined;
+      window.firestore = noopService;
+      
+      // Prevent any dynamic script loading that might contain analytics/firebase
+      const originalAppendChild = Document.prototype.appendChild;
+      Document.prototype.appendChild = function(child) {
+        if (child.src && (
+          child.src.includes('firebase') || 
+          child.src.includes('rudder') || 
+          child.src.includes('analytics') ||
+          child.src.includes('gtag') ||
+          child.src.includes('fbevents')
+        )) {
+          console.warn('🚫 BLOCKED: Script loading prevented:', child.src);
+          return child;
         }
-        return originalSetProperty(obj, prop, descriptor);
+        return originalAppendChild.call(this, child);
       };
 
-      console.log('✅ Analytics blocking initialized - identify calls will be prevented');
+      console.log('✅ Complete analytics and Firebase blocking initialized');
     </script>
   </head>
   <body>

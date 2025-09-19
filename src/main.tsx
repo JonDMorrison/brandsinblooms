@@ -9,7 +9,7 @@ import { LoadingProvider } from '@/contexts/LoadingContext'
 import { GlobalLoadingOverlay } from '@/components/loading/GlobalLoadingOverlay'
 import { StartupLoadingManager } from '@/components/loading/StartupLoadingManager'
 import { GlobalVisibilityManager } from '@/components/GlobalVisibilityManager'
-import '@/lib/analytics' // Import analytics safeguards early
+// Analytics completely disabled to prevent Firebase/RudderStack errors
 import App from './App.tsx'
 import './index.css'
 
