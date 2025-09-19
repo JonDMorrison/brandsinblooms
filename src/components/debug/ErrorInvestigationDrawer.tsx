@@ -17,7 +17,23 @@ import {
   Code,
   Zap
 } from 'lucide-react';
-import { SentryError } from '@/hooks/useSentryErrors';
+
+interface SentryError {
+  id: string;
+  title: string;
+  description: string;
+  errorType: string;
+  count: number;
+  userCount: number;
+  firstSeen: string;
+  lastSeen: string;
+  level: string;
+  status: string;
+  shortId: string;
+  permalink: string;
+  location: string;
+  suggestedFix?: string;
+}
 import { formatDistanceToNow } from 'date-fns';
 
 interface ErrorInvestigationDrawerProps {

@@ -1,12 +1,5 @@
-import * as Sentry from "https://esm.sh/@sentry/deno@8.55.0";
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-// Initialize Sentry
-Sentry.init({
-  dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
-  environment: Deno.env.get("ENV") ?? "production",
-});
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,10 +12,11 @@ async function handler(req: Request): Promise<Response> {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Test error endpoint for Sentry verification
+  // Test error endpoint for debugging
   const url = new URL(req.url);
   if (url.searchParams.get('testError') === '1') {
-    throw new Error('Test error from reset-monthly-usage edge function - Sentry should capture this!');
+    console.error('Test error from reset-monthly-usage edge function');
+    throw new Error('Test error from reset-monthly-usage edge function');
   }
 
   try {
@@ -68,16 +62,12 @@ async function handler(req: Request): Promise<Response> {
     );
 
   } catch (error) {
-    console.error('Error in reset-monthly-usage function:', error);
-    Sentry.captureException(error);
+    console.error('Reset monthly usage error:', error);
     return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error',
-        details: error.message 
-      }),
+      JSON.stringify({ success: false, error: 'Failed to reset monthly usage' }),
       { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+        status: 500 
       }
     );
   }

@@ -1,12 +1,8 @@
-import * as Sentry from "@sentry/react";
 import { toast } from '@/hooks/use-toast';
 
 export function reportSoftFail(code: string, context?: Record<string, any>) {
-  // Report to Sentry
-  Sentry.captureMessage(`[soft-fail] ${code}`, {
-    level: "warning",
-    extra: context ?? {},
-  });
+  // Log to console for debugging
+  console.warn(`[soft-fail] ${code}`, context);
 
   // Show user-friendly toast based on the error code
   const userMessages: Record<string, string> = {

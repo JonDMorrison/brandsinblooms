@@ -23,7 +23,6 @@ import { AccountBillingSettings } from './AccountBillingSettings';
 import { ComplianceSettings } from './ComplianceSettings';
 import { SupportSettings } from './SupportSettings';
 import { POSSetupWizard } from '@/components/crm/pos/POSSetupWizard';
-import { SentryErrorDashboard } from '@/components/SentryErrorDashboard';
 
 // Import hooks for status checking
 import { usePOSConnection } from '@/hooks/usePOSConnection';
@@ -287,7 +286,19 @@ const settingsTabs = [
           </TabsContent>
 
           <TabsContent value="debug" className="space-y-6">
-            <SentryErrorDashboard />
+            <Card>
+              <CardHeader>
+                <CardTitle>Debug Tools</CardTitle>
+                <CardDescription>
+                  Debug tools have been removed. Check browser console for error logs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Error monitoring has been disabled. Use browser developer tools to debug issues.
+                </p>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="support" className="space-y-6">

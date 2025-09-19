@@ -1,6 +1,5 @@
 
 // Removed sonner import - using global toast replacement
-import { Sentry } from '@/lib/sentry';
 
 export interface AppError {
   message: string;
@@ -27,21 +26,16 @@ export const handleError = (error: any, context: string): AppError => {
     isNetworkError: isNetworkError(error)
   };
 
-  // Send critical errors to Sentry
+  // Log critical errors to console
   if (appError.code === 'UNAUTHORIZED' || 
       appError.code === 'PAYMENT_REQUIRED' ||
       appError.message.includes('OpenAI API key not configured') ||
       (appError.message.includes('Content generation failed') && context.includes('critical'))) {
-    Sentry.captureException(error, {
-      tags: {
-        context,
-        errorCode: appError.code,
-        isNetworkError: appError.isNetworkError
-      },
-      extra: {
-        errorMessage: appError.message,
-        originalError: error
-      }
+    console.error(`[CRITICAL ERROR] ${context}:`, {
+      errorCode: appError.code,
+      errorMessage: appError.message,
+      isNetworkError: appError.isNetworkError,
+      originalError: error
     });
   }
 

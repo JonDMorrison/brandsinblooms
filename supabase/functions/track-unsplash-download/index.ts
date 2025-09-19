@@ -1,12 +1,5 @@
-import * as Sentry from "https://esm.sh/@sentry/deno@8.55.0";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-// Initialize Sentry
-Sentry.init({
-  dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
-  environment: Deno.env.get("ENV") ?? "production",
-});
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,10 +13,11 @@ async function handler(req: Request): Promise<Response> {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Test error endpoint for Sentry verification
+  // Test error endpoint for debugging
   const url = new URL(req.url);
   if (url.searchParams.get('testError') === '1') {
-    throw new Error('Test error from track-unsplash-download edge function - Sentry should capture this!');
+    console.error('Test error from track-unsplash-download edge function');
+    throw new Error('Test error from track-unsplash-download edge function');
   }
 
   try {
@@ -68,7 +62,6 @@ async function handler(req: Request): Promise<Response> {
     });
   } catch (error) {
     console.error('[UNSPLASH_TRACK] Error in track-unsplash-download function:', error);
-    Sentry.captureException(error);
     // Return success to not block downloads even if tracking fails
     return new Response(JSON.stringify({ success: true, tracked: false, error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
