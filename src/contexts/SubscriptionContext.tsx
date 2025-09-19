@@ -55,6 +55,14 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const isTestUser = user?.email ? isTestAccount(user.email) : false;
   const hasPrivilegedAccess = isDeveloper || isTestUser;
 
+  // Initialize loading state based on whether we have a user
+  useEffect(() => {
+    if (!user) {
+      console.log('🔓 SubscriptionProvider: No user on init, setting loading to false');
+      setLoading(false);
+    }
+  }, []); // Run only once on mount
+
   const clearSubscriptionError = useCallback(() => {
     setSubscriptionError(null);
   }, []);
@@ -402,6 +410,12 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }, 15000); // Much longer delay to avoid startup bottleneck
       
       return () => clearTimeout(stripeTimer);
+    } else {
+      // Important: Clear loading state when there's no user (e.g., on landing pages)
+      console.log('🔓 No user found, clearing subscription loading state');
+      setLoading(false);
+      setSubscription(null);
+      setSubscriptionError(null);
     }
   }, [user?.id]);
 
