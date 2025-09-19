@@ -55,7 +55,7 @@ export const CampaignReadiness: React.FC<CampaignReadinessProps> = ({
     {
       id: 'audience',
       label: 'Audience selected',
-      completed: selectedSegments.length > 0,
+      completed: true, // All Contacts is valid by default; targeting is optional
       required: true,
       description: 'Choose who will receive this campaign'
     },

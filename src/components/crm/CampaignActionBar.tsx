@@ -59,11 +59,12 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
   onBlockUpdate,
   className = ''
 }) => {
-  // Calculate readiness
-  const isReady = campaignName?.trim() && 
-                  subjectLine?.trim() && 
-                  blocks.length > 0 &&
-                  selectedSegments.length > 0;
+  // Calculate readiness (audience defaults to All Contacts)
+  const isReady = Boolean(
+    campaignName?.trim() &&
+    subjectLine?.trim() &&
+    blocks.length > 0
+  );
 
   return (
     <div className={`sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b ${className}`}>
