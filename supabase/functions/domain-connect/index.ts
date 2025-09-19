@@ -34,15 +34,36 @@ const handler = async (req: Request): Promise<Response> => {
     if (req.method === 'POST') {
       const { domain, registrar, templateId, params }: DomainConnectRequest = await req.json();
 
-      // Get domain record
-      const { data: domainRecord, error: domainError } = await supabase
+      // Get or create domain record
+      let { data: domainRecord, error: domainError } = await supabase
         .from('domains')
         .select('*')
         .eq('domain', domain)
-        .single();
+        .maybeSingle();
 
       if (domainError) {
-        throw new Error(`Domain not found: ${domainError.message}`);
+        throw new Error(`Error fetching domain: ${domainError.message}`);
+      }
+
+      // If domain doesn't exist, create it
+      if (!domainRecord) {
+        const { data: newDomain, error: createError } = await supabase
+          .from('domains')
+          .insert({
+            domain: domain,
+            type: 'email_sending',
+            status: 'pending',
+            dns_status: 'pending',
+            tls_status: 'pending'
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          throw new Error(`Failed to create domain: ${createError.message}`);
+        }
+
+        domainRecord = newDomain;
       }
 
       // Generate session token
