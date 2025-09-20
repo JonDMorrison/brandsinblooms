@@ -264,6 +264,7 @@ export const CRMPersonasPage: React.FC = () => {
                 <PersonaCard
                   key={persona.id}
                   persona={persona}
+                  customerCount={personaCounts[persona.id] || 0}
                 />
                 ))}
               </div>
