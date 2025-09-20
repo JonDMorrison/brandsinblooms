@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown, Leaf, Heart, Apple, Recycle, Home, Flower, Eye, Hammer, Sun } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
@@ -106,9 +107,13 @@ export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({
           {/* Customer count */}
           <div className="flex items-center gap-2">
             <Users className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} text-muted-foreground`} />
-            <span className={`${isMobile ? 'mobile-text-caption' : 'text-sm'} font-medium`}>
-              {loading ? 'Loading...' : `${customerCount || 0} customers`}
-            </span>
+            {loading ? (
+              <Skeleton className={`${isMobile ? 'h-4 w-20' : 'h-3 w-16'}`} />
+            ) : (
+              <span className={`${isMobile ? 'mobile-text-caption' : 'text-sm'} font-medium`}>
+                {`${customerCount || 0} customers`}
+              </span>
+            )}
           </div>
           
           {/* Action buttons */}
