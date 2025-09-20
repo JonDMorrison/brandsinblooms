@@ -14,6 +14,7 @@ interface PersonaDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   persona: any;
+  onAssignmentChange?: () => void;
 }
 
 // Helper component to handle individual customer persona management
@@ -56,6 +57,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
   open,
   onOpenChange,
   persona,
+  onAssignmentChange,
 }) => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -64,6 +66,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
 
   const handleAssignmentChange = () => {
     setRefreshKey(prev => prev + 1);
+    onAssignmentChange?.();
   };
 
   if (!persona) {

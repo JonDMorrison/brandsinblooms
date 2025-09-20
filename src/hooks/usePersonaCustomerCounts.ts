@@ -11,9 +11,15 @@ interface PersonaCounts {
 export const usePersonaCustomerCounts = () => {
   const [counts, setCounts] = useState<PersonaCounts>({});
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { personas } = useAllPersonas();
+
+  const refreshCounts = () => {
+    console.log('🔄 usePersonaCustomerCounts: Manual refresh triggered');
+    setRefreshKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     const fetchPersonaCounts = async () => {
@@ -26,33 +32,60 @@ export const usePersonaCustomerCounts = () => {
       console.log('🔧 usePersonaCustomerCounts: Fetching counts for tenant:', tenant.id);
 
       try {
-        const { data: customers, error } = await supabase
-          .from('crm_customers')
-          .select('persona_id, persona')
-          .eq('tenant_id', tenant.id);
+        // Get counts from the customer_personas many-to-many table AND legacy persona field
+        const [customerPersonasResult, legacyCustomersResult] = await Promise.all([
+          // Count from customer_personas table (new assignments)
+          supabase
+            .from('customer_personas')
+            .select(`
+              persona_id,
+              predefined_persona_id,
+              crm_customers!inner(tenant_id)
+            `)
+            .eq('crm_customers.tenant_id', tenant.id),
+          
+          // Count from legacy persona field in crm_customers table
+          supabase
+            .from('crm_customers')
+            .select('persona')
+            .eq('tenant_id', tenant.id)
+            .not('persona', 'is', null)
+        ]);
 
-        if (error) throw error;
+        if (customerPersonasResult.error) throw customerPersonasResult.error;
+        if (legacyCustomersResult.error) throw legacyCustomersResult.error;
 
-        console.log('🔧 usePersonaCustomerCounts: Raw customer data:', customers);
+        console.log('🔧 usePersonaCustomerCounts: Customer personas data:', customerPersonasResult.data);
+        console.log('🔧 usePersonaCustomerCounts: Legacy customers data:', legacyCustomersResult.data);
         console.log('🔧 usePersonaCustomerCounts: Available personas:', personas);
 
-        // Count customers by persona using unified approach
-        const personaCounts: PersonaCounts = {};
-        
         // Initialize all persona IDs with 0 counts
+        const personaCounts: PersonaCounts = {};
         personas.forEach(persona => {
           personaCounts[persona.id] = 0;
         });
         
-        customers?.forEach(customer => {
-          if (customer.persona_id) {
-            // Count by persona ID (preferred method)
-            personaCounts[customer.persona_id] = (personaCounts[customer.persona_id] || 0) + 1;
-          } else if (customer.persona) {
-            // Fallback to legacy persona field - find ID by name and count
+        // Count from customer_personas table (many-to-many assignments)
+        customerPersonasResult.data?.forEach(assignment => {
+          const personaId = assignment.persona_id || assignment.predefined_persona_id;
+          if (personaId) {
+            personaCounts[personaId] = (personaCounts[personaId] || 0) + 1;
+          }
+        });
+        
+        // Count from legacy persona field - find customers not already counted in customer_personas
+        legacyCustomersResult.data?.forEach(customer => {
+          if (customer.persona) {
             const persona = personas.find(p => p.persona_name === customer.persona);
             if (persona) {
-              personaCounts[persona.id] = (personaCounts[persona.id] || 0) + 1;
+              // Only count legacy if this persona doesn't already have assignments in customer_personas
+              // This prevents double-counting during migration
+              const hasNewAssignments = customerPersonasResult.data?.some(cp => 
+                (cp.persona_id === persona.id) || (cp.predefined_persona_id === persona.id)
+              );
+              if (!hasNewAssignments) {
+                personaCounts[persona.id] = (personaCounts[persona.id] || 0) + 1;
+              }
             }
           }
         });
@@ -67,7 +100,7 @@ export const usePersonaCustomerCounts = () => {
     };
 
     fetchPersonaCounts();
-  }, [user, tenant, personas]);
+  }, [user, tenant, personas, refreshKey]);
 
-  return { counts, loading };
+  return { counts, loading, refreshCounts };
 };

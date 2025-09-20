@@ -17,9 +17,10 @@ interface PersonaCardProps {
   customerCount?: number;
   onViewDetails?: () => void;
   onCreateCampaign?: () => void;
+  onAssignmentChange?: () => void;
 }
 
-export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, customerCount = 0, onViewDetails, onCreateCampaign }) => {
+export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, customerCount = 0, onViewDetails, onCreateCampaign, onAssignmentChange }) => {
   console.log('🔧 PersonaCard render:', { personaName: persona.persona_name, customerCount });
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const isMobile = useIsMobile();
@@ -102,6 +103,7 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, customerCount
         open={showDetailsDialog}
         onOpenChange={setShowDetailsDialog}
         persona={persona}
+        onAssignmentChange={onAssignmentChange}
       />
     </>
   );

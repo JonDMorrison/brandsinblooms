@@ -75,7 +75,7 @@ const predefinedPersonas = [
 export const CRMPersonasPage: React.FC = () => {
   const { personas, loading, searchTerm, setSearchTerm, fetchPersonas, createPersona, deletePersona } = useCRMPersonas();
   const { customers, loading: customersLoading, assignPersonaToCustomer, getCustomersByPersona, getUnassignedCustomers } = useCRMCustomers();
-  const { counts: personaCounts, loading: countsLoading } = usePersonaCustomerCounts();
+  const { counts: personaCounts, loading: countsLoading, refreshCounts } = usePersonaCustomerCounts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<any>(null);
@@ -265,6 +265,7 @@ export const CRMPersonasPage: React.FC = () => {
                   key={persona.id}
                   persona={persona}
                   customerCount={personaCounts[persona.id] || 0}
+                  onAssignmentChange={refreshCounts}
                 />
                 ))}
               </div>
