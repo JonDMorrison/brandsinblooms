@@ -22,9 +22,9 @@ const CustomerPersonaManager: React.FC<{
   customerId: string;
   persona: any;
   onAssignmentChange: () => void;
-  children: (isAssigned: boolean, assign: () => Promise<void>, unassign: () => Promise<void>) => React.ReactNode;
+  children: (isAssigned: boolean, assign: () => Promise<void>, unassign: () => Promise<void>, isLoading: boolean) => React.ReactNode;
 }> = ({ customerId, persona, onAssignmentChange, children }) => {
-  const { assignedPersonaIds, assignPersona, unassignPersona } = useCustomerPersonas(customerId);
+  const { assignedPersonaIds, assignPersona, unassignPersona, isLoading } = useCustomerPersonas(customerId);
   
   const isAssigned = useMemo(() => {
     return assignedPersonaIds.includes(persona.id);
@@ -50,7 +50,7 @@ const CustomerPersonaManager: React.FC<{
     }
   };
 
-  return <>{children(isAssigned, handleAssign, handleUnassign)}</>;
+  return <>{children(isAssigned, handleAssign, handleUnassign, isLoading)}</>;
 };
 
 export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
@@ -159,7 +159,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                         persona={persona}
                         onAssignmentChange={handleAssignmentChange}
                       >
-                        {(isAssigned, assign, unassign) => (
+                        {(isAssigned, assign, unassign, isLoading) => (
                           <div className={`flex items-center justify-between p-3 rounded-md border ${
                             isAssigned ? 'bg-green-50 border-green-200' : 'bg-background'
                           }`}>
@@ -168,7 +168,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                                 <p className="font-medium">
                                   {customer.first_name} {customer.last_name}
                                 </p>
-                                {isAssigned && (
+                                {!isLoading && isAssigned && (
                                   <Badge variant="secondary" className="text-xs">
                                     Assigned
                                   </Badge>
@@ -176,15 +176,17 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                               </div>
                               <p className="text-xs text-muted-foreground">{customer.email}</p>
                             </div>
-                            <Button
-                              variant={isAssigned ? "destructive" : "default"}
-                              size="sm"
-                              onClick={isAssigned ? unassign : assign}
-                              className="h-8 w-8 p-0 flex-shrink-0"
-                              title={isAssigned ? "Remove from persona" : "Assign to persona"}
-                            >
-                              {isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                            </Button>
+                            {!isLoading && (
+                              <Button
+                                variant={isAssigned ? "destructive" : "default"}
+                                size="sm"
+                                onClick={isAssigned ? unassign : assign}
+                                className="h-8 w-8 p-0 flex-shrink-0"
+                                title={isAssigned ? "Remove from persona" : "Assign to persona"}
+                              >
+                                {isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                              </Button>
+                            )}
                           </div>
                         )}
                       </CustomerPersonaManager>
