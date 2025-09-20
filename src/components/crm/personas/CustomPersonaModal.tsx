@@ -46,16 +46,16 @@ export const CustomPersonaModal: React.FC<CustomPersonaModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleCancel}>
-      <DialogContent className={`${isMobile ? 'mobile-dialog-content' : 'sm:max-w-[425px]'} mobile-dialog-padding`}>
-        <DialogHeader>
-          <DialogTitle className={isMobile ? 'mobile-text-heading' : ''}>
+      <DialogContent className={`${isMobile ? 'mobile-dialog-content' : 'sm:max-w-[425px]'} mobile-dialog-padding p-6`}>
+        <DialogHeader className="pb-4">
+          <DialogTitle className={`${isMobile ? 'mobile-text-heading' : 'text-lg font-semibold'}`}>
             Create Custom Persona
           </DialogTitle>
         </DialogHeader>
         
-        <div className={`${isMobile ? 'mobile-space-normal' : 'space-y-4'} mt-4`}>
-          <div className="space-y-2">
-            <Label htmlFor="persona-name" className={isMobile ? 'mobile-text-body' : ''}>
+        <div className={`${isMobile ? 'mobile-space-normal' : 'space-y-6'}`}>
+          <div className="space-y-3">
+            <Label htmlFor="persona-name" className={`${isMobile ? 'mobile-text-body' : 'text-sm font-medium'}`}>
               Persona Name *
             </Label>
             <Input
@@ -67,8 +67,8 @@ export const CustomPersonaModal: React.FC<CustomPersonaModalProps> = ({
             />
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="persona-description" className={isMobile ? 'mobile-text-body' : ''}>
+          <div className="space-y-3">
+            <Label htmlFor="persona-description" className={`${isMobile ? 'mobile-text-body' : 'text-sm font-medium'}`}>
               Description
             </Label>
             <Textarea
@@ -77,12 +77,12 @@ export const CustomPersonaModal: React.FC<CustomPersonaModalProps> = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the characteristics, behaviors, and preferences of this persona..."
               rows={4}
-              className={`${isMobile ? 'mobile-touch-target' : ''} mobile-focus-ring`}
+              className={`${isMobile ? 'mobile-touch-target' : 'resize-none'} mobile-focus-ring`}
             />
           </div>
         </div>
         
-        <div className={`flex ${isMobile ? 'flex-col gap-2' : 'justify-end gap-2'} mt-6`}>
+        <div className={`flex ${isMobile ? 'flex-col gap-3' : 'justify-end gap-3'} pt-6 mt-6 border-t`}>
           <Button 
             variant="outline" 
             onClick={handleCancel}
