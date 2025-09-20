@@ -32,8 +32,10 @@ const CustomerPersonaManager: React.FC<{
   }, [assignedPersonaIds, persona.id]);
 
   const handleAssign = async () => {
+    console.log('🔄 Starting assign action...');
     setIsActionLoading(true);
     const success = await assignPersona(persona.id, persona.is_custom);
+    console.log('✅ Assign action completed:', success);
     if (success) {
       console.log('✅ Customer assigned to persona successfully');
       onAssignmentChange();
@@ -44,8 +46,10 @@ const CustomerPersonaManager: React.FC<{
   };
 
   const handleUnassign = async () => {
+    console.log('🔄 Starting unassign action...');
     setIsActionLoading(true);
     const success = await unassignPersona(persona.id, persona.is_custom);
+    console.log('✅ Unassign action completed:', success);
     if (success) {
       console.log('✅ Customer removed from persona successfully');
       onAssignmentChange();
@@ -191,9 +195,9 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                                 disabled={isActionLoading}
                               >
                                 {isActionLoading ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent"></div>
                                 ) : (
-                                  !isLoading && (isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />)
+                                  isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />
                                 )}
                               </Button>
                             )}
