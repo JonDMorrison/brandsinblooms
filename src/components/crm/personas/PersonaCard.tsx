@@ -14,11 +14,12 @@ interface PersonaCardProps {
     is_custom: boolean;
     created_at: string;
   };
+  customerCount?: number;
   onViewDetails?: () => void;
   onCreateCampaign?: () => void;
 }
 
-export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onViewDetails, onCreateCampaign }) => {
+export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, customerCount = 0, onViewDetails, onCreateCampaign }) => {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const isMobile = useIsMobile();
 
@@ -41,9 +42,14 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onViewDetails
             <CardTitle className={`${isMobile ? 'mobile-text-subheading' : 'text-base'} mb-1 mobile-prevent-overflow`}>
               {persona.persona_name}
             </CardTitle>
-            <Badge variant={persona.is_custom ? "default" : "secondary"} className="text-xs">
-              {persona.is_custom ? "Custom" : "System"}
-            </Badge>
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant={persona.is_custom ? "default" : "secondary"} className="text-xs">
+                {persona.is_custom ? "Custom" : "System"}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                Customers: {customerCount}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className={`${isMobile ? 'p-4 pt-2' : 'pt-0'} flex-1 flex flex-col`}>
