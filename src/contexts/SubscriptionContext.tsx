@@ -203,7 +203,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         testAccountPromise.catch(console.error);
       }
 
-      // Optimized query - fetch only what we need
+      // Optimized query - fetch only what we need with proper timeout handling
       const queryPromise = supabase
         .from('subscriptions')
         .select('id, plan, start_date, end_date, billing_interval, created_at')
@@ -211,13 +211,12 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         .order('created_at', { ascending: false })
         .limit(5); // Limit results
 
-      // Set timeout for the query
-      const timeoutId = setTimeout(() => {
-        throw new Error('Subscription fetch timed out');
-      }, 8000);
+      // Use Promise.race for proper timeout handling
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Subscription fetch timed out')), 20000)
+      );
 
-      const result = await queryPromise;
-      clearTimeout(timeoutId);
+      const result = await Promise.race([queryPromise, timeoutPromise]) as any;
 
       const { data: allSubscriptions, error: countError } = result;
 
@@ -276,8 +275,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       
       setLastCheckTime(new Date());
     } catch (error) {
-      if (error instanceof Error && error.message === 'Subscription fetch timed out') {
-        setSubscriptionError('Subscription check timed out');
+      if (error instanceof Error && error.message.includes('timed out')) {
+        console.warn('⚠️ Subscription fetch timed out, using default state');
+        // Set default state instead of error state to prevent app crash
+        setSubscription(null);
+        setSubscriptionError(null);
       } else {
         setSubscriptionError(`Failed to fetch subscription: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
@@ -303,15 +305,14 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       setIsCheckingStripe(true);
       setLastStripeCheck(now);
       
-      // Add timeout for Stripe calls
+      // Add proper timeout handling for Stripe calls
       const stripePromise = supabase.functions.invoke('check-subscription');
       
-      const timeoutId = setTimeout(() => {
-        throw new Error('Stripe check timed out');
-      }, 10000);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Stripe check timed out')), 30000)
+      );
       
-      const result = await stripePromise;
-      clearTimeout(timeoutId);
+      const result = await Promise.race([stripePromise, timeoutPromise]) as any;
       
       const { data, error } = result;
       
@@ -326,8 +327,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         await fetchSubscription();
       }
     } catch (error) {
-      if (error instanceof Error && error.message === 'Stripe check timed out') {
-        console.warn('⚠️ Stripe check timed out');
+      if (error instanceof Error && error.message.includes('timed out')) {
+        console.warn('⚠️ Stripe check timed out, continuing without check');
+        // Don't set error state for timeouts, just continue
       } else {
         setSubscriptionError(`Stripe verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }

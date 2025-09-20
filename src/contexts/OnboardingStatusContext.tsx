@@ -60,7 +60,7 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
         return { isCompleted: false };
       }
       
-      // Optimized query with timeout
+      // Optimized query with proper timeout handling
       try {
         const queryPromise = supabase
           .from('company_profiles')
@@ -70,13 +70,12 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
           .limit(1)
           .maybeSingle();
 
-        // Set a timeout for the query
-        const timeoutId = setTimeout(() => {
-          throw new Error('Onboarding status check timed out');
-        }, 5000);
+        // Use Promise.race for proper timeout handling
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Onboarding status check timed out')), 15000)
+        );
 
-        const result = await queryPromise;
-        clearTimeout(timeoutId);
+        const result = await Promise.race([queryPromise, timeoutPromise]) as any;
 
         const { data: profile, error: dbError } = result;
 
@@ -95,6 +94,10 @@ export const OnboardingStatusProvider = ({ children }: OnboardingStatusProviderP
         
         return { isCompleted: completed };
       } catch (error) {
+        if (error instanceof Error && error.message.includes('timed out')) {
+          console.warn('⚠️ Onboarding check timed out, using default state');
+          return { isCompleted: false };
+        }
         throw error;
       }
     },
