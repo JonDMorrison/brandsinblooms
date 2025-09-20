@@ -228,10 +228,24 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Get contentTaskId from props or URL parameters
   const urlContentTaskId = searchParams.get('contentTaskId');
   const finalContentTaskId = propContentTaskId || urlContentTaskId;
+  
+  // Check for pre-selected persona from URL
+  const personaParam = searchParams.get('persona');
+  let initialPersonas: any[] = [];
+  if (personaParam) {
+    try {
+      const persona = JSON.parse(decodeURIComponent(personaParam));
+      initialPersonas = [persona];
+      console.log('🎯 Pre-selected persona from URL:', persona);
+    } catch (error) {
+      console.warn('Failed to parse persona parameter:', error);
+    }
+  }
+  
   const [subjectLine, setSubjectLine] = useState('');
   const [preheaderText, setPreheaderText] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
-  const [selectedPersonas, setSelectedPersonas] = useState<any[]>([]);
+  const [selectedPersonas, setSelectedPersonas] = useState<any[]>(initialPersonas);
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState(false);

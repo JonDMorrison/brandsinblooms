@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Users } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNavigate } from 'react-router-dom';
 import { PersonaDetailsDialog } from './PersonaDetailsDialog';
 
 interface PersonaCardProps {
@@ -24,6 +25,7 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, customerCount
   console.log('🔧 PersonaCard render:', { personaName: persona.persona_name, customerCount });
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const handleViewDetails = () => {
     console.log('🔍 PersonaCard: View Details clicked', { persona: persona.persona_name, hasOnViewDetails: !!onViewDetails });
@@ -89,7 +91,19 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, customerCount
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              onCreateCampaign?.();
+              
+              if (onCreateCampaign) {
+                onCreateCampaign();
+              } else {
+                // Navigate to CRM campaign creator with persona pre-selected
+                const personaParam = encodeURIComponent(JSON.stringify({
+                  id: persona.id,
+                  persona_name: persona.persona_name,
+                  persona_description: persona.persona_description,
+                  is_custom: persona.is_custom
+                }));
+                navigate(`/crm/campaigns/new?persona=${personaParam}`);
+              }
             }}
             className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
           >
