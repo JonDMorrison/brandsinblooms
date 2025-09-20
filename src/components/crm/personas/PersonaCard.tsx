@@ -21,7 +21,7 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onViewDetails
   const isMobile = useIsMobile();
 
   return (
-    <Card className="h-full mobile-hover-lift mobile-card">
+    <Card className="h-full mobile-hover-lift mobile-card flex flex-col">
       <CardHeader className={`${isMobile ? 'p-4 pb-2' : 'pb-3'} flex flex-row items-start justify-between space-y-0`}>
         <div className="flex-1 min-w-0">
           <CardTitle className={`${isMobile ? 'mobile-text-subheading' : 'text-base'} mb-1 mobile-prevent-overflow`}>
@@ -32,22 +32,24 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onViewDetails
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className={`${isMobile ? 'p-4 pt-2' : 'pt-0'}`}>
-        {persona.persona_description && (
-          <p className={`${isMobile ? 'mobile-text-body' : 'text-sm'} text-muted-foreground mb-4 line-clamp-3 mobile-text-balance`}>
-            {persona.persona_description}
-          </p>
-        )}
-        
-        <div className="flex items-center gap-2 text-muted-foreground mb-4">
-          <Users className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'}`} />
-          <span className={`${isMobile ? 'mobile-text-caption' : 'text-sm'}`}>
-            Created {new Date(persona.created_at).toLocaleDateString()}
-          </span>
+      <CardContent className={`${isMobile ? 'p-4 pt-2' : 'pt-0'} flex-1 flex flex-col`}>
+        <div className="flex-1">
+          {persona.persona_description && (
+            <p className={`${isMobile ? 'mobile-text-body' : 'text-sm'} text-muted-foreground mb-4 line-clamp-3 mobile-text-balance`}>
+              {persona.persona_description}
+            </p>
+          )}
+          
+          <div className="flex items-center gap-2 text-muted-foreground mb-4">
+            <Users className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'}`} />
+            <span className={`${isMobile ? 'mobile-text-caption' : 'text-sm'}`}>
+              Created {new Date(persona.created_at).toLocaleDateString()}
+            </span>
+          </div>
         </div>
         
-        {/* Action buttons */}
-        <div className={`flex ${isMobile ? 'flex-col gap-2 w-full' : 'flex-col sm:flex-row gap-2'}`}>
+        {/* Action buttons - always at bottom */}
+        <div className={`flex ${isMobile ? 'flex-col gap-2 w-full' : 'flex-col sm:flex-row gap-2'} mt-auto`}>
           <Button 
             variant="outline" 
             size={isMobile ? "default" : "sm"} 
