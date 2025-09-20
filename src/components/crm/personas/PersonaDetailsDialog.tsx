@@ -101,7 +101,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 pb-16">
+        <div className="space-y-6 pb-16 px-6">
           {/* Basic Info */}
           <div className="space-y-4">
             {persona.persona_description && (
