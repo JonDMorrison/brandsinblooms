@@ -22,15 +22,17 @@ const CustomerPersonaManager: React.FC<{
   customerId: string;
   persona: any;
   onAssignmentChange: () => void;
-  children: (isAssigned: boolean, assign: () => Promise<void>, unassign: () => Promise<void>, isLoading: boolean) => React.ReactNode;
+  children: (isAssigned: boolean, assign: () => Promise<void>, unassign: () => Promise<void>, isLoading: boolean, isActionLoading: boolean) => React.ReactNode;
 }> = ({ customerId, persona, onAssignmentChange, children }) => {
   const { assignedPersonaIds, assignPersona, unassignPersona, isLoading } = useCustomerPersonas(customerId);
+  const [isActionLoading, setIsActionLoading] = useState(false);
   
   const isAssigned = useMemo(() => {
     return assignedPersonaIds.includes(persona.id);
   }, [assignedPersonaIds, persona.id]);
 
   const handleAssign = async () => {
+    setIsActionLoading(true);
     const success = await assignPersona(persona.id, persona.is_custom);
     if (success) {
       console.log('✅ Customer assigned to persona successfully');
@@ -38,9 +40,11 @@ const CustomerPersonaManager: React.FC<{
     } else {
       console.error('❌ Failed to assign customer to persona');
     }
+    setIsActionLoading(false);
   };
 
   const handleUnassign = async () => {
+    setIsActionLoading(true);
     const success = await unassignPersona(persona.id, persona.is_custom);
     if (success) {
       console.log('✅ Customer removed from persona successfully');
@@ -48,9 +52,10 @@ const CustomerPersonaManager: React.FC<{
     } else {
       console.error('❌ Failed to remove customer from persona');
     }
+    setIsActionLoading(false);
   };
 
-  return <>{children(isAssigned, handleAssign, handleUnassign, isLoading)}</>;
+  return <>{children(isAssigned, handleAssign, handleUnassign, isLoading, isActionLoading)}</>;
 };
 
 export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
@@ -159,7 +164,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                         persona={persona}
                         onAssignmentChange={handleAssignmentChange}
                       >
-                        {(isAssigned, assign, unassign, isLoading) => (
+                        {(isAssigned, assign, unassign, isLoading, isActionLoading) => (
                           <div className={`flex items-center justify-between p-3 rounded-md border ${
                             isAssigned ? 'bg-green-50 border-green-200' : 'bg-background'
                           }`}>
@@ -183,8 +188,13 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                                 onClick={isAssigned ? unassign : assign}
                                 className="h-8 w-8 p-0 flex-shrink-0"
                                 title={isAssigned ? "Remove from persona" : "Assign to persona"}
+                                disabled={isActionLoading}
                               >
-                                {!isLoading && (isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />)}
+                                {isActionLoading ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                                ) : (
+                                  !isLoading && (isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />)
+                                )}
                               </Button>
                             )}
                           </div>
