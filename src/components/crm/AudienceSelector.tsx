@@ -235,7 +235,7 @@ export const AudienceSelector = ({
 
       {/* Selected Summary */}
       {(selectedPersonas.length > 0 || selectedSegments.length > 0) && (
-        <div className="p-4 bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg space-y-4">
+        <div className="p-4 bg-muted border-2 border-dashed border-muted-foreground/30 rounded-lg space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-medium">Selected Targeting</h3>
             <Button variant="ghost" size="sm" onClick={clearAll}>
