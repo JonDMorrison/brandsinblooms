@@ -1,0 +1,60 @@
+Subject: CORS Infrastructure Issue with /_sandbox/dev-server Endpoint - Platform Configuration Problem
+
+Dear Lovable Support Team,
+
+I am experiencing a critical infrastructure issue with my Lovable project that requires platform-level resolution.
+
+**Issue Summary:**
+CORS (Cross-Origin Resource Sharing) errors are occurring on the internal /_sandbox/dev-server endpoint, preventing proper communication between the Lovable editor and my project's preview environment.
+
+**Technical Details:**
+
+**Project Information:**
+- Project URL: https://be93ec50-2043-42c4-b91c-5d7c30f0ef2d.lovableproject.com
+- Editor Domain: lovable.dev
+- Affected Endpoint: /_sandbox/dev-server
+
+**Error Analysis:**
+1. **Root Cause**: The /_sandbox/dev-server endpoint is not properly configured with CORS headers to allow cross-origin requests from the Lovable editor (lovable.dev)
+
+2. **Impact**: This prevents the editor from properly communicating with the preview environment, affecting the development workflow
+
+3. **Scope**: This is confirmed to be a platform infrastructure issue, NOT an application code issue because:
+   - The /_sandbox/dev-server endpoint is internal Lovable infrastructure
+   - No user application code makes requests to this endpoint
+   - No network requests from the user application appear in debugging tools
+   - The error occurs specifically between lovable.dev (editor) and the preview server
+
+**Current Vite Proxy Configuration:**
+The project's vite.config.ts includes the following proxy configuration:
+```javascript
+proxy: {
+  '/_sandbox': {
+    target: 'https://be93ec50-2043-42c4-b91c-5d7c30f0ef2d.lovableproject.com',
+    changeOrigin: true,
+    secure: true,
+    headers: {
+      'Origin': 'https://lovable.dev'
+    }
+  }
+}
+```
+
+**Troubleshooting Performed:**
+- Confirmed the preview works when accessed directly at the project URL
+- Verified no application code makes requests to the problematic endpoint
+- Ruled out user code as the source of the issue
+- Identified this as editor-to-preview infrastructure communication failure
+
+**Resolution Required:**
+The /_sandbox/dev-server endpoint needs to be configured at the platform level to allow cross-origin requests from the Lovable editor domain (lovable.dev). This requires infrastructure-level changes that can only be made by the Lovable platform team.
+
+**Priority:**
+This issue affects the core development workflow and editor functionality, making it a high-priority infrastructure fix.
+
+Please let me know if you need any additional technical information or logs to resolve this issue.
+
+Thank you for your assistance.
+
+Best regards,
+[Your Name]
