@@ -81,10 +81,14 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
 
   const getFilteredUnassignedCustomers = () => {
     const unassigned = getUnassignedCustomers();
-    console.log('🔧 PersonaDetailsDialog - Before filtering unassigned:', unassigned.length);
+    console.log('🔧 PersonaDetailsDialog - Raw unassigned customers:', unassigned.length);
+    console.log('🔧 PersonaDetailsDialog - Search term:', customerSearchTerm);
+    
     if (!customerSearchTerm) {
-      console.log('🔧 PersonaDetailsDialog - Returning first 10 unassigned:', unassigned.slice(0, 10).length);
-      return unassigned.slice(0, 10);
+      const result = unassigned.slice(0, 10);
+      console.log('🔧 PersonaDetailsDialog - Returning first 10 unassigned (no search):', result.length);
+      console.log('🔧 PersonaDetailsDialog - Unassigned sample:', result.map(c => ({ id: c.id, email: c.email, persona: c.persona })));
+      return result;
     }
     
     const filtered = unassigned.filter(customer => 
