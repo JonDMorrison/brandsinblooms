@@ -89,15 +89,15 @@ export const CampaignSetupWizard = ({
     switch (currentStep) {
       case 'basics':
         return (
-          <div className="space-y-6 p-6">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold mb-2">Campaign Setup</h3>
-              <p className="text-muted-foreground">
+          <div className="p-6 space-y-8">
+            <div className="text-center space-y-4">
+              <h3 className="text-xl font-semibold">Campaign Setup</h3>
+              <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                 Configure your campaign settings in the main editor. This wizard will help you set up audience targeting.
               </p>
             </div>
-            <div className="bg-accent/20 border border-accent/40 rounded-lg p-4">
-              <p className="text-sm">
+            <div className="bg-accent/20 border border-accent/40 rounded-lg p-6 max-w-3xl mx-auto">
+              <p className="text-sm leading-relaxed">
                 <strong>Tip:</strong> Make sure to fill in your campaign name and subject line in the main editor before proceeding to audience targeting.
               </p>
             </div>
@@ -106,54 +106,56 @@ export const CampaignSetupWizard = ({
 
       case 'audience':
         return (
-          <AudienceSelector
-            selectedPersonas={selectedPersonas}
-            selectedSegments={selectedSegments}
-            onPersonasChange={onPersonasChange}
-            onSegmentsChange={onSegmentsChange}
-            maxPersonas={3}
-            maxSegments={5}
-            onClose={() => {}} // Don't close wizard on audience selector close
-          />
+          <div className="p-6">
+            <AudienceSelector
+              selectedPersonas={selectedPersonas}
+              selectedSegments={selectedSegments}
+              onPersonasChange={onPersonasChange}
+              onSegmentsChange={onSegmentsChange}
+              maxPersonas={3}
+              maxSegments={5}
+              onClose={() => {}} // Don't close wizard on audience selector close
+            />
+          </div>
         );
 
       case 'review':
         return (
-          <div className="space-y-6 p-6">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold mb-2">Review Your Setup</h3>
-              <p className="text-muted-foreground">
+          <div className="p-6 space-y-8">
+            <div className="text-center space-y-4">
+              <h3 className="text-xl font-semibold">Review Your Setup</h3>
+              <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                 Review your campaign audience targeting configuration.
               </p>
             </div>
 
-            <div className="space-y-4">
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" />
+            <div className="space-y-6 max-w-4xl mx-auto">
+              <div className="p-6 border rounded-lg bg-card">
+                <h4 className="font-semibold mb-4 flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
                   Target Audience
                 </h4>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span>Selection:</span>
+                    <span className="text-muted-foreground">Selection:</span>
                     <Badge variant="secondary">{getSelectionSummary()}</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span>Total Reach:</span>
-                    <span className="font-medium">{getTotalAudience()}</span>
+                    <span className="text-muted-foreground">Total Reach:</span>
+                    <span className="font-semibold text-primary">{getTotalAudience()}</span>
                   </div>
                 </div>
               </div>
 
               {selectedPersonas.length > 0 && (
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">Selected Personas</h4>
-                  <div className="space-y-1">
+                <div className="p-6 border rounded-lg bg-card">
+                  <h4 className="font-semibold mb-4">Selected Personas</h4>
+                  <div className="space-y-3">
                     {selectedPersonas.map(persona => (
-                      <div key={persona.id} className="text-sm">
+                      <div key={persona.id} className="p-3 bg-muted/50 rounded-lg">
                         <span className="font-medium">{persona.persona_name}</span>
                         {persona.persona_description && (
-                          <p className="text-muted-foreground text-xs">
+                          <p className="text-muted-foreground text-sm mt-1 leading-relaxed">
                             {persona.persona_description}
                           </p>
                         )}
@@ -164,22 +166,22 @@ export const CampaignSetupWizard = ({
               )}
 
               {selectedSegments.length > 0 && (
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">Selected Segments</h4>
-                  <div className="space-y-1">
+                <div className="p-6 border rounded-lg bg-card">
+                  <h4 className="font-semibold mb-4">Selected Segments</h4>
+                  <div className="space-y-3">
                     {selectedSegments.map(segment => (
-                      <div key={segment.id} className="text-sm flex items-center justify-between">
+                      <div key={segment.id} className="p-3 bg-muted/50 rounded-lg flex items-center justify-between">
                         <div>
                           <span className="font-medium">{segment.name}</span>
                           {segment.description && (
-                            <p className="text-muted-foreground text-xs">
+                            <p className="text-muted-foreground text-sm mt-1 leading-relaxed">
                               {segment.description}
                             </p>
                           )}
                         </div>
-                        <span className="text-muted-foreground">
+                        <Badge variant="outline">
                           {segment.customer_count.toLocaleString()}
-                        </span>
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -196,16 +198,18 @@ export const CampaignSetupWizard = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Campaign Setup Wizard
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto gap-0">
+        <div className="p-6 pb-0">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Campaign Setup Wizard
+            </DialogTitle>
+          </DialogHeader>
+        </div>
 
         {/* Step Indicator */}
-        <div className="flex items-center justify-center space-x-4 py-4 border-b">
+        <div className="flex items-center justify-center space-x-4 py-6 px-6 border-b">
           {steps.map((step, index) => {
             const isActive = step.key === currentStep;
             const isCompleted = index < currentStepIndex;
@@ -213,7 +217,7 @@ export const CampaignSetupWizard = ({
             return (
               <div
                 key={step.key}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-colors ${
                   isActive 
                     ? 'bg-primary text-primary-foreground' 
                     : isCompleted 
@@ -238,30 +242,31 @@ export const CampaignSetupWizard = ({
         </div>
 
         {/* Navigation Footer */}
-        <div className="flex items-center justify-between py-4 border-t">
+        <div className="flex items-center justify-between p-6 pt-4 border-t bg-muted/20">
           <Button
             variant="outline"
             onClick={handlePrevious}
             disabled={currentStep === 'basics'}
+            className="flex items-center gap-2"
           >
-            <ChevronLeft className="h-4 w-4 mr-1" />
+            <ChevronLeft className="h-4 w-4" />
             Previous
           </Button>
           
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
             
             {currentStep === 'review' ? (
-              <Button onClick={handleComplete}>
-                <Check className="h-4 w-4 mr-1" />
+              <Button onClick={handleComplete} className="flex items-center gap-2">
+                <Check className="h-4 w-4" />
                 Complete Setup
               </Button>
             ) : (
-              <Button onClick={handleNext}>
+              <Button onClick={handleNext} className="flex items-center gap-2">
                 Next
-                <ChevronRight className="h-4 w-4 ml-1" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
             )}
           </div>
