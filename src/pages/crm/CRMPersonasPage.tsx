@@ -74,7 +74,7 @@ const predefinedPersonas = [
 
 export const CRMPersonasPage: React.FC = () => {
   const { personas, loading, searchTerm, setSearchTerm, fetchPersonas, createPersona, deletePersona } = useCRMPersonas();
-  const { customers, loading: customersLoading, assignPersonaToCustomer, getCustomersByPersona, getUnassignedCustomers } = useCRMCustomers();
+  const { customers, loading: customersLoading, assignPersonaToCustomer, removePersonaFromCustomer, getCustomersByPersona, getUnassignedCustomers } = useCRMCustomers();
   const { counts: personaCounts, loading: countsLoading, refreshCounts } = usePersonaCustomerCounts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
@@ -125,6 +125,21 @@ export const CRMPersonasPage: React.FC = () => {
       refreshCounts(); // Refresh the counts after assignment
     } else {
       console.error('❌ Failed to assign customer to persona');
+    }
+  };
+
+  const handleUnassignCustomer = async (customerId: string) => {
+    if (!selectedPersona) return;
+    
+    console.log('🔄 Removing customer from persona:', { customerId, personaId: selectedPersona.id });
+    
+    const success = await removePersonaFromCustomer(customerId);
+    
+    if (success) {
+      console.log('✅ Customer removed successfully');
+      await refreshCounts(); // Refresh the counts after removal
+    } else {
+      console.error('❌ Failed to remove customer');
     }
   };
 
@@ -397,6 +412,15 @@ export const CRMPersonasPage: React.FC = () => {
                               </p>
                               <p className="text-xs text-muted-foreground">{customer.email}</p>
                             </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleUnassignCustomer(customer.id)}
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                              title="Remove from persona"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
                           </div>
                         ))}
                         {getFilteredPersonaCustomers().length === 0 && (
