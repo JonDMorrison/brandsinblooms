@@ -259,23 +259,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   });
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   
-  // Ensure selectedPersonas is properly initialized and not overridden
+  // Initialize selectedPersonas from URL only once - don't override user selections
   useEffect(() => {
     console.log('🔄 useEffect for personas initialization. InitialPersonas:', initialPersonas, 'Current selectedPersonas:', selectedPersonas);
     if (initialPersonas.length > 0 && selectedPersonas.length === 0) {
       console.log('🔄 Initializing selectedPersonas from URL:', initialPersonas);
       setSelectedPersonas(initialPersonas);
-    } else if (initialPersonas.length > 0 && selectedPersonas.length > 0) {
-      // Check if the current selectedPersonas matches the URL personas
-      const currentIds = selectedPersonas.map(p => p.id).sort();
-      const urlIds = initialPersonas.map(p => p.id).sort();
-      const matches = currentIds.length === urlIds.length && currentIds.every((id, i) => id === urlIds[i]);
-      
-      if (!matches) {
-        console.log('🔄 URL personas differ from current, updating to URL personas:', { current: selectedPersonas, url: initialPersonas });
-        setSelectedPersonas(initialPersonas);
-      }
     }
+    // Removed the logic that keeps overriding user selections with URL personas
   }, [initialPersonas]);
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState(false);
