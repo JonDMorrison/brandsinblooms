@@ -63,6 +63,10 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
   // Filter customers based on search term
   const getFilteredPersonaCustomers = () => {
     const personaCustomers = getPersonaCustomers();
+    console.log('🔧 PersonaDetailsDialog - All customers:', customers.length);
+    console.log('🔧 PersonaDetailsDialog - Persona customers:', personaCustomers.length, 'for persona:', persona.persona_name);
+    console.log('🔧 PersonaDetailsDialog - Sample customers:', customers.slice(0, 3).map(c => ({ id: c.id, email: c.email, persona: c.persona })));
+    
     if (!customerSearchTerm) return personaCustomers;
     
     return personaCustomers.filter(customer => 
@@ -162,30 +166,35 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                     </Badge>
                   </h5>
                   <ScrollArea className="h-48 border rounded-md p-2">
-                    <div className="space-y-2">
-                      {getFilteredPersonaCustomers().map((customer) => (
-                        <div key={customer.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
-                          <div>
-                            <p className="font-medium">
-                              {customer.first_name} {customer.last_name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{customer.email}</p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeCustomerFromPersona(customer.id)}
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                      {getFilteredPersonaCustomers().length === 0 && (
-                        <p className="text-xs text-muted-foreground text-center py-4">
-                          No customers assigned to this persona
-                        </p>
-                      )}
+                     <div className="space-y-2">
+                       {getFilteredPersonaCustomers().length > 0 ? (
+                         getFilteredPersonaCustomers().map((customer) => (
+                           <div key={customer.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                             <div className="flex-1">
+                               <p className="font-medium">
+                                 {customer.first_name} {customer.last_name}
+                               </p>
+                               <p className="text-xs text-muted-foreground">{customer.email}</p>
+                             </div>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => {
+                                 console.log('🔧 Removing customer from persona:', customer.id);
+                                 removeCustomerFromPersona(customer.id);
+                               }}
+                               className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 ml-2 flex-shrink-0"
+                               title="Remove from persona"
+                             >
+                               <X className="h-4 w-4" />
+                             </Button>
+                           </div>
+                         ))
+                       ) : (
+                         <p className="text-xs text-muted-foreground text-center py-4">
+                           No customers assigned to this persona
+                         </p>
+                       )}
                     </div>
                   </ScrollArea>
                 </div>
