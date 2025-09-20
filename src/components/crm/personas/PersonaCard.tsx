@@ -23,9 +23,12 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onViewDetails
   const isMobile = useIsMobile();
 
   const handleViewDetails = () => {
+    console.log('🔍 PersonaCard: View Details clicked', { persona: persona.persona_name, hasOnViewDetails: !!onViewDetails });
     if (onViewDetails) {
+      console.log('🔍 PersonaCard: Calling onViewDetails prop');
       onViewDetails();
     } else {
+      console.log('🔍 PersonaCard: Setting showDetailsDialog to true');
       setShowDetailsDialog(true);
     }
   };
@@ -61,21 +64,29 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onViewDetails
           
           {/* Action buttons - always at bottom */}
           <div className={`flex ${isMobile ? 'flex-col gap-2 w-full' : 'flex-col sm:flex-row gap-2'} mt-auto`}>
-            <Button 
-              variant="outline" 
-              size={isMobile ? "default" : "sm"} 
-              onClick={handleViewDetails}
-              className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
-            >
-              View Details
-            </Button>
-            <Button 
-              size={isMobile ? "default" : "sm"} 
-              onClick={onCreateCampaign}
-              className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
-            >
-              Create Campaign
-            </Button>
+          <Button 
+            variant="outline" 
+            size={isMobile ? "default" : "sm"} 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleViewDetails();
+            }}
+            className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
+          >
+            View Details
+          </Button>
+          <Button 
+            size={isMobile ? "default" : "sm"} 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onCreateCampaign?.();
+            }}
+            className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
+          >
+            Create Campaign
+          </Button>
           </div>
         </CardContent>
       </Card>

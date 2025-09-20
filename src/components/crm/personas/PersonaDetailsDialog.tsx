@@ -30,7 +30,12 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
   const { customers, loading: customersLoading, assignPersonaToCustomer } = useCRMCustomers();
   const isMobile = useIsMobile();
 
-  if (!persona) return null;
+  console.log('🔍 PersonaDetailsDialog render:', { open, persona: persona?.persona_name });
+
+  if (!persona) {
+    console.log('🔍 PersonaDetailsDialog: No persona provided');
+    return null;
+  }
 
   // Get customers assigned to this persona
   const getPersonaCustomers = () => {
@@ -75,7 +80,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] relative">
+      <DialogContent className="max-w-2xl max-h-[80vh] relative bg-background border shadow-lg">
         {/* Close Button */}
         <Button
           variant="ghost"
