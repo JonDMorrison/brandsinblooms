@@ -311,7 +311,7 @@ export const CRMPersonasPage: React.FC = () => {
                     customerCount={personaCounts[persona.name] || 0}
                     icon={persona.icon}
                     isSystem={true}
-                    onCreateCampaign={() => handleCreateCampaign(persona.id)}
+                    personaId={persona.id}
                     onViewDetails={() => handleViewPersonaDetails(persona.id)}
                   />
                 ))}

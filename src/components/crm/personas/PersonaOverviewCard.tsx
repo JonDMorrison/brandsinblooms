@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, Mail, ShoppingBag, Gift, TrendingUp, Crown, Leaf, Heart, Apple, Recycle, Home, Flower, Eye, Hammer, Sun } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNavigate } from 'react-router-dom';
 
 interface PersonaOverviewCardProps {
   name: string;
@@ -11,6 +12,7 @@ interface PersonaOverviewCardProps {
   customerCount?: number;
   icon: 'users' | 'mail' | 'shopping' | 'gift' | 'trending' | 'crown' | 'leaf' | 'heart' | 'apple' | 'recycle' | 'home' | 'flower' | 'eye' | 'hammer' | 'sun';
   isSystem?: boolean;
+  personaId?: string;  // Add persona ID for navigation
   onCreateCampaign?: () => void;
   onViewDetails?: () => void;
 }
@@ -39,12 +41,43 @@ export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({
   customerCount,
   icon,
   isSystem = true,
+  personaId,
   onCreateCampaign,
   onViewDetails,
 }) => {
   const IconComponent = iconMap[icon];
   const loading = customerCount === undefined;
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+
+  const handleCreateCampaign = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('🚀 SystemPersona Create Campaign clicked:', { name, personaId });
+    
+    if (onCreateCampaign) {
+      console.log('🔄 Using onCreateCampaign prop');
+      onCreateCampaign();
+    } else if (personaId) {
+      // Create persona object for navigation (system personas)
+      const personaData = {
+        id: personaId,
+        persona_name: name,
+        persona_description: description,
+        is_custom: false
+      };
+      console.log('📦 System persona data to encode:', personaData);
+      
+      const personaParam = encodeURIComponent(JSON.stringify(personaData));
+      const targetUrl = `/crm/campaigns/new?persona=${personaParam}`;
+      console.log('🎯 Navigating to:', targetUrl);
+      
+      navigate(targetUrl);
+    } else {
+      console.warn('⚠️ No persona ID or onCreateCampaign provided');
+    }
+  };
 
   return (
     <Card className="h-full mobile-hover-lift mobile-card">
@@ -90,7 +123,7 @@ export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({
             </Button>
             <Button 
               size={isMobile ? "default" : "sm"} 
-              onClick={onCreateCampaign}
+              onClick={handleCreateCampaign}
               className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
             >
               Create Campaign
