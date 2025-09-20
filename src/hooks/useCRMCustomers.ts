@@ -110,8 +110,20 @@ export const useCRMCustomers = () => {
         }
       }
       
-      // Refresh the customer data
-      await fetchCustomers();
+      // Update local state optimistically instead of refetching all data
+      setCustomers(prev => prev.map(customer => {
+        if (customer.id === customerId) {
+          const newAssignment = isCustomPersona 
+            ? { persona_id: personas.find(p => p.persona_name === personaName)?.id, predefined_persona_id: null }
+            : { persona_id: null, predefined_persona_id: personaName };
+          
+          return {
+            ...customer,
+            assigned_personas: [...(customer.assigned_personas || []), newAssignment]
+          };
+        }
+        return customer;
+      }));
       
       return true;
     } catch (error) {
@@ -146,8 +158,18 @@ export const useCRMCustomers = () => {
 
       if (legacyError) console.warn('Error clearing legacy persona field:', legacyError);
       
-      // Refresh the customer data
-      await fetchCustomers();
+      // Update local state optimistically instead of refetching all data
+      setCustomers(prev => prev.map(customer => {
+        if (customer.id === customerId) {
+          return {
+            ...customer,
+            persona: null,
+            persona_id: null,
+            assigned_personas: []
+          };
+        }
+        return customer;
+      }));
       
       return true;
     } catch (error) {
