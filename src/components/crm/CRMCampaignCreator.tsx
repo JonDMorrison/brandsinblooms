@@ -248,18 +248,33 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   } else {
     console.log('🔍 No persona parameter found in URL');
   }
+  console.log('🎯 CRMCampaignCreator: Initial personas from URL:', { initialPersonas });
   
   const [subjectLine, setSubjectLine] = useState('');
   const [preheaderText, setPreheaderText] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
-  const [selectedPersonas, setSelectedPersonas] = useState<any[]>(initialPersonas);
+  const [selectedPersonas, setSelectedPersonas] = useState<any[]>(() => {
+    console.log('🏁 CRMCampaignCreator: Initializing selectedPersonas state with:', initialPersonas);
+    return initialPersonas;
+  });
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   
   // Ensure selectedPersonas is properly initialized and not overridden
   useEffect(() => {
+    console.log('🔄 useEffect for personas initialization. InitialPersonas:', initialPersonas, 'Current selectedPersonas:', selectedPersonas);
     if (initialPersonas.length > 0 && selectedPersonas.length === 0) {
       console.log('🔄 Initializing selectedPersonas from URL:', initialPersonas);
       setSelectedPersonas(initialPersonas);
+    } else if (initialPersonas.length > 0 && selectedPersonas.length > 0) {
+      // Check if the current selectedPersonas matches the URL personas
+      const currentIds = selectedPersonas.map(p => p.id).sort();
+      const urlIds = initialPersonas.map(p => p.id).sort();
+      const matches = currentIds.length === urlIds.length && currentIds.every((id, i) => id === urlIds[i]);
+      
+      if (!matches) {
+        console.log('🔄 URL personas differ from current, updating to URL personas:', { current: selectedPersonas, url: initialPersonas });
+        setSelectedPersonas(initialPersonas);
+      }
     }
   }, [initialPersonas]);
   const [loading, setLoading] = useState(false);
@@ -702,10 +717,12 @@ cleanUrl();
         
         // Only restore personas if no URL persona parameter exists
         if (persistedState.selectedPersonas && initialPersonas.length === 0) {
-          console.log('📋 Restoring persisted personas (no URL override)');
+          console.log('📋 Restoring persisted personas (no URL override):', persistedState.selectedPersonas);
           setSelectedPersonas(persistedState.selectedPersonas);
         } else if (initialPersonas.length > 0) {
-          console.log('🎯 Keeping URL personas, ignoring persisted personas');
+          console.log('🎯 Keeping URL personas, ignoring persisted personas. URL:', initialPersonas, 'Persisted:', persistedState.selectedPersonas);
+        } else {
+          console.log('📋 No personas in URL or persistence');
         }
         
         if (persistedState.selectedSegments) {
