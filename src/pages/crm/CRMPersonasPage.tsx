@@ -130,15 +130,25 @@ export const CRMPersonasPage: React.FC = () => {
 
   // Get customers for the selected persona and filter by search
   const getFilteredPersonaCustomers = () => {
-    if (!selectedPersona) return [];
+    if (!selectedPersona) {
+      console.log('🔍 No selected persona');
+      return [];
+    }
+    
+    // Handle both predefined personas (with 'name') and custom personas (with 'persona_name')  
+    const personaName = selectedPersona.persona_name || selectedPersona.name;
+    console.log('🔍 Getting customers for persona:', { selectedPersona, personaName });
     
     // Use the new customer_personas system to get assigned customers
     const assignedCustomers = customers.filter(customer => {
-      // Check if this customer is assigned to the selected persona via customer_personas table
-      // For now, we'll use a simple check but this should be enhanced to use the useCustomerPersonas hook
-      return customer.persona === selectedPersona.persona_name || 
-             (selectedPersona.is_custom && customer.persona === selectedPersona.persona_name);
+      const isAssigned = customer.persona === personaName;
+      if (isAssigned) {
+        console.log('🔍 Found assigned customer:', customer.email, 'to persona:', personaName);
+      }
+      return isAssigned;
     });
+    
+    console.log('🔍 Total assigned customers:', assignedCustomers.length);
     
     if (!customerSearchTerm) return assignedCustomers;
     
@@ -151,12 +161,22 @@ export const CRMPersonasPage: React.FC = () => {
 
   // Get unassigned customers filtered by search  
   const getFilteredUnassignedCustomers = () => {
-    if (!selectedPersona) return [];
+    if (!selectedPersona) {
+      console.log('🔍 No selected persona for unassigned');
+      return [];
+    }
+    
+    // Handle both predefined personas (with 'name') and custom personas (with 'persona_name')
+    const personaName = selectedPersona.persona_name || selectedPersona.name;
+    console.log('🔍 Getting unassigned customers for persona:', personaName);
     
     // Get customers not assigned to this specific persona
-    const unassigned = customers.filter(customer => 
-      customer.persona !== selectedPersona.persona_name
-    );
+    const unassigned = customers.filter(customer => {
+      const isUnassigned = customer.persona !== personaName;
+      return isUnassigned;
+    });
+    
+    console.log('🔍 Total unassigned customers:', unassigned.length);
     
     if (!customerSearchTerm) return unassigned.slice(0, 10); // Limit to 10 for performance
     
