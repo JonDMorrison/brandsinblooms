@@ -55,9 +55,12 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
 
   // Get unassigned customers
   const getUnassignedCustomers = () => {
-    return customers.filter(customer => 
+    const unassigned = customers.filter(customer => 
       !customer.persona || customer.persona !== persona.persona_name
     );
+    console.log('🔧 PersonaDetailsDialog - Unassigned customers:', unassigned.length, 'for persona:', persona.persona_name);
+    console.log('🔧 PersonaDetailsDialog - Unassigned sample:', unassigned.slice(0, 3).map(c => ({ id: c.id, email: c.email, persona: c.persona })));
+    return unassigned;
   };
 
   // Filter customers based on search term
@@ -78,13 +81,19 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
 
   const getFilteredUnassignedCustomers = () => {
     const unassigned = getUnassignedCustomers();
-    if (!customerSearchTerm) return unassigned.slice(0, 10);
+    console.log('🔧 PersonaDetailsDialog - Before filtering unassigned:', unassigned.length);
+    if (!customerSearchTerm) {
+      console.log('🔧 PersonaDetailsDialog - Returning first 10 unassigned:', unassigned.slice(0, 10).length);
+      return unassigned.slice(0, 10);
+    }
     
-    return unassigned.filter(customer => 
+    const filtered = unassigned.filter(customer => 
       customer.email.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
       (customer.first_name?.toLowerCase().includes(customerSearchTerm.toLowerCase())) ||
       (customer.last_name?.toLowerCase().includes(customerSearchTerm.toLowerCase()))
     ).slice(0, 10);
+    console.log('🔧 PersonaDetailsDialog - After search filtering:', filtered.length);
+    return filtered;
   };
 
   const handleAssignCustomer = async (customerId: string) => {
