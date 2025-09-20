@@ -178,7 +178,9 @@ export const AudienceSelector = ({
       personaId, 
       selectedPersonas: selectedPersonas.map(p => ({ id: p.id, name: p.persona_name })),
       isSelected,
-      availablePersonas: personas.slice(0, 3).map(p => ({ id: p.id, name: p.persona_name })) // Show first 3 for debugging
+      totalAvailablePersonas: personas.length,
+      maxPersonas,
+      currentSelectedCount: selectedPersonas.length
     });
     return isSelected;
   };
