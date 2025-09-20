@@ -45,7 +45,7 @@ export const AudienceSelector = ({
   selectedSegments,
   onPersonasChange,
   onSegmentsChange,
-  maxPersonas = 3,
+  maxPersonas = 10,
   maxSegments = 5,
   onClose
 }: AudienceSelectorProps) => {

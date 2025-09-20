@@ -112,7 +112,7 @@ export const CampaignSetupWizard = ({
               selectedSegments={selectedSegments}
               onPersonasChange={onPersonasChange}
               onSegmentsChange={onSegmentsChange}
-              maxPersonas={3}
+              maxPersonas={10}
               maxSegments={5}
               onClose={() => {}} // Don't close wizard on audience selector close
             />

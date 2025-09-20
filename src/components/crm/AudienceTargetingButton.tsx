@@ -35,7 +35,7 @@ export const AudienceTargetingButton = ({
   selectedSegments,
   onPersonasChange,
   onSegmentsChange,
-  maxPersonas = 3,
+  maxPersonas = 10,
   maxSegments = 5
 }: AudienceTargetingButtonProps) => {
   const [isOpen, setIsOpen] = useState(false);
