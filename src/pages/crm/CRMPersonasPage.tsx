@@ -127,7 +127,8 @@ export const CRMPersonasPage: React.FC = () => {
       const success = await assignPersonaToCustomer(customerId, personaName);
       if (success) {
         console.log('✅ Customer assigned successfully');
-        refreshCounts(); // Refresh the counts after assignment
+        // Don't call refreshCounts() as it causes full re-render
+        // The counts will be updated when the customer data changes
       } else {
         console.error('❌ Failed to assign customer to persona');
       }
@@ -171,7 +172,8 @@ export const CRMPersonasPage: React.FC = () => {
       const success = await removePersonaFromCustomer(customerId);
       if (success) {
         console.log('✅ Customer removed successfully');
-        await refreshCounts(); // Refresh the counts after removal
+        // Don't call refreshCounts() as it causes full re-render
+        // The counts will be updated when the customer data changes
       }
     } catch (error) {
       console.error('❌ Failed to remove customer:', error);
