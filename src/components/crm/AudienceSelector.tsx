@@ -61,6 +61,14 @@ export const AudienceSelector = ({
   // Use existing hooks
   const { personas, loading: personasLoading } = useAllPersonas();
   const { segments, loading: segmentsLoading } = useAllSegments();
+  
+  // Debug personas data
+  console.log('🔍 AudienceSelector personas data:', { 
+    totalPersonas: personas.length, 
+    customPersonasCount: personas.filter(p => p.is_custom).length,
+    selectedPersonas: selectedPersonas.map(p => ({ id: p.id, name: p.persona_name })),
+    personaIds: personas.map(p => p.id).slice(0, 5) // Show first 5 IDs
+  });
 
   // Stable loading state management
   const isDataLoading = personasLoading || segmentsLoading;
@@ -155,7 +163,12 @@ export const AudienceSelector = ({
 
   const isPersonaSelected = (personaId: string) => {
     const isSelected = selectedPersonas.some(p => p.id === personaId);
-    console.log('🔍 Checking if persona is selected:', { personaId, selectedPersonas, isSelected });
+    console.log('🔍 Checking if persona is selected:', { 
+      personaId, 
+      selectedPersonas: selectedPersonas.map(p => ({ id: p.id, name: p.persona_name })),
+      isSelected,
+      availablePersonas: personas.slice(0, 3).map(p => ({ id: p.id, name: p.persona_name })) // Show first 3 for debugging
+    });
     return isSelected;
   };
 
