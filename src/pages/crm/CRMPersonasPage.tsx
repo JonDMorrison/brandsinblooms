@@ -102,19 +102,29 @@ export const CRMPersonasPage: React.FC = () => {
 
   const handleViewPersonaDetails = (personaId: string) => {
     const persona = predefinedPersonas.find(p => p.id === personaId);
+    console.log('🔍 Opening persona details:', { personaId, foundPersona: persona, predefinedPersonas: predefinedPersonas.length });
     if (persona) {
       setSelectedPersona(persona);
       setShowDetailsModal(true);
+      console.log('✅ Selected persona set:', persona);
+    } else {
+      console.warn('⚠️ Persona not found:', personaId);
     }
   };
 
   const handleAssignCustomer = async (customerId: string) => {
     if (!selectedPersona) return;
     
-    const success = await assignPersonaToCustomer(customerId, selectedPersona.name);
+    console.log('🔄 Assigning customer to persona:', { customerId, personaId: selectedPersona.id, personaName: selectedPersona.persona_name || selectedPersona.name });
+    
+    // Use the persona name correctly - could be either persona_name or name depending on source
+    const personaName = selectedPersona.persona_name || selectedPersona.name;
+    const success = await assignPersonaToCustomer(customerId, personaName);
     if (success) {
-      // Refresh persona counts after assignment
-      // This will be handled automatically by the customers hook updating
+      console.log('✅ Customer assigned successfully');
+      refreshCounts(); // Refresh the counts after assignment
+    } else {
+      console.error('❌ Failed to assign customer to persona');
     }
   };
 
@@ -122,19 +132,32 @@ export const CRMPersonasPage: React.FC = () => {
   const getFilteredPersonaCustomers = () => {
     if (!selectedPersona) return [];
     
-    const personaCustomers = getCustomersByPersona(selectedPersona.name);
-    if (!customerSearchTerm) return personaCustomers;
+    // Use the new customer_personas system to get assigned customers
+    const assignedCustomers = customers.filter(customer => {
+      // Check if this customer is assigned to the selected persona via customer_personas table
+      // For now, we'll use a simple check but this should be enhanced to use the useCustomerPersonas hook
+      return customer.persona === selectedPersona.persona_name || 
+             (selectedPersona.is_custom && customer.persona === selectedPersona.persona_name);
+    });
     
-    return personaCustomers.filter(customer => 
+    if (!customerSearchTerm) return assignedCustomers;
+    
+    return assignedCustomers.filter(customer => 
       customer.email.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
       (customer.first_name?.toLowerCase().includes(customerSearchTerm.toLowerCase())) ||
       (customer.last_name?.toLowerCase().includes(customerSearchTerm.toLowerCase()))
     );
   };
 
-  // Get unassigned customers filtered by search
+  // Get unassigned customers filtered by search  
   const getFilteredUnassignedCustomers = () => {
-    const unassigned = getUnassignedCustomers();
+    if (!selectedPersona) return [];
+    
+    // Get customers not assigned to this specific persona
+    const unassigned = customers.filter(customer => 
+      customer.persona !== selectedPersona.persona_name
+    );
+    
     if (!customerSearchTerm) return unassigned.slice(0, 10); // Limit to 10 for performance
     
     return unassigned.filter(customer => 
