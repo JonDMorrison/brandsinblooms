@@ -254,6 +254,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
   const [selectedPersonas, setSelectedPersonas] = useState<any[]>(initialPersonas);
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
+  
+  // Ensure selectedPersonas is properly initialized and not overridden
+  useEffect(() => {
+    if (initialPersonas.length > 0 && selectedPersonas.length === 0) {
+      console.log('🔄 Initializing selectedPersonas from URL:', initialPersonas);
+      setSelectedPersonas(initialPersonas);
+    }
+  }, [initialPersonas]);
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -2321,7 +2329,10 @@ cleanUrl();
          }}
          selectedPersonas={selectedPersonas}
          selectedSegments={selectedSegments}
-         onPersonasChange={setSelectedPersonas}
+          onPersonasChange={(personas) => {
+            console.log('🔄 CampaignSetupWizard: Personas changed:', personas);
+            setSelectedPersonas(personas);
+          }}
          onSegmentsChange={setSelectedSegments}
        />
 

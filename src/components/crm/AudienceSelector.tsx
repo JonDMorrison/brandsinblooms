@@ -154,7 +154,9 @@ export const AudienceSelector = ({
   };
 
   const isPersonaSelected = (personaId: string) => {
-    return selectedPersonas.some(p => p.id === personaId);
+    const isSelected = selectedPersonas.some(p => p.id === personaId);
+    console.log('🔍 Checking if persona is selected:', { personaId, selectedPersonas, isSelected });
+    return isSelected;
   };
 
   const isSegmentSelected = (segmentId: string) => {
