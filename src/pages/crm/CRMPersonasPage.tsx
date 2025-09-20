@@ -404,25 +404,28 @@ export const CRMPersonasPage: React.FC = () => {
                     </h5>
                     <ScrollArea className="h-48 border rounded-md p-2">
                       <div className="space-y-2">
-                        {getFilteredPersonaCustomers().map((customer) => (
-                          <div key={customer.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
-                            <div>
-                              <p className="font-medium">
-                                {customer.first_name} {customer.last_name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">{customer.email}</p>
+                        {getFilteredPersonaCustomers().map((customer) => {
+                          console.log('🔧 Rendering customer in UI:', customer);
+                          return (
+                            <div key={customer.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                              <div>
+                                <p className="font-medium">
+                                  {customer.first_name || 'No First Name'} {customer.last_name || 'No Last Name'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">{customer.email || 'No Email'}</p>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleUnassignCustomer(customer.id)}
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                title="Remove from persona"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleUnassignCustomer(customer.id)}
-                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                              title="Remove from persona"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
+                          );
+                        })}
                         {getFilteredPersonaCustomers().length === 0 && (
                           <p className="text-xs text-muted-foreground text-center py-4">
                             No customers assigned to this persona
