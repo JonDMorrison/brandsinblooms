@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Target, Plus, Search, RefreshCw, Users, UserPlus, X } from 'lucide-react';
+import { Target, Plus, Search, RefreshCw, Users, UserPlus, X, Loader2 } from 'lucide-react';
 import { useCRMPersonas } from '@/hooks/useCRMPersonas';
 import { useCRMCustomers } from '@/hooks/useCRMCustomers';
 import { PersonaCard } from '@/components/crm/personas/PersonaCard';
@@ -81,6 +81,8 @@ export const CRMPersonasPage: React.FC = () => {
   const [selectedPersona, setSelectedPersona] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [assigningCustomer, setAssigningCustomer] = useState<string | null>(null);
+  const [unassigningCustomer, setUnassigningCustomer] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
   const handleCreatePersona = () => {
@@ -113,33 +115,43 @@ export const CRMPersonasPage: React.FC = () => {
   };
 
   const handleAssignCustomer = async (customerId: string) => {
-    if (!selectedPersona) return;
+    if (!selectedPersona || assigningCustomer) return;
     
+    setAssigningCustomer(customerId);
     console.log('🔄 Assigning customer to persona:', { customerId, personaId: selectedPersona.id, personaName: selectedPersona.persona_name || selectedPersona.name });
     
-    // Use the persona name correctly - could be either persona_name or name depending on source
-    const personaName = selectedPersona.persona_name || selectedPersona.name;
-    const success = await assignPersonaToCustomer(customerId, personaName);
-    if (success) {
-      console.log('✅ Customer assigned successfully');
-      refreshCounts(); // Refresh the counts after assignment
-    } else {
-      console.error('❌ Failed to assign customer to persona');
+    try {
+      // Use the persona name correctly - could be either persona_name or name depending on source
+      const personaName = selectedPersona.persona_name || selectedPersona.name;
+      const success = await assignPersonaToCustomer(customerId, personaName);
+      if (success) {
+        console.log('✅ Customer assigned successfully');
+        refreshCounts(); // Refresh the counts after assignment
+      } else {
+        console.error('❌ Failed to assign customer to persona');
+      }
+    } finally {
+      setAssigningCustomer(null);
     }
   };
 
   const handleUnassignCustomer = async (customerId: string) => {
-    if (!selectedPersona) return;
+    if (!selectedPersona || unassigningCustomer) return;
     
+    setUnassigningCustomer(customerId);
     console.log('🔄 Removing customer from persona:', { customerId, personaId: selectedPersona.id });
     
-    const success = await removePersonaFromCustomer(customerId);
-    
-    if (success) {
-      console.log('✅ Customer removed successfully');
-      await refreshCounts(); // Refresh the counts after removal
-    } else {
-      console.error('❌ Failed to remove customer');
+    try {
+      const success = await removePersonaFromCustomer(customerId);
+      
+      if (success) {
+        console.log('✅ Customer removed successfully');
+        await refreshCounts(); // Refresh the counts after removal
+      } else {
+        console.error('❌ Failed to remove customer');
+      }
+    } finally {
+      setUnassigningCustomer(null);
     }
   };
 
@@ -418,10 +430,15 @@ export const CRMPersonasPage: React.FC = () => {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleUnassignCustomer(customer.id)}
+                                disabled={unassigningCustomer === customer.id}
                                 className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                                 title="Remove from persona"
                               >
-                                <X className="h-3 w-3" />
+                                {unassigningCustomer === customer.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <X className="h-3 w-3" />
+                                )}
                               </Button>
                             </div>
                           );
@@ -457,10 +474,15 @@ export const CRMPersonasPage: React.FC = () => {
                               size="sm"
                               variant="ghost"
                               onClick={() => handleAssignCustomer(customer.id)}
+                              disabled={assigningCustomer === customer.id}
                               className="h-7 w-7 p-0"
                               title="Assign to persona"
                             >
-                              <UserPlus className="h-3 w-3" />
+                              {assigningCustomer === customer.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <UserPlus className="h-3 w-3" />
+                              )}
                             </Button>
                           </div>
                         ))}
