@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Users } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -12,9 +13,11 @@ interface PersonaCardProps {
     is_custom: boolean;
     created_at: string;
   };
+  onViewDetails?: () => void;
+  onCreateCampaign?: () => void;
 }
 
-export const PersonaCard: React.FC<PersonaCardProps> = ({ persona }) => {
+export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onViewDetails, onCreateCampaign }) => {
   const isMobile = useIsMobile();
 
   return (
@@ -36,11 +39,30 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona }) => {
           </p>
         )}
         
-        <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="flex items-center gap-2 text-muted-foreground mb-4">
           <Users className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'}`} />
           <span className={`${isMobile ? 'mobile-text-caption' : 'text-sm'}`}>
             Created {new Date(persona.created_at).toLocaleDateString()}
           </span>
+        </div>
+        
+        {/* Action buttons */}
+        <div className={`flex ${isMobile ? 'flex-col gap-2 w-full' : 'flex-col sm:flex-row gap-2'}`}>
+          <Button 
+            variant="outline" 
+            size={isMobile ? "default" : "sm"} 
+            onClick={onViewDetails}
+            className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
+          >
+            View Details
+          </Button>
+          <Button 
+            size={isMobile ? "default" : "sm"} 
+            onClick={onCreateCampaign}
+            className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}
+          >
+            Create Campaign
+          </Button>
         </div>
       </CardContent>
     </Card>
