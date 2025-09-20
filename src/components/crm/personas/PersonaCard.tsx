@@ -15,12 +15,20 @@ interface PersonaCardProps {
     created_at: string;
   };
   onDelete: (personaId: string) => Promise<boolean>;
+  onEdit?: (persona: PersonaCardProps['persona']) => void;
 }
 
-export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onDelete }) => {
+export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onDelete, onEdit }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const isMobile = useIsMobile();
+
+  const handleEdit = () => {
+    if (onEdit) {
+      onEdit(persona);
+    }
+    setMenuOpen(false);
+  };
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -52,9 +60,9 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onDelete }) =
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="z-[1000010] bg-popover text-popover-foreground border border-border shadow-lg">
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleEdit}>
                 <Edit className="mr-2 h-4 w-4" />
-                Edit
+                Edit Persona
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={handleDelete}
@@ -62,7 +70,7 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onDelete }) =
                 className="text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? 'Deleting...' : 'Delete Persona'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
