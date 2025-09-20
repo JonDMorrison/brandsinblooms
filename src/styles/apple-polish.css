@@ -110,8 +110,7 @@
 }
 
 .apple-progress-bar {
-  @apply h-2 rounded-full transition-all duration-700 ease-apple;
-  background: linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%);
+  @apply h-2 rounded-full transition-all duration-700 ease-apple bg-primary;
 }
 
 .apple-progress-bar::after {
