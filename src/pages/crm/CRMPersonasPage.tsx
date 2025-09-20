@@ -261,11 +261,10 @@ export const CRMPersonasPage: React.FC = () => {
             ) : (
               <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
                 {personas.map((persona) => (
-                  <PersonaCard
-                    key={persona.id}
-                    persona={persona}
-                    onDelete={deletePersona}
-                  />
+                <PersonaCard
+                  key={persona.id}
+                  persona={persona}
+                />
                 ))}
               </div>
             )}

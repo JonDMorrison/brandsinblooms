@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, Edit, Trash2, Users } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Users } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PersonaCardProps {
@@ -14,27 +12,10 @@ interface PersonaCardProps {
     is_custom: boolean;
     created_at: string;
   };
-  onDelete: (personaId: string) => Promise<boolean>;
-  onEdit?: (persona: PersonaCardProps['persona']) => void;
 }
 
-export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onDelete, onEdit }) => {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+export const PersonaCard: React.FC<PersonaCardProps> = ({ persona }) => {
   const isMobile = useIsMobile();
-
-  const handleEdit = () => {
-    if (onEdit) {
-      onEdit(persona);
-    }
-    setMenuOpen(false);
-  };
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    await onDelete(persona.id);
-    setIsDeleting(false);
-  };
 
   return (
     <Card className="h-full mobile-hover-lift mobile-card">
@@ -47,34 +28,6 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, onDelete, onE
             {persona.is_custom ? "Custom" : "System"}
           </Badge>
         </div>
-        {persona.is_custom && (
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className={`h-8 w-8 p-0 ${isMobile ? 'mobile-touch-target' : ''} mobile-focus-ring`}
-                aria-label="Persona options"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen((o) => !o); }}
-              >
-                <MoreHorizontal className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'}`} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="z-[1000010] bg-popover text-popover-foreground border border-border shadow-lg">
-              <DropdownMenuItem onClick={handleEdit}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Persona
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {isDeleting ? 'Deleting...' : 'Delete Persona'}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
       </CardHeader>
       <CardContent className={`${isMobile ? 'p-4 pt-2' : 'pt-0'}`}>
         {persona.persona_description && (
