@@ -281,7 +281,7 @@ export const CRMPersonasPage: React.FC = () => {
 
       {/* Persona Details Modal */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh] relative">
+        <DialogContent className="max-w-2xl max-h-[80vh]">
           {/* X Close Button */}
           <Button
             variant="ghost"
