@@ -20,6 +20,7 @@ interface PersonaCardProps {
 }
 
 export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, customerCount = 0, onViewDetails, onCreateCampaign }) => {
+  console.log('🔧 PersonaCard render:', { personaName: persona.persona_name, customerCount });
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const isMobile = useIsMobile();
 

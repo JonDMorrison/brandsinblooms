@@ -18,9 +18,12 @@ export const usePersonaCustomerCounts = () => {
   useEffect(() => {
     const fetchPersonaCounts = async () => {
       if (!user || !tenant || !personas) {
+        console.log('🔧 usePersonaCustomerCounts: Missing dependencies', { user: !!user, tenant: !!tenant, personas: !!personas });
         setLoading(false);
         return;
       }
+
+      console.log('🔧 usePersonaCustomerCounts: Fetching counts for tenant:', tenant.id);
 
       try {
         const { data: customers, error } = await supabase
@@ -29,6 +32,9 @@ export const usePersonaCustomerCounts = () => {
           .eq('tenant_id', tenant.id);
 
         if (error) throw error;
+
+        console.log('🔧 usePersonaCustomerCounts: Raw customer data:', customers);
+        console.log('🔧 usePersonaCustomerCounts: Available personas:', personas);
 
         // Count customers by persona using unified approach
         const personaCounts: PersonaCounts = {};
@@ -51,6 +57,7 @@ export const usePersonaCustomerCounts = () => {
           }
         });
 
+        console.log('🔧 usePersonaCustomerCounts: Final counts:', personaCounts);
         setCounts(personaCounts);
       } catch (error) {
         console.error('Error fetching persona counts:', error);
