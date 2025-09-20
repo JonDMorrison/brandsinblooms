@@ -92,17 +92,26 @@ export const PersonaCard: React.FC<PersonaCardProps> = ({ persona, customerCount
               e.preventDefault();
               e.stopPropagation();
               
+              console.log('🚀 Create Campaign clicked for persona:', persona.persona_name);
+              
               if (onCreateCampaign) {
+                console.log('🔄 Using onCreateCampaign prop');
                 onCreateCampaign();
               } else {
                 // Navigate to CRM campaign creator with persona pre-selected
-                const personaParam = encodeURIComponent(JSON.stringify({
+                const personaData = {
                   id: persona.id,
                   persona_name: persona.persona_name,
                   persona_description: persona.persona_description,
                   is_custom: persona.is_custom
-                }));
-                navigate(`/crm/campaigns/new?persona=${personaParam}`);
+                };
+                console.log('📦 Persona data to encode:', personaData);
+                
+                const personaParam = encodeURIComponent(JSON.stringify(personaData));
+                const targetUrl = `/crm/campaigns/new?persona=${personaParam}`;
+                console.log('🎯 Navigating to:', targetUrl);
+                
+                navigate(targetUrl);
               }
             }}
             className={`${isMobile ? 'w-full min-h-[44px]' : 'flex-1 min-w-0'}`}

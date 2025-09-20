@@ -231,15 +231,22 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   
   // Check for pre-selected persona from URL
   const personaParam = searchParams.get('persona');
+  console.log('🔍 Persona param from URL:', personaParam);
+  
   let initialPersonas: any[] = [];
   if (personaParam) {
     try {
+      console.log('🔄 Attempting to parse persona parameter...');
       const persona = JSON.parse(decodeURIComponent(personaParam));
       initialPersonas = [persona];
       console.log('🎯 Pre-selected persona from URL:', persona);
+      console.log('✅ Initial personas set to:', initialPersonas);
     } catch (error) {
-      console.warn('Failed to parse persona parameter:', error);
+      console.error('❌ Failed to parse persona parameter:', error);
+      console.log('🔍 Raw personaParam was:', personaParam);
     }
+  } else {
+    console.log('🔍 No persona parameter found in URL');
   }
   
   const [subjectLine, setSubjectLine] = useState('');
