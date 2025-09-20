@@ -27,10 +27,19 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
   persona,
 }) => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
-  const { customers, loading: customersLoading, assignPersonaToCustomer } = useCRMCustomers();
+  const { customers, loading: customersLoading, assignPersonaToCustomer, removePersonaFromCustomer } = useCRMCustomers();
   const isMobile = useIsMobile();
 
-  console.log('🔍 PersonaDetailsDialog render:', { open, persona: persona?.persona_name });
+  // Remove customer from persona
+  const removeCustomerFromPersona = async (customerId: string) => {
+    const success = await removePersonaFromCustomer(customerId);
+    if (success) {
+      console.log('✅ Customer removed from persona successfully');
+      // The hook will automatically update the state, so customers will move between lists
+    } else {
+      console.error('❌ Failed to remove customer from persona');
+    }
+  };
 
   if (!persona) {
     console.log('🔍 PersonaDetailsDialog: No persona provided');
@@ -162,6 +171,14 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                             </p>
                             <p className="text-xs text-muted-foreground">{customer.email}</p>
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeCustomerFromPersona(customer.id)}
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
                         </div>
                       ))}
                       {getFilteredPersonaCustomers().length === 0 && (

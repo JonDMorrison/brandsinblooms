@@ -73,6 +73,37 @@ export const useCRMCustomers = () => {
     }
   };
 
+  const removePersonaFromCustomer = async (customerId: string): Promise<boolean> => {
+    if (!user || !tenant?.id) return false;
+
+    try {
+      const { error } = await supabase
+        .from('crm_customers')
+        .update({ 
+          persona: null,
+          persona_id: null,
+          persona_assignment_method: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', customerId)
+        .eq('tenant_id', tenant.id);
+
+      if (error) throw error;
+      
+      // Update local state
+      setCustomers(prev => prev.map(customer => 
+        customer.id === customerId 
+          ? { ...customer, persona: null, persona_id: null }
+          : customer
+      ));
+      
+      return true;
+    } catch (error) {
+      console.error('Error removing persona from customer:', error);
+      return false;
+    }
+  };
+
   const getCustomersByPersona = (personaName: string) => {
     return customers.filter(customer => customer.persona === personaName);
   };
@@ -99,6 +130,7 @@ export const useCRMCustomers = () => {
     setSearchTerm,
     fetchCustomers,
     assignPersonaToCustomer,
+    removePersonaFromCustomer,
     getCustomersByPersona,
     getUnassignedCustomers
   };
