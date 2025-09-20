@@ -11,7 +11,6 @@ interface PersonaOverviewCardProps {
   name: string;
   description: string;
   customerCount?: number;
-  isLoading?: boolean;
   icon: 'users' | 'mail' | 'shopping' | 'gift' | 'trending' | 'crown' | 'leaf' | 'heart' | 'apple' | 'recycle' | 'home' | 'flower' | 'eye' | 'hammer' | 'sun';
   isSystem?: boolean;
   personaId?: string;  // Add persona ID for navigation
@@ -41,7 +40,6 @@ export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({
   name,
   description,
   customerCount,
-  isLoading = false,
   icon,
   isSystem = true,
   personaId,
@@ -49,7 +47,7 @@ export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({
   onViewDetails,
 }) => {
   const IconComponent = iconMap[icon];
-  const loading = isLoading;
+  const loading = customerCount === undefined;
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
