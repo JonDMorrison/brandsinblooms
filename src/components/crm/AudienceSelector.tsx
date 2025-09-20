@@ -121,13 +121,24 @@ export const AudienceSelector = ({
   };
 
   const handlePersonaToggle = (persona: Persona, checked: boolean) => {
+    console.log('🔄 handlePersonaToggle called:', { 
+      personaName: persona.persona_name, 
+      personaId: persona.id,
+      checked, 
+      currentSelectedCount: selectedPersonas.length,
+      maxPersonas 
+    });
+    
     if (checked) {
       if (selectedPersonas.length >= maxPersonas) {
+        console.error('❌ Max personas reached:', { current: selectedPersonas.length, max: maxPersonas });
         toast.error(`You can select up to ${maxPersonas} personas`);
         return;
       }
+      console.log('✅ Adding persona to selection');
       onPersonasChange([...selectedPersonas, persona]);
     } else {
+      console.log('➖ Removing persona from selection');
       onPersonasChange(selectedPersonas.filter(p => p.id !== persona.id));
     }
   };

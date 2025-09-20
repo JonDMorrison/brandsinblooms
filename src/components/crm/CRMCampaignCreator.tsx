@@ -2353,7 +2353,7 @@ cleanUrl();
          selectedPersonas={selectedPersonas}
          selectedSegments={selectedSegments}
           onPersonasChange={(personas) => {
-            console.log('🔄 CampaignSetupWizard: Personas changed:', personas);
+            console.log('🔄 CampaignSetupWizard: Personas changed:', personas.map(p => ({ id: p.id, name: p.persona_name })));
             setSelectedPersonas(personas);
           }}
          onSegmentsChange={setSelectedSegments}
