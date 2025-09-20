@@ -340,7 +340,7 @@ export const AudienceSelector = ({
             </Button>
           </div>
           
-          <div className="space-y-2 max-h-80 overflow-y-auto scroll-container border border-border rounded-lg p-3">
+          <div className="space-y-2 max-h-96 overflow-y-auto scroll-container border border-border rounded-lg p-3">
             {filteredPersonas.map((persona) => {
               const isSelected = isPersonaSelected(persona.id);
               const isDisabled = !isSelected && selectedPersonas.length >= maxPersonas;
@@ -419,7 +419,7 @@ export const AudienceSelector = ({
             </Button>
           </div>
           
-          <div className="space-y-2 max-h-80 overflow-y-auto scroll-container border border-border rounded-lg p-3">
+          <div className="space-y-2 max-h-96 overflow-y-auto scroll-container border border-border rounded-lg p-3">
             {/* Add "All Contacts" Option */}
             <div
               className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
@@ -518,15 +518,6 @@ export const AudienceSelector = ({
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={onClose}>
-          Apply Selection
-        </Button>
-      </div>
 
       {/* Modals */}
       <CustomPersonaModal
