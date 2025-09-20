@@ -13,6 +13,7 @@ import { CustomPersonaModal } from '@/components/crm/personas/CustomPersonaModal
 import { PersonaOverviewCard } from '@/components/crm/personas/PersonaOverviewCard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePersonaCustomerCounts } from '@/hooks/usePersonaCustomerCounts';
+import { supabase } from '@/integrations/supabase/client';
 
 // Predefined personas data for garden center customers
 const predefinedPersonas = [
@@ -142,14 +143,38 @@ export const CRMPersonasPage: React.FC = () => {
     console.log('🔄 Removing customer from persona:', { customerId, personaId: selectedPersona.id });
     
     try {
-      const success = await removePersonaFromCustomer(customerId);
+      // Determine if this is a custom or system persona
+      const personaName = selectedPersona.persona_name || selectedPersona.name;
+      const isCustomPersona = selectedPersona.is_custom || selectedPersona.persona_name;
       
+      if (isCustomPersona && selectedPersona.id) {
+        // Remove from customer_personas table for custom personas
+        const { error } = await supabase
+          .from('customer_personas')
+          .delete()
+          .eq('customer_id', customerId)
+          .eq('persona_id', selectedPersona.id);
+
+        if (error) throw error;
+      } else {
+        // Remove from customer_personas table for system personas
+        const { error } = await supabase
+          .from('customer_personas')
+          .delete()
+          .eq('customer_id', customerId)
+          .eq('predefined_persona_id', personaName);
+
+        if (error) throw error;
+      }
+      
+      // Refresh customer data and counts
+      const success = await removePersonaFromCustomer(customerId);
       if (success) {
         console.log('✅ Customer removed successfully');
         await refreshCounts(); // Refresh the counts after removal
-      } else {
-        console.error('❌ Failed to remove customer');
       }
+    } catch (error) {
+      console.error('❌ Failed to remove customer:', error);
     } finally {
       setUnassigningCustomer(null);
     }
@@ -166,14 +191,8 @@ export const CRMPersonasPage: React.FC = () => {
     const personaName = selectedPersona.persona_name || selectedPersona.name;
     console.log('🔍 Getting customers for persona:', { selectedPersona, personaName });
     
-    // Use the new customer_personas system to get assigned customers
-    const assignedCustomers = customers.filter(customer => {
-      const isAssigned = customer.persona === personaName;
-      if (isAssigned) {
-        console.log('🔍 Found assigned customer:', customer.email, 'to persona:', personaName);
-      }
-      return isAssigned;
-    });
+    // Use the updated getCustomersByPersona function that handles both legacy and new assignments
+    const assignedCustomers = getCustomersByPersona(personaName);
     
     console.log('🔍 Total assigned customers:', assignedCustomers.length);
     
@@ -197,10 +216,16 @@ export const CRMPersonasPage: React.FC = () => {
     const personaName = selectedPersona.persona_name || selectedPersona.name;
     console.log('🔍 Getting unassigned customers for persona:', personaName);
     
-    // Get customers not assigned to this specific persona
+    // Get customers not assigned to this specific persona, but might be assigned to others
     const unassigned = customers.filter(customer => {
-      const isUnassigned = customer.persona !== personaName;
-      return isUnassigned;
+      // Check if customer is NOT assigned to this specific persona
+      const hasLegacyPersona = customer.persona === personaName;
+      const hasNewPersona = customer.assigned_personas?.some(assignment => 
+        assignment.predefined_persona_id === personaName ||
+        assignment.personas?.persona_name === personaName
+      );
+      const isAssignedToThisPersona = hasLegacyPersona || hasNewPersona;
+      return !isAssignedToThisPersona;
     });
     
     console.log('🔍 Total unassigned customers:', unassigned.length);
