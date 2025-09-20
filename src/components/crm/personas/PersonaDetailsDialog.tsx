@@ -1,25 +1,56 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Target, Search, Users, UserPlus, X } from 'lucide-react';
-import { useCRMCustomers } from '@/hooks/useCRMCustomers';
-import { useCustomerPersonas } from '@/hooks/useCustomerPersonas';
-import { useIsMobile } from '@/hooks/use-mobile';
+import React from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { X, Users, UserPlus, Search } from "lucide-react";
+import { useCRMCustomers } from "@/hooks/useCRMCustomers";
+import { useCustomerPersonas } from "@/hooks/useCustomerPersonas";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useState, useMemo } from "react";
 
 interface PersonaDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  persona: {
-    id: string;
-    persona_name: string;
-    persona_description?: string;
-    is_custom: boolean;
-    created_at: string;
-  } | null;
+  persona: any;
 }
+
+// Helper component to handle individual customer persona management
+const CustomerPersonaManager: React.FC<{
+  customerId: string;
+  persona: any;
+  onAssignmentChange: () => void;
+  children: (isAssigned: boolean, assign: () => Promise<void>, unassign: () => Promise<void>) => React.ReactNode;
+}> = ({ customerId, persona, onAssignmentChange, children }) => {
+  const { assignedPersonaIds, assignPersona, unassignPersona } = useCustomerPersonas(customerId);
+  
+  const isAssigned = useMemo(() => {
+    return assignedPersonaIds.includes(persona.id);
+  }, [assignedPersonaIds, persona.id]);
+
+  const handleAssign = async () => {
+    const success = await assignPersona(persona.id, persona.is_custom);
+    if (success) {
+      console.log('✅ Customer assigned to persona successfully');
+      onAssignmentChange();
+    } else {
+      console.error('❌ Failed to assign customer to persona');
+    }
+  };
+
+  const handleUnassign = async () => {
+    const success = await unassignPersona(persona.id, persona.is_custom);
+    if (success) {
+      console.log('✅ Customer removed from persona successfully');
+      onAssignmentChange();
+    } else {
+      console.error('❌ Failed to remove customer from persona');
+    }
+  };
+
+  return <>{children(isAssigned, handleAssign, handleUnassign)}</>;
+};
 
 export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
   open,
@@ -27,18 +58,12 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
   persona,
 }) => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
-  const { customers, loading: customersLoading, assignPersonaToCustomer, removePersonaFromCustomer } = useCRMCustomers();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { customers, loading: customersLoading } = useCRMCustomers();
   const isMobile = useIsMobile();
 
-  // Remove customer from persona
-  const removeCustomerFromPersona = async (customerId: string) => {
-    const success = await removePersonaFromCustomer(customerId);
-    if (success) {
-      console.log('✅ Customer removed from persona successfully');
-      // The hook will automatically update the state, so customers will move between lists
-    } else {
-      console.error('❌ Failed to remove customer from persona');
-    }
+  const handleAssignmentChange = () => {
+    setRefreshKey(prev => prev + 1);
   };
 
   if (!persona) {
@@ -46,62 +71,15 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
     return null;
   }
 
-  // Get customers assigned to this persona
-  const getPersonaCustomers = () => {
-    return customers.filter(customer => 
-      customer.persona === persona.persona_name
-    );
-  };
-
-  // Get unassigned customers
-  const getUnassignedCustomers = () => {
-    const unassigned = customers.filter(customer => 
-      !customer.persona || customer.persona !== persona.persona_name
-    );
-    console.log('🔧 PersonaDetailsDialog - Unassigned customers:', unassigned.length, 'for persona:', persona.persona_name);
-    console.log('🔧 PersonaDetailsDialog - Unassigned sample:', unassigned.slice(0, 3).map(c => ({ id: c.id, email: c.email, persona: c.persona })));
-    return unassigned;
-  };
-
   // Filter customers based on search term
-  const getFilteredPersonaCustomers = () => {
-    const personaCustomers = getPersonaCustomers();
-    console.log('🔧 PersonaDetailsDialog - All customers:', customers.length);
-    console.log('🔧 PersonaDetailsDialog - Persona customers:', personaCustomers.length, 'for persona:', persona.persona_name);
-    console.log('🔧 PersonaDetailsDialog - Sample customers:', customers.slice(0, 3).map(c => ({ id: c.id, email: c.email, persona: c.persona })));
+  const getFilteredCustomers = () => {
+    if (!customerSearchTerm) return customers;
     
-    if (!customerSearchTerm) return personaCustomers;
-    
-    return personaCustomers.filter(customer => 
+    return customers.filter(customer => 
       customer.email.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
       (customer.first_name?.toLowerCase().includes(customerSearchTerm.toLowerCase())) ||
       (customer.last_name?.toLowerCase().includes(customerSearchTerm.toLowerCase()))
     );
-  };
-
-  const getFilteredUnassignedCustomers = () => {
-    const unassigned = getUnassignedCustomers();
-    console.log('🔧 PersonaDetailsDialog - Raw unassigned customers:', unassigned.length);
-    console.log('🔧 PersonaDetailsDialog - Search term:', customerSearchTerm);
-    
-    if (!customerSearchTerm) {
-      const result = unassigned.slice(0, 10);
-      console.log('🔧 PersonaDetailsDialog - Returning first 10 unassigned (no search):', result.length);
-      console.log('🔧 PersonaDetailsDialog - Unassigned sample:', result.map(c => ({ id: c.id, email: c.email, persona: c.persona })));
-      return result;
-    }
-    
-    const filtered = unassigned.filter(customer => 
-      customer.email.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-      (customer.first_name?.toLowerCase().includes(customerSearchTerm.toLowerCase())) ||
-      (customer.last_name?.toLowerCase().includes(customerSearchTerm.toLowerCase()))
-    ).slice(0, 10);
-    console.log('🔧 PersonaDetailsDialog - After search filtering:', filtered.length);
-    return filtered;
-  };
-
-  const handleAssignCustomer = async (customerId: string) => {
-    await assignPersonaToCustomer(customerId, persona.persona_name);
   };
 
   return (
@@ -112,33 +90,31 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
           variant="ghost"
           size="icon"
           onClick={() => onOpenChange(false)}
-          className="absolute top-4 right-4 h-6 w-6 rounded-full z-50"
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           <X className="h-4 w-4" />
         </Button>
 
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 pr-8">
-            <Target className="h-5 w-5" />
-            {persona.persona_name}
-            <Badge variant={persona.is_custom ? "default" : "secondary"} className="ml-2">
-              {persona.is_custom ? "Custom" : "System"}
-            </Badge>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6 pb-16 px-6">
-          {/* Basic Info */}
-          <div className="space-y-4">
+        <div key={refreshKey} className="space-y-6 pb-16 px-6">
+          {/* Header */}
+          <div className="text-center border-b pb-4">
+            <h2 className="text-xl font-semibold mb-2">
+              {persona.persona_name}
+            </h2>
             {persona.persona_description && (
-              <div>
-                <h4 className="font-semibold text-sm text-muted-foreground mb-2">Description</h4>
-                <p className="text-sm">{persona.persona_description}</p>
-              </div>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                {persona.persona_description}
+              </p>
             )}
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
             <div>
-              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Customer Count</h4>
-              <p className="text-sm">{getPersonaCustomers().length} assigned customers</p>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Type</h4>
+              <Badge variant={persona.is_custom ? "default" : "secondary"} className="text-sm">
+                {persona.is_custom ? "Custom" : "Predefined"}
+              </Badge>
             </div>
             <div>
               <h4 className="font-semibold text-sm text-muted-foreground mb-2">Created</h4>
@@ -169,86 +145,54 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Assigned Customers */}
-                <div>
-                  <h5 className="font-medium text-sm mb-2 flex items-center gap-1">
-                    Assigned Customers
-                    <Badge variant="secondary" className="text-xs">
-                      {getFilteredPersonaCustomers().length}
-                    </Badge>
-                  </h5>
-                  <ScrollArea className="h-48 border rounded-md p-2">
-                     <div className="space-y-2">
-                       {getFilteredPersonaCustomers().length > 0 ? (
-                         getFilteredPersonaCustomers().map((customer) => (
-                           <div key={customer.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
-                             <div className="flex-1">
-                               <p className="font-medium">
-                                 {customer.first_name} {customer.last_name}
-                               </p>
-                               <p className="text-xs text-muted-foreground">{customer.email}</p>
-                             </div>
-                             <Button
-                               variant="ghost"
-                               size="sm"
-                               onClick={() => {
-                                 console.log('🔧 Removing customer from persona:', customer.id);
-                                 removeCustomerFromPersona(customer.id);
-                               }}
-                               className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 ml-2 flex-shrink-0"
-                               title="Remove from persona"
-                             >
-                               <X className="h-4 w-4" />
-                             </Button>
-                           </div>
-                         ))
-                       ) : (
-                         <p className="text-xs text-muted-foreground text-center py-4">
-                           No customers assigned to this persona
-                         </p>
-                       )}
-                    </div>
-                  </ScrollArea>
-                </div>
-
-                {/* Available to Assign */}
-                <div>
-                  <h5 className="font-medium text-sm mb-2 flex items-center gap-1">
-                    Available to Assign
-                    <Badge variant="outline" className="text-xs">
-                      {getFilteredUnassignedCustomers().length}
-                    </Badge>
-                  </h5>
-                  <ScrollArea className="h-48 border rounded-md p-2">
-                    <div className="space-y-2">
-                      {getFilteredUnassignedCustomers().map((customer) => (
-                        <div key={customer.id} className="flex items-center justify-between p-2 bg-background border rounded text-sm">
-                          <div>
-                            <p className="font-medium">
-                              {customer.first_name} {customer.last_name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{customer.email}</p>
+              <div className="space-y-4">
+                {/* Customer List */}
+                <ScrollArea className="h-64 border rounded-md p-4">
+                  <div className="space-y-2">
+                    {getFilteredCustomers().map((customer) => (
+                      <CustomerPersonaManager
+                        key={customer.id}
+                        customerId={customer.id}
+                        persona={persona}
+                        onAssignmentChange={handleAssignmentChange}
+                      >
+                        {(isAssigned, assign, unassign) => (
+                          <div className={`flex items-center justify-between p-3 rounded-md border ${
+                            isAssigned ? 'bg-green-50 border-green-200' : 'bg-background'
+                          }`}>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">
+                                  {customer.first_name} {customer.last_name}
+                                </p>
+                                {isAssigned && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Assigned
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{customer.email}</p>
+                            </div>
+                            <Button
+                              variant={isAssigned ? "destructive" : "default"}
+                              size="sm"
+                              onClick={isAssigned ? unassign : assign}
+                              className="h-8 w-8 p-0 flex-shrink-0"
+                              title={isAssigned ? "Remove from persona" : "Assign to persona"}
+                            >
+                              {isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                            </Button>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleAssignCustomer(customer.id)}
-                            className="h-7 w-7 p-0"
-                            title="Assign to persona"
-                          >
-                            <UserPlus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                      {getFilteredUnassignedCustomers().length === 0 && (
-                        <p className="text-xs text-muted-foreground text-center py-4">
-                          No unassigned customers found
-                        </p>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </div>
+                        )}
+                      </CustomerPersonaManager>
+                    ))}
+                    {getFilteredCustomers().length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        {customerSearchTerm ? 'No customers found matching your search' : 'No customers available'}
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
               </div>
             )}
           </div>
