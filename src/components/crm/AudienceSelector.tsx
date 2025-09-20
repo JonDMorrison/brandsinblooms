@@ -11,6 +11,7 @@ import { CustomPersonaModal } from "./personas/CustomPersonaModal";
 import { CustomSegmentModal } from "./segments/CustomSegmentModal";
 import { useAllPersonas } from "@/hooks/useAllPersonas";
 import { useAllSegments } from "@/hooks/useAllSegments";
+import { usePersonaCustomerCounts } from "@/hooks/usePersonaCustomerCounts";
 import { toast } from "@/utils/toast";
 import { useScrollGuard } from "@/hooks/useScrollGuard";
 
@@ -61,6 +62,7 @@ export const AudienceSelector = ({
   // Use existing hooks
   const { personas, loading: personasLoading } = useAllPersonas();
   const { segments, loading: segmentsLoading } = useAllSegments();
+  const { counts: personaCounts, loading: personaCountsLoading } = usePersonaCustomerCounts();
   
   // Debug personas data
   console.log('🔍 AudienceSelector personas data:', { 
@@ -71,7 +73,7 @@ export const AudienceSelector = ({
   });
 
   // Stable loading state management
-  const isDataLoading = personasLoading || segmentsLoading;
+  const isDataLoading = personasLoading || segmentsLoading || personaCountsLoading;
   const hasData = personas.length >= 0 && segments.length >= 0;
 
   // Implement minimum loading duration and smooth transitions
@@ -169,7 +171,24 @@ export const AudienceSelector = ({
   };
 
   const getTotalAudience = () => {
-    return selectedSegments.reduce((total, segment) => total + segment.customer_count, 0);
+    // Calculate total from segments
+    const segmentTotal = selectedSegments.reduce((total, segment) => total + segment.customer_count, 0);
+    
+    // Calculate total from personas
+    const personaTotal = selectedPersonas.reduce((total, persona) => {
+      const count = personaCounts[persona.id] || 0;
+      return total + count;
+    }, 0);
+    
+    console.log('🔍 getTotalAudience calculation:', {
+      segmentTotal,
+      personaTotal,
+      selectedSegments: selectedSegments.map(s => ({ name: s.name, count: s.customer_count })),
+      selectedPersonas: selectedPersonas.map(p => ({ name: p.persona_name, count: personaCounts[p.id] || 0 })),
+      personaCounts
+    });
+    
+    return segmentTotal + personaTotal;
   };
 
   const isPersonaSelected = (personaId: string) => {
