@@ -36,7 +36,7 @@ export const DayEventsModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden p-6">
         <DialogClose asChild>
           <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-6 w-6">
             <X className="h-4 w-4" />

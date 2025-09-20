@@ -80,7 +80,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] bg-white border shadow-lg">
+      <DialogContent className="max-w-2xl max-h-[80vh] bg-white border shadow-lg p-6">
         {/* Close Button */}
         <Button
           variant="ghost"
