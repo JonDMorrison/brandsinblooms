@@ -693,15 +693,21 @@ cleanUrl();
       // First try to restore from persisted state
       const persistedState = restoreState();
       if (persistedState && !existingCampaignId) {
-        console.log('📋 Restoring persisted state');
+        console.log('📋 Restoring persisted state - but preserving URL personas');
         setCampaignName(persistedState.campaignName);
         setSubjectLine(persistedState.subjectLine);
         setPreheaderText(persistedState.preheaderText);
         setBlocks(persistedState.blocks);
         setShowPreview(persistedState.showPreview);
-        if (persistedState.selectedPersonas) {
+        
+        // Only restore personas if no URL persona parameter exists
+        if (persistedState.selectedPersonas && initialPersonas.length === 0) {
+          console.log('📋 Restoring persisted personas (no URL override)');
           setSelectedPersonas(persistedState.selectedPersonas);
+        } else if (initialPersonas.length > 0) {
+          console.log('🎯 Keeping URL personas, ignoring persisted personas');
         }
+        
         if (persistedState.selectedSegments) {
           setSelectedSegments(persistedState.selectedSegments);
         }
