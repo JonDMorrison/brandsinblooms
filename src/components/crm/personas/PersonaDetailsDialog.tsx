@@ -184,7 +184,7 @@ export const PersonaDetailsDialog: React.FC<PersonaDetailsDialogProps> = ({
                                 className="h-8 w-8 p-0 flex-shrink-0"
                                 title={isAssigned ? "Remove from persona" : "Assign to persona"}
                               >
-                                {isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                                {!isLoading && (isAssigned ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />)}
                               </Button>
                             )}
                           </div>
