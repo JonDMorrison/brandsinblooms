@@ -3,16 +3,9 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Users, Trash2, MoreHorizontal } from 'lucide-react';
+import { Target, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { SegmentDetailsModal } from './SegmentDetailsModal';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 interface Segment {
   id: string;
@@ -26,24 +19,12 @@ interface Segment {
 
 interface SegmentCardProps {
   segment: Segment;
-  onDelete: (segmentId: string) => Promise<boolean>;
   onSegmentUpdate?: () => void;
 }
 
-export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete, onSegmentUpdate }) => {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onSegmentUpdate }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const navigate = useNavigate();
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    const success = await onDelete(segment.id);
-    setIsDeleting(false);
-    if (success) {
-      setShowDeleteDialog(false);
-    }
-  };
 
   const getFilterCount = () => {
     return segment.conditions?.filters?.length || 0;
@@ -58,22 +39,6 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete, onS
               <Target className="h-5 w-5 text-primary" />
               <CardTitle className="text-lg">{segment.name}</CardTitle>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
           {segment.description && (
             <p className="text-sm text-muted-foreground mt-1">
@@ -140,16 +105,6 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete, onS
           </div>
         </CardContent>
       </Card>
-
-      <ConfirmationDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        title="Delete Segment"
-        description={`Are you sure you want to delete "${segment.name}"? This action cannot be undone.`}
-        confirmText="Delete"
-        onConfirm={handleDelete}
-        loading={isDeleting}
-      />
 
       <SegmentDetailsModal
         open={showDetailsModal}

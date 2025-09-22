@@ -281,12 +281,11 @@ export const CRMSegmentsPage: React.FC = () => {
             ) : (
               <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
                 {segments.map((segment) => (
-                  <SegmentCard
-                    key={segment.id}
-                    segment={segment}
-                    onDelete={deleteSegment}
-                    onSegmentUpdate={handleSegmentUpdate}
-                  />
+                <SegmentCard
+                  key={segment.id}
+                  segment={segment}
+                  onSegmentUpdate={handleSegmentUpdate}
+                />
                 ))}
               </div>
             )}
