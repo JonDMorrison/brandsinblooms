@@ -291,26 +291,57 @@ async function generateDomainConnectUrl(
     throw new Error('Invalid template ID');
   }
 
-  // Build Domain Connect URL - use registrar's endpoint for better compatibility
+  // Build proper Domain Connect URL following the protocol
   let baseUrl;
+  
   if (registrar?.toLowerCase().includes('godaddy')) {
-    baseUrl = `https://dcc.godaddy.com/manage/${domain}/dns`;
+    // GoDaddy's Domain Connect endpoint
+    baseUrl = `https://dcc.godaddy.com/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
+  } else if (registrar?.toLowerCase().includes('namecheap')) {
+    // Namecheap's Domain Connect endpoint
+    baseUrl = `https://www.namecheap.com/domains/domainconnect/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
   } else {
-    // Fallback to standard Domain Connect discovery
-    baseUrl = `https://${domain}/_domainconnect`;
+    // Try to discover Domain Connect endpoint from domain's DNS
+    try {
+      const discoveryUrl = `https://${domain}/_domainconnect`;
+      const response = await fetch(discoveryUrl, { 
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        // Add timeout and error handling
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      if (response.ok) {
+        const discoveryData = await response.json();
+        if (discoveryData.urlSyncUX) {
+          baseUrl = `${discoveryData.urlSyncUX}/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
+        } else {
+          throw new Error('No Domain Connect sync endpoint found');
+        }
+      } else {
+        throw new Error('Domain Connect discovery failed');
+      }
+    } catch (error) {
+      console.warn('Domain Connect discovery failed:', error);
+      // Fallback to standard Domain Connect format
+      baseUrl = `https://${domain}/_domainconnect/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
+    }
   }
   
-  const callbackUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/domain-connect-callback?session=${sessionToken}`;
+  const callbackUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/domain-connect-callback`;
+  
   const queryParams = new URLSearchParams({
     domain,
-    providerId: template.providerId,
-    serviceId: template.serviceId,
     redirect_uri: callbackUrl,
     state: sessionToken,
+    // Add template-specific parameters
     ...params
   });
 
-  return `${baseUrl}?${queryParams.toString()}`;
+  const finalUrl = `${baseUrl}?${queryParams.toString()}`;
+  console.log('Generated Domain Connect URL:', finalUrl);
+  
+  return finalUrl;
 }
 
 serve(handler);
