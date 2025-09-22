@@ -125,24 +125,30 @@ export const useSegmentCounts = () => {
             .from('customer_segments')
             .select(`
               customer_id,
-              segment_id,
-              crm_segments!inner(name)
+              segment_id
             `)
             .in('segment_id', segmentIds)
             .in('customer_id', customers.map(c => c.id));
 
+          console.log('🔍 Raw assignments fetched:', assignments);
+
+          // Now get segment names separately to avoid relationship issues
+          let assignmentsBySegment: Record<string, Set<string>> = {};
+          if (assignments && assignments.length > 0) {
+            for (const assignment of assignments) {
+              const segment = existingSegments.find(s => s.id === assignment.segment_id);
+              if (segment?.name) {
+                if (!assignmentsBySegment[segment.name]) {
+                  assignmentsBySegment[segment.name] = new Set();
+                }
+                assignmentsBySegment[segment.name].add(assignment.customer_id);
+              }
+            }
+          }
+          manualAssignments = assignmentsBySegment;
+
           if (assignmentError) {
             console.error('Error fetching segment assignments:', assignmentError);
-          } else if (assignments) {
-            assignments.forEach((assignment: any) => {
-              const segmentName = assignment.crm_segments?.name;
-              if (segmentName) {
-                if (!manualAssignments[segmentName]) {
-                  manualAssignments[segmentName] = new Set();
-                }
-                manualAssignments[segmentName].add(assignment.customer_id);
-              }
-            });
           }
         }
 
