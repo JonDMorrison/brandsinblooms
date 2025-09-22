@@ -49,7 +49,7 @@ export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({
   onViewDetails,
 }) => {
   const IconComponent = iconMap[icon];
-  const loading = customerCount === undefined;
+  const loading = isLoadingCount || customerCount === undefined;
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
