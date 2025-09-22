@@ -122,9 +122,17 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete, onS
             <Button 
               size="sm" 
               className="flex-1"
-              onClick={() => {
-                // Navigate to campaign creation with pre-selected segment
-                navigate(`/crm/campaigns/new?segmentId=${segment.id}`);
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🎯 Create Campaign clicked for segment:', segment.id, segment.name);
+                try {
+                  // Navigate to campaign creation with pre-selected segment
+                  navigate(`/crm/campaigns/new?segmentId=${segment.id}`);
+                  console.log('✅ Navigation completed to:', `/crm/campaigns/new?segmentId=${segment.id}`);
+                } catch (error) {
+                  console.error('❌ Navigation error:', error);
+                }
               }}
             >
               Create Campaign
