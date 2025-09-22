@@ -237,7 +237,7 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error('Session token required');
       }
 
-      const { data: session, error } = await supabase
+      const { data: session, error } = await supabaseAdmin
         .from('domain_connect_sessions')
         .select('*')
         .eq('session_token', sessionToken)
