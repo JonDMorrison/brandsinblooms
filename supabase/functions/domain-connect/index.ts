@@ -165,17 +165,23 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Check if registrar supports Domain Connect
       const supportedRegistrars = [
-        'godaddy.com',
-        'namecheap.com',
-        'google.com',
-        'cloudflare.com',
-        '1and1.com',
-        'hover.com',
+        'godaddy',
+        'namecheap', 
+        'google',
+        'cloudflare',
+        '1and1',
+        'hover',
+        'enom',
+        'network solutions',
+        'tucows'
       ];
 
-      const isDomainConnectSupported = supportedRegistrars.some((reg) =>
-        domain.includes(reg) || registrar?.toLowerCase().includes(reg)
-      );
+      // More permissive detection - if registrar is detected, check if it's supported
+      // If no registrar is provided, assume Domain Connect is supported for testing
+      const isDomainConnectSupported = !registrar || 
+        supportedRegistrars.some((reg) => 
+          registrar?.toLowerCase().includes(reg.toLowerCase())
+        );
 
       if (!isDomainConnectSupported) {
         // Fallback to manual DNS instructions
