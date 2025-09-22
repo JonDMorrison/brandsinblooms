@@ -29,6 +29,8 @@ export const useCRMSegments = () => {
 
     setLoading(true);
     try {
+      console.log('🔄 Fetching segments for tenant:', tenant.id);
+      
       // First get all segments
       const { data: segmentsData, error: segmentsError } = await supabase
         .from('crm_segments')
@@ -37,18 +39,24 @@ export const useCRMSegments = () => {
         .order('created_at', { ascending: false });
 
       if (segmentsError) throw segmentsError;
+      
+      console.log('📋 Found segments:', segmentsData);
 
       // Then get customer counts for each segment
       const segmentsWithCount = await Promise.all(
         (segmentsData || []).map(async (segment) => {
+          console.log(`🔢 Counting customers for segment: ${segment.name} (${segment.id})`);
+          
           const { count, error: countError } = await supabase
             .from('customer_segments')
             .select('*', { count: 'exact', head: true })
             .eq('segment_id', segment.id);
 
           if (countError) {
-            console.error('Error counting customers for segment:', segment.id, countError);
+            console.error('❌ Error counting customers for segment:', segment.id, countError);
           }
+
+          console.log(`✅ Customer count for ${segment.name}:`, count);
 
           return {
             ...segment,
@@ -57,9 +65,10 @@ export const useCRMSegments = () => {
         })
       );
       
+      console.log('🎯 Final segments with counts:', segmentsWithCount);
       setSegments(segmentsWithCount);
     } catch (error) {
-      console.error('Error fetching segments:', error);
+      console.error('❌ Error fetching segments:', error);
       toast.error('Failed to load segments');
     } finally {
       setLoading(false);
