@@ -365,6 +365,18 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
               </div>
             </div>
           </div>
+          
+          {/* Close Button */}
+          <div className="flex justify-end pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              className="px-6"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Close
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
