@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ interface CustomSegmentBuilderProps {
   onSave: (segmentData: { name: string; filters: FilterCriteria[] }) => void;
   onCancel: () => void;
   open?: boolean;
+  onChange?: (segmentData: { name: string; filters: FilterCriteria[] }) => void;
 }
 
 const PRODUCT_CATEGORIES = [
@@ -49,9 +50,16 @@ const US_STATES = [
   "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
 ];
 
-export const CustomSegmentBuilder = ({ onSave, onCancel }: CustomSegmentBuilderProps) => {
+export const CustomSegmentBuilder = ({ onSave, onCancel, onChange }: CustomSegmentBuilderProps) => {
   const [segmentName, setSegmentName] = useState("");
   const [filters, setFilters] = useState<FilterCriteria[]>([]);
+
+  // Call onChange whenever segmentName or filters change
+  useEffect(() => {
+    if (onChange) {
+      onChange({ name: segmentName, filters });
+    }
+  }, [segmentName, filters, onChange]);
 
   const addFilter = (type: string) => {
     const newFilter: FilterCriteria = { type };
@@ -471,22 +479,6 @@ export const CustomSegmentBuilder = ({ onSave, onCancel }: CustomSegmentBuilderP
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="flex justify-end space-x-3 pt-4 border-t border-border">
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 text-muted-foreground hover:text-foreground border border-border rounded-md bg-gray-100/50 hover:bg-gray-200"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={!segmentName.trim()}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Save Segment
-        </button>
       </div>
     </div>
   );
