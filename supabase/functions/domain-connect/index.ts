@@ -297,7 +297,8 @@ async function discoverDomainConnectHost(domain: string): Promise<string | null>
         // Parse TXT record for Domain Connect host
         const hostMatch = txtRecord.match(/host=([^;\s]+)/);
         if (hostMatch) {
-          return `https://${hostMatch[1]}`;
+          const rawHost = hostMatch[1].replace(/\.$/, ''); // strip trailing dot
+          return `https://${rawHost}`;
         }
       }
     }
@@ -312,7 +313,7 @@ async function discoverDomainConnectHost(domain: string): Promise<string | null>
     if (cnameResponse.ok) {
       const cnameData = await cnameResponse.json();
       if (cnameData.Answer && cnameData.Answer.length > 0) {
-        const cnameTarget = cnameData.Answer[0].data;
+        const cnameTarget = cnameData.Answer[0].data.replace(/\.$/, '');
         return `https://${cnameTarget}`;
       }
     }
@@ -433,8 +434,12 @@ async function generateDomainConnectUrl(
     throw new Error('MANUAL_DNS_REQUIRED');
   }
   
-  // Build Domain Connect apply URL
-  const applyUrl = `${domainConnectHost}/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
+  // Build Domain Connect apply URL (normalize host and handle known providers)
+  let domainConnectBase = domainConnectHost.replace(/\.$/, '');
+  if (domainConnectBase.includes('domaincontrol.com') || domainConnectBase.includes('godaddy')) {
+    domainConnectBase = 'https://dcc.godaddy.com';
+  }
+  const applyUrl = `${domainConnectBase}/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
   
   // Include session in redirect_uri and use state for compatibility
   const callbackUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/domain-connect-callback?session=${sessionToken}`;
