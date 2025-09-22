@@ -275,8 +275,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         console.log('🔄 Loading segment from URL:', segmentIdParam);
         console.log('🔄 Current selectedSegments length:', selectedSegments.length);
         
-        // Check if it's a predefined segment (short string) or custom segment (UUID)
-        const isCustomSegment = segmentIdParam.length > 10;
+        // Check if it's a predefined segment (string ID) or custom segment (UUID format)
+        const isCustomSegment = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segmentIdParam);
         console.log('🔍 Is custom segment:', isCustomSegment);
         
         if (isCustomSegment) {
