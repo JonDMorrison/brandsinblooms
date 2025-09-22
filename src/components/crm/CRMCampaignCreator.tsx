@@ -264,34 +264,45 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Initialize selectedSegments from URL
   useEffect(() => {
     const loadSegmentFromUrl = async () => {
-      if (!segmentIdParam) return;
+      if (!segmentIdParam) {
+        console.log('🔍 No segmentId in URL params');
+        return;
+      }
       
       try {
         console.log('🔄 Loading segment from URL:', segmentIdParam);
+        console.log('🔄 Current selectedSegments length:', selectedSegments.length);
         
         // Check if it's a predefined segment (short string) or custom segment (UUID)
         const isCustomSegment = segmentIdParam.length > 10;
+        console.log('🔍 Is custom segment:', isCustomSegment);
         
         if (isCustomSegment) {
           // Fetch custom segment
+          console.log('🔍 Fetching custom segment from database...');
           const { data: segmentData, error } = await supabase
             .from('custom_segments')
             .select('*')
             .eq('id', segmentIdParam)
-            .single();
+            .maybeSingle();
+            
+          console.log('🔍 Custom segment query result:', { segmentData, error });
             
           if (error) {
-            console.error('Error fetching custom segment:', error);
+            console.error('❌ Error fetching custom segment:', error);
             return;
           }
           
-          if (segmentData && selectedSegments.length === 0) {
+          if (segmentData) {
             console.log('🎯 Setting selected segment from URL:', segmentData);
             setSelectedSegments([{
               id: segmentData.id,
               name: segmentData.name,
-              type: 'custom'
+              type: 'custom',
+              customerCount: segmentData.customer_count || 0
             }]);
+          } else {
+            console.log('⚠️ Custom segment not found in database');
           }
         } else {
           // Handle predefined segment
@@ -304,23 +315,30 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             'frequent-buyers': { name: 'Frequent Buyers', id: 'frequent-buyers' }
           };
           
+          console.log('🔍 Looking for predefined segment:', segmentIdParam);
           const predefinedSegment = predefinedSegments[segmentIdParam as keyof typeof predefinedSegments];
-          if (predefinedSegment && selectedSegments.length === 0) {
+          if (predefinedSegment) {
             console.log('🎯 Setting predefined segment from URL:', predefinedSegment);
             setSelectedSegments([{
               id: predefinedSegment.id,
               name: predefinedSegment.name,
-              type: 'predefined'
+              type: 'predefined',
+              customerCount: 0
             }]);
+          } else {
+            console.log('⚠️ Predefined segment not found:', segmentIdParam);
           }
         }
       } catch (error) {
-        console.error('Error loading segment from URL:', error);
+        console.error('❌ Error loading segment from URL:', error);
       }
     };
     
-    loadSegmentFromUrl();
-  }, [segmentIdParam, selectedSegments.length, supabase]);
+    // Always try to load if we have a segmentIdParam, regardless of current selectedSegments length
+    if (segmentIdParam) {
+      loadSegmentFromUrl();
+    }
+  }, [segmentIdParam, supabase]); // Removed selectedSegments.length dependency
 
   // Initialize selectedPersonas from URL only once - don't override user selections
   useEffect(() => {
