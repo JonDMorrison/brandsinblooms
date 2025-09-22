@@ -197,17 +197,35 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       // Generate Domain Connect URL
-      const domainConnectUrl = await generateDomainConnectUrl(domain, registrar, templateId, params, sessionToken);
+      try {
+        const domainConnectUrl = await generateDomainConnectUrl(domain, registrar, templateId, params, sessionToken);
 
-      const response: DomainConnectResponse = {
-        success: true,
-        sessionToken,
-        redirectUrl: domainConnectUrl,
-      };
+        const response: DomainConnectResponse = {
+          success: true,
+          sessionToken,
+          redirectUrl: domainConnectUrl,
+        };
 
-      return new Response(JSON.stringify(response), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      });
+        return new Response(JSON.stringify(response), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      } catch (error) {
+        // Handle manual DNS fallback case
+        if ((error as Error).message === 'MANUAL_DNS_REQUIRED') {
+          const response: DomainConnectResponse = {
+            success: false,
+            error: 'Domain Connect not supported. Manual DNS setup required.',
+          };
+
+          return new Response(JSON.stringify(response), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            status: 200,
+          });
+        }
+        
+        // Re-throw other errors to be handled by outer catch
+        throw error;
+      }
     }
 
     // GET request - check session status
@@ -254,6 +272,95 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
+// Normalize domain by removing www. prefix
+function normalizeDomain(domain: string): string {
+  return domain.replace(/^www\./, '').toLowerCase();
+}
+
+// Query DNS for Domain Connect host using Cloudflare DNS-over-HTTPS
+async function discoverDomainConnectHost(domain: string): Promise<string | null> {
+  const normalizedDomain = normalizeDomain(domain);
+  const dnsApiUrl = 'https://cloudflare-dns.com/dns-query';
+  
+  try {
+    // First try TXT record lookup for _domainconnect
+    const txtUrl = `${dnsApiUrl}?name=_domainconnect.${normalizedDomain}&type=TXT`;
+    const txtResponse = await fetch(txtUrl, {
+      headers: { 'Accept': 'application/dns-json' },
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (txtResponse.ok) {
+      const txtData = await txtResponse.json();
+      if (txtData.Answer && txtData.Answer.length > 0) {
+        const txtRecord = txtData.Answer[0].data.replace(/"/g, '');
+        // Parse TXT record for Domain Connect host
+        const hostMatch = txtRecord.match(/host=([^;\s]+)/);
+        if (hostMatch) {
+          return `https://${hostMatch[1]}`;
+        }
+      }
+    }
+    
+    // Fallback: try CNAME record lookup
+    const cnameUrl = `${dnsApiUrl}?name=_domainconnect.${normalizedDomain}&type=CNAME`;
+    const cnameResponse = await fetch(cnameUrl, {
+      headers: { 'Accept': 'application/dns-json' },
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (cnameResponse.ok) {
+      const cnameData = await cnameResponse.json();
+      if (cnameData.Answer && cnameData.Answer.length > 0) {
+        const cnameTarget = cnameData.Answer[0].data;
+        return `https://${cnameTarget}`;
+      }
+    }
+    
+    // No Domain Connect DNS records found
+    return null;
+    
+  } catch (error) {
+    console.warn('DNS discovery failed:', error);
+    return null;
+  }
+}
+
+// Infer registrar from NS records and get their Domain Connect host
+async function inferRegistrarFromNS(domain: string): Promise<string | null> {
+  const normalizedDomain = normalizeDomain(domain);
+  const dnsApiUrl = 'https://cloudflare-dns.com/dns-query';
+  
+  try {
+    const nsUrl = `${dnsApiUrl}?name=${normalizedDomain}&type=NS`;
+    const nsResponse = await fetch(nsUrl, {
+      headers: { 'Accept': 'application/dns-json' },
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (nsResponse.ok) {
+      const nsData = await nsResponse.json();
+      if (nsData.Answer && nsData.Answer.length > 0) {
+        const nameserver = nsData.Answer[0].data.toLowerCase();
+        
+        // Map nameservers to Domain Connect hosts
+        if (nameserver.includes('godaddy')) {
+          return 'https://dcc.godaddy.com';
+        } else if (nameserver.includes('namecheap')) {
+          return 'https://www.namecheap.com/domains/domainconnect';
+        } else if (nameserver.includes('cloudflare')) {
+          return 'https://dash.cloudflare.com/domain-connect';
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn('NS record lookup failed:', error);
+    return null;
+  }
+}
+
 async function generateDomainConnectUrl(
   domain: string,
   registrar: string | undefined,
@@ -261,9 +368,8 @@ async function generateDomainConnectUrl(
   params: Record<string, string>,
   sessionToken: string
 ): Promise<string> {
-  // Extract registrar from domain
-  const domainParts = domain.split('.');
-  const tld = domainParts.slice(-2).join('.');
+  // Normalize domain (remove www.)
+  const normalizedDomain = normalizeDomain(domain);
   
   // Domain Connect template mapping
   const templates = {
@@ -291,55 +397,59 @@ async function generateDomainConnectUrl(
     throw new Error('Invalid template ID');
   }
 
-  // Build proper Domain Connect URL following the protocol
-  let baseUrl;
+  // Normalize params - remove www. from DKIM host and other domain references
+  const normalizedParams = { ...params };
+  if (normalizedParams.dkim_host) {
+    normalizedParams.dkim_host = normalizedParams.dkim_host.replace(/^www\./, '');
+  }
+
+  let domainConnectHost: string | null = null;
   
-  if (registrar?.toLowerCase().includes('godaddy')) {
-    // GoDaddy's Domain Connect endpoint
-    baseUrl = `https://dcc.godaddy.com/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
-  } else if (registrar?.toLowerCase().includes('namecheap')) {
-    // Namecheap's Domain Connect endpoint
-    baseUrl = `https://www.namecheap.com/domains/domainconnect/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
-  } else {
-    // Try to discover Domain Connect endpoint from domain's DNS
-    try {
-      const discoveryUrl = `https://${domain}/_domainconnect`;
-      const response = await fetch(discoveryUrl, { 
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        // Add timeout and error handling
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      if (response.ok) {
-        const discoveryData = await response.json();
-        if (discoveryData.urlSyncUX) {
-          baseUrl = `${discoveryData.urlSyncUX}/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
-        } else {
-          throw new Error('No Domain Connect sync endpoint found');
-        }
-      } else {
-        throw new Error('Domain Connect discovery failed');
-      }
-    } catch (error) {
-      console.warn('Domain Connect discovery failed:', error);
-      // Fallback to standard Domain Connect format
-      baseUrl = `https://${domain}/_domainconnect/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
+  // Step 1: Try DNS-based discovery
+  console.log('Attempting DNS discovery for Domain Connect host...');
+  domainConnectHost = await discoverDomainConnectHost(normalizedDomain);
+  
+  // Step 2: If DNS discovery fails, try to infer from registrar
+  if (!domainConnectHost && registrar) {
+    console.log('DNS discovery failed, trying registrar-based lookup...');
+    if (registrar.toLowerCase().includes('godaddy')) {
+      domainConnectHost = 'https://dcc.godaddy.com';
+    } else if (registrar.toLowerCase().includes('namecheap')) {
+      domainConnectHost = 'https://www.namecheap.com/domains/domainconnect';
+    } else if (registrar.toLowerCase().includes('cloudflare')) {
+      domainConnectHost = 'https://dash.cloudflare.com/domain-connect';
     }
   }
   
-  const callbackUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/domain-connect-callback`;
+  // Step 3: If still no host, try NS record inference
+  if (!domainConnectHost) {
+    console.log('Registrar lookup failed, trying NS record inference...');
+    domainConnectHost = await inferRegistrarFromNS(normalizedDomain);
+  }
+  
+  // Step 4: If all discovery methods fail, return manual fallback
+  if (!domainConnectHost) {
+    console.log('All Domain Connect discovery methods failed, falling back to manual DNS');
+    throw new Error('MANUAL_DNS_REQUIRED');
+  }
+  
+  // Build Domain Connect apply URL
+  const applyUrl = `${domainConnectHost}/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
+  
+  // Include session in redirect_uri and use state for compatibility
+  const callbackUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/domain-connect-callback?session=${sessionToken}`;
   
   const queryParams = new URLSearchParams({
-    domain,
+    domain: normalizedDomain, // Use normalized domain
     redirect_uri: callbackUrl,
     state: sessionToken,
-    // Add template-specific parameters
-    ...params
+    // Add normalized template-specific parameters
+    ...normalizedParams
   });
 
-  const finalUrl = `${baseUrl}?${queryParams.toString()}`;
+  const finalUrl = `${applyUrl}?${queryParams.toString()}`;
   console.log('Generated Domain Connect URL:', finalUrl);
+  console.log('Domain Connect host:', domainConnectHost);
   
   return finalUrl;
 }

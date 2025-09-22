@@ -14,6 +14,7 @@ serve(async (req: Request) => {
     );
 
     const url = new URL(req.url);
+    // Handle both session and state parameters for compatibility
     const sessionToken = url.searchParams.get('session') || url.searchParams.get('state');
     const success = url.searchParams.get('success');
     const error = url.searchParams.get('error');
