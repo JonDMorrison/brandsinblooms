@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
+import { toast } from 'sonner';
 
 interface CRMSegment {
   id: string;
@@ -28,14 +29,35 @@ export const useCRMSegments = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // First get all segments
+      const { data: segmentsData, error: segmentsError } = await supabase
         .from('crm_segments')
         .select('*')
         .eq('tenant_id', tenant.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setSegments(data || []);
+      if (segmentsError) throw segmentsError;
+
+      // Then get customer counts for each segment
+      const segmentsWithCount = await Promise.all(
+        (segmentsData || []).map(async (segment) => {
+          const { count, error: countError } = await supabase
+            .from('customer_segments')
+            .select('*', { count: 'exact', head: true })
+            .eq('segment_id', segment.id);
+
+          if (countError) {
+            console.error('Error counting customers for segment:', segment.id, countError);
+          }
+
+          return {
+            ...segment,
+            customer_count: count || 0
+          };
+        })
+      );
+      
+      setSegments(segmentsWithCount);
     } catch (error) {
       console.error('Error fetching segments:', error);
       toast.error('Failed to load segments');
