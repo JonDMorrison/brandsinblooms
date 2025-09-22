@@ -20,9 +20,9 @@ function Skeleton({
   };
 
   const animationClasses = {
-    pulse: 'animate-pulse bg-muted',
-    wave: 'apple-skeleton',
-    none: 'bg-muted'
+    pulse: 'animate-pulse bg-gray-200 dark:bg-gray-700',
+    wave: 'apple-skeleton bg-gray-200 dark:bg-gray-700',
+    none: 'bg-gray-200 dark:bg-gray-700'
   };
 
   return (
