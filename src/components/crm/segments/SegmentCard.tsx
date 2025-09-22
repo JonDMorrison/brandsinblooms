@@ -46,7 +46,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete }) =
 
   return (
     <>
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-md transition-shadow h-full flex flex-col">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
@@ -76,8 +76,8 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete }) =
             </p>
           )}
         </CardHeader>
-        <CardContent className="pt-0">
-          <div className="space-y-3">
+        <CardContent className="pt-0 flex flex-col h-full">
+          <div className="space-y-3 flex-1">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">
@@ -97,23 +97,23 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete }) =
             <div className="text-xs text-muted-foreground">
               Created {new Date(segment.created_at).toLocaleDateString()}
             </div>
+          </div>
             
-            {/* Action buttons */}
-            <div className="flex flex-col sm:flex-row gap-2 mt-4">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex-1"
-              >
-                View Details
-              </Button>
-              <Button 
-                size="sm" 
-                className="flex-1"
-              >
-                Create Campaign
-              </Button>
-            </div>
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row gap-2 mt-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+            >
+              View Details
+            </Button>
+            <Button 
+              size="sm" 
+              className="flex-1"
+            >
+              Create Campaign
+            </Button>
           </div>
         </CardContent>
       </Card>
