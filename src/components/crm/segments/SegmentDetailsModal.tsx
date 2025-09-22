@@ -226,6 +226,17 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
             </div>
           </div>
 
+          {/* Search Bar */}
+          <div className="flex items-center gap-2 mb-3">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search customers..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+          </div>
+
           {!isCustomSegment && (
             <div className="mb-4 p-3 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">
@@ -304,17 +315,6 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                       View Only
                     </Badge>
                   )}
-                </div>
-
-                {/* Search Bar */}
-                <div className="flex items-center gap-2 mb-3">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search customers..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="flex-1"
-                  />
                 </div>
 
                 <div className="flex-1 overflow-y-auto border rounded-lg">
