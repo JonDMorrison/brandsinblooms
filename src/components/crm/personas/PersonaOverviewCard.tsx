@@ -108,7 +108,10 @@ export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({
         <div className={`${isMobile ? 'space-y-3 w-full' : 'space-y-3'}`}>
           {/* Customer count */}
           {loading ? (
-            <Skeleton className={`${isMobile ? 'h-6 w-32' : 'h-5 w-28'}`} />
+            <div className="flex items-center gap-2">
+              <Skeleton className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} rounded-full`} />
+              <Skeleton className={`${isMobile ? 'h-6 w-32' : 'h-5 w-28'}`} />
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <Users className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} text-muted-foreground`} />
