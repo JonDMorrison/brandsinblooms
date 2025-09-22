@@ -105,16 +105,16 @@ export const PersonaOverviewCard: React.FC<PersonaOverviewCardProps> = ({
         {/* Footer with customer count and buttons */}
         <div className={`${isMobile ? 'space-y-3 w-full' : 'space-y-3'}`}>
           {/* Customer count */}
-          <div className="flex items-center gap-2">
-            <Users className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} text-muted-foreground`} />
-            {loading ? (
-              <Skeleton className={`${isMobile ? 'h-4 w-20' : 'h-3 w-16'}`} />
-            ) : (
+          {loading ? (
+            <Skeleton className={`${isMobile ? 'h-6 w-32' : 'h-5 w-28'}`} />
+          ) : (
+            <div className="flex items-center gap-2">
+              <Users className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} text-muted-foreground`} />
               <span className={`${isMobile ? 'mobile-text-caption' : 'text-sm'} font-medium`}>
                 {`${customerCount || 0} customers`}
               </span>
-            )}
-          </div>
+            </div>
+          )}
           
           {/* Action buttons */}
           <div className={`flex ${isMobile ? 'flex-col gap-2 w-full' : 'flex-col sm:flex-row gap-2'}`}>
