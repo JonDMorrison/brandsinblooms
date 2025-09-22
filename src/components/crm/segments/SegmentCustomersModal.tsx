@@ -14,6 +14,7 @@ import { Search, Mail, Phone, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTenant } from '@/hooks/useTenant';
 import { format } from 'date-fns';
 
 interface Customer {
@@ -49,9 +50,10 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
+  const { tenant } = useTenant();
 
   const fetchSegmentCustomers = async () => {
-    if (!user || !segmentId) return;
+    if (!user || !segmentId || !tenant) return;
 
     setLoading(true);
     try {
@@ -62,7 +64,8 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
         // Get all customers and filter based on segment criteria
         const { data: allCustomers, error } = await supabase
           .from('crm_customers')
-          .select('id, email, first_name, last_name, phone, persona, persona_id, created_at, total_spent, last_purchase_date, tags, order_history');
+          .select('id, email, first_name, last_name, phone, persona, persona_id, created_at, total_spent, last_purchase_date, tags, order_history')
+          .eq('tenant_id', tenant.id);
 
         if (error) throw error;
 
@@ -146,10 +149,10 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   };
 
   useEffect(() => {
-    if (open && segmentId) {
+    if (open && segmentId && tenant) {
       fetchSegmentCustomers();
     }
-  }, [open, segmentId, user]);
+  }, [open, segmentId, user, tenant]);
 
   useEffect(() => {
     if (!searchTerm) {
