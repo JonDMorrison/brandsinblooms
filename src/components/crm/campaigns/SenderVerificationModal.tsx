@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { CheckCircle, Shield, Zap, Settings, Mail, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DomainConnectWizard } from '@/components/domains/DomainConnectWizard';
+import { useToast } from '@/hooks/use-toast';
+import { CelebrationEffect } from '@/components/ui/celebration-effect';
 
 interface SenderVerificationModalProps {
   open: boolean;
@@ -27,10 +29,13 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
 }) => {
   const isVerified = senderConfig?.isVerified || false;
   const companyName = senderConfig?.companyName || 'Your Garden Center';
+  const { toast } = useToast();
   
   const [showDomainInput, setShowDomainInput] = useState(false);
   const [showDomainConnect, setShowDomainConnect] = useState(false);
   const [domain, setDomain] = useState('');
+  const [isConfirmingQuickStart, setIsConfirmingQuickStart] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const handleDomainConnectComplete = () => {
     setShowDomainConnect(false);
@@ -49,6 +54,25 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
     setShowDomainConnect(false);
     setShowDomainInput(false);
     setDomain('');
+  };
+
+  const handleQuickStartConfirm = async () => {
+    setIsConfirmingQuickStart(true);
+    
+    // Show celebration effect
+    setShowCelebration(true);
+    
+    // Show success toast
+    toast({
+      title: "Quick Start Confirmed! ✅",
+      description: "Your campaigns are ready to send immediately using our shared domain.",
+    });
+    
+    // Wait for celebration to complete, then close modal
+    setTimeout(() => {
+      setIsConfirmingQuickStart(false);
+      onOpenChange(false);
+    }, 1500);
   };
 
   return (
@@ -213,11 +237,12 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
                   </p>
                   {!isVerified && (
                     <Button 
-                      onClick={() => onOpenChange(false)}
+                      onClick={handleQuickStartConfirm}
                       className="w-full"
                       variant="outline"
+                      disabled={isConfirmingQuickStart}
                     >
-                      Continue with Quick Start
+                      {isConfirmingQuickStart ? 'Confirming...' : 'Continue with Quick Start'}
                     </Button>
                   )}
                 </div>
@@ -278,6 +303,13 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
           )}
         </div>
       </DialogContent>
+      
+      {/* Celebration Effect */}
+      <CelebrationEffect 
+        isVisible={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+        className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
+      />
     </Dialog>
   );
 };
