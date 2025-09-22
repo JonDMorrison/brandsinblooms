@@ -76,7 +76,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete }) =
             </p>
           )}
         </CardHeader>
-        <CardContent className="pt-0 flex flex-col h-full">
+        <CardContent className="pt-0 flex flex-col flex-1">
           <div className="space-y-3 flex-1">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
