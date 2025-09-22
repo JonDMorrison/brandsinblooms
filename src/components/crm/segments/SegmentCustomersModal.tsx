@@ -186,24 +186,101 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   const handleAssignCustomer = async (customerId: string) => {
     if (assigningCustomer) return;
     
+    console.log('🔄 Assigning customer to segment:', { customerId, segmentId });
     setAssigningCustomer(customerId);
     
     try {
-      // Create a temporary hook instance to handle the assignment
-      const { data, error } = await supabase
-        .from('customer_segments')
-        .insert({
-          customer_id: customerId,
-          segment_id: segmentId
-        });
+      // Check if this is a predefined segment (non-UUID)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segmentId);
+      
+      if (!isUUID) {
+        // For predefined segments, we need to create the segment first
+        console.log('🔄 Creating predefined segment in database first');
+        
+        const predefinedSegments = [
+          { id: 'loyalty-members', name: 'Loyalty Members', description: 'Customers enrolled in your loyalty program with active engagement' },
+          { id: 'high-value', name: 'High-Value Customers', description: 'Top spending customers who drive significant revenue' },
+          { id: 'new-customers', name: 'New Customers', description: 'Recent customers who made their first purchase within 30 days' },
+          { id: 'lapsed-customers', name: 'Lapsed Customers', description: 'Previously active customers who haven\'t purchased in 90+ days' },
+          { id: 'seasonal-shoppers', name: 'Seasonal Shoppers', description: 'Customers who typically purchase during specific seasons or holidays' },
+          { id: 'frequent-buyers', name: 'Frequent Buyers', description: 'Customers with 3+ purchases in the last 6 months' },
+        ];
+        
+        const predefinedSegment = predefinedSegments.find(s => s.id === segmentId);
+        if (!predefinedSegment) {
+          throw new Error(`Unknown predefined segment: ${segmentId}`);
+        }
 
-      if (error) throw error;
+        // Check if segment already exists
+        let actualSegmentId = segmentId;
+        const { data: existingSegment } = await supabase
+          .from('crm_segments')
+          .select('id')
+          .eq('name', predefinedSegment.name)
+          .eq('tenant_id', tenant.id)
+          .single();
 
+        if (!existingSegment) {
+          // Create the segment
+          const { data: newSegment, error: createError } = await supabase
+            .from('crm_segments')
+            .insert({
+              name: predefinedSegment.name,
+              description: predefinedSegment.description,
+              tenant_id: tenant.id,
+              user_id: user.id,
+              conditions: {},
+              customer_count: 0
+            })
+            .select('id')
+            .single();
+
+          if (createError) {
+            console.error('❌ Error creating segment:', createError);
+            throw createError;
+          }
+          
+          actualSegmentId = newSegment.id;
+          console.log('✅ Created new segment with ID:', actualSegmentId);
+        } else {
+          actualSegmentId = existingSegment.id;
+          console.log('✅ Using existing segment with ID:', actualSegmentId);
+        }
+
+        // Now assign customer to the segment
+        const { error: assignError } = await supabase
+          .from('customer_segments')
+          .insert({
+            customer_id: customerId,
+            segment_id: actualSegmentId
+          });
+
+        if (assignError) {
+          console.error('❌ Error assigning customer to segment:', assignError);
+          throw assignError;
+        }
+      } else {
+        // For UUID segments (custom segments), insert directly
+        const { error } = await supabase
+          .from('customer_segments')
+          .insert({
+            customer_id: customerId,
+            segment_id: segmentId
+          });
+
+        if (error) {
+          console.error('❌ Error assigning customer to segment:', error);
+          throw error;
+        }
+      }
+
+      console.log('✅ Customer assigned successfully');
       // Refresh the customer lists
       const segmentCustomersData = await fetchSegmentCustomers();
       setCustomers(segmentCustomersData);
+      
     } catch (error) {
-      console.error('Error assigning customer to segment:', error);
+      console.error('❌ Error assigning customer to segment:', error);
     } finally {
       setAssigningCustomer(null);
     }
@@ -213,22 +290,57 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   const handleUnassignCustomer = async (customerId: string) => {
     if (unassigningCustomer) return;
     
+    console.log('🔄 Removing customer from segment:', { customerId, segmentId });
     setUnassigningCustomer(customerId);
     
     try {
+      // For removing, we need to find the actual segment ID if it's predefined
+      let actualSegmentId = segmentId;
+      
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segmentId);
+      if (!isUUID) {
+        // Find the actual segment ID from the database
+        const predefinedSegments = [
+          { id: 'loyalty-members', name: 'Loyalty Members' },
+          { id: 'high-value', name: 'High-Value Customers' },
+          { id: 'new-customers', name: 'New Customers' },
+          { id: 'lapsed-customers', name: 'Lapsed Customers' },
+          { id: 'seasonal-shoppers', name: 'Seasonal Shoppers' },
+          { id: 'frequent-buyers', name: 'Frequent Buyers' },
+        ];
+        
+        const predefinedSegment = predefinedSegments.find(s => s.id === segmentId);
+        if (predefinedSegment) {
+          const { data: existingSegment } = await supabase
+            .from('crm_segments')
+            .select('id')
+            .eq('name', predefinedSegment.name)
+            .eq('tenant_id', tenant.id)
+            .single();
+            
+          if (existingSegment) {
+            actualSegmentId = existingSegment.id;
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('customer_segments')
         .delete()
         .eq('customer_id', customerId)
-        .eq('segment_id', segmentId);
+        .eq('segment_id', actualSegmentId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error removing customer from segment:', error);
+        throw error;
+      }
 
+      console.log('✅ Customer removed successfully');
       // Refresh the customer lists
       const segmentCustomersData = await fetchSegmentCustomers();
       setCustomers(segmentCustomersData);
     } catch (error) {
-      console.error('Error removing customer from segment:', error);
+      console.error('❌ Error removing customer from segment:', error);
     } finally {
       setUnassigningCustomer(null);
     }
