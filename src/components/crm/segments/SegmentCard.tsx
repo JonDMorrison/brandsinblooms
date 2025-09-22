@@ -97,6 +97,23 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete }) =
             <div className="text-xs text-muted-foreground">
               Created {new Date(segment.created_at).toLocaleDateString()}
             </div>
+            
+            {/* Action buttons */}
+            <div className="flex flex-col sm:flex-row gap-2 mt-4">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex-1"
+              >
+                View Details
+              </Button>
+              <Button 
+                size="sm" 
+                className="flex-1"
+              >
+                Create Campaign
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
