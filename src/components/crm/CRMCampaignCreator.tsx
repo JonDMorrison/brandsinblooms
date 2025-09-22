@@ -251,7 +251,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     console.log('🔍 No persona parameter found in URL');
   }
   // Check for pre-selected segment from URL
-  const segmentIdParam = searchParams.get('segmentId');
+  const segmentIdParam = searchParams.get('segment'); // Fixed: was 'segmentId', should be 'segment'
   console.log('🔍 Segment ID param from URL:', segmentIdParam);
   
   const [subjectLine, setSubjectLine] = useState('');
@@ -317,11 +317,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             console.log('⚠️ Custom segment not found in database');
           }
         } else {
-          // Handle predefined segment
+          // Handle predefined segment - match exact names from CustomerSegmentsSection
           const predefinedSegments = {
             'new-customers': { name: 'New Customers', id: 'new-customers' },
             'loyalty-members': { name: 'Loyalty Members', id: 'loyalty-members' },
-            'high-value': { name: 'High Value Customers', id: 'high-value' },
+            'high-value': { name: 'High-Value Customers', id: 'high-value' }, // Fixed: was 'High Value Customers'
             'lapsed-customers': { name: 'Lapsed Customers', id: 'lapsed-customers' },
             'seasonal-shoppers': { name: 'Seasonal Shoppers', id: 'seasonal-shoppers' },
             'frequent-buyers': { name: 'Frequent Buyers', id: 'frequent-buyers' }
