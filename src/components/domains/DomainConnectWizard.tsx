@@ -144,7 +144,10 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
             const { data: statusData, error: statusError } = await supabase.functions.invoke(
               'domain-connect',
               {
-                body: { method: 'GET' },
+                body: { 
+                  method: 'GET',
+                  sessionToken: data.sessionToken 
+                },
                 headers: { 'X-Session-Token': data.sessionToken }
               }
             );
