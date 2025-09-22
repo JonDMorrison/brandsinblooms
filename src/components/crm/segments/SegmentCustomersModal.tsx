@@ -327,30 +327,53 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
           console.log('✅ Using existing segment with ID:', actualSegmentId);
         }
 
-        // Now assign customer to the segment
-        const { error: assignError } = await supabase
+        // Check if customer is already assigned to avoid duplicate key error
+        const { data: existingAssignment } = await supabase
           .from('customer_segments')
-          .insert({
-            customer_id: customerId,
-            segment_id: actualSegmentId
-          });
+          .select('id')
+          .eq('customer_id', customerId)
+          .eq('segment_id', actualSegmentId)
+          .single();
 
-        if (assignError) {
-          console.error('❌ Error assigning customer to segment:', assignError);
-          throw assignError;
+        if (existingAssignment) {
+          console.log('✅ Customer is already assigned to this segment');
+        } else {
+          // Now assign customer to the segment
+          const { error: assignError } = await supabase
+            .from('customer_segments')
+            .insert({
+              customer_id: customerId,
+              segment_id: actualSegmentId
+            });
+
+          if (assignError) {
+            console.error('❌ Error assigning customer to segment:', assignError);
+            throw assignError;
+          }
         }
       } else {
-        // For UUID segments (custom segments), insert directly
-        const { error } = await supabase
+        // For UUID segments (custom segments), check for existing assignment first
+        const { data: existingAssignment } = await supabase
           .from('customer_segments')
-          .insert({
-            customer_id: customerId,
-            segment_id: segmentId
-          });
+          .select('id')
+          .eq('customer_id', customerId)
+          .eq('segment_id', segmentId)
+          .single();
 
-        if (error) {
-          console.error('❌ Error assigning customer to segment:', error);
-          throw error;
+        if (existingAssignment) {
+          console.log('✅ Customer is already assigned to this segment');
+        } else {
+          const { error } = await supabase
+            .from('customer_segments')
+            .insert({
+              customer_id: customerId,
+              segment_id: segmentId
+            });
+
+          if (error) {
+            console.error('❌ Error assigning customer to segment:', error);
+            throw error;
+          }
         }
       }
 
