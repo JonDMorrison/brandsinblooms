@@ -290,8 +290,15 @@ async function generateDomainConnectUrl(
     throw new Error('Invalid template ID');
   }
 
-  // Build Domain Connect URL
-  const baseUrl = `https://${domain}/_domainconnect`;
+  // Build Domain Connect URL - use registrar's endpoint for better compatibility
+  let baseUrl;
+  if (registrar?.toLowerCase().includes('godaddy')) {
+    baseUrl = `https://dcc.godaddy.com/manage/${domain}/dns`;
+  } else {
+    // Fallback to standard Domain Connect discovery
+    baseUrl = `https://${domain}/_domainconnect`;
+  }
+  
   const callbackUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/domain-connect-callback?session=${sessionToken}`;
   const queryParams = new URLSearchParams({
     domain,
