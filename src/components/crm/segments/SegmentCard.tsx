@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Target, Users, Trash2, MoreHorizontal } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { SegmentDetailsModal } from './SegmentDetailsModal';
 import {
@@ -33,6 +34,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete, onS
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const navigate = useNavigate();
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -120,6 +122,10 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete, onS
             <Button 
               size="sm" 
               className="flex-1"
+              onClick={() => {
+                // Navigate to campaign creation with pre-selected segment
+                navigate(`/crm/campaigns/new?segmentId=${segment.id}`);
+              }}
             >
               Create Campaign
             </Button>

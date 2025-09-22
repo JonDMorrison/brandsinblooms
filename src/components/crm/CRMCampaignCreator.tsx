@@ -248,7 +248,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   } else {
     console.log('🔍 No persona parameter found in URL');
   }
-  console.log('🎯 CRMCampaignCreator: Initial personas from URL:', { initialPersonas });
+  // Check for pre-selected segment from URL
+  const segmentIdParam = searchParams.get('segmentId');
+  console.log('🔍 Segment ID param from URL:', segmentIdParam);
   
   const [subjectLine, setSubjectLine] = useState('');
   const [preheaderText, setPreheaderText] = useState('');
@@ -259,6 +261,67 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   });
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
   
+  // Initialize selectedSegments from URL
+  useEffect(() => {
+    const loadSegmentFromUrl = async () => {
+      if (!segmentIdParam) return;
+      
+      try {
+        console.log('🔄 Loading segment from URL:', segmentIdParam);
+        
+        // Check if it's a predefined segment (short string) or custom segment (UUID)
+        const isCustomSegment = segmentIdParam.length > 10;
+        
+        if (isCustomSegment) {
+          // Fetch custom segment
+          const { data: segmentData, error } = await supabase
+            .from('custom_segments')
+            .select('*')
+            .eq('id', segmentIdParam)
+            .single();
+            
+          if (error) {
+            console.error('Error fetching custom segment:', error);
+            return;
+          }
+          
+          if (segmentData && selectedSegments.length === 0) {
+            console.log('🎯 Setting selected segment from URL:', segmentData);
+            setSelectedSegments([{
+              id: segmentData.id,
+              name: segmentData.name,
+              type: 'custom'
+            }]);
+          }
+        } else {
+          // Handle predefined segment
+          const predefinedSegments = {
+            'new-customers': { name: 'New Customers', id: 'new-customers' },
+            'loyalty-members': { name: 'Loyalty Members', id: 'loyalty-members' },
+            'high-value': { name: 'High Value Customers', id: 'high-value' },
+            'lapsed-customers': { name: 'Lapsed Customers', id: 'lapsed-customers' },
+            'seasonal-shoppers': { name: 'Seasonal Shoppers', id: 'seasonal-shoppers' },
+            'frequent-buyers': { name: 'Frequent Buyers', id: 'frequent-buyers' }
+          };
+          
+          const predefinedSegment = predefinedSegments[segmentIdParam as keyof typeof predefinedSegments];
+          if (predefinedSegment && selectedSegments.length === 0) {
+            console.log('🎯 Setting predefined segment from URL:', predefinedSegment);
+            setSelectedSegments([{
+              id: predefinedSegment.id,
+              name: predefinedSegment.name,
+              type: 'predefined'
+            }]);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading segment from URL:', error);
+      }
+    };
+    
+    loadSegmentFromUrl();
+  }, [segmentIdParam, selectedSegments.length, supabase]);
+
   // Initialize selectedPersonas from URL only once - don't override user selections
   useEffect(() => {
     console.log('🔄 useEffect for personas initialization. InitialPersonas:', initialPersonas, 'Current selectedPersonas:', selectedPersonas);
