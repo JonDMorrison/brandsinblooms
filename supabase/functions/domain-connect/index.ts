@@ -362,6 +362,25 @@ async function inferRegistrarFromNS(domain: string): Promise<string | null> {
   }
 }
 
+// Check if Domain Connect provider is supported by the registrar
+async function checkProviderSupport(domainConnectHost: string, providerId: string): Promise<boolean> {
+  try {
+    const checkUrl = `${domainConnectHost}/v2/domainTemplates/providers/${providerId}`;
+    const response = await fetch(checkUrl, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    // If we get 200 or 404, provider discovery is working
+    // If we get 403/401, provider may not be supported
+    return response.status === 200 || response.status === 404;
+  } catch (error) {
+    console.warn('Provider support check failed:', error);
+    // If check fails, assume supported to avoid blocking valid requests
+    return true;
+  }
+}
+
 async function generateDomainConnectUrl(
   domain: string,
   registrar: string | undefined,
@@ -439,6 +458,15 @@ async function generateDomainConnectUrl(
   if (domainConnectBase.includes('domaincontrol.com') || domainConnectBase.includes('godaddy')) {
     domainConnectBase = 'https://dcc.godaddy.com';
   }
+  
+  // Check if provider is supported by registrar
+  const isProviderSupported = await checkProviderSupport(domainConnectBase, template.providerId);
+  
+  if (!isProviderSupported) {
+    console.log(`Provider ${template.providerId} not supported by registrar, falling back to manual DNS`);
+    throw new Error('MANUAL_DNS_REQUIRED');
+  }
+  
   const applyUrl = `${domainConnectBase}/v2/domainTemplates/providers/${template.providerId}/services/${template.serviceId}/apply`;
   
   // Include session in redirect_uri and use state for compatibility
