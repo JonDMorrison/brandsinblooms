@@ -308,7 +308,7 @@ export const CRMPersonasPage: React.FC = () => {
                     key={persona.id}
                     name={persona.name}
                     description={persona.description}
-                    customerCount={countsLoading ? undefined : personaCounts[persona.name] || 0}
+                    customerCount={countsLoading || personaCounts[persona.name] === undefined ? undefined : personaCounts[persona.name] || 0}
                     icon={persona.icon}
                     isSystem={true}
                     personaId={persona.id}
