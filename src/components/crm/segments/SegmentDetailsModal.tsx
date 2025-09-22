@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Users, Target } from 'lucide-react';
+import { Users, Target, Search, Plus, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface Customer {
+  id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  total_spent?: number;
+}
 
 interface Segment {
   id: string;
@@ -23,13 +36,167 @@ interface SegmentDetailsModalProps {
 export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   open,
   onOpenChange,
-  segment
+  segment,
+  onSegmentUpdate
 }) => {
+  const [segmentCustomers, setSegmentCustomers] = useState<Customer[]>([]);
+  const [availableCustomers, setAvailableCustomers] = useState<Customer[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (open && segment) {
+      loadSegmentData();
+    }
+  }, [open, segment]);
+
+  const loadSegmentData = async () => {
+    if (!segment) return;
+    
+    setLoading(true);
+    try {
+      const isCustomSegment = segment.id.length > 10; // Custom segments have UUID format
+      
+      let customers: Customer[] = [];
+      
+      if (isCustomSegment) {
+        // Get customers assigned to custom segment
+        const { data: segmentCustomerData, error: segmentError } = await supabase
+          .from('customer_segments')
+          .select(`
+            customer_id,
+            crm_customers(id, email, first_name, last_name, phone, total_spent)
+          `)
+          .eq('segment_id', segment.id);
+
+        if (segmentError) throw segmentError;
+        customers = segmentCustomerData?.map(item => item.crm_customers).filter(Boolean) || [];
+      } else {
+        // For predefined segments, show empty for now
+        customers = [];
+      }
+      
+      setSegmentCustomers(customers as Customer[]);
+
+      // Get all available customers for adding
+      const { data: allCustomers, error: customersError } = await supabase
+        .from('crm_customers')
+        .select('id, email, first_name, last_name, phone, total_spent')
+        .order('email');
+
+      if (customersError) throw customersError;
+
+      // Filter out customers already in segment
+      const customerIds = new Set(customers.map(c => c.id));
+      const available = (allCustomers || []).filter(c => !customerIds.has(c.id));
+      setAvailableCustomers(available);
+
+    } catch (error) {
+      console.error('Error loading segment data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load segment data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addCustomerToSegment = async (customerId: string) => {
+    if (!segment) return;
+
+    const isCustomSegment = segment.id.length > 10;
+    
+    if (!isCustomSegment) {
+      toast({
+        title: "Not Available",
+        description: "Manual assignment is only available for custom segments",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('customer_segments')
+        .insert({
+          customer_id: customerId,
+          segment_id: segment.id
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Customer added to segment",
+      });
+
+      loadSegmentData();
+      onSegmentUpdate?.();
+    } catch (error) {
+      console.error('Error adding customer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add customer to segment",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const removeCustomerFromSegment = async (customerId: string) => {
+    if (!segment) return;
+
+    const isCustomSegment = segment.id.length > 10;
+    
+    if (!isCustomSegment) {
+      toast({
+        title: "Not Available",
+        description: "Manual assignment is only available for custom segments",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('customer_segments')
+        .delete()
+        .eq('customer_id', customerId)
+        .eq('segment_id', segment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Customer removed from segment",
+      });
+
+      loadSegmentData();
+      onSegmentUpdate?.();
+    } catch (error) {
+      console.error('Error removing customer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove customer from segment",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredAvailableCustomers = availableCustomers.filter(customer =>
+    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    `${customer.first_name} ${customer.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const isCustomSegment = segment?.id.length > 10;
+
   if (!segment) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-6xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <Target className="h-6 w-6 text-primary" />
@@ -49,7 +216,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              <span className="font-semibold">{segment.customer_count || 0} Customers</span>
+              <span className="font-semibold">{segmentCustomers.length} Customers</span>
             </div>
             {segment.auto_update && (
               <Badge variant="outline">Auto-update</Badge>
@@ -59,13 +226,137 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
             </div>
           </div>
 
-          {/* Segment Information */}
-          <div className="p-4 border rounded-lg">
-            <h3 className="font-semibold mb-2">Segment Details</h3>
-            <p className="text-sm text-muted-foreground">
-              This segment automatically groups customers based on predefined criteria. 
-              Customer assignment is managed automatically by the system.
-            </p>
+          {!isCustomSegment && (
+            <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                This is a predefined segment. Customers are automatically assigned based on their purchase behavior and cannot be manually managed.
+              </p>
+            </div>
+          )}
+
+          {/* Two Column Layout */}
+          <div className="flex-1 overflow-hidden">
+            <div className="grid grid-cols-2 gap-6 h-full">
+              {/* Left Column - Assigned Customers */}
+              <div className="flex flex-col">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Assigned Customers ({segmentCustomers.length})
+                </h3>
+                
+                <div className="flex-1 overflow-y-auto border rounded-lg">
+                  {loading ? (
+                    <div className="space-y-2 p-4">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-12 bg-muted animate-pulse rounded" />
+                      ))}
+                    </div>
+                  ) : segmentCustomers.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground p-4">
+                      <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No customers assigned yet</p>
+                      {isCustomSegment && (
+                        <p className="text-sm">Add customers from the available list</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-2">
+                      {segmentCustomers.map(customer => (
+                        <div key={customer.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg mb-1">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{customer.email}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {customer.first_name || customer.last_name 
+                                ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
+                                : 'No name provided'
+                              }
+                              {customer.total_spent !== undefined && (
+                                <span className="ml-2">• ${customer.total_spent.toFixed(2)}</span>
+                              )}
+                            </div>
+                          </div>
+                          {isCustomSegment && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeCustomerFromSegment(customer.id)}
+                              className="text-destructive hover:text-destructive flex-shrink-0 ml-2"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column - Available Customers */}
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Available Customers ({filteredAvailableCustomers.length})
+                  </h3>
+                  {!isCustomSegment && (
+                    <Badge variant="secondary" className="text-xs">
+                      View Only
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Search Bar */}
+                <div className="flex items-center gap-2 mb-3">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search customers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+
+                <div className="flex-1 overflow-y-auto border rounded-lg">
+                  {filteredAvailableCustomers.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground p-4">
+                      <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>{searchTerm ? 'No customers found matching your search' : 'No customers available to add'}</p>
+                    </div>
+                  ) : (
+                    <div className="p-2">
+                      {filteredAvailableCustomers.map(customer => (
+                        <div key={customer.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg mb-1">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{customer.email}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {(customer.first_name || customer.last_name) ? (
+                                <span>({customer.first_name} {customer.last_name})</span>
+                              ) : (
+                                'No name provided'
+                              )}
+                              {customer.total_spent !== undefined && (
+                                <span className="ml-2">• ${customer.total_spent.toFixed(2)}</span>
+                              )}
+                            </div>
+                          </div>
+                          {isCustomSegment && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => addCustomerToSegment(customer.id)}
+                              className="flex-shrink-0 ml-2"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </DialogContent>
