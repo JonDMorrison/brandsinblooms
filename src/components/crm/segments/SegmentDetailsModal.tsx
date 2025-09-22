@@ -376,7 +376,6 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
               }}
               className="px-6"
             >
-              <X className="h-4 w-4 mr-2" />
               Close
             </Button>
           </div>
