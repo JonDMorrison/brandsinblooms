@@ -108,7 +108,12 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete, onS
               variant="outline" 
               size="sm" 
               className="flex-1"
-              onClick={() => setShowDetailsModal(true)}
+              onClick={() => {
+                console.log('🔍 View Details clicked for segment:', segment.name, segment.id);
+                console.log('🔍 Current showDetailsModal state:', showDetailsModal);
+                setShowDetailsModal(true);
+                console.log('🔍 Setting showDetailsModal to true');
+              }}
             >
               View Details
             </Button>
@@ -134,7 +139,10 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete, onS
 
       <SegmentDetailsModal
         open={showDetailsModal}
-        onOpenChange={setShowDetailsModal}
+        onOpenChange={(open) => {
+          console.log('🔍 Modal onOpenChange called with:', open);
+          setShowDetailsModal(open);
+        }}
         segment={segment}
         onSegmentUpdate={onSegmentUpdate}
       />
