@@ -292,11 +292,12 @@ async function generateDomainConnectUrl(
 
   // Build Domain Connect URL
   const baseUrl = `https://${domain}/_domainconnect`;
+  const callbackUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/domain-connect-callback?session=${sessionToken}`;
   const queryParams = new URLSearchParams({
     domain,
     providerId: template.providerId,
     serviceId: template.serviceId,
-    redirect_uri: `https://api.bloomsuite.app/domain-connect/callback?session=${sessionToken}`,
+    redirect_uri: callbackUrl,
     state: sessionToken,
     ...params
   });
