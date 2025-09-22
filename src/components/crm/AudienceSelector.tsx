@@ -303,7 +303,7 @@ export const AudienceSelector = ({
             </div>
           )}
           
-          {selectedSegments.length > 0 && (
+          {(selectedSegments.length > 0 || selectedPersonas.length > 0) && (
             <>
               <Separator />
               <div className="flex items-center justify-between text-sm">
