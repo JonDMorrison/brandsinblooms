@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Users, Target, Search, Plus, X } from 'lucide-react';
+import { Users, Target, Search, Plus, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -43,6 +43,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   const [availableCustomers, setAvailableCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingCustomerId, setLoadingCustomerId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -105,18 +106,15 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   };
 
   const addCustomerToSegment = async (customerId: string) => {
-    if (!segment) return;
+    if (!segment || loadingCustomerId) return;
 
     const isCustomSegment = segment.id.length > 10;
     
     if (!isCustomSegment) {
-      toast({
-        title: "Not Available",
-        description: "Manual assignment is only available for custom segments",
-        variant: "destructive",
-      });
       return;
     }
+
+    setLoadingCustomerId(customerId);
 
     try {
       const { error } = await supabase
@@ -128,36 +126,31 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Customer added to segment",
-      });
+      // Update local state
+      const customerToMove = availableCustomers.find(c => c.id === customerId);
+      if (customerToMove) {
+        setSegmentCustomers(prev => [...prev, customerToMove]);
+        setAvailableCustomers(prev => prev.filter(c => c.id !== customerId));
+      }
 
-      loadSegmentData();
       onSegmentUpdate?.();
     } catch (error) {
       console.error('Error adding customer:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add customer to segment",
-        variant: "destructive",
-      });
+    } finally {
+      setLoadingCustomerId(null);
     }
   };
 
   const removeCustomerFromSegment = async (customerId: string) => {
-    if (!segment) return;
+    if (!segment || loadingCustomerId) return;
 
     const isCustomSegment = segment.id.length > 10;
     
     if (!isCustomSegment) {
-      toast({
-        title: "Not Available",
-        description: "Manual assignment is only available for custom segments",
-        variant: "destructive",
-      });
       return;
     }
+
+    setLoadingCustomerId(customerId);
 
     try {
       const { error } = await supabase
@@ -168,20 +161,18 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Customer removed from segment",
-      });
+      // Update local state
+      const customerToMove = segmentCustomers.find(c => c.id === customerId);
+      if (customerToMove) {
+        setAvailableCustomers(prev => [...prev, customerToMove]);
+        setSegmentCustomers(prev => prev.filter(c => c.id !== customerId));
+      }
 
-      loadSegmentData();
       onSegmentUpdate?.();
     } catch (error) {
       console.error('Error removing customer:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove customer from segment",
-        variant: "destructive",
-      });
+    } finally {
+      setLoadingCustomerId(null);
     }
   };
 
@@ -291,9 +282,14 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                               size="sm"
                               variant="ghost"
                               onClick={() => removeCustomerFromSegment(customer.id)}
+                              disabled={loadingCustomerId === customer.id}
                               className="text-destructive hover:text-destructive flex-shrink-0 ml-2"
                             >
-                              <X className="h-4 w-4" />
+                              {loadingCustomerId === customer.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <X className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -345,9 +341,14 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                               size="sm"
                               variant="outline"
                               onClick={() => addCustomerToSegment(customer.id)}
+                              disabled={loadingCustomerId === customer.id}
                               className="flex-shrink-0 ml-2"
                             >
-                              <Plus className="h-3 w-3" />
+                              {loadingCustomerId === customer.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Plus className="h-3 w-3" />
+                              )}
                             </Button>
                           )}
                         </div>
