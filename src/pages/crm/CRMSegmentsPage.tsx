@@ -221,6 +221,7 @@ export const CRMSegmentsPage: React.FC = () => {
                       name={segment.name}
                       description={segment.description}
                       estimatedCount={counts[segment.id as keyof typeof counts] || 0}
+                      isLoadingCount={countsLoading}
                       icon={segment.icon}
                       isSystem={true}
                       onCreateCampaign={() => handleCreateCampaign(segment.id)}
