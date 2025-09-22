@@ -133,7 +133,6 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
         setAvailableCustomers(prev => prev.filter(c => c.id !== customerId));
       }
 
-      onSegmentUpdate?.();
     } catch (error) {
       console.error('Error adding customer:', error);
     } finally {
@@ -168,7 +167,6 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
         setSegmentCustomers(prev => prev.filter(c => c.id !== customerId));
       }
 
-      onSegmentUpdate?.();
     } catch (error) {
       console.error('Error removing customer:', error);
     } finally {
@@ -281,7 +279,11 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => removeCustomerFromSegment(customer.id)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                removeCustomerFromSegment(customer.id);
+                              }}
                               disabled={loadingCustomerId === customer.id}
                               className="text-destructive hover:text-destructive flex-shrink-0 ml-2"
                             >
@@ -340,7 +342,11 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => addCustomerToSegment(customer.id)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                addCustomerToSegment(customer.id);
+                              }}
                               disabled={loadingCustomerId === customer.id}
                               className="flex-shrink-0 ml-2"
                             >
