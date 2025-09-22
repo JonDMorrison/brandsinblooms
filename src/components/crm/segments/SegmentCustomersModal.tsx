@@ -40,13 +40,15 @@ interface SegmentCustomersModalProps {
   onClose: () => void;
   segmentId: string;
   segmentName: string;
+  onAssignmentChange?: () => void;
 }
 
 export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
   open,
   onClose,
   segmentId,
-  segmentName
+  segmentName,
+  onAssignmentChange
 }) => {
   const [customers, setCustomers] = useState<SegmentCustomer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -384,6 +386,11 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
       console.log('📊 Updated segment customers:', segmentCustomersData.length);
       setCustomers(segmentCustomersData);
       
+      // Notify parent component about the change
+      if (onAssignmentChange) {
+        onAssignmentChange();
+      }
+      
     } catch (error) {
       console.error('❌ Error assigning customer to segment:', error);
     } finally {
@@ -446,6 +453,11 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
       const segmentCustomersData = await fetchSegmentCustomers();
       console.log('📊 Updated segment customers after removal:', segmentCustomersData.length);
       setCustomers(segmentCustomersData);
+      
+      // Notify parent component about the change
+      if (onAssignmentChange) {
+        onAssignmentChange();
+      }
     } catch (error) {
       console.error('❌ Error removing customer from segment:', error);
     } finally {

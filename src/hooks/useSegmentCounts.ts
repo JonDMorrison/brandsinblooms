@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
@@ -22,11 +22,11 @@ export const useSegmentCounts = () => {
     'frequent-buyers': 0,
   });
   const [loading, setLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const { user } = useAuth();
   const { tenant } = useTenant();
 
-  useEffect(() => {
-    const fetchSegmentCounts = async () => {
+  const fetchSegmentCounts = useCallback(async () => {
       if (!user || !tenant) return;
 
       setLoading(true);
@@ -55,35 +55,50 @@ export const useSegmentCounts = () => {
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-        // Get manual segment assignments
-        const { data: segmentAssignments, error: segmentError } = await supabase
-          .from('customer_segments')
-          .select(`
-            customer_id,
-            crm_segments!inner(id, name),
-            custom_segments!inner(id, name)
-          `)
-          .in('customer_id', customers.map(c => c.id));
+        // Get manual segment assignments for predefined segments
+        // First, find any existing predefined segments in crm_segments table
+        const { data: existingSegments, error: segmentsError } = await supabase
+          .from('crm_segments')
+          .select('id, name')
+          .eq('tenant_id', tenant.id)
+          .in('name', ['Loyalty Members', 'High-Value Customers', 'New Customers', 'Lapsed Customers', 'Seasonal Shoppers', 'Frequent Buyers']);
 
-        if (segmentError) {
-          console.error('Error fetching segment assignments:', segmentError);
+        if (segmentsError) {
+          console.error('Error fetching segments:', segmentsError);
         }
 
-        // Create a map of manually assigned customers per segment
-        const manualAssignments: Record<string, Set<string>> = {};
+        // Get manual assignments for existing segments
+        let manualAssignments: Record<string, Set<string>> = {};
         
-        if (segmentAssignments) {
-          segmentAssignments.forEach((assignment: any) => {
-            // Handle both CRM segments and custom segments
-            const segmentId = assignment.crm_segments?.name || assignment.custom_segments?.name;
-            if (segmentId) {
-              if (!manualAssignments[segmentId]) {
-                manualAssignments[segmentId] = new Set();
+        if (existingSegments && existingSegments.length > 0) {
+          const segmentIds = existingSegments.map(s => s.id);
+          
+          const { data: assignments, error: assignmentError } = await supabase
+            .from('customer_segments')
+            .select(`
+              customer_id,
+              segment_id,
+              crm_segments!inner(name)
+            `)
+            .in('segment_id', segmentIds)
+            .in('customer_id', customers.map(c => c.id));
+
+          if (assignmentError) {
+            console.error('Error fetching segment assignments:', assignmentError);
+          } else if (assignments) {
+            assignments.forEach((assignment: any) => {
+              const segmentName = assignment.crm_segments?.name;
+              if (segmentName) {
+                if (!manualAssignments[segmentName]) {
+                  manualAssignments[segmentName] = new Set();
+                }
+                manualAssignments[segmentName].add(assignment.customer_id);
               }
-              manualAssignments[segmentId].add(assignment.customer_id);
-            }
-          });
+            });
+          }
         }
+
+        console.log('🔍 Manual assignments found:', manualAssignments);
 
         // Calculate segment counts (combining automatic + manual assignments)
         const segmentCounts: SegmentCounts = {
@@ -137,6 +152,8 @@ export const useSegmentCounts = () => {
           ]).size,
         };
 
+        console.log('🔢 Final segment counts:', segmentCounts);
+
         setCounts(segmentCounts);
       } catch (error) {
         console.error('Error fetching segment counts:', error);
@@ -144,10 +161,15 @@ export const useSegmentCounts = () => {
       } finally {
         setLoading(false);
       }
-    };
+    }, [user, tenant]);
 
+  useEffect(() => {
     fetchSegmentCounts();
-  }, [user, tenant]);
+  }, [fetchSegmentCounts, refreshKey]);
 
-  return { counts, loading };
+  const refreshCounts = useCallback(() => {
+    setRefreshKey(prev => prev + 1);
+  }, []);
+
+  return { counts, loading, refreshCounts };
 };

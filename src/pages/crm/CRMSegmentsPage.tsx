@@ -55,7 +55,7 @@ const predefinedSegments = [
 
 export const CRMSegmentsPage: React.FC = () => {
   const { segments, loading, searchTerm, setSearchTerm, fetchSegments, createSegment, deleteSegment } = useCRMSegments();
-  const { counts, loading: countsLoading } = useSegmentCounts();
+  const { counts, loading: countsLoading, refreshCounts } = useSegmentCounts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const [highlightedSegment, setHighlightedSegment] = useState<string | null>(null);
@@ -297,6 +297,7 @@ export const CRMSegmentsPage: React.FC = () => {
           onClose={() => setSelectedSegment(null)}
           segmentId={selectedSegment.id}
           segmentName={selectedSegment.name}
+          onAssignmentChange={refreshCounts}
         />
       )}
     </div>
