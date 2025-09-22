@@ -104,51 +104,42 @@ export const useSegmentCounts = () => {
         console.log('👤 Sample new customers:', newCustomers.slice(0, 3).map(c => ({ email: c.email, created_at: c.created_at })));
 
         // Get manual segment assignments for predefined segments
-        // First, find any existing predefined segments in crm_segments table
-        const { data: existingSegments, error: segmentsError } = await supabase
-          .from('crm_segments')
-          .select('id, name')
-          .eq('tenant_id', tenant.id)
-          .in('name', ['Loyalty Members', 'High-Value Customers', 'New Customers', 'Lapsed Customers', 'Seasonal Shoppers', 'Frequent Buyers']);
-
-        if (segmentsError) {
-          console.error('Error fetching segments:', segmentsError);
-        }
-
-        // Get manual assignments for existing segments
         let manualAssignments: Record<string, Set<string>> = {};
         
-        if (existingSegments && existingSegments.length > 0) {
-          const segmentIds = existingSegments.map(s => s.id);
-          
-          const { data: assignments, error: assignmentError } = await supabase
-            .from('customer_segments')
-            .select(`
-              customer_id,
-              segment_id
-            `)
-            .in('segment_id', segmentIds)
-            .in('customer_id', customers.map(c => c.id));
+        // First, try to get ALL customer segments for this tenant
+        const { data: allCustomerSegments, error: segmentsError } = await supabase
+          .from('customer_segments')
+          .select('customer_id, segment_id')
+          .in('customer_id', customers.map(c => c.id));
 
-          console.log('🔍 Raw assignments fetched:', assignments);
+        if (segmentsError) {
+          console.error('Error fetching customer segments:', segmentsError);
+        } else if (allCustomerSegments && allCustomerSegments.length > 0) {
+          console.log('🔍 All customer segments found:', allCustomerSegments);
 
-          // Now get segment names separately to avoid relationship issues
-          let assignmentsBySegment: Record<string, Set<string>> = {};
-          if (assignments && assignments.length > 0) {
-            for (const assignment of assignments) {
-              const segment = existingSegments.find(s => s.id === assignment.segment_id);
-              if (segment?.name) {
-                if (!assignmentsBySegment[segment.name]) {
-                  assignmentsBySegment[segment.name] = new Set();
+          // Get the corresponding segment details
+          const segmentIds = [...new Set(allCustomerSegments.map(cs => cs.segment_id))];
+          const { data: segmentDetails, error: detailsError } = await supabase
+            .from('crm_segments')
+            .select('id, name')
+            .in('id', segmentIds)
+            .eq('tenant_id', tenant.id);
+
+          if (detailsError) {
+            console.error('Error fetching segment details:', detailsError);
+          } else if (segmentDetails) {
+            console.log('🔍 Segment details found:', segmentDetails);
+
+            // Build manual assignments by segment name
+            allCustomerSegments.forEach(assignment => {
+              const segment = segmentDetails.find(s => s.id === assignment.segment_id);
+              if (segment && segment.name) {
+                if (!manualAssignments[segment.name]) {
+                  manualAssignments[segment.name] = new Set();
                 }
-                assignmentsBySegment[segment.name].add(assignment.customer_id);
+                manualAssignments[segment.name].add(assignment.customer_id);
               }
-            }
-          }
-          manualAssignments = assignmentsBySegment;
-
-          if (assignmentError) {
-            console.error('Error fetching segment assignments:', assignmentError);
+            });
           }
         }
 
