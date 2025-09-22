@@ -40,14 +40,6 @@ export const SegmentOverviewCard: React.FC<SegmentOverviewCardProps> = ({
   const loading = isLoadingCount || estimatedCount === undefined;
   const isMobile = useIsMobile();
 
-  // Debug logging
-  console.log('🔧 SegmentOverviewCard render:', { 
-    name, 
-    estimatedCount, 
-    isLoadingCount, 
-    loading,
-    finalCount: estimatedCount || 0
-  });
 
   return (
     <Card className="h-full mobile-hover-lift mobile-card">

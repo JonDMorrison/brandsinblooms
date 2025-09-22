@@ -55,38 +55,86 @@ export const useSegmentCounts = () => {
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-        // Calculate segment counts
+        // Get manual segment assignments
+        const { data: segmentAssignments, error: segmentError } = await supabase
+          .from('customer_segments')
+          .select(`
+            customer_id,
+            crm_segments!inner(id, name),
+            custom_segments!inner(id, name)
+          `)
+          .in('customer_id', customers.map(c => c.id));
+
+        if (segmentError) {
+          console.error('Error fetching segment assignments:', segmentError);
+        }
+
+        // Create a map of manually assigned customers per segment
+        const manualAssignments: Record<string, Set<string>> = {};
+        
+        if (segmentAssignments) {
+          segmentAssignments.forEach((assignment: any) => {
+            // Handle both CRM segments and custom segments
+            const segmentId = assignment.crm_segments?.name || assignment.custom_segments?.name;
+            if (segmentId) {
+              if (!manualAssignments[segmentId]) {
+                manualAssignments[segmentId] = new Set();
+              }
+              manualAssignments[segmentId].add(assignment.customer_id);
+            }
+          });
+        }
+
+        // Calculate segment counts (combining automatic + manual assignments)
         const segmentCounts: SegmentCounts = {
-          'loyalty-members': customers.filter(customer => 
-            customer.tags && customer.tags.includes('loyalty')
-          ).length,
+          'loyalty-members': new Set([
+            ...customers.filter(customer => 
+              customer.tags && customer.tags.includes('loyalty')
+            ).map(c => c.id),
+            ...(manualAssignments['Loyalty Members'] || [])
+          ]).size,
           
-          'high-value': customers.filter(customer => 
-            customer.total_spent && customer.total_spent > 500
-          ).length,
+          'high-value': new Set([
+            ...customers.filter(customer => 
+              customer.total_spent && customer.total_spent > 500
+            ).map(c => c.id),
+            ...(manualAssignments['High-Value Customers'] || [])
+          ]).size,
           
-          'new-customers': customers.filter(customer => 
-            new Date(customer.created_at) >= thirtyDaysAgo
-          ).length,
+          'new-customers': new Set([
+            ...customers.filter(customer => 
+              new Date(customer.created_at) >= thirtyDaysAgo
+            ).map(c => c.id),
+            ...(manualAssignments['New Customers'] || [])
+          ]).size,
           
-          'lapsed-customers': customers.filter(customer => 
-            customer.last_purchase_date && 
-            new Date(customer.last_purchase_date) < ninetyDaysAgo
-          ).length,
+          'lapsed-customers': new Set([
+            ...customers.filter(customer => 
+              customer.last_purchase_date && 
+              new Date(customer.last_purchase_date) < ninetyDaysAgo
+            ).map(c => c.id),
+            ...(manualAssignments['Lapsed Customers'] || [])
+          ]).size,
           
-          'seasonal-shoppers': customers.filter(customer => 
-            customer.tags && (
-              customer.tags.some((tag: string) => 
-                ['seasonal', 'holiday', 'christmas', 'valentine', 'easter', 'summer', 'winter'].includes(tag.toLowerCase())
+          'seasonal-shoppers': new Set([
+            ...customers.filter(customer => 
+              customer.tags && (
+                customer.tags.some((tag: string) => 
+                  ['seasonal', 'holiday', 'christmas', 'valentine', 'easter', 'summer', 'winter'].includes(tag.toLowerCase())
+                )
               )
-            )
-          ).length,
+            ).map(c => c.id),
+            ...(manualAssignments['Seasonal Shoppers'] || [])
+          ]).size,
           
-          'frequent-buyers': customers.filter(customer => 
-            customer.order_history && 
-            Array.isArray(customer.order_history) && 
-            customer.order_history.length >= 3
-          ).length,
+          'frequent-buyers': new Set([
+            ...customers.filter(customer => 
+              customer.order_history && 
+              Array.isArray(customer.order_history) && 
+              customer.order_history.length >= 3
+            ).map(c => c.id),
+            ...(manualAssignments['Frequent Buyers'] || [])
+          ]).size,
         };
 
         setCounts(segmentCounts);
