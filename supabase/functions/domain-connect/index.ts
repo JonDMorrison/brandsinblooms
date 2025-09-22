@@ -197,7 +197,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       // Generate Domain Connect URL
-      const domainConnectUrl = await generateDomainConnectUrl(domain, templateId, params, sessionToken);
+      const domainConnectUrl = await generateDomainConnectUrl(domain, registrar, templateId, params, sessionToken);
 
       const response: DomainConnectResponse = {
         success: true,
@@ -255,7 +255,8 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 async function generateDomainConnectUrl(
-  domain: string, 
+  domain: string,
+  registrar: string | undefined,
   templateId: string, 
   params: Record<string, string>,
   sessionToken: string
