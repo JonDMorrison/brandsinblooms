@@ -121,7 +121,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       // If domain doesn't exist, create it with tenant_id
       if (!domainRecord) {
-        const domainType = templateId === 'landing_page' ? 'website' : 'email_sending';
+        const domainType = 'custom'; // Use 'custom' type for user-configured domains
         const { data: newDomain, error: createError } = await supabaseAdmin
           .from('domains')
           .insert({
