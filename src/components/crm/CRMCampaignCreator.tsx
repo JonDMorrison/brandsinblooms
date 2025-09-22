@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { Loader2, Mail, ArrowLeft, Users, Sparkles, Send, Eye } from 'lucide-react';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { SharedSenderConfirmationModal } from './campaigns/SharedSenderConfirmationModal';
@@ -192,6 +193,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { counts: segmentCounts } = useSegmentCounts();
   
   const [campaignName, setCampaignName] = useState('');
   
@@ -281,7 +283,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           // Fetch custom segment
           console.log('🔍 Fetching custom segment from database...');
           const { data: segmentData, error } = await supabase
-            .from('custom_segments')
+            .from('crm_segments')  // Changed from custom_segments to crm_segments
             .select('*')
             .eq('id', segmentIdParam)
             .maybeSingle();
@@ -294,12 +296,22 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           }
           
           if (segmentData) {
-            console.log('🎯 Setting selected segment from URL:', segmentData);
+            // Get actual customer count for this segment
+            const { count: customerCount, error: countError } = await supabase
+              .from('customer_segments')
+              .select('*', { count: 'exact', head: true })
+              .eq('segment_id', segmentData.id);
+
+            if (countError) {
+              console.error('❌ Error counting customers for segment:', countError);
+            }
+
+            console.log('🎯 Setting selected segment from URL with count:', { segmentData, customerCount });
             setSelectedSegments([{
               id: segmentData.id,
               name: segmentData.name,
               type: 'custom',
-              customerCount: segmentData.customer_count || 0
+              customer_count: customerCount || 0  // Use customer_count to match AudienceSelector
             }]);
           } else {
             console.log('⚠️ Custom segment not found in database');
@@ -318,12 +330,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           console.log('🔍 Looking for predefined segment:', segmentIdParam);
           const predefinedSegment = predefinedSegments[segmentIdParam as keyof typeof predefinedSegments];
           if (predefinedSegment) {
-            console.log('🎯 Setting predefined segment from URL:', predefinedSegment);
+            // Get the actual count from segmentCounts hook
+            const actualCount = segmentCounts[segmentIdParam as keyof typeof segmentCounts] || 0;
+            
+            console.log('🎯 Setting predefined segment from URL with count:', { predefinedSegment, actualCount });
             setSelectedSegments([{
               id: predefinedSegment.id,
               name: predefinedSegment.name,
               type: 'predefined',
-              customerCount: 0
+              customer_count: actualCount  // Use customer_count to match AudienceSelector
             }]);
           } else {
             console.log('⚠️ Predefined segment not found:', segmentIdParam);
@@ -338,7 +353,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     if (segmentIdParam) {
       loadSegmentFromUrl();
     }
-  }, [segmentIdParam, supabase]); // Removed selectedSegments.length dependency
+  }, [segmentIdParam, supabase, segmentCounts]); // Added segmentCounts dependency
 
   // Initialize selectedPersonas from URL only once - don't override user selections
   useEffect(() => {
