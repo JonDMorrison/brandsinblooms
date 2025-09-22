@@ -27,8 +27,12 @@ export const useSegmentCounts = () => {
   const { tenant } = useTenant();
 
   const fetchSegmentCounts = useCallback(async () => {
-      if (!user || !tenant) return;
+      if (!user || !tenant) {
+        console.log('❌ Missing user or tenant:', { user: !!user, tenant: !!tenant });
+        return;
+      }
 
+      console.log('🚀 Starting fetchSegmentCounts for tenant:', tenant.id);
       setLoading(true);
       try {
         // Get all customers for the tenant
@@ -39,7 +43,11 @@ export const useSegmentCounts = () => {
 
         if (error) throw error;
 
+        console.log('👥 Total customers found:', customers?.length || 0);
+        console.log('👥 Customers data:', customers);
+
         if (!customers) {
+          console.log('❌ No customers found, setting all counts to 0');
           setCounts({
             'loyalty-members': 0,
             'high-value': 0,
@@ -54,6 +62,46 @@ export const useSegmentCounts = () => {
         const now = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+        console.log('📅 Date calculations:', { now, thirtyDaysAgo, ninetyDaysAgo });
+
+        // Calculate automatic segment qualifications
+        const newCustomers = customers.filter(customer => 
+          new Date(customer.created_at) >= thirtyDaysAgo
+        );
+        const loyaltyCustomers = customers.filter(customer => 
+          customer.tags && customer.tags.includes('loyalty')
+        );
+        const highValueCustomers = customers.filter(customer => 
+          customer.total_spent && customer.total_spent > 500
+        );
+        const lapsedCustomers = customers.filter(customer => 
+          customer.last_purchase_date && 
+          new Date(customer.last_purchase_date) < ninetyDaysAgo
+        );
+        const seasonalCustomers = customers.filter(customer => 
+          customer.tags && (
+            customer.tags.some((tag: string) => 
+              ['seasonal', 'holiday', 'christmas', 'valentine', 'easter', 'summer', 'winter'].includes(tag.toLowerCase())
+            )
+          )
+        );
+        const frequentBuyers = customers.filter(customer => 
+          customer.order_history && 
+          Array.isArray(customer.order_history) && 
+          customer.order_history.length >= 3
+        );
+
+        console.log('🔍 Automatic qualifications:', {
+          newCustomers: newCustomers.length,
+          loyaltyCustomers: loyaltyCustomers.length,
+          highValueCustomers: highValueCustomers.length,
+          lapsedCustomers: lapsedCustomers.length,
+          seasonalCustomers: seasonalCustomers.length,
+          frequentBuyers: frequentBuyers.length,
+        });
+
+        console.log('👤 Sample new customers:', newCustomers.slice(0, 3).map(c => ({ email: c.email, created_at: c.created_at })));
 
         // Get manual segment assignments for predefined segments
         // First, find any existing predefined segments in crm_segments table
@@ -103,51 +151,32 @@ export const useSegmentCounts = () => {
         // Calculate segment counts (combining automatic + manual assignments)
         const segmentCounts: SegmentCounts = {
           'loyalty-members': new Set([
-            ...customers.filter(customer => 
-              customer.tags && customer.tags.includes('loyalty')
-            ).map(c => c.id),
+            ...loyaltyCustomers.map(c => c.id),
             ...(manualAssignments['Loyalty Members'] || [])
           ]).size,
           
           'high-value': new Set([
-            ...customers.filter(customer => 
-              customer.total_spent && customer.total_spent > 500
-            ).map(c => c.id),
+            ...highValueCustomers.map(c => c.id),
             ...(manualAssignments['High-Value Customers'] || [])
           ]).size,
           
           'new-customers': new Set([
-            ...customers.filter(customer => 
-              new Date(customer.created_at) >= thirtyDaysAgo
-            ).map(c => c.id),
+            ...newCustomers.map(c => c.id),
             ...(manualAssignments['New Customers'] || [])
           ]).size,
           
           'lapsed-customers': new Set([
-            ...customers.filter(customer => 
-              customer.last_purchase_date && 
-              new Date(customer.last_purchase_date) < ninetyDaysAgo
-            ).map(c => c.id),
+            ...lapsedCustomers.map(c => c.id),
             ...(manualAssignments['Lapsed Customers'] || [])
           ]).size,
           
           'seasonal-shoppers': new Set([
-            ...customers.filter(customer => 
-              customer.tags && (
-                customer.tags.some((tag: string) => 
-                  ['seasonal', 'holiday', 'christmas', 'valentine', 'easter', 'summer', 'winter'].includes(tag.toLowerCase())
-                )
-              )
-            ).map(c => c.id),
+            ...seasonalCustomers.map(c => c.id),
             ...(manualAssignments['Seasonal Shoppers'] || [])
           ]).size,
           
           'frequent-buyers': new Set([
-            ...customers.filter(customer => 
-              customer.order_history && 
-              Array.isArray(customer.order_history) && 
-              customer.order_history.length >= 3
-            ).map(c => c.id),
+            ...frequentBuyers.map(c => c.id),
             ...(manualAssignments['Frequent Buyers'] || [])
           ]).size,
         };
