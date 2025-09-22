@@ -64,8 +64,10 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
     try {
       let customersData: SegmentCustomer[] = [];
 
-      // For predefined segments, we need to calculate based on criteria
+      // For predefined segments, we need to calculate based on criteria AND check customer_segments table
       if (['loyalty-members', 'high-value', 'new-customers', 'lapsed-customers', 'seasonal-shoppers', 'frequent-buyers'].includes(segmentId)) {
+        console.log('🔍 Fetching customers for predefined segment:', segmentId);
+        
         // Get all customers and filter based on segment criteria
         const { data: allCustomers, error } = await supabase
           .from('crm_customers')
@@ -75,40 +77,41 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
         if (error) throw error;
 
         // Apply segment-specific filtering
+        let criteriaBasedCustomers: SegmentCustomer[] = [];
         switch (segmentId) {
           case 'loyalty-members':
-            customersData = allCustomers?.filter(customer => 
+            criteriaBasedCustomers = allCustomers?.filter(customer => 
               customer.tags && customer.tags.includes('loyalty')
             ) || [];
             break;
           case 'high-value':
-            customersData = allCustomers?.filter(customer => 
+            criteriaBasedCustomers = allCustomers?.filter(customer => 
               (customer.total_spent || 0) >= 500
             ) || [];
             break;
           case 'new-customers':
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            customersData = allCustomers?.filter(customer => 
+            criteriaBasedCustomers = allCustomers?.filter(customer => 
               new Date(customer.created_at) >= thirtyDaysAgo
             ) || [];
             break;
           case 'lapsed-customers':
             const ninetyDaysAgo = new Date();
             ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-            customersData = allCustomers?.filter(customer => 
+            criteriaBasedCustomers = allCustomers?.filter(customer => 
               customer.last_purchase_date && 
               new Date(customer.last_purchase_date) <= ninetyDaysAgo
             ) || [];
             break;
           case 'frequent-buyers':
-            customersData = allCustomers?.filter(customer => 
+            criteriaBasedCustomers = allCustomers?.filter(customer => 
               customer.order_history && Array.isArray(customer.order_history) && 
               (customer.order_history as any[]).length >= 3
             ) || [];
             break;
           case 'seasonal-shoppers':
-            customersData = allCustomers?.filter(customer => 
+            criteriaBasedCustomers = allCustomers?.filter(customer => 
               customer.tags && (
                 customer.tags.includes('seasonal') || 
                 customer.tags.includes('holiday')
@@ -116,8 +119,84 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
             ) || [];
             break;
         }
+
+        console.log('📊 Found customers by criteria:', criteriaBasedCustomers.length);
+
+        // ALSO get manually assigned customers from customer_segments table
+        // First, find the segment ID in the database
+        const predefinedSegmentNames = {
+          'loyalty-members': 'Loyalty Members',
+          'high-value': 'High-Value Customers', 
+          'new-customers': 'New Customers',
+          'lapsed-customers': 'Lapsed Customers',
+          'seasonal-shoppers': 'Seasonal Shoppers',
+          'frequent-buyers': 'Frequent Buyers'
+        };
+
+        const segmentName = predefinedSegmentNames[segmentId as keyof typeof predefinedSegmentNames];
+        let manuallyAssignedCustomers: SegmentCustomer[] = [];
+
+        if (segmentName) {
+          const { data: existingSegment } = await supabase
+            .from('crm_segments')
+            .select('id')
+            .eq('name', segmentName)
+            .eq('tenant_id', tenant.id)
+            .single();
+
+          if (existingSegment) {
+            const { data: segmentCustomers, error: segmentError } = await supabase
+              .from('customer_segments')
+              .select(`
+                customer_id,
+                crm_customers (
+                  id,
+                  email,
+                  first_name,
+                  last_name,
+                  phone,
+                  persona,
+                  persona_id,
+                  created_at,
+                  total_spent,
+                  last_purchase_date,
+                  tags,
+                  order_history
+                )
+              `)
+              .eq('segment_id', existingSegment.id);
+
+            if (!segmentError && segmentCustomers) {
+              manuallyAssignedCustomers = segmentCustomers?.map(sc => sc.crm_customers).filter(Boolean) || [];
+              console.log('📊 Found manually assigned customers:', manuallyAssignedCustomers.length);
+            }
+          }
+        }
+
+        // Combine both lists and remove duplicates
+        const allCustomerIds = new Set();
+        customersData = [];
+
+        // Add criteria-based customers
+        criteriaBasedCustomers.forEach(customer => {
+          if (!allCustomerIds.has(customer.id)) {
+            allCustomerIds.add(customer.id);
+            customersData.push(customer);
+          }
+        });
+
+        // Add manually assigned customers
+        manuallyAssignedCustomers.forEach(customer => {
+          if (!allCustomerIds.has(customer.id)) {
+            allCustomerIds.add(customer.id);
+            customersData.push(customer);
+          }
+        });
+
+        console.log('📊 Total unique customers for predefined segment:', customersData.length);
       } else {
         // For custom segments, get customers from customer_segments table
+        console.log('🔍 Fetching customers for custom segment:', segmentId);
         const { data: segmentCustomers, error } = await supabase
           .from('customer_segments')
           .select(`
@@ -142,6 +221,7 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
         if (error) throw error;
 
         customersData = segmentCustomers?.map(sc => sc.crm_customers).filter(Boolean) || [];
+        console.log('📊 Found customers in custom segment:', customersData.length);
       }
 
       return customersData;
@@ -276,7 +356,9 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
 
       console.log('✅ Customer assigned successfully');
       // Refresh the customer lists
+      console.log('🔄 Refreshing customer lists...');
       const segmentCustomersData = await fetchSegmentCustomers();
+      console.log('📊 Updated segment customers:', segmentCustomersData.length);
       setCustomers(segmentCustomersData);
       
     } catch (error) {
@@ -337,7 +419,9 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
 
       console.log('✅ Customer removed successfully');
       // Refresh the customer lists
+      console.log('🔄 Refreshing customer lists after removal...');
       const segmentCustomersData = await fetchSegmentCustomers();
+      console.log('📊 Updated segment customers after removal:', segmentCustomersData.length);
       setCustomers(segmentCustomersData);
     } catch (error) {
       console.error('❌ Error removing customer from segment:', error);
