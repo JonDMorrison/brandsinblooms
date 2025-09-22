@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Target, Users, Trash2, MoreHorizontal } from 'lucide-react';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { SegmentDetailsModal } from './SegmentDetailsModal';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,11 +26,13 @@ interface Segment {
 interface SegmentCardProps {
   segment: Segment;
   onDelete: (segmentId: string) => Promise<boolean>;
+  onSegmentUpdate?: () => void;
 }
 
-export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete }) => {
+export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete, onSegmentUpdate }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -105,6 +108,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete }) =
               variant="outline" 
               size="sm" 
               className="flex-1"
+              onClick={() => setShowDetailsModal(true)}
             >
               View Details
             </Button>
@@ -126,6 +130,13 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onDelete }) =
         confirmText="Delete"
         onConfirm={handleDelete}
         loading={isDeleting}
+      />
+
+      <SegmentDetailsModal
+        open={showDetailsModal}
+        onOpenChange={setShowDetailsModal}
+        segment={segment}
+        onSegmentUpdate={onSegmentUpdate}
       />
     </>
   );

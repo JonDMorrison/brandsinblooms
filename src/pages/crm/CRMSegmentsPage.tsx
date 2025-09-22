@@ -73,7 +73,16 @@ export const CRMSegmentsPage: React.FC = () => {
     const success = await createSegment(segmentData);
     if (success) {
       setShowCustomBuilder(false);
+      // Refresh both segments and counts
+      await fetchSegments();
+      refreshCounts();
     }
+  };
+
+  const handleSegmentUpdate = async () => {
+    // Refresh both segments and counts when segment customers are modified
+    await fetchSegments();
+    refreshCounts();
   };
 
   const handleCreateCampaign = (segmentId: string) => {
@@ -276,6 +285,7 @@ export const CRMSegmentsPage: React.FC = () => {
                     key={segment.id}
                     segment={segment}
                     onDelete={deleteSegment}
+                    onSegmentUpdate={handleSegmentUpdate}
                   />
                 ))}
               </div>
