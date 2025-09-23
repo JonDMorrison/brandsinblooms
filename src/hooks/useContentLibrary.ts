@@ -47,6 +47,8 @@ export function useContentLibrary(filters: LibraryFilters = {}) {
         approvedCount: row.approved_count || 0,
         totalItems: row.total_items || 0,
         thumbnail: row.thumbnail || undefined,
+        featuredImage: row.featured_image || undefined,
+        recommendedImages: row.recommended_images || [],
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       }));
