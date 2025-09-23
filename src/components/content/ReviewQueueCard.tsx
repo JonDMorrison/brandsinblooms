@@ -15,8 +15,8 @@ export const ReviewQueueCard = ({ onTaskUpdate, onTaskClick }: ReviewQueueCardPr
   
   const tasksArray = Array.isArray(pendingTasks) ? pendingTasks : [];
 
-  // Don't render the card if there are no tasks
-  if (loading || tasksArray.length === 0) {
+  // Don't render the card if there are no tasks and not loading
+  if (!loading && tasksArray.length === 0) {
     return null;
   }
 
@@ -39,7 +39,14 @@ export const ReviewQueueCard = ({ onTaskUpdate, onTaskClick }: ReviewQueueCardPr
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ReviewQueue onTaskUpdate={onTaskUpdate} onTaskClick={onTaskClick} />
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+            <span className="ml-2 text-green-700">Refreshing content...</span>
+          </div>
+        ) : (
+          <ReviewQueue onTaskUpdate={onTaskUpdate} onTaskClick={onTaskClick} />
+        )}
       </CardContent>
     </Card>
   );
