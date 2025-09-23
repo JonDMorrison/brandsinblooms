@@ -118,6 +118,7 @@ export const ReviewQueueItem = ({
             variant="outline"
             onClick={(e) => {
               e.stopPropagation();
+              console.log('👁️ Review button clicked for task:', task.id, task.post_type);
               onClick(task);
             }}
             className="border-gray-300 text-gray-600 hover:bg-gray-100"
@@ -129,7 +130,10 @@ export const ReviewQueueItem = ({
           {!isPreviewTask && (
             <Button
               size="sm"
-              onClick={(e) => onApprove(task.id, e)}
+              onClick={(e) => {
+                console.log('✅ Approve button clicked for task:', task.id, task.post_type);
+                onApprove(task.id, e);
+              }}
               disabled={isApproving}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
