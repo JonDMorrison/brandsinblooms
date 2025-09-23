@@ -15,12 +15,12 @@ interface MediaSelectorResult {
 }
 
 export const mediaSelector = async (options: MediaSelectorOptions): Promise<MediaSelectorResult> => {
-  const { prompt, fallback = '/images/newsletter-fallback.jpg', count = 1 } = options;
+  const { prompt, count = 1 } = options;
   
   console.log(`[MEDIA SELECTOR] Fetching image for prompt: "${prompt}"`);
   
   try {
-    // Use the existing Unsplash integration via Supabase edge function
+    // First try to get content-specific image from Unsplash
     const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
       body: { 
         query: prompt,
@@ -31,15 +31,9 @@ export const mediaSelector = async (options: MediaSelectorOptions): Promise<Medi
       }
     });
 
-    if (error) {
-      console.warn('[MEDIA SELECTOR] Unsplash fetch error:', error);
-      return createFallbackResult(fallback, prompt);
-    }
-
-    const images = data?.images || [];
-    if (images.length > 0) {
-      const selectedImage = images[0];
-      console.log(`[MEDIA SELECTOR] Selected image:`, selectedImage.id);
+    if (!error && data?.images && data.images.length > 0) {
+      const selectedImage = data.images[0];
+      console.log(`[MEDIA SELECTOR] Selected content-specific image:`, selectedImage.id);
       
       return {
         url: selectedImage.download_url,
@@ -49,20 +43,45 @@ export const mediaSelector = async (options: MediaSelectorOptions): Promise<Medi
       };
     }
 
-    console.warn('[MEDIA SELECTOR] No images returned from Unsplash');
-    return createFallbackResult(fallback, prompt);
+    console.warn('[MEDIA SELECTOR] Content-specific image failed, trying curated collection');
+    
+    // Fallback to curated garden collection
+    const { data: curatedData, error: curatedError } = await supabase.functions.invoke('fetch-unsplash-images', {
+      body: { 
+        collection: 'cfl9BkhJD2o', // Garden center curated collection
+        maxImages: count,
+        page: 1
+      }
+    });
+
+    if (!curatedError && curatedData?.images && curatedData.images.length > 0) {
+      const selectedImage = curatedData.images[0];
+      console.log(`[MEDIA SELECTOR] Selected curated fallback image:`, selectedImage.id);
+      
+      return {
+        url: selectedImage.download_url,
+        thumb: selectedImage.thumb_url,
+        alt: selectedImage.alt || `Garden center image - ${prompt}`,
+        photographer: selectedImage.photographer
+      };
+    }
+
+    console.error('[MEDIA SELECTOR] Both content and curated image fetch failed');
+    return createGardenFallbackResult(prompt);
     
   } catch (error) {
     console.error('[MEDIA SELECTOR] Error fetching image:', error);
-    return createFallbackResult(fallback, prompt);
+    return createGardenFallbackResult(prompt);
   }
 };
 
-const createFallbackResult = (fallback: string, prompt: string): MediaSelectorResult => {
+const createGardenFallbackResult = (prompt: string): MediaSelectorResult => {
+  // Use a curated garden center image as ultimate fallback
   return {
-    url: fallback,
-    alt: `Fallback image for ${prompt}`,
-    photographer: 'Placeholder'
+    url: 'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=1200&h=800&fit=crop',
+    thumb: 'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=400&h=400&fit=crop',
+    alt: `Beautiful garden plants - ${prompt}`,
+    photographer: 'Unsplash'
   };
 };
 
@@ -71,7 +90,7 @@ export const batchMediaSelector = async (prompts: string[], fallback?: string): 
   console.log(`[MEDIA SELECTOR] Batch fetching ${prompts.length} images`);
   
   const promises = prompts.map(prompt => 
-    mediaSelector({ prompt, fallback })
+    mediaSelector({ prompt })
   );
   
   try {
@@ -80,7 +99,7 @@ export const batchMediaSelector = async (prompts: string[], fallback?: string): 
     return results;
   } catch (error) {
     console.error('[MEDIA SELECTOR] Batch fetch error:', error);
-    // Return fallback results for all prompts
-    return prompts.map(prompt => createFallbackResult(fallback || '/images/newsletter-fallback.jpg', prompt));
+    // Return garden fallback results for all prompts
+    return prompts.map(prompt => createGardenFallbackResult(prompt));
   }
 };

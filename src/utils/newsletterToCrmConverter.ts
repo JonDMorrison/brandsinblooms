@@ -193,10 +193,10 @@ const convertToEmailBlocks = async (processed: any, originalImages?: Record<stri
           block.altText = preservedImage.alt;
           console.log(`[CRM SYNC] Preserved image for "${block.title}":`, preservedImage.url);
         } else {
-          // Fallback if no preserved image
-          block.imageUrl = '/images/newsletter-fallback.jpg';
-          block.altText = `Image for ${block.title}`;
-          console.log(`[CRM SYNC] Used fallback for "${block.title}"`);
+          // Use curated garden fallback instead of missing file
+          block.imageUrl = 'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=1200&h=800&fit=crop';
+          block.altText = `Beautiful garden plants - ${block.title}`;
+          console.log(`[CRM SYNC] Used curated garden fallback for "${block.title}"`);
         }
         blocks.push(block);
       });
@@ -207,7 +207,7 @@ const convertToEmailBlocks = async (processed: any, originalImages?: Record<stri
       const imagePrompts = processed.blocks.map((block: any) => 
         block.image_prompt || block.alt_text || block.title || 'garden center newsletter image'
       );
-      const images = await batchMediaSelector(imagePrompts, '/images/newsletter-fallback.jpg');
+      const images = await batchMediaSelector(imagePrompts);
       
       // Assign images to blocks
       newsletterBlocks.forEach((block, index) => {
@@ -265,10 +265,10 @@ const convertToEmailBlocks = async (processed: any, originalImages?: Record<stri
           block.altText = preservedImage.alt;
           console.log(`[CRM SYNC] Preserved image for section "${block.title}":`, preservedImage.url);
         } else {
-          // Fallback if no preserved image
-          block.imageUrl = '/images/newsletter-fallback.jpg';
-          block.altText = `Image for ${block.title}`;
-          console.log(`[CRM SYNC] Used fallback for section "${block.title}"`);
+          // Use curated garden fallback instead of missing file
+          block.imageUrl = 'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=1200&h=800&fit=crop';
+          block.altText = `Beautiful garden plants - ${block.title}`;
+          console.log(`[CRM SYNC] Used curated garden fallback for section "${block.title}"`);
         }
         blocks.push(block);
       });
@@ -279,7 +279,7 @@ const convertToEmailBlocks = async (processed: any, originalImages?: Record<stri
       const sectionImagePrompts = processed.unstructuredSections.map((section: any) => 
         section.image_prompt || section.title || 'garden center newsletter'
       );
-      const sectionImages = await batchMediaSelector(sectionImagePrompts, '/images/newsletter-fallback.jpg');
+      const sectionImages = await batchMediaSelector(sectionImagePrompts);
       
       // Assign images to section blocks
       sectionBlocks.forEach((block, index) => {
@@ -454,8 +454,7 @@ const createHeaderBlock = async (processed: any, preservedFeaturedImage?: any): 
       try {
         const headerImagePrompt = `${title} garden newsletter header banner`;
         headerImage = await mediaSelector({ 
-          prompt: headerImagePrompt, 
-          fallback: '/images/newsletter-fallback.jpg' 
+          prompt: headerImagePrompt
         });
       } catch (imageError) {
         console.warn('[CRM SYNC] Header image fetch failed:', imageError);
