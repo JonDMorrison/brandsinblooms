@@ -1,6 +1,7 @@
 
 import { BundleLibrary } from "@/components/content-library/BundleLibrary";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
+import "@/styles/content-library-animations.css";
 
 const ContentLibraryPage = () => {
   return (

@@ -23,7 +23,10 @@ export const GenerationProgressBanner: React.FC<GenerationProgressBannerProps> =
   if (allJobs.length === 0) return null;
 
   const handleViewContent = (job: GenerationJob) => {
-    if (job.redirectPath) {
+    if (job.bundleId) {
+      // Navigate to content library with highlighting for the new bundle
+      navigate(`/content/library?from=generation&jobId=${job.id}`);
+    } else if (job.redirectPath) {
       navigate(job.redirectPath);
     }
     removeJob(job.id);

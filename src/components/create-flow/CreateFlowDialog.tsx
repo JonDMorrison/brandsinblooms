@@ -163,10 +163,10 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   const startGenerate = async () => {
     if (!selectedPath) return;
     
-    // Prepare job data
+    // Prepare job data - ALL content now redirects to /content/library
     let jobTitle = 'Untitled Content';
     let jobType: 'campaign' | 'bundle' | 'holiday' | 'seasonal' | 'custom' = 'bundle';
-    let redirectPath = '/content/library';
+    const redirectPath = '/content/library'; // Unified redirect path
 
     if (selectedPath === 'custom') {
       jobTitle = title || 'Custom Content';
@@ -176,14 +176,12 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       if (picked) {
         jobTitle = `Week ${picked.week_number}: ${picked.title}`;
         jobType = 'seasonal';
-        redirectPath = '/calendar';
       }
     } else if (selectedPath === 'holiday' && selectedSourceId) {
       const picked = allHolidays.find((holiday) => holiday.id === selectedSourceId);
       if (picked) {
         jobTitle = picked.holiday_name;
         jobType = 'holiday';
-        redirectPath = '/calendar';
       }
     }
 
@@ -195,9 +193,9 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       sourceId: selectedSourceId || undefined,
     });
     
-    // Close modal and navigate immediately
+    // Close modal and navigate to content library with bundle tracking
     onOpenChange(false);
-    navigate(redirectPath);
+    navigate(`${redirectPath}?from=generation&jobId=${jobId}`);
     
     setLoading(true);
     setNetworkError(false);

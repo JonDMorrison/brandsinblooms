@@ -44,15 +44,24 @@ function getBundleDisplayName(it: { sourceLabel?: string; mode: 'event'|'seasona
   return `${modeLabel} • ${channelPart} • Updated ${datePart}`;
 }
 
-function BundleCard({ it, openBundle, handleDelete }: { it: any; openBundle: (bundleId: string, snapshotId?: string) => void; handleDelete: (bundleId: string) => Promise<any> | void }) {
+function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; openBundle: (bundleId: string, snapshotId?: string) => void; handleDelete: (bundleId: string) => Promise<any> | void; isHighlighted?: boolean }) {
   const { title } = useBundlePreviewTitle(it.bundleId, { includeChannelTag: false });
   const displayTitle = title || getBundleDisplayName(it);
   return (
-    <Card key={it.bundleId} className="relative p-3 hover:shadow-md transition cursor-pointer" onClick={(e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('[data-trash]')) return;
-      openBundle(it.bundleId, it.snapshotId);
-    }}>
+    <Card 
+      key={it.bundleId} 
+      data-bundle-id={it.bundleId}
+      className={`relative p-3 hover:shadow-md transition cursor-pointer group ${
+        isHighlighted 
+          ? 'ring-2 ring-primary shadow-lg animate-pulse-subtle bg-primary/5' 
+          : ''
+      }`} 
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('[data-trash]')) return;
+        openBundle(it.bundleId, it.snapshotId);
+      }}
+    >
       {it.thumbnail ? (
         <img src={it.thumbnail} alt={`${displayTitle} thumbnail`} className="w-full aspect-video object-cover rounded-lg mb-3" loading="lazy" />
       ) : (
@@ -85,9 +94,19 @@ function BundleCard({ it, openBundle, handleDelete }: { it: any; openBundle: (bu
         <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Updated {new Date(it.updatedAt).toLocaleDateString()}</span>
       </div>
 
-      <div className="mt-2 text-xs text-primary inline-flex items-center">
-        Open <ChevronRight className="h-3 w-3 ml-1" />
+      <div className="mt-2 text-xs text-primary inline-flex items-center group-hover:translate-x-1 transition-transform">
+        {isHighlighted ? (
+          <>✨ Just Generated! Click to review <ChevronRight className="h-3 w-3 ml-1" /></>
+        ) : (
+          <>Open <ChevronRight className="h-3 w-3 ml-1" /></>
+        )}
       </div>
+      
+      {isHighlighted && (
+        <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full animate-bounce">
+          New!
+        </div>
+      )}
     </Card>
   );
 }
@@ -95,26 +114,53 @@ function BundleCard({ it, openBundle, handleDelete }: { it: any; openBundle: (bu
 export const BundleLibrary = () => {
   const navigate = useNavigate();
   const params = useQueryParams();
-  const { getJobsByType, getActiveJobs } = useGenerationJobTracker();
+  const { getJobsByType, getActiveJobs, getJobById } = useGenerationJobTracker();
+  
+  // Handle new content highlighting from generation
+  const [highlightedBundles, setHighlightedBundles] = useState<Set<string>>(new Set());
+  const [shouldAutoSort, setShouldAutoSort] = useState(false);
+  const fromGeneration = params.get('from') === 'generation';
+  const trackingJobId = params.get('jobId');
 
   const [search, setSearch] = useState(params.get('q') || '');
   const [mode, setMode] = useState<("event"|"seasonal"|"custom"|"all")>((params.get('mode') as any) || 'all');
   const [channel, setChannel] = useState<Channel | 'all'>(((params.get('channel') as any) || 'all'));
-  const [sort, setSort] = useState<'newest'|'updated'>(((params.get('sort') as any) || 'updated'));
+  const [sort, setSort] = useState<'newest'|'updated'>(
+    shouldAutoSort || fromGeneration ? 'newest' : ((params.get('sort') as any) || 'updated')
+  );
   const [page, setPage] = useState<number>(parseInt(params.get('page') || '1', 10));
 
   const debouncedSearch = useDebounce(search, 300);
 
-  // Sync URL params
+  // Handle new content highlighting when arriving from generation
   useEffect(() => {
-    const p = new URLSearchParams();
-    if (debouncedSearch) p.set('q', debouncedSearch);
-    if (mode !== 'all') p.set('mode', mode);
-    if (channel !== 'all') p.set('channel', channel);
-    if (sort !== 'updated') p.set('sort', sort);
-    if (page > 1) p.set('page', String(page));
-    navigate({ pathname: '/content/library', search: p.toString() }, { replace: true });
-  }, [debouncedSearch, mode, channel, sort, page, navigate]);
+    if (fromGeneration) {
+      setShouldAutoSort(true);
+      // Clear URL params after handling
+      const newParams = new URLSearchParams(params);
+      newParams.delete('from');
+      newParams.delete('jobId');
+      navigate({ pathname: '/content/library', search: newParams.toString() }, { replace: true });
+    }
+  }, [fromGeneration, params, navigate]);
+
+  // Track completed jobs and highlight new bundles
+  useEffect(() => {
+    if (trackingJobId) {
+      const job = getJobById(trackingJobId);
+      if (job?.status === 'completed' && job.bundleId) {
+        setHighlightedBundles(prev => new Set([...prev, job.bundleId!]));
+        // Auto-remove highlight after 5 seconds
+        setTimeout(() => {
+          setHighlightedBundles(prev => {
+            const next = new Set(prev);
+            next.delete(job.bundleId!);
+            return next;
+          });
+        }, 5000);
+      }
+    }
+  }, [trackingJobId, getJobById]);
 
   const { data, isLoading } = useContentLibrary({ search: debouncedSearch, mode, channel, page, pageSize: 24, sort });
   const total = data?.total || 0;
@@ -123,6 +169,21 @@ export const BundleLibrary = () => {
   // Check for active generation jobs
   const activeJobs = getActiveJobs();
   const bundleJobs = getJobsByType('bundle').concat(getJobsByType('custom'));
+
+  // Auto-scroll to highlighted content when it appears
+  useEffect(() => {
+    if (highlightedBundles.size > 0 && items.length > 0) {
+      const firstHighlighted = items.find(item => highlightedBundles.has(item.bundleId));
+      if (firstHighlighted) {
+        setTimeout(() => {
+          const element = document.querySelector(`[data-bundle-id="${firstHighlighted.bundleId}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      }
+    }
+  }, [highlightedBundles, items]);
 
   const { toast } = useToast();
   const del = useDeleteBundle();
@@ -223,7 +284,13 @@ export const BundleLibrary = () => {
             {items.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {items.map((it: any) => (
-                  <BundleCard key={it.bundleId} it={it} openBundle={openBundle} handleDelete={handleDelete} />
+                  <BundleCard 
+                    key={it.bundleId} 
+                    it={it} 
+                    openBundle={openBundle} 
+                    handleDelete={handleDelete}
+                    isHighlighted={highlightedBundles.has(it.bundleId)}
+                  />
                 ))}
               </div>
             )}

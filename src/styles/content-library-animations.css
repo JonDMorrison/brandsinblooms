@@ -1,0 +1,78 @@
+/* Content Library New Content Animations */
+
+/* Subtle pulse for newly generated content */
+@keyframes pulse-subtle-enhanced {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(var(--primary), 0.4);
+  }
+  50% {
+    opacity: 0.95;
+    box-shadow: 0 0 0 8px rgba(var(--primary), 0.1);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle-enhanced 2s ease-in-out 3;
+}
+
+/* Glow effect for highlighted content */
+@keyframes glow-primary {
+  0% {
+    box-shadow: 0 0 5px rgba(var(--primary), 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(var(--primary), 0.6);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(var(--primary), 0.3);
+  }
+}
+
+.animate-glow {
+  animation: glow-primary 2s ease-in-out infinite;
+}
+
+/* Bounce effect for "New!" badge */
+@keyframes bounce-gentle {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(-4px) scale(1.05);
+  }
+  60% {
+    transform: translateY(-2px) scale(1.02);
+  }
+}
+
+.animate-bounce-gentle {
+  animation: bounce-gentle 2s ease-in-out infinite;
+}
+
+/* Success celebration for new content */
+@keyframes celebrate-new-content {
+  0% {
+    transform: scale(0.9) rotate(-2deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.02) rotate(1deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-celebrate {
+  animation: celebrate-new-content 0.6s ease-out;
+}
+
+/* Hover enhancement for highlighted cards */
+.highlighted-card:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 25px -5px rgba(var(--primary), 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
