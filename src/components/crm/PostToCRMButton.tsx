@@ -125,6 +125,11 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
           type: 'newsletter'
         });
         
+        // Try to get bundleId from the task's bundle_id if available
+        if (task.bundle_id) {
+          params.set('bundleId', task.bundle_id);
+        }
+        
         navigate(`/crm/campaigns/new/${campaignSlug}?${params.toString()}`);
         toast({
           title: "Creating CRM Campaign",

@@ -809,6 +809,82 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     }
   }, [bundleIdParam, bundleQuery.data, bundleQuery.isLoading, searchParams, toast]);
 
+  // Fallback: Prefill from contentTaskId when no bundleId is available
+  useEffect(() => {
+    const type = searchParams.get('type');
+    if (type !== 'newsletter') return;
+    if (bundleIdParam) return; // Skip if bundleId is available (higher priority)
+    if (!finalContentTaskId) return;
+
+    const prefillFromContentTask = async () => {
+      console.log('🔄 Attempting prefill from contentTaskId:', finalContentTaskId);
+      
+      try {
+        // Fetch the content task data
+        const { data: taskData, error } = await supabase
+          .from('content_tasks')
+          .select('*')
+          .eq('id', finalContentTaskId)
+          .single();
+
+        if (error) {
+          console.error('❌ Failed to fetch content task:', error);
+          return;
+        }
+
+        if (!taskData) {
+          console.log('⚠️ No content task found with ID:', finalContentTaskId);
+          return;
+        }
+
+        console.log('📄 Found content task:', {
+          id: taskData.id,
+          postType: taskData.post_type,
+          hasContent: !!taskData.ai_output,
+          contentLength: taskData.ai_output?.length || 0
+        });
+
+        const title = `${taskData.post_type || 'Newsletter'} Campaign - ${new Date().toLocaleDateString()}`;
+        const content = taskData.ai_output || '';
+
+        if (!content) {
+          console.log('⚠️ Content task has no generated content');
+          return;
+        }
+
+        // Set campaign data from content task
+        setCampaignName(title);
+        setSubjectLine(title);
+        setPreheaderText(generatePreheaderText(content, title));
+
+        // Convert content to CRM blocks
+        const result = convertNewsletterToCRM(content, title);
+        const normalizedBlocks = normalizeBlocks(result.blocks);
+        
+        console.log('🔧 Generated blocks from content task:', normalizedBlocks.length, 'blocks');
+        setBlocks(normalizedBlocks);
+
+        toast({ 
+          title: 'Newsletter content loaded', 
+          description: `Prefilled ${normalizedBlocks.length} content blocks from newsletter task.` 
+        });
+
+      } catch (error) {
+        console.error('❌ Failed to prefill from content task:', error);
+        toast({
+          title: 'Prefill failed',
+          description: 'Could not load newsletter content from task. Please try again.',
+          variant: 'destructive'
+        });
+      }
+    };
+
+    // Add a small delay to avoid conflicts with other initialization logic
+    const timer = setTimeout(prefillFromContentTask, 500);
+    return () => clearTimeout(timer);
+    
+  }, [finalContentTaskId, bundleIdParam, searchParams, toast]);
+
   // Guard flags to prevent multiple processing runs
   const processedTemplateRef = useRef<string | null>(null);
   const processedExistingCampaignRef = useRef<string | null>(null);
