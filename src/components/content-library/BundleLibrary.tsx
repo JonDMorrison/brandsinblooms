@@ -62,8 +62,20 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
         openBundle(it.bundleId, it.snapshotId);
       }}
     >
-      {it.thumbnail ? (
-        <img src={it.thumbnail} alt={`${displayTitle} thumbnail`} className="w-full aspect-video object-cover rounded-lg mb-3" loading="lazy" />
+      {it.thumbnail || it.featuredImage ? (
+        <img 
+          src={it.thumbnail || it.featuredImage} 
+          alt={`${displayTitle} featured image`} 
+          className="w-full aspect-video object-cover rounded-lg mb-3" 
+          loading="lazy" 
+        />
+      ) : it.recommendedImages?.length > 0 ? (
+        <img 
+          src={it.recommendedImages[0].url} 
+          alt={`${displayTitle} featured image`} 
+          className="w-full aspect-video object-cover rounded-lg mb-3" 
+          loading="lazy" 
+        />
       ) : (
         <div className="w-full aspect-video rounded-lg mb-3 bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center border border-border/50">
           <div className="text-center p-4">
