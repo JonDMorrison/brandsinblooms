@@ -65,7 +65,19 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
       {it.thumbnail ? (
         <img src={it.thumbnail} alt={`${displayTitle} thumbnail`} className="w-full aspect-video object-cover rounded-lg mb-3" loading="lazy" />
       ) : (
-        <div className="w-full aspect-video rounded-lg mb-3 bg-muted" />
+        <div className="w-full aspect-video rounded-lg mb-3 bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center border border-border/50">
+          <div className="text-center p-4">
+            <div className="text-2xl mb-2">📄</div>
+            <div className="text-xs text-muted-foreground font-medium">
+              {it.mode === 'seasonal' ? 'Seasonal Content' : 
+               it.mode === 'holiday' ? 'Holiday Content' : 
+               it.mode === 'custom' ? 'Custom Content' : 'Content Bundle'}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {it.totalItems} item{it.totalItems !== 1 ? 's' : ''}
+            </div>
+          </div>
+        </div>
       )}
 
       <button
