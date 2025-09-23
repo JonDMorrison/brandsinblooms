@@ -17,6 +17,7 @@ export interface GeneratedBundle {
   items: GeneratedBundleItem[];
   recommendedImages: { url: string; alt?: string }[];
   meta: { mode: 'event'|'seasonal'|'custom'; sourceId?: string };
+  thumbnail?: string; // AI-generated thumbnail URL
 }
 
 const bundleKey = (bundleId?: string) => ['generated-bundle', bundleId];

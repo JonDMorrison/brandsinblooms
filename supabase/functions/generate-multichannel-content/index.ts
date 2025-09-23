@@ -144,6 +144,29 @@ const items: GeneratedItem[] = [];
       meta: { mode: input.mode, sourceId: input.sourceId },
     };
 
+    // Generate thumbnail for the bundle
+    console.log(`[generate-multichannel-content] Generating thumbnail for bundle ${bundleId}`);
+    try {
+      const { data: thumbnailData, error: thumbnailError } = await supabase.functions.invoke('generate-content-thumbnail', {
+        body: {
+          bundleId,
+          content: bundle,
+          mode: input.mode,
+          title: context.title || context.description
+        }
+      });
+
+      if (thumbnailError) {
+        console.warn(`[generate-multichannel-content] Thumbnail generation failed:`, thumbnailError);
+      } else if (thumbnailData?.thumbnailUrl) {
+        bundle.thumbnail = thumbnailData.thumbnailUrl;
+        console.log(`[generate-multichannel-content] Thumbnail generated: ${thumbnailData.thumbnailUrl}`);
+      }
+    } catch (thumbnailErr) {
+      console.warn(`[generate-multichannel-content] Thumbnail generation error:`, thumbnailErr);
+      // Continue without thumbnail - non-blocking
+    }
+
     // Persist bundle into draft_snapshots
     const { data: inserted, error: insErr } = await supabase
       .from("draft_snapshots" as any)
