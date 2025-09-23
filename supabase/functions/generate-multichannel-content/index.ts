@@ -102,6 +102,7 @@ serve(async (req) => {
 
 // Channels to generate (required)
 const channels: Array<GeneratedItem["channel"]> = (input.channels || []) as any;
+const items: GeneratedItem[] = [];
 
   // Enhanced content generation for better MediaSelector integration
   for (const channel of channels) {
