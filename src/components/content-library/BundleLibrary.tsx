@@ -223,8 +223,6 @@ export const BundleLibrary = () => {
   };
 
   const handleDelete = async (bundleId: string) => {
-    const confirmed = window.confirm('Delete this bundle? You can Undo for 10 seconds.');
-    if (!confirmed) return;
     window.dispatchEvent(new CustomEvent('library_delete_confirm', { detail: { bundleId } }));
     await del.mutateAsync({ bundleId, deletedAt: new Date().toISOString() });
     const t = toast({
