@@ -39,7 +39,7 @@ export const GenerationProgressBanner: React.FC<GenerationProgressBannerProps> =
   return (
     <div className={`space-y-2 ${className || ''}`}>
       {activeJobs.map(job => (
-        <Card key={job.id} className="border-primary/20 bg-primary/5">
+        <Card key={job.id} className="hover:shadow-md transition-shadow border border-primary/20 bg-primary/5">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <LoadingSpinner size="sm" color="primary" />
@@ -61,7 +61,7 @@ export const GenerationProgressBanner: React.FC<GenerationProgressBannerProps> =
       ))}
 
       {completedJobs.map(job => (
-        <Card key={job.id} className="border-green-200 bg-green-50">
+        <Card key={job.id} className="hover:shadow-md transition-shadow border border-green-200 bg-green-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-green-600" />
@@ -94,7 +94,7 @@ export const GenerationProgressBanner: React.FC<GenerationProgressBannerProps> =
       ))}
 
       {failedJobs.map(job => (
-        <Card key={job.id} className="border-red-200 bg-red-50">
+        <Card key={job.id} className="hover:shadow-md transition-shadow border border-red-200 bg-red-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-red-600" />
