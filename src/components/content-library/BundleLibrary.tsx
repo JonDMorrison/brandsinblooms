@@ -71,7 +71,7 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
         />
       ) : it.recommendedImages?.length > 0 ? (
         <img 
-          src={it.recommendedImages[0].url} 
+          src={it.recommendedImages[0].url || it.recommendedImages[0].thumb_url || it.recommendedImages[0].download_url || it.recommendedImages[0].image_url} 
           alt={`${displayTitle} featured image`} 
           className="w-full aspect-video object-cover rounded-lg mb-3" 
           loading="lazy" 
