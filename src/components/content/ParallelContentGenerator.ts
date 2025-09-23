@@ -58,18 +58,9 @@ export const generateContentInParallel = async (
   const overageAmount = willGoIntoOverage ? totalTokensNeeded - Math.max(0, balance.tokens_balance) : 0;
   const overageCost = overageAmount * 0.25;
 
+  // Auto-proceed with generation - no confirmation needed
   if (willGoIntoOverage) {
-    const proceed = window.confirm(
-      `This will generate ${tasksNeedingContent.length} pieces of content requiring ${totalTokensNeeded} tokens.\n\n` +
-      `Current balance: ${Math.max(0, balance.tokens_balance)} tokens\n` +
-      `Overage: ${overageAmount} tokens (+$${overageCost.toFixed(2)})\n\n` +
-      `Do you want to proceed?`
-    );
-    
-    if (!proceed) {
-      toast.info('Content generation cancelled');
-      return { success: false, generatedCount: 0, failedTypes: [], totalTime: 0 };
-    }
+    showToast.info(`Generating ${tasksNeedingContent.length} pieces of content with ${overageAmount} token overage (+$${overageCost.toFixed(2)})`);
   }
 
   // Create parallel generation promises

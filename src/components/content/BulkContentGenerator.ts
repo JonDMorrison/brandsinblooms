@@ -48,22 +48,12 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
   const totalTokensNeeded = 6; // 2+1+1+2 for newsletter, facebook, instagram, video
   const willGoIntoOverage = balance.tokens_balance < totalTokensNeeded;
   
+  // Auto-proceed with generation - no confirmation needed
   if (willGoIntoOverage) {
     const overageAmount = totalTokensNeeded - Math.max(0, balance.tokens_balance);
     const overageCost = overageAmount * 0.25;
     
-    const proceed = window.confirm(
-      `Generate content pack (4 pieces) for "${theme}"?\n\n` +
-      `Cost: ${totalTokensNeeded} tokens\n` +
-      `Current balance: ${Math.max(0, balance.tokens_balance)} tokens\n` +
-      `Overage: ${overageAmount} tokens (+$${overageCost.toFixed(2)})\n\n` +
-      `Continue?`
-    );
-    
-    if (!proceed) {
-      showToast.info('Content generation cancelled');
-      return { success: false, generatedCount: 0, failedTypes: [], tokenCost: 0 };
-    }
+    showToast.info(`Generating content pack with ${overageAmount} token overage (+$${overageCost.toFixed(2)})`);
   }
 
   const contentTypes = [
