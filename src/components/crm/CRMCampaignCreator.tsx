@@ -752,33 +752,32 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       window.history.replaceState({}, '', url.pathname + (qs ? `?${qs}` : ''));
     };
 
-    // Allow refilling if URL changes or bundle data changes
-    const prefillKey = `crm-prefill:${bundleIdParam}-v2`;
-    if (localStorage.getItem(prefillKey) === 'done') {
-      // Check if we're on the same session, if not allow refill
-      const sessionKey = `crm-session:${bundleIdParam}`;
-      const currentSession = sessionStorage.getItem(sessionKey);
-      const newSession = Date.now().toString();
-      
-      if (!currentSession) {
-        // New session, allow prefill
-        localStorage.removeItem(prefillKey);
-        sessionStorage.setItem(sessionKey, newSession);
-      } else {
-        cleanUrl();
-        return;
-      }
+    // Simplified guard: allow refilling if it's been more than 5 minutes since last prefill
+    const prefillKey = `crm-prefill:${bundleIdParam}-v3`;
+    const lastPrefillTime = localStorage.getItem(prefillKey);
+    const currentTime = Date.now();
+    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+    
+    if (lastPrefillTime && (currentTime - parseInt(lastPrefillTime)) < fiveMinutes) {
+      console.log('🚫 Prefill blocked - too recent. Last prefill:', new Date(parseInt(lastPrefillTime)));
+      cleanUrl();
+      return;
     }
 
-    // Remove the blocks.length > 0 check to allow prefilling over default blocks
+    console.log('✅ Starting newsletter prefill from bundle:', bundleIdParam);
 
     try {
       const items = (bundleQuery.data.content?.items || []) as any[];
       const newsletterItem = items.find((i: any) => i.channel === 'newsletter') || items.find((i: any) => i.channel === 'blog') || items[0];
-      if (!newsletterItem) return;
+      if (!newsletterItem) {
+        console.log('⚠️ No newsletter item found in bundle data');
+        return;
+      }
       
       const title = newsletterItem.title || 'Newsletter';
       const body = newsletterItem.body || '';
+      
+      console.log('📝 Setting campaign data:', { title, bodyLength: body.length });
       
       setCampaignName(title);
       setSubjectLine(title);
@@ -786,13 +785,27 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
       // Use robust converter to build 4–5 blocks preview from YAML/Markdown
       const result = convertNewsletterToCRM(body, title);
-      setBlocks(normalizeBlocks(result.blocks));
+      const normalizedBlocks = normalizeBlocks(result.blocks);
+      
+      console.log('🔧 Generated blocks:', normalizedBlocks.length, 'blocks');
+      setBlocks(normalizedBlocks);
 
-      localStorage.setItem(prefillKey, 'done');
-      toast({ title: 'Newsletter prefilled', description: 'Content loaded from your generated bundle.' });
+      // Store current timestamp instead of 'done'
+      localStorage.setItem(prefillKey, currentTime.toString());
+      
+      toast({ 
+        title: 'Newsletter content loaded', 
+        description: `Prefilled ${normalizedBlocks.length} content blocks from your newsletter.` 
+      });
+      
       cleanUrl();
     } catch (e) {
-      console.warn('CRM prefill from bundle failed', e);
+      console.error('❌ CRM prefill from bundle failed:', e);
+      toast({
+        title: 'Prefill failed',
+        description: 'Could not load newsletter content. Please try again.',
+        variant: 'destructive'
+      });
     }
   }, [bundleIdParam, bundleQuery.data, bundleQuery.isLoading, searchParams, toast]);
 
