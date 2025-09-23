@@ -738,14 +738,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     };
   }, [searchParams, existingCampaignId, blocks.length, campaignName, enhancing, supabase, toast]);
 
-  // Prefill from Generated Bundle (newsletter)
+  // Prefill from Generated Bundle (newsletter) - HIGH PRIORITY
   useEffect(() => {
     const type = searchParams.get('type');
     if (type !== 'newsletter') return;
     if (!bundleIdParam) return;
     if (bundleQuery.isLoading || !bundleQuery.data) return;
 
-    const prefillKey = `crm-prefill:${bundleIdParam}`;
     const cleanUrl = () => {
       const url = new URL(window.location.href);
       url.searchParams.delete('bundleId');
@@ -753,34 +752,49 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       window.history.replaceState({}, '', url.pathname + (qs ? `?${qs}` : ''));
     };
 
+    // Allow refilling if URL changes or bundle data changes
+    const prefillKey = `crm-prefill:${bundleIdParam}-v2`;
     if (localStorage.getItem(prefillKey) === 'done') {
-      cleanUrl();
-      return;
+      // Check if we're on the same session, if not allow refill
+      const sessionKey = `crm-session:${bundleIdParam}`;
+      const currentSession = sessionStorage.getItem(sessionKey);
+      const newSession = Date.now().toString();
+      
+      if (!currentSession) {
+        // New session, allow prefill
+        localStorage.removeItem(prefillKey);
+        sessionStorage.setItem(sessionKey, newSession);
+      } else {
+        cleanUrl();
+        return;
+      }
     }
 
-    if (blocks.length > 0) return;
+    // Remove the blocks.length > 0 check to allow prefilling over default blocks
 
     try {
       const items = (bundleQuery.data.content?.items || []) as any[];
       const newsletterItem = items.find((i: any) => i.channel === 'newsletter') || items.find((i: any) => i.channel === 'blog') || items[0];
       if (!newsletterItem) return;
+      
       const title = newsletterItem.title || 'Newsletter';
       const body = newsletterItem.body || '';
+      
       setCampaignName(title);
       setSubjectLine(title);
-setPreheaderText(generatePreheaderText(body, title));
+      setPreheaderText(generatePreheaderText(body, title));
 
-// Use robust converter to build 4–5 blocks preview from YAML/Markdown
-const result = convertNewsletterToCRM(body, title);
-setBlocks(normalizeBlocks(result.blocks));
+      // Use robust converter to build 4–5 blocks preview from YAML/Markdown
+      const result = convertNewsletterToCRM(body, title);
+      setBlocks(normalizeBlocks(result.blocks));
 
-localStorage.setItem(prefillKey, 'done');
-toast({ title: 'Newsletter prefilled', description: 'We added content from your bundle.' });
-cleanUrl();
+      localStorage.setItem(prefillKey, 'done');
+      toast({ title: 'Newsletter prefilled', description: 'Content loaded from your generated bundle.' });
+      cleanUrl();
     } catch (e) {
       console.warn('CRM prefill from bundle failed', e);
     }
-  }, [bundleIdParam, bundleQuery.data, bundleQuery.isLoading, blocks.length, searchParams, toast]);
+  }, [bundleIdParam, bundleQuery.data, bundleQuery.isLoading, searchParams, toast]);
 
   // Guard flags to prevent multiple processing runs
   const processedTemplateRef = useRef<string | null>(null);
