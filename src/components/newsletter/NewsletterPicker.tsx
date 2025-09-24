@@ -91,35 +91,6 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
   const renderContent = () => (
     <div className="flex flex-col h-full max-h-[calc(90vh-120px)]">
-      {/* Header */}
-      <div className="flex-shrink-0 mb-6">
-        {currentStep === 'ideas' ? (
-          <>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl font-semibold">Choose a Ready-Made Idea</h2>
-              <Button variant="ghost" size="sm" onClick={handleSkipToBlank}>
-                Skip & start blank
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Select from our curated newsletter ideas or create your own with AI
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center mb-2">
-              <Button variant="ghost" size="sm" onClick={handleBack} className="mr-2 p-1">
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <h2 className="text-xl font-semibold">Pick a Layout</h2>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Choose how your newsletter will be structured
-            </p>
-          </>
-        )}
-      </div>
-
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <ScrollArea className="h-full w-full">
