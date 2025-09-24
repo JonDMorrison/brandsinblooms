@@ -135,7 +135,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
       {/* AI Idea Generator - Fixed at bottom */}
       {currentStep === 'ideas' && (
-        <div className="flex-shrink-0 mt-6 pt-4 border-t">
+        <div className="flex-shrink-0 mt-6 pt-4">
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
             <div className="flex items-center mb-3">
               <Sparkles className="w-5 h-5 text-purple-600 mr-2" />
