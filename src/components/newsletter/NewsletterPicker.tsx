@@ -11,7 +11,7 @@ import { IdeaGrid } from './IdeaGrid';
 import { NewsletterLayoutPicker } from '../NewsletterLayoutPicker';
 import { NewsletterIdea, NewsletterTemplate } from '@/types/newsletter';
 import { useNewsletterIdeas } from '@/hooks/useNewsletterIdeas';
-import { ArrowLeft, Sparkles, Search } from 'lucide-react';
+import { ArrowLeft, Sparkles, Search, X } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
@@ -225,13 +225,25 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn(
-        "max-w-4xl max-h-[90vh] overflow-hidden",
+        "w-screen h-screen max-w-none max-h-none overflow-hidden p-0",
         "z-[1000010]" // High z-index as specified
       )}>
-        <DialogHeader>
-          <DialogTitle>Create Newsletter</DialogTitle>
-        </DialogHeader>
-        {renderContent()}
+        {/* Close button in top left */}
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={onClose}
+          className="absolute top-4 left-4 z-10 w-8 h-8 p-0 rounded-full hover:bg-muted"
+        >
+          <X className="w-4 h-4" />
+        </Button>
+        
+        <div className="p-6 pt-16 h-full">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-2xl">Create Newsletter</DialogTitle>
+          </DialogHeader>
+          {renderContent()}
+        </div>
       </DialogContent>
     </Dialog>
   );
