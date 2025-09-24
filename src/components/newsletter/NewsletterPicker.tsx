@@ -90,7 +90,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   };
 
   const renderContent = () => (
-    <div className="flex flex-col h-full max-h-[calc(90vh-120px)]">
+    <div className="flex flex-col h-full">
       {/* Main Content Area */}
       {currentStep === 'ideas' && (
         <div className="flex-1 overflow-hidden">
