@@ -126,6 +126,15 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
           <div className="pr-4">
             {currentStep === 'ideas' ? (
               <div className="space-y-6 pb-4">
+                {/* Ideas Grid */}
+                <IdeaGrid 
+                  ideas={ideas}
+                  onSelectIdea={handleSelectIdea}
+                  loading={loading}
+                />
+
+                <Separator />
+
                 {/* AI Idea Generator */}
                 <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
                   <div className="flex items-center mb-3">
@@ -162,15 +171,6 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                     </Button>
                   </div>
                 </div>
-
-                <Separator />
-
-                {/* Ideas Grid */}
-                <IdeaGrid 
-                  ideas={ideas}
-                  onSelectIdea={handleSelectIdea}
-                  loading={loading}
-                />
               </div>
             ) : (
               <div className="space-y-6 pb-4">
