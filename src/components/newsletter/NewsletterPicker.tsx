@@ -225,7 +225,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn(
-        "w-screen h-screen max-w-none max-h-none overflow-hidden p-0",
+        "w-screen h-screen max-w-none max-h-none overflow-hidden p-0 bg-gray-800 text-white",
         "z-[1000010]" // High z-index as specified
       )}>
         {/* Close button in top left */}
