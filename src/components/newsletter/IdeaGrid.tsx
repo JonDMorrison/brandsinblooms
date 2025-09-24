@@ -129,8 +129,8 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   console.log('📧 IdeaGrid: Rendering with', ideas.length, 'ideas, initialSlide:', initialSlide);
 
   return (
-    <div className={cn("py-8", className)}>
-      <div className="h-[500px]"> {/* Fixed height container */}
+    <div className={cn("py-8 relative z-20", className)}>
+      <div className="h-[500px] relative z-30"> {/* Fixed height container with high z-index */}
         <Swiper
           modules={[Navigation, Pagination]}
           grabCursor={true}
@@ -163,7 +163,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
               spaceBetween: 20,
             },
           }}
-          className="!pb-16 newsletter-idea-slider !h-full"
+          className="!pb-16 newsletter-idea-slider !h-full !relative !z-40"
           style={{
             '--swiper-pagination-color': '#22c55e',
             '--swiper-pagination-bullet-inactive-color': 'rgba(0, 0, 0, 0.3)',
@@ -175,8 +175,8 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
           {ideas.map((idea, index) => {
             const isActive = index === currentSlide;
             return (
-              <SwiperSlide key={idea.id} className="!h-auto">
-                <div className="h-[400px] w-full"> {/* Fixed height for cards */}
+              <SwiperSlide key={idea.id} className="!h-auto !relative !z-50">
+                <div className="h-[400px] w-full relative z-50"> {/* Fixed height for cards with z-index */}
                   <IdeaCard
                     idea={idea}
                     onSelect={onSelectIdea}
