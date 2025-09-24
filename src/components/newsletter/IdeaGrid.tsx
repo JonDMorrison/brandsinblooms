@@ -175,14 +175,14 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
           {ideas.map((idea, index) => {
             const isActive = index === currentSlide;
             return (
-              <SwiperSlide key={idea.id} className="!h-auto !relative !z-50">
-                <div className="h-[400px] w-full relative z-50"> {/* Fixed height for cards with z-index */}
+              <SwiperSlide key={idea.id} className="!h-auto !relative !z-50 !bg-transparent">
+                <div className="h-[400px] w-full relative z-50 flex items-center justify-center"> {/* Ensure content is centered and visible */}
                   <IdeaCard
                     idea={idea}
                     onSelect={onSelectIdea}
                     isActive={isActive}
                     slideIndex={index}
-                    className="h-full"
+                    className="h-full w-full max-w-[280px]"
                   />
                 </div>
               </SwiperSlide>
