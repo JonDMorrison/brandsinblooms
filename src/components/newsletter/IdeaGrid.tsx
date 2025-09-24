@@ -129,14 +129,14 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   console.log('📧 IdeaGrid: Rendering with', ideas.length, 'ideas, initialSlide:', initialSlide);
 
   return (
-    <div className={cn("py-8 relative z-20 bg-gray-900", className)}>
+    <div className={cn("py-8 relative", className)}>
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-white mb-4">Choose Your Newsletter Idea</h2>
-          <p className="text-gray-300 text-lg">Select from our curated newsletter templates</p>
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold mb-4">Choose Your Newsletter Idea</h2>
+          <p className="text-muted-foreground">Select from our curated newsletter templates</p>
         </div>
         
-        <div className="h-[500px] relative z-30">
+        <div className="h-[400px] relative">
           <Swiper
             modules={[Navigation, Pagination]}
             grabCursor={true}
