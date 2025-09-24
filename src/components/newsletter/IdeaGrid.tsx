@@ -175,12 +175,14 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
           const isActive = index === currentSlide;
           return (
             <SwiperSlide key={idea.id} className="!h-auto">
-              <IdeaCard
-                idea={idea}
-                onSelect={onSelectIdea}
-                isActive={isActive}
-                slideIndex={index}
-              />
+              <div className="h-full w-full min-h-[400px]">
+                <IdeaCard
+                  idea={idea}
+                  onSelect={onSelectIdea}
+                  isActive={isActive}
+                  slideIndex={index}
+                />
+              </div>
             </SwiperSlide>
           );
         })}

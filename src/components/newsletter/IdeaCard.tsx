@@ -39,21 +39,21 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
     }
   };
 
-  // Get gradient classes based on category
+  // Get gradient classes based on category using design system
   const getGradientClasses = (category: NewsletterIdea['category']) => {
     switch (category) {
       case 'holiday':
-        return "from-red-800 to-red-900";
+        return "from-brand-navy-500 to-brand-navy-700";
       case 'weekly':
-        return "from-green-800 to-green-900";
+        return "from-brand-teal-500 to-brand-teal-700";
       case 'seasonal':
-        return "from-purple-800 to-purple-900";
+        return "from-brand-blue-500 to-brand-blue-700";
       case 'product':
-        return "from-blue-800 to-blue-900";
+        return "from-brand-green-500 to-brand-green-700";
       case 'ai-generated':
-        return "from-orange-800 to-orange-900";
+        return "from-mint-500 to-mint-700";
       default:
-        return "from-gray-800 to-gray-900";
+        return "from-gray-500 to-gray-700";
     }
   };
 
