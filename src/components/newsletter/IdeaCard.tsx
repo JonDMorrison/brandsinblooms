@@ -39,21 +39,21 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
     }
   };
 
-  // Get gradient classes based on category - using simple colors for visibility
+  // Get gradient classes based on category - using dark colors like Home1Page
   const getGradientClasses = (category: NewsletterIdea['category']) => {
     switch (category) {
       case 'holiday':
-        return "from-red-500 to-red-600";
+        return "from-red-800 to-red-900";
       case 'weekly':
-        return "from-green-500 to-green-600";
+        return "from-green-800 to-green-900";
       case 'seasonal':
-        return "from-purple-500 to-purple-600";
+        return "from-purple-800 to-purple-900";
       case 'product':
-        return "from-blue-500 to-blue-600";
+        return "from-blue-800 to-blue-900";
       case 'ai-generated':
-        return "from-orange-500 to-orange-600";
+        return "from-orange-800 to-orange-900";
       default:
-        return "from-gray-500 to-gray-600";
+        return "from-gray-800 to-gray-900";
     }
   };
 
@@ -68,7 +68,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
     )}>
       {/* Gradient Background */}
       <div className={cn(
-        "absolute inset-0 bg-gradient-to-br",
+        "absolute inset-0 bg-gradient-to-br opacity-90",
         getGradientClasses(idea.category)
       )} />
       
@@ -101,6 +101,9 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
           </div>
         </div>
       </div>
+      
+      {/* Material You inspired overlay pattern */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
       
       {/* Slide label */}
       <div className="absolute top-4 left-4 bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">

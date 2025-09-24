@@ -129,66 +129,73 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   console.log('📧 IdeaGrid: Rendering with', ideas.length, 'ideas, initialSlide:', initialSlide);
 
   return (
-    <div className={cn("py-8 relative z-20", className)}>
-      <div className="h-[500px] relative z-30"> {/* Fixed height container with high z-index */}
-        <Swiper
-          modules={[Navigation, Pagination]}
-          grabCursor={true}
-          centeredSlides={true}
-          slidesPerView={2.2}
-          spaceBetween={16}
-          initialSlide={initialSlide}
-          pagination={{
-            clickable: true,
-            bulletClass: 'swiper-pagination-bullet',
-            bulletActiveClass: 'swiper-pagination-bullet-active',
-            dynamicBullets: true,
-          }}
-          onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
-          breakpoints={{
-            320: {
-              slidesPerView: 1.2,
-              spaceBetween: 12,
-            },
-            640: {
-              slidesPerView: 1.8,
-              spaceBetween: 14,
-            },
-            768: {
-              slidesPerView: 2.2,
-              spaceBetween: 16,
-            },
-            1024: {
-              slidesPerView: 2.5,
-              spaceBetween: 20,
-            },
-          }}
-          className="!pb-16 newsletter-idea-slider !h-full !relative !z-40"
-          style={{
-            '--swiper-pagination-color': '#22c55e',
-            '--swiper-pagination-bullet-inactive-color': 'rgba(0, 0, 0, 0.3)',
-            '--swiper-pagination-bullet-inactive-opacity': '1',
-            '--swiper-pagination-bullet-size': '8px',
-            '--swiper-pagination-bullet-horizontal-gap': '4px'
-          } as React.CSSProperties}
-        >
-          {ideas.map((idea, index) => {
-            const isActive = index === currentSlide;
-            return (
-              <SwiperSlide key={idea.id} className="!h-auto !relative !z-50 !bg-transparent">
-                <div className="h-[400px] w-full relative z-50 flex items-center justify-center"> {/* Ensure content is centered and visible */}
-                  <IdeaCard
-                    idea={idea}
-                    onSelect={onSelectIdea}
-                    isActive={isActive}
-                    slideIndex={index}
-                    className="h-full w-full max-w-[280px]"
-                  />
-                </div>
-              </SwiperSlide>
-            );
-          })}
-        </Swiper>
+    <div className={cn("py-8 relative z-20 bg-gray-900", className)}>
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-white mb-4">Choose Your Newsletter Idea</h2>
+          <p className="text-gray-300 text-lg">Select from our curated newsletter templates</p>
+        </div>
+        
+        <div className="h-[500px] relative z-30">
+          <Swiper
+            modules={[Navigation, Pagination]}
+            grabCursor={true}
+            centeredSlides={true}
+            slidesPerView={2.2}
+            spaceBetween={16}
+            initialSlide={initialSlide}
+            pagination={{
+              clickable: true,
+              bulletClass: 'swiper-pagination-bullet',
+              bulletActiveClass: 'swiper-pagination-bullet-active',
+              dynamicBullets: true,
+            }}
+            onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
+            breakpoints={{
+              320: {
+                slidesPerView: 1.2,
+                spaceBetween: 12,
+              },
+              640: {
+                slidesPerView: 1.8,
+                spaceBetween: 14,
+              },
+              768: {
+                slidesPerView: 2.2,
+                spaceBetween: 16,
+              },
+              1024: {
+                slidesPerView: 2.5,
+                spaceBetween: 20,
+              },
+            }}
+            className="!pb-16 newsletter-idea-slider !h-full !relative !z-40"
+            style={{
+              '--swiper-pagination-color': '#22c55e',
+              '--swiper-pagination-bullet-inactive-color': 'rgba(255, 255, 255, 0.3)',
+              '--swiper-pagination-bullet-inactive-opacity': '1',
+              '--swiper-pagination-bullet-size': '8px',
+              '--swiper-pagination-bullet-horizontal-gap': '4px'
+            } as React.CSSProperties}
+          >
+            {ideas.map((idea, index) => {
+              const isActive = index === currentSlide;
+              return (
+                <SwiperSlide key={idea.id} className="!h-auto !relative !z-50 !bg-transparent">
+                  <div className="h-[400px] w-full relative z-50 flex items-center justify-center">
+                    <IdeaCard
+                      idea={idea}
+                      onSelect={onSelectIdea}
+                      isActive={isActive}
+                      slideIndex={index}
+                      className="h-full w-full max-w-[280px]"
+                    />
+                  </div>
+                </SwiperSlide>
+              );
+            })}
+          </Swiper>
+        </div>
       </div>
     </div>
   );
