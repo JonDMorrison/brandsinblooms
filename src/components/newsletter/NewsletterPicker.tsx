@@ -91,39 +91,6 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
   const renderContent = () => (
     <div className="flex flex-col h-full max-h-[calc(90vh-120px)]">
-      {/* Content */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <ScrollArea className="h-full w-full">
-          <div className="pr-4">
-            {currentStep === 'ideas' ? (
-              <div className="space-y-6 pb-4">
-                {/* Ideas Grid */}
-                <IdeaGrid 
-                  ideas={ideas}
-                  onSelectIdea={handleSelectIdea}
-                  loading={loading}
-                />
-              </div>
-            ) : (
-              <div className="space-y-6 pb-4">
-                {/* Selected Idea Summary */}
-                {selectedIdea && (
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <h3 className="font-medium mb-1">Selected Idea:</h3>
-                    <p className="text-sm text-muted-foreground">{selectedIdea.title}</p>
-                  </div>
-                )}
-
-                {/* Layout Options */}
-                <NewsletterLayoutPicker
-                  value={selectedLayout}
-                  onChange={setSelectedLayout}
-                />
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </div>
 
 
       {/* AI Idea Generator - Fixed at bottom */}
@@ -188,6 +155,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent side="bottom" className="h-[90vh] overflow-hidden">
           <SheetHeader className="mb-4">
+            <SheetTitle>Create Newsletter</SheetTitle>
           </SheetHeader>
           {renderContent()}
         </SheetContent>
@@ -213,6 +181,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
         
         <div className="p-6 pt-16 h-full">
           <DialogHeader className="mb-6">
+            <DialogTitle className="text-2xl">Create Newsletter</DialogTitle>
           </DialogHeader>
           {renderContent()}
         </div>
