@@ -136,7 +136,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
           <p className="text-muted-foreground">Select from our curated newsletter templates</p>
         </div>
         
-        <div className="h-[400px] relative">
+        <div className="h-full w-full relative">
           <Swiper
             modules={[Navigation, Pagination]}
             grabCursor={true}
