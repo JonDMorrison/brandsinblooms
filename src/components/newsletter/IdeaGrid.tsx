@@ -55,7 +55,9 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   loading = false, 
   className 
 }) => {
-  const [currentSlide, setCurrentSlide] = useState(1);
+  // Calculate initial slide safely
+  const initialSlide = Math.min(Math.max(0, Math.floor(ideas.length / 2)), ideas.length - 1);
+  const [currentSlide, setCurrentSlide] = useState(initialSlide);
 
   if (loading) {
     return (
@@ -124,6 +126,8 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
     );
   }
 
+  console.log('📧 IdeaGrid: Rendering with', ideas.length, 'ideas, initialSlide:', initialSlide);
+
   return (
     <div className={cn("py-8", className)}>
       <Swiper
@@ -132,7 +136,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
         centeredSlides={true}
         slidesPerView={2.2}
         spaceBetween={16}
-        initialSlide={Math.floor(ideas.length / 2)}
+        initialSlide={initialSlide}
         pagination={{
           clickable: true,
           bulletClass: 'swiper-pagination-bullet',
