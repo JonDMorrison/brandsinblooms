@@ -130,63 +130,66 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
 
   return (
     <div className={cn("py-8", className)}>
-      <Swiper
-        modules={[Navigation, Pagination]}
-        grabCursor={true}
-        centeredSlides={true}
-        slidesPerView={2.2}
-        spaceBetween={16}
-        initialSlide={initialSlide}
-        pagination={{
-          clickable: true,
-          bulletClass: 'swiper-pagination-bullet',
-          bulletActiveClass: 'swiper-pagination-bullet-active',
-          dynamicBullets: true,
-        }}
-        onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
-        breakpoints={{
-          320: {
-            slidesPerView: 1.2,
-            spaceBetween: 12,
-          },
-          640: {
-            slidesPerView: 1.8,
-            spaceBetween: 14,
-          },
-          768: {
-            slidesPerView: 2.2,
-            spaceBetween: 16,
-          },
-          1024: {
-            slidesPerView: 2.5,
-            spaceBetween: 20,
-          },
-        }}
-        className="!pb-16 newsletter-idea-slider"
-        style={{
-          '--swiper-pagination-color': '#22c55e',
-          '--swiper-pagination-bullet-inactive-color': 'rgba(0, 0, 0, 0.3)',
-          '--swiper-pagination-bullet-inactive-opacity': '1',
-          '--swiper-pagination-bullet-size': '8px',
-          '--swiper-pagination-bullet-horizontal-gap': '4px'
-        } as React.CSSProperties}
-      >
-        {ideas.map((idea, index) => {
-          const isActive = index === currentSlide;
-          return (
-            <SwiperSlide key={idea.id} className="!h-auto">
-              <div className="h-full w-full min-h-[400px]">
-                <IdeaCard
-                  idea={idea}
-                  onSelect={onSelectIdea}
-                  isActive={isActive}
-                  slideIndex={index}
-                />
-              </div>
-            </SwiperSlide>
-          );
-        })}
-      </Swiper>
+      <div className="h-[500px]"> {/* Fixed height container */}
+        <Swiper
+          modules={[Navigation, Pagination]}
+          grabCursor={true}
+          centeredSlides={true}
+          slidesPerView={2.2}
+          spaceBetween={16}
+          initialSlide={initialSlide}
+          pagination={{
+            clickable: true,
+            bulletClass: 'swiper-pagination-bullet',
+            bulletActiveClass: 'swiper-pagination-bullet-active',
+            dynamicBullets: true,
+          }}
+          onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
+          breakpoints={{
+            320: {
+              slidesPerView: 1.2,
+              spaceBetween: 12,
+            },
+            640: {
+              slidesPerView: 1.8,
+              spaceBetween: 14,
+            },
+            768: {
+              slidesPerView: 2.2,
+              spaceBetween: 16,
+            },
+            1024: {
+              slidesPerView: 2.5,
+              spaceBetween: 20,
+            },
+          }}
+          className="!pb-16 newsletter-idea-slider !h-full"
+          style={{
+            '--swiper-pagination-color': '#22c55e',
+            '--swiper-pagination-bullet-inactive-color': 'rgba(0, 0, 0, 0.3)',
+            '--swiper-pagination-bullet-inactive-opacity': '1',
+            '--swiper-pagination-bullet-size': '8px',
+            '--swiper-pagination-bullet-horizontal-gap': '4px'
+          } as React.CSSProperties}
+        >
+          {ideas.map((idea, index) => {
+            const isActive = index === currentSlide;
+            return (
+              <SwiperSlide key={idea.id} className="!h-auto">
+                <div className="h-[400px] w-full"> {/* Fixed height for cards */}
+                  <IdeaCard
+                    idea={idea}
+                    onSelect={onSelectIdea}
+                    isActive={isActive}
+                    slideIndex={index}
+                    className="h-full"
+                  />
+                </div>
+              </SwiperSlide>
+            );
+          })}
+        </Swiper>
+      </div>
     </div>
   );
 };

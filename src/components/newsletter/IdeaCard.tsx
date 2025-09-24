@@ -39,21 +39,21 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
     }
   };
 
-  // Get gradient classes based on category using design system
+  // Get gradient classes based on category - using simple colors for visibility
   const getGradientClasses = (category: NewsletterIdea['category']) => {
     switch (category) {
       case 'holiday':
-        return "from-brand-navy-500 to-brand-navy-700";
+        return "from-red-500 to-red-600";
       case 'weekly':
-        return "from-brand-teal-500 to-brand-teal-700";
+        return "from-green-500 to-green-600";
       case 'seasonal':
-        return "from-brand-blue-500 to-brand-blue-700";
+        return "from-purple-500 to-purple-600";
       case 'product':
-        return "from-brand-green-500 to-brand-green-700";
+        return "from-blue-500 to-blue-600";
       case 'ai-generated':
-        return "from-mint-500 to-mint-700";
+        return "from-orange-500 to-orange-600";
       default:
-        return "from-gray-500 to-gray-700";
+        return "from-gray-500 to-gray-600";
     }
   };
 
@@ -61,14 +61,14 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
 
   return (
     <div className={cn(
-      "relative overflow-hidden rounded-3xl aspect-[3/4]",
+      "relative overflow-hidden rounded-3xl aspect-[3/4] bg-white shadow-lg border",
       "transition-all duration-500 ease-out cursor-pointer",
       isActive ? 'scale-105' : 'scale-95 opacity-70',
       className
     )}>
       {/* Gradient Background */}
       <div className={cn(
-        "absolute inset-0 bg-gradient-to-br opacity-90",
+        "absolute inset-0 bg-gradient-to-br",
         getGradientClasses(idea.category)
       )} />
       
@@ -79,8 +79,8 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
             <Icon className="w-8 h-8 text-white" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-xl font-bold leading-tight line-clamp-2">{idea.title}</h3>
-            <p className="text-white/80 text-sm leading-relaxed px-2 line-clamp-3">{idea.description}</p>
+            <h3 className="text-xl font-bold leading-tight text-white">{idea.title}</h3>
+            <p className="text-white/90 text-sm leading-relaxed px-2 line-clamp-3">{idea.description}</p>
           </div>
           
           {/* Action Button */}
@@ -101,9 +101,6 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
           </div>
         </div>
       </div>
-      
-      {/* Material You inspired overlay pattern */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
       
       {/* Slide label */}
       <div className="absolute top-4 left-4 bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">
