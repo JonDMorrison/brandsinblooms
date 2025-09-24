@@ -91,7 +91,47 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
   const renderContent = () => (
     <div className="flex flex-col h-full max-h-[calc(90vh-120px)]">
+      {/* Main Content Area */}
+      {currentStep === 'ideas' && (
+        <div className="flex-1 overflow-hidden">
+          <IdeaGrid 
+            ideas={ideas} 
+            onSelectIdea={handleSelectIdea} 
+            loading={loading}
+            className="h-full"
+          />
+        </div>
+      )}
 
+      {currentStep === 'layout' && selectedIdea && (
+        <div className="flex-1 overflow-y-auto">
+          <div className="mb-6">
+            <Button
+              variant="ghost"
+              onClick={handleBack}
+              className="mb-4"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Ideas
+            </Button>
+            
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold mb-2">{selectedIdea.title}</h3>
+              <p className="text-muted-foreground">{selectedIdea.description}</p>
+            </div>
+            
+            <Separator className="mb-6" />
+            
+            <div>
+              <h4 className="font-medium mb-4">Choose Layout</h4>
+              <NewsletterLayoutPicker 
+                value={selectedLayout} 
+                onChange={setSelectedLayout} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Idea Generator - Fixed at bottom */}
       {currentStep === 'ideas' && (
