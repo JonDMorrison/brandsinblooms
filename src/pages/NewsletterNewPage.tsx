@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Plus, Mail, Sparkles } from 'lucide-react';
 
 export const NewsletterNewPage: React.FC = () => {
-  const [showPicker, setShowPicker] = useState(true);
+  const [showPicker, setShowPicker] = useState(false);
   const navigate = useNavigate();
 
   return (
