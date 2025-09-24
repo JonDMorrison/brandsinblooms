@@ -155,7 +155,6 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent side="bottom" className="h-[90vh] overflow-hidden">
           <SheetHeader className="mb-4">
-            <SheetTitle>Create Newsletter</SheetTitle>
           </SheetHeader>
           {renderContent()}
         </SheetContent>
@@ -181,7 +180,6 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
         
         <div className="p-6 pt-16 h-full">
           <DialogHeader className="mb-6">
-            <DialogTitle className="text-2xl">Create Newsletter</DialogTitle>
           </DialogHeader>
           {renderContent()}
         </div>
