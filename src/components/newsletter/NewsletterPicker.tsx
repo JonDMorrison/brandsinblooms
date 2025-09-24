@@ -132,45 +132,6 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                   onSelectIdea={handleSelectIdea}
                   loading={loading}
                 />
-
-                <Separator />
-
-                {/* AI Idea Generator */}
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-                  <div className="flex items-center mb-3">
-                    <Sparkles className="w-5 h-5 text-purple-600 mr-2" />
-                    <h3 className="font-medium text-purple-900">Generate Custom Ideas</h3>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
-                      <Input
-                        id="ai-prompt"
-                        placeholder="Describe the newsletter you'd like to create..."
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleGenerateAI()}
-                      />
-                    </div>
-                    <Button 
-                      onClick={handleGenerateAI}
-                      disabled={!aiPrompt.trim() || generatingAI}
-                      size="sm"
-                    >
-                      {generatingAI ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Search className="w-4 h-4 mr-2" />
-                          Generate
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
               </div>
             ) : (
               <div className="space-y-6 pb-4">
@@ -192,6 +153,47 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
           </div>
         </ScrollArea>
       </div>
+
+      {/* AI Idea Generator - Fixed at bottom */}
+      {currentStep === 'ideas' && (
+        <div className="flex-shrink-0 mt-6 pt-4 border-t">
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center mb-3">
+              <Sparkles className="w-5 h-5 text-purple-600 mr-2" />
+              <h3 className="font-medium text-purple-900">Generate Custom Ideas</h3>
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
+                <Input
+                  id="ai-prompt"
+                  placeholder="Describe the newsletter you'd like to create..."
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleGenerateAI()}
+                />
+              </div>
+              <Button 
+                onClick={handleGenerateAI}
+                disabled={!aiPrompt.trim() || generatingAI}
+                size="sm"
+              >
+                {generatingAI ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    Generate
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       {currentStep === 'layout' && (
