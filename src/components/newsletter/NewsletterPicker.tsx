@@ -220,9 +220,6 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
         </Button>
         
         <div className="p-6 pt-16 h-full">
-          <DialogHeader className="mb-6">
-            <DialogTitle className="text-2xl">Create Newsletter</DialogTitle>
-          </DialogHeader>
           {renderContent()}
         </div>
       </DialogContent>
