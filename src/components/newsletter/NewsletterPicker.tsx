@@ -91,26 +91,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
   const renderContent = () => (
     <div className="flex flex-col h-full max-h-[calc(90vh-120px)]">
-      {/* Content */}
-      {currentStep === 'ideas' && (
-        <div className="flex-1 overflow-hidden">
-          <IdeaGrid
-            ideas={ideas}
-            onSelectIdea={handleSelectIdea}
-            loading={loading}
-            className="h-full"
-          />
-        </div>
-      )}
 
-      {currentStep === 'layout' && selectedIdea && (
-        <div className="flex-1 overflow-auto">
-          <NewsletterLayoutPicker
-            value={selectedLayout}
-            onChange={setSelectedLayout}
-          />
-        </div>
-      )}
 
       {/* AI Idea Generator - Fixed at bottom */}
       {currentStep === 'ideas' && (
@@ -185,7 +166,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn(
-        "w-screen h-screen max-w-none max-h-none overflow-hidden p-0 bg-background",
+        "w-screen h-screen max-w-none max-h-none overflow-hidden p-0 bg-gray-800 text-white",
         "z-[1000010]" // High z-index as specified
       )}>
         {/* Close button in top left */}
