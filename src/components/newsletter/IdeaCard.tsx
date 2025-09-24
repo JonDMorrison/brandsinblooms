@@ -1,8 +1,7 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, ChevronRight } from 'lucide-react';
+import { Clock, ChevronRight, Mail, Calendar, Sparkles, Target, BarChart3 } from 'lucide-react';
 import { NewsletterIdea } from '@/types/newsletter';
 import { cn } from '@/lib/utils';
 import { format, addDays } from 'date-fns';
@@ -11,119 +10,113 @@ interface IdeaCardProps {
   idea: NewsletterIdea;
   onSelect: (idea: NewsletterIdea) => void;
   className?: string;
+  isActive?: boolean;
+  slideIndex?: number;
 }
 
-export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onSelect, className }) => {
-  const getBadgeVariant = (category: NewsletterIdea['category']) => {
+export const IdeaCard: React.FC<IdeaCardProps> = ({ 
+  idea, 
+  onSelect, 
+  className, 
+  isActive = false,
+  slideIndex = 0 
+}) => {
+  // Get icon based on category
+  const getIcon = (category: NewsletterIdea['category']) => {
     switch (category) {
       case 'holiday':
-        return 'secondary'; // Changed from destructive to more muted
+        return Calendar;
       case 'weekly':
-        return 'default'; // Changed to default for weekly themes
+        return Target;
       case 'seasonal':
-        return 'secondary';
+        return Sparkles;
       case 'product':
-        return 'outline'; // Changed from default to more subtle
+        return BarChart3;
       case 'ai-generated':
-        return 'outline';
+        return Sparkles;
       default:
-        return 'secondary';
+        return Mail;
     }
   };
 
-  const getBadgeText = (idea: NewsletterIdea): string => {
-    if (idea.category === 'weekly' && idea.weekNumber) {
-      return "Plant Care Focus";
+  // Get gradient classes based on category
+  const getGradientClasses = (category: NewsletterIdea['category']) => {
+    switch (category) {
+      case 'holiday':
+        return "from-red-800 to-red-900";
+      case 'weekly':
+        return "from-green-800 to-green-900";
+      case 'seasonal':
+        return "from-purple-800 to-purple-900";
+      case 'product':
+        return "from-blue-800 to-blue-900";
+      case 'ai-generated':
+        return "from-orange-800 to-orange-900";
+      default:
+        return "from-gray-800 to-gray-900";
     }
-    return getDateRangeLabel(idea);
   };
 
-  const getDateRangeLabel = (idea: NewsletterIdea): string => {
-    const today = new Date();
-    
-    // For holidays with daysUntil
-    if (idea.category === 'holiday' && typeof idea.daysUntil === 'number') {
-      const targetDate = addDays(today, idea.daysUntil);
-      
-      if (idea.daysUntil === 0) {
-        return format(today, 'MMM d'); // Today
-      } else if (idea.daysUntil <= 7) {
-        return `${format(today, 'MMM d')} - ${format(targetDate, 'MMM d')}`;
-      } else if (idea.daysUntil <= 14) {
-        return `${format(addDays(today, 7), 'MMM d')} - ${format(targetDate, 'MMM d')}`;
-      } else {
-        return `${format(addDays(today, 14), 'MMM d')} - ${format(targetDate, 'MMM d')}`;
-      }
-    }
-    
-    // For weekly themes
-    if (idea.category === 'weekly') {
-      const weekStart = today;
-      const weekEnd = addDays(today, 6);
-      return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`;
-    }
-    
-    // For seasonal content (show current month range)
-    if (idea.category === 'seasonal') {
-      const monthEnd = addDays(today, 30);
-      return `${format(today, 'MMM d')} - ${format(monthEnd, 'MMM d')}`;
-    }
-    
-    // For product/general content (show next month range)
-    const nextMonth = addDays(today, 30);
-    return `${format(today, 'MMM d')} - ${format(nextMonth, 'MMM d')}`;
-  };
+  const Icon = getIcon(idea.category);
 
   return (
-    <Card className={cn(
-      "group relative overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer",
-      "border-2 hover:border-primary/20",
+    <div className={cn(
+      "relative overflow-hidden rounded-3xl aspect-[3/4]",
+      "transition-all duration-500 ease-out cursor-pointer",
+      isActive ? 'scale-105' : 'scale-95 opacity-70',
       className
     )}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-3">
-          <Badge 
-            variant={getBadgeVariant(idea.category)} 
-            className="text-xs text-muted-foreground bg-muted/50 border-muted hover:bg-muted/70"
-          >
-            {getBadgeText(idea)}
-          </Badge>
-          {idea.estimatedReadTime && (
-            <div className="flex items-center text-xs text-muted-foreground">
-              <Clock className="w-3 h-3 mr-1" />
-              {idea.estimatedReadTime}
-            </div>
-          )}
-        </div>
-
-        <h3 className="font-semibold text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-          {idea.title}
-        </h3>
-
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-          {idea.description}
-        </p>
-
-        {/* Preview overlay - shown on hover */}
-        {idea.previewHtml && (
-          <div className="absolute inset-0 bg-background/95 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 p-4 overflow-auto">
-            <div className="text-xs text-muted-foreground mb-2">Preview:</div>
-            <div 
-              className="text-sm prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: idea.previewHtml }}
-            />
+      {/* Gradient Background */}
+      <div className={cn(
+        "absolute inset-0 bg-gradient-to-br opacity-90",
+        getGradientClasses(idea.category)
+      )} />
+      
+      {/* Content */}
+      <div className="relative z-10 h-full flex flex-col justify-between p-6 text-white">
+        <div className="flex-1 flex flex-col justify-center items-center text-center space-y-4">
+          <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+            <Icon className="w-8 h-8 text-white" />
           </div>
-        )}
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold leading-tight line-clamp-2">{idea.title}</h3>
+            <p className="text-white/80 text-sm leading-relaxed px-2 line-clamp-3">{idea.description}</p>
+          </div>
+          
+          {/* Action Button */}
+          <Button 
+            onClick={() => onSelect(idea)}
+            className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm rounded-full px-6 py-2 text-sm font-medium transition-all duration-300"
+            variant="outline"
+          >
+            Start with this
+            <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+        
+        {/* Bottom accent */}
+        <div className="flex justify-center mt-4">
+          <div className="w-12 h-1 bg-white/30 rounded-full">
+            <div className="w-6 h-1 bg-white rounded-full"></div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Material You inspired overlay pattern */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+      
+      {/* Slide label */}
+      <div className="absolute top-4 left-4 bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">
+        <span className="text-white/90 text-xs font-medium">Idea {slideIndex + 1}</span>
+      </div>
 
-        <Button 
-          onClick={() => onSelect(idea)}
-          className="w-full group-hover:bg-primary group-hover:text-primary-foreground"
-          variant="outline"
-        >
-          Start with this
-          <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-        </Button>
-      </CardContent>
-    </Card>
+      {/* Estimated read time badge */}
+      {idea.estimatedReadTime && (
+        <div className="absolute top-4 right-4 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-full flex items-center">
+          <Clock className="w-3 h-3 mr-1 text-white/80" />
+          <span className="text-white/90 text-xs">{idea.estimatedReadTime}</span>
+        </div>
+      )}
+    </div>
   );
 };
