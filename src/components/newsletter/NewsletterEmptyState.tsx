@@ -2,12 +2,11 @@ import React from 'react';
 import { useTypingEffect } from '@/hooks/useTypingEffect';
 import { DisplayMedium, BodyMedium } from '@/components/ui/typography';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Autoplay } from 'swiper/modules';
+import { Autoplay } from 'swiper/modules';
 import { Sparkles } from 'lucide-react';
 
 // Import Swiper styles
 import 'swiper/css';
-import 'swiper/css/navigation';
 
 const BlinkingCursor = ({ show }: { show: boolean }) => (
   <span className={`inline-block w-0.5 h-5 bg-current ml-1 ${show ? 'animate-pulse' : ''}`}>
@@ -78,7 +77,7 @@ export const NewsletterEmptyState = () => {
           </div>
           
           <Swiper
-            modules={[Navigation, Autoplay]}
+            modules={[Autoplay]}
             spaceBetween={16}
             slidesPerView="auto"
             grabCursor={true}
@@ -88,7 +87,6 @@ export const NewsletterEmptyState = () => {
               disableOnInteraction: false,
               pauseOnMouseEnter: true
             }}
-            navigation={true}
             className="sample-prompts-slider !pb-4"
             breakpoints={{
               320: {
