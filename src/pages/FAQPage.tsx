@@ -179,7 +179,7 @@ const FAQPage = () => {
                   className="flex flex-col items-center gap-2 h-auto py-4 px-3 bg-card hover:bg-primary/5 border-2 hover:border-primary/20 transition-all group"
                 >
                   <IconComponent className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
-                  <span className="text-sm font-medium text-center leading-tight text-foreground">{category.title}</span>
+                  <span className="text-sm font-medium text-center leading-tight text-black">{category.title}</span>
                 </Button>
               );
             })}
