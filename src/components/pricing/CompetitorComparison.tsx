@@ -130,13 +130,16 @@ export const CompetitorComparison = () => {
                         >
                           <td className="py-5 px-8">
                             <div className="flex items-center gap-3">
-                              <Tooltip>
+                              <Tooltip delayDuration={200}>
                                 <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-2 cursor-help">
+                                  <div className="flex items-center gap-2 cursor-help group">
                                     <span className="font-medium text-foreground">
                                       {item.service}
                                     </span>
-                                    <HelpCircle className="h-4 w-4 text-muted-foreground/60 hover:text-primary transition-colors" />
+                                    <div className="relative">
+                                      <HelpCircle className="h-4 w-4 text-muted-foreground/60 hover:text-primary hover:scale-110 transition-all duration-200 group-hover:animate-pulse" />
+                                      <div className="absolute inset-0 rounded-full bg-primary/20 scale-0 group-hover:scale-150 transition-transform duration-300 opacity-0 group-hover:opacity-100"></div>
+                                    </div>
                                     {item.unique && (
                                       <Badge variant="secondary" className="bg-gradient-to-r from-primary/20 to-brand-teal-mint/20 text-primary text-xs">
                                         Unique
@@ -144,8 +147,16 @@ export const CompetitorComparison = () => {
                                     )}
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  <p>{item.tooltip}</p>
+                                <TooltipContent 
+                                  className="max-w-xs bg-popover/95 backdrop-blur-sm border-primary/20 shadow-xl"
+                                  sideOffset={8}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <HelpCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                                    <div>
+                                      <p className="text-sm leading-relaxed">{item.tooltip}</p>
+                                    </div>
+                                  </div>
                                 </TooltipContent>
                               </Tooltip>
                             </div>
