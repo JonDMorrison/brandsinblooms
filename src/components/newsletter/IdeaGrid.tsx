@@ -106,7 +106,10 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   if (ideas.length === 0) {
     return (
       <div className={cn("py-8", className)}>
-        <NewsletterEmptyState onPromptClick={onGenerateIdeas} />
+        <NewsletterEmptyState 
+          onPromptClick={onGenerateIdeas}
+          onSelectIdea={onSelectIdea}
+        />
       </div>
     );
   }
