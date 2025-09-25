@@ -216,7 +216,7 @@ const FAQPage = () => {
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="pb-6 px-6">
-                        <p className="text-muted-foreground leading-relaxed pl-0">{faq.answer}</p>
+                        <p className="text-foreground text-lg leading-relaxed pl-0 font-medium">{faq.answer}</p>
                       </AccordionContent>
                     </AccordionItem>
                   ))}
