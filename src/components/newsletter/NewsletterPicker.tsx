@@ -160,13 +160,13 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
       {/* AI Idea Generator - Fixed at bottom */}
       {currentStep === 'ideas' && (
-        <div className="fixed bottom-12 left-1/2 transform -translate-x-1/2 z-50">
+        <div className="fixed left-1/2 transform -translate-x-1/2 z-50" style={{ bottom: '48px' }}>
           <div 
             className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 shadow-lg transition-all duration-200" 
             style={{ 
               width: '600px',
-              minHeight: `${1 * 24 + 80}px`, // 1 row + padding + button area
-              height: `${textareaRows * 24 + 80}px` // Dynamic height based on rows
+              minHeight: `${1 * 24 + 100}px`, // 1 row + extra padding + button area
+              height: `${textareaRows * 24 + 100}px` // Dynamic height with more padding
             }}
           >
             <div className="space-y-3">
