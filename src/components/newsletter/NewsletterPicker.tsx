@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -32,6 +32,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   const [selectedLayout, setSelectedLayout] = useState<'block-builder' | 'simple-email' | null>('block-builder');
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [textareaRows, setTextareaRows] = useState(4);
 
   // Default to block-builder layout
   useEffect(() => {
@@ -52,10 +53,37 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
     try {
       await generateAIIdeas(aiPrompt);
       setAiPrompt('');
+      setTextareaRows(4); // Reset to default rows
     } catch (error) {
       console.error('Failed to generate AI ideas:', error);
     } finally {
       setGeneratingAI(false);
+    }
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setAiPrompt(value);
+    
+    // Auto-expand functionality
+    const textarea = e.target;
+    const lineHeight = 24; // Approximate line height
+    const padding = 24; // Top and bottom padding (p-3 = 12px * 2)
+    const minRows = 4;
+    const maxRows = 12;
+    
+    // Reset height to auto to get accurate scrollHeight
+    textarea.style.height = 'auto';
+    const scrollHeight = textarea.scrollHeight;
+    const newRows = Math.min(maxRows, Math.max(minRows, Math.ceil((scrollHeight - padding) / lineHeight)));
+    
+    setTextareaRows(newRows);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleGenerateAI();
     }
   };
 
@@ -140,13 +168,19 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
             <div className="space-y-3">
               <div className="w-full">
                 <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
-                <Input
+                <Textarea
                   id="ai-prompt"
-                  placeholder="Describe the newsletter you'd like to create..."
-                  className="w-full h-12 text-base rounded-xl border-0 bg-white shadow-sm"
+                  placeholder="Write your AI prompt here..."
+                  className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 resize-none overflow-hidden bg-white text-base"
                   value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleGenerateAI()}
+                  onChange={handleTextareaChange}
+                  onKeyDown={handleKeyDown}
+                  rows={textareaRows}
+                  style={{ 
+                    minHeight: `${4 * 24 + 24}px`, // 4 rows + padding
+                    maxHeight: `${12 * 24 + 24}px`, // 12 rows + padding
+                    overflowY: textareaRows >= 12 ? 'auto' : 'hidden'
+                  }}
                 />
               </div>
               <div className="flex justify-end">
