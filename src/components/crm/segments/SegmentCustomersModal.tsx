@@ -529,16 +529,16 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden min-h-0">
               {/* Assigned Customers */}
-              <div className="flex flex-col">
+              <div className="flex flex-col min-h-0">
                 <h5 className="font-medium text-sm mb-2 flex items-center gap-1">
                   Customers in Segment
                   <Badge variant="secondary" className="text-xs">
                     {getFilteredSegmentCustomers().length}
                   </Badge>
                 </h5>
-                <ScrollArea className="flex-1 border rounded-md p-2">
+                <ScrollArea className="flex-1 border rounded-md p-2 h-[400px]">
                   <div className="space-y-2">
                     {getFilteredSegmentCustomers().map((customer) => (
                       <Card key={customer.id} className="p-3">
@@ -593,14 +593,14 @@ export const SegmentCustomersModal: React.FC<SegmentCustomersModalProps> = ({
               </div>
 
               {/* Available Customers */}
-              <div className="flex flex-col">
+              <div className="flex flex-col min-h-0">
                 <h5 className="font-medium text-sm mb-2 flex items-center gap-1">
                   Available to Add
                   <Badge variant="outline" className="text-xs">
                     {getFilteredUnassignedCustomers().length}
                   </Badge>
                 </h5>
-                <ScrollArea className="flex-1 border rounded-md p-2">
+                <ScrollArea className="flex-1 border rounded-md p-2 h-[400px]">
                   <div className="space-y-2">
                     {getFilteredUnassignedCustomers().map((customer) => (
                       <Card key={customer.id} className="p-3">
