@@ -124,6 +124,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             slidesPerView="auto"
             spaceBetween={16}
             initialSlide={initialSlide}
+            navigation={true}
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
             breakpoints={{
               320: {
@@ -143,7 +144,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
                 spaceBetween: 20,
               },
             }}
-            className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-280px)] !relative !z-40 overflow-visible"
+            className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-280px)] !relative !z-40 overflow-visible [&_.swiper-button-next]:!bg-white [&_.swiper-button-prev]:!bg-white [&_.swiper-button-next]:!text-brand-teal [&_.swiper-button-prev]:!text-brand-teal [&_.swiper-button-next]:!w-12 [&_.swiper-button-prev]:!w-12 [&_.swiper-button-next]:!h-12 [&_.swiper-button-prev]:!h-12 [&_.swiper-button-next]:!rounded-full [&_.swiper-button-prev]:!rounded-full [&_.swiper-button-next]:!shadow-lg [&_.swiper-button-prev]:!shadow-lg [&_.swiper-button-next]:!border [&_.swiper-button-prev]:!border [&_.swiper-button-next]:!border-gray-200 [&_.swiper-button-prev]:!border-gray-200 [&_.swiper-button-next]:hover:!bg-gray-50 [&_.swiper-button-prev]:hover:!bg-gray-50 [&_.swiper-button-next]:!transition-all [&_.swiper-button-prev]:!transition-all [&_.swiper-button-next]:!duration-300 [&_.swiper-button-prev]:!duration-300"
           >
             {ideas.map((idea, index) => {
               const isActive = index === currentSlide;
