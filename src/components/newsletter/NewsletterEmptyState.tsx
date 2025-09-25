@@ -82,12 +82,13 @@ export const NewsletterEmptyState = () => {
             slidesPerView="auto"
             grabCursor={true}
             centeredSlides={true}
+            navigation={false}
             autoplay={{
               delay: 3000,
               disableOnInteraction: false,
               pauseOnMouseEnter: true
             }}
-            className="sample-prompts-slider !pb-4"
+            className="sample-prompts-slider !pb-4 [&_.swiper-button-next]:!hidden [&_.swiper-button-prev]:!hidden"
             breakpoints={{
               320: {
                 slidesPerView: 1.2,
