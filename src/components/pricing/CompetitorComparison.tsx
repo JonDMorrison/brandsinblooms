@@ -86,7 +86,6 @@ export const CompetitorComparison = () => {
   const bloomSuiteCost = 2999;
 
   return (
-    <TooltipProvider>
       <section id="competitor-comparison" className="py-16 px-6 bg-gradient-to-br from-muted/20 via-background/80 to-muted/30">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -387,6 +386,5 @@ export const CompetitorComparison = () => {
           </div>
         </div>
       </section>
-    </TooltipProvider>
   );
 };

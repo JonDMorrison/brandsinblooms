@@ -9,6 +9,7 @@ import { LoadingProvider } from '@/contexts/LoadingContext'
 import { GlobalLoadingOverlay } from '@/components/loading/GlobalLoadingOverlay'
 import { StartupLoadingManager } from '@/components/loading/StartupLoadingManager'
 import { GlobalVisibilityManager } from '@/components/GlobalVisibilityManager'
+import { TooltipProvider } from '@/components/ui/tooltip'
 // Analytics completely disabled to prevent Firebase/RudderStack errors
 import App from './App.tsx'
 import './index.css'
@@ -37,18 +38,20 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
-      <LoadingProvider>
-        <AuthProvider>
-          <SubscriptionProvider>
-            <OnboardingStatusProvider>
-              <App />
-              <GlobalLoadingOverlay />
-              <StartupLoadingManager />
-              <GlobalVisibilityManager />
-            </OnboardingStatusProvider>
-          </SubscriptionProvider>
-        </AuthProvider>
-      </LoadingProvider>
+      <TooltipProvider delayDuration={300} skipDelayDuration={100}>
+        <LoadingProvider>
+          <AuthProvider>
+            <SubscriptionProvider>
+              <OnboardingStatusProvider>
+                <App />
+                <GlobalLoadingOverlay />
+                <StartupLoadingManager />
+                <GlobalVisibilityManager />
+              </OnboardingStatusProvider>
+            </SubscriptionProvider>
+          </AuthProvider>
+        </LoadingProvider>
+      </TooltipProvider>
     </BrowserRouter>
   </QueryClientProvider>
 );
