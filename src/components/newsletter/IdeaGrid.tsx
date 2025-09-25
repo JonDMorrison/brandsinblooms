@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { IdeaCard } from './IdeaCard';
+import { NewsletterEmptyState } from './NewsletterEmptyState';
 import { NewsletterIdea } from '@/types/newsletter';
 import { cn } from '@/lib/utils';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -102,12 +103,8 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
 
   if (ideas.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">📧</div>
-        <h3 className="text-lg font-medium mb-2">No ideas available</h3>
-        <p className="text-sm text-muted-foreground">
-          Try describing what kind of newsletter you'd like to create
-        </p>
+      <div className={cn("py-8", className)}>
+        <NewsletterEmptyState />
       </div>
     );
   }
