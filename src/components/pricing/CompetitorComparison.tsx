@@ -220,73 +220,140 @@ export const CompetitorComparison = () => {
             </CardContent>
           </Card>
 
-          {/* Cost Comparison Summary */}
-          <div className="max-w-4xl mx-auto">
-            <Card className="overflow-hidden shadow-2xl border-0 bg-gradient-to-r from-white via-white to-muted/20">
-              <CardContent className="p-8">
-                <div className="grid md:grid-cols-2 gap-8 items-center">
+          {/* Cost Comparison Summary - Enhanced Design */}
+          <div className="max-w-7xl mx-auto">
+            <div className="grid lg:grid-cols-3 gap-8 items-stretch">
+              
+              {/* Separate Tools - Expensive Side */}
+              <div className="lg:col-span-1">
+                <Card className="h-full bg-gradient-to-br from-red-50 to-red-100/50 border-2 border-red-200/60 shadow-xl relative overflow-hidden">
+                  {/* Warning pattern background */}
+                  <div className="absolute inset-0 opacity-5">
+                    <div className="absolute top-4 right-4 text-red-500 text-6xl">⚠️</div>
+                  </div>
                   
-                  {/* Separate Tools Cost */}
-                  <div className="text-center md:text-left">
-                    <h3 className="text-lg font-semibold text-muted-foreground mb-2">
-                      Total cost of separate tools:
-                    </h3>
-                    <div className="text-3xl md:text-4xl font-bold text-destructive mb-2">
-                      ${totalMinCost.toLocaleString()}–${totalMaxCost.toLocaleString()}+
+                  <CardContent className="p-8 relative z-10 h-full flex flex-col">
+                    <div className="text-center mb-6">
+                      <div className="inline-flex items-center gap-2 bg-red-100 text-red-700 px-4 py-2 rounded-full text-sm font-medium mb-4">
+                        <X className="h-4 w-4" />
+                        Separate Tools
+                      </div>
+                      
+                      <div className="text-5xl font-black text-red-600 mb-2 tracking-tight">
+                        ${totalMinCost.toLocaleString()}<span className="text-3xl">–${totalMaxCost.toLocaleString()}+</span>
+                      </div>
+                      <div className="text-xl font-semibold text-red-600/80">per year</div>
                     </div>
-                    <div className="text-lg text-destructive/80">per year</div>
-                    <div className="mt-4 text-sm text-muted-foreground">
-                      <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                        <span className="bg-muted/50 px-2 py-1 rounded text-xs">Multiple logins</span>
-                        <span className="bg-muted/50 px-2 py-1 rounded text-xs">Separate support teams</span>
-                        <span className="bg-muted/50 px-2 py-1 rounded text-xs">Integration headaches</span>
+                    
+                    <div className="flex-grow">
+                      <h4 className="font-bold text-red-700 mb-4 text-center">The Problems:</h4>
+                      <div className="space-y-3">
+                        {[
+                          "Multiple logins to remember",
+                          "Separate support teams",
+                          "Integration headaches",
+                          "Data scattered everywhere",
+                          "Hidden fees and add-ons"
+                        ].map((problem, idx) => (
+                          <div key={idx} className="flex items-center gap-3 text-red-700">
+                            <X className="h-4 w-4 flex-shrink-0" />
+                            <span className="text-sm">{problem}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* VS Section */}
+              <div className="lg:col-span-1 flex items-center justify-center">
+                <div className="text-center py-8">
+                  <div className="relative">
+                    {/* Decorative elements */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-brand-teal-mint/20 to-primary/20 rounded-full blur-3xl scale-150 opacity-30"></div>
+                    
+                    <div className="relative bg-white rounded-full p-6 shadow-2xl border-4 border-primary/20">
+                      <div className="text-4xl font-black text-transparent bg-gradient-to-r from-primary to-brand-teal-mint bg-clip-text">
+                        VS
                       </div>
                     </div>
                   </div>
-
-                  {/* VS Divider */}
-                  <div className="flex justify-center">
-                    <div className="hidden md:block w-px h-24 bg-gradient-to-b from-transparent via-muted to-transparent"></div>
-                    <div className="md:hidden h-px w-24 bg-gradient-to-r from-transparent via-muted to-transparent"></div>
-                  </div>
-
-                  {/* BloomSuite Cost */}
-                  <div className="text-center md:text-right">
-                    <h3 className="text-lg font-semibold text-primary mb-2">
-                      BloomSuite All-in-One:
-                    </h3>
-                    <div className="text-3xl md:text-4xl font-bold text-primary mb-2">
-                      ${bloomSuiteCost.toLocaleString()}
-                    </div>
-                    <div className="text-lg text-primary/80">per year</div>
-                    <div className="mt-4 text-sm text-primary/80">
-                      <div className="flex flex-wrap gap-2 justify-center md:justify-end">
-                        <span className="bg-primary/10 px-2 py-1 rounded text-xs">One login</span>
-                        <span className="bg-primary/10 px-2 py-1 rounded text-xs">One support team</span>
-                        <span className="bg-primary/10 px-2 py-1 rounded text-xs">Built for garden centers</span>
-                      </div>
+                  
+                  <div className="mt-6 text-center">
+                    <div className="text-2xl font-bold text-primary mb-2">Why Choose Complexity?</div>
+                    <div className="text-lg text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                      When you can get <span className="font-semibold text-primary">everything in one place</span> for less money?
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Savings Highlight */}
-                <div className="mt-8 pt-8 border-t border-muted/30">
-                  <div className="text-center">
-                    <div className="inline-flex items-center gap-3 bg-gradient-to-r from-primary/10 to-brand-teal-mint/10 px-6 py-4 rounded-2xl">
-                      <CheckCircle className="h-6 w-6 text-primary" />
-                      <div>
-                        <span className="text-lg font-semibold text-primary">
-                          Save ${(totalMinCost - bloomSuiteCost).toLocaleString()}–${(totalMaxCost - bloomSuiteCost).toLocaleString()}+ per year
-                        </span>
-                        <div className="text-sm text-muted-foreground">
-                          Plus get features you can't find anywhere else
-                        </div>
+              {/* BloomSuite - Better Solution */}
+              <div className="lg:col-span-1">
+                <Card className="h-full bg-gradient-to-br from-green-50 to-primary/10 border-2 border-primary/30 shadow-xl relative overflow-hidden">
+                  {/* Success pattern background */}
+                  <div className="absolute inset-0 opacity-10">
+                    <div className="absolute top-4 right-4 text-primary text-6xl">✨</div>
+                  </div>
+                  
+                  <CardContent className="p-8 relative z-10 h-full flex flex-col">
+                    <div className="text-center mb-6">
+                      <div className="inline-flex items-center gap-2 bg-primary/20 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
+                        <CheckCircle className="h-4 w-4" />
+                        BloomSuite All-in-One
+                      </div>
+                      
+                      <div className="text-6xl font-black text-primary mb-2 tracking-tight">
+                        ${bloomSuiteCost.toLocaleString()}
+                      </div>
+                      <div className="text-xl font-semibold text-primary/80">per year</div>
+                    </div>
+                    
+                    <div className="flex-grow">
+                      <h4 className="font-bold text-primary mb-4 text-center">The Solution:</h4>
+                      <div className="space-y-3">
+                        {[
+                          "One login for everything",
+                          "One expert support team",
+                          "Built-in integrations",
+                          "Unified customer data",
+                          "No hidden fees ever"
+                        ].map((benefit, idx) => (
+                          <div key={idx} className="flex items-center gap-3 text-primary">
+                            <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                            <span className="text-sm font-medium">{benefit}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Massive Savings Highlight */}
+            <div className="mt-12 text-center">
+              <Card className="inline-block bg-gradient-to-r from-primary via-brand-teal-mint to-primary p-1 rounded-3xl shadow-2xl">
+                <div className="bg-white rounded-3xl px-12 py-8">
+                  <div className="flex items-center justify-center gap-4 mb-4">
+                    <div className="text-6xl">💰</div>
+                    <div>
+                      <div className="text-4xl font-black text-transparent bg-gradient-to-r from-primary to-brand-teal-mint bg-clip-text">
+                        Save ${(totalMinCost - bloomSuiteCost).toLocaleString()}–${(totalMaxCost - bloomSuiteCost).toLocaleString()}+
+                      </div>
+                      <div className="text-xl text-muted-foreground font-semibold">every single year</div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-r from-primary/10 to-brand-teal-mint/10 rounded-2xl px-6 py-4 inline-block">
+                    <span className="text-lg font-bold text-primary">
+                      Plus get features you can't find anywhere else
+                    </span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </Card>
+            </div>
           </div>
 
           {/* Bottom CTA */}
