@@ -131,11 +131,6 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   return (
     <div className={cn("py-8 relative", className)}>
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold mb-4">Choose Your Newsletter Idea</h2>
-          <p className="text-muted-foreground">Select from our curated newsletter templates</p>
-        </div>
-        
         <div className="h-full w-full relative">
           <Swiper
             modules={[Navigation, Pagination]}
