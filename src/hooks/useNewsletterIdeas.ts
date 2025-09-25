@@ -29,16 +29,15 @@ export const useNewsletterIdeas = () => {
     }
   ];
 
-  // Fetch 52 weekly themes preset from campaigns table
+  // Fetch 52 weekly themes preset from master_campaign_templates table
   const fetchWeeklyThemesPreset = async (): Promise<NewsletterIdea[]> => {
     try {
-      console.log('📋 Fetching 52 weekly themes preset from campaigns table...');
+      console.log('📋 Fetching 52 weekly themes preset from master_campaign_templates table...');
       
-      // Query campaigns table for all 52 weekly themes
+      // Query master_campaign_templates table for all 52 weekly themes
       const { data: campaigns, error } = await supabase
-        .from('campaigns')
-        .select('week_number, title, theme, description, prompt')
-        .not('week_number', 'is', null)
+        .from('master_campaign_templates')
+        .select('week_number, title, theme, content_ideas, seasonal_focus')
         .gte('week_number', 1)
         .lte('week_number', 52)
         .order('week_number', { ascending: true });
@@ -49,7 +48,7 @@ export const useNewsletterIdeas = () => {
       }
 
       if (!campaigns || campaigns.length === 0) {
-        console.warn('No weekly themes found in campaigns table');
+        console.warn('No weekly themes found in master_campaign_templates table');
         return [];
       }
 
@@ -58,8 +57,8 @@ export const useNewsletterIdeas = () => {
       // Map campaigns to NewsletterIdea format
       const weeklyIdeas: NewsletterIdea[] = campaigns.map((campaign) => ({
         id: `weekly-theme-${campaign.week_number}`,
-        title: `Week ${campaign.week_number}: ${campaign.title || campaign.theme}`,
-        description: campaign.description || campaign.prompt || `Weekly theme for week ${campaign.week_number}`,
+        title: `Week ${campaign.week_number}: ${campaign.title}`,
+        description: campaign.content_ideas || campaign.seasonal_focus || `Weekly theme for week ${campaign.week_number}`,
         category: 'weekly' as const,
         badge: `Week ${campaign.week_number}`,
         weekNumber: campaign.week_number,
@@ -70,12 +69,12 @@ export const useNewsletterIdeas = () => {
           },
           { 
             type: 'text', 
-            content: campaign.description || campaign.prompt || 'Weekly themed content for your newsletter.' 
+            content: campaign.content_ideas || 'Weekly themed content for your newsletter.' 
           },
           { 
             type: 'image-text', 
-            title: 'This Week\'s Focus', 
-            content: `Featured content and ideas for week ${campaign.week_number}.` 
+            title: 'Seasonal Focus', 
+            content: campaign.seasonal_focus || `Featured content and ideas for week ${campaign.week_number}.` 
           }
         ],
         heroQuery: (campaign.theme || campaign.title || 'weekly newsletter')
