@@ -146,8 +146,10 @@ export const useNewsletterIdeas = () => {
     }
   }, [user]);
 
+  // Load weekly themes and refresh data
   const refetch = () => {
     if (user) {
+      console.log('🔄 Refetching weekly themes...');
       loadWeeklyThemes();
     }
   };
@@ -158,6 +160,29 @@ export const useNewsletterIdeas = () => {
     loading,
     error,
     generateAIIdeas,
-    refetch
+    refetch,
+    // Manual cleanup and refresh function
+    cleanupAndRefresh: async () => {
+      try {
+        setLoading(true);
+        
+        // Call cleanup function to remove duplicates
+        const { error: cleanupError } = await supabase.functions.invoke('cleanup-duplicate-content');
+        
+        if (cleanupError) {
+          console.error('Cleanup error:', cleanupError);
+        } else {
+          console.log('✅ Cleanup completed, refreshing data...');
+        }
+        
+        // Force refresh the data
+        await loadWeeklyThemes();
+        
+      } catch (err) {
+        console.error('Error during cleanup and refresh:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 };
