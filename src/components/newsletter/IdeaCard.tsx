@@ -75,9 +75,6 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
       {/* Content */}
       <div className="relative z-10 h-full w-full flex flex-col justify-between py-6 text-white">
         <div className="flex-1 flex flex-col justify-center items-center text-center space-y-4">
-          <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-            <Icon className="w-8 h-8 text-white" />
-          </div>
           <div className="space-y-2">
             <h3 className="text-xl font-bold leading-tight text-white">{idea.title}</h3>
             <p className="text-white/90 text-sm leading-relaxed px-2 line-clamp-3">{idea.description}</p>
