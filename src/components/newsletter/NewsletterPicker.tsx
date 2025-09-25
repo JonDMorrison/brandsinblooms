@@ -32,7 +32,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   const [selectedLayout, setSelectedLayout] = useState<'block-builder' | 'simple-email' | null>('block-builder');
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingAI, setGeneratingAI] = useState(false);
-  const [textareaRows, setTextareaRows] = useState(4);
+  const [textareaRows, setTextareaRows] = useState(1);
 
   // Default to block-builder layout
   useEffect(() => {
@@ -53,7 +53,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
     try {
       await generateAIIdeas(aiPrompt);
       setAiPrompt('');
-      setTextareaRows(4); // Reset to default rows
+      setTextareaRows(1); // Reset to default rows
     } catch (error) {
       console.error('Failed to generate AI ideas:', error);
     } finally {
@@ -69,8 +69,8 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
     const textarea = e.target;
     const lineHeight = 24; // Approximate line height
     const padding = 24; // Top and bottom padding (p-3 = 12px * 2)
-    const minRows = 4;
-    const maxRows = 12;
+    const minRows = 1;
+    const maxRows = 3;
     
     // Reset height to auto to get accurate scrollHeight
     textarea.style.height = 'auto';
@@ -118,7 +118,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
     <div className="flex flex-col h-full relative">
       {/* Main Content Area */}
       {currentStep === 'ideas' && (
-        <div className="flex-1 flex items-center justify-center" style={{ paddingBottom: `${Math.max(160, 80 + textareaRows * 24)}px` }}>
+        <div className="flex-1 flex items-center justify-center" style={{ paddingBottom: `${Math.max(100, 60 + textareaRows * 24)}px` }}>
           <div className="w-full h-full flex items-center justify-center">
             <IdeaGrid 
               ideas={ideas} 
@@ -180,8 +180,18 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   const renderAIPromptInput = () => {
     if (currentStep !== 'ideas') return null;
     
+    const baseHeight = 60; // Base container height for 1 row
+    const rowHeight = 24; // Height per row
+    const totalHeight = baseHeight + (textareaRows - 1) * rowHeight;
+    
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t shadow-lg z-[1000020] p-4">
+      <div 
+        className="fixed left-0 right-0 bg-white/95 backdrop-blur-sm border-t shadow-lg z-[1000020] p-4 transition-all duration-200"
+        style={{ 
+          bottom: 0,
+          transform: `translateY(-${Math.max(0, (textareaRows - 1) * rowHeight)}px)`
+        }}
+      >
         <div className="max-w-4xl mx-auto">
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
             <div className="space-y-3">
@@ -196,9 +206,9 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                   onKeyDown={handleKeyDown}
                   rows={textareaRows}
                   style={{ 
-                    minHeight: `${4 * 24 + 24}px`, // 4 rows + padding
-                    maxHeight: `${12 * 24 + 24}px`, // 12 rows + padding
-                    overflowY: textareaRows >= 12 ? 'auto' : 'hidden'
+                    minHeight: `${1 * 24 + 24}px`, // 1 row + padding
+                    maxHeight: `${3 * 24 + 24}px`, // 3 rows + padding
+                    overflowY: textareaRows >= 3 ? 'auto' : 'hidden'
                   }}
                 />
               </div>
