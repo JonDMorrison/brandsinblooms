@@ -21,7 +21,7 @@ export const NewsletterEmptyState = () => {
     <div className="flex flex-col items-center justify-center min-h-[500px] px-8 text-center space-y-8">
       {/* Main Heading */}
       <div className="space-y-2">
-        <DisplayMedium className="text-brand-teal-mint leading-tight">
+        <DisplayMedium className="text-brand-teal leading-tight">
           Great ideas
         </DisplayMedium>
         <DisplayMedium className="text-foreground leading-tight">
