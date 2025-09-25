@@ -236,11 +236,27 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                                '';
                 
                 return imageSrc ? (
-                  <img 
-                    src={imageSrc}
-                    alt={block.altText || 'Content image'}
-                    className="w-full h-auto rounded-lg cursor-pointer"
-                  />
+                  <div className="relative">
+                    <img 
+                      src={imageSrc}
+                      alt={block.altText || 'Content image'}
+                      className="w-full h-auto rounded-lg cursor-pointer"
+                      onError={(e) => {
+                        console.error('[ImageTextBlock] Image failed to load:', imageSrc);
+                        e.currentTarget.style.display = 'none';
+                        const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (placeholder) {
+                          placeholder.classList.remove('hidden');
+                        }
+                      }}
+                    />
+                    <div className="hidden w-full h-48 bg-muted rounded-lg flex items-center justify-center">
+                      <div className="text-center text-muted-foreground">
+                        <span className="text-sm">Image unavailable</span>
+                        <p className="text-xs mt-1">Click to choose another</p>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div 
                     className="w-full h-48 bg-muted rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors p-4"
