@@ -232,7 +232,7 @@ export const CRMPersonasPage: React.FC = () => {
     
     console.log('🔍 Total unassigned customers:', unassigned.length);
     
-    if (!customerSearchTerm) return unassigned.slice(0, 10); // Limit to 10 for performance
+    if (!customerSearchTerm) return unassigned; // Show all unassigned customers
     
     return unassigned.filter(customer => 
       customer.email.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
