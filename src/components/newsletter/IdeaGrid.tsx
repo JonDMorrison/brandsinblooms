@@ -103,7 +103,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
           } as React.CSSProperties}
         >
           {Array.from({ length: 6 }).map((_, index) => (
-            <SwiperSlide key={index} className="!h-auto !w-[280px]">
+            <SwiperSlide key={index} className="!h-auto !w-[320px]">
               <div className="scale-95 opacity-70">
                 <IdeaCardSkeleton />
               </div>
@@ -176,7 +176,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             {ideas.map((idea, index) => {
               const isActive = index === currentSlide;
               return (
-                <SwiperSlide key={idea.id} className="!h-auto !relative !z-50 !bg-transparent !w-[280px]">
+                <SwiperSlide key={idea.id} className="!h-auto !relative !z-50 !bg-transparent !w-[320px]">
                   <div className="h-full w-full relative z-50 flex items-center justify-center">
                     <IdeaCard
                       idea={idea}
