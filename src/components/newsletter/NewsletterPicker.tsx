@@ -131,25 +131,49 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
       {currentStep === 'layout' && selectedIdea && (
         <div className="flex-1 overflow-y-auto">
-          <div className="mb-6">
+          {/* Back Button Section */}
+          <div className="mb-8">
             <Button
               variant="ghost"
               onClick={handleBack}
-              className="mb-4"
+              className="group hover:bg-muted/60 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
               Back to Ideas
             </Button>
-            
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">{selectedIdea.title}</h3>
-              <p className="text-muted-foreground">{selectedIdea.description}</p>
+          </div>
+          
+          {/* Selected Idea Showcase */}
+          <div className="mb-12">
+            <div className="bg-gradient-to-br from-background via-muted/30 to-muted/50 rounded-2xl p-8 border border-border/60 shadow-sm">
+              <div className="flex items-start gap-3 mb-4">
+                {selectedIdea.badge && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                    {selectedIdea.badge}
+                  </span>
+                )}
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-foreground mb-3 leading-tight">
+                    {selectedIdea.title}
+                  </h3>
+                  <p className="text-muted-foreground text-base leading-relaxed">
+                    {selectedIdea.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Layout Selection Section */}
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-lg font-semibold text-foreground mb-2">Choose Your Layout</h4>
+              <p className="text-sm text-muted-foreground mb-8">
+                Select a layout style that best fits your newsletter content
+              </p>
             </div>
             
-            <Separator className="mb-6" />
-            
-            <div>
-              <h4 className="font-medium mb-4">Choose Layout</h4>
+            <div className="px-2">
               <NewsletterLayoutPicker 
                 value={selectedLayout} 
                 onChange={setSelectedLayout} 
