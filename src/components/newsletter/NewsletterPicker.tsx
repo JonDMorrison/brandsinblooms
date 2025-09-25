@@ -193,14 +193,14 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
         }}
       >
         <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+          <div className="border border-purple-200/50 rounded-lg p-4 backdrop-blur-sm">
             <div className="space-y-3">
               <div className="w-full">
                 <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
                 <Textarea
                   id="ai-prompt"
                   placeholder="Write your AI prompt here..."
-                  className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 resize-none overflow-hidden bg-white text-base"
+                  className="w-full p-3 rounded-lg border border-gray-300/50 focus:ring-2 focus:ring-purple-500 resize-none overflow-hidden bg-transparent text-base placeholder:text-gray-500"
                   value={aiPrompt}
                   onChange={handleTextareaChange}
                   onKeyDown={handleKeyDown}
