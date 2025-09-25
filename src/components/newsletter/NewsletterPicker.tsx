@@ -161,7 +161,14 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       {/* AI Idea Generator - Fixed at bottom */}
       {currentStep === 'ideas' && (
         <div className="fixed bottom-12 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 shadow-lg" style={{ width: '600px' }}>
+          <div 
+            className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 shadow-lg transition-all duration-200" 
+            style={{ 
+              width: '600px',
+              minHeight: `${1 * 24 + 80}px`, // 1 row + padding + button area
+              height: `${textareaRows * 24 + 80}px` // Dynamic height based on rows
+            }}
+          >
             <div className="space-y-3">
               <div className="w-full">
                 <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
@@ -176,8 +183,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                   style={{ 
                     minHeight: `${1 * 24 + 24}px`, // 1 row + padding
                     maxHeight: `${3 * 24 + 24}px`, // 3 rows + padding
-                    overflowY: textareaRows >= 3 ? 'auto' : 'hidden',
-                    transform: textareaRows > 1 ? `translateY(-${(textareaRows - 1) * 24}px)` : 'translateY(0)'
+                    overflowY: textareaRows >= 3 ? 'auto' : 'hidden'
                   }}
                 />
               </div>
