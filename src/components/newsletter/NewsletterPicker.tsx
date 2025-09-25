@@ -70,7 +70,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
     const lineHeight = 24; // Approximate line height
     const padding = 24; // Top and bottom padding (p-3 = 12px * 2)
     const minRows = 1;
-    const maxRows = 3;
+    const maxRows = 5;
     
     // Reset height to auto to get accurate scrollHeight
     textarea.style.height = 'auto';
@@ -166,7 +166,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
             style={{ 
               width: '600px',
               minHeight: `${1 * 24 + 120}px`, // 1 row + extra padding + button area
-              height: `${textareaRows * 24 + 120}px` // Dynamic height with more padding for button
+              height: `${textareaRows * 24 + 120}px` // Dynamic height with more padding for button (now up to 5 rows)
             }}
           >
             <div className="space-y-3">
@@ -182,8 +182,8 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                   rows={textareaRows}
                   style={{ 
                     minHeight: `${1 * 24 + 24}px`, // 1 row + padding
-                    maxHeight: `${3 * 24 + 24}px`, // 3 rows + padding
-                    overflowY: textareaRows >= 3 ? 'auto' : 'hidden'
+                    maxHeight: `${5 * 24 + 24}px`, // 5 rows + padding
+                    overflowY: textareaRows >= 5 ? 'auto' : 'hidden'
                   }}
                 />
               </div>
