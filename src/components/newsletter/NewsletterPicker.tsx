@@ -246,16 +246,26 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       <DialogContent className={cn(
         "!fixed !inset-0 !w-full !h-full !max-w-none !max-h-none !m-0 !p-0",
         "!transform-none !translate-x-0 !translate-y-0 !left-0 !top-0",
-        "overflow-hidden border-0 rounded-none",
-        "bg-gradient-to-br from-brand-teal/5 via-white to-brand-teal/8 text-foreground",
+        "overflow-hidden border-0 rounded-none bg-white text-foreground",
         "z-[1000010]"
       )}>
-        {/* Blurry background effects */}
+        {/* Corner gradient effects */}
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Top left corner gradient */}
+          <div className="absolute top-0 left-0 w-80 h-80 bg-gradient-radial from-brand-teal/20 via-brand-teal/10 to-transparent rounded-full -translate-x-1/2 -translate-y-1/2" />
+          
+          {/* Bottom right corner gradient */}
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-radial from-brand-teal/15 via-brand-teal/8 to-transparent rounded-full translate-x-1/3 translate-y-1/3" />
+        </div>
+
+        {/* Blurry effect layer */}
+        <div className="absolute inset-0 pointer-events-none backdrop-blur-[0.5px] bg-white/10" />
+        
+        {/* Additional subtle blur elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-20 -left-20 w-40 h-40 bg-brand-teal/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0s', animationDuration: '4s' }} />
-          <div className="absolute top-1/3 -right-10 w-32 h-32 bg-brand-teal/15 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '2s', animationDuration: '6s' }} />
-          <div className="absolute bottom-1/4 left-1/4 w-24 h-24 bg-brand-teal/8 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1s', animationDuration: '5s' }} />
-          <div className="absolute bottom-10 right-1/3 w-36 h-36 bg-brand-teal/12 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '3s', animationDuration: '7s' }} />
+          <div className="absolute top-20 left-20 w-32 h-32 bg-brand-teal/8 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '0s', animationDuration: '6s' }} />
+          <div className="absolute bottom-32 right-32 w-24 h-24 bg-brand-teal/12 rounded-full blur-xl animate-pulse" style={{ animationDelay: '2s', animationDuration: '8s' }} />
+          <div className="absolute top-1/2 left-1/3 w-16 h-16 bg-brand-teal/6 rounded-full blur-lg animate-pulse" style={{ animationDelay: '4s', animationDuration: '10s' }} />
         </div>
         
         {/* Close button in top left */}
@@ -263,12 +273,13 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
           variant="ghost" 
           size="sm"
           onClick={onClose}
-          className="absolute top-4 left-4 z-20 w-8 h-8 p-0 rounded-full hover:bg-white/10 backdrop-blur-sm"
+          className="absolute top-4 left-4 z-30 w-8 h-8 p-0 rounded-full hover:bg-brand-teal/10 backdrop-blur-sm border border-brand-teal/20"
         >
-          <X className="w-4 h-4" />
+          <X className="w-4 h-4 text-brand-teal" />
         </Button>
         
-        <div className="w-full h-full p-6 pt-16 relative z-10 flex flex-col overflow-hidden">
+        {/* Content layer */}
+        <div className="w-full h-full p-6 pt-16 relative z-20 flex flex-col overflow-hidden bg-white/40 backdrop-blur-sm">
           {renderContent()}
         </div>
       </DialogContent>

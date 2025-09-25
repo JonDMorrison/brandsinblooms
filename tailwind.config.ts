@@ -148,6 +148,11 @@ export default {
 			animation,
 			transitionTimingFunction,
 			transitionDuration,
+			// Background gradients
+			backgroundImage: {
+				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+				'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))'
+			},
 			// 12-column grid system
 			gridTemplateColumns: {
 				'12': 'repeat(12, minmax(0, 1fr))',
