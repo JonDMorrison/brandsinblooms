@@ -55,8 +55,8 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   loading = false, 
   className 
 }) => {
-  // Calculate initial slide safely
-  const initialSlide = Math.min(Math.max(0, Math.floor(ideas.length / 2)), ideas.length - 1);
+  // Start with the first slide
+  const initialSlide = 0;
   const [currentSlide, setCurrentSlide] = useState(initialSlide);
 
   if (loading) {
@@ -66,33 +66,33 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
           modules={[Navigation, Pagination]}
           grabCursor={true}
           centeredSlides={true}
-          slidesPerView={2.2}
-          spaceBetween={16}
-          initialSlide={1}
-          pagination={{
-            clickable: true,
-            bulletClass: 'swiper-pagination-bullet',
-            bulletActiveClass: 'swiper-pagination-bullet-active',
-            dynamicBullets: true,
-          }}
-          breakpoints={{
-            320: {
-              slidesPerView: 1.2,
-              spaceBetween: 12,
-            },
-            640: {
-              slidesPerView: 1.8,
-              spaceBetween: 14,
-            },
-            768: {
-              slidesPerView: 2.2,
-              spaceBetween: 16,
-            },
-            1024: {
-              slidesPerView: 2.5,
-              spaceBetween: 20,
-            },
-          }}
+            slidesPerView={5.2}
+            spaceBetween={16}
+            initialSlide={0}
+            pagination={{
+              clickable: true,
+              bulletClass: 'swiper-pagination-bullet',
+              bulletActiveClass: 'swiper-pagination-bullet-active',
+              dynamicBullets: true,
+            }}
+            breakpoints={{
+              320: {
+                slidesPerView: 2.2,
+                spaceBetween: 12,
+              },
+              640: {
+                slidesPerView: 3.2,
+                spaceBetween: 14,
+              },
+              768: {
+                slidesPerView: 4.2,
+                spaceBetween: 16,
+              },
+              1024: {
+                slidesPerView: 5.2,
+                spaceBetween: 20,
+              },
+            }}
           className="!pb-16 newsletter-idea-slider"
           style={{
             '--swiper-pagination-color': '#22c55e',
@@ -141,7 +141,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             modules={[Navigation, Pagination]}
             grabCursor={true}
             centeredSlides={true}
-            slidesPerView={2.2}
+            slidesPerView={5.2}
             spaceBetween={16}
             initialSlide={initialSlide}
             pagination={{
@@ -153,19 +153,19 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
             breakpoints={{
               320: {
-                slidesPerView: 1.2,
+                slidesPerView: 2.2,
                 spaceBetween: 12,
               },
               640: {
-                slidesPerView: 1.8,
+                slidesPerView: 3.2,
                 spaceBetween: 14,
               },
               768: {
-                slidesPerView: 2.2,
+                slidesPerView: 4.2,
                 spaceBetween: 16,
               },
               1024: {
-                slidesPerView: 2.5,
+                slidesPerView: 5.2,
                 spaceBetween: 20,
               },
             }}
