@@ -5,7 +5,7 @@ export const FAQSection = () => {
   const faqs = [
     {
       question: "Is there a free trial?",
-      answer: "Yes! We offer a 14-day free trial with no credit card required. You'll have full access to all features during your trial period."
+      answer: "Yes! We offer a 7-day free trial with no credit card required. You'll have full access to all features during your trial period."
     },
     {
       question: "Can I cancel anytime?",

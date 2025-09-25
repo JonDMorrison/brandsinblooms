@@ -16,7 +16,7 @@ const getPlanInfo = (plan: string) => {
         gradient: 'from-blue-500 to-indigo-600',
         bgClass: 'bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700',
         icon: Sparkles,
-        features: ['Full access', '200 posts/month', 'All features', '14-day trial'],
+        features: ['Full access', '200 posts/month', 'All features', '7-day trial'],
         badge: 'Trial Active'
       };
     case 'sprout':

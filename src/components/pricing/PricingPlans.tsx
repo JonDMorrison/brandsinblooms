@@ -104,7 +104,7 @@ export const PricingPlans = ({
                 
                 {!subscription && (
                   <p className="text-center text-sm text-muted-foreground">
-                    30-day free trial • No credit card required • Cancel anytime
+                    7-day free trial • No credit card required • Cancel anytime
                   </p>
                 )}
               </div>

@@ -69,7 +69,7 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
           </Button>
           
           <p className="text-slate-400 text-sm mt-6">
-            No credit card required • 14-day free trial • Cancel anytime
+            No credit card required • 7-day free trial • Cancel anytime
           </p>
         </div>
       </div>
