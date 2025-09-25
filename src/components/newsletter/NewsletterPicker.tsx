@@ -118,7 +118,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
     <div className="flex flex-col h-full">
       {/* Main Content Area */}
       {currentStep === 'ideas' && (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden" style={{ paddingBottom: textareaRows >= 12 ? '200px' : '0px' }}>
           <IdeaGrid 
             ideas={ideas} 
             onSelectIdea={handleSelectIdea} 
@@ -160,7 +160,10 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
       {/* AI Idea Generator - Fixed at bottom */}
       {currentStep === 'ideas' && (
-        <div className="flex-shrink-0 mt-6 pt-4 flex justify-center">
+        <div className={cn(
+          "flex-shrink-0 mt-6 pt-4 flex justify-center",
+          textareaRows >= 12 && "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t shadow-lg z-50 mt-0"
+        )}>
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 w-full max-w-3xl">
             <div className="space-y-3">
               <div className="w-full">
