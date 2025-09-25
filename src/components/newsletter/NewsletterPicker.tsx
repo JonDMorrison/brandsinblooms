@@ -137,8 +137,8 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       {currentStep === 'ideas' && (
         <div className="flex-shrink-0 mt-6 pt-4 flex justify-center">
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 w-full max-w-3xl">
-            <div className="flex gap-3 items-center">
-              <div className="flex-1">
+            <div className="space-y-3">
+              <div className="w-full">
                 <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
                 <Input
                   id="ai-prompt"
@@ -149,23 +149,25 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                   onKeyDown={(e) => e.key === 'Enter' && handleGenerateAI()}
                 />
               </div>
-              <Button 
-                onClick={handleGenerateAI}
-                disabled={!aiPrompt.trim() || generatingAI}
-                size="sm"
-              >
-                {generatingAI ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4 mr-2" />
-                    Generate
-                  </>
-                )}
-              </Button>
+              <div className="flex justify-end">
+                <Button 
+                  onClick={handleGenerateAI}
+                  disabled={!aiPrompt.trim() || generatingAI}
+                  size="sm"
+                >
+                  {generatingAI ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4 mr-2" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
