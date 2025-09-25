@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NewsletterIdea, NewsletterTemplate } from '@/types/newsletter';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { sanitizeCampaignTitle } from '@/utils/weekNumberSanitizer';
 
 export const useNewsletterIdeas = () => {
   const { user } = useAuth();
@@ -57,7 +58,7 @@ export const useNewsletterIdeas = () => {
       // Map campaigns to NewsletterIdea format
       const weeklyIdeas: NewsletterIdea[] = campaigns.map((campaign) => ({
         id: `weekly-theme-${campaign.week_number}`,
-        title: `Week ${campaign.week_number}: ${campaign.title}`,
+        title: sanitizeCampaignTitle(campaign.title || campaign.theme || 'Weekly Newsletter'),
         description: campaign.content_ideas || campaign.seasonal_focus || `Weekly theme for week ${campaign.week_number}`,
         category: 'weekly' as const,
         badge: `Week ${campaign.week_number}`,
@@ -65,7 +66,7 @@ export const useNewsletterIdeas = () => {
         templateBlocks: [
           { 
             type: 'header', 
-            title: campaign.theme || campaign.title || `Week ${campaign.week_number}` 
+            title: sanitizeCampaignTitle(campaign.theme || campaign.title || `Week ${campaign.week_number}`) 
           },
           { 
             type: 'text', 
@@ -77,7 +78,7 @@ export const useNewsletterIdeas = () => {
             content: campaign.seasonal_focus || `Featured content and ideas for week ${campaign.week_number}.` 
           }
         ],
-        heroQuery: (campaign.theme || campaign.title || 'weekly newsletter')
+        heroQuery: sanitizeCampaignTitle(campaign.theme || campaign.title || 'weekly newsletter')
           .toLowerCase()
           .replace(/[^a-z0-9\s]/g, ''),
         estimatedReadTime: '5 min'
