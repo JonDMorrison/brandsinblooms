@@ -7,6 +7,7 @@ import { ProblemAgitationSection } from './ProblemAgitationSection';
 import { GuideSection } from './GuideSection';
 
 import { BenefitsSection } from './BenefitsSection';
+import { DifferentiatorsSection } from './DifferentiatorsSection';
 
 import { PricingPreviewSection } from './PricingPreviewSection';
 import { FinalCTASection } from './FinalCTASection';
@@ -35,6 +36,7 @@ export const CompleteLandingPage = () => {
       <GuideSection />
       
       <BenefitsSection />
+      <DifferentiatorsSection onTalkToTeam={handleGetStarted} />
       
       <PricingPreviewSection onSeePricing={handleSeePricing} />
       <FinalCTASection onGetStarted={handleGetStarted} />
