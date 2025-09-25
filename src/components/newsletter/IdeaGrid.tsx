@@ -13,6 +13,7 @@ import 'swiper/css/navigation';
 interface IdeaGridProps {
   ideas: NewsletterIdea[];
   onSelectIdea: (idea: NewsletterIdea) => void;
+  onGenerateIdeas?: (prompt: string) => void;
   loading?: boolean;
   className?: string;
 }
@@ -52,6 +53,7 @@ const IdeaCardSkeleton = () => (
 export const IdeaGrid: React.FC<IdeaGridProps> = ({ 
   ideas, 
   onSelectIdea, 
+  onGenerateIdeas,
   loading = false, 
   className 
 }) => {
@@ -104,7 +106,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   if (ideas.length === 0) {
     return (
       <div className={cn("py-8", className)}>
-        <NewsletterEmptyState />
+        <NewsletterEmptyState onPromptClick={onGenerateIdeas} />
       </div>
     );
   }

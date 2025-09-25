@@ -122,6 +122,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
           <IdeaGrid 
             ideas={ideas} 
             onSelectIdea={handleSelectIdea} 
+            onGenerateIdeas={generateAIIdeas}
             loading={loading}
             className="h-full"
           />
