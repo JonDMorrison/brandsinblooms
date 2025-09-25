@@ -210,7 +210,7 @@ const FAQPage = () => {
                     >
                       <AccordionTrigger className="text-left hover:no-underline py-6 px-6 group">
                         <div className="flex items-start gap-4 w-full">
-                          <span className="font-semibold text-accent group-hover:text-primary transition-colors flex-1 text-left pr-4">
+                          <span className="font-semibold text-accent group-hover:text-primary transition-colors flex-1 text-left pr-4 text-lg">
                             {faq.question}
                           </span>
                         </div>
