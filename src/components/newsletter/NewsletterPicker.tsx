@@ -32,7 +32,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   const [selectedLayout, setSelectedLayout] = useState<'block-builder' | 'simple-email' | null>('block-builder');
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingAI, setGeneratingAI] = useState(false);
-  const [textareaRows, setTextareaRows] = useState(1);
+  const [textareaRows, setTextareaRows] = useState(4);
 
   // Default to block-builder layout
   useEffect(() => {
@@ -53,7 +53,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
     try {
       await generateAIIdeas(aiPrompt);
       setAiPrompt('');
-      setTextareaRows(1); // Reset to default rows
+      setTextareaRows(4); // Reset to default rows
     } catch (error) {
       console.error('Failed to generate AI ideas:', error);
     } finally {
@@ -69,8 +69,8 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
     const textarea = e.target;
     const lineHeight = 24; // Approximate line height
     const padding = 24; // Top and bottom padding (p-3 = 12px * 2)
-    const minRows = 1;
-    const maxRows = 3;
+    const minRows = 4;
+    const maxRows = 12;
     
     // Reset height to auto to get accurate scrollHeight
     textarea.style.height = 'auto';
@@ -115,23 +115,21 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   };
 
   const renderContent = () => (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-full">
       {/* Main Content Area */}
       {currentStep === 'ideas' && (
-        <div className="flex-1 flex items-center justify-center" style={{ paddingBottom: `${Math.max(100, 60 + textareaRows * 24)}px` }}>
-          <div className="w-full h-full flex items-center justify-center">
-            <IdeaGrid 
-              ideas={ideas} 
-              onSelectIdea={handleSelectIdea} 
-              loading={loading}
-              className="max-h-full"
-            />
-          </div>
+        <div className="flex-1 overflow-hidden" style={{ paddingBottom: textareaRows >= 12 ? '200px' : '0px' }}>
+          <IdeaGrid 
+            ideas={ideas} 
+            onSelectIdea={handleSelectIdea} 
+            loading={loading}
+            className="h-full"
+          />
         </div>
       )}
 
       {currentStep === 'layout' && selectedIdea && (
-        <div className="flex-1 overflow-y-auto pb-6">
+        <div className="flex-1 overflow-y-auto">
           <div className="mb-6">
             <Button
               variant="ghost"
@@ -160,55 +158,28 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
         </div>
       )}
 
-      {/* Footer */}
-      {currentStep === 'layout' && (
-        <div className="flex-shrink-0 mt-6 pt-4 border-t flex justify-center">
-          <Button 
-            onClick={handleContinue}
-            disabled={!selectedIdea || !selectedLayout}
-            className="px-8"
-            size="lg"
-          >
-            Continue to Builder
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-
-  // AI Prompt Input - Always Fixed at Bottom (outside of dialog content)
-  const renderAIPromptInput = () => {
-    if (currentStep !== 'ideas') return null;
-    
-    const baseHeight = 60; // Base container height for 1 row
-    const rowHeight = 24; // Height per row
-    const totalHeight = baseHeight + (textareaRows - 1) * rowHeight;
-    
-    return (
-      <div 
-        className="fixed left-0 right-0 bg-white/95 backdrop-blur-sm border-t shadow-lg z-[1000020] p-4 transition-all duration-200"
-        style={{ 
-          bottom: 0,
-          transform: `translateY(-${Math.max(0, (textareaRows - 1) * rowHeight)}px)`
-        }}
-      >
-        <div className="max-w-4xl mx-auto">
-          <div className="border border-purple-200/50 rounded-lg p-4 backdrop-blur-sm">
+      {/* AI Idea Generator - Fixed at bottom */}
+      {currentStep === 'ideas' && (
+        <div className={cn(
+          "flex-shrink-0 mt-6 pt-4 flex justify-center",
+          textareaRows >= 12 && "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t shadow-lg z-50 mt-0"
+        )}>
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 w-full max-w-3xl">
             <div className="space-y-3">
               <div className="w-full">
                 <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
                 <Textarea
                   id="ai-prompt"
                   placeholder="Write your AI prompt here..."
-                  className="w-full p-3 rounded-lg border border-gray-300/50 focus:ring-2 focus:ring-purple-500 resize-none overflow-hidden bg-transparent text-base placeholder:text-gray-500"
+                  className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 resize-none overflow-hidden bg-white text-base"
                   value={aiPrompt}
                   onChange={handleTextareaChange}
                   onKeyDown={handleKeyDown}
                   rows={textareaRows}
                   style={{ 
-                    minHeight: `${1 * 24 + 24}px`, // 1 row + padding
-                    maxHeight: `${3 * 24 + 24}px`, // 3 rows + padding
-                    overflowY: textareaRows >= 3 ? 'auto' : 'hidden'
+                    minHeight: `${4 * 24 + 24}px`, // 4 rows + padding
+                    maxHeight: `${12 * 24 + 24}px`, // 12 rows + padding
+                    overflowY: textareaRows >= 12 ? 'auto' : 'hidden'
                   }}
                 />
               </div>
@@ -234,49 +205,57 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
             </div>
           </div>
         </div>
-      </div>
-    );
-  };
+      )}
+
+      {/* Footer */}
+      {currentStep === 'layout' && (
+        <div className="flex-shrink-0 mt-6 pt-4 border-t flex justify-center">
+          <Button 
+            onClick={handleContinue}
+            disabled={!selectedIdea || !selectedLayout}
+            className="px-8"
+            size="lg"
+          >
+            Continue to Builder
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 
   if (isMobile) {
     return (
-      <>
-        <Sheet open={isOpen} onOpenChange={onClose}>
-          <SheetContent side="bottom" className="h-[90vh] overflow-hidden">
-            <SheetHeader className="mb-4">
-              <SheetTitle>Create Newsletter</SheetTitle>
-            </SheetHeader>
-            {renderContent()}
-          </SheetContent>
-        </Sheet>
-        {renderAIPromptInput()}
-      </>
+      <Sheet open={isOpen} onOpenChange={onClose}>
+        <SheetContent side="bottom" className="h-[90vh] overflow-hidden">
+          <SheetHeader className="mb-4">
+            <SheetTitle>Create Newsletter</SheetTitle>
+          </SheetHeader>
+          {renderContent()}
+        </SheetContent>
+      </Sheet>
     );
   }
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className={cn(
-          "w-screen h-screen max-w-none max-h-none overflow-hidden p-0 bg-background text-foreground",
-          "z-[1000010]" // High z-index as specified
-        )}>
-          {/* Close button in top left */}
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={onClose}
-            className="absolute top-4 left-4 z-10 w-8 h-8 p-0 rounded-full hover:bg-muted"
-          >
-            <X className="w-4 h-4" />
-          </Button>
-          
-          <div className="p-6 pt-16 h-full" style={{ backgroundColor: 'rgb(17 24 39 / var(--tw-bg-opacity, 1))' }}>
-            {renderContent()}
-          </div>
-        </DialogContent>
-      </Dialog>
-      {renderAIPromptInput()}
-    </>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className={cn(
+        "w-screen h-screen max-w-none max-h-none overflow-hidden p-0 bg-background text-foreground",
+        "z-[1000010]" // High z-index as specified
+      )}>
+        {/* Close button in top left */}
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={onClose}
+          className="absolute top-4 left-4 z-10 w-8 h-8 p-0 rounded-full hover:bg-muted"
+        >
+          <X className="w-4 h-4" />
+        </Button>
+        
+        <div className="p-6 pt-16 h-full" style={{ backgroundColor: 'rgb(17 24 39 / var(--tw-bg-opacity, 1))' }}>
+          {renderContent()}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
