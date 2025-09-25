@@ -98,7 +98,7 @@ export const NewsletterEmptyState: React.FC<NewsletterEmptyStateProps> = ({ onPr
               disableOnInteraction: false,
               pauseOnMouseEnter: true
             }}
-            className="sample-prompts-slider !pb-4 [&_.swiper-button-next]:!hidden [&_.swiper-button-prev]:!hidden"
+            className="sample-prompts-slider !pb-4 !pt-4 [&_.swiper-button-next]:!hidden [&_.swiper-button-prev]:!hidden"
             breakpoints={{
               320: {
                 slidesPerView: 1.2,
