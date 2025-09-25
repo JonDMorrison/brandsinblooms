@@ -6,10 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowUp, Calendar, MessageCircle, Sprout, DollarSign, Shield, Users, Settings } from "lucide-react";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { useNavigate } from "react-router-dom";
+import { VideoModal } from "@/components/ui/video-modal";
 
 const FAQPage = () => {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState<string>("");
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState<boolean>(false);
 
   const scrollToCategory = (categoryId: string) => {
     const element = document.getElementById(categoryId);
@@ -79,7 +81,7 @@ const FAQPage = () => {
       cta: {
         text: "Want to see BloomSuite in action?",
         action: "Watch the demo",
-        onClick: () => navigate('/auth')
+        onClick: () => setIsVideoModalOpen(true)
       },
       questions: [
         {
@@ -288,6 +290,14 @@ const FAQPage = () => {
       >
         <ArrowUp className="h-5 w-5" />
       </Button>
+
+      {/* Video Modal */}
+      <VideoModal
+        open={isVideoModalOpen}
+        onOpenChange={setIsVideoModalOpen}
+        title="BloomSuite Demo"
+        embedCode='<div style="position: relative; padding-bottom: 56.25%; height: 0;"><iframe src="https://www.loom.com/embed/5af2b9d8029f4f3b943c7416568cef5b?sid=48173041-f162-4796-ba14-0de362456bf7" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>'
+      />
     </div>
   );
 };
