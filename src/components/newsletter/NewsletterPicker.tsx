@@ -244,10 +244,11 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn(
-        "!fixed !inset-0 !w-screen !h-screen !max-w-none !max-h-none !m-0 !p-0 !translate-x-0 !translate-y-0 !left-0 !top-0",
+        "!fixed !inset-0 !w-full !h-full !max-w-none !max-h-none !m-0 !p-0",
+        "!transform-none !translate-x-0 !translate-y-0 !left-0 !top-0",
         "overflow-hidden border-0 rounded-none",
         "bg-gradient-to-br from-brand-teal/5 via-white to-brand-teal/8 text-foreground",
-        "z-[1000010]" // High z-index as specified
+        "z-[1000010]"
       )}>
         {/* Blurry background effects */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -267,7 +268,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
           <X className="w-4 h-4" />
         </Button>
         
-        <div className="w-full h-full p-6 pt-16 relative z-10 flex flex-col">
+        <div className="w-full h-full p-6 pt-16 relative z-10 flex flex-col overflow-hidden">
           {renderContent()}
         </div>
       </DialogContent>
