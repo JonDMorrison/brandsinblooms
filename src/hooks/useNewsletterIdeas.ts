@@ -9,7 +9,7 @@ export const useNewsletterIdeas = () => {
   const { user } = useAuth();
   const [ideas, setIdeas] = useState<NewsletterIdea[]>([]);
   const [templates, setTemplates] = useState<NewsletterTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Default templates
@@ -83,27 +83,78 @@ export const useNewsletterIdeas = () => {
 
   const generateAIIdeas = async (prompt: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('generate-newsletter-ideas', {
-        body: { prompt }
-      });
-
-      if (error) throw error;
-
-      const aiIdeas: NewsletterIdea[] = data.ideas || [];
+      // If this is the first time and we have no ideas, also fetch the curated ideas
+      const shouldFetchCurated = ideas.length === 0;
       
-      // Add AI-generated ideas to the current list
-      setIdeas(prev => [...aiIdeas, ...prev]);
-      
-      return aiIdeas;
+      if (shouldFetchCurated) {
+        setLoading(true);
+        // Fetch all ideas in parallel when user enters first prompt
+        const [aiResult, curatedIdeasResult, weeklyThemesResult] = await Promise.allSettled([
+          supabase.functions.invoke('generate-newsletter-ideas', {
+            body: { prompt }
+          }),
+          supabase.rpc('fn_get_newsletter_ideas'),
+          fetchWeeklyThemes()
+        ]);
+        
+        let aiIdeas: NewsletterIdea[] = [];
+        let curatedIdeas: NewsletterIdea[] = [];
+        let weeklyThemes: NewsletterIdea[] = [];
+        
+        // Process AI ideas
+        if (aiResult.status === 'fulfilled' && !aiResult.value.error) {
+          aiIdeas = aiResult.value.data?.ideas || [];
+        }
+        
+        // Process curated ideas
+        if (curatedIdeasResult.status === 'fulfilled' && !curatedIdeasResult.value.error) {
+          const data = curatedIdeasResult.value.data;
+          curatedIdeas = Array.isArray(data) ? (data as unknown) as NewsletterIdea[] : [];
+        }
+        
+        // Process weekly themes
+        if (weeklyThemesResult.status === 'fulfilled') {
+          weeklyThemes = weeklyThemesResult.value;
+        }
+        
+        // Combine and deduplicate all ideas
+        const allIdeas = [...aiIdeas, ...weeklyThemes, ...curatedIdeas];
+        const uniqueIdeas = allIdeas.filter((idea, index, self) => 
+          index === self.findIndex(other => 
+            other.title.toLowerCase().trim() === idea.title.toLowerCase().trim()
+          )
+        );
+        setIdeas(uniqueIdeas);
+        setTemplates(defaultTemplates);
+        setLoading(false);
+        
+        return aiIdeas;
+      } else {
+        // Just generate AI ideas if we already have curated ones
+        const { data, error } = await supabase.functions.invoke('generate-newsletter-ideas', {
+          body: { prompt }
+        });
+
+        if (error) throw error;
+
+        const aiIdeas: NewsletterIdea[] = data.ideas || [];
+        
+        // Add AI-generated ideas to the current list
+        setIdeas(prev => [...aiIdeas, ...prev]);
+        
+        return aiIdeas;
+      }
     } catch (err) {
       console.error('Error generating AI ideas:', err);
+      setLoading(false);
       throw err;
     }
   };
 
-  useEffect(() => {
-    fetchNewsletterIdeas();
-  }, []);
+  // Remove automatic fetching - ideas will load only when user enters a prompt
+  // useEffect(() => {
+  //   fetchNewsletterIdeas();
+  // }, []);
 
   const getCurrentWeekNumber = (): number => {
     // Use ISO week calculation to match the edge function
