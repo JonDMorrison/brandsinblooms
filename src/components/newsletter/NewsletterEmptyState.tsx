@@ -121,7 +121,7 @@ export const NewsletterEmptyState: React.FC<NewsletterEmptyStateProps> = ({ onPr
             {samplePrompts.map((prompt, index) => (
               <SwiperSlide key={index} className="!h-auto">
                 <div className="group cursor-pointer" onClick={() => handlePromptClick(prompt)}>
-                  <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-teal/50 hover:bg-white/90 hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98]">
+                  <div className="bg-white backdrop-blur-sm border border-gray-200/50 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-teal/50 hover:bg-white hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98]">
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0 w-2 h-2 bg-brand-teal rounded-full mt-2 opacity-60 group-hover:opacity-100 transition-opacity group-hover:scale-125"></div>
                       <p className="text-sm text-gray-700 leading-relaxed group-hover:text-gray-900 transition-colors">
