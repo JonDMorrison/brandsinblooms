@@ -63,7 +63,13 @@ export const PricingPlans = ({
                     That's just $250/month - billed annually
                   </p>
                   <p className="text-xs text-primary font-medium mt-1">
-                    Save thousands compared to using separate tools
+                    Save thousands compared to using separate tools •{" "}
+                    <a 
+                      href="#competitor-comparison" 
+                      className="underline hover:text-brand-teal-mint transition-colors cursor-pointer"
+                    >
+                      See how we compare
+                    </a>
                   </p>
                 </div>
               </div>

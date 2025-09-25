@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { PricingHero } from "@/components/pricing/PricingHero";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
+import { CompetitorComparison } from "@/components/pricing/CompetitorComparison";
 import { FAQSection } from "@/components/pricing/FAQSection";
 import { FinalCTA } from "@/components/pricing/FinalCTA";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
@@ -87,6 +88,7 @@ const PricingPage = () => {
             onSelectPlan={handleSelectPlan}
             onStartTrial={handleStartTrial}
           />
+          <CompetitorComparison />
           <FAQSection />
           <FinalCTA subscription={subscription} onStartTrial={handleStartTrial} />
         </div>
@@ -104,6 +106,7 @@ const PricingPage = () => {
         onSelectPlan={handleSelectPlan}
         onStartTrial={handleStartTrial}
       />
+      <CompetitorComparison />
       <FAQSection />
       <FinalCTA subscription={subscription} onStartTrial={handleStartTrial} />
     </div>
