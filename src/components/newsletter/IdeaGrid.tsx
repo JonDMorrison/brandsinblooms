@@ -3,12 +3,11 @@ import { IdeaCard } from './IdeaCard';
 import { NewsletterIdea } from '@/types/newsletter';
 import { cn } from '@/lib/utils';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination } from 'swiper/modules';
+import { Navigation } from 'swiper/modules';
 
 // Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/navigation';
-import 'swiper/css/pagination';
 
 interface IdeaGridProps {
   ideas: NewsletterIdea[];
@@ -63,18 +62,12 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
     return (
       <div className={cn("py-8", className)}>
         <Swiper
-          modules={[Navigation, Pagination]}
+          modules={[Navigation]}
           grabCursor={true}
           centeredSlides={true}
             slidesPerView="auto"
             spaceBetween={16}
             initialSlide={0}
-            pagination={{
-              clickable: true,
-              bulletClass: 'swiper-pagination-bullet',
-              bulletActiveClass: 'swiper-pagination-bullet-active',
-              dynamicBullets: true,
-            }}
             breakpoints={{
               320: {
                 slidesPerView: "auto",
@@ -93,23 +86,16 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
                 spaceBetween: 20,
               },
             }}
-          className="!pb-16 newsletter-idea-slider"
-          style={{
-            '--swiper-pagination-color': '#22c55e',
-            '--swiper-pagination-bullet-inactive-color': 'rgba(0, 0, 0, 0.3)',
-            '--swiper-pagination-bullet-inactive-opacity': '1',
-            '--swiper-pagination-bullet-size': '8px',
-            '--swiper-pagination-bullet-horizontal-gap': '4px'
-          } as React.CSSProperties}
-        >
-          {Array.from({ length: 6 }).map((_, index) => (
-            <SwiperSlide key={index} className="!h-auto !w-[320px]">
-              <div className="scale-95 opacity-70">
-                <IdeaCardSkeleton />
-              </div>
-            </SwiperSlide>
-          ))}
-        </Swiper>
+            className="!pb-16 newsletter-idea-slider"
+          >
+            {Array.from({ length: 6 }).map((_, index) => (
+              <SwiperSlide key={index} className="!h-auto !w-[320px]">
+                <div className="scale-95 opacity-70">
+                  <IdeaCardSkeleton />
+                </div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
       </div>
     );
   }
@@ -133,18 +119,12 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
       <div className="max-w-6xl mx-auto">
         <div className="h-full w-full relative">
           <Swiper
-            modules={[Navigation, Pagination]}
+            modules={[Navigation]}
             grabCursor={true}
             centeredSlides={true}
             slidesPerView="auto"
             spaceBetween={16}
             initialSlide={initialSlide}
-            pagination={{
-              clickable: true,
-              bulletClass: 'swiper-pagination-bullet',
-              bulletActiveClass: 'swiper-pagination-bullet-active',
-              dynamicBullets: true,
-            }}
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
             breakpoints={{
               320: {
@@ -165,13 +145,6 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
               },
             }}
             className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-280px)] !relative !z-40 overflow-visible"
-            style={{
-              '--swiper-pagination-color': '#22c55e',
-              '--swiper-pagination-bullet-inactive-color': 'rgba(255, 255, 255, 0.3)',
-              '--swiper-pagination-bullet-inactive-opacity': '1',
-              '--swiper-pagination-bullet-size': '8px',
-              '--swiper-pagination-bullet-horizontal-gap': '4px'
-            } as React.CSSProperties}
           >
             {ideas.map((idea, index) => {
               const isActive = index === currentSlide;
