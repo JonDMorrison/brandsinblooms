@@ -152,14 +152,9 @@ export const CompetitorComparison = () => {
                           </td>
                           
                           <td className="py-5 px-8 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <span className="text-xs opacity-50">
-                                {item.competitorLogos.join(" ")}
-                              </span>
-                              <span className={`font-semibold ${item.typicalCost === 'Not available' ? 'text-muted-foreground italic' : 'text-foreground'}`}>
-                                {item.typicalCost}
-                              </span>
-                            </div>
+                            <span className={`font-semibold ${item.typicalCost === 'Not available' ? 'text-muted-foreground italic' : 'text-foreground'}`}>
+                              {item.typicalCost}
+                            </span>
                           </td>
                           
                           <td className="py-5 px-8">
