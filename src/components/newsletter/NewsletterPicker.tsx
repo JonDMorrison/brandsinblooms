@@ -165,8 +165,8 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
             className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 shadow-lg transition-all duration-200" 
             style={{ 
               width: '600px',
-              minHeight: `${1 * 24 + 100}px`, // 1 row + extra padding + button area
-              height: `${textareaRows * 24 + 100}px` // Dynamic height with more padding
+              minHeight: `${1 * 24 + 120}px`, // 1 row + extra padding + button area
+              height: `${textareaRows * 24 + 120}px` // Dynamic height with more padding for button
             }}
           >
             <div className="space-y-3">
@@ -187,7 +187,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                   }}
                 />
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end mt-3">
                 <Button 
                   onClick={handleGenerateAI}
                   disabled={!aiPrompt.trim() || generatingAI}
