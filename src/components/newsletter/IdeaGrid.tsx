@@ -164,7 +164,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
                 spaceBetween: 20,
               },
             }}
-            className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-220px)] !relative !z-40 overflow-visible"
+            className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-280px)] !relative !z-40 overflow-visible"
             style={{
               '--swiper-pagination-color': '#22c55e',
               '--swiper-pagination-bullet-inactive-color': 'rgba(255, 255, 255, 0.3)',
