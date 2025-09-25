@@ -449,10 +449,10 @@ export const CRMPersonasPage: React.FC = () => {
                           return (
                             <div key={customer.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
                               <div>
-                                <p className="font-medium">
+                                <p className="font-medium text-foreground">
                                   {customer.first_name || 'No First Name'} {customer.last_name || 'No Last Name'}
                                 </p>
-                                <p className="text-xs text-muted-foreground">{customer.email || 'No Email'}</p>
+                                <p className="text-xs text-foreground/70">{customer.email || 'No Email'}</p>
                               </div>
                               <Button
                                 size="sm"
