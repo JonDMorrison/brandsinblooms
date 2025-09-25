@@ -3,6 +3,7 @@ import { IdeaCard } from './IdeaCard';
 import { NewsletterEmptyState } from './NewsletterEmptyState';
 import { NewsletterIdea } from '@/types/newsletter';
 import { cn } from '@/lib/utils';
+import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation } from 'swiper/modules';
 
@@ -57,8 +58,10 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   loading = false, 
   className 
 }) => {
-  // Start with the first slide
-  const initialSlide = 0;
+  // Calculate initial slide based on current week number
+  const currentWeek = getCurrentWeekNumber();
+  const currentWeekIndex = ideas.findIndex(idea => idea.weekNumber === currentWeek);
+  const initialSlide = currentWeekIndex >= 0 ? currentWeekIndex : 0;
   const [currentSlide, setCurrentSlide] = useState(initialSlide);
 
   if (loading) {
@@ -114,7 +117,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
     );
   }
 
-  console.log('📧 IdeaGrid: Rendering with', ideas.length, 'ideas, initialSlide:', initialSlide);
+  console.log('📧 IdeaGrid: Current week:', currentWeek, 'Ideas:', ideas.length, 'initialSlide:', initialSlide);
 
   return (
     <div className={cn("py-8 relative", className)}>
