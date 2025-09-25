@@ -115,21 +115,23 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   };
 
   const renderContent = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* Main Content Area */}
       {currentStep === 'ideas' && (
-        <div className="flex-1 overflow-hidden" style={{ paddingBottom: textareaRows >= 12 ? '200px' : '0px' }}>
-          <IdeaGrid 
-            ideas={ideas} 
-            onSelectIdea={handleSelectIdea} 
-            loading={loading}
-            className="h-full"
-          />
+        <div className="flex-1 flex items-center justify-center" style={{ paddingBottom: `${Math.max(160, 80 + textareaRows * 24)}px` }}>
+          <div className="w-full h-full flex items-center justify-center">
+            <IdeaGrid 
+              ideas={ideas} 
+              onSelectIdea={handleSelectIdea} 
+              loading={loading}
+              className="max-h-full"
+            />
+          </div>
         </div>
       )}
 
       {currentStep === 'layout' && selectedIdea && (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-6">
           <div className="mb-6">
             <Button
               variant="ghost"
@@ -158,13 +160,30 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
         </div>
       )}
 
-      {/* AI Idea Generator - Fixed at bottom */}
-      {currentStep === 'ideas' && (
-        <div className={cn(
-          "flex-shrink-0 mt-6 pt-4 flex justify-center",
-          textareaRows >= 12 && "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t shadow-lg z-50 mt-0"
-        )}>
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 w-full max-w-3xl">
+      {/* Footer */}
+      {currentStep === 'layout' && (
+        <div className="flex-shrink-0 mt-6 pt-4 border-t flex justify-center">
+          <Button 
+            onClick={handleContinue}
+            disabled={!selectedIdea || !selectedLayout}
+            className="px-8"
+            size="lg"
+          >
+            Continue to Builder
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  // AI Prompt Input - Always Fixed at Bottom (outside of dialog content)
+  const renderAIPromptInput = () => {
+    if (currentStep !== 'ideas') return null;
+    
+    return (
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t shadow-lg z-[1000020] p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
             <div className="space-y-3">
               <div className="w-full">
                 <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
@@ -205,57 +224,49 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
             </div>
           </div>
         </div>
-      )}
-
-      {/* Footer */}
-      {currentStep === 'layout' && (
-        <div className="flex-shrink-0 mt-6 pt-4 border-t flex justify-center">
-          <Button 
-            onClick={handleContinue}
-            disabled={!selectedIdea || !selectedLayout}
-            className="px-8"
-            size="lg"
-          >
-            Continue to Builder
-          </Button>
-        </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  };
 
   if (isMobile) {
     return (
-      <Sheet open={isOpen} onOpenChange={onClose}>
-        <SheetContent side="bottom" className="h-[90vh] overflow-hidden">
-          <SheetHeader className="mb-4">
-            <SheetTitle>Create Newsletter</SheetTitle>
-          </SheetHeader>
-          {renderContent()}
-        </SheetContent>
-      </Sheet>
+      <>
+        <Sheet open={isOpen} onOpenChange={onClose}>
+          <SheetContent side="bottom" className="h-[90vh] overflow-hidden">
+            <SheetHeader className="mb-4">
+              <SheetTitle>Create Newsletter</SheetTitle>
+            </SheetHeader>
+            {renderContent()}
+          </SheetContent>
+        </Sheet>
+        {renderAIPromptInput()}
+      </>
     );
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={cn(
-        "w-screen h-screen max-w-none max-h-none overflow-hidden p-0 bg-background text-foreground",
-        "z-[1000010]" // High z-index as specified
-      )}>
-        {/* Close button in top left */}
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={onClose}
-          className="absolute top-4 left-4 z-10 w-8 h-8 p-0 rounded-full hover:bg-muted"
-        >
-          <X className="w-4 h-4" />
-        </Button>
-        
-        <div className="p-6 pt-16 h-full" style={{ backgroundColor: 'rgb(17 24 39 / var(--tw-bg-opacity, 1))' }}>
-          {renderContent()}
-        </div>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className={cn(
+          "w-screen h-screen max-w-none max-h-none overflow-hidden p-0 bg-background text-foreground",
+          "z-[1000010]" // High z-index as specified
+        )}>
+          {/* Close button in top left */}
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={onClose}
+            className="absolute top-4 left-4 z-10 w-8 h-8 p-0 rounded-full hover:bg-muted"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+          
+          <div className="p-6 pt-16 h-full" style={{ backgroundColor: 'rgb(17 24 39 / var(--tw-bg-opacity, 1))' }}>
+            {renderContent()}
+          </div>
+        </DialogContent>
+      </Dialog>
+      {renderAIPromptInput()}
+    </>
   );
 };
