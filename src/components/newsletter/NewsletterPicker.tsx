@@ -256,7 +256,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
           <X className="w-4 h-4" />
         </Button>
         
-        <div className="p-6 pt-16 h-full" style={{ backgroundColor: 'rgb(17 24 39 / var(--tw-bg-opacity, 1))' }}>
+        <div className="p-6 pt-16 h-full bg-white">
           {renderContent()}
         </div>
       </DialogContent>
