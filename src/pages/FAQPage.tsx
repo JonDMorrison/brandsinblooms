@@ -204,9 +204,15 @@ const FAQPage = () => {
                 Schedule a free demo call and see how BloomSuite can simplify your marketing.
               </p>
               
-              <Button size="lg" onClick={() => navigate('/auth')} className="bg-gradient-to-r from-primary to-brand-teal-mint hover:from-primary/90 hover:to-brand-teal-mint/90 text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
-                Book a Demo Call
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button size="lg" onClick={() => navigate('/auth')} className="bg-gradient-to-r from-primary to-brand-teal-mint hover:from-primary/90 hover:to-brand-teal-mint/90 text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  Book a Demo Call
+                </Button>
+                
+                <Button size="lg" variant="outline" onClick={() => navigate('/contact')} className="border-2 border-primary text-primary hover:bg-primary hover:text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  Contact Us
+                </Button>
+              </div>
               
               <div className="flex flex-wrap justify-center gap-6 mt-8 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">

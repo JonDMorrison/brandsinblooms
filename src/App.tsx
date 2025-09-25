@@ -46,6 +46,7 @@ import POSIntegrationsPage from '@/pages/POSIntegrationsPage';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
 import FAQPage from '@/pages/FAQPage';
+import ContactPage from '@/pages/ContactPage';
 import PublishPage from '@/pages/PublishPage';
 import PlanPage from '@/pages/PlanPage';
 import { AboutPage } from '@/pages/AboutPage';
@@ -76,6 +77,7 @@ function App() {
           } />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/faq" element={<FAQPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/features" element={<FeaturesPage />} />
           <Route path="/home1" element={<Home1Page />} />
