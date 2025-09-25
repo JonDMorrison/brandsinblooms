@@ -162,7 +162,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       {currentStep === 'ideas' && (
         <div className="fixed left-1/2 transform -translate-x-1/2 z-50" style={{ bottom: '48px' }}>
           <div 
-            className="bg-background/90 backdrop-blur-sm border border-border rounded-lg p-4 shadow-lg transition-all duration-200" 
+            className="bg-background/90 backdrop-blur-sm rounded-lg p-4 shadow-lg transition-all duration-200" 
             style={{ 
               width: '600px',
               minHeight: `${1 * 24 + 120}px`, // 1 row + extra padding + button area
