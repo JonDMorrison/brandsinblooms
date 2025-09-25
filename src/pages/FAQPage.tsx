@@ -109,7 +109,7 @@ const FAQPage = () => {
       cta: {
         text: "Questions about security?",
         action: "Talk to our team",
-        onClick: () => navigate('/auth')
+        onClick: () => window.open('mailto:jeff@brandsinblooms.com', '_blank')
       },
       questions: [
         {
@@ -133,7 +133,7 @@ const FAQPage = () => {
       cta: {
         text: "Need a hand right now?",
         action: "Contact Support",
-        onClick: () => navigate('/auth')
+        onClick: () => window.open('mailto:jeff@brandsinblooms.com', '_blank')
       },
       questions: [
         {
