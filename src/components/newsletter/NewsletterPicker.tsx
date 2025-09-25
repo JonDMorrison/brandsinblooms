@@ -143,6 +143,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                 <Input
                   id="ai-prompt"
                   placeholder="Describe the newsletter you'd like to create..."
+                  className="min-w-[400px]"
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleGenerateAI()}
