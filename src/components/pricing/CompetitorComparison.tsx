@@ -137,7 +137,7 @@ export const CompetitorComparison = () => {
                                     </span>
                                     <div className="relative">
                                       <HelpCircle className="h-4 w-4 text-muted-foreground/60 hover:text-primary hover:scale-110 transition-all duration-200 group-hover:animate-pulse" />
-                                      <div className="absolute inset-0 rounded-full bg-primary/20 scale-0 group-hover:scale-150 transition-transform duration-300 opacity-0 group-hover:opacity-100"></div>
+                                      <div className="pointer-events-none absolute inset-0 rounded-full bg-primary/20 scale-0 group-hover:scale-150 transition-transform duration-300 opacity-0 group-hover:opacity-100"></div>
                                     </div>
                                     {item.unique && (
                                       <Badge variant="secondary" className="bg-gradient-to-r from-primary/20 to-brand-teal-mint/20 text-primary text-xs">
