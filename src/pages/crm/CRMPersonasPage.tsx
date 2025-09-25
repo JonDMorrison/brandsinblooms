@@ -496,7 +496,7 @@ export const CRMPersonasPage: React.FC = () => {
                               <p className="font-medium">
                                 {customer.first_name} {customer.last_name}
                               </p>
-                              <p className="text-xs text-muted-foreground">{customer.email}</p>
+                              <p className="text-xs text-foreground/70">{customer.email}</p>
                             </div>
                             <Button
                               size="sm"
