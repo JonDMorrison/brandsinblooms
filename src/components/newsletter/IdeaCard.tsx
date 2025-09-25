@@ -102,9 +102,14 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
       {/* Material You inspired overlay pattern */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
       
-      {/* Slide label */}
+      {/* Slide label - show week number for weekly themes */}
       <div className="absolute top-4 left-4 bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">
-        <span className="text-white/90 text-xs font-medium">Idea {slideIndex + 1}</span>
+        <span className="text-white/90 text-xs font-medium">
+          {idea.category === 'weekly' && idea.weekNumber 
+            ? `Week ${idea.weekNumber}`
+            : `Idea ${slideIndex + 1}`
+          }
+        </span>
       </div>
 
       {/* Estimated read time badge */}

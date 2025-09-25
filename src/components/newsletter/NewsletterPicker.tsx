@@ -25,7 +25,7 @@ type PickerStep = 'ideas' | 'layout';
 export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const { ideas, templates, loading, generateAIIdeas } = useNewsletterIdeas();
+  const { ideas, templates, loading, generateAIIdeas, refetch } = useNewsletterIdeas();
   
   const [currentStep, setCurrentStep] = useState<PickerStep>('ideas');
   const [selectedIdea, setSelectedIdea] = useState<NewsletterIdea | null>(null);
