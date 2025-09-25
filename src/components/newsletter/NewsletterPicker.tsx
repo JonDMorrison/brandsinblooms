@@ -160,8 +160,8 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
       {/* AI Idea Generator - Fixed at bottom */}
       {currentStep === 'ideas' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t shadow-lg z-50 flex justify-center py-4">
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 w-full max-w-3xl">
+        <div className="fixed bottom-12 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 w-full max-w-3xl shadow-lg">
             <div className="space-y-3">
               <div className="w-full">
                 <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
