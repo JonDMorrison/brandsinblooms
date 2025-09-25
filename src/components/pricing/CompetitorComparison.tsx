@@ -221,27 +221,27 @@ export const CompetitorComparison = () => {
               
               {/* Separate Tools - Expensive Side */}
               <div className="lg:col-span-1">
-                <Card className="h-full bg-gradient-to-br from-red-50 to-red-100/50 border-2 border-red-200/60 shadow-xl relative overflow-hidden">
+                <Card className="h-full bg-gradient-to-br from-muted/30 to-muted/50 border-2 border-muted-foreground/20 shadow-xl relative overflow-hidden">
                   {/* Warning pattern background */}
                   <div className="absolute inset-0 opacity-5">
-                    <div className="absolute top-4 right-4 text-red-500 text-6xl">⚠️</div>
+                    <div className="absolute top-4 right-4 text-muted-foreground text-6xl">⚠️</div>
                   </div>
                   
                   <CardContent className="p-8 relative z-10 h-full flex flex-col">
                     <div className="text-center mb-6">
-                      <div className="inline-flex items-center gap-2 bg-red-100 text-red-700 px-4 py-2 rounded-full text-sm font-medium mb-4">
+                      <div className="inline-flex items-center gap-2 bg-muted text-muted-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
                         <X className="h-4 w-4" />
                         Separate Tools
                       </div>
                       
-                      <div className="text-5xl font-black text-red-600 mb-2 tracking-tight">
+                      <div className="text-5xl font-black text-foreground mb-2 tracking-tight">
                         ${totalMinCost.toLocaleString()}<span className="text-3xl">–${totalMaxCost.toLocaleString()}+</span>
                       </div>
-                      <div className="text-xl font-semibold text-red-600/80">per year</div>
+                      <div className="text-xl font-semibold text-muted-foreground">per year</div>
                     </div>
                     
                     <div className="flex-grow">
-                      <h4 className="font-bold text-red-700 mb-4 text-center">The Problems:</h4>
+                      <h4 className="font-bold text-foreground mb-4 text-center">The Problems:</h4>
                       <div className="space-y-3">
                         {[
                           "Multiple logins to remember",
@@ -250,7 +250,7 @@ export const CompetitorComparison = () => {
                           "Data scattered everywhere",
                           "Hidden fees and add-ons"
                         ].map((problem, idx) => (
-                          <div key={idx} className="flex items-center gap-3 text-red-700">
+                          <div key={idx} className="flex items-center gap-3 text-muted-foreground">
                             <X className="h-4 w-4 flex-shrink-0" />
                             <span className="text-sm">{problem}</span>
                           </div>
