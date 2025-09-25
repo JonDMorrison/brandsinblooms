@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +28,14 @@ const ContactPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const form = useForm<ContactFormData>({
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors }
+  } = useForm<ContactFormData>({
     resolver: zodResolver(contactFormSchema),
     defaultValues: {
       name: "",
@@ -45,6 +52,16 @@ const ContactPage = () => {
     { id: "other", label: "Other" }
   ];
 
+  const watchedInquiryTypes = watch("inquiryTypes") || [];
+
+  const handleInquiryTypeChange = (inquiryId: string, checked: boolean) => {
+    if (checked) {
+      setValue("inquiryTypes", [...watchedInquiryTypes, inquiryId]);
+    } else {
+      setValue("inquiryTypes", watchedInquiryTypes.filter(id => id !== inquiryId));
+    }
+  };
+
   const onSubmit = async (data: ContactFormData) => {
     try {
       setIsSubmitting(true);
@@ -58,7 +75,7 @@ const ContactPage = () => {
       }
 
       setIsSubmitted(true);
-      form.reset();
+      reset();
       toast.success("Thank you! Your message has been sent successfully.");
     } catch (error) {
       console.error('Error sending contact form:', error);
@@ -128,115 +145,94 @@ const ContactPage = () => {
             </CardHeader>
             
             <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Name *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your full name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name *</Label>
+                    <Input 
+                      id="name"
+                      placeholder="Your full name" 
+                      {...register("name")}
+                      className={errors.name ? "border-red-500" : ""}
                     />
-                    
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email *</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="your.email@example.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {errors.name && (
+                      <p className="text-sm text-red-500">{errors.name.message}</p>
+                    )}
                   </div>
-
-                  <FormField
-                    control={form.control}
-                    name="inquiryTypes"
-                    render={() => (
-                      <FormItem>
-                        <FormLabel>What can we help you with? *</FormLabel>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                          {inquiryOptions.map((option) => (
-                            <FormField
-                              key={option.id}
-                              control={form.control}
-                              name="inquiryTypes"
-                              render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(option.id)}
-                                      onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...field.value, option.id])
-                                          : field.onChange(
-                                              field.value?.filter((value) => value !== option.id)
-                                            );
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="text-sm font-normal">
-                                    {option.label}
-                                  </FormLabel>
-                                </FormItem>
-                              )}
-                            />
-                          ))}
-                        </div>
-                        <FormMessage />
-                      </FormItem>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <Input 
+                      id="email"
+                      type="email"
+                      placeholder="your.email@example.com" 
+                      {...register("email")}
+                      className={errors.email ? "border-red-500" : ""}
+                    />
+                    {errors.email && (
+                      <p className="text-sm text-red-500">{errors.email.message}</p>
                     )}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <Label>What can we help you with? *</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {inquiryOptions.map((option) => (
+                      <div key={option.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={option.id}
+                          checked={watchedInquiryTypes.includes(option.id)}
+                          onCheckedChange={(checked) => 
+                            handleInquiryTypeChange(option.id, !!checked)
+                          }
+                        />
+                        <Label 
+                          htmlFor={option.id} 
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {option.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  {errors.inquiryTypes && (
+                    <p className="text-sm text-red-500">{errors.inquiryTypes.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="message">Message *</Label>
+                  <Textarea
+                    id="message"
+                    placeholder="Tell us about your question or how we can help..."
+                    className={`min-h-[120px] ${errors.message ? "border-red-500" : ""}`}
+                    {...register("message")}
                   />
+                  {errors.message && (
+                    <p className="text-sm text-red-500">{errors.message.message}</p>
+                  )}
+                </div>
 
-                  <FormField
-                    control={form.control}
-                    name="message"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Message *</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Tell us about your question or how we can help..."
-                            className="min-h-[120px]"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button
-                    type="submit"
-                    size="lg"
-                    disabled={isSubmitting}
-                    className="w-full bg-gradient-to-r from-primary to-brand-teal-mint hover:from-primary/90 hover:to-brand-teal-mint/90 text-white"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="w-4 h-4 mr-2" />
-                        Send Message
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </Form>
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={isSubmitting}
+                  className="w-full bg-gradient-to-r from-primary to-brand-teal-mint hover:from-primary/90 hover:to-brand-teal-mint/90 text-white"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4 mr-2" />
+                      Send Message
+                    </>
+                  )}
+                </Button>
+              </form>
 
               <div className="mt-8 pt-8 border-t border-border/50">
                 <div className="text-center text-sm text-muted-foreground">
