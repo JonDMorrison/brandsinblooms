@@ -71,10 +71,7 @@ export const useNewsletterIdeas = () => {
       console.error('Error fetching newsletter ideas:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch newsletter ideas');
       
-      // Set fallback data (includes seasonal themes)
-      const fallbackThemes = mapThemesToIdeas(getFallbackThemes(), getCurrentWeekNumber());
-      const fallbackCurated = getFallbackIdeas();
-      setIdeas([...fallbackThemes, ...fallbackCurated]);
+      // Don't set fallback data - keep ideas empty until user provides prompt
       setTemplates(defaultTemplates);
     } finally {
       setLoading(false);
@@ -169,8 +166,8 @@ export const useNewsletterIdeas = () => {
   const fetchWeeklyThemes = async (): Promise<NewsletterIdea[]> => {
     try {
       if (!user) {
-        // Return fallback themes if no user
-        return mapThemesToIdeas(getFallbackThemes());
+        // Return empty array if no user - no fallback themes
+        return [];
       }
 
       const currentWeek = getCurrentWeekNumber();
@@ -186,9 +183,9 @@ export const useNewsletterIdeas = () => {
       });
 
       if (error || !data?.themes) {
-        console.warn('Edge function failed, falling back to seasonal themes');
-        // Fall back to seasonal themes
-        return mapThemesToIdeas(getFallbackThemes());
+        console.warn('Edge function failed, returning empty array');
+        // Return empty array instead of fallback themes
+        return [];
       }
 
       console.log('📋 Generated themes count:', data.themes.length);
@@ -197,8 +194,8 @@ export const useNewsletterIdeas = () => {
       return mapThemesToIdeas(data.themes, currentWeek);
     } catch (err) {
       console.error('Error fetching weekly themes:', err);
-      // Fall back to seasonal themes
-      return mapThemesToIdeas(getFallbackThemes());
+      // Return empty array instead of fallback themes
+      return [];
     }
   };
 
