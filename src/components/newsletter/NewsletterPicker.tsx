@@ -244,20 +244,29 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn(
-        "w-screen h-screen max-w-none max-h-none overflow-hidden p-0 bg-background text-foreground",
+        "w-screen h-screen max-w-none max-h-none overflow-hidden p-0 relative",
+        "bg-gradient-to-br from-brand-teal/5 via-white to-brand-teal/8 text-foreground",
         "z-[1000010]" // High z-index as specified
       )}>
+        {/* Blurry background effects */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-20 -left-20 w-40 h-40 bg-brand-teal/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0s', animationDuration: '4s' }} />
+          <div className="absolute top-1/3 -right-10 w-32 h-32 bg-brand-teal/15 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '2s', animationDuration: '6s' }} />
+          <div className="absolute bottom-1/4 left-1/4 w-24 h-24 bg-brand-teal/8 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1s', animationDuration: '5s' }} />
+          <div className="absolute bottom-10 right-1/3 w-36 h-36 bg-brand-teal/12 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '3s', animationDuration: '7s' }} />
+        </div>
+        
         {/* Close button in top left */}
         <Button 
           variant="ghost" 
           size="sm"
           onClick={onClose}
-          className="absolute top-4 left-4 z-10 w-8 h-8 p-0 rounded-full hover:bg-muted"
+          className="absolute top-4 left-4 z-20 w-8 h-8 p-0 rounded-full hover:bg-white/10 backdrop-blur-sm"
         >
           <X className="w-4 h-4" />
         </Button>
         
-        <div className="p-6 pt-16 h-full bg-white">
+        <div className="p-6 pt-16 h-full relative z-10">
           {renderContent()}
         </div>
       </DialogContent>
