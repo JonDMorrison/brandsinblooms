@@ -137,10 +137,6 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       {currentStep === 'ideas' && (
         <div className="flex-shrink-0 mt-6 pt-4">
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 min-w-[400px] mx-auto">
-            <div className="flex items-center mb-3">
-              <Sparkles className="w-5 h-5 text-purple-600 mr-2" />
-              <h3 className="font-medium text-purple-900">Generate Custom Ideas</h3>
-            </div>
             <div className="flex gap-2">
               <div className="flex-1">
                 <Label htmlFor="ai-prompt" className="sr-only">Describe your newsletter</Label>
