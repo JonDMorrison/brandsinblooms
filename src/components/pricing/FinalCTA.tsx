@@ -1,5 +1,6 @@
 
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface FinalCTAProps {
   subscription: any;
@@ -7,6 +8,7 @@ interface FinalCTAProps {
 }
 
 export const FinalCTA = ({ subscription, onStartTrial }: FinalCTAProps) => {
+  const navigate = useNavigate();
   if (subscription) return null;
 
   return (
@@ -25,6 +27,17 @@ export const FinalCTA = ({ subscription, onStartTrial }: FinalCTAProps) => {
           
           <p className="text-xl text-text-secondary mb-10 leading-relaxed">
             Try it free for 14 days — no credit card required.
+          </p>
+          
+          <p className="text-sm text-muted-foreground mb-8">
+            Have questions? Check our{" "}
+            <button
+              onClick={() => navigate('/faq')}
+              className="text-primary hover:underline font-medium"
+            >
+              comprehensive FAQ
+            </button>
+            {" "}for detailed answers about features, pricing, and setup.
           </p>
           
           <div className="relative group">

@@ -32,6 +32,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
     { name: "About", href: "/about" },
     { name: "Features", href: "/features" },
     { name: "Pricing", href: "/pricing" },
+    { name: "FAQ", href: "/faq" },
   ];
 
   const isActiveRoute = (href: string) => {

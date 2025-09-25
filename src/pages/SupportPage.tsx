@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Mail, MessageCircle, FileText, HelpCircle } from 'lucide-react';
 
 const SupportPage = () => {
+  const navigate = useNavigate();
   return (
     <div className="p-6 space-y-6">
       <div className="space-y-2">
@@ -76,7 +78,11 @@ const SupportPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => navigate('/faq')}
+            >
               Browse FAQ
             </Button>
           </CardContent>
