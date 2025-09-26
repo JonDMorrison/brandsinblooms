@@ -429,6 +429,55 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         </div>
       </section>
 
+      {/* Audience Targeting Section */}
+      <div className="p-4 border-t bg-background">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <AudienceTargetingButton
+              selectedPersonas={selectedPersonas}
+              selectedSegments={selectedSegments}
+              onPersonasChange={onPersonasChange || (() => {})}
+              onSegmentsChange={onSegmentsChange || (() => {})}
+            />
+          </div>
+          <div className="flex items-center gap-2 ml-4">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveDraft}
+                    className="flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save Draft
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Save your automation as draft</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleReviewAndLaunch}
+                    disabled={!isReadyToLaunch}
+                    className="flex items-center gap-2"
+                  >
+                    <Play className="w-4 h-4" />
+                    Review & Launch
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isReadyToLaunch ? 'Review and launch automation' : 'Complete flow and select audience first'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+      </div>
+
       {/* Audience Selector Modal */}
       {showAudienceSelector && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
