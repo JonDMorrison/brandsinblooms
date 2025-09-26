@@ -7,6 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
 import { AutomationPresets } from '@/components/automation/AutomationPresets';
 import { getTemplatesForTrigger } from '@/lib/campaignTemplates';
+import { getPresetFlowById } from '@/utils/automationPresetFlows';
+import { useLocation } from 'react-router-dom';
 
 const GuidedAutomationBuilder = lazy(() =>
   import('@/components/automation/GuidedAutomationBuilder').then(m => ({ default: m.GuidedAutomationBuilder }))
@@ -17,8 +19,12 @@ export const CRMAutomationGuidePage: React.FC = () => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPresets, setShowPresets] = useState(true);
   const [selectedPreset, setSelectedPreset] = useState<any>(null);
+
+  // Check for guided mode
+  const isGuidedMode = new URLSearchParams(location.search).get('mode') === 'guided';
 
   useEffect(() => {
     document.title = 'Build Your Custom Automation – Guide';
@@ -57,34 +63,24 @@ export const CRMAutomationGuidePage: React.FC = () => {
   };
 
   const handlePresetSelection = async (preset: any) => {
-    if (preset.id === 'customer_loyalty_program') {
-      // Get the template for loyalty program
-      const templates = getTemplatesForTrigger('loyalty_members_segment');
-      const loyaltyTemplate = templates.find(t => t.name.includes('Customer Loyalty Program'));
+    // Get the preset flow configuration
+    const presetFlow = getPresetFlowById(preset.id);
+    
+    if (presetFlow) {
+      // Create automation with preset flow
+      const automationConfig = {
+        name: preset.title,
+        description: preset.description,
+        flow_data: {
+          nodes: presetFlow.nodes,
+          edges: presetFlow.edges
+        },
+        template_source: preset.id
+      };
       
-      if (loyaltyTemplate) {
-        // Create automation directly with preset configuration
-        const automationConfig = {
-          name: preset.title,
-          description: preset.description,
-          trigger: 'loyalty_members_segment',
-          trigger_conditions: {
-            segment_id: 'loyalty-members', // Built-in Loyalty Members segment
-            subtype: 'loyalty_members_segment'
-          },
-          workflow_steps: loyaltyTemplate.steps.map((step, index) => ({
-            step_number: index + 1,
-            delay_hours: step.delayHours || 0,
-            channel: step.channel,
-            message_content: step.body,
-            template_id: step.template_id
-          })),
-          template_source: 'customer_loyalty_program'
-        };
-        
-        await handleGuideComplete(automationConfig);
-      }
+      await handleGuideComplete(automationConfig);
     } else {
+      // Fall back to guided builder for unsupported presets
       setSelectedPreset(preset);
       setShowPresets(false);
     }
@@ -200,7 +196,7 @@ export const CRMAutomationGuidePage: React.FC = () => {
 
       <main className="flex-1 overflow-y-auto">
         <section className="max-w-5xl mx-auto p-4 md:p-6">
-          {showPresets ? (
+          {showPresets && !isGuidedMode ? (
             <AutomationPresets
               onSelectPreset={handlePresetSelection}
               onCreateCustom={() => setShowPresets(false)}

@@ -74,6 +74,32 @@ const presets: AutomationPreset[] = [
       expectedClicks: '20-30%',
       redemptionRate: '35-45%'
     }
+  },
+  {
+    id: 'welcome_new_customers',
+    title: 'Welcome New Customers',
+    description: 'Simple 2-step welcome sequence to greet new customers and introduce them to your loyalty program benefits.',
+    icon: Users,
+    color: 'bg-blue-100 text-blue-700 border-blue-200',
+    badge: 'Popular',
+    trigger: 'Customer joins loyalty program',
+    steps: [
+      {
+        channel: 'email',
+        delay: 'Immediate',
+        description: 'Welcome email with loyalty program benefits'
+      },
+      {
+        channel: 'sms',
+        delay: '2 days later',
+        description: 'Follow-up SMS with account confirmation'
+      }
+    ],
+    analytics: {
+      expectedOpens: '65-75%',
+      expectedClicks: '15-25%',
+      redemptionRate: '25-35%'
+    }
   }
 ];
 
@@ -119,7 +145,11 @@ export const AutomationPresets: React.FC<AutomationPresetsProps> = ({
                     <div>
                       <CardTitle className="text-lg">{preset.title}</CardTitle>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="bg-green-100 text-green-700">
+                        <Badge variant="secondary" className={
+                          preset.badge === 'Recommended' 
+                            ? "bg-green-100 text-green-700" 
+                            : "bg-blue-100 text-blue-700"
+                        }>
                           {preset.badge}
                         </Badge>
                       </div>

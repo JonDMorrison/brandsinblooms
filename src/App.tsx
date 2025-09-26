@@ -15,6 +15,7 @@ import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import { CRMAutomationBuilderPage } from '@/pages/crm/CRMAutomationBuilderPage';
 import { CRMAutomationGuidePage } from '@/pages/crm/CRMAutomationGuidePage';
+import { AutomationWizardLandingPage } from '@/pages/crm/AutomationWizardLandingPage';
 import OnboardingPage from '@/pages/OnboardingPage'; // Force refresh
 import { BloomSuiteDashboard } from '@/pages/BloomSuiteDashboard';
 import { NewslettersPage } from '@/pages/NewslettersPage';
@@ -205,7 +206,7 @@ function App() {
           <Route path="/crm/automations/new" element={
             <ProtectedRoute>
               <SidebarLayout>
-                <CRMAutomationGuidePage />
+                <AutomationWizardLandingPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
