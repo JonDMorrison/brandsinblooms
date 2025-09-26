@@ -36,8 +36,8 @@ interface AutomationPreset {
 const presets: AutomationPreset[] = [
   {
     id: 'customer_loyalty_program',
-    title: 'Customer Loyalty Program: Welcome + Reward',
-    description: 'Automatically reward new loyalty members with a thank-you text and follow-up email to keep them coming back.',
+    title: 'Customer Loyalty Program: Ongoing Nurture Series',
+    description: 'Welcome new loyalty members, reward them, and keep them engaged with seasonal tips, reminders, and customer appreciation emails over 30 days.',
     icon: Heart,
     color: 'bg-pink-100 text-pink-700 border-pink-200',
     badge: 'Recommended',
@@ -52,12 +52,27 @@ const presets: AutomationPreset[] = [
         channel: 'email',
         delay: '24 hours later',
         description: 'Thank-you email with store story and website CTA'
+      },
+      {
+        channel: 'email',
+        delay: '7 days later',
+        description: 'Seasonal gardening tip + loyalty reminder'
+      },
+      {
+        channel: 'sms',
+        delay: '14 days later',
+        description: 'Gentle reminder about unused 10% reward'
+      },
+      {
+        channel: 'email',
+        delay: '30 days later',
+        description: 'Store mission & community involvement story'
       }
     ],
     analytics: {
-      expectedOpens: '65-75%',
-      expectedClicks: '15-25%',
-      redemptionRate: '25-35%'
+      expectedOpens: '70-80%',
+      expectedClicks: '20-30%',
+      redemptionRate: '35-45%'
     }
   }
 ];
