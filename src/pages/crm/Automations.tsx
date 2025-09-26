@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AutomationBuilder } from '@/components/crm/automations/AutomationBuilder';
 import { AutomationStats } from '@/components/crm/automations/AutomationStats';
 import { AIAutomationDesigner } from '@/components/automation/AIAutomationDesigner';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 interface Automation {
   id: string;
@@ -213,9 +213,15 @@ export default function Automations() {
         </div>
         <div className="flex items-center gap-3">
           <AIAutomationDesigner onAutomationGenerated={handleAutomationGenerated} />
+          <Link to="/crm/automations/new/guide">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Browse Presets
+            </Button>
+          </Link>
           <Button onClick={handleCreateNew} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            Create Automation
+            Create Custom
           </Button>
         </div>
       </div>
@@ -319,11 +325,17 @@ export default function Automations() {
               </div>
               <h3 className="text-lg font-medium mb-2">No automations yet</h3>
               <p className="text-muted-foreground mb-4">
-                Create your first automation to start engaging customers automatically
+                Create your first automation to start engaging customers automatically. 
+                Browse our preset templates or build a custom flow from scratch.
               </p>
-              <Button onClick={handleCreateNew}>
-                Create Your First Automation
-              </Button>
+              <div className="flex items-center gap-3 justify-center">
+                <Link to="/crm/automations/new/guide">
+                  <Button variant="outline">Browse Presets</Button>
+                </Link>
+                <Button onClick={handleCreateNew}>
+                  Create Custom Automation
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

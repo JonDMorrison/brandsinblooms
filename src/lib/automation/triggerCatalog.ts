@@ -117,6 +117,15 @@ export const triggerCatalog: TriggerMeta[] = [
     channels: ['sms', 'email'],
     goalHint: 'Custom Integration',
     description: 'Triggered by POST to /webhooks/automation'
+  },
+  {
+    id: 'loyalty_members_segment',
+    label: '🤝 Contact Added to Loyalty Members Segment',
+    icon: '🤝',
+    defaultDelayMin: 0,
+    channels: ['sms', 'email'],
+    goalHint: 'Welcome Series',
+    description: 'Triggered when a contact is added to the Loyalty Members segment via POS sync or manual addition'
   }
 ];
 

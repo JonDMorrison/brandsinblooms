@@ -1,10 +1,12 @@
-import React, { lazy, Suspense, useEffect } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
+import { AutomationPresets } from '@/components/automation/AutomationPresets';
+import { getTemplatesForTrigger } from '@/lib/campaignTemplates';
 
 const GuidedAutomationBuilder = lazy(() =>
   import('@/components/automation/GuidedAutomationBuilder').then(m => ({ default: m.GuidedAutomationBuilder }))
@@ -15,6 +17,8 @@ export const CRMAutomationGuidePage: React.FC = () => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const navigate = useNavigate();
+  const [showPresets, setShowPresets] = useState(true);
+  const [selectedPreset, setSelectedPreset] = useState<any>(null);
 
   useEffect(() => {
     document.title = 'Build Your Custom Automation – Guide';
@@ -50,6 +54,40 @@ export const CRMAutomationGuidePage: React.FC = () => {
     };
     
     return triggerMapping[id] || 'manual';
+  };
+
+  const handlePresetSelection = async (preset: any) => {
+    if (preset.id === 'customer_loyalty_program') {
+      // Get the template for loyalty program
+      const templates = getTemplatesForTrigger('loyalty_members_segment');
+      const loyaltyTemplate = templates.find(t => t.name.includes('Customer Loyalty Program'));
+      
+      if (loyaltyTemplate) {
+        // Create automation directly with preset configuration
+        const automationConfig = {
+          name: preset.title,
+          description: preset.description,
+          trigger: 'loyalty_members_segment',
+          trigger_conditions: {
+            segment_id: 'loyalty-members', // Built-in Loyalty Members segment
+            subtype: 'loyalty_members_segment'
+          },
+          workflow_steps: loyaltyTemplate.steps.map((step, index) => ({
+            step_number: index + 1,
+            delay_hours: step.delayHours || 0,
+            channel: step.channel,
+            message_content: step.body,
+            template_id: step.template_id
+          })),
+          template_source: 'customer_loyalty_program'
+        };
+        
+        await handleGuideComplete(automationConfig);
+      }
+    } else {
+      setSelectedPreset(preset);
+      setShowPresets(false);
+    }
   };
 
   const handleGuideComplete = async (config?: any) => {
@@ -162,12 +200,19 @@ export const CRMAutomationGuidePage: React.FC = () => {
 
       <main className="flex-1 overflow-y-auto">
         <section className="max-w-5xl mx-auto p-4 md:p-6">
-          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
-            <GuidedAutomationBuilder
-              onComplete={handleGuideComplete}
-              onBack={() => window.history.back()}
+          {showPresets ? (
+            <AutomationPresets
+              onSelectPreset={handlePresetSelection}
+              onCreateCustom={() => setShowPresets(false)}
             />
-          </Suspense>
+          ) : (
+            <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
+              <GuidedAutomationBuilder
+                onComplete={handleGuideComplete}
+                onBack={() => setShowPresets(true)}
+              />
+            </Suspense>
+          )}
         </section>
       </main>
     </div>

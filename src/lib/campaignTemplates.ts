@@ -127,6 +127,28 @@ export const TEMPLATES = {
       template_id: 'cart_recovery_sms-0',
       delayHours: 2
     }]
+  },
+  customer_loyalty_program: {
+    name: 'Customer Loyalty Program: Welcome + Reward',
+    trigger: 'loyalty_members_segment',
+    steps: [
+      {
+        delayValue: 0,
+        delayUnit: 'minutes' as const,
+        channel: 'sms' as const,
+        body: 'Thanks for joining our Loyalty Program at {{garden_center_name}}! Enjoy 10% off your next visit. Just show this message at checkout. We\'re glad you\'re part of our community! Reply STOP to opt out.',
+        template_id: 'customer_loyalty_program-0',
+        delayHours: 0
+      },
+      {
+        delayValue: 24,
+        delayUnit: 'hours' as const,
+        channel: 'email' as const,
+        body: 'Thanks for visiting {{garden_center_name}} — enjoy your reward!\n\nHi there!\n\nThanks so much for visiting our garden center and joining our loyalty program. We hope you found exactly what you were looking for!\n\nDon\'t forget about your 10% off reward — just show the text message we sent you at checkout on your next visit.\n\n{{seasonal_tip}}\n\nWe love helping fellow gardeners grow beautiful spaces. See what\'s fresh this week on our website!\n\nHappy gardening,\nThe {{garden_center_name}} Team\n\nP.S. Follow us on social media for daily garden inspiration and tips!',
+        template_id: 'customer_loyalty_program-1',
+        delayHours: 24
+      }
+    ]
   }
 } satisfies Record<string, Template>;
 

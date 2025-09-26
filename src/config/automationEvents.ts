@@ -39,6 +39,11 @@ export const CORE_EVENTS: CoreEvent[] = [
     id: 'purchase.anniversary',
     label: 'Purchase Anniversary',
     description: 'Triggers on the anniversary of first purchase'
+  },
+  {
+    id: 'loyalty_members.segment_added',
+    label: 'Added to Loyalty Members Segment',
+    description: 'Triggers when a contact is added to the Loyalty Members segment'
   }
 ];
 
