@@ -37,6 +37,14 @@ export const keyframes: Config["theme"]["extend"]["keyframes"] = {
       opacity: '1',
       transform: 'scale(1)'
     }
+  },
+  shimmer: {
+    '0%': {
+      transform: 'translateX(-100%)'
+    },
+    '100%': {
+      transform: 'translateX(100%)'
+    }
   }
 };
 
@@ -45,4 +53,5 @@ export const animation: Config["theme"]["extend"]["animation"] = {
   'accordion-up': 'accordion-up 0.2s ease-out',
   'fade-in': 'fade-in 0.2s ease-out',
   'scale-in': 'scale-in 0.15s ease-out',
+  shimmer: 'shimmer 2s infinite',
 };

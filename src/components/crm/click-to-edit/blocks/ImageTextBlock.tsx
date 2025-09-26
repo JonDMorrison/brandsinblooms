@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
 import { SafeHtml } from '@/components/ui/safe-html';
@@ -10,6 +10,8 @@ import { BlockGeneratingOverlay } from './BlockGeneratingOverlay';
 import { mediaSelector } from '@/utils/mediaSelector';
 import { extractImageSummaryWithContext } from '@/utils/imageContentSummary';
 import { useUnsplash } from '@/hooks/useUnsplash';
+import { ImageSkeleton } from '@/components/ui/image-skeleton';
+import { Image as ImageIcon } from 'lucide-react';
 
 interface ImageTextBlockProps {
   block: ContentBlock;
@@ -29,10 +31,17 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   isGenerating = false
 }) => {
   const { getCuratedCollectionImages } = useUnsplash();
+  const [isImageLoading, setIsImageLoading] = useState(false);
+  const [hasImageLoaded, setHasImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   // Auto-fetch image for blocks that don't have an image
   useEffect(() => {
     if (!block.imageUrl && onUpdate) {
+      setIsImageLoading(true);
+      setImageError(false);
+      setHasImageLoaded(false);
+      
       const contentForImage = (() => {
         if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
           return (block.content as any).headline;
@@ -78,11 +87,40 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
             }
           } catch (curatedError) {
             console.error('[ImageTextBlock] Curated collection also failed:', curatedError);
+            setIsImageLoading(false);
           }
         });
+      } else {
+        setIsImageLoading(false);
       }
     }
   }, [block.imageUrl, block.headline, block.title, block.content, onUpdate, getCuratedCollectionImages]);
+
+  // Handle image loading states when imageUrl changes
+  useEffect(() => {
+    if (block.imageUrl) {
+      setIsImageLoading(true);
+      setImageError(false);
+      setHasImageLoaded(false);
+      
+      const img = new Image();
+      img.onload = () => {
+        setIsImageLoading(false);
+        setHasImageLoaded(true);
+        setImageError(false);
+      };
+      img.onerror = () => {
+        setIsImageLoading(false);
+        setHasImageLoaded(false);
+        setImageError(true);
+      };
+      img.src = block.imageUrl;
+    } else {
+      setIsImageLoading(false);
+      setHasImageLoaded(false);
+      setImageError(false);
+    }
+  }, [block.imageUrl]);
 
   const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left';
   const isImageRight = block.layout === 'image-right' || block.layout === 'two-column-right';
@@ -237,73 +275,102 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 
                 return imageSrc ? (
                   <div className="relative">
+                    {/* Show skeleton while loading */}
+                    {isImageLoading && (
+                      <ImageSkeleton className="absolute inset-0 z-10" />
+                    )}
+                    
+                    {/* Main image with fade-in effect */}
                     <img 
                       src={imageSrc}
                       alt={block.altText || 'Content image'}
-                      className="w-full h-auto rounded-lg cursor-pointer"
-                      onError={(e) => {
+                      className={cn(
+                        "w-full h-auto rounded-lg cursor-pointer transition-opacity duration-300",
+                        isImageLoading || !hasImageLoaded ? "opacity-0" : "opacity-100"
+                      )}
+                      onLoad={() => {
+                        setIsImageLoading(false);
+                        setHasImageLoaded(true);
+                        setImageError(false);
+                      }}
+                      onError={() => {
                         console.error('[ImageTextBlock] Image failed to load:', imageSrc);
-                        e.currentTarget.style.display = 'none';
-                        const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
-                        if (placeholder) {
-                          placeholder.classList.remove('hidden');
-                        }
+                        setIsImageLoading(false);
+                        setHasImageLoaded(false);
+                        setImageError(true);
                       }}
                     />
-                    <div className="hidden w-full h-48 bg-muted rounded-lg flex items-center justify-center">
-                      <div className="text-center text-muted-foreground">
-                        <span className="text-sm">Image unavailable</span>
-                        <p className="text-xs mt-1">Click to choose another</p>
+                    
+                    {/* Error fallback */}
+                    {imageError && !isImageLoading && (
+                      <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center">
+                        <div className="text-center text-muted-foreground">
+                          <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                          <span className="text-sm">Image unavailable</span>
+                          <p className="text-xs mt-1">Click to choose another</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 ) : (
                   <div 
                     className="w-full h-48 bg-muted rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors p-4"
                   >
-                    <span className="text-muted-foreground mb-3">Click to add image</span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onModeChange) {
-                            handleModeClick('image', e);
-                          }
-                        }}
-                        className="px-3 py-1 text-xs bg-background border border-border rounded hover:bg-muted transition-colors"
-                      >
-                        Browse
-                      </button>
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          // Auto-pick image based on content
-                          const headline = (() => {
-                            if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
-                              return (block.content as any).headline;
-                            } else if (block.headline) {
-                              return block.headline;
-                            } else if (block.title) {
-                              return block.title;
-                            }
-                            return 'garden plants';
-                          })();
-                          
-                          const { fetchSmartImage } = await import('@/services/unsplashService');
-                          const imageData = await fetchSmartImage(headline, '', true);
-                          
-                          if (imageData?.url && onUpdate) {
-                            onUpdate({
-                              imageUrl: imageData.url,
-                              altText: imageData.alt
-                            });
-                          }
-                        }}
-                        className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-                      >
-                        Auto-pick
-                      </button>
-                    </div>
+                    {isImageLoading ? (
+                      <ImageSkeleton className="w-full h-full" />
+                    ) : (
+                      <>
+                        <span className="text-muted-foreground mb-3">Click to add image</span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onModeChange) {
+                                handleModeClick('image', e);
+                              }
+                            }}
+                            className="px-3 py-1 text-xs bg-background border border-border rounded hover:bg-muted transition-colors"
+                          >
+                            Browse
+                          </button>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setIsImageLoading(true);
+                              // Auto-pick image based on content
+                              const headline = (() => {
+                                if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
+                                  return (block.content as any).headline;
+                                } else if (block.headline) {
+                                  return block.headline;
+                                } else if (block.title) {
+                                  return block.title;
+                                }
+                                return 'garden plants';
+                              })();
+                              
+                              try {
+                                const { fetchSmartImage } = await import('@/services/unsplashService');
+                                const imageData = await fetchSmartImage(headline, '', true);
+                                
+                                if (imageData?.url && onUpdate) {
+                                  onUpdate({
+                                    imageUrl: imageData.url,
+                                    altText: imageData.alt
+                                  });
+                                }
+                              } catch (error) {
+                                console.error('[ImageTextBlock] Auto-pick failed:', error);
+                                setIsImageLoading(false);
+                              }
+                            }}
+                            className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                          >
+                            Auto-pick
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })()}
