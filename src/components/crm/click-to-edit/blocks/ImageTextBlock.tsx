@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
 import { SafeHtml } from '@/components/ui/safe-html';
@@ -32,15 +32,73 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
 }) => {
   const { getCuratedCollectionImages } = useUnsplash();
   const [isImageLoading, setIsImageLoading] = useState(false);
-  const [hasImageLoaded, setHasImageLoaded] = useState(false);
+  const [hasImageLoaded, setHasImageLoaded] = useState(!!block.imageUrl);
   const [imageError, setImageError] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState(block.imageUrl);
   
-  // Auto-fetch image for blocks that don't have an image
+  // Ref to track current fetch operation and prevent race conditions
+  const fetchOperationRef = useRef<number>(0);
+  const debounceTimerRef = useRef<NodeJS.Timeout>();
+  
+  // Debounced auto-fetch to prevent race conditions during rapid content changes
+  const debouncedImageFetch = useCallback((contentForImage: string, operationId: number) => {
+    if (!contentForImage) return;
+    
+    console.log(`[ImageTextBlock] Starting fetch operation ${operationId} for:`, contentForImage);
+    setIsImageLoading(true);
+    setImageError(false);
+    
+    const smartSummary = extractImageSummaryWithContext(contentForImage, true);
+    
+    mediaSelector({ 
+      prompt: smartSummary,
+      fallback: '/images/newsletter-fallback.jpg' 
+    }).then((result) => {
+      // Check if this operation is still current
+      if (fetchOperationRef.current !== operationId) {
+        console.log(`[ImageTextBlock] Operation ${operationId} cancelled, current is ${fetchOperationRef.current}`);
+        return;
+      }
+      
+      console.log(`[ImageTextBlock] Operation ${operationId} completed:`, result.url);
+      onUpdate?.({ 
+        imageUrl: result.url,
+        altText: result.alt || 'Auto-selected image'
+      });
+    }).catch(async (error) => {
+      // Check if this operation is still current
+      if (fetchOperationRef.current !== operationId) {
+        console.log(`[ImageTextBlock] Operation ${operationId} cancelled during fallback`);
+        return;
+      }
+      
+      console.error(`[ImageTextBlock] Operation ${operationId} media selector failed:`, error);
+      
+      try {
+        const curatedImages = await getCuratedCollectionImages(1);
+        if (curatedImages.length > 0 && fetchOperationRef.current === operationId) {
+          console.log(`[ImageTextBlock] Operation ${operationId} using curated image`);
+          onUpdate?.({ 
+            imageUrl: curatedImages[0].download_url,
+            altText: curatedImages[0].alt || 'Garden center image'
+          });
+        }
+      } catch (curatedError) {
+        if (fetchOperationRef.current === operationId) {
+          console.error(`[ImageTextBlock] Operation ${operationId} all fetches failed:`, curatedError);
+          setIsImageLoading(false);
+        }
+      }
+    });
+  }, [onUpdate, getCuratedCollectionImages]);
+
+  // Auto-fetch image for blocks that don't have an image (debounced to prevent race conditions)
   useEffect(() => {
     if (!block.imageUrl && onUpdate) {
-      setIsImageLoading(true);
-      setImageError(false);
-      setHasImageLoaded(false);
+      // Clear any existing debounce timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
       
       const contentForImage = (() => {
         if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
@@ -56,71 +114,56 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       })();
 
       if (contentForImage) {
-        console.log('[ImageTextBlock] Auto-fetching image for content:', contentForImage);
-        
-        // Use smart content summary for better image selection
-        const smartSummary = extractImageSummaryWithContext(contentForImage, true);
-        console.log('[ImageTextBlock] Using smart summary:', smartSummary);
-        
-        // Try media selector first with smart summary
-        mediaSelector({ 
-          prompt: smartSummary,
-          fallback: '/images/newsletter-fallback.jpg' 
-        }).then((result) => {
-          console.log('[ImageTextBlock] Auto-fetched image:', result.url);
-          onUpdate({ 
-            imageUrl: result.url,
-            altText: result.alt || 'Auto-selected image'
-          });
-        }).catch(async (error) => {
-          console.error('[ImageTextBlock] Media selector failed, trying curated collection:', error);
-          
-          // Fallback to curated collection
-          try {
-            const curatedImages = await getCuratedCollectionImages(1);
-            if (curatedImages.length > 0) {
-              console.log('[ImageTextBlock] Using curated collection image');
-              onUpdate({ 
-                imageUrl: curatedImages[0].download_url,
-                altText: curatedImages[0].alt || 'Garden center image'
-              });
-            }
-          } catch (curatedError) {
-            console.error('[ImageTextBlock] Curated collection also failed:', curatedError);
-            setIsImageLoading(false);
-          }
-        });
-      } else {
-        setIsImageLoading(false);
+        // Debounce the image fetch to prevent rapid successive calls
+        debounceTimerRef.current = setTimeout(() => {
+          const operationId = ++fetchOperationRef.current;
+          debouncedImageFetch(contentForImage, operationId);
+        }, 300); // 300ms debounce
       }
     }
-  }, [block.imageUrl, block.headline, block.title, block.content, onUpdate, getCuratedCollectionImages]);
+    
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [block.imageUrl, block.headline, block.title, block.content, onUpdate, debouncedImageFetch]);
 
-  // Handle image loading states when imageUrl changes
+  // Handle image URL changes and preloading
   useEffect(() => {
-    if (block.imageUrl) {
+    if (block.imageUrl && block.imageUrl !== currentImageUrl) {
       setIsImageLoading(true);
       setImageError(false);
-      setHasImageLoaded(false);
       
       const img = new Image();
+      const currentUrl = block.imageUrl;
+      
       img.onload = () => {
-        setIsImageLoading(false);
-        setHasImageLoaded(true);
-        setImageError(false);
+        // Only update if this is still the current image
+        if (block.imageUrl === currentUrl) {
+          setCurrentImageUrl(currentUrl);
+          setIsImageLoading(false);
+          setHasImageLoaded(true);
+          setImageError(false);
+        }
       };
+      
       img.onerror = () => {
-        setIsImageLoading(false);
-        setHasImageLoaded(false);
-        setImageError(true);
+        if (block.imageUrl === currentUrl) {
+          setIsImageLoading(false);
+          setHasImageLoaded(false);
+          setImageError(true);
+        }
       };
-      img.src = block.imageUrl;
-    } else {
+      
+      img.src = currentUrl;
+    } else if (!block.imageUrl) {
+      setCurrentImageUrl('');
       setIsImageLoading(false);
       setHasImageLoaded(false);
       setImageError(false);
     }
-  }, [block.imageUrl]);
+  }, [block.imageUrl, currentImageUrl]);
 
   const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left';
   const isImageRight = block.layout === 'image-right' || block.layout === 'two-column-right';
@@ -268,41 +311,55 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               )}
               
               {(() => {
-                // Derive image source from multiple possible locations
-                const imageSrc = block.imageUrl || 
-                               (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) || 
-                               '';
+                // Show current image (keep previous visible during loading)
+                const displayImageUrl = currentImageUrl || block.imageUrl;
                 
-                return imageSrc ? (
+                return displayImageUrl ? (
                   <div className="relative">
-                    {/* Show skeleton while loading */}
-                    {isImageLoading && (
-                      <ImageSkeleton className="absolute inset-0 z-10" />
+                    {/* Show skeleton overlay only when loading and no current image */}
+                    {isImageLoading && !currentImageUrl && (
+                      <div className="absolute inset-0 z-10">
+                        <ImageSkeleton className="w-full h-full" />
+                      </div>
                     )}
                     
-                    {/* Main image with fade-in effect */}
+                    {/* Main image - keep previous visible during transitions */}
                     <img 
-                      src={imageSrc}
+                      src={displayImageUrl}
                       alt={block.altText || 'Content image'}
                       className={cn(
                         "w-full h-auto rounded-lg cursor-pointer transition-opacity duration-300",
-                        isImageLoading || !hasImageLoaded ? "opacity-0" : "opacity-100"
+                        isImageLoading && currentImageUrl ? "opacity-70" : "opacity-100"
                       )}
                       onLoad={() => {
-                        setIsImageLoading(false);
-                        setHasImageLoaded(true);
-                        setImageError(false);
+                        if (displayImageUrl === block.imageUrl) {
+                          setCurrentImageUrl(block.imageUrl);
+                          setIsImageLoading(false);
+                          setHasImageLoaded(true);
+                          setImageError(false);
+                        }
                       }}
                       onError={() => {
-                        console.error('[ImageTextBlock] Image failed to load:', imageSrc);
-                        setIsImageLoading(false);
-                        setHasImageLoaded(false);
-                        setImageError(true);
+                        if (displayImageUrl === block.imageUrl) {
+                          console.error('[ImageTextBlock] Image failed to load:', displayImageUrl);
+                          setIsImageLoading(false);
+                          setHasImageLoaded(false);
+                          setImageError(true);
+                        }
                       }}
                     />
                     
+                    {/* Loading indicator for when updating existing image */}
+                    {isImageLoading && currentImageUrl && (
+                      <div className="absolute top-2 right-2 z-10">
+                        <div className="bg-background/80 backdrop-blur-sm rounded-full p-2">
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent animate-spin rounded-full"></div>
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Error fallback */}
-                    {imageError && !isImageLoading && (
+                    {imageError && !isImageLoading && !currentImageUrl && (
                       <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center">
                         <div className="text-center text-muted-foreground">
                           <ImageIcon className="w-8 h-8 mx-auto mb-2" />
