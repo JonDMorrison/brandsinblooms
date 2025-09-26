@@ -7,7 +7,7 @@ import { ContextualEditButton } from '../contextual/ContextualEditButton';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { BlockGeneratingOverlay } from './BlockGeneratingOverlay';
-import { mediaSelector } from '@/utils/mediaSelector';
+import { SequentialImageLoader } from '@/services/SequentialImageLoader';
 import { extractImageSummaryWithContext } from '@/utils/imageContentSummary';
 import { useUnsplash } from '@/hooks/useUnsplash';
 import { ImageSkeleton } from '@/components/ui/image-skeleton';
@@ -40,20 +40,19 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   const fetchOperationRef = useRef<number>(0);
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   
-  // Debounced auto-fetch to prevent race conditions during rapid content changes
-  const debouncedImageFetch = useCallback((contentForImage: string, operationId: number) => {
+  // Sequential image fetch to prevent race conditions and flashing
+  const sequentialImageFetch = useCallback(async (contentForImage: string, operationId: number) => {
     if (!contentForImage) return;
     
-    console.log(`[ImageTextBlock] Starting fetch operation ${operationId} for:`, contentForImage);
+    console.log(`[ImageTextBlock] Queuing image fetch operation ${operationId} for:`, contentForImage);
     setIsImageLoading(true);
     setImageError(false);
     
     const smartSummary = extractImageSummaryWithContext(contentForImage, true);
     
-    mediaSelector({ 
-      prompt: smartSummary,
-      fallback: '/images/newsletter-fallback.jpg' 
-    }).then((result) => {
+    try {
+      const result = await SequentialImageLoader.addToQueue(smartSummary, 'normal');
+      
       // Check if this operation is still current
       if (fetchOperationRef.current !== operationId) {
         console.log(`[ImageTextBlock] Operation ${operationId} cancelled, current is ${fetchOperationRef.current}`);
@@ -65,14 +64,14 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
         imageUrl: result.url,
         altText: result.alt || 'Auto-selected image'
       });
-    }).catch(async (error) => {
+    } catch (error) {
       // Check if this operation is still current
       if (fetchOperationRef.current !== operationId) {
         console.log(`[ImageTextBlock] Operation ${operationId} cancelled during fallback`);
         return;
       }
       
-      console.error(`[ImageTextBlock] Operation ${operationId} media selector failed:`, error);
+      console.error(`[ImageTextBlock] Operation ${operationId} sequential fetch failed:`, error);
       
       try {
         const curatedImages = await getCuratedCollectionImages(1);
@@ -89,7 +88,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
           setIsImageLoading(false);
         }
       }
-    });
+    }
   }, [onUpdate, getCuratedCollectionImages]);
 
   // Auto-fetch image for blocks that don't have an image (debounced to prevent race conditions)
@@ -117,8 +116,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
         // Debounce the image fetch to prevent rapid successive calls
         debounceTimerRef.current = setTimeout(() => {
           const operationId = ++fetchOperationRef.current;
-          debouncedImageFetch(contentForImage, operationId);
-        }, 300); // 300ms debounce
+          sequentialImageFetch(contentForImage, operationId);
+        }, 500); // 500ms debounce for better stability
       }
     }
     
@@ -127,7 +126,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [block.imageUrl, block.headline, block.title, block.content, onUpdate, debouncedImageFetch]);
+  }, [block.imageUrl, block.headline, block.title, block.content, onUpdate, sequentialImageFetch]);
 
   // Handle image URL changes and preloading
   useEffect(() => {

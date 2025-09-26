@@ -85,20 +85,35 @@ const createGardenFallbackResult = (prompt: string): MediaSelectorResult => {
   };
 };
 
-// Batch image fetching for multiple prompts
+// Sequential batch image fetching for multiple prompts
 export const batchMediaSelector = async (prompts: string[], fallback?: string): Promise<MediaSelectorResult[]> => {
-  console.log(`[MEDIA SELECTOR] Batch fetching ${prompts.length} images`);
+  console.log(`[MEDIA SELECTOR] Sequential batch fetching ${prompts.length} images`);
   
-  const promises = prompts.map(prompt => 
-    mediaSelector({ prompt })
-  );
+  const results: MediaSelectorResult[] = [];
   
   try {
-    const results = await Promise.all(promises);
-    console.log(`[MEDIA SELECTOR] Batch fetch completed: ${results.length} images`);
+    // Process images one by one to prevent flashing
+    for (let i = 0; i < prompts.length; i++) {
+      console.log(`[MEDIA SELECTOR] Processing image ${i + 1}/${prompts.length}: ${prompts[i]}`);
+      
+      try {
+        const result = await mediaSelector({ prompt: prompts[i] });
+        results.push(result);
+        
+        // Small delay between images to prevent overwhelming the UI
+        if (i < prompts.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      } catch (error) {
+        console.error(`[MEDIA SELECTOR] Failed to fetch image for "${prompts[i]}":`, error);
+        results.push(createGardenFallbackResult(prompts[i]));
+      }
+    }
+    
+    console.log(`[MEDIA SELECTOR] Sequential batch completed: ${results.length} images`);
     return results;
   } catch (error) {
-    console.error('[MEDIA SELECTOR] Batch fetch error:', error);
+    console.error('[MEDIA SELECTOR] Sequential batch error:', error);
     // Return garden fallback results for all prompts
     return prompts.map(prompt => createGardenFallbackResult(prompt));
   }
