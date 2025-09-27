@@ -35,10 +35,8 @@ export const MagazineContentDisplay = ({
   
   // State for format toggle
   const [format, setFormat] = useState<'magazine' | 'plain'>('magazine');
-  // State for editable content - initialize with HTML for blogs
-  const [editableContent, setEditableContent] = useState(
-    postType === 'blog' ? convertMarkdownToHtml(content) : content
-  );
+  // State for editable content - blogs now come as HTML directly
+  const [editableContent, setEditableContent] = useState(content);
   
   console.log('🔍 [MagazineContentDisplay] Input:', {
     contentLength: content?.length || 0,
@@ -168,8 +166,8 @@ export const MagazineContentDisplay = ({
       console.log('🎬 Processing video content for display');
       processedContent = cleanVideoContent(content);
     } else if (postType === 'blog') {
-      console.log('📝 Converting blog markdown to HTML');
-      processedContent = convertMarkdownToHtml(content);
+      console.log('📝 Blog content is already HTML');
+      processedContent = content; // Blog content is now HTML directly
     } else {
       // For other content types, use minimal processing to preserve content
       console.log('📝 Preserving content with minimal processing:', {

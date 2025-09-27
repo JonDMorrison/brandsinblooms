@@ -236,15 +236,15 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                             onChange={(e) => editItem(idx, { script: e.target.value })}
                             placeholder="Write your video script..."
                           />
-                         ) : item.channel === 'blog' ? (
-                           <div className="w-full">
-                             <RichTextEditor
-                               content={convertMarkdownToHtml(sanitizeWeekNumbers(item.markdown || item.body || ''))}
-                               onChange={(html) => editItem(idx, { markdown: html })}
-                               placeholder="Write and format your blog content..."
-                               className="w-full min-h-[200px]"
-                             />
-                           </div>
+                          ) : item.channel === 'blog' ? (
+                            <div className="w-full">
+                              <RichTextEditor
+                                content={sanitizeWeekNumbers(item.markdown || item.body || '')}
+                                onChange={(html) => editItem(idx, { markdown: html })}
+                                placeholder="Write and format your blog content..."
+                                className="w-full min-h-[200px]"
+                              />
+                            </div>
                           ) : item.channel === 'newsletter' ? (
                              <div className="space-y-2">
                                <p className="text-xs text-gray-500">Newsletter will use CRM block templates when approved</p>

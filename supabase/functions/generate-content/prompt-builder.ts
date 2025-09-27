@@ -166,26 +166,30 @@ EXCELLENCE MARKERS:
 
     case 'blog':
       return `
-Blog Excellence → 400-600 words, structured markdown format
+Blog Excellence → 400-600 words, structured HTML format
 
-MANDATORY STRUCTURE - Use exact markdown format:
-• Main headline with ## (H2) for the primary title
-• 3-4 clear sections each with ## (H2) subheadings
+MANDATORY STRUCTURE - Use proper semantic HTML:
+• Main headline with <h2> for the primary title
+• 3-4 clear sections each with <h2> subheadings
 • Each section 80-150 words focusing on specific actionable advice
-• NO H1 headers (#) - start with H2 (##) for main sections
+• Use <p> tags for paragraphs, <ul>/<li> for lists, <strong> for emphasis
 
-REQUIRED MARKDOWN FORMAT:
-## [Compelling Problem-Focused Section Title]
-[80-150 words of specific gardening advice with plant names and timing]
+REQUIRED HTML FORMAT:
+<h2>[Compelling Problem-Focused Section Title]</h2>
+<p>[80-150 words of specific gardening advice with plant names and timing]</p>
 
-## [Solution-Focused Section Title] 
-[80-150 words of actionable steps and techniques]
+<h2>[Solution-Focused Section Title]</h2>
+<p>[80-150 words of actionable steps and techniques]</p>
+<ul>
+  <li>Step 1 with specific details</li>
+  <li>Step 2 with timing information</li>
+</ul>
 
-## [Results/Benefits Section Title]
-[80-150 words of outcomes and success tips]
+<h2>[Results/Benefits Section Title]</h2>
+<p>[80-150 words of outcomes and success tips]</p>
 
-## [Call-to-Action Section Title]
-[Final section with encouragement to visit ${companyName}]
+<h2>[Call-to-Action Section Title]</h2>
+<p>[Final section with encouragement to visit ${companyName}]</p>
 
 QUALITY STRUCTURE:
 • Character: Target gardener's seasonal goals and plant ambitions
@@ -196,12 +200,12 @@ QUALITY STRUCTURE:
 • CTA: Natural next step for local gardening support
 
 EXCELLENCE MARKERS:
-- MUST use ## markdown headers for each main section
+- MUST use proper HTML semantic tags (<h2>, <p>, <ul>, <li>, <strong>)
 - Each section addresses specific regional gardening challenges
 - Includes 2-3 plant varieties perfect for local conditions
 - Provides seasonal timing specific to regional climate
 - Sounds like comprehensive advice from local horticultural expert
-- Content is scannable with clear section breaks
+- Content is well-structured with clear HTML sections
 - Offers immediately actionable guidance for this season`;
 
     case 'newsletter':

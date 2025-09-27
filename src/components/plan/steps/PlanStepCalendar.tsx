@@ -600,9 +600,9 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                           editorClassName="min-h-[120px]"
                                         />
                                        ) : item.type === 'blog' ? (
-                                         <RichTextEditor
-                                           content={convertMarkdownToHtml(item.enhancedContent?.fullContent || item.caption)}
-                                          onChange={(html) => {
+                                          <RichTextEditor
+                                            content={item.enhancedContent?.fullContent || item.caption}
+                                           onChange={(html) => {
                                             const updatedEnhancedContent = {
                                               ...item.enhancedContent,
                                               fullContent: html,
