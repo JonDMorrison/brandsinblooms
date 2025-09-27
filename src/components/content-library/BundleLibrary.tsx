@@ -289,7 +289,7 @@ export const BundleLibrary = () => {
         ) : items.length === 0 && bundleJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 border border-dashed rounded-2xl">
             <p className="text-sm text-muted-foreground mb-3">No content yet</p>
-            <Button onClick={() => navigate('/')}>Create Any Content</Button>
+            <Button onClick={() => navigate('/')}>Create Content</Button>
           </div>
         ) : (
           <div className="space-y-6">
