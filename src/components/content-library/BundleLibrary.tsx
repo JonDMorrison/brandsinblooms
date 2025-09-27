@@ -76,6 +76,13 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
           className="w-full aspect-video object-cover rounded-lg mb-3" 
           loading="lazy" 
         />
+      ) : it.items?.find((item: any) => item.media?.url) ? (
+        <img 
+          src={it.items.find((item: any) => item.media?.url).media.url} 
+          alt={`${displayTitle} content image`} 
+          className="w-full aspect-video object-cover rounded-lg mb-3" 
+          loading="lazy" 
+        />
       ) : (
         <div className="w-full aspect-video rounded-lg mb-3 bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center border border-border/50">
           <div className="text-center p-4">
