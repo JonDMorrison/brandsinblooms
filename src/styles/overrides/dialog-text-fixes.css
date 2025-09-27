@@ -1,0 +1,66 @@
+/* Dialog text color fixes - ensures all dialog content has proper text color */
+
+/* Force proper text colors in all dialogs */
+[data-radix-dialog-content] *,
+[role="dialog"] *,
+.dialog-content * {
+  color: #111827 !important; /* text-gray-900 */
+}
+
+/* Specific dialog element overrides */
+[data-radix-dialog-content] .text-muted-foreground,
+[role="dialog"] .text-muted-foreground {
+  color: #6b7280 !important; /* text-gray-500 */
+}
+
+/* Dialog headers, titles, descriptions */
+[data-radix-dialog-content] h1,
+[data-radix-dialog-content] h2,
+[data-radix-dialog-content] h3,
+[data-radix-dialog-content] h4,
+[data-radix-dialog-content] h5,
+[data-radix-dialog-content] h6,
+[role="dialog"] h1,
+[role="dialog"] h2,
+[role="dialog"] h3,
+[role="dialog"] h4,
+[role="dialog"] h5,
+[role="dialog"] h6 {
+  color: #111827 !important; /* text-gray-900 */
+}
+
+/* Labels and form elements */
+[data-radix-dialog-content] label,
+[data-radix-dialog-content] .font-medium,
+[data-radix-dialog-content] .font-semibold,
+[role="dialog"] label,
+[role="dialog"] .font-medium,
+[role="dialog"] .font-semibold {
+  color: #111827 !important; /* text-gray-900 */
+}
+
+/* Input and textarea elements */
+[data-radix-dialog-content] input,
+[data-radix-dialog-content] textarea,
+[role="dialog"] input,
+[role="dialog"] textarea {
+  color: #111827 !important; /* text-gray-900 */
+}
+
+/* Specific overrides for common dialog classes */
+.dialog-header *,
+.dialog-title,
+.dialog-description,
+.card * {
+  color: #111827 !important; /* text-gray-900 */
+}
+
+/* Override any aggressive white color rules */
+[data-radix-dialog-content] [style*="color: white"],
+[data-radix-dialog-content] [style*="color: #fff"],
+[data-radix-dialog-content] [style*="color: #ffffff"],
+[role="dialog"] [style*="color: white"],
+[role="dialog"] [style*="color: #fff"],
+[role="dialog"] [style*="color: #ffffff"] {
+  color: #111827 !important; /* text-gray-900 */
+}

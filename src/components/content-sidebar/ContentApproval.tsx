@@ -64,8 +64,8 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   // Show approval button for content that's ready for review
   if (task?.status === 'review' && task?.ai_output) {
     return (
-      <Card className="border-blue-200 bg-blue-50">
-        <CardContent className="p-4">
+      <Card className="border-blue-200 bg-blue-50 text-gray-900">
+        <CardContent className="p-4 text-gray-900">
           <div className="text-center">
             <h3 className="font-semibold text-blue-800 mb-2">Ready for Approval</h3>
             <p className="text-sm text-blue-700 mb-4">
@@ -93,8 +93,8 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   // Show status for already approved content
   if (task?.status === 'approved') {
     return (
-      <Card className="border-green-200 bg-green-50">
-        <CardContent className="p-4">
+      <Card className="border-green-200 bg-green-50 text-gray-900">
+        <CardContent className="p-4 text-gray-900">
           <div className="text-center">
             <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-600" />
             <h3 className="font-semibold text-green-800 mb-1">Content Approved</h3>
@@ -117,8 +117,8 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   // Show status for scheduled content
   if (task?.status === 'scheduled') {
     return (
-      <Card className="border-blue-200 bg-blue-50">
-        <CardContent className="p-4">
+      <Card className="border-blue-200 bg-blue-50 text-gray-900">
+        <CardContent className="p-4 text-gray-900">
           <div className="text-center">
             <CheckCircle className="w-8 h-8 mx-auto mb-2 text-blue-600" />
             <h3 className="font-semibold text-blue-800 mb-1">Scheduled for Publishing</h3>
@@ -134,8 +134,8 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   // Show status for published content
   if (task?.status === 'published') {
     return (
-      <Card className="border-purple-200 bg-purple-50">
-        <CardContent className="p-4">
+      <Card className="border-purple-200 bg-purple-50 text-gray-900">
+        <CardContent className="p-4 text-gray-900">
           <div className="text-center">
             <CheckCircle className="w-8 h-8 mx-auto mb-2 text-purple-600" />
             <h3 className="font-semibold text-purple-800 mb-1">Published</h3>

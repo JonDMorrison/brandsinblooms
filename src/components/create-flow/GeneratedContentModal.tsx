@@ -149,24 +149,24 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col text-gray-900">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Review & Approve Content</DialogTitle>
-          <DialogDescription>Edit copy, choose images with MediaSelector, then approve for publishing.</DialogDescription>
+          <DialogTitle className="text-gray-900">Review & Approve Content</DialogTitle>
+          <DialogDescription className="text-gray-900">Edit copy, choose images with MediaSelector, then approve for publishing.</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pr-2">
           {query.isLoading ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">Loading generated content…</div>
+            <div className="py-12 text-center text-sm text-gray-500">Loading generated content…</div>
           ) : (draftItems?.length || 0) === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">No generated items yet.</div>
+            <div className="py-12 text-center text-sm text-gray-500">No generated items yet.</div>
           ) : (
             <div className="space-y-6">
               {draftItems.map((item: any, idx: number) => (
-                <div key={idx} className="rounded-lg border p-6 bg-card">
+                <div key={idx} className="rounded-lg border p-6 bg-card text-gray-900">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="font-semibold capitalize text-lg">{item.channel}</div>
+                      <div className="font-semibold capitalize text-lg text-gray-900">{item.channel}</div>
                       <span className={`text-xs px-2 py-1 rounded-full ${item._approved ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                         {item._approved ? 'Approved' : 'Draft'}
                       </span>
@@ -211,27 +211,27 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-4">
                       <div>
-                        <Label className="text-sm font-medium mb-2 block">Title</Label>
+                        <Label className="text-sm font-medium mb-2 block text-gray-900">Title</Label>
                         <Input
                           value={sanitizeWeekNumbers(item.title || '')}
                           onChange={(e) => editItem(idx, { title: e.target.value })}
                           placeholder="Enter title (optional)"
-                          className="w-full"
+                          className="w-full text-gray-900"
                         />
                       </div>
                       
                       <div>
-                        <Label className="text-sm font-medium mb-2 block">Content</Label>
+                        <Label className="text-sm font-medium mb-2 block text-gray-900">Content</Label>
                         {item.channel === 'instagram' || item.channel === 'facebook' ? (
                           <textarea
-                            className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y"
+                            className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y text-gray-900"
                             value={sanitizeWeekNumbers(item.caption || '')}
                             onChange={(e) => editItem(idx, { caption: e.target.value })}
                             placeholder="Write your social media caption..."
                           />
                         ) : item.channel === 'video' ? (
                           <textarea
-                            className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y"
+                            className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y text-gray-900"
                             value={sanitizeWeekNumbers(item.script || '')}
                             onChange={(e) => editItem(idx, { script: e.target.value })}
                             placeholder="Write your video script..."
@@ -246,8 +246,8 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                              />
                            </div>
                           ) : item.channel === 'newsletter' ? (
-                            <div className="space-y-2">
-                              <p className="text-xs text-muted-foreground">Newsletter will use CRM block templates when approved</p>
+                             <div className="space-y-2">
+                               <p className="text-xs text-gray-500">Newsletter will use CRM block templates when approved</p>
                               <EditableNewsletterPreview
                                 content={sanitizeWeekNumbers(item.body || '')}
                                 title={item.title || 'Newsletter'}
@@ -258,7 +258,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                             </div>
                          ) : (
                           <textarea
-                            className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y"
+                            className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y text-gray-900"
                             value={sanitizeWeekNumbers(item.body || '')}
                             onChange={(e) => editItem(idx, { body: e.target.value })}
                             placeholder="Write content..."
@@ -269,7 +269,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                     
                       <div className="space-y-4">
                         <div>
-                          <Label className="text-sm font-medium mb-2 block">Featured Image</Label>
+                          <Label className="text-sm font-medium mb-2 block text-gray-900">Featured Image</Label>
                           <MediaSelector
                             compact
                             selectedImageUrl={item.media?.url}
@@ -279,7 +279,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                             }
                             autoSelectFirst={item.requiresMediaSelector || item.autoSelectImage || true}
                           />
-                          <p className="text-xs text-muted-foreground mt-2">
+                          <p className="text-xs text-gray-500 mt-2">
                             MediaSelector automatically opens and finds relevant images based on your content
                           </p>
                         </div>
