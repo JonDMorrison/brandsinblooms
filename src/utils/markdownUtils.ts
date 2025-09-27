@@ -85,6 +85,10 @@ export const convertMarkdownToHtml = (markdown: string): string => {
     return html;
   }
   
+  // First, ensure headers have proper line breaks after them
+  // This fixes the case where content immediately follows a header without line breaks
+  html = html.replace(/^(#{1,3}\s+.*?)(\n)(?!\n)/gim, '$1\n\n');
+  
   // Convert headers with proper spacing
   html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>\n\n');
   html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>\n\n');
