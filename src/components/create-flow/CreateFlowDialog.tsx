@@ -382,7 +382,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
               <div className="max-h-80 overflow-y-auto space-y-2">
                 {filteredWeeklyThemes.slice(0, visibleWeeklyThemes).map((theme) => (
                   <button key={theme.id} onClick={() => setSelectedSourceId(theme.id)} className={`w-full rounded-xl border p-3 text-left ${selectedSourceId===theme.id?'ring-1':''}`}>
-                    <div className="font-medium text-gray-900">{sanitizeCampaignTitle(theme.title)}</div>
+                    <div className="font-medium text-gray-900 !text-gray-900">{sanitizeCampaignTitle(theme.title)}</div>
                     <div className="text-xs text-muted-foreground">
                       {theme.theme || 'Weekly theme'}
                     </div>
