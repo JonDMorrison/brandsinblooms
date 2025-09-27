@@ -326,7 +326,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
                   onClick={() => setSelectedPath(opt.key as Mode)}
                   className={`rounded-2xl border p-4 text-left transition ${selectedPath === opt.key ? 'ring-2 ring-offset-2' : ''}`}
                 >
-                  <div className="font-medium">{opt.title}</div>
+                  <div className="font-medium text-gray-900">{opt.title}</div>
                   <div className="text-sm text-muted-foreground mt-1">{opt.desc}</div>
                 </button>
               ))}
