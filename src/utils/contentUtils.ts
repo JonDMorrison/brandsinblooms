@@ -132,19 +132,33 @@ const addMinimalBlogStructure = (text: string): string => {
   return restoreMarkdownFormatting(structured);
 };
 
-// ENHANCED blog content formatting with much more conservative approach
+// ENHANCED blog content formatting - now handles HTML content properly
 export const formatBlogContent = (text: string): string => {
   if (!text) return '';
   
   console.log('formatBlogContent input:', text.substring(0, 200) + '...');
   
-  // Protect markdown formatting first
-  let formatted = preserveMarkdownFormatting(text);
+  // Check if content is already HTML (contains HTML tags)
+  const isHtml = /<[^>]+>/.test(text);
   
-  // Remove any existing H1 tags since the title will be displayed in the header
+  if (isHtml) {
+    console.log('📝 Content is already HTML, preserving structure');
+    // Content is already HTML from edge function, just clean up
+    let formatted = text
+      // Remove any H1 tags since title is displayed separately
+      .replace(/<h1[^>]*>.*?<\/h1>/gi, '')
+      // Clean up empty paragraphs
+      .replace(/<p[^>]*><\/p>/g, '')
+      .trim();
+    
+    console.log('formatBlogContent HTML output:', formatted.substring(0, 200) + '...');
+    return formatted;
+  }
+  
+  // Legacy markdown handling (fallback for old content)
+  let formatted = preserveMarkdownFormatting(text);
   formatted = formatted.replace(/^#{1}\s+.*$/gm, '');
   
-  // Only add structure if content really needs it and meets strict criteria
   if (shouldAddBlogStructure(formatted)) {
     console.log('Adding minimal blog structure for long content');
     formatted = addMinimalBlogStructure(formatted);
