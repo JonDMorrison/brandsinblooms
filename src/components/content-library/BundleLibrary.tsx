@@ -71,38 +71,15 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
         openBundle(it.bundleId, it.snapshotId);
       }}
     >
-      {it.thumbnail || it.featuredImage ? (
+      {it.thumbnail ? (
         <img 
-          src={it.thumbnail || it.featuredImage} 
+          src={it.thumbnail} 
           alt={`${displayTitle} featured image`} 
           className="w-full aspect-video object-cover rounded-lg mb-3" 
           loading="lazy"
-          onLoad={() => console.log('✅ Thumbnail loaded successfully:', it.thumbnail || it.featuredImage)}
+          onLoad={() => console.log('✅ Thumbnail loaded successfully:', it.thumbnail)}
           onError={(e) => {
-            console.error('❌ Thumbnail failed to load:', it.thumbnail || it.featuredImage, e);
-          }}
-        />
-      ) : it.recommendedImages?.length > 0 ? (
-        <img 
-          src={it.recommendedImages[0].url || it.recommendedImages[0].thumb_url || it.recommendedImages[0].download_url || it.recommendedImages[0].image_url} 
-          alt={`${displayTitle} featured image`} 
-          className="w-full aspect-video object-cover rounded-lg mb-3" 
-          loading="lazy" 
-        />
-      ) : it.items?.find((item: any) => item.media?.url || item.image?.url || item.image?.thumb) ? (
-        <img 
-          src={
-            it.items.find((item: any) => item.media?.url)?.media?.url ||
-            it.items.find((item: any) => item.image?.url)?.image?.url ||
-            it.items.find((item: any) => item.image?.thumb)?.image?.thumb ||
-            it.items.find((item: any) => item.media?.url || item.image?.url || item.image?.thumb)?.media?.url
-          }
-          alt={`${displayTitle} content image`} 
-          className="w-full aspect-video object-cover rounded-lg mb-3" 
-          loading="lazy" 
-          onError={(e) => {
-            console.log('Image failed to load:', e.currentTarget.src);
-            e.currentTarget.style.display = 'none';
+            console.error('❌ Thumbnail failed to load:', it.thumbnail, e);
           }}
         />
       ) : (
