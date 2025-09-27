@@ -76,7 +76,11 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
           src={it.thumbnail || it.featuredImage} 
           alt={`${displayTitle} featured image`} 
           className="w-full aspect-video object-cover rounded-lg mb-3" 
-          loading="lazy" 
+          loading="lazy"
+          onLoad={() => console.log('✅ Thumbnail loaded successfully:', it.thumbnail || it.featuredImage)}
+          onError={(e) => {
+            console.error('❌ Thumbnail failed to load:', it.thumbnail || it.featuredImage, e);
+          }}
         />
       ) : it.recommendedImages?.length > 0 ? (
         <img 
