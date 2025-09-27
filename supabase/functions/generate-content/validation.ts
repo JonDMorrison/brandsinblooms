@@ -265,7 +265,7 @@ function validateBlogHtmlFormat(content: string): {
   }
   
   // Check for markdown emphasis
-  if (content.match(/\*\*.*?\*\*/) || content.match(/(?<!\*)\*(?!\*).*?\*(?!\*)/)) {
+  if (content.match(/\*\*.*?\*\*/) || content.match(/\*[^*]+\*/)) {
     issues.push('Blog content contains markdown emphasis - must use <strong> HTML tags instead');
   }
   
