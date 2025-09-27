@@ -420,6 +420,7 @@ export type Database = {
           created_at: string
           cta_text: string | null
           cta_url: string | null
+          headline: string | null
           id: string
           image_url: string | null
           order_index: number
@@ -434,6 +435,7 @@ export type Database = {
           created_at?: string
           cta_text?: string | null
           cta_url?: string | null
+          headline?: string | null
           id?: string
           image_url?: string | null
           order_index?: number
@@ -448,6 +450,7 @@ export type Database = {
           created_at?: string
           cta_text?: string | null
           cta_url?: string | null
+          headline?: string | null
           id?: string
           image_url?: string | null
           order_index?: number
