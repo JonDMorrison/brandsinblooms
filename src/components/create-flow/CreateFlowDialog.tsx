@@ -293,7 +293,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   const ChannelCheckbox = ({ name, label }: { name: keyof typeof channels; label: string }) => (
     <label className="flex items-center gap-2">
       <Checkbox checked={channels[name]} onCheckedChange={(v) => setChannels((c) => ({ ...c, [name]: !!v }))} />
-      <span>{label}</span>
+      <span className="text-gray-900">{label}</span>
     </label>
   );
 
