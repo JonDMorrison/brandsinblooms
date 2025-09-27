@@ -300,7 +300,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto bg-white">
           <DialogHeader>
             <DialogTitle>
               {step === 1 && "What do you want to post about?"}
