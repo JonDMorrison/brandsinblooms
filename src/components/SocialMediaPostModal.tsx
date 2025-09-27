@@ -53,7 +53,7 @@ export const SocialMediaPostModal = ({ isOpen, onClose, platform, content }: Soc
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl bg-white">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <div className={`p-2 rounded-lg text-white ${config.color}`}>

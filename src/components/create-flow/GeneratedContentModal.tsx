@@ -149,7 +149,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col text-gray-900">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col text-gray-900 bg-white">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-gray-900">Review & Approve Content</DialogTitle>
           <DialogDescription className="text-gray-900">Edit copy, choose images with MediaSelector, then approve for publishing.</DialogDescription>

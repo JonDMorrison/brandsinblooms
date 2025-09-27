@@ -50,7 +50,7 @@ export const ContentViewerDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-2xl font-bold">
             Content for "{campaignTitle}"

@@ -100,7 +100,7 @@ export default {
 					900: '#78271C',
 				},
 				'brand-green': {
-					DEFAULT: 'hsl(var(--brand-green))',
+					DEFAULT: 'hsl(var(--primary))', // Use primary which is properly defined
 					50: '#E8F5E8',
 					100: '#C8E6C9',
 					200: '#A5D6A7',
@@ -113,7 +113,7 @@ export default {
 					900: '#14532D',
 				},
 				'brand-blue': {
-					DEFAULT: 'hsl(var(--brand-blue))',
+					DEFAULT: 'hsl(var(--brand-blue))', // Keep this as is since --brand-blue exists
 					50: '#EFF6FF',
 					100: '#DBEAFE',
 					200: '#BFDBFE',

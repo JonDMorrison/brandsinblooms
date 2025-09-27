@@ -77,7 +77,7 @@ export const TeamInviteDialog = ({ team, teamMembers, onInviteSuccess }: TeamInv
           Invite Member
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="bg-white">
         <DialogHeader>
           <DialogTitle>Invite Team Member</DialogTitle>
         </DialogHeader>

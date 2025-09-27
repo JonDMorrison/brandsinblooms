@@ -123,7 +123,7 @@ export const AIAutomationDesigner: React.FC<AIAutomationDesignerProps> = ({
           Design with AI
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl bg-white">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
