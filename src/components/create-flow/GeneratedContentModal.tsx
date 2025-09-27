@@ -15,7 +15,7 @@ import { EditableNewsletterPreview } from "./EditableNewsletterPreview";
 import { convertNewsletterToCRM_Direct } from "@/utils/newsletterToCrmSync";
 import { buildEmailHtmlFromNewsletter } from "@/utils/newsletterToCrmConverter";
 import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
-import { convertMarkdownToHtml } from "@/utils/markdownUtils";
+// Removed markdown import - blog content now generated as HTML
 
 interface GeneratedContentModalProps {
   open: boolean;
@@ -239,8 +239,8 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                           ) : item.channel === 'blog' ? (
                             <div className="w-full">
                               <RichTextEditor
-                                content={sanitizeWeekNumbers(item.markdown || item.body || '')}
-                                onChange={(html) => editItem(idx, { markdown: html })}
+                                content={sanitizeWeekNumbers(item.body || item.markdown || '')}
+                                onChange={(html) => editItem(idx, { body: html })}
                                 placeholder="Write and format your blog content..."
                                 className="w-full min-h-[200px]"
                               />
@@ -273,7 +273,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                           <MediaSelector
                             compact
                             selectedImageUrl={item.media?.url}
-                            contentContext={item.title || item.caption || item.script || item.markdown || item.body}
+                            contentContext={item.title || item.caption || item.script || item.body}
                             onImageSelect={(url: string, metadata?: any) =>
                               editItem(idx, { media: { url, alt: metadata?.alt_text || item.media?.alt } })
                             }

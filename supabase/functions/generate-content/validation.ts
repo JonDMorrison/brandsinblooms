@@ -102,6 +102,12 @@ export function validateContent(content: string, contentType?: string): {
   if (contentType) {
     const typeValidation = validateContentType(content, contentType);
     issues.push(...typeValidation.issues);
+    
+    // Blog-specific HTML validation
+    if (contentType.toLowerCase() === 'blog') {
+      const htmlValidation = validateBlogHtmlFormat(content);
+      issues.push(...htmlValidation.issues);
+    }
   }
   
   return {
@@ -241,4 +247,70 @@ function validateSentenceSpacing(content: string): string[] {
   }
   
   return issues;
+}
+
+function validateBlogHtmlFormat(content: string): {
+  issues: string[];
+} {
+  const issues: string[] = [];
+  
+  // Check for markdown syntax (headers)
+  if (content.match(/^#+\s/m) || content.includes('##') || content.includes('###')) {
+    issues.push('Blog content contains markdown headers - must use <h2> HTML tags instead');
+  }
+  
+  // Check for markdown lists
+  if (content.match(/^\s*[-*+]\s/m)) {
+    issues.push('Blog content contains markdown lists - must use <ul><li> HTML tags instead');
+  }
+  
+  // Check for markdown emphasis
+  if (content.match(/\*\*.*?\*\*/) || content.match(/(?<!\*)\*(?!\*).*?\*(?!\*)/)) {
+    issues.push('Blog content contains markdown emphasis - must use <strong> HTML tags instead');
+  }
+  
+  // Check for required HTML structure
+  if (!content.includes('<h2>')) {
+    issues.push('Blog content missing required <h2> HTML headers');
+  }
+  
+  if (!content.includes('<p>')) {
+    issues.push('Blog content missing required <p> HTML paragraphs');
+  }
+  
+  // Check for proper HTML closing tags
+  const h2Count = (content.match(/<h2>/g) || []).length;
+  const h2CloseCount = (content.match(/<\/h2>/g) || []).length;
+  if (h2Count !== h2CloseCount) {
+    issues.push('Blog content has mismatched <h2> tags');
+  }
+  
+  const pCount = (content.match(/<p>/g) || []).length;
+  const pCloseCount = (content.match(/<\/p>/g) || []).length;
+  if (pCount !== pCloseCount) {
+    issues.push('Blog content has mismatched <p> tags');
+  }
+  
+  // Check that content is primarily HTML formatted
+  const hasHTML = content.includes('<h2>') || content.includes('<p>') || content.includes('<ul>');
+  if (!hasHTML) {
+    issues.push('Blog content must be formatted as HTML with proper semantic tags');
+  }
+  
+  // Check for plain text paragraphs without HTML tags
+  const lines = content.split('\n').filter(line => line.trim());
+  const plainTextLines = lines.filter(line => {
+    const trimmed = line.trim();
+    return trimmed.length > 20 && 
+           !trimmed.startsWith('<') && 
+           !trimmed.endsWith('>') && 
+           !trimmed.includes('<p>') &&
+           !trimmed.includes('<h2>');
+  });
+  
+  if (plainTextLines.length > 0) {
+    issues.push('Blog content contains plain text paragraphs - all content must be wrapped in HTML tags');
+  }
+  
+  return { issues };
 }

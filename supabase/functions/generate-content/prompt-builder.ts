@@ -107,6 +107,15 @@ Before returning content, ensure:
 ✓ Sounds like local expertise, not generic advice
 ✓ Professional business tone without social media fluff
 
+# BLOG HTML VALIDATION (FOR BLOG CONTENT ONLY)
+If generating blog content, MANDATORY final check:
+✓ **ALL headers use <h2></h2> tags - NO ## markdown**
+✓ **ALL paragraphs wrapped in <p></p> tags**
+✓ **ALL lists use <ul><li></li></ul> format**
+✓ **ALL emphasis uses <strong></strong> tags**
+✓ **ZERO markdown syntax anywhere in content**
+✓ **Content is pure HTML format ready for web display**
+
 # OUTPUT
 Return only the finished ${contentParams.format} content. No headings, labels, or meta-commentary.
 Content should be immediately ready for publication and sound authentically helpful.`;
@@ -166,30 +175,47 @@ EXCELLENCE MARKERS:
 
     case 'blog':
       return `
-Blog Excellence → 400-600 words, structured HTML format
+Blog Excellence → 400-600 words, MANDATORY HTML FORMAT
 
-MANDATORY STRUCTURE - Use proper semantic HTML:
-• Main headline with <h2> for the primary title
-• 3-4 clear sections each with <h2> subheadings
-• Each section 80-150 words focusing on specific actionable advice
-• Use <p> tags for paragraphs, <ul>/<li> for lists, <strong> for emphasis
+⚠️  CRITICAL: ALL BLOG CONTENT MUST BE HTML FORMAT - NO MARKDOWN ALLOWED ⚠️
 
-REQUIRED HTML FORMAT:
-<h2>[Compelling Problem-Focused Section Title]</h2>
-<p>[80-150 words of specific gardening advice with plant names and timing]</p>
+MANDATORY HTML STRUCTURE - CONTENT WILL BE REJECTED IF NOT IN HTML:
+• Start with main <h2> headline 
+• Use ONLY <h2> for section headers (never # or ##)
+• Use ONLY <p> for paragraphs (never plain text)
+• Use ONLY <ul><li> for lists (never - or *)
+• Use ONLY <strong> for emphasis (never ** or *)
 
-<h2>[Solution-Focused Section Title]</h2>
-<p>[80-150 words of actionable steps and techniques]</p>
+REQUIRED HTML FORMAT (COPY EXACTLY):
+<h2>Compelling Problem-Focused Section Title</h2>
+<p>80-150 words of specific gardening advice with plant names and timing.</p>
+
+<h2>Solution-Focused Section Title</h2>
+<p>80-150 words of actionable steps and techniques.</p>
 <ul>
   <li>Step 1 with specific details</li>
   <li>Step 2 with timing information</li>
 </ul>
 
-<h2>[Results/Benefits Section Title]</h2>
-<p>[80-150 words of outcomes and success tips]</p>
+<h2>Results/Benefits Section Title</h2>
+<p>80-150 words of outcomes and success tips.</p>
 
-<h2>[Call-to-Action Section Title]</h2>
-<p>[Final section with encouragement to visit ${companyName}]</p>
+<h2>Call-to-Action Section Title</h2>
+<p>Final section with encouragement to visit ${companyName}.</p>
+
+🚫 FORBIDDEN - CONTENT REJECTED IF FOUND:
+- NO markdown headers (## Title)
+- NO plain text without <p> tags
+- NO markdown lists (- item)
+- NO markdown emphasis (**bold**)
+- NO line breaks without proper HTML structure
+
+✅ HTML VALIDATION CHECKLIST:
+- All headers are <h2>Title</h2> format
+- All text is wrapped in <p></p> tags  
+- All lists use <ul><li></li></ul> format
+- All emphasis uses <strong></strong> tags
+- Zero markdown syntax present anywhere
 
 QUALITY STRUCTURE:
 • Character: Target gardener's seasonal goals and plant ambitions
