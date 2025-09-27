@@ -118,7 +118,16 @@ FACEBOOK SPECIFIC QUALITY RULES:
 - **CRITICAL: Maintain two-space sentence spacing throughout entire post**` : ''}
 
 QUALITY VALIDATION:
-Your content will be evaluated for natural tone, specific gardening value, engagement potential, and proper spacing.  Content that sounds robotic, uses corporate language, lacks specific gardening advice, or has incorrect sentence spacing will be rejected.`;
+Your content will be evaluated for natural tone, specific gardening value, engagement potential, and proper spacing.  Content that sounds robotic, uses corporate language, lacks specific gardening advice, or has incorrect sentence spacing will be rejected.
+
+${contentType?.toLowerCase() === 'blog' ? `
+BLOG CONTENT CRITICAL REQUIREMENTS:
+- MANDATORY: Output must be properly structured HTML using semantic tags
+- Use <h2> for section headings, <p> for paragraphs, <ul>/<li> for lists, <strong> for emphasis
+- NEVER use markdown syntax (no #, ##, *, -, etc.)
+- Each section should be wrapped in appropriate HTML tags
+- Content will be rejected if it contains any markdown formatting
+- Follow the exact HTML structure specified in the prompt guidelines` : ''}`;
 
     if (attemptNumber > 1) {
       qualityEnhancedPrompt += `\n\n⚠️ PARALLEL ATTEMPT ${attemptNumber} - Focus on high quality from start
@@ -139,7 +148,7 @@ Apply ALL quality guidelines above strictly. Focus on natural, conversational ga
         messages: [
           {
             role: 'system',
-            content: 'You are a certified StoryBrand Guide and expert garden center marketing specialist. You create engaging, high-quality content that sounds natural and provides genuine gardening value. You follow quality guidelines strictly and never use emojis or corporate buzzwords. CRITICAL: You always use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence.'
+            content: `You are a certified StoryBrand Guide and expert garden center marketing specialist. You create engaging, high-quality content that sounds natural and provides genuine gardening value. You follow quality guidelines strictly and never use emojis or corporate buzzwords. CRITICAL: You always use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence. ${contentType?.toLowerCase() === 'blog' ? 'CRITICAL FOR BLOG CONTENT: You MUST output properly structured HTML using semantic tags like <h2>, <p>, <ul>, <li>, and <strong>. NEVER use markdown syntax like # or ## or * or - for formatting. Always use HTML tags.' : ''}`
           },
           {
             role: 'user',
