@@ -1,7 +1,7 @@
 
 import * as Sentry from "https://esm.sh/@sentry/deno@8.55.0";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'npm:@supabase/supabase-js@2.38.0'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 function softFail(code: string, context: Record<string, unknown> = {}) {
   Sentry.captureMessage(`[soft-fail] ${code}`, { level: "warning", extra: context });
