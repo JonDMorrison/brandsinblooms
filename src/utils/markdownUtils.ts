@@ -85,40 +85,64 @@ export const convertMarkdownToHtml = (markdown: string): string => {
     return html;
   }
   
-  // First, ensure headers have proper line breaks after them
-  // This fixes the case where content immediately follows a header without line breaks
-  html = html.replace(/^(#{1,3}\s+.*?)(\n)(?!\n)/gim, '$1\n\n');
+  // Enhanced processing for markdown content
+  // First, normalize line breaks and ensure proper spacing
+  html = html.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   
-  // Convert headers with proper spacing
+  // Ensure headers have proper line breaks after them
+  // This fixes the case where content immediately follows a header without line breaks
+  html = html.replace(/^(#{1,6}\s+.*?)(\n)(?!\n)/gim, '$1\n\n');
+  
+  // Convert headers with proper spacing (H1-H6)
+  html = html.replace(/^###### (.*$)/gim, '<h6>$1</h6>\n\n');
+  html = html.replace(/^##### (.*$)/gim, '<h5>$1</h5>\n\n');
+  html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>\n\n');
   html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>\n\n');
   html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>\n\n');
   html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>\n\n');
   
-  // Convert bold text
+  // Convert bold text (both ** and __ variants)
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
   
-  // Convert italic text
+  // Convert italic text (both * and _ variants)
   html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  html = html.replace(/_(.*?)_/g, '<em>$1</em>');
   
-  // Convert bullet points
-  html = html.replace(/^- (.*$)/gim, '<li>$1</li>');
+  // Convert bullet points and numbered lists
+  html = html.replace(/^[-*+] (.*$)/gim, '<li>$1</li>');
+  html = html.replace(/^\d+\. (.*$)/gim, '<li>$1</li>');
   
-  // Wrap consecutive list items in ul tags
-  html = html.replace(/(<li>.*<\/li>)/gs, (match) => {
-    if (!match.includes('<ul>')) {
-      return '<ul>' + match + '</ul>';
+  // Wrap consecutive list items in ul tags for bullet points
+  html = html.replace(/(<li>.*?<\/li>(?:\n<li>.*?<\/li>)*)/gs, (match) => {
+    if (!match.includes('<ul>') && !match.includes('<ol>')) {
+      return '<ul>\n' + match + '\n</ul>\n\n';
     }
     return match;
   });
   
-  // Convert line breaks to paragraphs for markdown content
-  const paragraphs = html.split(/\n\s*\n/);
-  html = paragraphs
-    .filter(p => p.trim())
-    .map(p => {
-      const trimmed = p.trim();
+  // Convert blockquotes
+  html = html.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
+  
+  // Convert code blocks (triple backticks)
+  html = html.replace(/```[\s\S]*?```/g, (match) => {
+    const content = match.replace(/```\w*\n?/, '').replace(/```$/, '');
+    return `<pre><code>${content}</code></pre>\n\n`;
+  });
+  
+  // Convert inline code (single backticks)
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  
+  // Convert line breaks to paragraphs for remaining content
+  const sections = html.split(/\n\s*\n/);
+  html = sections
+    .filter(section => section.trim())
+    .map(section => {
+      const trimmed = section.trim();
       // Don't wrap if already contains block elements
-      if (trimmed.includes('<h') || trimmed.includes('<ul>') || trimmed.includes('<li>')) {
+      if (trimmed.includes('<h') || trimmed.includes('<ul>') || trimmed.includes('<ol>') || 
+          trimmed.includes('<li>') || trimmed.includes('<blockquote>') || 
+          trimmed.includes('<pre>') || trimmed.includes('<code>')) {
         return trimmed;
       }
       // Handle single line breaks within paragraphs
@@ -126,6 +150,9 @@ export const convertMarkdownToHtml = (markdown: string): string => {
       return `<p>${cleanText}</p>`;
     })
     .join('\n\n');
+  
+  // Clean up extra whitespace
+  html = html.replace(/\n{3,}/g, '\n\n').trim();
   
   return html;
 };

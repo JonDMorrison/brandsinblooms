@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { SafeHtml } from '@/components/ui/safe-html';
 import { renderMarkdownToMagazineHtml } from '@/utils/renderMarkdown';
+import { convertMarkdownToHtml } from '@/utils/markdownUtils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles, Replace, Plus, Clock, Tag, FileText } from 'lucide-react';
 import { format } from 'date-fns';
@@ -598,9 +599,9 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                           className="mt-1"
                                           editorClassName="min-h-[120px]"
                                         />
-                                      ) : item.type === 'blog' ? (
-                                        <RichTextEditor
-                                          content={item.enhancedContent?.fullContent || item.caption}
+                                       ) : item.type === 'blog' ? (
+                                         <RichTextEditor
+                                           content={convertMarkdownToHtml(item.enhancedContent?.fullContent || item.caption)}
                                           onChange={(html) => {
                                             const updatedEnhancedContent = {
                                               ...item.enhancedContent,
