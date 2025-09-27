@@ -253,29 +253,85 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
 
       toast({ title: 'Generating content…', description: 'This will only take a moment.' });
       
-      // Add timeout to prevent endless spinning
+      // Add timeout with graceful handling
       const timeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Generation timed out after 60 seconds')), 60000);
+        setTimeout(() => reject(new Error('Generation timed out after 120 seconds')), 120000);
       });
       
       const generation = supabase.functions.invoke('generate-multichannel-content', { body: payload });
       
-      const { data, error } = await Promise.race([generation, timeout]) as any;
-      if (error) throw error;
+      let result;
+      try {
+        result = await Promise.race([generation, timeout]) as any;
+        if (result.error) throw result.error;
 
-      setBundleIds(data.id, data.snapshotId);
-      completeJob(jobId, { bundleId: data.id, snapshotId: data.snapshotId });
-      toast({ title: 'Content generated successfully!', description: 'Your content is ready for review.' });
+        setBundleIds(result.data.id, result.data.snapshotId);
+        completeJob(jobId, { bundleId: result.data.id, snapshotId: result.data.snapshotId });
+        toast({ title: 'Content generated successfully!', description: 'Your content is ready for review.' });
+      } catch (timeoutError: any) {
+        if (timeoutError.message?.includes('timed out')) {
+          // Start graceful polling instead of failing immediately
+          toast({ title: 'Still generating...', description: 'This is taking longer than usual. We\'ll keep checking for you.' });
+          
+          const startTime = Date.now();
+          const pollForBundle = async (): Promise<void> => {
+            const maxPollTime = 90000; // 90 seconds of polling
+            
+            while (Date.now() - startTime < maxPollTime) {
+              await new Promise(resolve => setTimeout(resolve, 5000)); // Check every 5 seconds
+              
+              try {
+                // Check for new bundles in the last few minutes
+                const { data: bundles, error: bundlesError } = await supabase
+                  .from('draft_snapshots')
+                  .select('id, version, content, doc_id, doc_type, created_at')
+                  .eq('doc_type', 'content_bundle')
+                  .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()) // Last 5 minutes
+                  .order('created_at', { ascending: false })
+                  .limit(5);
+
+                if (!bundlesError && bundles && bundles.length > 0) {
+                  // Check if any bundle matches our workspace and has content
+                  for (const bundle of bundles) {
+                    const content = bundle.content as any;
+                    if (content?.meta?.sourceId === selectedSourceId || 
+                        content?.items?.length > 0) {
+                      // Found our bundle!
+                      setBundleIds(bundle.doc_id, bundle.id);
+                      completeJob(jobId, { bundleId: bundle.doc_id, snapshotId: bundle.id });
+                      toast({ title: 'Content generated successfully!', description: 'Your content is ready for review.' });
+                      return;
+                    }
+                  }
+                }
+              } catch (pollError) {
+                console.warn('Polling error:', pollError);
+              }
+            }
+            
+            // If we get here, polling timed out
+            failJob(jobId, 'Generation is taking longer than expected. Please try again.');
+          };
+          
+          // Start polling in background
+          pollForBundle().catch(error => {
+            console.error('Polling failed:', error);
+            failJob(jobId, 'Generation failed. Please try again.');
+          });
+          
+          return; // Don't continue with error handling
+        } else {
+          throw timeoutError;
+        }
+      }
     } catch (e: any) {
       console.error('Content generation error:', e);
       const msg = String(e?.message || '');
       const statusMatch = msg.match(/\b(4\d{2}|5\d{2})\b/);
       const status = (e?.status || e?.context?.status || (statusMatch ? Number(statusMatch[1]) : undefined)) as number | undefined;
 
-      // Mark job as failed
-      if (msg.includes('timed out')) {
-        failJob(jobId, 'Generation timed out. Please try again.');
-      } else if (e?.name === 'FunctionsFetchError' || msg.includes('Failed to fetch')) {
+      // Mark job as failed for actual errors
+      if (e?.name === 'FunctionsFetchError' || msg.includes('Failed to fetch')) {
         failJob(jobId, 'AI temporarily unavailable. Please check your connection and try again.');
       } else if (status === 404) {
         failJob(jobId, 'AI generator not found. Please contact support.');
