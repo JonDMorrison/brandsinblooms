@@ -47,6 +47,15 @@ function getBundleDisplayName(it: { sourceLabel?: string; mode: 'event'|'seasona
 function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; openBundle: (bundleId: string, snapshotId?: string) => void; handleDelete: (bundleId: string) => Promise<any> | void; isHighlighted?: boolean }) {
   const { title } = useBundlePreviewTitle(it.bundleId, { includeChannelTag: false });
   const displayTitle = title || getBundleDisplayName(it);
+  
+  // Debug: Log image data for troubleshooting
+  console.log('Bundle image data:', {
+    bundleId: it.bundleId,
+    thumbnail: it.thumbnail,
+    featuredImage: it.featuredImage,
+    recommendedImages: it.recommendedImages,
+    itemsWithImages: it.items?.filter((item: any) => item.media?.url || item.image?.url || item.image?.thumb)
+  });
   return (
     <Card 
       key={it.bundleId} 
@@ -76,12 +85,21 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
           className="w-full aspect-video object-cover rounded-lg mb-3" 
           loading="lazy" 
         />
-      ) : it.items?.find((item: any) => item.media?.url) ? (
+      ) : it.items?.find((item: any) => item.media?.url || item.image?.url || item.image?.thumb) ? (
         <img 
-          src={it.items.find((item: any) => item.media?.url).media.url} 
+          src={
+            it.items.find((item: any) => item.media?.url)?.media?.url ||
+            it.items.find((item: any) => item.image?.url)?.image?.url ||
+            it.items.find((item: any) => item.image?.thumb)?.image?.thumb ||
+            it.items.find((item: any) => item.media?.url || item.image?.url || item.image?.thumb)?.media?.url
+          }
           alt={`${displayTitle} content image`} 
           className="w-full aspect-video object-cover rounded-lg mb-3" 
           loading="lazy" 
+          onError={(e) => {
+            console.log('Image failed to load:', e.currentTarget.src);
+            e.currentTarget.style.display = 'none';
+          }}
         />
       ) : (
         <div className="w-full aspect-video rounded-lg mb-3 bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center border border-border/50">
