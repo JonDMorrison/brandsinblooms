@@ -371,7 +371,7 @@ async function generateForChannel(
         autoSelectImage: true
       };
     }
-    case "blog": {
+    case 'blog': {
       const content = await callGenerateContent(supabase, {
         postType: "blog",
         campaignTitle: topic,
@@ -381,7 +381,7 @@ async function generateForChannel(
       return { 
         channel: "blog", 
         title: topic, 
-        markdown: content, 
+        body: content,  // Changed from markdown to body for HTML content
         media: null,
         requiresMediaSelector: true,
         autoSelectImage: true
@@ -425,7 +425,7 @@ CRITICAL CONTENT RULES:
 - Mention ${companyName} naturally
 - Keep content appropriate for ${args.postType} format
 - For social posts: include relevant hashtags
-- For blog posts: use markdown formatting
+- For blog posts: use proper HTML semantic tags (<h2>, <p>, <ul>, <li>) - NO MARKDOWN
 - For video: write a conversational script`;
 
   let userPrompt = '';
@@ -465,12 +465,29 @@ REQUIREMENTS:
     case 'blog':
       userPrompt = `Write a blog post about ${args.campaignTitle}. 
 
-REQUIREMENTS:
+CRITICAL REQUIREMENTS - CONTENT WILL BE REJECTED IF NOT FOLLOWED:
 - NO emojis anywhere in the content
-- Use short paragraphs (1-2 sentences each)
-- Create 400-600 words in markdown format
-- Include headers, bullet points, and actionable tips
-- Use SEO-friendly structure`;
+- MANDATORY: Use HTML format with semantic tags - NO MARKDOWN ALLOWED
+- Use <h2> for section headers (never ## or #)
+- Use <p> for paragraphs (never plain text)
+- Use <ul><li> for lists (never - or *)  
+- Use <strong> for emphasis (never **)
+- Create 400-600 words using proper HTML structure
+- Include 3-4 sections with descriptive <h2> headings
+- Use short paragraphs with proper <p> tags
+- Include actionable gardening tips
+
+HTML STRUCTURE EXAMPLE:
+<h2>Section Title</h2>
+<p>Paragraph content goes here.</p>
+
+<h2>Another Section</h2>
+<ul>
+  <li>List item one</li>
+  <li>List item two</li>
+</ul>
+
+OUTPUT MUST BE VALID HTML - NO MARKDOWN SYNTAX ALLOWED`;
       break;
     default:
       userPrompt = `Create content about ${args.campaignTitle} for ${args.postType} format. NO emojis and use short paragraphs.`;
