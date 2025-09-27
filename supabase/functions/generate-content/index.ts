@@ -1,7 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'npm:@supabase/supabase-js@2.38.0';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { corsHeaders } from './constants.ts';
 import { buildContentPrompt } from './prompt-builder.ts';
@@ -70,6 +70,11 @@ serve(async (req) => {
 
       // Build content-type specific prompt with company name enforcement
       prompt = buildContentPrompt(postType, campaignTitle, companyProfile, weekDescription, enforceCompanyName);
+      
+      // Log the prompt being sent for blog content to verify HTML instructions
+      if (postType === 'blog') {
+        console.log(`🔍 BLOG PROMPT INCLUDES HTML INSTRUCTIONS: ${prompt.includes('HTML')} | ${prompt.includes('<h2>')}`);
+      }
     }
     
     console.log(`Generating high-quality ${postType} content for: ${campaignTitle}${customPrompt ? ' (holiday-specific)' : ''}`);
