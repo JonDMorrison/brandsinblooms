@@ -423,6 +423,7 @@ export type Database = {
           headline: string | null
           id: string
           image_url: string | null
+          layout_settings: Json | null
           order_index: number
           persona_tag: string | null
           source: string | null
@@ -438,6 +439,7 @@ export type Database = {
           headline?: string | null
           id?: string
           image_url?: string | null
+          layout_settings?: Json | null
           order_index?: number
           persona_tag?: string | null
           source?: string | null
@@ -453,6 +455,7 @@ export type Database = {
           headline?: string | null
           id?: string
           image_url?: string | null
+          layout_settings?: Json | null
           order_index?: number
           persona_tag?: string | null
           source?: string | null
@@ -645,6 +648,7 @@ export type Database = {
           crm_onboarding_completed_at: string | null
           custom_sender_email: string | null
           deleted_at: string | null
+          description: string | null
           dns_records_verified: boolean | null
           email_auth_setup_at: string | null
           email_auth_status: string | null
@@ -679,6 +683,7 @@ export type Database = {
           crm_onboarding_completed_at?: string | null
           custom_sender_email?: string | null
           deleted_at?: string | null
+          description?: string | null
           dns_records_verified?: boolean | null
           email_auth_setup_at?: string | null
           email_auth_status?: string | null
@@ -713,6 +718,7 @@ export type Database = {
           crm_onboarding_completed_at?: string | null
           custom_sender_email?: string | null
           deleted_at?: string | null
+          description?: string | null
           dns_records_verified?: boolean | null
           email_auth_setup_at?: string | null
           email_auth_status?: string | null
