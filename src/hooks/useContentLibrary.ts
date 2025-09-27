@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/hooks/useTenant";
 import type { ContentSummary, Channel } from "@/lib/content/libraryTypes";
 
 export type LibraryFilters = {
@@ -16,13 +17,21 @@ const table = 'content_library_view' as const;
 
 export function useContentLibrary(filters: LibraryFilters = {}) {
   const { search = '', mode = 'all', channel = 'all', page = 1, pageSize = 24, sort = 'updated' } = filters;
+  const { tenant } = useTenant();
 
-  const queryKey = useMemo(() => ['content-library', { search, mode, channel, page, pageSize, sort }], [search, mode, channel, page, pageSize, sort]);
+  const queryKey = useMemo(() => ['content-library', { search, mode, channel, page, pageSize, sort, tenantId: tenant?.id }], [search, mode, channel, page, pageSize, sort, tenant?.id]);
 
   const query = useQuery({
     queryKey,
     queryFn: async () => {
+      if (!tenant?.id) {
+        throw new Error('No tenant found');
+      }
+
       let q = supabase.from(table).select('*', { count: 'exact' });
+
+      // Security filter: Only show content from current user's workspace
+      q = q.eq('workspace_id', tenant.id);
 
       // Filters
       if (search) q = q.ilike('source_label', `%${search}%`);
@@ -55,21 +64,30 @@ export function useContentLibrary(filters: LibraryFilters = {}) {
 
       return { items, total: count || 0 };
     },
+    enabled: !!tenant?.id, // Only run query when tenant is available
   });
 
   return query;
 }
 
 export function useContentLibraryCount() {
+  const { tenant } = useTenant();
+  
   return useQuery({
-    queryKey: ['content-library-count'],
+    queryKey: ['content-library-count', { tenantId: tenant?.id }],
     queryFn: async () => {
+      if (!tenant?.id) {
+        throw new Error('No tenant found');
+      }
+
       const { count, error } = await supabase
         .from(table)
-        .select('bundle_id', { count: 'exact', head: true });
+        .select('bundle_id', { count: 'exact', head: true })
+        .eq('workspace_id', tenant.id); // Security filter
       if (error) throw error;
       return count || 0;
     },
+    enabled: !!tenant?.id, // Only run query when tenant is available
   });
 }
 
