@@ -375,7 +375,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
 
           {step === 2 && selectedPath === 'seasonal' && (
             <div className="space-y-3">
-              <Input placeholder="Search weekly themes" value={search} onChange={(e) => setSearch(e.target.value)} className="!border-gray-300 focus-visible:!border-gray-500 focus:!border-gray-500" />
+              <Input placeholder="Search weekly themes" value={search} onChange={(e) => setSearch(e.target.value)} className="!border-gray-300 focus-visible:!border-gray-500 focus:!border-gray-500 caret-black text-gray-900" />
               <div className="text-xs text-muted-foreground">
                 52 weekly themes available ({filteredWeeklyThemes.length} shown)
               </div>
