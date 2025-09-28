@@ -143,12 +143,19 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
   };
 
   const handoffNewsletter = (newsletterItem: any) => {
-    console.log('🚀 [CLICK DEBUG] handoffNewsletter function called!');
-    console.log('🚀 [CLICK DEBUG] Event fired with item:', newsletterItem);
-    console.log('🚀 [CLICK DEBUG] Item channel:', newsletterItem?.channel);
-    console.log('🚀 [CLICK DEBUG] Item approved status:', newsletterItem?._approved);
+    // Immediate emergency logging
+    console.log('🚨🚨🚨 EMERGENCY: handoffNewsletter function ENTERED');
+    console.log('🚨 Function called with item:', newsletterItem);
+    
+    // Force immediate console output
+    console.error('🚨 FORCING ERROR LOG: Newsletter handoff started');
     
     try {
+      console.log('🚀 [CLICK DEBUG] handoffNewsletter function called!');
+      console.log('🚀 [CLICK DEBUG] Event fired with item:', newsletterItem);
+      console.log('🚀 [CLICK DEBUG] Item channel:', newsletterItem?.channel);
+      console.log('🚀 [CLICK DEBUG] Item approved status:', newsletterItem?._approved);
+      
       // Encode the newsletter content to pass to the block builder
       const newsletterData = {
         title: newsletterItem.title || 'Newsletter',
@@ -172,11 +179,18 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
       
       toast({ title: 'Opening Block Builder', description: 'Transferring newsletter content...' });
       
+      // Force another log before navigation
+      console.error('🚨 ABOUT TO NAVIGATE:', targetUrl);
+      
       navigate(targetUrl);
       console.log('✅ [CLICK DEBUG] Navigation completed');
       
+      // Force final log
+      console.error('🚨 EMERGENCY: Function completed successfully');
+      
     } catch (error) {
       console.error('❌ [CLICK DEBUG] Error in handoffNewsletter:', error);
+      console.error('🚨 EMERGENCY ERROR:', error);
     }
   };
 
@@ -226,21 +240,37 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                           → Publish Portal
                         </Button>
                       ) : item.channel === 'newsletter' ? (
-                        <Button 
-                          size="sm" 
-                          onClick={(e) => {
-                            console.log('🎯 [BUTTON DEBUG] Button clicked!');
-                            console.log('🎯 [BUTTON DEBUG] Click event:', e);
-                            console.log('🎯 [BUTTON DEBUG] Item being passed:', item);
-                            console.log('🎯 [BUTTON DEBUG] Item channel:', item.channel);
-                            console.log('🎯 [BUTTON DEBUG] Item approved:', item._approved);
-                            handoffNewsletter(item);
-                          }}
-                          onMouseEnter={() => console.log('🔍 [BUTTON DEBUG] Button hover detected')}
-                          className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                        >
-                          Send to Block builder
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          {/* Reference div for debugging */}
+                          <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                            Newsletter Ready
+                          </div>
+                          <Button 
+                            size="sm" 
+                            onClick={(e) => {
+                              // Immediate console output
+                              console.log('🚨 EMERGENCY DEBUG: Button clicked at', new Date().toISOString());
+                              console.log('🚨 EMERGENCY DEBUG: Event object:', e);
+                              console.log('🚨 EMERGENCY DEBUG: Item data:', JSON.stringify(item, null, 2));
+                              
+                              // Call function with additional debugging
+                              try {
+                                console.log('🚨 EMERGENCY DEBUG: About to call handoffNewsletter');
+                                handoffNewsletter(item);
+                                console.log('🚨 EMERGENCY DEBUG: handoffNewsletter call completed');
+                              } catch (error) {
+                                console.error('🚨 EMERGENCY DEBUG: Error calling handoffNewsletter:', error);
+                              }
+                            }}
+                            onMouseEnter={() => {
+                              console.log('🔍 HOVER DEBUG: Newsletter button hovered');
+                            }}
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                            data-testid="send-to-block-builder"
+                          >
+                            Send to Block builder
+                          </Button>
+                        </div>
                       ) : item.channel === 'blog' ? (
                         <Button size="sm" variant="outline" disabled title="Send to Website – Coming Soon">
                           → Send to Website (Coming Soon)
