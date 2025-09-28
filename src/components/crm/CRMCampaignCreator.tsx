@@ -190,7 +190,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   campaignSlug, 
   contentTaskId: propContentTaskId 
 }) => {
+  // 🚨 EMERGENCY COMPONENT DEBUGGING - This should ALWAYS appear if component renders
+  console.error('🚨🚨🚨 COMPONENT DEBUG: CRMCampaignCreator mounted/rendered at', new Date().toISOString());
+  console.error('🚨 COMPONENT DEBUG: campaignSlug =', campaignSlug);
+  console.error('🚨 COMPONENT DEBUG: contentTaskId =', propContentTaskId);
+  console.error('🚨 COMPONENT DEBUG: Current URL =', window.location.href);
+  
   const [searchParams] = useSearchParams();
+  console.error('🚨 COMPONENT DEBUG: searchParams object exists =', !!searchParams);
+  console.error('🚨 COMPONENT DEBUG: searchParams.toString() =', searchParams.toString());
+  console.error('🚨 COMPONENT DEBUG: type param =', searchParams.get('type'));
+  console.error('🚨 COMPONENT DEBUG: prefillData param exists =', !!searchParams.get('prefillData'));
+  
   const navigate = useNavigate();
   const { toast } = useToast();
   const { counts: segmentCounts } = useSegmentCounts();
