@@ -194,7 +194,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                         </Button>
                       ) : item.channel === 'newsletter' ? (
                         <Button size="sm" onClick={handoffNewsletter}>
-                          → Send to CRM Block Builder
+                          Send to Block builder
                         </Button>
                       ) : item.channel === 'blog' ? (
                         <Button size="sm" variant="outline" disabled title="Send to Website – Coming Soon">
