@@ -212,6 +212,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const navigate = useNavigate();
   const { toast } = useToast();
   
+  // 🚨 EMERGENCY TEST: Add test log here where we know code works
+  console.error('🚨🚨🚨 EMERGENCY TEST: This should definitely work - after navigate/toast');
+  
   // 🚨 TEST: Simple useEffect to verify they work at all
   useEffect(() => {
     console.error('🚨🚨🚨 SIMPLE TEST EFFECT: This should run immediately');
@@ -2803,6 +2806,57 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         campaignName={campaignName}
         recipientCount={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || 0), 0)}
       />
+      
+      {/* 🚨 EMERGENCY MANUAL PREFILL BUTTON */}
+      {searchParams.get('type') === 'newsletter' && searchParams.get('prefillData') && (
+        <div style={{ position: 'fixed', top: '10px', right: '10px', zIndex: 9999 }}>
+          <button
+            onClick={() => {
+              console.error('🚨🚨🚨 MANUAL BUTTON CLICKED');
+              const prefillDataParam = searchParams.get('prefillData');
+              if (prefillDataParam) {
+                try {
+                  const parsedData = JSON.parse(decodeURIComponent(prefillDataParam));
+                  console.error('🚨 MANUAL: Successfully parsed data =', parsedData);
+                  
+                  // Create blocks directly 
+                  const newBlocks = [{
+                    id: `manual-header-${Date.now()}`,
+                    type: 'header' as const,
+                    title: parsedData.title || 'Newsletter',
+                    headline: parsedData.title || 'Newsletter',
+                    source: 'manual' as const
+                  }];
+                  
+                  console.error('🚨 MANUAL: Setting blocks =', newBlocks);
+                  setBlocks(newBlocks);
+                  setCampaignName(parsedData.title || 'Newsletter');
+                  setSubjectLine(parsedData.title || 'Newsletter');
+                  
+                  toast({
+                    title: 'Manual prefill completed',
+                    description: 'Newsletter content loaded manually'
+                  });
+                  
+                } catch (error) {
+                  console.error('🚨 MANUAL: Error =', error);
+                }
+              }
+            }}
+            style={{ 
+              background: 'red', 
+              color: 'white', 
+              padding: '10px', 
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            🚨 MANUAL PREFILL
+          </button>
+        </div>
+      )}
+      
       </div>
     </>
   );
