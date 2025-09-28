@@ -190,7 +190,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   campaignSlug, 
   contentTaskId: propContentTaskId 
 }) => {
-  // 🚨 EMERGENCY COMPONENT DEBUGGING - FORCE REFRESH v2.0
   console.error('🚨🚨🚨 COMPONENT DEBUG v2: CRMCampaignCreator mounted at', new Date().toISOString());
   console.error('🚨 COMPONENT DEBUG v2: campaignSlug =', campaignSlug);
   console.error('🚨 COMPONENT DEBUG v2: contentTaskId =', propContentTaskId);
@@ -201,6 +200,30 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   console.error('🚨 COMPONENT DEBUG v2: searchParams string =', searchParams.toString());
   console.error('🚨 COMPONENT DEBUG v2: type param =', searchParams.get('type'));
   console.error('🚨 COMPONENT DEBUG v2: prefillData exists =', !!searchParams.get('prefillData'));
+  
+  // 🚨 IMMEDIATE TEST: Place useEffect right here 
+  useEffect(() => {
+    console.error('🚨🚨🚨 IMMEDIATE useEffect TEST: Running right after searchParams');
+    
+    const type = searchParams.get('type');
+    const prefillDataParam = searchParams.get('prefillData');
+    
+    if (type === 'newsletter' && prefillDataParam) {
+      console.error('🚨🚨🚨 CONDITIONS MET - IMMEDIATE PREFILL ATTEMPT');
+      
+      try {
+        const prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
+        console.error('🚨 IMMEDIATE PREFILL: Parsed data =', prefillData);
+        
+        // Store the data in localStorage as a fallback  
+        localStorage.setItem('emergency-prefill-data', JSON.stringify(prefillData));
+        console.error('🚨 IMMEDIATE PREFILL: Stored in localStorage for fallback');
+        
+      } catch (error) {
+        console.error('🚨 IMMEDIATE PREFILL: ERROR =', error);
+      }
+    }
+  }, [searchParams]);
   
   // FORCE CONSOLE OUTPUT WITH ALERT (temporary)
   if (searchParams.get('type') === 'newsletter') {
