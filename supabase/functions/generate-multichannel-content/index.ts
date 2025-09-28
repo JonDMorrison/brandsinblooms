@@ -248,20 +248,29 @@ async function resolveContext(supabase: any, input: GenerateInput) {
 function createUniqueTitle(channel: string, baseTitle: string): string {
   const cleanTitle = baseTitle.replace(/^Week\s+\d+:?\s*/i, '').trim();
   
+  let uniqueTitle: string;
   switch (channel) {
     case 'instagram':
-      return `Transform Your ${cleanTitle}`;
+      uniqueTitle = `Transform Your ${cleanTitle}`;
+      break;
     case 'facebook':
-      return `${cleanTitle} Community Tips`;
+      uniqueTitle = `${cleanTitle} Community Tips`;
+      break;
     case 'newsletter':
-      return `Complete ${cleanTitle} Guide`;
+      uniqueTitle = `Complete ${cleanTitle} Guide`;
+      break;
     case 'blog':
-      return `${cleanTitle} Expert Resource`;
+      uniqueTitle = `${cleanTitle} Expert Resource`;
+      break;
     case 'video':
-      return `${cleanTitle} Pro Methods`;
+      uniqueTitle = `${cleanTitle} Pro Methods`;
+      break;
     default:
-      return cleanTitle;
+      uniqueTitle = cleanTitle;
   }
+  
+  console.log(`🎯 Creating unique title for ${channel}: "${baseTitle}" → "${uniqueTitle}"`);
+  return uniqueTitle;
 }
 
 async function generateForChannel(
