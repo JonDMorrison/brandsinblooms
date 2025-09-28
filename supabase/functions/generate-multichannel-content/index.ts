@@ -245,34 +245,6 @@ async function resolveContext(supabase: any, input: GenerateInput) {
   };
 }
 
-function createUniqueTitle(channel: string, baseTitle: string): string {
-  const cleanTitle = baseTitle.replace(/^Week\s+\d+:?\s*/i, '').trim();
-  
-  let uniqueTitle: string;
-  switch (channel) {
-    case 'instagram':
-      uniqueTitle = `Transform Your ${cleanTitle}`;
-      break;
-    case 'facebook':
-      uniqueTitle = `${cleanTitle} Community Tips`;
-      break;
-    case 'newsletter':
-      uniqueTitle = `Complete ${cleanTitle} Guide`;
-      break;
-    case 'blog':
-      uniqueTitle = `${cleanTitle} Expert Resource`;
-      break;
-    case 'video':
-      uniqueTitle = `${cleanTitle} Pro Methods`;
-      break;
-    default:
-      uniqueTitle = cleanTitle;
-  }
-  
-  console.log(`🎯 Creating unique title for ${channel}: "${baseTitle}" → "${uniqueTitle}"`);
-  return uniqueTitle;
-}
-
 async function generateForChannel(
   supabase: any,
   userId: string,
@@ -281,7 +253,8 @@ async function generateForChannel(
   tone?: string,
 ): Promise<GeneratedItem> {
   const baseTopic = context.title || context.theme || "Garden Center Update";
-  const uniqueTitle = createUniqueTitle(channel, baseTopic);
+  // Use the base topic directly for now
+  const uniqueTitle = baseTopic;
 
   switch (channel) {
     case "newsletter": {
