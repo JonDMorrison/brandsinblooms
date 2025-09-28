@@ -738,6 +738,98 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     };
   }, [searchParams, existingCampaignId, blocks.length, campaignName, enhancing, supabase, toast]);
 
+  // Handle direct prefill data from query parameters (highest priority)
+  useEffect(() => {
+    const prefillDataParam = searchParams.get('prefillData');
+    const type = searchParams.get('type');
+    
+    if (type !== 'newsletter' || !prefillDataParam) return;
+    
+    try {
+      console.log('🔄 Processing direct prefill data from URL');
+      const prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
+      
+      // Clean URL immediately to avoid re-processing
+      const url = new URL(window.location.href);
+      url.searchParams.delete('prefillData');
+      const qs = url.searchParams.toString();
+      window.history.replaceState({}, '', url.pathname + (qs ? `?${qs}` : ''));
+      
+      // Check if we've already processed this data
+      const prefillKey = `crm-direct-prefill:${JSON.stringify(prefillData)}-v1`;
+      const lastPrefillTime = localStorage.getItem(prefillKey);
+      const currentTime = Date.now();
+      const oneMinute = 60 * 1000; // 1 minute
+      
+      if (lastPrefillTime && (currentTime - parseInt(lastPrefillTime)) < oneMinute) {
+        console.log('🚫 Direct prefill blocked - too recent');
+        return;
+      }
+      
+      console.log('✅ Starting direct prefill with data:', prefillData);
+      
+      // Set campaign name
+      if (prefillData.title) {
+        setCampaignName(prefillData.title);
+        setSubjectLine(prefillData.title);
+      }
+      
+      // Create blocks from prefilled content
+      const newBlocks: ContentBlock[] = [];
+      
+      // Add header block
+      newBlocks.push({
+        id: `header-${Date.now()}`,
+        type: 'header',
+        title: prefillData.title || 'Newsletter',
+        headline: prefillData.title || 'Newsletter',
+        fontSize: 'text-3xl',
+        textAlign: 'center',
+        backgroundColor: '#ffffff',
+        textColor: '#1a202c',
+        source: 'manual'
+      });
+      
+      // Add main content block
+      if (prefillData.content) {
+        newBlocks.push({
+          id: `content-${Date.now()}`,
+          type: 'image-text',
+          layout: 'image-right',
+          headline: 'Newsletter Content',
+          body: prefillData.content,
+          imageUrl: prefillData.featuredImage || '',
+          altText: 'Newsletter featured image',
+          source: 'manual'
+        });
+      }
+      
+      // Set preheader
+      const preheader = generatePreheaderText(prefillData.content || '', prefillData.title || 'Newsletter');
+      setPreheaderText(preheader);
+      
+      // Apply blocks
+      const normalizedBlocks = normalizeBlocks(autoFillHeaderTitle(newBlocks, prefillData.title || ''));
+      setBlocks(normalizedBlocks);
+      
+      // Store timestamp to prevent re-processing
+      localStorage.setItem(prefillKey, currentTime.toString());
+      
+      toast({
+        title: 'Newsletter content loaded',
+        description: `Prefilled content from generated newsletter.`
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to process direct prefill data:', error);
+      toast({
+        title: 'Prefill failed',
+        description: 'Could not load newsletter content. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  }, [searchParams, toast]);
+
   // Prefill from Generated Bundle (newsletter) - HIGH PRIORITY
   useEffect(() => {
     const type = searchParams.get('type');
