@@ -143,32 +143,41 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
   };
 
   const handoffNewsletter = (newsletterItem: any) => {
-    console.log('🚀 [DEBUG] handoffNewsletter clicked with item:', newsletterItem);
+    console.log('🚀 [CLICK DEBUG] handoffNewsletter function called!');
+    console.log('🚀 [CLICK DEBUG] Event fired with item:', newsletterItem);
+    console.log('🚀 [CLICK DEBUG] Item channel:', newsletterItem?.channel);
+    console.log('🚀 [CLICK DEBUG] Item approved status:', newsletterItem?._approved);
     
-    // Encode the newsletter content to pass to the block builder
-    const newsletterData = {
-      title: newsletterItem.title || 'Newsletter',
-      content: newsletterItem.body || '',
-      featuredImage: newsletterItem.media?.url || '',
-      bundleId: bundleId
-    };
-    
-    console.log('📦 [DEBUG] Newsletter data prepared:', newsletterData);
-    
-    // Pass the newsletter data as encoded query parameters
-    const params = new URLSearchParams({
-      type: 'newsletter',
-      bundleId: bundleId || '',
-      prefillData: JSON.stringify(newsletterData)
-    });
-    
-    const targetUrl = `/crm/campaigns/new?${params.toString()}`;
-    console.log('🔗 [DEBUG] Navigating to URL:', targetUrl);
-    console.log('📝 [DEBUG] Query params:', params.toString());
-    
-    toast({ title: 'Opening Block Builder', description: 'Transferring newsletter content...' });
-    
-    navigate(targetUrl);
+    try {
+      // Encode the newsletter content to pass to the block builder
+      const newsletterData = {
+        title: newsletterItem.title || 'Newsletter',
+        content: newsletterItem.body || '',
+        featuredImage: newsletterItem.media?.url || '',
+        bundleId: bundleId
+      };
+      
+      console.log('📦 [CLICK DEBUG] Newsletter data prepared:', newsletterData);
+      
+      // Pass the newsletter data as encoded query parameters
+      const params = new URLSearchParams({
+        type: 'newsletter',
+        bundleId: bundleId || '',
+        prefillData: JSON.stringify(newsletterData)
+      });
+      
+      const targetUrl = `/crm/campaigns/new?${params.toString()}`;
+      console.log('🔗 [CLICK DEBUG] Navigating to URL:', targetUrl);
+      console.log('📝 [CLICK DEBUG] Query params:', params.toString());
+      
+      toast({ title: 'Opening Block Builder', description: 'Transferring newsletter content...' });
+      
+      navigate(targetUrl);
+      console.log('✅ [CLICK DEBUG] Navigation completed');
+      
+    } catch (error) {
+      console.error('❌ [CLICK DEBUG] Error in handoffNewsletter:', error);
+    }
   };
 
   return (
@@ -217,7 +226,19 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                           → Publish Portal
                         </Button>
                       ) : item.channel === 'newsletter' ? (
-                        <Button size="sm" onClick={() => handoffNewsletter(item)}>
+                        <Button 
+                          size="sm" 
+                          onClick={(e) => {
+                            console.log('🎯 [BUTTON DEBUG] Button clicked!');
+                            console.log('🎯 [BUTTON DEBUG] Click event:', e);
+                            console.log('🎯 [BUTTON DEBUG] Item being passed:', item);
+                            console.log('🎯 [BUTTON DEBUG] Item channel:', item.channel);
+                            console.log('🎯 [BUTTON DEBUG] Item approved:', item._approved);
+                            handoffNewsletter(item);
+                          }}
+                          onMouseEnter={() => console.log('🔍 [BUTTON DEBUG] Button hover detected')}
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                        >
                           Send to Block builder
                         </Button>
                       ) : item.channel === 'blog' ? (
