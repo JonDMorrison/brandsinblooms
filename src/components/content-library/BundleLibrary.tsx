@@ -99,23 +99,27 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
         </div>
       )}
 
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <button
             data-trash
             aria-label="Menu"
-            className="absolute right-3 top-3 p-2 rounded-full bg-background/80 border hover:bg-background"
+            className="absolute right-3 top-3 p-2 rounded-full bg-background/90 border hover:bg-background z-40"
             title="Options"
+            onClick={(e) => e.stopPropagation()}
           >
             <MoreHorizontal className="h-5 w-5" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="z-50 bg-background border shadow-lg">
+        <DropdownMenuContent align="end" className="z-50 min-w-[120px] bg-background border shadow-lg" sideOffset={4}>
           <DropdownMenuItem 
-            onClick={() => handleDelete(it.bundleId)}
-            className="text-destructive focus:text-destructive hover:bg-muted cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(it.bundleId);
+            }}
+            className="text-destructive focus:text-destructive hover:bg-muted cursor-pointer flex items-center gap-2"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
+            <Trash2 className="h-4 w-4" />
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
