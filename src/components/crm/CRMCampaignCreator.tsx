@@ -201,28 +201,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   console.error('🚨 COMPONENT DEBUG v2: type param =', searchParams.get('type'));
   console.error('🚨 COMPONENT DEBUG v2: prefillData exists =', !!searchParams.get('prefillData'));
   
-  // 🚨 DIRECT EXECUTION: Try running prefill logic directly in component body
-  console.error('🚨🚨🚨 DIRECT EXECUTION: About to check conditions');
-  const directType = searchParams.get('type');
-  const directPrefillData = searchParams.get('prefillData');
-  
-  if (directType === 'newsletter' && directPrefillData) {
-    console.error('🚨🚨🚨 DIRECT EXECUTION: CONDITIONS MET - Processing now!');
-    
-    try {
-      const parsedData = JSON.parse(decodeURIComponent(directPrefillData));
-      console.error('🚨 DIRECT EXECUTION: Successfully parsed data =', parsedData);
-      
-      // Store in window object for immediate access
-      (window as any).EMERGENCY_PREFILL_DATA = parsedData;
-      console.error('🚨 DIRECT EXECUTION: Stored data in window.EMERGENCY_PREFILL_DATA');
-      
-    } catch (error) {
-      console.error('🚨 DIRECT EXECUTION: Parse error =', error);
-    }
-  } else {
-    console.error('🚨 DIRECT EXECUTION: Conditions not met - type =', directType, 'prefillData exists =', !!directPrefillData);
-  }
+  // 🚨 SUPER SIMPLE TEST - just one line
+  console.error('🚨🚨🚨 SIMPLE LINE TEST: This line should execute');
   
   // FORCE CONSOLE OUTPUT WITH ALERT (temporary)
   if (searchParams.get('type') === 'newsletter') {
