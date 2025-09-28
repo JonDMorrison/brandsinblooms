@@ -219,6 +219,72 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // 🚨 TEST: Simple useEffect to verify they work at all
   useEffect(() => {
     console.error('🚨🚨🚨 SIMPLE TEST EFFECT: This should run immediately');
+    
+    // Check for emergency prefill data from localStorage
+    const emergencyData = localStorage.getItem('emergency-newsletter-prefill');
+    if (emergencyData) {
+      console.error('🚨🚨🚨 FOUND EMERGENCY PREFILL DATA in localStorage');
+      
+      try {
+        const prefillData = JSON.parse(emergencyData);
+        console.error('🚨 EMERGENCY PREFILL: Parsed data =', prefillData);
+        
+        // Check if data is recent (within last 30 seconds)
+        const dataAge = Date.now() - prefillData.timestamp;
+        if (dataAge < 30000) {
+          console.error('🚨 EMERGENCY PREFILL: Data is recent, applying now...');
+          
+        // Create blocks with the prefill data
+        const newBlocks: ContentBlock[] = [];
+        
+        // Add header block
+        newBlocks.push({
+          id: `emergency-header-${Date.now()}`,
+          type: 'header' as const,
+          title: prefillData.title || 'Newsletter Campaign',
+          headline: prefillData.title || 'Newsletter Campaign',
+          source: 'manual' as const
+        });
+        
+        // Add content block if content exists
+        if (prefillData.content) {
+          newBlocks.push({
+            id: `emergency-content-${Date.now()}`,
+            type: 'image-text' as const,
+            headline: 'Newsletter Content',
+            body: prefillData.content,
+            imageUrl: prefillData.featuredImage || '',
+            altText: 'Newsletter featured image',
+            layout: 'image-right' as const,
+            source: 'manual' as const
+          });
+        }
+          
+          console.error('🚨 EMERGENCY PREFILL: Setting blocks =', newBlocks);
+          setBlocks(newBlocks);
+          setCampaignName(prefillData.title || 'Newsletter Campaign');
+          setSubjectLine(prefillData.title || 'Newsletter Campaign');
+          
+          toast({
+            title: 'Newsletter content loaded!',
+            description: `Successfully loaded: "${prefillData.title}"`
+          });
+          
+          // Clear the emergency data
+          localStorage.removeItem('emergency-newsletter-prefill');
+          console.error('🚨 EMERGENCY PREFILL: Completed and cleaned up');
+          
+        } else {
+          console.error('🚨 EMERGENCY PREFILL: Data is too old, ignoring');
+          localStorage.removeItem('emergency-newsletter-prefill');
+        }
+        
+      } catch (error) {
+        console.error('🚨 EMERGENCY PREFILL: Error processing data =', error);
+      }
+    } else {
+      console.error('🚨 No emergency prefill data found in localStorage');
+    }
   }, []);
   
   const { counts: segmentCounts } = useSegmentCounts();
