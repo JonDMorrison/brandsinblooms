@@ -143,7 +143,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
   };
 
   const handoffNewsletter = (newsletterItem: any) => {
-    toast({ title: 'Opened in Block Builder', description: 'Prefilling newsletter content' });
+    console.log('🚀 [DEBUG] handoffNewsletter clicked with item:', newsletterItem);
     
     // Encode the newsletter content to pass to the block builder
     const newsletterData = {
@@ -153,6 +153,8 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
       bundleId: bundleId
     };
     
+    console.log('📦 [DEBUG] Newsletter data prepared:', newsletterData);
+    
     // Pass the newsletter data as encoded query parameters
     const params = new URLSearchParams({
       type: 'newsletter',
@@ -160,7 +162,13 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
       prefillData: JSON.stringify(newsletterData)
     });
     
-    navigate(`/crm/campaigns/new?${params.toString()}`);
+    const targetUrl = `/crm/campaigns/new?${params.toString()}`;
+    console.log('🔗 [DEBUG] Navigating to URL:', targetUrl);
+    console.log('📝 [DEBUG] Query params:', params.toString());
+    
+    toast({ title: 'Opening Block Builder', description: 'Transferring newsletter content...' });
+    
+    navigate(targetUrl);
   };
 
   return (

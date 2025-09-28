@@ -743,33 +743,51 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     const prefillDataParam = searchParams.get('prefillData');
     const type = searchParams.get('type');
     
-    if (type !== 'newsletter' || !prefillDataParam) return;
+    console.log('🔍 [DEBUG] Prefill effect triggered');
+    console.log('📋 [DEBUG] Type param:', type);
+    console.log('📋 [DEBUG] PrefillData param present:', !!prefillDataParam);
+    console.log('📋 [DEBUG] Current blocks length:', blocks.length);
+    
+    if (type !== 'newsletter') {
+      console.log('⏭️ [DEBUG] Not newsletter type, skipping');
+      return;
+    }
+    
+    if (!prefillDataParam) {
+      console.log('⏭️ [DEBUG] No prefillData param, skipping');
+      return;
+    }
     
     try {
-      console.log('🔄 Processing direct prefill data from URL');
+      console.log('🔄 [DEBUG] Processing direct prefill data from URL');
+      console.log('📜 [DEBUG] Raw prefillDataParam:', prefillDataParam);
+      
       const prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
+      console.log('📦 [DEBUG] Parsed prefillData:', prefillData);
+      
+      // Simplified deduplication - only 10 seconds to avoid blocking legitimate transfers
+      const prefillKey = `crm-direct-prefill-simple`;
+      const lastPrefillTime = localStorage.getItem(prefillKey);
+      const currentTime = Date.now();
+      const tenSeconds = 10 * 1000; // 10 seconds
+      
+      if (lastPrefillTime && (currentTime - parseInt(lastPrefillTime)) < tenSeconds) {
+        console.log('🚫 [DEBUG] Direct prefill blocked - too recent (within 10 seconds)');
+        return;
+      }
+      
+      console.log('✅ [DEBUG] Starting direct prefill with data:', prefillData);
       
       // Clean URL immediately to avoid re-processing
       const url = new URL(window.location.href);
       url.searchParams.delete('prefillData');
       const qs = url.searchParams.toString();
       window.history.replaceState({}, '', url.pathname + (qs ? `?${qs}` : ''));
+      console.log('🧹 [DEBUG] Cleaned URL');
       
-      // Check if we've already processed this data
-      const prefillKey = `crm-direct-prefill:${JSON.stringify(prefillData)}-v1`;
-      const lastPrefillTime = localStorage.getItem(prefillKey);
-      const currentTime = Date.now();
-      const oneMinute = 60 * 1000; // 1 minute
-      
-      if (lastPrefillTime && (currentTime - parseInt(lastPrefillTime)) < oneMinute) {
-        console.log('🚫 Direct prefill blocked - too recent');
-        return;
-      }
-      
-      console.log('✅ Starting direct prefill with data:', prefillData);
-      
-      // Set campaign name
+      // Set campaign name and subject
       if (prefillData.title) {
+        console.log('📝 [DEBUG] Setting campaign name:', prefillData.title);
         setCampaignName(prefillData.title);
         setSubjectLine(prefillData.title);
       }
@@ -778,38 +796,44 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       const newBlocks: ContentBlock[] = [];
       
       // Add header block
-      newBlocks.push({
+      const headerBlock = {
         id: `header-${Date.now()}`,
-        type: 'header',
+        type: 'header' as const,
         title: prefillData.title || 'Newsletter',
         headline: prefillData.title || 'Newsletter',
         fontSize: 'text-3xl',
-        textAlign: 'center',
+        textAlign: 'center' as const,
         backgroundColor: '#ffffff',
         textColor: '#1a202c',
-        source: 'manual'
-      });
+        source: 'manual' as const
+      };
+      newBlocks.push(headerBlock);
+      console.log('📋 [DEBUG] Added header block:', headerBlock);
       
       // Add main content block
       if (prefillData.content) {
-        newBlocks.push({
+        const contentBlock = {
           id: `content-${Date.now()}`,
-          type: 'image-text',
-          layout: 'image-right',
+          type: 'image-text' as const,
+          layout: 'image-right' as const,
           headline: 'Newsletter Content',
           body: prefillData.content,
           imageUrl: prefillData.featuredImage || '',
           altText: 'Newsletter featured image',
-          source: 'manual'
-        });
+          source: 'manual' as const
+        };
+        newBlocks.push(contentBlock);
+        console.log('📋 [DEBUG] Added content block:', contentBlock);
       }
       
       // Set preheader
       const preheader = generatePreheaderText(prefillData.content || '', prefillData.title || 'Newsletter');
       setPreheaderText(preheader);
+      console.log('📋 [DEBUG] Set preheader:', preheader);
       
       // Apply blocks
       const normalizedBlocks = normalizeBlocks(autoFillHeaderTitle(newBlocks, prefillData.title || ''));
+      console.log('📋 [DEBUG] Setting blocks:', normalizedBlocks);
       setBlocks(normalizedBlocks);
       
       // Store timestamp to prevent re-processing
@@ -817,18 +841,20 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       
       toast({
         title: 'Newsletter content loaded',
-        description: `Prefilled content from generated newsletter.`
+        description: `Successfully prefilled content from newsletter: "${prefillData.title}"`
       });
       
+      console.log('✅ [DEBUG] Prefill completed successfully');
+      
     } catch (error) {
-      console.error('❌ Failed to process direct prefill data:', error);
+      console.error('❌ [DEBUG] Failed to process direct prefill data:', error);
       toast({
         title: 'Prefill failed',
         description: 'Could not load newsletter content. Please try again.',
         variant: 'destructive'
       });
     }
-  }, [searchParams, toast]);
+  }, [searchParams, setCampaignName, setSubjectLine, setPreheaderText, setBlocks, toast]);
 
   // Prefill from Generated Bundle (newsletter) - HIGH PRIORITY
   useEffect(() => {
