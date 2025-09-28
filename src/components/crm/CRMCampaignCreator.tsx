@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { Loader2, Mail, ArrowLeft, Users, Sparkles, Send, Eye } from 'lucide-react';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
@@ -190,211 +191,43 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   campaignSlug, 
   contentTaskId: propContentTaskId 
 }) => {
-  console.error('🚨🚨🚨 COMPONENT DEBUG v2: CRMCampaignCreator mounted at', new Date().toISOString());
-  console.error('🚨 COMPONENT DEBUG v2: campaignSlug =', campaignSlug);
-  console.error('🚨 COMPONENT DEBUG v2: contentTaskId =', propContentTaskId);
-  console.error('🚨 COMPONENT DEBUG v2: Current URL =', window.location.href);
+  console.error('🚨🚨🚨 COMPONENT DEBUG: CRMCampaignCreator mounted at', new Date().toISOString());
+  console.error('🚨 COMPONENT DEBUG: campaignSlug =', campaignSlug);
+  console.error('🚨 COMPONENT DEBUG: contentTaskId =', propContentTaskId);
   
   const [searchParams] = useSearchParams();
-  console.error('🚨 COMPONENT DEBUG v2: searchParams exists =', !!searchParams);
-  console.error('🚨 COMPONENT DEBUG v2: searchParams string =', searchParams.toString());
-  console.error('🚨 COMPONENT DEBUG v2: type param =', searchParams.get('type'));
-  console.error('🚨 COMPONENT DEBUG v2: prefillData exists =', !!searchParams.get('prefillData'));
-  
-  // 🚨 SUPER SIMPLE TEST - just one line
-  console.error('🚨🚨🚨 SIMPLE LINE TEST v3.0: This line should execute FORCE REBUILD');
-  alert('🚨 EMERGENCY ALERT: Component is working - check console now!');
-  
-  // 🚨🚨🚨 NEWSLETTER TYPE DETECTED v3 - SHOULD TRIGGER PREFILL
-  console.error('🚨🚨🚨 NEWSLETTER TYPE DETECTED v3 - SHOULD TRIGGER PREFILL');
-  
-  // 🚨 DIRECT ATTEMPT: Try direct execution instead of useEffect
-  console.error('🚨🚨🚨 DIRECT ATTEMPT: Checking localStorage immediately');
-  
-  const emergencyData = localStorage.getItem('emergency-newsletter-prefill');
-  if (emergencyData) {
-    console.error('🚨🚨🚨 DIRECT FOUND: Emergency prefill data exists!');
-    
-    try {
-      const prefillData = JSON.parse(emergencyData);
-      console.error('🚨 DIRECT: Parsed emergency data =', prefillData);
-      
-      // Check if data is recent (within last 30 seconds)
-      const dataAge = Date.now() - prefillData.timestamp;
-      console.error('🚨 DIRECT: Data age =', dataAge, 'ms');
-      
-      if (dataAge < 30000) {
-        console.error('🚨🚨🚨 DIRECT SUCCESS: Data is recent, will apply after component setup');
-        
-        // Store for later application
-        (window as any).PENDING_PREFILL_DATA = prefillData;
-        console.error('🚨 DIRECT: Stored in window.PENDING_PREFILL_DATA for later application');
-        
-      } else {
-        console.error('🚨 DIRECT: Data is too old, cleaning up');
-        localStorage.removeItem('emergency-newsletter-prefill');
-      }
-      
-    } catch (error) {
-      console.error('🚨 DIRECT: Error parsing data =', error);
-    }
-  } else {
-    console.error('🚨 DIRECT: No emergency prefill data found in localStorage');
-  }
-  
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  console.error('🚨 COMPONENT DEBUG: searchParams =', searchParams.toString());
   
-  // 🚨 EMERGENCY TEST: Add test log here where we know code works
-  console.error('🚨🚨🚨 EMERGENCY TEST: This should definitely work - after navigate/toast');
+  // 🚨 NEWSLETTER PREFILL LOGIC - Single clean implementation
+  const emergencyData = localStorage.getItem('emergency-newsletter-prefill');
+  let shouldApplyPrefill = false;
+  let prefillData: any = null;
   
-  // 🚨 TEST: Simple useEffect to verify they work at all
-  useEffect(() => {
-    console.error('🚨🚨🚨 SIMPLE TEST EFFECT: This should run immediately');
-    
-    // Check for emergency prefill data from localStorage
-    const emergencyData = localStorage.getItem('emergency-newsletter-prefill');
-    if (emergencyData) {
-      console.error('🚨🚨🚨 FOUND EMERGENCY PREFILL DATA in localStorage');
+  if (emergencyData) {
+    console.error('🚨🚨🚨 PREFILL: Found emergency data in localStorage');
+    try {
+      prefillData = JSON.parse(emergencyData);
+      const dataAge = Date.now() - prefillData.timestamp;
+      console.error('🚨 PREFILL: Data age =', dataAge, 'ms');
       
-      try {
-        const prefillData = JSON.parse(emergencyData);
-        console.error('🚨 EMERGENCY PREFILL: Parsed data =', prefillData);
-        
-        // Check if data is recent (within last 30 seconds)
-        const dataAge = Date.now() - prefillData.timestamp;
-        if (dataAge < 30000) {
-          console.error('🚨 EMERGENCY PREFILL: Data is recent, applying now...');
-          
-        // Create blocks with the prefill data
-        const newBlocks: ContentBlock[] = [];
-        
-        // Add header block
-        newBlocks.push({
-          id: `emergency-header-${Date.now()}`,
-          type: 'header' as const,
-          title: prefillData.title || 'Newsletter Campaign',
-          headline: prefillData.title || 'Newsletter Campaign',
-          source: 'manual' as const
-        });
-        
-        // Add content block if content exists
-        if (prefillData.content) {
-          newBlocks.push({
-            id: `emergency-content-${Date.now()}`,
-            type: 'image-text' as const,
-            headline: 'Newsletter Content',
-            body: prefillData.content,
-            imageUrl: prefillData.featuredImage || '',
-            altText: 'Newsletter featured image',
-            layout: 'image-right' as const,
-            source: 'manual' as const
-          });
-        }
-          
-          console.error('🚨 EMERGENCY PREFILL: Setting blocks =', newBlocks);
-          setBlocks(newBlocks);
-          setCampaignName(prefillData.title || 'Newsletter Campaign');
-          setSubjectLine(prefillData.title || 'Newsletter Campaign');
-          
-          toast({
-            title: 'Newsletter content loaded!',
-            description: `Successfully loaded: "${prefillData.title}"`
-          });
-          
-          // Clear the emergency data
-          localStorage.removeItem('emergency-newsletter-prefill');
-          console.error('🚨 EMERGENCY PREFILL: Completed and cleaned up');
-          
-        } else {
-          console.error('🚨 EMERGENCY PREFILL: Data is too old, ignoring');
-          localStorage.removeItem('emergency-newsletter-prefill');
-        }
-        
-      } catch (error) {
-        console.error('🚨 EMERGENCY PREFILL: Error processing data =', error);
+      if (dataAge < 30000) {
+        shouldApplyPrefill = true;
+        console.error('🚨🚨🚨 PREFILL: Data is recent, will apply');
+      } else {
+        localStorage.removeItem('emergency-newsletter-prefill');
+        console.error('🚨 PREFILL: Data too old, cleaned up');
       }
-    } else {
-      console.error('🚨 No emergency prefill data found in localStorage');
+    } catch (error) {
+      console.error('🚨 PREFILL: Parse error =', error);
     }
-  }, []);
-  
+  }
+
   const { counts: segmentCounts } = useSegmentCounts();
   
   const [campaignName, setCampaignName] = useState('');
-  
-  // 🚨 APPLY PREFILL: Check localStorage for emergency prefill data
-  React.useEffect(() => {
-    console.error('🚨🚨🚨 APPLY EFFECT: Checking localStorage for emergency prefill data');
-    
-    const emergencyData = localStorage.getItem('emergency-newsletter-prefill');
-    if (emergencyData) {
-      console.error('🚨🚨🚨 APPLY EFFECT: Found emergency data in localStorage!');
-      
-      try {
-        const pendingData = JSON.parse(emergencyData);
-        console.error('🚨 APPLY EFFECT: Parsed data =', pendingData);
-        
-        // Create header block
-        const headerBlock = {
-          id: `prefill-header-${Date.now()}`,
-          type: 'header' as const,
-          title: pendingData.title || 'Newsletter Campaign',
-          headline: pendingData.title || 'Newsletter Campaign', 
-          fontSize: 'text-3xl',
-          textAlign: 'center' as const,
-          backgroundColor: '#ffffff',
-          textColor: '#1a202c',
-          source: 'manual' as const
-        };
-        
-        // Create content block with image
-        const contentBlock = {
-          id: `prefill-content-${Date.now()}`,
-          type: 'image-text' as const,
-          layout: 'image-right' as const,
-          headline: 'Newsletter Content',
-          body: pendingData.content || 'Your newsletter content will appear here. This newsletter covers essential topics to help you succeed.',
-          imageUrl: pendingData.featuredImage || '',
-          altText: 'Newsletter featured image',
-          source: 'manual' as const
-        };
-        
-        const newBlocks = [headerBlock, contentBlock];
-        
-        console.error('🚨 APPLYING PREFILL: Setting blocks =', newBlocks);
-        setBlocks(newBlocks);
-        
-        console.error('🚨 APPLYING PREFILL: Setting campaign name =', pendingData.title);
-        setCampaignName(pendingData.title || 'Newsletter Campaign');
-        setSubjectLine(pendingData.title || 'Newsletter Campaign');
-        
-        // Generate preheader
-        const preheader = `${pendingData.title || 'Newsletter'} - Expert insights delivered to your inbox`;
-        setPreheaderText(preheader);
-        
-        // Show success message (with fallback if toast not ready)
-        try {
-          toast({
-            title: 'Newsletter content loaded!',
-            description: `Successfully loaded: "${pendingData.title}"`
-          });
-        } catch (toastError) {
-          console.log('✅ Newsletter content loaded:', pendingData.title);
-        }
-        
-        // Clear the emergency data
-        localStorage.removeItem('emergency-newsletter-prefill');
-        
-        console.error('🚨🚨🚨 PREFILL COMPLETE: Successfully applied all data and cleaned up!');
-        
-      } catch (error) {
-        console.error('🚨 APPLY EFFECT: Parse error =', error);
-      }
-    } else {
-      console.error('🚨 APPLY EFFECT: No emergency prefill data found in localStorage');
-    }
-  }, []); // Empty dependency array to run only once on mount
   
   // Page persistence hook
   const { persistState, restoreState } = usePagePersistence<{
@@ -456,6 +289,59 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [subjectLine, setSubjectLine] = useState('');
   const [preheaderText, setPreheaderText] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
+  
+  // 🚨 APPLY NEWSLETTER PREFILL - Clean implementation after state is ready
+  useEffect(() => {
+    if (shouldApplyPrefill && prefillData) {
+      console.error('🚨🚨🚨 APPLYING PREFILL: Processing newsletter data');
+      console.error('🚨 PREFILL DATA:', prefillData);
+      
+      // Create header block
+      const headerBlock: ContentBlock = {
+        id: `prefill-header-${Date.now()}`,
+        type: 'header' as const,
+        title: prefillData.title || 'Newsletter Campaign',
+        headline: prefillData.title || 'Newsletter Campaign',
+        source: 'manual' as const
+      };
+      
+      // Create content block with image
+      const contentBlock: ContentBlock = {
+        id: `prefill-content-${Date.now()}`,
+        type: 'image-text' as const,
+        layout: 'image-right' as const,
+        headline: 'Newsletter Content',
+        body: prefillData.content || 'Your newsletter content will appear here. This newsletter covers essential topics to help you succeed.',
+        imageUrl: prefillData.featuredImage || '',
+        altText: 'Newsletter featured image',
+        source: 'manual' as const
+      };
+      
+      const newBlocks = [headerBlock, contentBlock];
+      
+      console.error('🚨 APPLYING PREFILL: Setting blocks =', newBlocks);
+      setBlocks(newBlocks);
+      
+      console.error('🚨 APPLYING PREFILL: Setting campaign name =', prefillData.title);
+      setCampaignName(prefillData.title || 'Newsletter Campaign');
+      setSubjectLine(prefillData.title || 'Newsletter Campaign');
+      
+      // Generate preheader
+      const preheader = `${prefillData.title || 'Newsletter'} - Expert insights delivered to your inbox`;
+      setPreheaderText(preheader);
+      
+      // Show success toast
+      toast({
+        title: 'Newsletter content loaded!',
+        description: `Successfully loaded: "${prefillData.title}"`
+      });
+      
+      // Clear the emergency data
+      localStorage.removeItem('emergency-newsletter-prefill');
+      
+      console.error('🚨🚨🚨 PREFILL COMPLETE: Successfully applied all data and cleaned up!');
+    }
+  }, []); // Run once on mount
   const [selectedPersonas, setSelectedPersonas] = useState<any[]>(() => {
     console.log('🏁 CRMCampaignCreator: Initializing selectedPersonas state with:', initialPersonas);
     return initialPersonas;
