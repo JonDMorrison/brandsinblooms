@@ -756,7 +756,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   // Handle direct prefill data from query parameters (SIMPLIFIED & FORCED)
   useEffect(() => {
-    // 🚨 EMERGENCY: Force prefill effect to show it's running
     console.error('🚨🚨🚨 PREFILL EFFECT v2: Starting execution');
     console.error('🚨 PREFILL EFFECT v2: searchParams =', searchParams.toString());
     
