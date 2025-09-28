@@ -205,9 +205,41 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   console.error('🚨🚨🚨 SIMPLE LINE TEST v3.0: This line should execute FORCE REBUILD');
   alert('🚨 EMERGENCY ALERT: Component is working - check console now!');
   
-  // FORCE CONSOLE OUTPUT WITH ALERT (temporary)
-  if (searchParams.get('type') === 'newsletter') {
-    console.error('🚨🚨🚨 NEWSLETTER TYPE DETECTED v3 - SHOULD TRIGGER PREFILL');
+  // 🚨🚨🚨 NEWSLETTER TYPE DETECTED v3 - SHOULD TRIGGER PREFILL
+  console.error('🚨🚨🚨 NEWSLETTER TYPE DETECTED v3 - SHOULD TRIGGER PREFILL');
+  
+  // 🚨 DIRECT ATTEMPT: Try direct execution instead of useEffect
+  console.error('🚨🚨🚨 DIRECT ATTEMPT: Checking localStorage immediately');
+  
+  const emergencyData = localStorage.getItem('emergency-newsletter-prefill');
+  if (emergencyData) {
+    console.error('🚨🚨🚨 DIRECT FOUND: Emergency prefill data exists!');
+    
+    try {
+      const prefillData = JSON.parse(emergencyData);
+      console.error('🚨 DIRECT: Parsed emergency data =', prefillData);
+      
+      // Check if data is recent (within last 30 seconds)
+      const dataAge = Date.now() - prefillData.timestamp;
+      console.error('🚨 DIRECT: Data age =', dataAge, 'ms');
+      
+      if (dataAge < 30000) {
+        console.error('🚨🚨🚨 DIRECT SUCCESS: Data is recent, will apply after component setup');
+        
+        // Store for later application
+        (window as any).PENDING_PREFILL_DATA = prefillData;
+        console.error('🚨 DIRECT: Stored in window.PENDING_PREFILL_DATA for later application');
+        
+      } else {
+        console.error('🚨 DIRECT: Data is too old, cleaning up');
+        localStorage.removeItem('emergency-newsletter-prefill');
+      }
+      
+    } catch (error) {
+      console.error('🚨 DIRECT: Error parsing data =', error);
+    }
+  } else {
+    console.error('🚨 DIRECT: No emergency prefill data found in localStorage');
   }
   
   const navigate = useNavigate();
