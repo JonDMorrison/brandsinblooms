@@ -142,9 +142,25 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
     navigate(`/publish?bundleId=${bundleId}&channel=${channel}`);
   };
 
-  const handoffNewsletter = () => {
+  const handoffNewsletter = (newsletterItem: any) => {
     toast({ title: 'Opened in Block Builder', description: 'Prefilling newsletter content' });
-    navigate(`/crm/campaigns/new?type=newsletter&bundleId=${bundleId}`);
+    
+    // Encode the newsletter content to pass to the block builder
+    const newsletterData = {
+      title: newsletterItem.title || 'Newsletter',
+      content: newsletterItem.body || '',
+      featuredImage: newsletterItem.media?.url || '',
+      bundleId: bundleId
+    };
+    
+    // Pass the newsletter data as encoded query parameters
+    const params = new URLSearchParams({
+      type: 'newsletter',
+      bundleId: bundleId || '',
+      prefillData: JSON.stringify(newsletterData)
+    });
+    
+    navigate(`/crm/campaigns/new?${params.toString()}`);
   };
 
   return (
@@ -193,7 +209,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                           → Publish Portal
                         </Button>
                       ) : item.channel === 'newsletter' ? (
-                        <Button size="sm" onClick={handoffNewsletter}>
+                        <Button size="sm" onClick={() => handoffNewsletter(item)}>
                           Send to Block builder
                         </Button>
                       ) : item.channel === 'blog' ? (
