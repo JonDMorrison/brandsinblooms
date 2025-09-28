@@ -3,8 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Trash2, Search, Filter, Clock, CheckCircle2, ChevronRight, MoreHorizontal } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Trash2, Search, Filter, Clock, CheckCircle2, ChevronRight } from "lucide-react";
 import { useContentLibrary, useDeleteBundle } from "@/hooks/useContentLibrary";
 import type { Channel } from "@/lib/content/libraryTypes";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -102,11 +101,15 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
       <button
         data-trash
         aria-label="Delete"
-        className="absolute right-3 top-3 p-2 rounded-full bg-background/80 border hover:bg-background"
-        onClick={() => handleDelete(it.bundleId)}
+        className="absolute right-3 top-3 p-2 rounded-full bg-red-500/90 border hover:bg-red-600 z-10"
+        onClick={(e) => {
+          console.log('🗑️ Delete button clicked for bundle:', it.bundleId);
+          e.stopPropagation();
+          handleDelete(it.bundleId);
+        }}
         title="Delete"
       >
-        <Trash2 className="h-5 w-5 text-destructive" />
+        <Trash2 className="h-5 w-5 text-white" />
       </button>
 
       <div className="text-sm font-semibold truncate" title={displayTitle}>
