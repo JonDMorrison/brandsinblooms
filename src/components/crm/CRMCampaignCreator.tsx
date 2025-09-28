@@ -740,6 +740,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   // Handle direct prefill data from query parameters (highest priority)
   useEffect(() => {
+    // IMMEDIATE EMERGENCY CHECK - Log what's in localStorage RIGHT NOW
+    console.error('🚨 IMMEDIATE CHECK: Current localStorage newsletter-handoff-debug:', localStorage.getItem('newsletter-handoff-debug'));
+    console.error('🚨 IMMEDIATE CHECK: Current localStorage newsletter-navigation-debug:', localStorage.getItem('newsletter-navigation-debug'));
+    console.error('🚨 IMMEDIATE CHECK: Current URL:', window.location.href);
+    console.error('🚨 IMMEDIATE CHECK: Effect running on campaign creator page');
+    
     // CHECK FOR CROSS-PAGE DEBUG INFO FIRST
     const handoffDebug = localStorage.getItem('newsletter-handoff-debug');
     const navigationDebug = localStorage.getItem('newsletter-navigation-debug');
@@ -748,11 +754,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     if (handoffDebug) {
       console.error('🎯 DESTINATION PAGE: Found handoff debug info:', JSON.parse(handoffDebug));
       localStorage.removeItem('newsletter-handoff-debug'); // Clean up
+    } else {
+      console.error('🎯 DESTINATION PAGE: No handoff debug info found - button may not have been clicked');
     }
     
     if (navigationDebug) {
       console.error('🎯 DESTINATION PAGE: Found navigation debug info:', JSON.parse(navigationDebug));
       localStorage.removeItem('newsletter-navigation-debug'); // Clean up
+    } else {
+      console.error('🎯 DESTINATION PAGE: No navigation debug info found');
     }
     
     if (errorDebug) {
@@ -763,19 +773,19 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     const prefillDataParam = searchParams.get('prefillData');
     const type = searchParams.get('type');
     
-    console.log('🔍 [DESTINATION DEBUG] Prefill effect triggered on campaign creator');
-    console.log('📋 [DESTINATION DEBUG] Type param:', type);
-    console.log('📋 [DESTINATION DEBUG] PrefillData param present:', !!prefillDataParam);
-    console.log('📋 [DESTINATION DEBUG] Current URL:', window.location.href);
-    console.log('📋 [DESTINATION DEBUG] Current blocks length:', blocks.length);
+    console.error('🔍 [DESTINATION DEBUG] Prefill effect triggered on campaign creator');
+    console.error('📋 [DESTINATION DEBUG] Type param:', type);
+    console.error('📋 [DESTINATION DEBUG] PrefillData param present:', !!prefillDataParam);
+    console.error('📋 [DESTINATION DEBUG] Current URL:', window.location.href);
+    console.error('📋 [DESTINATION DEBUG] Current blocks length:', blocks.length);
     
     if (type !== 'newsletter') {
-      console.log('⏭️ [DESTINATION DEBUG] Not newsletter type, skipping');
+      console.error('⏭️ [DESTINATION DEBUG] Not newsletter type, skipping');
       return;
     }
     
     if (!prefillDataParam) {
-      console.log('⏭️ [DESTINATION DEBUG] No prefillData param, skipping');
+      console.error('⏭️ [DESTINATION DEBUG] No prefillData param, skipping');
       return;
     }
     
