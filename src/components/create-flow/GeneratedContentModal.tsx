@@ -28,8 +28,18 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // EMERGENCY DEBUGGING - Log modal state
+  console.error('🚨 MODAL DEBUG: Modal rendered with open =', open);
+  console.error('🚨 MODAL DEBUG: bundleId =', bundleId);
+  console.error('🚨 MODAL DEBUG: snapshotId =', snapshotId);
+
   // Saved items from server
-  const items = useMemo(() => query.data?.content.items || [], [query.data]);
+  const items = useMemo(() => {
+    const itemsData = query.data?.content.items || [];
+    console.error('🚨 MODAL DEBUG: Items loaded =', itemsData.length);
+    console.error('🚨 MODAL DEBUG: Items data =', JSON.stringify(itemsData, null, 2));
+    return itemsData;
+  }, [query.data]);
 
   // Local draft state and dirty tracking
   const [draftItems, setDraftItems] = useState<any[]>([]);
