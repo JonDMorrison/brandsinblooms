@@ -11,33 +11,25 @@ interface GenerateInput {
     tone?: string;
     notes?: string;
   };
-  // Optional explicit topic coming from client (e.g., selected seasonal idea)
   topicTitle?: string;
   topicDescription?: string;
-  channels: Array<"newsletter" | "instagram" | "facebook" | "video" | "blog">; // required: only generate these
+  channels: Array<"newsletter" | "instagram" | "facebook" | "video" | "blog">;
   workspaceId: string;
 }
 
 interface GeneratedItem {
   channel: "newsletter" | "instagram" | "facebook" | "video" | "blog";
   title?: string;
-  // Social
   caption?: string;
   hashtags?: string[];
-  // Video
   script?: string;
   beats?: string[];
-  // Blog
   markdown?: string;
   outline?: string[];
-  // Legacy/body (kept for backward compatibility)
   body?: string;
   summary?: string;
-  // Media
   media?: { url?: string; alt?: string } | null;
-  // Newsletter blocks for Block Builder
   blocks?: any[];
-  // MediaSelector integration flags
   requiresMediaSelector?: boolean;
   autoSelectImage?: boolean;
 }
@@ -83,7 +75,6 @@ serve(async (req) => {
       });
     }
 
-    // Basic tenant/workspace guard
     const { data: me, error: meErr } = await supabase
       .from("users")
       .select("tenant_id")
@@ -97,36 +88,27 @@ serve(async (req) => {
       });
     }
 
-    // Resolve context
     const context = await resolveContext(supabase, input);
+    const channels = input.channels || [];
+    const items: GeneratedItem[] = [];
 
-// Channels to generate (required)
-const channels: Array<GeneratedItem["channel"]> = (input.channels || []) as any;
-const items: GeneratedItem[] = [];
-
-  // Enhanced content generation for better MediaSelector integration
-  for (const channel of channels) {
-    const item = await generateForChannel(supabase, user.id, channel, context, input.userIdea?.tone);
-    
-    // Add MediaSelector trigger flag for all content types
-    if (item) {
-      item.requiresMediaSelector = true;
-      item.autoSelectImage = true; // Automatically trigger MediaSelector
+    for (const channel of channels) {
+      const item = await generateForChannel(supabase, user.id, channel, context, input.userIdea?.tone);
       
-      // For Instagram and Facebook, ensure hashtags are properly formatted
-      if ((channel === 'instagram' || channel === 'facebook') && item.caption) {
-        const hashtags = extractHashtags(item.caption);
-        item.hashtags = hashtags;
+      if (item) {
+        item.requiresMediaSelector = true;
+        item.autoSelectImage = true;
         
-        // Clean caption by removing inline hashtags if they exist at the end
-        item.caption = item.caption.replace(/(#\w+\s*)+$/, '').trim();
+        if ((channel === 'instagram' || channel === 'facebook') && item.caption) {
+          const hashtags = extractHashtags(item.caption);
+          item.hashtags = hashtags;
+          item.caption = item.caption.replace(/(#\w+\s*)+$/, '').trim();
+        }
       }
+      
+      items.push(item);
     }
-    
-    items.push(item);
-  }
 
-    // Recommended images via existing function
     const queryForImages = buildImageQuery(context);
     const { data: imgData } = await supabase.functions.invoke("fetch-unsplash-images", {
       body: { query: queryForImages, maxImages: 6, orientation: "landscape" },
@@ -144,8 +126,6 @@ const items: GeneratedItem[] = [];
       meta: { mode: input.mode, sourceId: input.sourceId },
     };
 
-    // Generate thumbnail for the bundle
-    console.log(`[generate-multichannel-content] Generating thumbnail for bundle ${bundleId}`);
     try {
       const { data: thumbnailData, error: thumbnailError } = await supabase.functions.invoke('generate-content-thumbnail', {
         body: {
@@ -156,18 +136,13 @@ const items: GeneratedItem[] = [];
         }
       });
 
-      if (thumbnailError) {
-        console.warn(`[generate-multichannel-content] Thumbnail generation failed:`, thumbnailError);
-      } else if (thumbnailData?.thumbnailUrl) {
+      if (!thumbnailError && thumbnailData?.thumbnailUrl) {
         bundle.thumbnail = thumbnailData.thumbnailUrl;
-        console.log(`[generate-multichannel-content] Thumbnail generated: ${thumbnailData.thumbnailUrl}`);
       }
     } catch (thumbnailErr) {
-      console.warn(`[generate-multichannel-content] Thumbnail generation error:`, thumbnailErr);
-      // Continue without thumbnail - non-blocking
+      console.warn(`Thumbnail generation error:`, thumbnailErr);
     }
 
-    // Persist bundle into draft_snapshots
     const { data: inserted, error: insErr } = await supabase
       .from("draft_snapshots" as any)
       .insert({
@@ -194,7 +169,7 @@ const items: GeneratedItem[] = [];
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    console.error("[generate-multichannel-content] error", err);
+    console.error("Error:", err);
     return new Response(JSON.stringify({ error: err?.message || "Unexpected error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -213,7 +188,6 @@ function buildImageQuery(context: any) {
 }
 
 async function resolveContext(supabase: any, input: GenerateInput) {
-  // Client-specified topic takes priority (e.g., "Summer Care")
   if (input.topicTitle) {
     return {
       title: input.topicTitle,
@@ -249,7 +223,6 @@ async function resolveContext(supabase: any, input: GenerateInput) {
   }
 
   if (input.mode === "seasonal" && input.sourceId) {
-    // Try master campaign templates first
     const { data: mct } = await supabase
       .from("master_campaign_templates")
       .select("id,title,theme,content_ideas")
@@ -266,107 +239,44 @@ async function resolveContext(supabase: any, input: GenerateInput) {
     }
   }
 
-  // Fallback minimal
   return {
     title: input.userIdea?.title || "Seasonal Promotion",
     description: input.userIdea?.notes || "Engage customers with timely content",
   };
 }
 
-// Simple function to generate unique titles per channel
-function generateChannelTitle(channel: string, baseTitle: string): string {
-  // Remove "Week X:" prefix completely
+function createUniqueTitle(channel: string, baseTitle: string): string {
   const cleanTitle = baseTitle.replace(/^Week\s+\d+:?\s*/i, '').trim();
   
-  // Channel-specific title variations
-  const titleVariations = {
-    instagram: [
-      `Transform Your ${cleanTitle}`,
-      `Master ${cleanTitle} Success`, 
-      `${cleanTitle} Pro Tips`,
-      `Perfect ${cleanTitle} Guide`
-    ],
-    facebook: [
-      `Share Your ${cleanTitle} Success`,
-      `Community ${cleanTitle} Tips`,
-      `${cleanTitle} Made Simple`,
-      `Your ${cleanTitle} Questions Answered`
-    ],
-    newsletter: [
-      `Complete ${cleanTitle} Guide`,
-      `Professional ${cleanTitle} Strategies`,
-      `Essential ${cleanTitle} Techniques`, 
-      `Expert ${cleanTitle} Insights`
-    ],
-    blog: [
-      `${cleanTitle} Complete Resource`,
-      `Professional ${cleanTitle} Methods`,
-      `Ultimate ${cleanTitle} Guide`,
-      `${cleanTitle} Expert Solutions`
-    ],
-    video: [
-      `${cleanTitle} Pro Techniques`,
-      `How We Handle ${cleanTitle}`,
-      `${cleanTitle} Behind the Scenes`,
-      `Professional ${cleanTitle} Tips`
-    ]
-  };
-  
-  const variations = titleVariations[channel] || titleVariations.instagram;
-  return variations[Math.floor(Math.random() * variations.length)];
+  switch (channel) {
+    case 'instagram':
+      return `Transform Your ${cleanTitle}`;
+    case 'facebook':
+      return `${cleanTitle} Community Tips`;
+    case 'newsletter':
+      return `Complete ${cleanTitle} Guide`;
+    case 'blog':
+      return `${cleanTitle} Expert Resource`;
+    case 'video':
+      return `${cleanTitle} Pro Methods`;
+    default:
+      return cleanTitle;
+  }
 }
 
-// Enhanced MediaSelector integration - auto-trigger image selection
 async function generateForChannel(
   supabase: any,
   userId: string,
-  channel: GeneratedItem["channel"],
+  channel: string,
   context: any,
   tone?: string,
 ): Promise<GeneratedItem> {
   const baseTopic = context.title || context.theme || "Garden Center Update";
-  
-  // Generate unique title per channel instead of using same topic for all
-  const cleanTopic = baseTopic.replace(/^Week\s+\d+:?\s*/i, '').trim();
-  const uniqueTitle = channel === 'instagram' ? `Transform Your ${cleanTopic}` :
-                     channel === 'facebook' ? `${cleanTopic} Community Tips` :
-                     channel === 'newsletter' ? `Complete ${cleanTopic} Guide` :
-                     channel === 'blog' ? `${cleanTopic} Expert Resource` :
-                     channel === 'video' ? `${cleanTopic} Pro Methods` :
-                     cleanTopic;
-  const baseTopic = context.title || context.theme || "Garden Center Update";
-  // Generate unique title for this specific channel
-  const uniqueTitle = generateChannelTitle(channel, baseTopic);
+  const uniqueTitle = createUniqueTitle(channel, baseTopic);
 
   switch (channel) {
     case "newsletter": {
-      // Always use proper CRM block templates for newsletters
-      const blocks = await generateNewsletterWithCRMBlocks(supabase, userId, uniqueTitle, context);
-      
-      try {
-        const content = await callGenerateStructuredNewsletter(supabase, {
-          campaignTitle: uniqueTitle,
-          userId,
-          weekDescription: context.description,
-          toneNote: tone,
-          weekNumber: 0,
-        });
-        if (content) {
-          return { 
-            channel: "newsletter", 
-            title: uniqueTitle, 
-            body: content, 
-            blocks, 
-            media: null,
-            requiresMediaSelector: true,
-            autoSelectImage: true
-          };
-        }
-      } catch (e) {
-        console.warn("[generate-multichannel-content] structured newsletter failed, using blocks only", e);
-      }
-      
-      // Use CRM blocks as primary template structure
+      const blocks = await generateNewsletterBlocks(supabase, userId, uniqueTitle, context);
       return { 
         channel: "newsletter", 
         title: uniqueTitle, 
@@ -377,12 +287,7 @@ async function generateForChannel(
       };
     }
     case "instagram": {
-      const content = await callGenerateContent(supabase, {
-        postType: "instagram",
-        campaignTitle: uniqueTitle,
-        userId,
-        weekDescription: context.description,
-      });
+      const content = await generateContent(userId, "instagram", uniqueTitle, context.description);
       return { 
         channel: "instagram", 
         title: uniqueTitle, 
@@ -394,12 +299,7 @@ async function generateForChannel(
       };
     }
     case "facebook": {
-      const content = await callGenerateContent(supabase, {
-        postType: "facebook",
-        campaignTitle: uniqueTitle,
-        userId,
-        weekDescription: context.description,
-      });
+      const content = await generateContent(userId, "facebook", uniqueTitle, context.description);
       return { 
         channel: "facebook", 
         title: uniqueTitle, 
@@ -411,12 +311,7 @@ async function generateForChannel(
       };
     }
     case "video": {
-      const content = await callGenerateContent(supabase, {
-        postType: "video",
-        campaignTitle: uniqueTitle,
-        userId,
-        weekDescription: context.description,
-      });
+      const content = await generateContent(userId, "video", uniqueTitle, context.description);
       return { 
         channel: "video", 
         title: uniqueTitle, 
@@ -427,16 +322,11 @@ async function generateForChannel(
       };
     }
     case 'blog': {
-      const content = await callGenerateContent(supabase, {
-        postType: "blog",
-        campaignTitle: uniqueTitle,
-        userId,
-        weekDescription: context.description,
-      });
+      const content = await generateContent(userId, "blog", uniqueTitle, context.description);
       return { 
         channel: "blog", 
         title: uniqueTitle, 
-        body: content,  // Changed from markdown to body for HTML content
+        body: content,
         media: null,
         requiresMediaSelector: true,
         autoSelectImage: true
@@ -444,206 +334,65 @@ async function generateForChannel(
     }
     default:
       return { 
-        channel, 
+        channel: channel as any, 
         title: uniqueTitle, 
         body: "", 
         media: null,
         requiresMediaSelector: true,
         autoSelectImage: true
-      } as GeneratedItem;
+      };
   }
 }
 
-async function callGenerateContent(supabase: any, args: { postType: string; campaignTitle: string; userId: string; weekDescription?: string }) {
-  // Get company profile for personalization
-  const { data: profile } = await supabase
-    .from('company_profiles')
-    .select('company_name, description, keywords')
-    .eq('user_id', args.userId)
-    .single();
-
-  const companyName = profile?.company_name || 'Your Garden Center';
-  const description = args.weekDescription || `Content about ${args.campaignTitle}`;
+async function generateContent(userId: string, postType: string, campaignTitle: string, weekDescription?: string) {
+  const description = weekDescription || `Content about ${campaignTitle}`;
   
-  // Direct OpenAI call instead of problematic edge function
-  const systemPrompt = `You are an expert content creator for garden centers and nurseries. Create engaging, professional content that drives customer engagement and sales.
+  const systemPrompt = `You are an expert content creator for garden centers. Create engaging, professional content that drives customer engagement.
 
-Company: ${companyName}
-Focus: ${args.campaignTitle}
+Focus: ${campaignTitle}
 Description: ${description}
 
-CRITICAL CONTENT RULES:
-- NO EMOJIS ANYWHERE in the content - this is absolutely mandatory
-- Use SHORT PARAGRAPHS (1-2 sentences maximum per paragraph)
-- Write in a helpful, knowledgeable tone
+RULES:
+- NO EMOJIS ANYWHERE
+- Use SHORT PARAGRAPHS (1-2 sentences)
+- Write in helpful, knowledgeable tone
 - Include actionable advice
-- Mention ${companyName} naturally
-- Keep content appropriate for ${args.postType} format
-- For social posts: include relevant hashtags
-- For blog posts: use proper HTML semantic tags (<h2>, <p>, <ul>, <li>) - NO MARKDOWN
-- For video: write a conversational script`;
+- Keep content appropriate for ${postType} format`;
 
   let userPrompt = '';
-  switch (args.postType) {
+  switch (postType) {
     case 'instagram':
-      userPrompt = `Create an engaging Instagram post about ${args.campaignTitle}. 
-
-REQUIREMENTS:
-- NO emojis anywhere in the content
-- Use very short paragraphs (1-2 sentences each)
-- Write 150-200 words total for the caption
-- Include 5-8 relevant hashtags at the end
-- Focus on visual storytelling and customer benefits
-- Include actionable advice
-- End with a clear call-to-action`;
+      userPrompt = `Create an Instagram post about ${campaignTitle}. 150-200 words with 5-8 hashtags.`;
       break;
     case 'facebook':
-      userPrompt = `Create a Facebook post about ${args.campaignTitle}. 
-
-REQUIREMENTS:
-- NO emojis anywhere in the content
-- Use very short paragraphs (1-2 sentences each)
-- Write 200-300 words that encourage engagement
-- Include a call-to-action
-- Focus on community interaction`;
+      userPrompt = `Create a Facebook post about ${campaignTitle}. 200-300 words, conversational tone.`;
       break;
     case 'video':
-      userPrompt = `Write a simple video script monologue about ${args.campaignTitle}. 
-
-REQUIREMENTS:
-- NO emojis anywhere in the content
-- Create a 60-90 second conversational script
-- Write as one continuous speaking piece - no scenes, no instructions, no stage directions
-- Just write what the speaker should say directly to the camera
-- Use natural, engaging language`;
+      userPrompt = `Write a 60-90 second video script about ${campaignTitle}. Natural speaking tone.`;
       break;
     case 'blog':
-      userPrompt = `Write a blog post about ${args.campaignTitle}. 
-
-CRITICAL REQUIREMENTS - CONTENT WILL BE REJECTED IF NOT FOLLOWED:
-- NO emojis anywhere in the content
-- MANDATORY: Use HTML format with semantic tags - NO MARKDOWN ALLOWED
-- Use <h2> for section headers (never ## or #)
-- Use <p> for paragraphs (never plain text)
-- Use <ul><li> for lists (never - or *)  
-- Use <strong> for emphasis (never **)
-- Create 400-600 words using proper HTML structure
-- Include 3-4 sections with descriptive <h2> headings
-- Use short paragraphs with proper <p> tags
-- Include actionable gardening tips
-
-HTML STRUCTURE EXAMPLE:
-<h2>Section Title</h2>
-<p>Paragraph content goes here.</p>
-
-<h2>Another Section</h2>
-<ul>
-  <li>List item one</li>
-  <li>List item two</li>
-</ul>
-
-OUTPUT MUST BE VALID HTML - NO MARKDOWN SYNTAX ALLOWED`;
+      userPrompt = `Write a blog post about ${campaignTitle}. Use HTML format with <h2>, <p>, <ul>, <li> tags. 400-600 words.`;
       break;
     default:
-      userPrompt = `Create content about ${args.campaignTitle} for ${args.postType} format. NO emojis and use short paragraphs.`;
+      userPrompt = `Create content about ${campaignTitle} for ${postType}.`;
   }
 
-  return await openAIChat(systemPrompt, userPrompt);
+  return await callOpenAI(systemPrompt, userPrompt);
 }
 
-async function callGenerateStructuredNewsletter(
-  supabase: any,
-  args: { campaignTitle: string; userId: string; weekDescription?: string; toneNote?: string; weekNumber?: number; campaignId?: string }
-) {
-  // Get company profile for personalization
-  const { data: profile } = await supabase
-    .from('company_profiles')
-    .select('company_name, description, keywords')
-    .eq('user_id', args.userId)
-    .single();
-
-  const companyName = profile?.company_name || 'Your Garden Center';
-  const description = args.weekDescription || `Newsletter content about ${args.campaignTitle}`;
-  const tone = args.toneNote || 'professional and helpful';
-
-  const systemPrompt = `You are an expert newsletter content creator for garden centers and nurseries. Create professional, engaging newsletter content in YAML format.
-
-Company: ${companyName}
-Topic: ${args.campaignTitle}
-Description: ${description}
-Tone: ${tone}
-
-Guidelines:
-- Write in a ${tone} tone
-- Include actionable gardening advice
-- Mention ${companyName} naturally
-- Create 4 distinct content blocks
-- Each block should have title, body, and CTA`;
-
-  const userPrompt = `Create a newsletter about ${args.campaignTitle}. Format as YAML with:
-
-newsletter_md: |
-  # ${args.campaignTitle} Newsletter
-  *Expert gardening insights for ${args.campaignTitle.toLowerCase()} success*
-  
-  [Create 4 sections with helpful content]
-
-blocks:
-  - title: "[First section title]"
-    body: "[Engaging content with gardening advice]"
-    cta: "[Call to action]"
-    link: "#"
-  [Continue with 3 more blocks]
-
-meta:
-  reading_time: "≈3 min"
-  theme: "${args.campaignTitle}"
-  week_focus: "[Brief focus description]"`;
-
-  return await openAIChat(systemPrompt, userPrompt);
-}
-
-// Generate newsletter blocks using CRM block templates
-async function generateNewsletterWithCRMBlocks(supabase: any, userId: string, topic: string, context: any) {
-  console.log(`[generateNewsletterWithCRMBlocks] Generating CRM blocks for topic: ${topic}`);
-  
-  // Get user's workspace ID
-  const { data: userData } = await supabase
-    .from('users')
-    .select('tenant_id')
-    .eq('id', userId)
-    .single();
-  
-  const workspaceId = userData?.tenant_id || userId;
-  
-  // Try to get existing CRM content blocks as templates from user's workspace
-  const { data: existingBlocks, error: blocksError } = await supabase
-    .from('campaign_blocks')
-    .select('block_type, content, headline, cta_text, cta_url, image_url, layout_settings')
-    .eq('tenant_id', workspaceId)
-    .order('created_at', { ascending: false })
-    .limit(10);
-    
-  if (blocksError) {
-    console.warn(`[generateNewsletterWithCRMBlocks] Error fetching CRM blocks:`, blocksError);
-  }
-  
-  console.log(`[generateNewsletterWithCRMBlocks] Found ${existingBlocks?.length || 0} existing CRM blocks to use as templates`);
-
+async function generateNewsletterBlocks(supabase: any, userId: string, topic: string, context: any) {
   const now = Date.now();
   
-  // Always start with a header block using proper CRM structure
-  const blocks = [
+  return [
     {
       id: `header_${now}`,
       type: "newsletter-header",
       title: topic,
       headline: topic,
-      subheadline: `Expert insights and guidance for ${topic.toLowerCase()}`,
-      content: `Your trusted source for ${topic.toLowerCase()} information and advice`,
+      content: `Expert insights and guidance for ${topic.toLowerCase()}`,
       body: "",
-      imageUrl: "", // MediaSelector will handle this
-      source: "crm_template",
+      imageUrl: "",
+      source: "template",
       personaTag: "general",
       layout: "full-width", 
       alignment: "center",
@@ -653,106 +402,15 @@ async function generateNewsletterWithCRMBlocks(supabase: any, userId: string, to
       textColor: "#333333",
       visible: true,
       collapsed: false,
-      requiresMediaSelector: true, // Flag to trigger MediaSelector
-    }
-  ];
-
-  // Generate content blocks using CRM templates with enhanced structure
-  const blockTypes = ["image-text", "text", "image-text", "cta-button"];
-  const contentTemplates = [
+      requiresMediaSelector: true,
+    },
     {
-      title: "Welcome & Featured Content",
-      content: `Welcome to this week's newsletter focusing on ${topic}. Our expert team has curated the most valuable insights to help you achieve success with your gardening goals.`,
+      id: `content_${now}`,
       type: "image-text",
-      ctaText: "Read More",
-    },
-    {
-      title: "Expert Insights",
-      content: `Our experienced team shares proven strategies and best practices for ${topic}. Learn from years of professional expertise and customer success stories.`,
-      type: "text",
-      ctaText: "",
-    },
-    {
-      title: "Seasonal Focus",
-      content: `Current seasonal considerations for ${topic}. Make the most of this time of year with our professional recommendations and timely advice.`,
-      type: "image-text", 
-      ctaText: "Get Advice",
-    },
-    {
-      title: "Take Action Today",
-      content: `Ready to get started with ${topic}? Visit us for personalized recommendations, expert guidance, and everything you need for success.`,
-      type: "cta-button",
-      ctaText: "Visit Us Today",
-    }
-  ];
-
-  for (let i = 0; i < contentTemplates.length; i++) {
-    const template = contentTemplates[i];
-    
-    // Use existing CRM block as template if available
-    const existingTemplate = existingBlocks && existingBlocks[i % existingBlocks.length];
-    
-    const block = {
-      id: `${template.type}_${i + 1}_${now}`,
-      type: existingTemplate?.block_type || template.type,
-      title: template.title,
-      headline: template.title,
-      content: template.content,
-      body: template.content,
-      imageUrl: existingTemplate?.image_url || "", // Will be set by MediaSelector
-      ctaText: existingTemplate?.cta_text || template.ctaText,
-      ctaUrl: existingTemplate?.cta_url || "#",
-      source: "crm_template",
-      personaTag: "general",
-      layout: existingTemplate?.layout_settings?.layout || (template.type === "image-text" ? "image-left" : "full-width"),
-      alignment: "left",
-      textAlign: "left", 
-      padding: "medium",
-      backgroundColor: "#ffffff",
-      textColor: "#333333",
-      visible: true,
-      collapsed: false,
-      requiresMediaSelector: template.type.includes("image"), // Flag blocks that need images
-      // Copy any additional settings from existing templates
-      ...(existingTemplate?.layout_settings || {}),
-    };
-    
-    blocks.push(block);
-  }
-
-  console.log(`[generate-multichannel-content] Generated ${blocks.length} CRM template blocks for "${topic}" using ${existingBlocks?.length || 0} existing templates`);
-  
-  return blocks;
-}
-
-function generateNewsletterBlocksServer(topic: string) {
-  // Fallback function - should not be used anymore
-  const now = Date.now();
-  return [
-    {
-      id: `header_${now}`,
-      type: "header",
-      title: topic,
-      headline: topic,
-      content: "",
-      body: "",
-      imageUrl: "",
-      source: "template",
-      personaTag: "general",
-      layout: "image-left",
-      alignment: "left",
-      textAlign: "left",
-      padding: "medium",
-      visible: true,
-      collapsed: false,
-    },
-    {
-      id: `content3_${now}`,
-      type: "image-text",
-      title: "Secondary Feature",
-      content: "Add a secondary story or feature that complements your main content.",
-      headline: "Secondary Feature",
-      body: "Add a secondary story or feature that complements your main content.",
+      title: "Featured Content",
+      headline: "Featured Content",
+      content: `Welcome to this week's newsletter focusing on ${topic}. Our expert team has curated valuable insights to help you succeed.`,
+      body: `Welcome to this week's newsletter focusing on ${topic}. Our expert team has curated valuable insights to help you succeed.`,
       imageUrl: "",
       ctaText: "Learn More",
       ctaUrl: "#",
@@ -762,35 +420,21 @@ function generateNewsletterBlocksServer(topic: string) {
       alignment: "left",
       textAlign: "left",
       padding: "medium",
+      backgroundColor: "#ffffff",
+      textColor: "#333333",
       visible: true,
       collapsed: false,
-    },
+      requiresMediaSelector: true,
+    }
   ];
 }
 
 function extractHashtags(text: string): string[] {
   const matches = text.match(/#[A-Za-z0-9_]+/g) || [];
-  // Ensure uniqueness and cap to 10
   return Array.from(new Set(matches)).slice(0, 10);
 }
 
-function buildCtas(channel: string): string[] {
-  switch (channel) {
-    case "newsletter":
-      return ["Shop New Arrivals", "Book a Garden Consult", "Join Our Loyalty Program"];
-    case "facebook":
-    case "instagram":
-      return ["Visit Us This Week", "See What's Blooming", "Message Us for Details"];
-    case "video":
-      return ["Follow for More Tips", "Visit In-Store", "Check Our Weekly Specials"];
-    case "blog":
-      return ["Explore Our Guides", "Subscribe to Newsletter", "Plan Your Visit"];
-    default:
-      return [];
-  }
-}
-
-async function openAIChat(system: string, user: string): Promise<string> {
+async function callOpenAI(system: string, user: string): Promise<string> {
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
