@@ -373,10 +373,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         const preheader = `${pendingData.title || 'Newsletter'} - Expert insights delivered to your inbox`;
         setPreheaderText(preheader);
         
-        toast({
-          title: 'Newsletter content loaded!',
-          description: `Successfully loaded: "${pendingData.title}"`
-        });
+        // Show success message (with fallback if toast not ready)
+        try {
+          toast({
+            title: 'Newsletter content loaded!',
+            description: `Successfully loaded: "${pendingData.title}"`
+          });
+        } catch (toastError) {
+          console.log('✅ Newsletter content loaded:', pendingData.title);
+        }
         
         // Clear the emergency data
         localStorage.removeItem('emergency-newsletter-prefill');
@@ -389,7 +394,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     } else {
       console.error('🚨 APPLY EFFECT: No emergency prefill data found in localStorage');
     }
-  }, [toast]);
+  }, []); // Empty dependency array to run only once on mount
   
   // Page persistence hook
   const { persistState, restoreState } = usePagePersistence<{
