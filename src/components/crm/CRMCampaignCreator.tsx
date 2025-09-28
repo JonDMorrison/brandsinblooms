@@ -323,15 +323,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   
   const [campaignName, setCampaignName] = useState('');
   
-  // 🚨 APPLY PENDING PREFILL: Check for window.PENDING_PREFILL_DATA and apply it
+  // 🚨 APPLY PREFILL: Check localStorage for emergency prefill data
   React.useEffect(() => {
-    console.error('🚨🚨🚨 APPLY EFFECT: Checking for pending prefill data');
+    console.error('🚨🚨🚨 APPLY EFFECT: Checking localStorage for emergency prefill data');
     
-    const pendingData = (window as any).PENDING_PREFILL_DATA;
-    if (pendingData) {
-      console.error('🚨🚨🚨 APPLYING PREFILL: Found pending data, applying now!', pendingData);
+    const emergencyData = localStorage.getItem('emergency-newsletter-prefill');
+    if (emergencyData) {
+      console.error('🚨🚨🚨 APPLY EFFECT: Found emergency data in localStorage!');
       
       try {
+        const pendingData = JSON.parse(emergencyData);
+        console.error('🚨 APPLY EFFECT: Parsed data =', pendingData);
+        
         // Create header block
         const headerBlock = {
           id: `prefill-header-${Date.now()}`,
@@ -375,17 +378,16 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           description: `Successfully loaded: "${pendingData.title}"`
         });
         
-        // Clear the pending data
-        delete (window as any).PENDING_PREFILL_DATA;
+        // Clear the emergency data
         localStorage.removeItem('emergency-newsletter-prefill');
         
         console.error('🚨🚨🚨 PREFILL COMPLETE: Successfully applied all data and cleaned up!');
         
       } catch (error) {
-        console.error('🚨 APPLYING PREFILL: Error =', error);
+        console.error('🚨 APPLY EFFECT: Parse error =', error);
       }
     } else {
-      console.error('🚨 APPLY EFFECT: No pending prefill data found');
+      console.error('🚨 APPLY EFFECT: No emergency prefill data found in localStorage');
     }
   }, [toast]);
   
