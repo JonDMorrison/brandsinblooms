@@ -740,21 +740,42 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   // Handle direct prefill data from query parameters (highest priority)
   useEffect(() => {
+    // CHECK FOR CROSS-PAGE DEBUG INFO FIRST
+    const handoffDebug = localStorage.getItem('newsletter-handoff-debug');
+    const navigationDebug = localStorage.getItem('newsletter-navigation-debug');
+    const errorDebug = localStorage.getItem('newsletter-error-debug');
+    
+    if (handoffDebug) {
+      console.error('🎯 DESTINATION PAGE: Found handoff debug info:', JSON.parse(handoffDebug));
+      localStorage.removeItem('newsletter-handoff-debug'); // Clean up
+    }
+    
+    if (navigationDebug) {
+      console.error('🎯 DESTINATION PAGE: Found navigation debug info:', JSON.parse(navigationDebug));
+      localStorage.removeItem('newsletter-navigation-debug'); // Clean up
+    }
+    
+    if (errorDebug) {
+      console.error('🎯 DESTINATION PAGE: Found error debug info:', JSON.parse(errorDebug));
+      localStorage.removeItem('newsletter-error-debug'); // Clean up
+    }
+    
     const prefillDataParam = searchParams.get('prefillData');
     const type = searchParams.get('type');
     
-    console.log('🔍 [DEBUG] Prefill effect triggered');
-    console.log('📋 [DEBUG] Type param:', type);
-    console.log('📋 [DEBUG] PrefillData param present:', !!prefillDataParam);
-    console.log('📋 [DEBUG] Current blocks length:', blocks.length);
+    console.log('🔍 [DESTINATION DEBUG] Prefill effect triggered on campaign creator');
+    console.log('📋 [DESTINATION DEBUG] Type param:', type);
+    console.log('📋 [DESTINATION DEBUG] PrefillData param present:', !!prefillDataParam);
+    console.log('📋 [DESTINATION DEBUG] Current URL:', window.location.href);
+    console.log('📋 [DESTINATION DEBUG] Current blocks length:', blocks.length);
     
     if (type !== 'newsletter') {
-      console.log('⏭️ [DEBUG] Not newsletter type, skipping');
+      console.log('⏭️ [DESTINATION DEBUG] Not newsletter type, skipping');
       return;
     }
     
     if (!prefillDataParam) {
-      console.log('⏭️ [DEBUG] No prefillData param, skipping');
+      console.log('⏭️ [DESTINATION DEBUG] No prefillData param, skipping');
       return;
     }
     

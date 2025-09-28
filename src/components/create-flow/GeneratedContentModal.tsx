@@ -157,6 +157,14 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
     console.log('🚨🚨🚨 EMERGENCY: handoffNewsletter function ENTERED');
     console.log('🚨 Function called with item:', newsletterItem);
     
+    // PERSIST TO LOCALSTORAGE FOR CROSS-PAGE DEBUGGING
+    localStorage.setItem('newsletter-handoff-debug', JSON.stringify({
+      timestamp: new Date().toISOString(),
+      action: 'button_clicked',
+      item: newsletterItem,
+      bundleId: bundleId
+    }));
+    
     // Force immediate console output
     console.error('🚨 FORCING ERROR LOG: Newsletter handoff started');
     
@@ -187,6 +195,14 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
       console.log('🔗 [CLICK DEBUG] Navigating to URL:', targetUrl);
       console.log('📝 [CLICK DEBUG] Query params:', params.toString());
       
+      // PERSIST NAVIGATION INFO
+      localStorage.setItem('newsletter-navigation-debug', JSON.stringify({
+        timestamp: new Date().toISOString(),
+        targetUrl: targetUrl,
+        queryParams: params.toString(),
+        newsletterData: newsletterData
+      }));
+      
       toast({ title: 'Opening Block Builder', description: 'Transferring newsletter content...' });
       
       // Force another log before navigation
@@ -201,6 +217,13 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
     } catch (error) {
       console.error('❌ [CLICK DEBUG] Error in handoffNewsletter:', error);
       console.error('🚨 EMERGENCY ERROR:', error);
+      
+      // Persist error info
+      localStorage.setItem('newsletter-error-debug', JSON.stringify({
+        timestamp: new Date().toISOString(),
+        error: error.message,
+        stack: error.stack
+      }));
     }
   };
 
