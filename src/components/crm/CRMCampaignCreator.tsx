@@ -323,6 +323,72 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   
   const [campaignName, setCampaignName] = useState('');
   
+  // 🚨 APPLY PENDING PREFILL: Check for window.PENDING_PREFILL_DATA and apply it
+  React.useEffect(() => {
+    console.error('🚨🚨🚨 APPLY EFFECT: Checking for pending prefill data');
+    
+    const pendingData = (window as any).PENDING_PREFILL_DATA;
+    if (pendingData) {
+      console.error('🚨🚨🚨 APPLYING PREFILL: Found pending data, applying now!', pendingData);
+      
+      try {
+        // Create header block
+        const headerBlock = {
+          id: `prefill-header-${Date.now()}`,
+          type: 'header' as const,
+          title: pendingData.title || 'Newsletter Campaign',
+          headline: pendingData.title || 'Newsletter Campaign', 
+          fontSize: 'text-3xl',
+          textAlign: 'center' as const,
+          backgroundColor: '#ffffff',
+          textColor: '#1a202c',
+          source: 'manual' as const
+        };
+        
+        // Create content block with image
+        const contentBlock = {
+          id: `prefill-content-${Date.now()}`,
+          type: 'image-text' as const,
+          layout: 'image-right' as const,
+          headline: 'Newsletter Content',
+          body: pendingData.content || 'Your newsletter content will appear here. This newsletter covers essential topics to help you succeed.',
+          imageUrl: pendingData.featuredImage || '',
+          altText: 'Newsletter featured image',
+          source: 'manual' as const
+        };
+        
+        const newBlocks = [headerBlock, contentBlock];
+        
+        console.error('🚨 APPLYING PREFILL: Setting blocks =', newBlocks);
+        setBlocks(newBlocks);
+        
+        console.error('🚨 APPLYING PREFILL: Setting campaign name =', pendingData.title);
+        setCampaignName(pendingData.title || 'Newsletter Campaign');
+        setSubjectLine(pendingData.title || 'Newsletter Campaign');
+        
+        // Generate preheader
+        const preheader = `${pendingData.title || 'Newsletter'} - Expert insights delivered to your inbox`;
+        setPreheaderText(preheader);
+        
+        toast({
+          title: 'Newsletter content loaded!',
+          description: `Successfully loaded: "${pendingData.title}"`
+        });
+        
+        // Clear the pending data
+        delete (window as any).PENDING_PREFILL_DATA;
+        localStorage.removeItem('emergency-newsletter-prefill');
+        
+        console.error('🚨🚨🚨 PREFILL COMPLETE: Successfully applied all data and cleaned up!');
+        
+      } catch (error) {
+        console.error('🚨 APPLYING PREFILL: Error =', error);
+      }
+    } else {
+      console.error('🚨 APPLY EFFECT: No pending prefill data found');
+    }
+  }, [toast]);
+  
   // Page persistence hook
   const { persistState, restoreState } = usePagePersistence<{
     campaignName: string;
