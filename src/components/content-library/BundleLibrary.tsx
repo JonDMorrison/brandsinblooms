@@ -3,7 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Trash2, Search, Filter, Clock, CheckCircle2, ChevronRight } from "lucide-react";
+import { Trash2, Search, Filter, Clock, CheckCircle2, ChevronRight, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useContentLibrary, useDeleteBundle } from "@/hooks/useContentLibrary";
 import type { Channel } from "@/lib/content/libraryTypes";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -98,15 +99,27 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
         </div>
       )}
 
-      <button
-        data-trash
-        aria-label="Delete"
-        className="absolute right-3 top-3 p-2 rounded-full bg-background/80 border hover:bg-background"
-        onClick={() => handleDelete(it.bundleId)}
-        title="Delete"
-      >
-        <Trash2 className="h-5 w-5 text-destructive" />
-      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            data-trash
+            aria-label="Menu"
+            className="absolute right-3 top-3 p-2 rounded-full bg-background/80 border hover:bg-background"
+            title="Options"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem 
+            onClick={() => handleDelete(it.bundleId)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <div className="text-sm font-semibold truncate" title={displayTitle}>
         {displayTitle}
