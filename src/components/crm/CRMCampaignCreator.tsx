@@ -190,17 +190,22 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   campaignSlug, 
   contentTaskId: propContentTaskId 
 }) => {
-  // 🚨 EMERGENCY COMPONENT DEBUGGING - This should ALWAYS appear if component renders
-  console.error('🚨🚨🚨 COMPONENT DEBUG: CRMCampaignCreator mounted/rendered at', new Date().toISOString());
-  console.error('🚨 COMPONENT DEBUG: campaignSlug =', campaignSlug);
-  console.error('🚨 COMPONENT DEBUG: contentTaskId =', propContentTaskId);
-  console.error('🚨 COMPONENT DEBUG: Current URL =', window.location.href);
+  // 🚨 EMERGENCY COMPONENT DEBUGGING - FORCE REFRESH v2.0
+  console.error('🚨🚨🚨 COMPONENT DEBUG v2: CRMCampaignCreator mounted at', new Date().toISOString());
+  console.error('🚨 COMPONENT DEBUG v2: campaignSlug =', campaignSlug);
+  console.error('🚨 COMPONENT DEBUG v2: contentTaskId =', propContentTaskId);
+  console.error('🚨 COMPONENT DEBUG v2: Current URL =', window.location.href);
   
   const [searchParams] = useSearchParams();
-  console.error('🚨 COMPONENT DEBUG: searchParams object exists =', !!searchParams);
-  console.error('🚨 COMPONENT DEBUG: searchParams.toString() =', searchParams.toString());
-  console.error('🚨 COMPONENT DEBUG: type param =', searchParams.get('type'));
-  console.error('🚨 COMPONENT DEBUG: prefillData param exists =', !!searchParams.get('prefillData'));
+  console.error('🚨 COMPONENT DEBUG v2: searchParams exists =', !!searchParams);
+  console.error('🚨 COMPONENT DEBUG v2: searchParams string =', searchParams.toString());
+  console.error('🚨 COMPONENT DEBUG v2: type param =', searchParams.get('type'));
+  console.error('🚨 COMPONENT DEBUG v2: prefillData exists =', !!searchParams.get('prefillData'));
+  
+  // FORCE CONSOLE OUTPUT WITH ALERT (temporary)
+  if (searchParams.get('type') === 'newsletter') {
+    console.error('🚨🚨🚨 NEWSLETTER TYPE DETECTED - SHOULD TRIGGER PREFILL');
+  }
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -749,56 +754,63 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     };
   }, [searchParams, existingCampaignId, blocks.length, campaignName, enhancing, supabase, toast]);
 
-  // Handle direct prefill data from query parameters (highest priority)
+  // Handle direct prefill data from query parameters (SIMPLIFIED & FORCED)
   useEffect(() => {
-    // IMMEDIATE EMERGENCY CHECK - Log what's in localStorage RIGHT NOW
-    console.error('🚨 IMMEDIATE CHECK: Current localStorage newsletter-handoff-debug:', localStorage.getItem('newsletter-handoff-debug'));
-    console.error('🚨 IMMEDIATE CHECK: Current localStorage newsletter-navigation-debug:', localStorage.getItem('newsletter-navigation-debug'));
-    console.error('🚨 IMMEDIATE CHECK: Current URL:', window.location.href);
-    console.error('🚨 IMMEDIATE CHECK: Effect running on campaign creator page');
+    // 🚨 EMERGENCY: Force prefill effect to show it's running
+    console.error('🚨🚨🚨 PREFILL EFFECT v2: Starting execution');
+    console.error('🚨 PREFILL EFFECT v2: searchParams =', searchParams.toString());
     
-    // CHECK FOR CROSS-PAGE DEBUG INFO FIRST
-    const handoffDebug = localStorage.getItem('newsletter-handoff-debug');
-    const navigationDebug = localStorage.getItem('newsletter-navigation-debug');
-    const errorDebug = localStorage.getItem('newsletter-error-debug');
-    
-    if (handoffDebug) {
-      console.error('🎯 DESTINATION PAGE: Found handoff debug info:', JSON.parse(handoffDebug));
-      localStorage.removeItem('newsletter-handoff-debug'); // Clean up
-    } else {
-      console.error('🎯 DESTINATION PAGE: No handoff debug info found - button may not have been clicked');
-    }
-    
-    if (navigationDebug) {
-      console.error('🎯 DESTINATION PAGE: Found navigation debug info:', JSON.parse(navigationDebug));
-      localStorage.removeItem('newsletter-navigation-debug'); // Clean up
-    } else {
-      console.error('🎯 DESTINATION PAGE: No navigation debug info found');
-    }
-    
-    if (errorDebug) {
-      console.error('🎯 DESTINATION PAGE: Found error debug info:', JSON.parse(errorDebug));
-      localStorage.removeItem('newsletter-error-debug'); // Clean up
-    }
-    
-    const prefillDataParam = searchParams.get('prefillData');
     const type = searchParams.get('type');
+    const prefillDataParam = searchParams.get('prefillData');
     
-    console.error('🔍 [DESTINATION DEBUG] Prefill effect triggered on campaign creator');
-    console.error('📋 [DESTINATION DEBUG] Type param:', type);
-    console.error('📋 [DESTINATION DEBUG] PrefillData param present:', !!prefillDataParam);
-    console.error('📋 [DESTINATION DEBUG] Current URL:', window.location.href);
-    console.error('📋 [DESTINATION DEBUG] Current blocks length:', blocks.length);
+    console.error('🚨 PREFILL EFFECT v2: type =', type);
+    console.error('🚨 PREFILL EFFECT v2: prefillData exists =', !!prefillDataParam);
     
-    if (type !== 'newsletter') {
-      console.error('⏭️ [DESTINATION DEBUG] Not newsletter type, skipping');
-      return;
+    if (type === 'newsletter' && prefillDataParam) {
+      console.error('🚨🚨🚨 PREFILL EFFECT v2: CONDITIONS MET - PROCESSING DATA');
+      
+      try {
+        const prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
+        console.error('🚨 PREFILL EFFECT v2: Parsed data =', prefillData);
+        
+        // Create new blocks with the newsletter data
+        const newBlocks: ContentBlock[] = [
+          {
+            id: `newsletter-header-${Date.now()}`,
+            type: 'header',
+            title: prefillData.title || 'Newsletter',
+            headline: prefillData.title || 'Newsletter',
+            source: 'prefill'
+          },
+          {
+            id: `newsletter-content-${Date.now()}`,
+            type: 'image-text',
+            headline: 'Newsletter Content', 
+            body: prefillData.content || 'Newsletter content will appear here',
+            imageUrl: prefillData.featuredImage || '',
+            source: 'prefill'
+          }
+        ];
+        
+        console.error('🚨 PREFILL EFFECT v2: Created blocks =', newBlocks);
+        console.error('🚨 PREFILL EFFECT v2: Setting blocks now...');
+        
+        // Set the blocks and campaign info
+        setBlocks(newBlocks);
+        if (prefillData.title) {
+          setCampaignName(prefillData.title);
+          setSubjectLine(prefillData.title);
+        }
+        
+        console.error('🚨🚨🚨 PREFILL EFFECT v2: BLOCKS SET SUCCESSFULLY');
+        
+      } catch (error) {
+        console.error('🚨 PREFILL EFFECT v2: ERROR =', error);
+      }
+    } else {
+      console.error('🚨 PREFILL EFFECT v2: Conditions not met - skipping');
     }
-    
-    if (!prefillDataParam) {
-      console.error('⏭️ [DESTINATION DEBUG] No prefillData param, skipping');
-      return;
-    }
+  }, [searchParams]);
     
     try {
       console.log('🔄 [DEBUG] Processing direct prefill data from URL');
@@ -896,7 +908,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         variant: 'destructive'
       });
     }
-  }, [searchParams, setCampaignName, setSubjectLine, setPreheaderText, setBlocks, toast]);
+  }, [searchParams]);
 
   // Prefill from Generated Bundle (newsletter) - HIGH PRIORITY
   useEffect(() => {
