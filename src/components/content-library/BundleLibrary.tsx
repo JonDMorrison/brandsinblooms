@@ -110,10 +110,10 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
             <MoreHorizontal className="h-5 w-5" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="z-50 bg-background border shadow-lg">
           <DropdownMenuItem 
             onClick={() => handleDelete(it.bundleId)}
-            className="text-destructive focus:text-destructive"
+            className="text-destructive focus:text-destructive hover:bg-muted cursor-pointer"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete
