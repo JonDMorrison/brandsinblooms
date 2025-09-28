@@ -780,7 +780,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             type: 'header',
             title: prefillData.title || 'Newsletter',
             headline: prefillData.title || 'Newsletter',
-            source: 'prefill'
+            source: 'manual'
           },
           {
             id: `newsletter-content-${Date.now()}`,
@@ -788,7 +788,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             headline: 'Newsletter Content', 
             body: prefillData.content || 'Newsletter content will appear here',
             imageUrl: prefillData.featuredImage || '',
-            source: 'prefill'
+            source: 'manual'
           }
         ];
         
@@ -811,6 +811,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       console.error('🚨 PREFILL EFFECT v2: Conditions not met - skipping');
     }
   }, [searchParams]);
+
+  // Direct prefill from URL parameters  
+  useEffect(() => {
+    const prefillDataParam = searchParams.get('prefillData');
+    if (!prefillDataParam) return;
     
     try {
       console.log('🔄 [DEBUG] Processing direct prefill data from URL');
