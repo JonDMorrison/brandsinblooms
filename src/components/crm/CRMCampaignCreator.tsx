@@ -209,6 +209,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // 🚨 TEST: Simple useEffect to verify they work at all
+  useEffect(() => {
+    console.error('🚨🚨🚨 SIMPLE TEST EFFECT: This should run immediately');
+  }, []);
+  
   const { counts: segmentCounts } = useSegmentCounts();
   
   const [campaignName, setCampaignName] = useState('');
