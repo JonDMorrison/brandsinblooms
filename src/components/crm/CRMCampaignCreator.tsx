@@ -201,29 +201,28 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   console.error('🚨 COMPONENT DEBUG v2: type param =', searchParams.get('type'));
   console.error('🚨 COMPONENT DEBUG v2: prefillData exists =', !!searchParams.get('prefillData'));
   
-  // 🚨 IMMEDIATE TEST: Place useEffect right here 
-  useEffect(() => {
-    console.error('🚨🚨🚨 IMMEDIATE useEffect TEST: Running right after searchParams');
+  // 🚨 DIRECT EXECUTION: Try running prefill logic directly in component body
+  console.error('🚨🚨🚨 DIRECT EXECUTION: About to check conditions');
+  const directType = searchParams.get('type');
+  const directPrefillData = searchParams.get('prefillData');
+  
+  if (directType === 'newsletter' && directPrefillData) {
+    console.error('🚨🚨🚨 DIRECT EXECUTION: CONDITIONS MET - Processing now!');
     
-    const type = searchParams.get('type');
-    const prefillDataParam = searchParams.get('prefillData');
-    
-    if (type === 'newsletter' && prefillDataParam) {
-      console.error('🚨🚨🚨 CONDITIONS MET - IMMEDIATE PREFILL ATTEMPT');
+    try {
+      const parsedData = JSON.parse(decodeURIComponent(directPrefillData));
+      console.error('🚨 DIRECT EXECUTION: Successfully parsed data =', parsedData);
       
-      try {
-        const prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
-        console.error('🚨 IMMEDIATE PREFILL: Parsed data =', prefillData);
-        
-        // Store the data in localStorage as a fallback  
-        localStorage.setItem('emergency-prefill-data', JSON.stringify(prefillData));
-        console.error('🚨 IMMEDIATE PREFILL: Stored in localStorage for fallback');
-        
-      } catch (error) {
-        console.error('🚨 IMMEDIATE PREFILL: ERROR =', error);
-      }
+      // Store in window object for immediate access
+      (window as any).EMERGENCY_PREFILL_DATA = parsedData;
+      console.error('🚨 DIRECT EXECUTION: Stored data in window.EMERGENCY_PREFILL_DATA');
+      
+    } catch (error) {
+      console.error('🚨 DIRECT EXECUTION: Parse error =', error);
     }
-  }, [searchParams]);
+  } else {
+    console.error('🚨 DIRECT EXECUTION: Conditions not met - type =', directType, 'prefillData exists =', !!directPrefillData);
+  }
   
   // FORCE CONSOLE OUTPUT WITH ALERT (temporary)
   if (searchParams.get('type') === 'newsletter') {
