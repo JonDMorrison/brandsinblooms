@@ -2,45 +2,6 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Channel-specific title generation patterns
-const TITLE_PATTERNS: Record<string, string[]> = {
-  instagram: [
-    "Transform Your {theme} with These Pro Tips",
-    "Is Your {theme} Missing This Key Element?", 
-    "Master {theme} in Just 3 Steps",
-    "Perfect {theme} Timing for {season}",
-    "Discover the Secret to Perfect {theme}"
-  ],
-  facebook: [
-    "Help Your Neighbors Succeed with {theme}",
-    "Share Your Best {theme} Tips and Tricks",
-    "The {theme} Journey: From Beginner to Pro",
-    "Community Guide to Amazing {theme}",
-    "Why We're Passionate About {theme}"
-  ],
-  newsletter: [
-    "Complete Guide to {theme} Success",
-    "Essential {theme} Techniques for {season}",
-    "Expert Insights: {theme} Best Practices", 
-    "Professional {theme} Strategies That Work",
-    "{season} {theme}: What Pros Do Differently"
-  ],
-  blog: [
-    "Complete {theme} Guide for {season} Success",
-    "Professional {theme} Techniques: Expert Methods",
-    "Solve Your {theme} Problems: Expert Solutions",
-    "{theme} Mastery: From Planning to Perfection",
-    "Why {theme} Fails and How to Fix It"
-  ],
-  video: [
-    "3 Pro Secrets for Better {theme}",
-    "Watch Me Transform This {theme} Setup",
-    "Professional {theme} Technique Revealed",
-    "How We Handle {theme} at Our Nursery", 
-    "Simple {theme} Hack Everyone Should Know"
-  ]
-};
-
 interface GenerateInput {
   mode: "seasonal" | "holiday" | "custom";
   sourceId?: string;
@@ -312,6 +273,49 @@ async function resolveContext(supabase: any, input: GenerateInput) {
   };
 }
 
+// Simple function to generate unique titles per channel
+function generateChannelTitle(channel: string, baseTitle: string): string {
+  // Remove "Week X:" prefix completely
+  const cleanTitle = baseTitle.replace(/^Week\s+\d+:?\s*/i, '').trim();
+  
+  // Channel-specific title variations
+  const titleVariations = {
+    instagram: [
+      `Transform Your ${cleanTitle}`,
+      `Master ${cleanTitle} Success`, 
+      `${cleanTitle} Pro Tips`,
+      `Perfect ${cleanTitle} Guide`
+    ],
+    facebook: [
+      `Share Your ${cleanTitle} Success`,
+      `Community ${cleanTitle} Tips`,
+      `${cleanTitle} Made Simple`,
+      `Your ${cleanTitle} Questions Answered`
+    ],
+    newsletter: [
+      `Complete ${cleanTitle} Guide`,
+      `Professional ${cleanTitle} Strategies`,
+      `Essential ${cleanTitle} Techniques`, 
+      `Expert ${cleanTitle} Insights`
+    ],
+    blog: [
+      `${cleanTitle} Complete Resource`,
+      `Professional ${cleanTitle} Methods`,
+      `Ultimate ${cleanTitle} Guide`,
+      `${cleanTitle} Expert Solutions`
+    ],
+    video: [
+      `${cleanTitle} Pro Techniques`,
+      `How We Handle ${cleanTitle}`,
+      `${cleanTitle} Behind the Scenes`,
+      `Professional ${cleanTitle} Tips`
+    ]
+  };
+  
+  const variations = titleVariations[channel] || titleVariations.instagram;
+  return variations[Math.floor(Math.random() * variations.length)];
+}
+
 // Enhanced MediaSelector integration - auto-trigger image selection
 async function generateForChannel(
   supabase: any,
@@ -320,8 +324,19 @@ async function generateForChannel(
   context: any,
   tone?: string,
 ): Promise<GeneratedItem> {
-  // Generate unique title for this channel
-  const uniqueTitle = await generateChannelTitle(channel, context, userId, supabase);
+  const baseTopic = context.title || context.theme || "Garden Center Update";
+  
+  // Generate unique title per channel instead of using same topic for all
+  const cleanTopic = baseTopic.replace(/^Week\s+\d+:?\s*/i, '').trim();
+  const uniqueTitle = channel === 'instagram' ? `Transform Your ${cleanTopic}` :
+                     channel === 'facebook' ? `${cleanTopic} Community Tips` :
+                     channel === 'newsletter' ? `Complete ${cleanTopic} Guide` :
+                     channel === 'blog' ? `${cleanTopic} Expert Resource` :
+                     channel === 'video' ? `${cleanTopic} Pro Methods` :
+                     cleanTopic;
+  const baseTopic = context.title || context.theme || "Garden Center Update";
+  // Generate unique title for this specific channel
+  const uniqueTitle = generateChannelTitle(channel, baseTopic);
 
   switch (channel) {
     case "newsletter": {
@@ -765,7 +780,7 @@ function buildCtas(channel: string): string[] {
       return ["Shop New Arrivals", "Book a Garden Consult", "Join Our Loyalty Program"];
     case "facebook":
     case "instagram":
-      return ["Visit Us This Week", "See What’s Blooming", "Message Us for Details"];
+      return ["Visit Us This Week", "See What's Blooming", "Message Us for Details"];
     case "video":
       return ["Follow for More Tips", "Visit In-Store", "Check Our Weekly Specials"];
     case "blog":
@@ -797,171 +812,4 @@ async function openAIChat(system: string, user: string): Promise<string> {
   }
   const data = await resp.json();
   return data.choices?.[0]?.message?.content?.trim() || "";
-}
-
-/**
- * Generate unique, engaging titles for each channel
- */
-async function generateChannelTitle(
-  channel: string,
-  context: any, 
-  userId: string,
-  supabase: any
-): Promise<string> {
-  try {
-    // Get company profile for personalization
-    const { data: profile } = await supabase
-      .from('company_profiles')
-      .select('company_name, location_info')
-      .eq('user_id', userId)
-      .single();
-
-    // Extract clean theme without "Week X:" prefixes
-    const cleanTheme = extractKeyTheme(context.title || context.theme || "Garden Care");
-    const season = getCurrentSeason();
-    const companyName = profile?.company_name || 'Your Garden Center';
-
-    // Try AI generation first for best results
-    if (OPENAI_API_KEY) {
-      try {
-        const aiTitle = await generateAITitle(channel, cleanTheme, season, context.description);
-        if (aiTitle && isValidTitle(aiTitle)) {
-          return sanitizeTitle(aiTitle);
-        }
-      } catch (error) {
-        console.warn(`[title-generator] AI generation failed for ${channel}:`, error);
-      }
-    }
-
-    // Fallback to pattern-based generation
-    const patterns = TITLE_PATTERNS[channel] || TITLE_PATTERNS.instagram;
-    const randomTemplate = patterns[Math.floor(Math.random() * patterns.length)];
-    
-    const title = randomTemplate
-      .replace(/\{theme\}/g, cleanTheme)
-      .replace(/\{season\}/g, season)
-      .replace(/\{company\}/g, companyName);
-      
-    return sanitizeTitle(title);
-    
-  } catch (error) {
-    console.error(`[title-generator] Error generating title for ${channel}:`, error);
-    // Final fallback
-    const fallbackTheme = extractKeyTheme(context.title || context.theme || "Garden Care");
-    return `Professional ${fallbackTheme} Guide`;
-  }
-}
-
-/**
- * AI-powered title generation
- */
-async function generateAITitle(
-  channel: string,
-  theme: string,
-  season: string,
-  description?: string
-): Promise<string> {
-  const channelSpecs = {
-    instagram: { length: "short and punchy (under 8 words)", style: "action-focused, engaging" },
-    facebook: { length: "conversational (5-10 words)", style: "community-focused, discussion-starting" },
-    newsletter: { length: "professional (6-12 words)", style: "educational, authoritative" },
-    blog: { length: "comprehensive (8-15 words)", style: "SEO-optimized, solution-oriented" },
-    video: { length: "teaching-focused (5-9 words)", style: "tutorial-style, demonstration" }
-  };
-
-  const spec = channelSpecs[channel] || channelSpecs.instagram;
-  
-  const systemPrompt = `You are an expert marketing copywriter for garden centers. Generate compelling ${channel} titles.
-
-REQUIREMENTS:
-- Create titles that are ${spec.length}
-- Use ${spec.style} approach
-- NO generic phrases like "Week X" or formulaic patterns
-- NO emojis in titles
-- Focus on benefits and engagement
-- Topic: ${theme}
-- Season: ${season}`;
-
-  const userPrompt = `Generate 1 compelling ${channel} title about "${theme}" for ${season}. 
-  
-Description context: ${description || 'seasonal gardening advice'}
-
-The title should promise clear value and be immediately engaging. Return ONLY the title.`;
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST", 
-    headers: {
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      temperature: 0.8,
-      max_tokens: 50,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content?.trim() || "";
-}
-
-/**
- * Extract key theme without "Week X:" prefixes
- */
-function extractKeyTheme(rawTheme: string): string {
-  let cleaned = rawTheme
-    .replace(/^Week\s+\d+:?\s*/i, '')
-    .replace(/^Week\s+\w+:?\s*/i, '')
-    .trim();
-  
-  // Extract main concept before colons or dashes
-  const mainTheme = cleaned.split(/[:\-–—]/)[0].trim();
-  
-  // Convert to more natural language
-  return mainTheme
-    .replace(/Garden Planning/i, 'Garden Planning')
-    .replace(/Seed Starting/i, 'Seed Starting') 
-    .replace(/Tool Care/i, 'Tool Maintenance')
-    .replace(/Winter Wellness/i, 'Winter Plant Care')
-    .replace(/Catalog Planning/i, 'Seed Selection');
-}
-
-/**
- * Get current season for contextual titles
- */
-function getCurrentSeason(): string {
-  const month = new Date().getMonth();
-  if (month >= 2 && month <= 4) return 'Spring';
-  if (month >= 5 && month <= 7) return 'Summer'; 
-  if (month >= 8 && month <= 10) return 'Fall';
-  return 'Winter';
-}
-
-/**
- * Clean up title formatting and remove week references
- */
-function sanitizeTitle(title: string): string {
-  return title
-    .replace(/^["'`]+|["'`]+$/g, '') // Remove quotes
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .replace(/^Week\s+\d+:?\s*/i, '') // Remove week references
-    .trim();
-}
-
-/**
- * Validate title quality
- */
-function isValidTitle(title: string): boolean {
-  return title.length > 10 && 
-         title.length < 150 && 
-         !title.toLowerCase().includes('week ') &&
-         title.split(' ').length >= 3;
 }
