@@ -202,11 +202,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   console.error('🚨 COMPONENT DEBUG v2: prefillData exists =', !!searchParams.get('prefillData'));
   
   // 🚨 SUPER SIMPLE TEST - just one line
-  console.error('🚨🚨🚨 SIMPLE LINE TEST: This line should execute');
+  console.error('🚨🚨🚨 SIMPLE LINE TEST v3.0: This line should execute FORCE REBUILD');
+  alert('🚨 EMERGENCY ALERT: Component is working - check console now!');
   
   // FORCE CONSOLE OUTPUT WITH ALERT (temporary)
   if (searchParams.get('type') === 'newsletter') {
-    console.error('🚨🚨🚨 NEWSLETTER TYPE DETECTED - SHOULD TRIGGER PREFILL');
+    console.error('🚨🚨🚨 NEWSLETTER TYPE DETECTED v3 - SHOULD TRIGGER PREFILL');
   }
   
   const navigate = useNavigate();
