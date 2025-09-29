@@ -66,19 +66,51 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
 
   // Persist a single item
   const handleSaveItem = async (index: number) => {
-    if (!query.data || !snapshotId) return;
+    console.log('💾 SAVE ITEM: Starting save process for index =', index);
+    console.log('💾 SAVE ITEM: query.data =', !!query.data);
+    console.log('💾 SAVE ITEM: snapshotId =', snapshotId);
+    console.log('💾 SAVE ITEM: bundleId =', bundleId);
+    console.log('💾 SAVE ITEM: update.isPending =', update.isPending);
+    
+    if (!query.data || !snapshotId) {
+      console.error('❌ SAVE ITEM: Missing query.data or snapshotId');
+      console.error('❌ SAVE ITEM: query.data =', query.data);
+      console.error('❌ SAVE ITEM: snapshotId =', snapshotId);
+      return;
+    }
+    
     const next = { ...query.data.content } as any;
     next.items = [...next.items];
     next.items[index] = draftItems[index];
+    
+    console.log('💾 SAVE ITEM: Updated content structure =', {
+      totalItems: next.items?.length,
+      updatedItemIndex: index,
+      updatedItem: draftItems[index],
+      itemBody: draftItems[index]?.body?.substring(0, 200) + '...'
+    });
+    
     try {
-      await update.mutateAsync({ snapshotId, content: next });
+      console.log('💾 SAVE ITEM: Calling update.mutateAsync...');
+      const result = await update.mutateAsync({ snapshotId, content: next });
+      console.log('✅ SAVE ITEM: Save successful, result =', result);
+      
       setDirty((prev) => {
         const n = new Set(prev);
         n.delete(index);
         return n;
       });
-      toast({ title: "Saved", description: "Changes saved" });
+      console.log('✅ SAVE ITEM: Marked item as clean');
+      toast({ title: "Saved", description: "Changes saved successfully" });
     } catch (e: any) {
+      console.error('❌ SAVE ITEM: Save failed with error =', e);
+      console.error('❌ SAVE ITEM: Error details =', {
+        message: e?.message,
+        code: e?.code,
+        details: e?.details,
+        hint: e?.hint,
+        fullError: e
+      });
       toast({ title: "Error", description: e?.message || "Failed to save", variant: "destructive" });
     }
   };
