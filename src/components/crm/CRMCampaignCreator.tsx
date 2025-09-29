@@ -191,15 +191,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   campaignSlug, 
   contentTaskId: propContentTaskId 
 }) => {
-  console.error('🚨🚨🚨 COMPONENT DEBUG: CRMCampaignCreator mounted at', new Date().toISOString());
-  console.error('🚨 COMPONENT DEBUG: campaignSlug =', campaignSlug);
-  console.error('🚨 COMPONENT DEBUG: contentTaskId =', propContentTaskId);
+  console.log('🚨🚨🚨 COMPONENT DEBUG: CRMCampaignCreator mounted at', new Date().toISOString());
+  console.log('🚨 COMPONENT DEBUG: campaignSlug =', campaignSlug);
+  console.log('🚨 COMPONENT DEBUG: contentTaskId =', propContentTaskId);
   
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  console.error('🚨 COMPONENT DEBUG: searchParams =', searchParams.toString());
+  console.log('🚨 COMPONENT DEBUG: searchParams =', searchParams.toString());
   
   // 🚨 NEWSLETTER PREFILL LOGIC - Single clean implementation
   const emergencyData = localStorage.getItem('emergency-newsletter-prefill');
@@ -207,21 +207,21 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   let prefillData: any = null;
   
   if (emergencyData) {
-    console.error('🚨🚨🚨 PREFILL: Found emergency data in localStorage');
+    console.log('🚨🚨🚨 PREFILL: Found emergency data in localStorage');
     try {
       prefillData = JSON.parse(emergencyData);
       const dataAge = Date.now() - prefillData.timestamp;
-      console.error('🚨 PREFILL: Data age =', dataAge, 'ms');
+      console.log('🚨 PREFILL: Data age =', dataAge, 'ms');
       
       if (dataAge < 30000) {
         shouldApplyPrefill = true;
-        console.error('🚨🚨🚨 PREFILL: Data is recent, will apply');
+        console.log('🚨🚨🚨 PREFILL: Data is recent, will apply');
       } else {
         localStorage.removeItem('emergency-newsletter-prefill');
-        console.error('🚨 PREFILL: Data too old, cleaned up');
+        console.log('🚨 PREFILL: Data too old, cleaned up');
       }
     } catch (error) {
-      console.error('🚨 PREFILL: Parse error =', error);
+      console.log('🚨 PREFILL: Parse error =', error);
     }
   }
 
@@ -293,8 +293,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // 🚨 APPLY NEWSLETTER PREFILL - Clean implementation after state is ready
   useEffect(() => {
     if (shouldApplyPrefill && prefillData) {
-      console.error('🚨🚨🚨 APPLYING PREFILL: Processing newsletter data');
-      console.error('🚨 PREFILL DATA:', prefillData);
+      console.log('🚨🚨🚨 APPLYING PREFILL: Processing newsletter data');
+      console.log('🚨 PREFILL DATA:', prefillData);
       
       // Create header block
       const headerBlock: ContentBlock = {
@@ -319,10 +319,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       
       const newBlocks = [headerBlock, contentBlock];
       
-      console.error('🚨 APPLYING PREFILL: Setting blocks =', newBlocks);
+      console.log('🚨 APPLYING PREFILL: Setting blocks =', newBlocks);
       setBlocks(newBlocks);
       
-      console.error('🚨 APPLYING PREFILL: Setting campaign name =', prefillData.title);
+      console.log('🚨 APPLYING PREFILL: Setting campaign name =', prefillData.title);
       setCampaignName(prefillData.title || 'Newsletter Campaign');
       setSubjectLine(prefillData.title || 'Newsletter Campaign');
       
@@ -339,7 +339,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Clear the emergency data
       localStorage.removeItem('emergency-newsletter-prefill');
       
-      console.error('🚨🚨🚨 PREFILL COMPLETE: Successfully applied all data and cleaned up!');
+      console.log('🚨🚨🚨 PREFILL COMPLETE: Successfully applied all data and cleaned up!');
     }
   }, []); // Run once on mount
   const [selectedPersonas, setSelectedPersonas] = useState<any[]>(() => {
