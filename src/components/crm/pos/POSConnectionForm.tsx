@@ -46,6 +46,18 @@ export const POSConnectionForm: React.FC<POSConnectionFormProps> = ({
       helpLink: 'https://developer.squareup.com/docs/build-basics/access-tokens',
       helpText: 'Get your application credentials from the Square Developer Dashboard.',
     },
+    counterpoint: {
+      title: 'Connect Counterpoint',
+      description: 'Connect your Counterpoint POS system to sync customers, orders, and inventory.',
+      fields: [
+        { key: 'api_key', label: 'API Key', placeholder: 'cp_...', type: 'password' },
+        { key: 'base_url', label: 'API Base URL', placeholder: 'https://api.counterpoint.com', type: 'text' },
+        { key: 'account_id', label: 'Account ID', placeholder: 'Your account ID', type: 'text' },
+        { key: 'environment', label: 'Environment', placeholder: 'sandbox or production', type: 'text' },
+      ],
+      helpLink: 'https://counterpoint.com/api-docs',
+      helpText: 'Get your API credentials from your Counterpoint admin dashboard.',
+    },
   };
 
   const config = platformConfig[platform as keyof typeof platformConfig];

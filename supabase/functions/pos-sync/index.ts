@@ -20,6 +20,9 @@ async function getAdapter(platform: string, credentials: any) {
     case 'square':
       const { SquareAdapter } = await import('../../../src/components/crm/pos/adapters/SquareAdapter.ts');
       return new SquareAdapter(credentials.access_token, credentials.environment || 'production');
+    case 'counterpoint':
+      const { CounterpointAdapter } = await import('../../../src/components/crm/pos/adapters/CounterpointAdapter.ts');
+      return new CounterpointAdapter(credentials.api_key, credentials.base_url, credentials.account_id);
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }

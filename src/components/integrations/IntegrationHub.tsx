@@ -280,7 +280,7 @@ export const IntegrationHub = () => {
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
                     <p className="text-sm text-green-800">
-                      <strong>Supported platforms:</strong> Shopify, Square, VMX CSV Import, and more
+                      <strong>Supported platforms:</strong> Shopify, Square, Counterpoint, VMX CSV Import, and more
                     </p>
                     <p className="text-sm text-green-700">
                       Automatically import customers, orders, and purchase history

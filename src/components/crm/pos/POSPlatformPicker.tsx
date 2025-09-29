@@ -29,6 +29,14 @@ const platforms = [
     features: ['Customers', 'Payments', 'Items', 'Locations']
   },
   {
+    id: 'counterpoint',
+    name: 'Counterpoint',
+    description: 'Connect your Counterpoint POS system for comprehensive data sync',
+    icon: Store,
+    status: 'available',
+    features: ['Customers', 'Orders', 'Products', 'Multi-location']
+  },
+  {
     id: 'vmx',
     name: 'VMX CSV Import',
     description: 'Upload CSV files from VMX or other POS systems',
