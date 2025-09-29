@@ -237,64 +237,78 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
 
         {/* Newsletter Content */}
         <div className="prose prose-slate max-w-none">
-          <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
-            {(() => {
-              if (!content) return "No content available. Click edit to add newsletter content.";
-              
-              // Parse YAML-like content to extract readable text
-              let cleanContent = content;
-              
-              // Extract newsletter title
-              const titleMatch = cleanContent.match(/# (.+)/);
-              const title = titleMatch ? titleMatch[1].replace(/Newsletter$/, '').trim() : '';
-              
-              // Extract blocks content
-              const blockPattern = /title: "([^"]+)"\s*body: "([^"]+)"/g;
-              const blocks = [];
-              let match;
-              
-              while ((match = blockPattern.exec(cleanContent)) !== null) {
-                blocks.push({
-                  title: match[1],
-                  body: match[2]
-                });
-              }
-              
-              // If we have structured content, display it nicely
-              if (blocks.length > 0) {
-                return (
-                  <div>
-                    {title && <h1 className="text-3xl font-bold mb-6">{title}</h1>}
-                    {blocks.map((block, index) => (
-                      <div key={index} className="mb-8">
-                        <h2 className="text-xl font-semibold mb-3">{block.title}</h2>
-                        <p className="text-slate-700 leading-relaxed">{block.body}</p>
+          <div 
+            className="whitespace-pre-wrap text-slate-700 leading-relaxed"
+            dangerouslySetInnerHTML={{
+              __html: (() => {
+                if (!content) return "No content available. Click edit to add newsletter content.";
+                
+                // Check if content is already HTML (contains HTML tags)
+                const isHTML = /<[^>]*>/g.test(content);
+                
+                if (isHTML) {
+                  // Content is already HTML, render it directly
+                  return content;
+                }
+                
+                // Parse YAML-like content to extract readable text and convert to HTML
+                let cleanContent = content;
+                
+                // Extract newsletter title
+                const titleMatch = cleanContent.match(/# (.+)/);
+                const title = titleMatch ? titleMatch[1].replace(/Newsletter$/, '').trim() : '';
+                
+                // Extract blocks content
+                const blockPattern = /title: "([^"]+)"\s*body: "([^"]+)"/g;
+                const blocks = [];
+                let match;
+                
+                while ((match = blockPattern.exec(cleanContent)) !== null) {
+                  blocks.push({
+                    title: match[1],
+                    body: match[2]
+                  });
+                }
+                
+                // If we have structured content, convert to HTML
+                if (blocks.length > 0) {
+                  let html = '';
+                  if (title) {
+                    html += `<h1 class="text-3xl font-bold mb-6">${title}</h1>`;
+                  }
+                  blocks.forEach(block => {
+                    html += `
+                      <div class="mb-8">
+                        <h2 class="text-xl font-semibold mb-3">${block.title}</h2>
+                        <p class="text-slate-700 leading-relaxed">${block.body}</p>
                       </div>
-                    ))}
-                  </div>
-                );
-              }
-              
-              // Fallback: clean up YAML syntax and show as is
-              const cleaned = cleanContent
-                .replace(/```yaml\s*/, '')
-                .replace(/```\s*$/, '')
-                .replace(/newsletter_md:\s*\|/, '')
-                .replace(/^[\s]*blocks$/, '')
-                .replace(/^[\s]*meta$/, '')
-                .replace(/title:\s*"([^"]+)"/g, '\n## $1')
-                .replace(/body:\s*"([^"]+)"/g, '\n$1\n')
-                .replace(/cta:\s*"[^"]*"/g, '')
-                .replace(/link:\s*"[^"]*"/g, '')
-                .replace(/reading_time:\s*"[^"]*"/g, '')
-                .replace(/theme:\s*"[^"]*"/g, '')
-                .replace(/week_focus:\s*"[^"]*"/g, '')
-                .replace(/\n\s*\n\s*\n/g, '\n\n')
-                .trim();
-              
-              return cleaned || "No content available. Click edit to add newsletter content.";
-            })()}
-          </div>
+                    `;
+                  });
+                  return html;
+                }
+                
+                // Fallback: clean up YAML syntax and convert to HTML
+                const cleaned = cleanContent
+                  .replace(/```yaml\s*/, '')
+                  .replace(/```\s*$/, '')
+                  .replace(/newsletter_md:\s*\|/, '')
+                  .replace(/^[\s]*blocks$/, '')
+                  .replace(/^[\s]*meta$/, '')
+                  .replace(/title:\s*"([^"]+)"/g, '<h2 class="text-xl font-semibold mb-3">$1</h2>')
+                  .replace(/body:\s*"([^"]+)"/g, '<p class="text-slate-700 leading-relaxed mb-4">$1</p>')
+                  .replace(/cta:\s*"[^"]*"/g, '')
+                  .replace(/link:\s*"[^"]*"/g, '')
+                  .replace(/reading_time:\s*"[^"]*"/g, '')
+                  .replace(/theme:\s*"[^"]*"/g, '')
+                  .replace(/week_focus:\s*"[^"]*"/g, '')
+                  .replace(/\n\s*\n\s*\n/g, '<br><br>')
+                  .replace(/\n/g, '<br>')
+                  .trim();
+                
+                return cleaned || "No content available. Click edit to add newsletter content.";
+              })()
+            }}
+          />
         </div>
 
         {/* Newsletter Footer */}
