@@ -201,25 +201,21 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const { toast } = useToast();
   console.log('🚨 COMPONENT DEBUG: searchParams =', searchParams.toString());
   
-  // 🚨 NEWSLETTER PREFILL LOGIC - Single clean implementation
-  const emergencyData = localStorage.getItem('emergency-newsletter-prefill');
+  // 🚨 NEWSLETTER PREFILL LOGIC - Read directly from URL params
+  const typeParam = searchParams.get('type');
+  const prefillDataParam = searchParams.get('prefillData');
+  
   let shouldApplyPrefill = false;
   let prefillData: any = null;
   
-  if (emergencyData) {
-    console.log('🚨🚨🚨 PREFILL: Found emergency data in localStorage');
+  // Check if this is a newsletter with prefill data
+  if (typeParam === 'newsletter' && prefillDataParam) {
+    console.log('🚨🚨🚨 PREFILL: Found newsletter prefill data in URL params');
     try {
-      prefillData = JSON.parse(emergencyData);
-      const dataAge = Date.now() - prefillData.timestamp;
-      console.log('🚨 PREFILL: Data age =', dataAge, 'ms');
-      
-      if (dataAge < 30000) {
-        shouldApplyPrefill = true;
-        console.log('🚨🚨🚨 PREFILL: Data is recent, will apply');
-      } else {
-        localStorage.removeItem('emergency-newsletter-prefill');
-        console.log('🚨 PREFILL: Data too old, cleaned up');
-      }
+      prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
+      shouldApplyPrefill = true;
+      console.log('🚨🚨🚨 PREFILL: Successfully parsed data, will apply');
+      console.log('🚨 PREFILL DATA:', prefillData);
     } catch (error) {
       console.log('🚨 PREFILL: Parse error =', error);
     }
@@ -336,12 +332,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         description: `Successfully loaded: "${prefillData.title}"`
       });
       
-      // Clear the emergency data
-      localStorage.removeItem('emergency-newsletter-prefill');
-      
-      console.log('🚨🚨🚨 PREFILL COMPLETE: Successfully applied all data and cleaned up!');
+      console.log('🚨🚨🚨 PREFILL COMPLETE: Successfully applied all data!');
     }
-  }, []); // Run once on mount
+  }, [shouldApplyPrefill, prefillData, toast]); // Add dependencies to ensure it runs when data is available
   const [selectedPersonas, setSelectedPersonas] = useState<any[]>(() => {
     console.log('🏁 CRMCampaignCreator: Initializing selectedPersonas state with:', initialPersonas);
     return initialPersonas;
