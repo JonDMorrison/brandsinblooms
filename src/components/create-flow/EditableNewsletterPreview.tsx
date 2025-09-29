@@ -52,13 +52,22 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
 
   // Update editor content when editContent changes
   useEffect(() => {
-    if (editor && !editor.isDestroyed) {
+    if (editor && !editor.isDestroyed && isEditing) {
       const currentContent = editor.getHTML();
       if (currentContent !== editContent) {
+        console.log('🔄 SYNC: Updating editor with editContent =', editContent);
         editor.commands.setContent(editContent || "Start writing your newsletter content...");
       }
     }
-  }, [editContent, editor]);
+  }, [editContent, editor, isEditing]);
+
+  // Update editContent when the main content prop changes (external updates)
+  useEffect(() => {
+    if (!isEditing) {
+      setEditContent(content);
+      console.log('🔄 SYNC: Updated editContent from props =', content);
+    }
+  }, [content, isEditing]);
 
   // Process newsletter content to get structured blocks
   const processedNewsletter = useMemo(() => {
@@ -102,7 +111,13 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
   };
 
   const handleSave = () => {
-    onChange(editContent);
+    // Get the latest content directly from the editor
+    const latestContent = editor ? editor.getHTML() : editContent;
+    console.log('🔥 SAVE: Editor content =', latestContent);
+    console.log('🔥 SAVE: State content =', editContent);
+    
+    // Update the content through onChange prop
+    onChange(latestContent);
     setIsEditing(false);
     onSave?.();
     // Note: selectedImages will be preserved even after content changes
