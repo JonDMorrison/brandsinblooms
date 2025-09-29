@@ -1,12 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { NewsletterContentBlock } from '@/components/content-sidebar/newsletter/NewsletterContentBlock';
 import { useNewsletterImages } from '@/components/content-sidebar/newsletter/useNewsletterImages';
 import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
-import { Edit, Save, X } from 'lucide-react';
+import { Edit, Save, X, Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 
 interface EditableNewsletterPreviewProps {
   content: string;
@@ -26,6 +29,36 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [selectedImages, setSelectedImages] = useState<Record<number, string>>({});
+
+  // Rich text editor configuration
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+    ],
+    content: editContent || "Start writing your newsletter content...",
+    onUpdate: ({ editor }) => {
+      setEditContent(editor.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        class: 'prose prose-slate max-w-none focus:outline-none',
+      },
+    },
+  });
+
+  // Update editor content when editContent changes
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      const currentContent = editor.getHTML();
+      if (currentContent !== editContent) {
+        editor.commands.setContent(editContent || "Start writing your newsletter content...");
+      }
+    }
+  }, [editContent, editor]);
 
   // Process newsletter content to get structured blocks
   const processedNewsletter = useMemo(() => {
@@ -62,6 +95,10 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
   const handleStartEdit = () => {
     setEditContent(content);
     setIsEditing(true);
+    // Set editor content when starting to edit
+    if (editor && !editor.isDestroyed) {
+      editor.commands.setContent(content || "Start writing your newsletter content...");
+    }
   };
 
   const handleSave = () => {
@@ -74,6 +111,10 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
   const handleCancel = () => {
     setEditContent(content);
     setIsEditing(false);
+    // Reset editor content when canceling
+    if (editor && !editor.isDestroyed) {
+      editor.commands.setContent(content || "");
+    }
   };
 
   const handleImageSelect = (blockIndex: number, imageUrl: string, metadata?: any) => {
@@ -101,15 +142,76 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
             </div>
           </div>
           
-          <div className="prose prose-slate max-w-none">
-            <div 
-              className="min-h-[300px] p-4 border rounded-md focus-within:ring-2 focus-within:ring-primary" 
-              contentEditable
-              dangerouslySetInnerHTML={{ __html: editContent || "Start writing your newsletter content..." }}
-              onInput={(e) => setEditContent(e.currentTarget.innerHTML)}
-              style={{ minHeight: "300px" }}
-            />
-          </div>
+          {/* Rich Text Editor Toolbar */}
+          {editor && (
+            <div className="border border-border rounded-md">
+              <div className="flex items-center gap-1 p-2 border-b border-border bg-muted/50">
+                <Button
+                  variant={editor.isActive('bold') ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleBold().run()}
+                >
+                  <Bold className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={editor.isActive('italic') ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleItalic().run()}
+                >
+                  <Italic className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={editor.isActive('underline') ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleUnderline().run()}
+                >
+                  <UnderlineIcon className="h-4 w-4" />
+                </Button>
+                <div className="w-px h-6 bg-border mx-1" />
+                <Button
+                  variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleBulletList().run()}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                >
+                  <ListOrdered className="h-4 w-4" />
+                </Button>
+                <div className="w-px h-6 bg-border mx-1" />
+                <Button
+                  variant={editor.isActive({ textAlign: 'left' }) ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                >
+                  <AlignLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={editor.isActive({ textAlign: 'center' }) ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                >
+                  <AlignCenter className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={editor.isActive({ textAlign: 'right' }) ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                >
+                  <AlignRight className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Rich Text Editor Content */}
+              <div className="min-h-[300px] p-4 focus-within:ring-2 focus-within:ring-primary">
+                <EditorContent editor={editor} />
+              </div>
+            </div>
+          )}
         </div>
       </Card>
     );
