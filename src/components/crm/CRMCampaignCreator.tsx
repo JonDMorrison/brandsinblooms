@@ -205,6 +205,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const typeParam = searchParams.get('type');
   const prefillDataParam = searchParams.get('prefillData');
   
+  console.log('🚨🚨🚨 PREFILL DEBUG: typeParam =', typeParam);
+  console.log('🚨🚨🚨 PREFILL DEBUG: prefillDataParam exists =', !!prefillDataParam);
+  console.log('🚨🚨🚨 PREFILL DEBUG: prefillDataParam length =', prefillDataParam?.length);
+  
   let shouldApplyPrefill = false;
   let prefillData: any = null;
   
@@ -219,6 +223,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     } catch (error) {
       console.log('🚨 PREFILL: Parse error =', error);
     }
+  } else {
+    console.log('🚨🚨🚨 PREFILL: Conditions not met - typeParam:', typeParam, 'prefillDataParam:', !!prefillDataParam);
   }
 
   const { counts: segmentCounts } = useSegmentCounts();
