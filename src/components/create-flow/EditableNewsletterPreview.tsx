@@ -26,6 +26,15 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
   onSave,
   className = ""
 }) => {
+  // Debug logging for props
+  console.log('🔍 NEWSLETTER PREVIEW: Props received =', { 
+    content: content?.substring(0, 100) + '...', 
+    contentLength: content?.length,
+    title,
+    hasOnChange: !!onChange,
+    hasOnSave: !!onSave 
+  });
+  
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [selectedImages, setSelectedImages] = useState<Record<number, string>>({});
@@ -63,11 +72,15 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
 
   // Update editContent when the main content prop changes (external updates)
   useEffect(() => {
-    if (!isEditing) {
+    console.log('🔄 SYNC: Content prop changed, current content =', content?.substring(0, 100) + '...');
+    console.log('🔄 SYNC: Current editContent =', editContent?.substring(0, 100) + '...');
+    console.log('🔄 SYNC: isEditing =', isEditing);
+    
+    if (!isEditing && content !== editContent) {
+      console.log('🔄 SYNC: Updating editContent from props');
       setEditContent(content);
-      console.log('🔄 SYNC: Updated editContent from props =', content);
     }
-  }, [content, isEditing]);
+  }, [content, isEditing, editContent]);
 
   // Process newsletter content to get structured blocks
   const processedNewsletter = useMemo(() => {
@@ -113,13 +126,18 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
   const handleSave = () => {
     // Get the latest content directly from the editor
     const latestContent = editor ? editor.getHTML() : editContent;
-    console.log('🔥 SAVE: Editor content =', latestContent);
-    console.log('🔥 SAVE: State content =', editContent);
+    console.log('🔥 SAVE: About to save content');
+    console.log('🔥 SAVE: Editor content =', latestContent?.substring(0, 200) + '...');
+    console.log('🔥 SAVE: State content =', editContent?.substring(0, 200) + '...');
+    console.log('🔥 SAVE: Original content =', content?.substring(0, 200) + '...');
     
     // Update the content through onChange prop
+    console.log('🔥 SAVE: Calling onChange with latestContent');
     onChange(latestContent);
     setIsEditing(false);
+    console.log('🔥 SAVE: Calling onSave callback');
     onSave?.();
+    console.log('🔥 SAVE: Save process completed');
     // Note: selectedImages will be preserved even after content changes
   };
 
@@ -256,7 +274,14 @@ export const EditableNewsletterPreview: React.FC<EditableNewsletterPreviewProps>
             className="whitespace-pre-wrap text-slate-700 leading-relaxed"
             dangerouslySetInnerHTML={{
               __html: (() => {
-                if (!content) return "No content available. Click edit to add newsletter content.";
+                console.log('🎭 RENDER: Displaying content =', content?.substring(0, 200) + '...');
+                console.log('🎭 RENDER: Content length =', content?.length);
+                console.log('🎭 RENDER: Content type =', typeof content);
+                
+                if (!content) {
+                  console.log('🎭 RENDER: No content, showing placeholder');
+                  return "No content available. Click edit to add newsletter content.";
+                }
                 
                 // Check if content is already HTML (contains HTML tags)
                 const isHTML = /<[^>]*>/g.test(content);

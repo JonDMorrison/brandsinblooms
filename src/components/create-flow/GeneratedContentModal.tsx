@@ -356,13 +356,22 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                           ) : item.channel === 'newsletter' ? (
                              <div className="space-y-2">
                                <p className="text-xs text-gray-500">Newsletter will use CRM block templates when approved</p>
-                              <EditableNewsletterPreview
-                                content={sanitizeWeekNumbers(item.body || '')}
-                                title={item.title || 'Newsletter'}
-                                onChange={(content) => editItem(idx, { body: content })}
-                                onSave={() => handleSaveItem(idx)}
-                                className="w-full"
-                              />
+                               <EditableNewsletterPreview
+                                 content={sanitizeWeekNumbers(item.body || '')}
+                                 title={item.title || 'Newsletter'}
+                                 onChange={(content) => {
+                                   console.log('📝 MODAL: onChange called with content =', content?.substring(0, 200) + '...');
+                                   console.log('📝 MODAL: item.body before =', item.body?.substring(0, 200) + '...');
+                                   editItem(idx, { body: content });
+                                   console.log('📝 MODAL: editItem called');
+                                 }}
+                                 onSave={() => {
+                                   console.log('💾 MODAL: onSave called for item index =', idx);
+                                   console.log('💾 MODAL: Current item.body =', draftItems[idx]?.body?.substring(0, 200) + '...');
+                                   handleSaveItem(idx);
+                                 }}
+                                 className="w-full"
+                               />
                             </div>
                          ) : (
                           <textarea
