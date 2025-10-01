@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 import { CompanyProfileFormFields } from "./company-profile/CompanyProfileFormFields";
 import { CompanyProfileLoadingState } from "./company-profile/CompanyProfileLoadingState";
@@ -18,6 +19,7 @@ interface CompanyProfileFormProps {
 
 export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfileUpdate }: CompanyProfileFormProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     company_name: '',
     company_overview: '',
@@ -171,6 +173,11 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
 
       if (result.error) {
         console.error('Error saving profile:', result.error);
+        toast({
+          title: "Error saving profile",
+          description: "Failed to update company profile. Please try again.",
+          variant: "destructive"
+        });
         return;
       }
 
@@ -188,6 +195,11 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
           }
         }
       }
+
+      toast({
+        title: "Profile updated successfully",
+        description: "Your changes will be reflected in all future content generation.",
+      });
 
       onProfileUpdate(result.data);
     } catch (error) {

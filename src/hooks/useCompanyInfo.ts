@@ -32,7 +32,7 @@ export const useCompanyInfo = () => {
         .from('company_profiles')
         .select('*')
         .eq('user_id', user.id)
-        .maybeSingle(); // Use maybeSingle instead of single
+        .maybeSingle();
 
       if (error) {
         console.error('Error loading company profile:', error);
@@ -54,11 +54,35 @@ export const useCompanyInfo = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]); // Only depend on user.id
+  }, [user?.id]);
 
   useEffect(() => {
     loadCompanyInfo();
-  }, [loadCompanyInfo]);
+
+    // Set up real-time subscription for profile changes
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('company-profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_profiles',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Company profile updated:', payload);
+          loadCompanyInfo();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadCompanyInfo, user?.id]);
 
   return useMemo(() => ({
     companyInfo,
