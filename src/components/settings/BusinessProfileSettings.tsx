@@ -7,13 +7,18 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export const BusinessProfileSettings = () => {
   const { user } = useAuth();
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchProfile = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('company_profiles')
         .select('*')
@@ -22,12 +27,15 @@ export const BusinessProfileSettings = () => {
 
       if (error) {
         console.error('Error fetching profile:', error);
+        setIsLoading(false);
         return;
       }
 
       setProfile(data || null);
     } catch (error) {
       console.error('Error in fetchProfile:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, [user?.id]);
 
@@ -57,12 +65,18 @@ export const BusinessProfileSettings = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <CompanyProfileForm 
-            profile={profile}
-            isEditing={isEditing}
-            onToggleEdit={handleToggleEdit}
-            onProfileUpdate={handleProfileUpdate}
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <div className="text-muted-foreground">Loading profile...</div>
+            </div>
+          ) : (
+            <CompanyProfileForm 
+              profile={profile}
+              isEditing={isEditing}
+              onToggleEdit={handleToggleEdit}
+              onProfileUpdate={handleProfileUpdate}
+            />
+          )}
         </CardContent>
       </Card>
     </div>

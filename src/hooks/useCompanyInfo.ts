@@ -58,8 +58,10 @@ export const useCompanyInfo = () => {
 
   useEffect(() => {
     loadCompanyInfo();
+  }, [loadCompanyInfo]);
 
-    // Set up real-time subscription for profile changes
+  // Separate effect for real-time subscription to avoid dependency issues
+  useEffect(() => {
     if (!user?.id) return;
 
     const channel = supabase
@@ -74,7 +76,18 @@ export const useCompanyInfo = () => {
         },
         (payload) => {
           console.log('Company profile updated:', payload);
-          loadCompanyInfo();
+          // Properly map the updated profile to CompanyInfo structure
+          if (payload.new) {
+            const profile = payload.new as any;
+            const featureFlags = profile.feature_flags as any;
+            setCompanyInfo({
+              name: profile.company_name || 'Your Company',
+              address: profile.location_info || '123 Business St, Suite 100, City, State 12345',
+              phone: featureFlags?.company_phone || '(555) 123-4567',
+              logoUrl: featureFlags?.company_logo_url,
+              emailDomain: profile.email_domain,
+            });
+          }
         }
       )
       .subscribe();
@@ -82,7 +95,7 @@ export const useCompanyInfo = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadCompanyInfo, user?.id]);
+  }, [user?.id]);
 
   return useMemo(() => ({
     companyInfo,
