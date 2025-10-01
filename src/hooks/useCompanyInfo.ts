@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -18,6 +18,8 @@ export const useCompanyInfo = () => {
     phone: '(555) 123-4567',
   });
   const [isLoading, setIsLoading] = useState(true);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const isSubscribedRef = useRef(false);
 
   const loadCompanyInfo = useCallback(async () => {
     if (!user?.id) {
@@ -64,36 +66,54 @@ export const useCompanyInfo = () => {
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase
-      .channel(`company-profile-changes-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'company_profiles',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('Company profile updated:', payload);
-          // Properly map the updated profile to CompanyInfo structure
-          if (payload.new) {
-            const profile = payload.new as any;
-            const featureFlags = profile.feature_flags as any;
-            setCompanyInfo({
-              name: profile.company_name || 'Your Company',
-              address: profile.location_info || '123 Business St, Suite 100, City, State 12345',
-              phone: featureFlags?.company_phone || '(555) 123-4567',
-              logoUrl: featureFlags?.company_logo_url,
-              emailDomain: profile.email_domain,
-            });
+    // Cleanup any existing subscription first
+    const cleanupChannel = async () => {
+      if (channelRef.current && isSubscribedRef.current) {
+        await supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+        isSubscribedRef.current = false;
+      }
+    };
+
+    // Setup new subscription
+    const setupChannel = async () => {
+      await cleanupChannel();
+
+      const channel = supabase
+        .channel(`company-profile-changes-${user.id}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'company_profiles',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            // Properly map the updated profile to CompanyInfo structure
+            if (payload.new) {
+              const profile = payload.new as any;
+              const featureFlags = profile.feature_flags as any;
+              setCompanyInfo({
+                name: profile.company_name || 'Your Company',
+                address: profile.location_info || '123 Business St, Suite 100, City, State 12345',
+                phone: featureFlags?.company_phone || '(555) 123-4567',
+                logoUrl: featureFlags?.company_logo_url,
+                emailDomain: profile.email_domain,
+              });
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+
+      channelRef.current = channel;
+      isSubscribedRef.current = true;
+    };
+
+    setupChannel();
 
     return () => {
-      supabase.removeChannel(channel);
+      cleanupChannel();
     };
   }, [user?.id]);
 
