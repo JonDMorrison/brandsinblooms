@@ -11,7 +11,7 @@ interface CompanyInfo {
 }
 
 export const useCompanyInfo = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
     name: 'Your Company',
     address: '123 Business St, Suite 100, City, State 12345',
@@ -64,11 +64,13 @@ export const useCompanyInfo = () => {
 
   // Separate effect for real-time subscription to avoid dependency issues
   useEffect(() => {
-    if (!user?.id) return;
+    // Guard: Only proceed if user has an ID and auth is not loading
+    if (!user?.id || loading) return;
 
     // Cleanup any existing subscription first
     const cleanupChannel = async () => {
       if (channelRef.current && isSubscribedRef.current) {
+        console.log('🧹 Cleaning up existing subscription for user:', user.id);
         await supabase.removeChannel(channelRef.current);
         channelRef.current = null;
         isSubscribedRef.current = false;
@@ -77,6 +79,7 @@ export const useCompanyInfo = () => {
 
     // Setup new subscription
     const setupChannel = async () => {
+      console.log('🔔 Setting up subscription for user:', user.id);
       await cleanupChannel();
 
       const channel = supabase
@@ -90,6 +93,7 @@ export const useCompanyInfo = () => {
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
+            console.log('📄 Company profile updated:', payload);
             // Properly map the updated profile to CompanyInfo structure
             if (payload.new) {
               const profile = payload.new as any;
@@ -115,7 +119,7 @@ export const useCompanyInfo = () => {
     return () => {
       cleanupChannel();
     };
-  }, [user?.id]);
+  }, [user?.id, loading]);
 
   return useMemo(() => ({
     companyInfo,
