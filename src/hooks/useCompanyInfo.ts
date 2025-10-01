@@ -65,7 +65,7 @@ export const useCompanyInfo = () => {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel('company-profile-changes')
+      .channel(`company-profile-changes-${user.id}`)
       .on(
         'postgres_changes',
         {
