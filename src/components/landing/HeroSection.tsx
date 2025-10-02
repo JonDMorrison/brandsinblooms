@@ -31,7 +31,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               <img 
                 src={bloomsuiteLogo} 
                 alt="BloomSuite" 
-                className="w-12 h-12 mb-2"
+                className="w-14 h-14 mb-2"
               />
             </div>
 
