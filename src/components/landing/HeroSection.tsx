@@ -11,7 +11,7 @@ interface HeroSectionProps {
 
 export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
   return (
-    <section className="relative pt-32 pb-20 px-4 sm:px-6 overflow-hidden">
+    <section className="relative pt-20 pb-12 px-4 sm:px-6 overflow-hidden">
       {/* Background Effects */}
       <div className="absolute inset-0 -z-10">
         {/* Gradient Orbs */}
@@ -23,20 +23,20 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
       </div>
 
       <div className="container mx-auto max-w-6xl">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="grid lg:grid-cols-2 gap-8 items-center">
           {/* Left Column - Text Content */}
-          <div className="text-center lg:text-left space-y-8">
+          <div className="text-center lg:text-left space-y-5">
             {/* Logo */}
             <div className="flex justify-center lg:justify-start">
               <img 
                 src={bloomsuiteLogo} 
                 alt="BloomSuite" 
-                className="w-16 h-16 mb-4"
+                className="w-12 h-12 mb-2"
               />
             </div>
 
             {/* Main Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight">
               <span className="bg-gradient-to-r from-[#1a2f3a] via-[#2c4a58] to-[#1a2f3a] bg-clip-text text-transparent">
                 The Most Powerful Marketing Tool
                 <br />
@@ -45,7 +45,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
             </h1>
 
             {/* Subheadline */}
-            <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-3xl lg:max-w-none leading-relaxed">
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-3xl lg:max-w-none leading-relaxed">
               Stop struggling with scattered marketing tools that don't understand your business. BloomSuite gives you everything you need to attract more customers, increase sales, and grow your garden center — all in one powerful platform.
             </p>
 
