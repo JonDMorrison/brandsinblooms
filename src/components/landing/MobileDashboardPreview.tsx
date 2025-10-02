@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Share2, Mail, BarChart3, Globe, Palette } from 'lucide-react';
+import { Sparkles, Share2, Mail, BarChart3, Globe, TrendingUp } from 'lucide-react';
 
 export const MobileDashboardPreview = () => {
   return (
@@ -94,15 +94,15 @@ export const MobileDashboardPreview = () => {
           </div>
         </div>
 
-        {/* Manage My Brand */}
+        {/* View Analytics */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-5">
           <div className="flex flex-col items-center text-center space-y-3">
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#3E5A6B] to-[#3E5A6B]/80 flex items-center justify-center">
-              <Palette className="w-7 h-7 text-white" />
+              <TrendingUp className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-gray-900 mb-1">Manage My Brand</h3>
-              <p className="text-sm text-gray-600">Keep your message consistent everywhere</p>
+              <h3 className="text-base font-bold text-gray-900 mb-1">View Analytics</h3>
+              <p className="text-sm text-gray-600">Understand your audience and grow faster</p>
             </div>
           </div>
         </div>
