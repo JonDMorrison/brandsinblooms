@@ -38,7 +38,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
             </div>
 
             {/* Main Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight text-[#3E5A6B]">
               <span className="bg-gradient-to-r from-[#3E5A6B] via-[#68BEB9] to-[#68BEB9] bg-clip-text text-transparent">
                 The Most Powerful Marketing Tool
                 <br />
