@@ -33,7 +33,7 @@ export const PricingHero = ({ subscription, onStartTrial, onBuyNow }: PricingHer
           </p>
           
           {!subscription && (
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="flex justify-center items-center">
               <div className="relative group">
                 <Button 
                   onClick={onStartTrial}
@@ -43,18 +43,6 @@ export const PricingHero = ({ subscription, onStartTrial, onBuyNow }: PricingHer
                 </Button>
                 <div className="absolute inset-0 bg-gradient-to-r from-brand-teal-mint/20 to-brand-steel-blue/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
               </div>
-              
-              {onBuyNow && (
-                <div className="relative group">
-                  <Button 
-                    onClick={onBuyNow}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg rounded-2xl shadow-2xl hover:shadow-primary/25 transition-all duration-300 hover:scale-105 border border-white/20"
-                  >
-                    Buy Now
-                  </Button>
-                  <div className="absolute inset-0 pointer-events-none bg-primary/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
-                </div>
-              )}
             </div>
           )}
 
