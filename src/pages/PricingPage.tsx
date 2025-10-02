@@ -11,7 +11,6 @@ import { DifferentiatorsSection } from "@/components/landing/DifferentiatorsSect
 import { FAQSection } from "@/components/pricing/FAQSection";
 import { FinalCTA } from "@/components/pricing/FinalCTA";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
-import { FullWidthLayout } from "@/components/FullWidthLayout";
 
 const PricingPage = () => {
   const navigate = useNavigate();
@@ -78,29 +77,9 @@ const PricingPage = () => {
     }
   }, [navigate, refreshSubscription]);
 
-  if (user) {
-    return (
-      <FullWidthLayout>
-        <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
-        <PricingHero subscription={subscription} onStartTrial={handleStartTrial} onBuyNow={handleSelectPlan} />
-          <PricingPlans 
-            subscription={subscription}
-            loading={loading}
-            onSelectPlan={handleSelectPlan}
-            onStartTrial={handleStartTrial}
-          />
-          <CompetitorComparison />
-          <DifferentiatorsSection onTalkToTeam={handleStartTrial} />
-          <FAQSection />
-          <FinalCTA subscription={subscription} onStartTrial={handleStartTrial} />
-        </div>
-      </FullWidthLayout>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
-      <LandingPageHeader onLogin={() => navigate('/auth')} />
+      <LandingPageHeader onLogin={() => navigate('/auth')} showUserMenu={true} />
       <PricingHero subscription={subscription} onStartTrial={handleStartTrial} onBuyNow={handleSelectPlan} />
       <PricingPlans 
         subscription={subscription}
