@@ -42,22 +42,22 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   };
 
   return (
-    <nav className={`flex items-center px-6 py-4 sticky top-0 z-50 bg-white transition-shadow duration-300 ${isScrolled ? 'shadow-lg shadow-black/10' : ''}`}>
+    <nav className={`flex items-center px-4 py-3 sticky top-0 z-50 bg-white transition-shadow duration-300 ${isScrolled ? 'shadow-lg shadow-black/10' : ''}`}>
       {/* Logo */}
       <div className="flex items-center">
-        <Link to="/" className="flex items-center gap-2 text-2xl font-bold text-black hover:text-black/80 transition-colors">
-          <img src={bloomsuiteLogo} alt="BloomSuite Logo" className="h-8 w-8" />
+        <Link to="/" className="flex items-center gap-2 text-xl md:text-2xl font-bold text-black hover:text-black/80 transition-colors">
+          <img src={bloomsuiteLogo} alt="BloomSuite Logo" className="h-7 w-7" />
           BloomSuite
         </Link>
       </div>
 
       {/* Navigation Links - Right after logo */}
-      <div className="hidden md:flex items-center gap-8 ml-12">
+      <div className="hidden md:flex items-center gap-6 ml-10">
         {navItems.map((item) => (
           <Link
             key={item.name}
             to={item.href}
-            className={`text-sm font-medium transition-colors hover:text-primary ${
+            className={`text-sm font-medium whitespace-nowrap transition-colors hover:text-primary ${
               isActiveRoute(item.href) 
                 ? "text-primary border-b-2 border-primary pb-1" 
                 : "text-muted-foreground"
@@ -69,11 +69,12 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
       </div>
         
       {/* Auth Buttons - Far right */}
-      <div className="hidden md:flex items-center gap-3 ml-auto">
+      <div className="hidden md:flex items-center gap-2 ml-auto">
         {user && showUserMenu && (
           <Button 
             asChild
             variant="outline"
+            size="sm"
             className="text-foreground border-border hover:bg-accent"
           >
             <Link to="/dashboard">
@@ -85,12 +86,14 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
         <Button 
           onClick={onLogin}
           variant="ghost"
+          size="sm"
         >
           Sign In
         </Button>
         <Button 
           variant="ghost"
           onClick={onLogin}
+          size="sm"
           className="bg-[#2c9da3] hover:bg-[#2c9da3]/90 text-white"
         >
           Sign Up
