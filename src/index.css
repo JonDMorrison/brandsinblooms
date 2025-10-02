@@ -503,3 +503,13 @@ select:-webkit-autofill:focus {
   animation: gradient-x 15s ease infinite;
 }
 
+/* Scrollbar hide utility for mobile preview */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+

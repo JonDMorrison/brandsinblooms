@@ -1,7 +1,8 @@
 
 import { Button } from "@/components/ui/button";
-import { LandingPageIcon } from "./LandingPageIcon";
-import { Sparkles, Leaf, Calendar, TrendingUp } from "lucide-react";
+import { IPhoneMockup } from "./IPhoneMockup";
+import { MobileDashboardPreview } from "./MobileDashboardPreview";
+import { ArrowRight } from "lucide-react";
 
 interface HeroSectionProps {
   onGetStarted: () => void;
@@ -9,85 +10,76 @@ interface HeroSectionProps {
 
 export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
   return (
-    <section className="w-full py-32 text-center relative overflow-hidden hero-section">
-      {/* Enhanced background with nature-inspired gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-offwhite via-offwhite to-offwhite opacity-90" />
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-secondary/5 to-transparent" />
-      
-      {/* Botanical watermark behind content */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5">
-        <Leaf className="w-96 h-96 text-secondary" />
+    <section className="relative pt-32 pb-20 px-4 sm:px-6 overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 -z-10">
+        {/* Gradient Orbs */}
+        <div className="absolute top-20 left-10 w-72 h-72 bg-[#3E5A6B]/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#68BEB9]/10 rounded-full blur-3xl" />
+        
+        {/* Subtle Grid Pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(104,190,185,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(104,190,185,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black,transparent)]" />
       </div>
-      
-      <div className="max-w-5xl mx-auto px-6 relative z-10 apple-section-spacing">
-        {/* Hero Icon with enhanced styling */}
-        <div className="flex justify-center mb-12">
-          <LandingPageIcon 
-            logo="/lovable-uploads/e0b56fe5-9a69-4ed9-a69a-53664e6e4c5d.png"
-            variant="hero" 
-            theme="spring" 
-            animated={true}
-            containerClassName="apple-fade-in-stagger garden-breathing shadow-2xl bg-white border-2 border-secondary/20"
-          />
-        </div>
-        
-        {/* Enhanced Typography */}
-        <h1 className="text-4xl md:text-7xl font-bold text-accent mb-8 leading-tight tracking-tight apple-fade-in-stagger">
-          The Most Powerful Marketing Tool Ever Built for <span className="text-secondary">Garden Centers</span>
-        </h1>
-        
-        <p className="text-xl md:text-2xl text-muted-foreground mb-14 max-w-4xl mx-auto leading-relaxed apple-body-enhanced">
-          Stop struggling with scattered marketing tools that don't understand your business. BloomSuite gives you everything you need to attract more customers, increase sales, and grow your garden center — all in one powerful platform.
-        </p>
-        
-        {/* Enhanced feature highlights with new color palette */}
-        <div className="flex justify-center gap-12 mb-16">
-          <div className="flex flex-col items-center gap-3 apple-fade-in-stagger" style={{animationDelay: '0.1s'}}>
-            <LandingPageIcon 
-              icon={Leaf} 
-              variant="feature" 
-              theme="spring" 
-              animated={true}
-              containerClassName="apple-icon-container bg-secondary/10 border-secondary/30 text-secondary"
-            />
-            <span className="text-base text-muted-foreground font-medium apple-caption-enhanced">AI Content Creation</span>
+
+      <div className="container mx-auto max-w-6xl">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left Column - Text Content */}
+          <div className="text-center lg:text-left space-y-8">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border border-gray-200 dark:border-gray-800 shadow-sm">
+              <img 
+                src="/lovable-uploads/e0b56fe5-9a69-4ed9-a69a-53664e6e4c5d.png" 
+                alt="BloomSuite" 
+                className="w-5 h-5"
+              />
+              <span className="text-sm font-semibold bg-gradient-to-r from-[#3E5A6B] via-[#68BEB9] to-[#68BEB9] bg-clip-text text-transparent">
+                Marketing Made Simple
+              </span>
+            </div>
+
+            {/* Main Headline */}
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
+              <span className="bg-gradient-to-r from-[#3E5A6B] via-[#68BEB9] to-[#68BEB9] bg-clip-text text-transparent">
+                The Most Powerful Marketing Tool
+                <br />
+                Ever Built for Garden Centers
+              </span>
+            </h1>
+
+            {/* Subheadline */}
+            <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-3xl lg:max-w-none leading-relaxed">
+              Stop struggling with scattered marketing tools that don't understand your business. BloomSuite gives you everything you need to attract more customers, increase sales, and grow your garden center — all in one powerful platform.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <Button 
+                onClick={onGetStarted}
+                size="lg"
+                className="bg-gradient-to-r from-[#68BEB9] to-[#3E5A6B] hover:from-[#5AAEA9] hover:to-[#2E4A5B] text-white shadow-lg shadow-[#68BEB9]/25 hover:shadow-xl hover:shadow-[#68BEB9]/30 transition-all duration-300"
+              >
+                Get Started In 60 Seconds
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+              <Button 
+                variant="outline"
+                size="lg"
+                className="border-gray-300 hover:bg-gray-50"
+              >
+                Watch Demo
+              </Button>
+            </div>
+
+            {/* Trust Indicators */}
+            <p className="text-sm text-gray-500">
+              No credit card required • No technical skills needed • Ready in 60 seconds
+            </p>
           </div>
-          <div className="flex flex-col items-center gap-3 apple-fade-in-stagger" style={{animationDelay: '0.2s'}}>
-            <LandingPageIcon 
-              icon={Calendar} 
-              variant="feature" 
-              theme="neutral" 
-              animated={true}
-              containerClassName="apple-icon-container bg-secondary/10 border-secondary/30 text-secondary"
-            />
-            <span className="text-base text-muted-foreground font-medium apple-caption-enhanced">Smart Automation</span>
-          </div>
-          <div className="flex flex-col items-center gap-3 apple-fade-in-stagger" style={{animationDelay: '0.3s'}}>
-            <LandingPageIcon 
-              icon={TrendingUp} 
-              variant="feature" 
-              theme="neutral" 
-              animated={true}
-              containerClassName="apple-icon-container bg-secondary/10 border-secondary/30 text-secondary"
-            />
-            <span className="text-base text-muted-foreground font-medium apple-caption-enhanced">Complete Analytics</span>
-          </div>
-        </div>
-        
-        {/* Enhanced CTA with nature-inspired styling and fixed text centering */}
-        <div className="apple-fade-in-stagger mx-auto px-4" style={{animationDelay: '0.4s'}}>
-          <Button 
-            onClick={onGetStarted}
-            variant="cta"
-            size="cta"
-            className="mx-auto"
-          >
-            Get Started In Less Than A Minute
-          </Button>
-          
-          <p className="text-sm text-muted-foreground apple-caption-enhanced mt-6">
-            No credit card required • No technical skills needed • Ready in 60 seconds
-          </p>
+
+          {/* Right Column - iPhone Mockup */}
+          <IPhoneMockup>
+            <MobileDashboardPreview />
+          </IPhoneMockup>
         </div>
       </div>
     </section>
