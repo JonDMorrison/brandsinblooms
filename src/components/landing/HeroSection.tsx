@@ -27,11 +27,13 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
           {/* Left Column - Text Content */}
           <div className="text-center lg:text-left space-y-8">
             {/* Logo */}
-            <img 
-              src={bloomsuiteLogo} 
-              alt="BloomSuite" 
-              className="w-16 h-16 mb-4"
-            />
+            <div className="flex justify-center lg:justify-start">
+              <img 
+                src={bloomsuiteLogo} 
+                alt="BloomSuite" 
+                className="w-16 h-16 mb-4"
+              />
+            </div>
 
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
