@@ -98,7 +98,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
       </div>
 
       {/* Mobile Menu Button */}
-      <div className="md:hidden flex items-center gap-4">
+      <div className="md:hidden flex items-center gap-4 ml-auto">
         {user && showUserMenu ? (
           <Button 
             asChild
