@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { IPhoneMockup } from "./IPhoneMockup";
 import { MobileDashboardPreview } from "./MobileDashboardPreview";
 import { ArrowRight } from "lucide-react";
+import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 
 interface HeroSectionProps {
   onGetStarted: () => void;
@@ -25,17 +26,12 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Column - Text Content */}
           <div className="text-center lg:text-left space-y-8">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border border-gray-200 dark:border-gray-800 shadow-sm">
-              <img 
-                src="/lovable-uploads/e0b56fe5-9a69-4ed9-a69a-53664e6e4c5d.png" 
-                alt="BloomSuite" 
-                className="w-5 h-5"
-              />
-              <span className="text-sm font-semibold bg-gradient-to-r from-[#3E5A6B] via-[#68BEB9] to-[#68BEB9] bg-clip-text text-transparent">
-                Marketing Made Simple
-              </span>
-            </div>
+            {/* Logo */}
+            <img 
+              src={bloomsuiteLogo} 
+              alt="BloomSuite" 
+              className="w-16 h-16 mb-4"
+            />
 
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
