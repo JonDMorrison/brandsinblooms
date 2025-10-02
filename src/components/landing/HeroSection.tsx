@@ -51,8 +51,8 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               Stop struggling with scattered marketing tools that don't understand your business. BloomSuite gives you everything you need to attract more customers, increase sales, and grow your garden center — all in one powerful platform.
             </p>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+            {/* CTA Button */}
+            <div className="flex justify-center lg:justify-start">
               <Button 
                 onClick={onGetStarted}
                 size="lg"
@@ -60,13 +60,6 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               >
                 Get Started In 60 Seconds
                 <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-              <Button 
-                variant="outline"
-                size="lg"
-                className="border-gray-300 hover:bg-gray-50"
-              >
-                Watch Demo
               </Button>
             </div>
 
