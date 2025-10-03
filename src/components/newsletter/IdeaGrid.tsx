@@ -176,21 +176,18 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
                 centeredSlides: true,
               },
             }}
-            className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-280px)] !relative !z-40 overflow-visible [&_.swiper-button-next]:!bg-transparent [&_.swiper-button-prev]:!bg-transparent [&_.swiper-button-next]:!text-gray-600 [&_.swiper-button-prev]:!text-gray-600 [&_.swiper-button-next]:!w-10 [&_.swiper-button-prev]:!w-10 [&_.swiper-button-next]:!h-10 [&_.swiper-button-prev]:!h-10 [&_.swiper-button-next]:!text-xs [&_.swiper-button-prev]:!text-xs [&_.swiper-button-next]:!border-0 [&_.swiper-button-prev]:!border-0 [&_.swiper-button-next]:!border-none [&_.swiper-button-prev]:!border-none [&_.swiper-button-next]:!shadow-none [&_.swiper-button-prev]:!shadow-none [&_.swiper-button-next]:hover:!bg-transparent [&_.swiper-button-prev]:hover:!bg-transparent [&_.swiper-button-next]:hover:!text-gray-800 [&_.swiper-button-prev]:hover:!text-gray-800 [&_.swiper-button-next]:hover:!border-0 [&_.swiper-button-prev]:hover:!border-0 [&_.swiper-button-next]:hover:!shadow-none [&_.swiper-button-prev]:hover:!shadow-none [&_.swiper-button-next]:focus:!bg-transparent [&_.swiper-button-prev]:focus:!bg-transparent [&_.swiper-button-next]:active:!bg-transparent [&_.swiper-button-prev]:active:!bg-transparent [&_.swiper-button-next]:!transition-all [&_.swiper-button-prev]:!transition-all [&_.swiper-button-next]:!duration-300 [&_.swiper-button-prev]:!duration-300"
+            className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-280px)] !relative !z-40 overflow-visible [&_.swiper-slide]:!w-auto [&_.swiper-button-next]:!bg-transparent [&_.swiper-button-prev]:!bg-transparent [&_.swiper-button-next]:!text-gray-600 [&_.swiper-button-prev]:!text-gray-600 [&_.swiper-button-next]:!w-10 [&_.swiper-button-prev]:!w-10 [&_.swiper-button-next]:!h-10 [&_.swiper-button-prev]:!h-10 [&_.swiper-button-next]:!text-xs [&_.swiper-button-prev]:!text-xs [&_.swiper-button-next]:!border-0 [&_.swiper-button-prev]:!border-0 [&_.swiper-button-next]:!border-none [&_.swiper-button-prev]:!border-none [&_.swiper-button-next]:!shadow-none [&_.swiper-button-prev]:!shadow-none [&_.swiper-button-next]:hover:!bg-transparent [&_.swiper-button-prev]:hover:!bg-transparent [&_.swiper-button-next]:hover:!text-gray-800 [&_.swiper-button-prev]:hover:!text-gray-800 [&_.swiper-button-next]:hover:!border-0 [&_.swiper-button-prev]:hover:!border-0 [&_.swiper-button-next]:hover:!shadow-none [&_.swiper-button-prev]:hover:!shadow-none [&_.swiper-button-next]:focus:!bg-transparent [&_.swiper-button-prev]:focus:!bg-transparent [&_.swiper-button-next]:active:!bg-transparent [&_.swiper-button-prev]:active:!bg-transparent [&_.swiper-button-next]:!transition-all [&_.swiper-button-prev]:!transition-all [&_.swiper-button-next]:!duration-300 [&_.swiper-button-prev]:!duration-300"
           >
             {ideas.map((idea, index) => {
               const isActive = index === currentSlide;
               return (
-                <SwiperSlide key={idea.id} className="!w-[140px] !h-full !relative !z-50 !bg-transparent">
-                  <div className="!h-full !w-[200px] relative z-50 flex items-center justify-center">
-                    <IdeaCard
-                      idea={idea}
-                      onSelect={onSelectIdea}
-                      isActive={isActive}
-                      slideIndex={index}
-                      className="!h-full"
-                    />
-                  </div>
+                <SwiperSlide key={idea.id} className="!h-auto">
+                  <IdeaCard
+                    idea={idea}
+                    onSelect={onSelectIdea}
+                    isActive={isActive}
+                    slideIndex={index}
+                  />
                 </SwiperSlide>
               );
             })}
