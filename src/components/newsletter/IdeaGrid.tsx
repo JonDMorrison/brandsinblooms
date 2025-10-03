@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { IdeaCard } from './IdeaCard';
 import { NewsletterEmptyState } from './NewsletterEmptyState';
 import { NewsletterIdea } from '@/types/newsletter';
@@ -63,6 +63,15 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   const currentWeekIndex = ideas.findIndex(idea => idea.weekNumber === currentWeek);
   const initialSlide = currentWeekIndex >= 0 ? currentWeekIndex : 0;
   const [currentSlide, setCurrentSlide] = useState(initialSlide);
+  const swiperRef = useRef<any>(null);
+
+  const handleSwiper = (swiper: any) => {
+    swiperRef.current = swiper;
+    // Ensure the initial slide is centered after mount
+    setTimeout(() => {
+      swiper.slideTo(initialSlide, 0);
+    }, 100);
+  };
 
   if (loading) {
     return (
@@ -133,6 +142,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             spaceBetween={16}
             initialSlide={initialSlide}
             navigation={true}
+            onSwiper={handleSwiper}
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
             breakpoints={{
               320: {
