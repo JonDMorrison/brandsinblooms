@@ -128,6 +128,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             grabCursor={true}
             centeredSlides={false}
             slidesPerView={3}
+            slidesPerGroup={1}
             spaceBetween={16}
             initialSlide={initialSlide}
             navigation={true}
@@ -159,7 +160,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             {ideas.map((idea, index) => {
               const isActive = index === currentSlide;
               return (
-                <SwiperSlide key={idea.id} className="!h-auto !relative !z-50 !bg-transparent">
+                <SwiperSlide key={idea.id} className="!w-auto !h-auto !relative !z-50 !bg-transparent">
                   <div className="h-full w-full relative z-50 flex items-center justify-center">
                     <IdeaCard
                       idea={idea}
