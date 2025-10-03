@@ -85,24 +85,24 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
           modules={[Navigation]}
           grabCursor={true}
           centeredSlides={true}
-            slidesPerView={7}
+            slidesPerView="auto"
             spaceBetween={16}
             initialSlide={0}
             breakpoints={{
               320: {
-                slidesPerView: 3,
+                slidesPerView: "auto",
                 spaceBetween: 12,
               },
               640: {
-                slidesPerView: 5,
+                slidesPerView: "auto",
                 spaceBetween: 14,
               },
               768: {
-                slidesPerView: 7,
+                slidesPerView: "auto",
                 spaceBetween: 16,
               },
               1024: {
-                slidesPerView: 7,
+                slidesPerView: "auto",
                 spaceBetween: 20,
               },
             }}
@@ -143,7 +143,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             centeredSlides={true}
             centerInsufficientSlides={true}
             slideToClickedSlide={true}
-            slidesPerView={7}
+            slidesPerView="auto"
             slidesPerGroup={1}
             spaceBetween={16}
             initialSlide={initialSlide}
@@ -156,22 +156,22 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
             breakpoints={{
               320: {
-                slidesPerView: 3,
+                slidesPerView: "auto",
                 spaceBetween: 12,
                 centeredSlides: true,
               },
               640: {
-                slidesPerView: 5,
+                slidesPerView: "auto",
                 spaceBetween: 14,
                 centeredSlides: true,
               },
               768: {
-                slidesPerView: 7,
+                slidesPerView: "auto",
                 spaceBetween: 16,
                 centeredSlides: true,
               },
               1024: {
-                slidesPerView: 7,
+                slidesPerView: "auto",
                 spaceBetween: 20,
                 centeredSlides: true,
               },
