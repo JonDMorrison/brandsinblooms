@@ -93,7 +93,7 @@ export function NewsletterLayoutPicker({
   onChange: (v: LayoutKey) => void;
 }) {
   return (
-    <section className="flex justify-around gap-6">
+    <section className="flex justify-around gap-12">
       {(['block-builder', 'simple-email'] as LayoutKey[]).map((k) => (
         <Card key={k} layout={k} selected={value} onSelect={onChange} />
       ))}
