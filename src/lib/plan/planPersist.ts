@@ -43,6 +43,42 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
     };
   }
 
+  // Get tenant_id
+  const { data: userData } = await supabase
+    .from('users')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .single();
+
+  const tenantId = userData?.tenant_id || user.id;
+  const monthName = new Date(planState.month + '-01').toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  // Create plan record
+  const { data: plan, error: planError } = await supabase
+    .from('plans')
+    .insert([{
+      user_id: user.id,
+      tenant_id: tenantId,
+      name: `${monthName} - ${planState.themes.map(t => t.label).join(' + ')}`,
+      month: planState.month,
+      themes: planState.themes as any,
+      status: 'active'
+    }])
+    .select()
+    .single();
+
+  if (planError) {
+    console.error('[PlanPersist] Failed to create plan:', planError);
+    return {
+      success: false,
+      created: 0,
+      skipped: 0,
+      error: `Failed to create plan: ${planError.message}`
+    };
+  }
+
+  console.log('[PlanPersist] Created plan:', plan.id);
+
   // Process each enabled item
   for (const item of enabledItems) {
     try {
@@ -81,7 +117,13 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
           ai_output: item.caption,
           scheduled_date: item.date.toISOString().split('T')[0], // YYYY-MM-DD format
           image_url: item.imageUrl || null,
+          image_idea: item.imageIdea || null,
+          plan_id: plan.id,
+          plan_theme: item.themeName || planState.themes[0].label,
+          preview_image_url: item.imageUrl || null,
           user_id: user.id,
+          tenant_id: tenantId,
+          created_by_user_id: user.id,
           // Add metadata to track this came from plan wizard with theme info
           notes: `Generated from Plan My Marketing: ${planState.themes.map(t => t.label).join(' + ')} themes${item.themeName ? ` (${item.themeName})` : ''}${item.emailSubject ? ` | Subject: ${item.emailSubject}` : ''}${item.emailPreheader ? ` | Preheader: ${item.emailPreheader}` : ''}${item.audienceTarget ? ` | Audience: ${item.audienceTarget}` : ''}${item.selectedSegmentIds?.length ? ` | Segments: ${item.selectedSegmentIds.length}` : ''}${item.selectedPersonaIds?.length ? ` | Personas: ${item.selectedPersonaIds.length}` : ''}`
         })

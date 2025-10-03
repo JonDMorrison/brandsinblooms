@@ -51,6 +51,7 @@ export interface PlanItem {
   date: Date;
   enabled: boolean;
   imageUrl?: string;
+  imageIdea?: string;
   week: number;
   themeId?: string;
   themeName?: string;

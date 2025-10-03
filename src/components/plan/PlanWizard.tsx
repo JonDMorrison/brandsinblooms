@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { PlanWizardProvider, usePlanWizard } from './PlanWizardContext';
 import { PlanStepTheme } from './steps/PlanStepTheme';
 import { PlanStepCalendar } from './steps/PlanStepCalendar';
+import { PlanStepPreview } from './steps/PlanStepPreview';
 import { PlanStepReview } from './steps/PlanStepReview';
 import { persistPlan } from '@/lib/plan/planPersist';
 import { toast } from 'sonner';
@@ -14,8 +15,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const steps = [
   { id: 1, title: 'Pick Focus', description: 'Choose theme & month' },
-  { id: 2, title: 'Calendar Draft', description: 'Edit your content plan' },
-  { id: 3, title: 'Review & Launch', description: 'Launch your plan' }
+  { id: 2, title: 'Generate Content', description: 'Create marketing drafts' },
+  { id: 3, title: 'Customize', description: 'Edit & refine content' },
+  { id: 4, title: 'Launch', description: 'Schedule & activate' },
 ];
 
 const PlanWizardContent: React.FC = () => {
@@ -33,7 +35,7 @@ const PlanWizardContent: React.FC = () => {
 
     if (step) {
       const stepNum = parseInt(step, 10);
-      if (stepNum >= 1 && stepNum <= 3) {
+      if (stepNum >= 1 && stepNum <= 4) {
         setCurrentStep(stepNum);
       }
     }
@@ -59,7 +61,7 @@ const PlanWizardContent: React.FC = () => {
   }, [state.month, state.themes, currentStep, setSearchParams]);
 
   const handleNext = () => {
-    if (currentStep < 3) {
+    if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -183,6 +185,9 @@ const PlanWizardContent: React.FC = () => {
             <PlanStepCalendar onNext={handleNext} onBack={handleBack} />
           )}
           {currentStep === 3 && (
+            <PlanStepPreview onNext={handleNext} onBack={handleBack} />
+          )}
+          {currentStep === 4 && (
             <PlanStepReview 
               onBack={handleBack} 
               onLaunch={handleLaunch}

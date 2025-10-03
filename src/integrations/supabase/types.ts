@@ -886,11 +886,14 @@ export type Database = {
           last_posting_error: string | null
           linked_crm_campaign_id: string | null
           notes: string | null
+          plan_id: string | null
+          plan_theme: string | null
           platform_post_id: string | null
           platform_post_url: string | null
           post_type: string | null
           posting_attempts: number | null
           posting_disabled_at: string | null
+          preview_image_url: string | null
           scheduled_date: string | null
           status: string
           tenant_id: string | null
@@ -914,11 +917,14 @@ export type Database = {
           last_posting_error?: string | null
           linked_crm_campaign_id?: string | null
           notes?: string | null
+          plan_id?: string | null
+          plan_theme?: string | null
           platform_post_id?: string | null
           platform_post_url?: string | null
           post_type?: string | null
           posting_attempts?: number | null
           posting_disabled_at?: string | null
+          preview_image_url?: string | null
           scheduled_date?: string | null
           status?: string
           tenant_id?: string | null
@@ -942,11 +948,14 @@ export type Database = {
           last_posting_error?: string | null
           linked_crm_campaign_id?: string | null
           notes?: string | null
+          plan_id?: string | null
+          plan_theme?: string | null
           platform_post_id?: string | null
           platform_post_url?: string | null
           post_type?: string | null
           posting_attempts?: number | null
           posting_disabled_at?: string | null
+          preview_image_url?: string | null
           scheduled_date?: string | null
           status?: string
           tenant_id?: string | null
@@ -979,6 +988,13 @@ export type Database = {
             columns: ["linked_crm_campaign_id"]
             isOneToOne: false
             referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_tasks_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
             referencedColumns: ["id"]
           },
           {
@@ -3416,6 +3432,42 @@ export type Database = {
           name?: string
           sample_phrases?: string[] | null
           tone?: string
+        }
+        Relationships: []
+      }
+      plans: {
+        Row: {
+          created_at: string
+          id: string
+          month: string
+          name: string
+          status: string
+          tenant_id: string | null
+          themes: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month: string
+          name: string
+          status?: string
+          tenant_id?: string | null
+          themes?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month?: string
+          name?: string
+          status?: string
+          tenant_id?: string | null
+          themes?: Json
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
