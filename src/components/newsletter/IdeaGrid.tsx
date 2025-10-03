@@ -95,7 +95,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             className="!pb-16 newsletter-idea-slider"
           >
             {Array.from({ length: 6 }).map((_, index) => (
-              <SwiperSlide key={index} className="!h-auto !w-[320px]">
+              <SwiperSlide key={index} className="!h-auto">
                 <div className="scale-95 opacity-70">
                   <IdeaCardSkeleton />
                 </div>
@@ -127,26 +127,26 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             modules={[Navigation]}
             grabCursor={true}
             centeredSlides={true}
-            slidesPerView="auto"
+            slidesPerView={3}
             spaceBetween={16}
             initialSlide={initialSlide}
             navigation={true}
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
             breakpoints={{
               320: {
-                slidesPerView: "auto",
+                slidesPerView: 3,
                 spaceBetween: 12,
               },
               640: {
-                slidesPerView: "auto",
+                slidesPerView: 3,
                 spaceBetween: 14,
               },
               768: {
-                slidesPerView: "auto",
+                slidesPerView: 5,
                 spaceBetween: 16,
               },
               1024: {
-                slidesPerView: "auto",
+                slidesPerView: 5,
                 spaceBetween: 20,
               },
             }}
@@ -155,7 +155,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             {ideas.map((idea, index) => {
               const isActive = index === currentSlide;
               return (
-                <SwiperSlide key={idea.id} className="!h-auto !relative !z-50 !bg-transparent !w-[320px]">
+                <SwiperSlide key={idea.id} className="!h-auto !relative !z-50 !bg-transparent">
                   <div className="h-full w-full relative z-50 flex items-center justify-center">
                     <IdeaCard
                       idea={idea}
