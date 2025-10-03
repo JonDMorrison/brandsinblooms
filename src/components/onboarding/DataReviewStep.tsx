@@ -113,7 +113,7 @@ export const DataReviewStep = ({
           <Button 
             onClick={onComplete}
             disabled={isCompleting}
-            className="flex-1 h-12 bg-brand-green hover:bg-brand-green-600 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
+            className="flex-1 h-12 bg-brand-teal hover:bg-brand-teal-600 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
           >
             {isCompleting ? (
               <>

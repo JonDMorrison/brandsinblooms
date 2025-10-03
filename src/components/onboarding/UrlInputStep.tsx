@@ -145,7 +145,7 @@ export const UrlInputStep = ({
         <Button 
           onClick={handleAnalyze}
           disabled={isAnalyzing}
-          className="w-full h-12 bg-brand-green hover:bg-brand-green-600 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
+          className="w-full h-12 bg-brand-teal hover:bg-brand-teal-600 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
         >
           {isAnalyzing ? (
             <>
