@@ -160,8 +160,8 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             {ideas.map((idea, index) => {
               const isActive = index === currentSlide;
               return (
-                <SwiperSlide key={idea.id} className="!w-auto !h-auto !relative !z-50 !bg-transparent">
-                  <div className="h-full !w-72 relative z-50 flex items-center justify-center">
+                <SwiperSlide key={idea.id} className="!w-auto !h-full !relative !z-50 !bg-transparent">
+                  <div className="!h-full !w-72 relative z-50 flex items-center justify-center">
                     <IdeaCard
                       idea={idea}
                       onSelect={onSelectIdea}
