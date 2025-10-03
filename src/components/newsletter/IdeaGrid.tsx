@@ -5,11 +5,9 @@ import { NewsletterIdea } from '@/types/newsletter';
 import { cn } from '@/lib/utils';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation } from 'swiper/modules';
 
 // Import Swiper styles
 import 'swiper/css';
-import 'swiper/css/navigation';
 
 interface IdeaGridProps {
   ideas: NewsletterIdea[];
@@ -82,7 +80,6 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
     return (
       <div className={cn("py-8", className)}>
         <Swiper
-          modules={[Navigation]}
           grabCursor={true}
           centeredSlides={true}
             slidesPerView="auto"
@@ -138,7 +135,6 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
       <div className="max-w-6xl mx-auto">
         <div className="h-full w-full relative">
           <Swiper
-            modules={[Navigation]}
             grabCursor={true}
             centeredSlides={true}
             centerInsufficientSlides={true}
@@ -147,7 +143,6 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             slidesPerGroup={1}
             spaceBetween={16}
             initialSlide={initialSlide}
-            navigation={true}
             speed={600}
             longSwipesRatio={0.5}
             resistance={true}
@@ -176,7 +171,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
                 centeredSlides: true,
               },
             }}
-            className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-280px)] !relative !z-40 overflow-visible [&_.swiper-slide]:!w-auto [&_.swiper-button-next]:!bg-transparent [&_.swiper-button-prev]:!bg-transparent [&_.swiper-button-next]:!text-gray-600 [&_.swiper-button-prev]:!text-gray-600 [&_.swiper-button-next]:!w-10 [&_.swiper-button-prev]:!w-10 [&_.swiper-button-next]:!h-10 [&_.swiper-button-prev]:!h-10 [&_.swiper-button-next]:!text-xs [&_.swiper-button-prev]:!text-xs [&_.swiper-button-next]:!border-0 [&_.swiper-button-prev]:!border-0 [&_.swiper-button-next]:!border-none [&_.swiper-button-prev]:!border-none [&_.swiper-button-next]:!shadow-none [&_.swiper-button-prev]:!shadow-none [&_.swiper-button-next]:hover:!bg-transparent [&_.swiper-button-prev]:hover:!bg-transparent [&_.swiper-button-next]:hover:!text-gray-800 [&_.swiper-button-prev]:hover:!text-gray-800 [&_.swiper-button-next]:hover:!border-0 [&_.swiper-button-prev]:hover:!border-0 [&_.swiper-button-next]:hover:!shadow-none [&_.swiper-button-prev]:hover:!shadow-none [&_.swiper-button-next]:focus:!bg-transparent [&_.swiper-button-prev]:focus:!bg-transparent [&_.swiper-button-next]:active:!bg-transparent [&_.swiper-button-prev]:active:!bg-transparent [&_.swiper-button-next]:!transition-all [&_.swiper-button-prev]:!transition-all [&_.swiper-button-next]:!duration-300 [&_.swiper-button-prev]:!duration-300"
+            className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-280px)] !relative !z-40 overflow-visible [&_.swiper-slide]:!w-auto"
           >
             {ideas.map((idea, index) => {
               const isActive = index === currentSlide;
