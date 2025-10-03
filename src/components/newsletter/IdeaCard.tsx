@@ -61,7 +61,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
 
   return (
     <div className={cn(
-      "relative overflow-hidden rounded-3xl bg-white shadow-lg border !w-[180px] !h-full"
+      "relative overflow-hidden rounded-3xl bg-white shadow-lg border !w-[180px] !h-full",
       "transition-all duration-500 ease-out cursor-pointer",
       isActive ? 'scale-105 z-10' : 'scale-90 opacity-60',
       className
