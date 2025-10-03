@@ -127,6 +127,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             modules={[Navigation]}
             grabCursor={true}
             centeredSlides={true}
+            slideToClickedSlide={true}
             slidesPerView={7}
             slidesPerGroup={1}
             spaceBetween={16}
