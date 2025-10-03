@@ -5,6 +5,8 @@ import { NewsletterIdea } from '@/types/newsletter';
 import { cn } from '@/lib/utils';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { Swiper, SwiperSlide } from 'swiper/react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 // Import Swiper styles
 import 'swiper/css';
@@ -134,6 +136,26 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
     <div className={cn("py-8 relative", className)}>
       <div className="max-w-6xl mx-auto">
         <div className="h-full w-full relative">
+          {/* Left Navigation Handle */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-50 rounded-full shadow-lg hover:shadow-xl transition-all"
+            onClick={() => swiperRef.current?.slidePrev()}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+
+          {/* Right Navigation Handle */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-50 rounded-full shadow-lg hover:shadow-xl transition-all"
+            onClick={() => swiperRef.current?.slideNext()}
+          >
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+
           <Swiper
             grabCursor={true}
             centeredSlides={true}
