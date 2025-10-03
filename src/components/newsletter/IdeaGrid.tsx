@@ -167,7 +167,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
                       onSelect={onSelectIdea}
                       isActive={isActive}
                       slideIndex={index}
-                      className="!w-full"
+                      className="!w-full !h-full"
                     />
                   </div>
                 </SwiperSlide>
