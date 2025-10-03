@@ -73,17 +73,17 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
       )} />
       
       {/* Content */}
-      <div className="relative z-10 h-full w-full flex flex-col justify-between py-6 text-white">
-        <div className="flex-1 flex flex-col justify-center items-center text-center space-y-4">
-          <div className="space-y-2">
-            <h3 className="text-xl font-bold leading-tight text-white">{idea.title}</h3>
-            <p className="text-white/90 text-sm leading-relaxed px-2 line-clamp-3">{idea.description}</p>
+      <div className="relative z-10 h-full w-full flex flex-col justify-between py-4 text-white">
+        <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3">
+          <div className="space-y-1.5">
+            <h3 className="text-base font-bold leading-tight text-white">{idea.title}</h3>
+            <p className="text-white/90 text-xs leading-snug px-3 line-clamp-4">{idea.description}</p>
           </div>
           
           {/* Action Button */}
           <Button 
             onClick={() => onSelect(idea)}
-            className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm rounded-full px-6 py-2 text-sm font-medium transition-all duration-300"
+            className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-300"
             variant="outline"
           >
             Start with this
