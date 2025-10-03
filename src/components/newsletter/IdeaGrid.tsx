@@ -126,7 +126,7 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
           <Swiper
             modules={[Navigation]}
             grabCursor={true}
-            centeredSlides={true}
+            centeredSlides={false}
             slidesPerView={3}
             spaceBetween={16}
             initialSlide={initialSlide}
@@ -136,18 +136,22 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
               320: {
                 slidesPerView: 3,
                 spaceBetween: 12,
+                centeredSlides: false,
               },
               640: {
                 slidesPerView: 3,
                 spaceBetween: 14,
+                centeredSlides: false,
               },
               768: {
                 slidesPerView: 5,
                 spaceBetween: 16,
+                centeredSlides: false,
               },
               1024: {
                 slidesPerView: 5,
                 spaceBetween: 20,
+                centeredSlides: false,
               },
             }}
             className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-280px)] !relative !z-40 overflow-visible [&_.swiper-button-next]:!bg-transparent [&_.swiper-button-prev]:!bg-transparent [&_.swiper-button-next]:!text-gray-600 [&_.swiper-button-prev]:!text-gray-600 [&_.swiper-button-next]:!w-10 [&_.swiper-button-prev]:!w-10 [&_.swiper-button-next]:!h-10 [&_.swiper-button-prev]:!h-10 [&_.swiper-button-next]:!text-xs [&_.swiper-button-prev]:!text-xs [&_.swiper-button-next]:!border-0 [&_.swiper-button-prev]:!border-0 [&_.swiper-button-next]:!border-none [&_.swiper-button-prev]:!border-none [&_.swiper-button-next]:!shadow-none [&_.swiper-button-prev]:!shadow-none [&_.swiper-button-next]:hover:!bg-transparent [&_.swiper-button-prev]:hover:!bg-transparent [&_.swiper-button-next]:hover:!text-gray-800 [&_.swiper-button-prev]:hover:!text-gray-800 [&_.swiper-button-next]:hover:!border-0 [&_.swiper-button-prev]:hover:!border-0 [&_.swiper-button-next]:hover:!shadow-none [&_.swiper-button-prev]:hover:!shadow-none [&_.swiper-button-next]:focus:!bg-transparent [&_.swiper-button-prev]:focus:!bg-transparent [&_.swiper-button-next]:active:!bg-transparent [&_.swiper-button-prev]:active:!bg-transparent [&_.swiper-button-next]:!transition-all [&_.swiper-button-prev]:!transition-all [&_.swiper-button-next]:!duration-300 [&_.swiper-button-prev]:!duration-300"
