@@ -138,9 +138,16 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
         .from('users')
         .select('tenant_id')
         .eq('id', user?.id)
-        .single();
+        .maybeSingle();
 
-      if (!userData?.tenant_id) return;
+      if (!userData?.tenant_id) {
+        toast({
+          title: "Organization missing",
+          description: "You're not assigned to a workspace. Please create or join an organization first.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       const segmentData = {
         name: "New Garden Enthusiasts",
@@ -165,11 +172,11 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
 
       onStepComplete();
       setCurrentStep(2); // Move to next step
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating segment:', error);
       toast({
         title: "Error",
-        description: "Failed to create segment",
+        description: error?.message ?? "Failed to create segment",
         variant: "destructive"
       });
     }
@@ -190,9 +197,16 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
         .from('users')
         .select('tenant_id')
         .eq('id', user?.id)
-        .single();
+        .maybeSingle();
 
-      if (!userData?.tenant_id) return;
+      if (!userData?.tenant_id) {
+        toast({
+          title: "Organization missing",
+          description: "You're not assigned to a workspace. Please create or join an organization first.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       const { error } = await supabase
         .from('crm_customers')
@@ -221,11 +235,11 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
       setIsAddingCustomer(false);
       onStepComplete();
       setCurrentStep(1); // Move to next step
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding customer:', error);
       toast({
         title: "Error",
-        description: "Failed to add customer",
+        description: error?.message ?? "Failed to add customer",
         variant: "destructive"
       });
     }

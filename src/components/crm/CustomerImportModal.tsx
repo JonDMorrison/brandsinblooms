@@ -291,7 +291,18 @@ export const CustomerImportModal = () => {
           .from('users')
           .select('tenant_id')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
+        
+        if (!userData?.tenant_id) {
+          console.error('Import aborted: missing tenant_id for user');
+          toast({
+            title: "Organization missing",
+            description: "You're not assigned to a workspace. Please create or join an organization first.",
+            variant: "destructive",
+          });
+          failed += batch.length;
+          continue;
+        }
         
         const customersData = batch.map(row => ({
           email: row.email || `placeholder-${Date.now()}-${Math.random()}@example.com`,
