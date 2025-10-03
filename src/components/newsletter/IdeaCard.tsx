@@ -63,7 +63,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
     <div className={cn(
       "relative overflow-hidden rounded-3xl bg-white shadow-lg border w-[160px] h-[420px]",
       "transition-all duration-500 ease-out cursor-pointer",
-      isActive ? 'scale-105' : 'scale-95 opacity-70',
+      isActive ? 'scale-105 z-10' : 'scale-90 opacity-60',
       className
     )}>
       {/* Gradient Background */}

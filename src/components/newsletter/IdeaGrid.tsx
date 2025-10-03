@@ -141,12 +141,17 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
             modules={[Navigation]}
             grabCursor={true}
             centeredSlides={true}
+            centerInsufficientSlides={true}
             slideToClickedSlide={true}
             slidesPerView={7}
             slidesPerGroup={1}
             spaceBetween={16}
             initialSlide={initialSlide}
             navigation={true}
+            speed={600}
+            longSwipesRatio={0.5}
+            resistance={true}
+            resistanceRatio={0.85}
             onSwiper={handleSwiper}
             onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
             breakpoints={{
