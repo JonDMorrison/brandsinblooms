@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { IdeaCard } from './IdeaCard';
 import { NewsletterEmptyState } from './NewsletterEmptyState';
 import { NewsletterIdea } from '@/types/newsletter';
@@ -65,12 +65,17 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   const [currentSlide, setCurrentSlide] = useState(initialSlide);
   const swiperRef = useRef<any>(null);
 
+  useEffect(() => {
+    // Force swiper to center on the initial slide after mount
+    if (swiperRef.current && initialSlide > 0) {
+      setTimeout(() => {
+        swiperRef.current.slideTo(initialSlide, 0);
+      }, 300);
+    }
+  }, [initialSlide]);
+
   const handleSwiper = (swiper: any) => {
     swiperRef.current = swiper;
-    // Ensure the initial slide is centered after mount
-    setTimeout(() => {
-      swiper.slideTo(initialSlide, 0);
-    }, 100);
   };
 
   if (loading) {
