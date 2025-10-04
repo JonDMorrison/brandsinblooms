@@ -291,21 +291,22 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="p-0">
-                  <div className="space-y-0">
+                <CardContent className="p-4 bg-muted/20">
+                  <div className="space-y-4">
                     {weekItems.map((item, index) => {
                       const TypeIcon = typeConfig[item.type].icon;
                       const isEditing = editingItem === item.id;
                       
                       return (
-                        <div key={item.id} className={`p-6 border-b border-border last:border-b-0 ${
+                        <Card key={item.id} className={`m-4 shadow-lg hover:shadow-xl transition-shadow duration-300 ${
                           !item.enabled ? 'opacity-50' : ''
                         }`}>
-                          <div className="flex items-start gap-4">
-                            {/* Type Icon */}
-                            <div className={`flex-shrink-0 w-10 h-10 rounded-full ${typeConfig[item.type].color} flex items-center justify-center text-white`}>
-                              <TypeIcon className="h-5 w-5" />
-                            </div>
+                          <CardContent className="p-6">
+                            <div className="flex items-start gap-4">
+                              {/* Type Icon */}
+                              <div className={`flex-shrink-0 w-10 h-10 rounded-full ${typeConfig[item.type].color} flex items-center justify-center text-white shadow-md`}>
+                                <TypeIcon className="h-5 w-5" />
+                              </div>
                             
                             {/* Content */}
                             <div className="flex-1 space-y-4">
@@ -750,8 +751,9 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                   </div>
                                )}
                             </div>
-                          </div>
-                        </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       );
                     })}
                   </div>
