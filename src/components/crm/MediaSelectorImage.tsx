@@ -83,64 +83,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   });
   
   const [isSelecting, setIsSelecting] = useState(false);
-  const [defaultImageUrl, setDefaultImageUrl] = useState<string>('');
-  const [isLoadingDefault, setIsLoadingDefault] = useState(false);
-  const { getCuratedCollectionImages, getSmartImages } = useUnsplash();
-
-  // Fetch a content-aware default image when no src is provided
-  useEffect(() => {
-    if (!src && !defaultImageUrl && !isLoadingDefault) {
-      setIsLoadingDefault(true);
-      
-      const fetchContentAwareImage = async () => {
-        try {
-          let finalQuery: string;
-          
-          // Use time-aware query if month and week info provided
-          if (month && weekNumber && contentType) {
-            const { query } = buildSeasonalImageQuery(
-              month,
-              weekNumber,
-              contentType,
-              contentContext
-            );
-            finalQuery = query;
-            console.log('[MediaSelectorImage] Using time-aware query:', finalQuery);
-          } else {
-            // Fallback to seasonal query
-            const seasonalQuery = getSeasonalSearchQuery();
-            finalQuery = contentContext?.trim() 
-              ? `${contentContext.trim().slice(0, 30)} ${seasonalQuery}`
-              : seasonalQuery;
-            console.log('[MediaSelectorImage] Using seasonal query:', finalQuery);
-          }
-          
-          // Fetch 3 images for variety
-          const smartImages = await getSmartImages(finalQuery, 3);
-          
-          if (smartImages && smartImages.length > 0) {
-            // Randomly select one for variety
-            const randomIndex = Math.floor(Math.random() * smartImages.length);
-            setDefaultImageUrl(smartImages[randomIndex].url);
-            return;
-          }
-          
-          // Final fallback to curated collection
-          const curatedImages = await getCuratedCollectionImages(3);
-          if (curatedImages && curatedImages.length > 0) {
-            const randomIndex = Math.floor(Math.random() * curatedImages.length);
-            setDefaultImageUrl(curatedImages[randomIndex].url);
-          }
-        } catch (error) {
-          console.error('[MediaSelectorImage] Failed to fetch content-aware image:', error);
-        } finally {
-          setIsLoadingDefault(false);
-        }
-      };
-      
-      fetchContentAwareImage();
-    }
-  }, [src, defaultImageUrl, isLoadingDefault, contentContext, getSmartImages, getCuratedCollectionImages]);
+  // Removed automatic Unsplash image fetching - images are now manual-only
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     console.log('[MediaSelectorImage] Image selected:', imageUrl, metadata);
@@ -176,19 +119,6 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
             onLoad={() => console.log('🖼️ Image loaded successfully:', src)}
             onError={(e) => console.error('🖼️ Image failed to load:', src, e)}
           />
-        ) : defaultImageUrl ? (
-          <img 
-            src={defaultImageUrl} 
-            alt="Default garden image" 
-            className="object-cover w-full h-full opacity-80"
-            onLoad={() => console.log('🖼️ Default image loaded successfully:', defaultImageUrl)}
-            onError={(e) => console.error('🖼️ Default image failed to load:', defaultImageUrl, e)}
-          />
-        ) : isLoadingDefault ? (
-          <div className="text-center text-gray-400">
-            <Camera className="w-12 h-12 mx-auto mb-2 animate-pulse" />
-            <span className="text-sm">Loading default image...</span>
-          </div>
         ) : (
           <div className="text-center text-gray-400">
             <Camera className="w-12 h-12 mx-auto mb-2" />
