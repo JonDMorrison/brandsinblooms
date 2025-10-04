@@ -14,7 +14,8 @@ export const generateEnhancedBlogContent = (
   month: string, 
   seasonalFocus: string, 
   contentIdea?: string, 
-  holidays?: any[]
+  holidays?: any[],
+  imageUrl?: string
 ): BlogContentResult => {
   const focus = contentIdea || seasonalFocus || 'seasonal gardening';
   
@@ -28,7 +29,7 @@ export const generateEnhancedBlogContent = (
   const title = `Complete Guide to ${focus.charAt(0).toUpperCase() + focus.slice(1)} in ${month}`;
   const description = `Your complete guide to ${focus.toLowerCase()} in ${month}. From expert tips and timing to plant selection and care techniques - everything you need for success this season.${holidayContext} Includes step-by-step instructions, troubleshooting guide, and seasonal recipes.`;
   
-  const fullContent = generateFullBlogContent(theme, month, focus, holidayContext, relevantHoliday ? [relevantHoliday] : []);
+  const fullContent = generateFullBlogContent(theme, month, focus, holidayContext, relevantHoliday ? [relevantHoliday] : [], imageUrl);
   
   return {
     title,
@@ -44,13 +45,21 @@ const generateFullBlogContent = (
   month: string, 
   focus: string, 
   holidayContext: string, 
-  holidays?: any[]
+  holidays?: any[],
+  imageUrl?: string
 ): string => {
   const monthLower = month.toLowerCase();
   const focusTitle = focus.charAt(0).toUpperCase() + focus.slice(1);
   const holidayName = holidays && holidays.length > 0 ? holidays[0].holiday_name : null;
   
   return `<h1>Complete Guide to ${focusTitle} in ${month}</h1>
+
+${imageUrl ? `
+<figure class="blog-hero-image" style="margin: 2rem 0; text-align: center;">
+  <img src="${imageUrl}" alt="${focusTitle} in ${month}" style="width: 100%; max-width: 800px; height: auto; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
+  <figcaption style="margin-top: 0.75rem; font-size: 0.875rem; color: #666; font-style: italic;">Beautiful ${focusTitle.toLowerCase()} inspiration for ${month}</figcaption>
+</figure>
+` : ''}
 
 <h2>Introduction</h2>
 

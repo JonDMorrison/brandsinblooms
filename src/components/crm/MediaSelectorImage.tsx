@@ -3,12 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { MediaSelectorSidebar } from './MediaSelectorSidebar';
 import { Camera, Upload } from 'lucide-react';
 import { useUnsplash } from '@/hooks/useUnsplash';
+import { buildSeasonalImageQuery } from '@/utils/seasonalImageQueryBuilder';
 
 interface MediaSelectorImageProps {
   src?: string;
   onChange?: (src: string, metadata?: any) => void;
   contentContext?: string;
   className?: string;
+  month?: string;
+  weekNumber?: number;
+  contentType?: 'facebook' | 'instagram' | 'blog';
 }
 
 // Helper function to get seasonal search query based on current date
@@ -64,7 +68,10 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   src = '',
   onChange,
   contentContext = '',
-  className = ''
+  className = '',
+  month,
+  weekNumber,
+  contentType
 }) => {
   console.log('[MediaSelectorImage] Component props:', { src, hasOnChange: !!onChange, contentContext });
   
@@ -80,29 +87,38 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
       
       const fetchContentAwareImage = async () => {
         try {
-          // Build a combined query: seasonal context + content context for better variety
-          const seasonalQuery = getSeasonalSearchQuery();
+          let finalQuery: string;
           
-          let finalQuery = seasonalQuery;
-          if (contentContext?.trim()) {
-            // Combine seasonal context with content for more relevant and varied results
-            finalQuery = `${contentContext.trim().slice(0, 30)} ${seasonalQuery}`;
-            console.log('[MediaSelectorImage] Using combined query:', finalQuery);
+          // Use time-aware query if month and week info provided
+          if (month && weekNumber && contentType) {
+            const { query } = buildSeasonalImageQuery(
+              month,
+              weekNumber,
+              contentType,
+              contentContext
+            );
+            finalQuery = query;
+            console.log('[MediaSelectorImage] Using time-aware query:', finalQuery);
           } else {
+            // Fallback to seasonal query
+            const seasonalQuery = getSeasonalSearchQuery();
+            finalQuery = contentContext?.trim() 
+              ? `${contentContext.trim().slice(0, 30)} ${seasonalQuery}`
+              : seasonalQuery;
             console.log('[MediaSelectorImage] Using seasonal query:', finalQuery);
           }
           
-          // Use smart images with the combined/seasonal query
-          const smartImages = await getSmartImages(finalQuery, 3); // Get 3 images for variety
+          // Fetch 3 images for variety
+          const smartImages = await getSmartImages(finalQuery, 3);
           
           if (smartImages && smartImages.length > 0) {
-            // Randomly select one of the returned images for variety
+            // Randomly select one for variety
             const randomIndex = Math.floor(Math.random() * smartImages.length);
             setDefaultImageUrl(smartImages[randomIndex].url);
             return;
           }
           
-          // Final fallback to curated collection if everything else fails
+          // Final fallback to curated collection
           const curatedImages = await getCuratedCollectionImages(3);
           if (curatedImages && curatedImages.length > 0) {
             const randomIndex = Math.floor(Math.random() * curatedImages.length);

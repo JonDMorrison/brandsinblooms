@@ -52,6 +52,11 @@ export interface PlanItem {
   enabled: boolean;
   imageUrl?: string;
   imageIdea?: string;
+  imageMetadata?: {
+    alt?: string;
+    photographer?: string;
+    source?: string;
+  };
   week: number;
   themeId?: string;
   themeName?: string;

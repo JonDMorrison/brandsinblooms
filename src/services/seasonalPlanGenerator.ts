@@ -6,6 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { batchGenerateEmails } from './emailContentService';
 import { generateEnhancedBlogContent } from './blogContentGenerator';
+import { mediaSelector } from '@/utils/mediaSelector';
+import { buildSeasonalImageQuery } from '@/utils/seasonalImageQueryBuilder';
 
 // Simple title sanitizer to remove week references
 const sanitizeTitle = (title: string): string => {
@@ -208,6 +210,9 @@ const generateOverlayContent = async (
     }
   ];
   
+  // Auto-generate unique images for each content type
+  await autoAssignImages(items, month);
+  
   return items;
 };
 
@@ -249,8 +254,8 @@ export const generateSeasonalPlanContent = async (
       date: new Date(firstDay.getTime() + (5 * 24 * 60 * 60 * 1000)), // First Friday
       enabled: true,
       week: 1,
-      // Add enhanced blog content
-      enhancedContent: generateEnhancedBlogContent(theme, monthName, seasonalFocus, contentIdeas[0], holidays)
+      // Enhanced blog content will be generated with image after auto-assign
+      enhancedContent: generateEnhancedBlogContent(theme, monthName, seasonalFocus, contentIdeas[0], holidays, '')
     },
     
     // Email items with seasonal content
@@ -361,7 +366,76 @@ export const generateSeasonalPlanContent = async (
     }
   ];
 
+  // Auto-generate unique images for each content type based on week position
+  await autoAssignImages(items, monthName);
+
   return items;
+};
+
+// Auto-assign images to content items with time-aware queries
+const autoAssignImages = async (items: PlanItem[], month: string) => {
+  console.log(`[AutoImageAssignment] Starting image assignment for ${items.length} items in ${month}`);
+  
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    
+    // Only assign images to facebook, instagram, and blog
+    if (!['facebook', 'instagram', 'blog'].includes(item.type)) {
+      continue;
+    }
+    
+    try {
+      const weekNumber = item.week || 1;
+      const themeContext = item.themeName || item.title;
+      
+      // Build time and content-type aware query
+      const { query, altText } = buildSeasonalImageQuery(
+        month,
+        weekNumber,
+        item.type as 'facebook' | 'instagram' | 'blog',
+        themeContext
+      );
+      
+      console.log(`[AutoImageAssignment] ${item.type} week ${weekNumber}: ${query}`);
+      
+      // Fetch 3 images and randomly select one for variety
+      const result = await mediaSelector({ prompt: query, count: 3 });
+      
+      if (result?.url) {
+        item.imageUrl = result.url;
+        item.imageMetadata = {
+          alt: altText,
+          photographer: result.photographer,
+          source: 'unsplash_auto'
+        };
+        
+        // For blog posts, regenerate enhanced content with the image
+        if (item.type === 'blog' && item.enhancedContent) {
+          const theme = { label: item.title } as any;
+          item.enhancedContent = generateEnhancedBlogContent(
+            theme,
+            month,
+            themeContext,
+            undefined,
+            [],
+            result.url
+          );
+        }
+        
+        console.log(`[AutoImageAssignment] ✓ Image assigned for ${item.type} week ${weekNumber}`);
+      }
+      
+      // Add delay between requests to avoid rate limiting
+      if (i < items.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    } catch (error) {
+      console.error(`[AutoImageAssignment] Failed to assign image for ${item.type}:`, error);
+      // Continue with other items even if one fails
+    }
+  }
+  
+  console.log(`[AutoImageAssignment] Completed image assignment`);
 };
 
 // Get holidays for a specific month
