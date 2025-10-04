@@ -88,11 +88,8 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   const { getCuratedCollectionImages, getSmartImages } = useUnsplash();
 
   // Fetch a content-aware default image when no src is provided
-  // BUT SKIP if AI generation is pending/generating
   useEffect(() => {
-    if (!src && !defaultImageUrl && !isLoadingDefault && 
-        imageGenerationStatus !== 'pending' && 
-        imageGenerationStatus !== 'generating') {
+    if (!src && !defaultImageUrl && !isLoadingDefault) {
       setIsLoadingDefault(true);
       
       const fetchContentAwareImage = async () => {
@@ -179,11 +176,6 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
             onLoad={() => console.log('🖼️ Image loaded successfully:', src)}
             onError={(e) => console.error('🖼️ Image failed to load:', src, e)}
           />
-        ) : imageGenerationStatus === 'pending' || imageGenerationStatus === 'generating' ? (
-          <div className="text-center text-gray-400">
-            <Camera className="w-12 h-12 mx-auto mb-2 animate-pulse" />
-            <span className="text-sm">AI is generating your image...</span>
-          </div>
         ) : defaultImageUrl ? (
           <img 
             src={defaultImageUrl} 

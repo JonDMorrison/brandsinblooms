@@ -48,8 +48,8 @@ export const CurrentCampaignSection = ({
     handleContentViewerClose
   } = useCurrentCampaignSection(activeCampaign, tasks);
 
-  // Automatically queue AI generation for tasks that need it
-  useAutoImageGeneration(tasks);
+  // AI image generation disabled - images are now manual-only via sidebar
+  // useAutoImageGeneration(tasks);
 
   const showWeeklyBanner = activeCampaign && (
     sessionStorage.getItem('oauth_just_completed') === 'true' || 

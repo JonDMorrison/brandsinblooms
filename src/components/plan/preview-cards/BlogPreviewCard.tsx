@@ -48,16 +48,15 @@ export const BlogPreviewCard: React.FC<BlogPreviewCardProps> = ({
 
       {/* Blog Content Preview */}
       <CardContent className="p-4 space-y-3">
-        {/* Featured Image - AI Generation Placeholder */}
-        <div 
-          className="w-full h-48 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center"
+        {/* Featured Image Picker Button */}
+        <button
+          onClick={onImageSelect}
+          className="w-full h-48 rounded-lg bg-gradient-to-br from-muted/30 to-muted/50 flex flex-col items-center justify-center hover:from-primary/10 hover:to-primary/20 transition-all duration-300 cursor-pointer group"
         >
-          <div className="text-center">
-            <ImageIcon className="h-10 w-10 mx-auto mb-2 text-primary/60 animate-pulse" />
-            <p className="text-sm font-medium text-foreground">AI will generate image after launch</p>
-            <p className="text-xs text-muted-foreground mt-1">Based on: {item.imageIdea || item.themeName}</p>
-          </div>
-        </div>
+          <ImageIcon className="h-12 w-12 mb-3 text-muted-foreground group-hover:text-primary transition-colors" />
+          <p className="text-sm font-medium text-foreground mb-1">Choose Image</p>
+          <p className="text-xs text-muted-foreground">Click to select from library or upload</p>
+        </button>
 
         {/* Blog Excerpt */}
         <div className="text-sm text-foreground/80 leading-relaxed">

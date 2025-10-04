@@ -34,17 +34,16 @@ export const InstagramPreviewCard: React.FC<InstagramPreviewCardProps> = ({
         </Button>
       </div>
 
-      {/* Instagram Image - AI Generation Placeholder */}
+      {/* Image Picker Button */}
       <CardContent className="p-0">
-        <div 
-          className="w-full aspect-square bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center"
+        <button
+          onClick={onImageSelect}
+          className="w-full aspect-square bg-gradient-to-br from-muted/30 to-muted/50 flex flex-col items-center justify-center hover:from-primary/10 hover:to-primary/20 transition-all duration-300 cursor-pointer group"
         >
-          <div className="text-center">
-            <ImageIcon className="h-12 w-12 mx-auto mb-2 text-primary/60 animate-pulse" />
-            <p className="text-sm font-medium text-foreground">AI will generate image after launch</p>
-            <p className="text-xs text-muted-foreground mt-1">Based on: {item.imageIdea || item.themeName}</p>
-          </div>
-        </div>
+          <ImageIcon className="h-12 w-12 mb-3 text-muted-foreground group-hover:text-primary transition-colors" />
+          <p className="text-sm font-medium text-foreground mb-1">Choose Image</p>
+          <p className="text-xs text-muted-foreground">Click to select from library or upload</p>
+        </button>
 
         {/* Engagement Bar */}
         <div className="p-3 space-y-3">

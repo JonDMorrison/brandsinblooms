@@ -116,9 +116,9 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
           status: 'review', // Use valid status
           ai_output: item.caption,
           scheduled_date: item.date.toISOString().split('T')[0], // YYYY-MM-DD format
-          image_url: null, // Don't use Unsplash preview images
-          image_idea: item.imageIdea || `${item.themeName || planState.themes[0].label} ${item.type} garden`, // Set image idea for AI generation
-          image_generation_status: 'pending', // Trigger AI generation
+          image_url: null, // Images are manual-only via sidebar
+          image_idea: null, // No AI generation
+          image_generation_status: null, // No AI generation
           plan_id: plan.id,
           plan_theme: item.themeName || planState.themes[0].label,
           preview_image_url: null,
