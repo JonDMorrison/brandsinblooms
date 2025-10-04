@@ -372,9 +372,13 @@ export const generateSeasonalPlanContent = async (
   return items;
 };
 
-// Auto-assign images to content items with time-aware queries
+// Auto-assign images to content items with time-aware queries and robust fallbacks
 const autoAssignImages = async (items: PlanItem[], month: string) => {
   console.log(`[AutoImageAssignment] Starting image assignment for ${items.length} items in ${month}`);
+  
+  // Import useUnsplash functions here
+  const { useUnsplash } = await import('@/hooks/useUnsplash');
+  const { getCuratedCollectionImages, getSmartImages } = useUnsplash();
   
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
@@ -396,10 +400,48 @@ const autoAssignImages = async (items: PlanItem[], month: string) => {
         themeContext
       );
       
-      console.log(`[AutoImageAssignment] ${item.type} week ${weekNumber}: ${query}`);
+      console.log(`[AutoImageAssignment] Trying ${item.type} week ${weekNumber} seasonal query: "${query}"`);
       
-      // Fetch 3 images and randomly select one for variety
-      const result = await mediaSelector({ prompt: query, count: 3 });
+      // Fallback chain for robust image fetching
+      let result = null;
+      
+      // Try 1: Seasonal query
+      try {
+        result = await mediaSelector({ prompt: query, count: 3 });
+      } catch (err) {
+        console.warn(`[AutoImageAssignment] Seasonal query failed:`, err);
+      }
+      
+      // Try 2: Simplified query (just theme + month)
+      if (!result?.url) {
+        const monthName = new Date(month + '-01').toLocaleDateString('en-US', { month: 'long' });
+        const simpleQuery = `${themeContext.split(' ').slice(0, 2).join(' ')} ${monthName} garden`;
+        console.log(`[AutoImageAssignment] Trying simplified query: "${simpleQuery}"`);
+        
+        try {
+          result = await mediaSelector({ prompt: simpleQuery, count: 3 });
+        } catch (err) {
+          console.warn(`[AutoImageAssignment] Simplified query failed:`, err);
+        }
+      }
+      
+      // Try 3: Curated collection
+      if (!result?.url) {
+        console.log(`[AutoImageAssignment] Trying curated collection`);
+        try {
+          const curatedImages = await getCuratedCollectionImages(Math.floor(Math.random() * 3) + 1);
+          if (curatedImages && curatedImages.length > 0) {
+            const randomIndex = Math.floor(Math.random() * curatedImages.length);
+            result = {
+              url: curatedImages[randomIndex].url,
+              photographer: curatedImages[randomIndex].photographer,
+              photographerUrl: curatedImages[randomIndex].photographer_url
+            };
+          }
+        } catch (err) {
+          console.warn(`[AutoImageAssignment] Curated collection failed:`, err);
+        }
+      }
       
       if (result?.url) {
         item.imageUrl = result.url;
@@ -422,7 +464,9 @@ const autoAssignImages = async (items: PlanItem[], month: string) => {
           );
         }
         
-        console.log(`[AutoImageAssignment] ✓ Image assigned for ${item.type} week ${weekNumber}`);
+        console.log(`[AutoImageAssignment] ✓ Image assigned for ${item.type} week ${weekNumber}: ${item.imageUrl}`);
+      } else {
+        console.warn(`[AutoImageAssignment] ⚠ All fallbacks failed for ${item.type} week ${weekNumber}`);
       }
       
       // Add delay between requests to avoid rate limiting

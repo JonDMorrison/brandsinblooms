@@ -84,7 +84,7 @@ serve(async (req) => {
         
         // Apply garden-specific filtering only if not using raw query
         if (!rawQuery) {
-          const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number)\b/i;
+          const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe)\b/i;
           if (problematicTerms.test(query)) {
             console.warn(`[UNSPLASH] Query contains problematic terms: "${query}"`);
             // Force garden center context
@@ -183,7 +183,7 @@ serve(async (req) => {
       const queryWords = query ? query.toLowerCase().split(' ') : [];
       
       // Check for problematic content (expanded list)
-      const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number|people|person|human|face|portrait|indoor|office|computer|technology)\b/i;
+      const problematicTerms = /\b(ice.?cream|dessert|sweet|indoor|office|computer|technology)\b/i;
       if (problematicTerms.test(content)) {
         console.warn(`[UNSPLASH] Filtering out irrelevant image: ${image.id} - ${alt}`);
         return false;
