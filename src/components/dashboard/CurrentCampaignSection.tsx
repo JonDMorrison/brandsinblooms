@@ -13,6 +13,7 @@ import { useState } from "react";
 import { WeeklyContentBanner } from "./current-campaign/WeeklyContentBanner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { ContentViewer } from "@/components/content/ContentViewer";
+import { useAutoImageGeneration } from "@/hooks/useAutoImageGeneration";
 
 interface CurrentCampaignSectionProps {
   activeCampaign: any;
@@ -46,6 +47,9 @@ export const CurrentCampaignSection = ({
     handleTaskClick,
     handleContentViewerClose
   } = useCurrentCampaignSection(activeCampaign, tasks);
+
+  // Automatically queue AI generation for tasks that need it
+  useAutoImageGeneration(tasks);
 
   const showWeeklyBanner = activeCampaign && (
     sessionStorage.getItem('oauth_just_completed') === 'true' || 
