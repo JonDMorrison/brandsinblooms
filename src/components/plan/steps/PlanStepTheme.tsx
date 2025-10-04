@@ -172,7 +172,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                    className="h-4 w-4 p-0 text-white hover:bg-destructive hover:text-destructive-foreground"
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
