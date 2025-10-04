@@ -374,6 +374,11 @@ export const generateSeasonalPlanContent = async (
 
 // Auto-assign images to content items with time-aware queries and robust fallbacks
 const autoAssignImages = async (items: PlanItem[], month: string) => {
+  console.log(`[AutoImageAssignment] SKIPPED - AI generation now handles images`);
+  // This function is disabled - AI generation now handles all image assignment
+  return;
+  
+  /* DISABLED - AI generation now handles images
   console.log(`[AutoImageAssignment] Starting image assignment for ${items.length} items in ${month}`);
   
   for (let i = 0; i < items.length; i++) {
@@ -484,6 +489,7 @@ const autoAssignImages = async (items: PlanItem[], month: string) => {
   }
   
   console.log(`[AutoImageAssignment] Completed image assignment`);
+  */
 };
 
 // Get holidays for a specific month
