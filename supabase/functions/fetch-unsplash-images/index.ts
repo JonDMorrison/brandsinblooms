@@ -204,9 +204,21 @@ serve(async (req) => {
         'greenhouse', 'seedling', 'perennial', 'annual', 'shrub',
         'mulch', 'soil', 'pot', 'container garden', 'landscaping'
       ];
-      const hasGardenContext = gardenTerms.some(term => content.includes(term));
       
-      // Check for query word matches
+      // Trust Unsplash when we searched with garden terms
+      const queryHasGardenContext = queryWords.some(word => 
+        gardenTerms.includes(word) || word === 'garden'
+      );
+      
+      if (queryHasGardenContext) {
+        // If we searched for garden content, trust Unsplash's relevance
+        // Only filter out obviously wrong content (already done above)
+        console.log(`[UNSPLASH] ✓ Accepting image from garden query: ${image.id}`);
+        return true;
+      }
+      
+      // For generic queries without garden context, require validation
+      const hasGardenContext = gardenTerms.some(term => content.includes(term));
       const hasQueryMatch = queryWords.some(word => word.length > 2 && content.includes(word));
       
       if (!hasGardenContext && !hasQueryMatch) {
