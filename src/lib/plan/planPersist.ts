@@ -108,19 +108,20 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
         continue;
       }
 
-      // Create content_tasks entry
+      // Create content_tasks entry with AI image generation
       const { data: contentTask, error: taskError } = await supabase
         .from('content_tasks')
         .insert({
           post_type: mappedPostType,
-          status: 'pending',
+          status: 'review', // Use valid status
           ai_output: item.caption,
           scheduled_date: item.date.toISOString().split('T')[0], // YYYY-MM-DD format
-          image_url: item.imageUrl || null,
-          image_idea: item.imageIdea || null,
+          image_url: null, // Don't use Unsplash preview images
+          image_idea: item.imageIdea || `${item.themeName || planState.themes[0].label} ${item.type} garden`, // Set image idea for AI generation
+          image_generation_status: 'pending', // Trigger AI generation
           plan_id: plan.id,
           plan_theme: item.themeName || planState.themes[0].label,
-          preview_image_url: item.imageUrl || null,
+          preview_image_url: null,
           user_id: user.id,
           tenant_id: tenantId,
           created_by_user_id: user.id,
