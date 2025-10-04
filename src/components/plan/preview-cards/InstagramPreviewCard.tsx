@@ -34,36 +34,17 @@ export const InstagramPreviewCard: React.FC<InstagramPreviewCardProps> = ({
         </Button>
       </div>
 
-      {/* Instagram Image */}
+      {/* Instagram Image - AI Generation Placeholder */}
       <CardContent className="p-0">
-        {item.imageUrl ? (
-          <div className="relative w-full aspect-square group">
-            <img 
-              src={item.imageUrl} 
-              alt="Instagram post" 
-              className="w-full h-full object-cover"
-            />
-            <Button
-              size="sm"
-              variant="secondary"
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={onImageSelect}
-            >
-              <ImageIcon className="h-3 w-3 mr-1" />
-              Change
-            </Button>
+        <div 
+          className="w-full aspect-square bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center"
+        >
+          <div className="text-center">
+            <ImageIcon className="h-12 w-12 mx-auto mb-2 text-primary/60 animate-pulse" />
+            <p className="text-sm font-medium text-foreground">AI will generate image after launch</p>
+            <p className="text-xs text-muted-foreground mt-1">Based on: {item.imageIdea || item.themeName}</p>
           </div>
-        ) : (
-          <div 
-            className="w-full aspect-square bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors"
-            onClick={onImageSelect}
-          >
-            <div className="text-center">
-              <ImageIcon className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Click to add image</p>
-            </div>
-          </div>
-        )}
+        </div>
 
         {/* Engagement Bar */}
         <div className="p-3 space-y-3">

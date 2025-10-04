@@ -48,35 +48,16 @@ export const BlogPreviewCard: React.FC<BlogPreviewCardProps> = ({
 
       {/* Blog Content Preview */}
       <CardContent className="p-4 space-y-3">
-        {/* Featured Image */}
-        {item.imageUrl ? (
-          <div className="relative w-full h-48 rounded-lg overflow-hidden group">
-            <img 
-              src={item.imageUrl} 
-              alt="Blog featured" 
-              className="w-full h-full object-cover"
-            />
-            <Button
-              size="sm"
-              variant="secondary"
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={onImageSelect}
-            >
-              <ImageIcon className="h-3 w-3 mr-1" />
-              Change
-            </Button>
+        {/* Featured Image - AI Generation Placeholder */}
+        <div 
+          className="w-full h-48 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center"
+        >
+          <div className="text-center">
+            <ImageIcon className="h-10 w-10 mx-auto mb-2 text-primary/60 animate-pulse" />
+            <p className="text-sm font-medium text-foreground">AI will generate image after launch</p>
+            <p className="text-xs text-muted-foreground mt-1">Based on: {item.imageIdea || item.themeName}</p>
           </div>
-        ) : (
-          <div 
-            className="w-full h-48 bg-muted/30 rounded-lg flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors border-2 border-dashed border-muted-foreground/30"
-            onClick={onImageSelect}
-          >
-            <div className="text-center">
-              <ImageIcon className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Click to add featured image</p>
-            </div>
-          </div>
-        )}
+        </div>
 
         {/* Blog Excerpt */}
         <div className="text-sm text-foreground/80 leading-relaxed">
