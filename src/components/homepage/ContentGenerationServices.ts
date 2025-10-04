@@ -27,7 +27,7 @@ export const generatePersonalizedContent = async (
   campaignTitle: string,
   userId?: string | null,
   weekDescription?: string
-): Promise<string> => {
+): Promise<string | { content: string; imageQuery: string }> => {
   console.log('🎯 Legacy generatePersonalizedContent called:', { postType, campaignTitle });
   
   try {
@@ -55,6 +55,14 @@ export const generatePersonalizedContent = async (
       throw new Error('No content generated');
     }
 
+    // Return structured output if imageQuery is present
+    if (contentResult.imageQuery) {
+      return {
+        content: contentResult.content,
+        imageQuery: contentResult.imageQuery
+      };
+    }
+
     return contentResult.content;
   } catch (error) {
     console.error('❌ generatePersonalizedContent failed:', error);
@@ -68,7 +76,7 @@ export const generateNewsletterContent = async (
   weekNumber: number,
   userId: string,
   weekDescription?: string
-): Promise<string> => {
+): Promise<string | { content: string; imageQuery: string }> => {
   console.log('🎯 Legacy generateNewsletterContent called:', { campaignId, campaignTitle });
   
   try {
@@ -93,6 +101,14 @@ export const generateNewsletterContent = async (
       throw new Error('No newsletter content generated');
     }
 
+    // Return structured output if imageQuery is present
+    if (result.imageQuery) {
+      return {
+        content: result.content,
+        imageQuery: result.imageQuery
+      };
+    }
+
     return result.content;
   } catch (error) {
     console.error('❌ generateNewsletterContent failed:', error);
@@ -104,7 +120,7 @@ export const generateVideoScript = async (
   campaignTitle: string,
   userId?: string | null,
   weekDescription?: string
-): Promise<string> => {
+): Promise<string | { content: string; imageQuery: string }> => {
   console.log('🎯 Legacy generateVideoScript called:', { campaignTitle });
   
   try {
@@ -130,6 +146,14 @@ export const generateVideoScript = async (
         campaignTitle
       });
       throw new Error('No video script generated');
+    }
+
+    // Return structured output if imageQuery is present
+    if (contentResult.imageQuery) {
+      return {
+        content: contentResult.content,
+        imageQuery: contentResult.imageQuery
+      };
     }
 
     return contentResult.content;

@@ -57,12 +57,14 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
         `Holiday content for ${contentTitle}` :
         normalizedTask.campaigns.description;
       
-      const newContent = await generatePersonalizedContent(
+      const result = await generatePersonalizedContent(
         normalizedTask.post_type,
         contentTitle,
         normalizedTask.user_id,
         contentDescription
       );
+      
+      const newContent = typeof result === 'string' ? result : result.content;
 
       const { error } = await supabase
         .from('content_tasks')

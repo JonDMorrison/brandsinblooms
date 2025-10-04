@@ -95,6 +95,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       content: sanitizedContent,
+      imageQuery: result.imageQuery || '',
       generationAttempts: result.attempts,
       validationPassed: true
     }), {

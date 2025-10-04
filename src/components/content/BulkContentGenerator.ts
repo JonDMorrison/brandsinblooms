@@ -101,11 +101,14 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
       let generatedContent = '';
       
       if (type === 'newsletter') {
-        generatedContent = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, enhancedContextPrompt);
+        const result = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, enhancedContextPrompt);
+        generatedContent = typeof result === 'string' ? result : result.content;
       } else if (type === 'video') {
-        generatedContent = await generateVideoScript(campaignTitle, userId, enhancedContextPrompt);
+        const result = await generateVideoScript(campaignTitle, userId, enhancedContextPrompt);
+        generatedContent = typeof result === 'string' ? result : result.content;
       } else {
-        generatedContent = await generatePersonalizedContent(type, campaignTitle, userId, enhancedContextPrompt);
+        const result = await generatePersonalizedContent(type, campaignTitle, userId, enhancedContextPrompt);
+        generatedContent = typeof result === 'string' ? result : result.content;
       }
       
       if (!generatedContent || generatedContent.trim() === '') {

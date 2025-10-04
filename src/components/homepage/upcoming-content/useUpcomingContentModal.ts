@@ -38,12 +38,14 @@ export const useUpcomingContentModal = (week: any, onTaskUpdate?: () => void) =>
     try {
       console.log(`Generating ${contentType.name} for theme: ${week.theme}, description: ${week.description}`);
       
-      const content = await generatePersonalizedContent(
+      const result = await generatePersonalizedContent(
         contentType.id,
         week.theme,
         user.id,
         week.description
       );
+      
+      const content = typeof result === 'string' ? result : result.content;
       
       console.log(`Generated content for ${contentType.name}:`, content);
       

@@ -13,7 +13,8 @@ import {
 
 export const updateVideoTasksWithNewScript = async (campaignId: string, campaignTitle: string, userId?: string, campaignDescription?: string, tenantId?: string) => {
   try {
-    const newVideoScript = await generateVideoScript(campaignTitle, userId, campaignDescription);
+    const result = await generateVideoScript(campaignTitle, userId, campaignDescription);
+    const newVideoScript = typeof result === 'string' ? result : result.content;
     
     // 🔒 SECURITY: Ensure only tasks belonging to the user are updated
     let updateQuery = supabase
@@ -89,11 +90,14 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       
       try {
         if (postType === 'newsletter') {
-          aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, campaignDescription);
+          const result = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, campaignDescription);
+          aiOutput = typeof result === 'string' ? result : result.content;
         } else if (postType === 'video') {
-          aiOutput = await generateVideoScript(campaignTitle, userId, campaignDescription);
+          const result = await generateVideoScript(campaignTitle, userId, campaignDescription);
+          aiOutput = typeof result === 'string' ? result : result.content;
         } else {
-          aiOutput = await generatePersonalizedContent(postType, campaignTitle, userId, campaignDescription);
+          const result = await generatePersonalizedContent(postType, campaignTitle, userId, campaignDescription);
+          aiOutput = typeof result === 'string' ? result : result.content;
         }
       } catch (error) {
         console.error(`❌ Error generating ${postType} content with OpenAI:`, error);

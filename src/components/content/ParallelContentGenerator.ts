@@ -75,6 +75,7 @@ export const generateContentInParallel = async (
         .eq('id', task.id);
 
       let generatedContent = '';
+      let imageQuery = '';
       
       // Spend tokens for this specific generation
       const tokensToSpend = (task.post_type === 'newsletter' || task.post_type === 'video') ? 2 : 1;
@@ -90,27 +91,53 @@ export const generateContentInParallel = async (
         throw new Error(`Token spending failed: ${tokenError.message}`);
       }
       
+      // Generate content with AI-suggested image query
       if (task.post_type === 'newsletter') {
-        generatedContent = await generateNewsletterContent(campaignId, campaignTitle, 1, userId, weekDescription);
+        const result = await generateNewsletterContent(campaignId, campaignTitle, 1, userId, weekDescription);
+        generatedContent = typeof result === 'string' ? result : result?.content || '';
+        imageQuery = typeof result === 'object' && result ? result.imageQuery || '' : '';
       } else if (task.post_type === 'video') {
-        generatedContent = await generateVideoScript(campaignTitle, userId, weekDescription);
+        const result = await generateVideoScript(campaignTitle, userId, weekDescription);
+        generatedContent = typeof result === 'string' ? result : result?.content || '';
+        imageQuery = typeof result === 'object' && result ? result.imageQuery || '' : '';
       } else {
-        generatedContent = await generatePersonalizedContent(task.post_type, campaignTitle, userId, weekDescription);
+        const result = await generatePersonalizedContent(task.post_type, campaignTitle, userId, weekDescription);
+        generatedContent = typeof result === 'string' ? result : result?.content || '';
+        imageQuery = typeof result === 'object' && result ? result.imageQuery || '' : '';
       }
       
       console.log(`✅ Generated ${task.post_type} content (${generatedContent.length} chars)`);
+      console.log(`🎨 AI-suggested image query: "${imageQuery}"`);
       
       // Validate content before updating
       if (!generatedContent || generatedContent.trim() === '') {
         throw new Error(`Generated content is empty for ${task.post_type}`);
       }
       
-      // Update the task with generated content using 'review' status
+      // Fetch image using AI-suggested query
+      let imageUrl = '';
+      if (imageQuery && (task.post_type === 'facebook' || task.post_type === 'instagram')) {
+        try {
+          const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
+            body: { query: imageQuery, maxImages: 1 }
+          });
+          
+          if (!imageError && imageData?.images && imageData.images.length > 0) {
+            imageUrl = imageData.images[0].download_url;
+            console.log(`✅ Fetched image using AI query: ${imageQuery}`);
+          }
+        } catch (imgErr) {
+          console.warn(`⚠️ Failed to fetch image for query "${imageQuery}":`, imgErr);
+        }
+      }
+      
+      // Update the task with generated content and image
       const { error: updateError } = await supabase
         .from('content_tasks')
         .update({ 
           ai_output: generatedContent,
-          status: 'review'
+          status: 'review',
+          ...(imageUrl && { image_url: imageUrl })
         })
         .eq('id', task.id);
       
@@ -118,13 +145,14 @@ export const generateContentInParallel = async (
         throw updateError;
       }
       
-      console.log(`✅ Successfully updated ${task.post_type} task ${task.id} with generated content`);
+      console.log(`✅ Successfully updated ${task.post_type} task ${task.id} with generated content${imageUrl ? ' and image' : ''}`);
       
       return { 
         taskId: task.id, 
         postType: task.post_type, 
         success: true, 
-        content: generatedContent 
+        content: generatedContent,
+        imageQuery
       };
       
     } catch (error) {

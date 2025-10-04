@@ -21,6 +21,7 @@ export async function generateContentWithValidation(prompt: string, openAIApiKey
       console.log(`✅ OPTIMIZED: Found valid content on parallel attempt`);
       return {
         content: result.value.content,
+        imageQuery: result.value.imageQuery || '',
         attempts: 1, // Parallel processing
         issues: []
       };
@@ -38,6 +39,7 @@ export async function generateContentWithValidation(prompt: string, openAIApiKey
     const cleanedContent = attemptBasicCleanup(bestResult.content);
     return {
       content: cleanedContent,
+      imageQuery: bestResult.imageQuery || '',
       attempts: maxAttempts,
       issues: bestResult.issues
     };
@@ -46,6 +48,7 @@ export async function generateContentWithValidation(prompt: string, openAIApiKey
   // Fallback
   return {
     content: '',
+    imageQuery: '',
     attempts: maxAttempts,
     issues: ['Failed to generate content after parallel attempts']
   };
@@ -136,6 +139,20 @@ CRITICAL REQUIREMENTS:
 Apply ALL quality guidelines above strictly. Focus on natural, conversational gardening expertise with proper spacing.`;
     }
     
+    // Add image query instruction to prompt
+    const imageQueryInstruction = `\n\n🎨 IMAGE SUGGESTION REQUIREMENT:
+After generating the content, suggest a highly visual, garden-focused Unsplash search query that captures the essence of this content.
+
+IMAGE QUERY GUIDELINES:
+- Focus on visual, photographic elements (flowers, plants, garden scenes)
+- ALWAYS include "garden" or "garden center" or "nursery" in the query
+- Use 3-5 descriptive words maximum
+- Think about what would make a stunning, relevant photo
+- Examples: "spring tulips garden center display", "fall mums chrysanthemum nursery", "vegetable garden harvest baskets"
+- Avoid abstract concepts, focus on tangible garden elements
+
+The image query should help find photos that visually represent the content's main theme.`;
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -152,9 +169,37 @@ Apply ALL quality guidelines above strictly. Focus on natural, conversational ga
           },
           {
             role: 'user',
-            content: qualityEnhancedPrompt
+            content: qualityEnhancedPrompt + imageQueryInstruction
           }
-        ]
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "return_content_with_image_query",
+              description: "Return the generated marketing content along with a suggested Unsplash search query for finding a relevant garden image",
+              parameters: {
+                type: "object",
+                properties: {
+                  content: {
+                    type: "string",
+                    description: "The complete marketing content following all quality guidelines"
+                  },
+                  imageQuery: {
+                    type: "string",
+                    description: "A 3-5 word Unsplash search query focused on visual garden elements, must include 'garden' or 'garden center' or 'nursery'"
+                  }
+                },
+                required: ["content", "imageQuery"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        tool_choice: {
+          type: "function",
+          function: { name: "return_content_with_image_query" }
+        }
       }),
     });
 
@@ -163,12 +208,29 @@ Apply ALL quality guidelines above strictly. Focus on natural, conversational ga
     }
 
     const data = await response.json();
-    let content = data.choices[0].message.content;
+    
+    // Extract structured output from tool call
+    const toolCall = data.choices[0].message.tool_calls?.[0];
+    if (!toolCall || !toolCall.function.arguments) {
+      throw new Error('No structured output received from OpenAI');
+    }
+    
+    const structuredOutput = JSON.parse(toolCall.function.arguments);
+    let content = structuredOutput.content;
+    let imageQuery = structuredOutput.imageQuery || '';
     
     // CRITICAL: Sanitize week numbers from generated content
     content = sanitizeWeekNumbers(content);
     
+    // Ensure imageQuery includes garden context
+    if (imageQuery && !imageQuery.toLowerCase().includes('garden') && 
+        !imageQuery.toLowerCase().includes('nursery') && 
+        !imageQuery.toLowerCase().includes('plant')) {
+      imageQuery = `${imageQuery} garden center`;
+    }
+    
     console.log(`Generated content attempt ${attemptNumber}:`, content.substring(0, 200));
+    console.log(`Suggested image query: "${imageQuery}"`);
     
     // Validate the generated content (including week number check)
     const validation = validateContent(content, contentType);
@@ -182,6 +244,7 @@ Apply ALL quality guidelines above strictly. Focus on natural, conversational ga
     
     return {
       content,
+      imageQuery,
       isValid: validation.isValid && weekValidation.isValid,
       issues: allIssues
     };
