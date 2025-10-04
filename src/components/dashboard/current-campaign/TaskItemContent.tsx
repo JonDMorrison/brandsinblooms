@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { extractBlogMetadata, cleanContentForDisplay } from "@/utils/contentUtils";
@@ -7,6 +6,8 @@ import { convertMarkdownToHtml } from "@/utils/markdownUtils";
 import { MagazineContentDisplay } from "@/components/content/task-item/MagazineContentDisplay";
 import { ImageAssetManager } from "@/lib/imageAssetManager";
 import { useAuth } from "@/contexts/AuthContext";
+import { AIImageLoadingOverlay } from "@/components/ui/AIImageLoadingOverlay";
+import { useRealtimeImageUpdates } from "@/hooks/useRealtimeImageUpdates";
 
 interface TaskItemContentProps {
   task: any;
@@ -17,6 +18,15 @@ interface TaskItemContentProps {
 
 export const TaskItemContent = ({ task, hasContent, cleanContent, onClick }: TaskItemContentProps) => {
   const { user } = useAuth();
+  const imageUpdates = useRealtimeImageUpdates(task.id);
+  const [displayImageUrl, setDisplayImageUrl] = useState(task.image_url);
+
+  // Update display image when real-time update arrives
+  useEffect(() => {
+    if (imageUpdates.imageUrl) {
+      setDisplayImageUrl(imageUpdates.imageUrl);
+    }
+  }, [imageUpdates.imageUrl]);
 
   if (!hasContent) return null;
 
@@ -58,10 +68,20 @@ export const TaskItemContent = ({ task, hasContent, cleanContent, onClick }: Tas
     }
   };
 
+  const isGeneratingImage = imageUpdates.status === 'generating' || 
+    (task.image_generation_status === 'generating' && !displayImageUrl);
+
   return (
     <div className="space-y-4">
       {/* Enhanced content display using normalized data */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden relative">
+        {isGeneratingImage && (
+          <AIImageLoadingOverlay 
+            message="AI is creating your garden image..."
+            className="absolute inset-0"
+          />
+        )}
+        
         {task.post_type === 'blog' ? (
           <BlogPostLayout
             title={blogMetadata?.title}
@@ -69,7 +89,7 @@ export const TaskItemContent = ({ task, hasContent, cleanContent, onClick }: Tas
             content={convertMarkdownToHtml(cleanContent)}
             className="bg-white min-h-0"
             showMediaSelector={true}
-            selectedImageUrl={task.image_url}
+            selectedImageUrl={displayImageUrl}
             contentContext={cleanContent}
             onImageSelect={handleImageSelect}
           />

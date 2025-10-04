@@ -879,6 +879,9 @@ export type Database = {
           hashtags: string | null
           holiday_id: string | null
           id: string
+          image_generated_at: string | null
+          image_generation_error: string | null
+          image_generation_status: string | null
           image_idea: string | null
           image_metadata: Json | null
           image_source: string | null
@@ -910,6 +913,9 @@ export type Database = {
           hashtags?: string | null
           holiday_id?: string | null
           id?: string
+          image_generated_at?: string | null
+          image_generation_error?: string | null
+          image_generation_status?: string | null
           image_idea?: string | null
           image_metadata?: Json | null
           image_source?: string | null
@@ -941,6 +947,9 @@ export type Database = {
           hashtags?: string | null
           holiday_id?: string | null
           id?: string
+          image_generated_at?: string | null
+          image_generation_error?: string | null
+          image_generation_status?: string | null
           image_idea?: string | null
           image_metadata?: Json | null
           image_source?: string | null

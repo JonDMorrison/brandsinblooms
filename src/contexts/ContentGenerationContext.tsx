@@ -1,8 +1,8 @@
-
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { generateCampaignContent } from '@/components/homepage/ContentGenerationServices';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
+import { SequentialImageLoader } from '@/services/SequentialImageLoader';
 
 
 interface ContentGenerationContextType {
@@ -37,7 +37,6 @@ export const ContentGenerationProvider = ({ children }: ContentGenerationProvide
     weekNumber: number
   ): Promise<boolean> => {
     if (!user) {
-      
       return false;
     }
 
@@ -49,27 +48,41 @@ export const ContentGenerationProvider = ({ children }: ContentGenerationProvide
     setGeneratingCampaigns(prev => new Set(prev).add(campaignId));
     
     try {
-      
-
       const result = await generateCampaignContent(
         campaignId,
         theme,
         description,
         user.id,
         weekNumber,
-        tenant?.id // Pass tenant?.id - can be undefined for single-user mode
+        tenant?.id
       );
 
-      if (result.success) {
+      if (result.success && result.tasks) {
+        console.log('[ContentGeneration] Content generated, queuing AI image generation for', result.tasks.length, 'tasks');
+        
+        // Queue AI image generation for each task that needs an image
+        result.tasks.forEach((task: any) => {
+          if (task.image_idea && task.id) {
+            console.log('[ContentGeneration] Queuing image generation for task:', task.id);
+            
+            // Add to sequential image loader with AI generation
+            SequentialImageLoader.addToQueue(
+              task.image_idea,
+              'normal',
+              task.id,
+              user.id
+            ).catch(error => {
+              console.error('[ContentGeneration] Image generation failed for task:', task.id, error);
+            });
+          }
+        });
         
         return true;
       } else {
-        
         return false;
       }
     } catch (error) {
       console.error('Error generating content:', error);
-      
       return false;
     } finally {
       setGeneratingCampaigns(prev => {

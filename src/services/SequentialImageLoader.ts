@@ -2,6 +2,8 @@ interface ImageRequest {
   id: string;
   prompt: string;
   priority: 'high' | 'normal';
+  taskId?: string;
+  userId?: string;
   resolve: (result: any) => void;
   reject: (error: any) => void;
 }
@@ -20,12 +22,19 @@ class SequentialImageLoaderClass {
   private completed = 0;
   private listeners: ((status: LoadingStatus) => void)[] = [];
   
-  async addToQueue(prompt: string, priority: 'high' | 'normal' = 'normal'): Promise<any> {
+  async addToQueue(
+    prompt: string, 
+    priority: 'high' | 'normal' = 'normal',
+    taskId?: string,
+    userId?: string
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
       const request: ImageRequest = {
         id: `${Date.now()}-${Math.random()}`,
         prompt,
         priority,
+        taskId,
+        userId,
         resolve,
         reject
       };
@@ -51,15 +60,36 @@ class SequentialImageLoaderClass {
     this.notifyListeners();
     
     try {
-      const { mediaSelector } = await import('@/utils/mediaSelector');
-      const result = await mediaSelector({ prompt: request.prompt });
+      // If taskId and userId are provided, use AI generation
+      if (request.taskId && request.userId) {
+        console.log('[SequentialImageLoader] Using AI generation for task:', request.taskId);
+        
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data, error } = await supabase.functions.invoke('generate-ai-image', {
+          body: {
+            taskId: request.taskId,
+            imageQuery: request.prompt,
+            userId: request.userId
+          }
+        });
+
+        if (error) throw error;
+        
+        request.resolve(data);
+      } else {
+        // Fallback to Unsplash for backward compatibility
+        console.log('[SequentialImageLoader] Using Unsplash fallback');
+        const { mediaSelector } = await import('@/utils/mediaSelector');
+        const result = await mediaSelector({ prompt: request.prompt });
+        request.resolve(result);
+      }
       
       // Small delay to prevent flashing
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      request.resolve(result);
       this.completed++;
     } catch (error) {
+      console.error('[SequentialImageLoader] Error:', error);
       request.reject(error);
     }
     
