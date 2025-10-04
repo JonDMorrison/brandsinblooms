@@ -375,9 +375,13 @@ serve(async (req) => {
         
         console.log(`✅ Generated ${contentType} content (${content.length} chars, ${Math.round(topicValidation.score * 100)}% topic alignment${topicValidation.hasForbiddenContent ? ', ⚠️ contains defaults' : ''})`);
 
+        // Generate image query based on content type and campaign
+        const imageQuery = `${campaign_title} ${contentType} garden`;
+
         return {
           contentType,
           content,
+          imageQuery,
           success: true,
           topicAlignment: topicValidation.score,
           issues: topicValidation.issues
@@ -407,11 +411,13 @@ serve(async (req) => {
 
     for (const result of contentResults) {
       if (result.status === 'fulfilled' && result.value.success) {
-        const { contentType, content } = result.value;
+        const { contentType, content, imageQuery } = result.value;
         tasksToInsert.push({
           campaign_id,
           post_type: contentType,
           ai_output: content,
+          image_idea: imageQuery || `${campaign_title} ${contentType} garden`,
+          image_generation_status: 'pending',
           status: 'review',
           scheduled_date: new Date().toISOString().split('T')[0],
           user_id,
