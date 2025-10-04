@@ -143,13 +143,14 @@ Apply ALL quality guidelines above strictly. Focus on natural, conversational ga
     const imageQueryInstruction = `\n\n🎨 IMAGE SUGGESTION REQUIREMENT:
 After generating the content, suggest a highly visual, garden-focused Unsplash search query that captures the essence of this content.
 
-IMAGE QUERY GUIDELINES:
-- Focus on visual, photographic elements (flowers, plants, garden scenes)
-- ALWAYS include "garden" or "garden center" or "nursery" in the query
+IMAGE QUERY REQUIREMENTS (MANDATORY):
+- Your query MUST contain at least one of these words: "garden", "garden center", "nursery", "botanical"
+- Focus on visual garden elements: plants, flowers, outdoor displays, garden beds, plant arrangements
 - Use 3-5 descriptive words maximum
 - Think about what would make a stunning, relevant photo
 - Examples: "spring tulips garden center display", "fall mums chrysanthemum nursery", "vegetable garden harvest baskets"
 - Avoid abstract concepts, focus on tangible garden elements
+- Query will be rejected if it lacks garden context
 
 The image query should help find photos that visually represent the content's main theme.`;
 
@@ -187,7 +188,7 @@ The image query should help find photos that visually represent the content's ma
                   },
                   imageQuery: {
                     type: "string",
-                    description: "A 3-5 word Unsplash search query focused on visual garden elements, must include 'garden' or 'garden center' or 'nursery'"
+                    description: "A 3-5 word Unsplash search query. MUST include one of: 'garden', 'garden center', 'nursery', or 'botanical'. Focus on plants, flowers, outdoor garden scenes, garden displays. Example: 'spring garden tulip display'"
                   }
                 },
                 required: ["content", "imageQuery"],
@@ -222,12 +223,25 @@ The image query should help find photos that visually represent the content's ma
     // CRITICAL: Sanitize week numbers from generated content
     content = sanitizeWeekNumbers(content);
     
-    // Ensure imageQuery includes garden context
-    if (imageQuery && !imageQuery.toLowerCase().includes('garden') && 
-        !imageQuery.toLowerCase().includes('nursery') && 
-        !imageQuery.toLowerCase().includes('plant')) {
-      imageQuery = `${imageQuery} garden center`;
+    // CRITICAL: Ensure imageQuery ALWAYS has garden context at the START
+    const hasGardenContext = 
+      imageQuery.toLowerCase().includes('garden') || 
+      imageQuery.toLowerCase().includes('nursery') || 
+      imageQuery.toLowerCase().includes('botanical') ||
+      imageQuery.toLowerCase().includes('plant');
+    
+    if (!hasGardenContext) {
+      // Prepend garden context to the beginning for stronger relevance
+      imageQuery = `garden center ${imageQuery}`;
+      console.log(`⚠️ Added garden context to query: "${imageQuery}"`);
     }
+    
+    // Log garden enforcement check
+    console.log(`🌿 Garden enforcement check:`, {
+      originalQuery: structuredOutput.imageQuery,
+      hasGardenContext: hasGardenContext,
+      finalQuery: imageQuery
+    });
     
     console.log(`Generated content attempt ${attemptNumber}:`, content.substring(0, 200));
     console.log(`Suggested image query: "${imageQuery}"`);

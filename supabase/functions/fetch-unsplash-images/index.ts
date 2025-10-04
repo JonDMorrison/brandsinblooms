@@ -82,13 +82,21 @@ serve(async (req) => {
       if (query) {
         let searchQuery = query;
         
-        // Apply garden-specific filtering only if not using raw query
+        // ALWAYS ensure garden context unless rawQuery flag is set
         if (!rawQuery) {
+          const hasGardenKeyword = /\b(garden|nursery|botanical|plant nursery)\b/i.test(query);
+          
+          if (!hasGardenKeyword) {
+            // Prepend garden context to ensure relevance
+            searchQuery = `garden ${query}`;
+            console.log(`[UNSPLASH] Enhanced query with garden context: "${searchQuery}"`);
+          }
+          
+          // Still filter out problematic terms
           const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe)\b/i;
           if (problematicTerms.test(query)) {
             console.warn(`[UNSPLASH] Query contains problematic terms: "${query}"`);
-            // Force garden center context
-            searchQuery = `garden center plants nursery ${query.replace(problematicTerms, '').trim()}`;
+            searchQuery = `garden center plants ${query.replace(problematicTerms, '').trim()}`;
             console.log(`[UNSPLASH] Using sanitized query: "${searchQuery}"`);
           }
         } else {
@@ -189,8 +197,13 @@ serve(async (req) => {
         return false;
       }
       
-      // Positive validation - ensure garden/plant relevance
-      const gardenTerms = ['garden', 'plant', 'flower', 'bloom', 'nursery', 'botanical', 'leaf', 'green', 'nature', 'outdoor'];
+      // Positive validation - ensure garden/plant relevance (expanded list)
+      const gardenTerms = [
+        'garden', 'plant', 'flower', 'bloom', 'nursery', 'botanical', 
+        'leaf', 'green', 'nature', 'outdoor', 'gardening', 'planter',
+        'greenhouse', 'seedling', 'perennial', 'annual', 'shrub',
+        'mulch', 'soil', 'pot', 'container garden', 'landscaping'
+      ];
       const hasGardenContext = gardenTerms.some(term => content.includes(term));
       
       // Check for query word matches
