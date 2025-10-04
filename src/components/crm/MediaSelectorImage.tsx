@@ -80,29 +80,33 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
       
       const fetchContentAwareImage = async () => {
         try {
-          // Try to get a content-aware image first
+          // Build a combined query: seasonal context + content context for better variety
+          const seasonalQuery = getSeasonalSearchQuery();
+          
+          let finalQuery = seasonalQuery;
           if (contentContext?.trim()) {
-            const smartImages = await getSmartImages(contentContext, 1);
-            if (smartImages && smartImages.length > 0) {
-              setDefaultImageUrl(smartImages[0].url);
-              return;
-            }
+            // Combine seasonal context with content for more relevant and varied results
+            finalQuery = `${contentContext.trim().slice(0, 30)} ${seasonalQuery}`;
+            console.log('[MediaSelectorImage] Using combined query:', finalQuery);
+          } else {
+            console.log('[MediaSelectorImage] Using seasonal query:', finalQuery);
           }
           
-          // Use seasonal search query for default images
-          const seasonalQuery = getSeasonalSearchQuery();
-          console.log('[MediaSelectorImage] Using seasonal query:', seasonalQuery);
+          // Use smart images with the combined/seasonal query
+          const smartImages = await getSmartImages(finalQuery, 3); // Get 3 images for variety
           
-          const seasonalImages = await getSmartImages(seasonalQuery, 1);
-          if (seasonalImages && seasonalImages.length > 0) {
-            setDefaultImageUrl(seasonalImages[0].url);
+          if (smartImages && smartImages.length > 0) {
+            // Randomly select one of the returned images for variety
+            const randomIndex = Math.floor(Math.random() * smartImages.length);
+            setDefaultImageUrl(smartImages[randomIndex].url);
             return;
           }
           
-          // Final fallback to curated collection if seasonal search fails
-          const curatedImages = await getCuratedCollectionImages(1);
+          // Final fallback to curated collection if everything else fails
+          const curatedImages = await getCuratedCollectionImages(3);
           if (curatedImages && curatedImages.length > 0) {
-            setDefaultImageUrl(curatedImages[0].url);
+            const randomIndex = Math.floor(Math.random() * curatedImages.length);
+            setDefaultImageUrl(curatedImages[randomIndex].url);
           }
         } catch (error) {
           console.error('[MediaSelectorImage] Failed to fetch content-aware image:', error);
