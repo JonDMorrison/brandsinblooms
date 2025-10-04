@@ -376,10 +376,6 @@ export const generateSeasonalPlanContent = async (
 const autoAssignImages = async (items: PlanItem[], month: string) => {
   console.log(`[AutoImageAssignment] Starting image assignment for ${items.length} items in ${month}`);
   
-  // Import useUnsplash functions here
-  const { useUnsplash } = await import('@/hooks/useUnsplash');
-  const { getCuratedCollectionImages, getSmartImages } = useUnsplash();
-  
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     
@@ -425,17 +421,25 @@ const autoAssignImages = async (items: PlanItem[], month: string) => {
         }
       }
       
-      // Try 3: Curated collection
+      // Try 3: Curated collection via Supabase function
       if (!result?.url) {
         console.log(`[AutoImageAssignment] Trying curated collection`);
         try {
-          const curatedImages = await getCuratedCollectionImages(Math.floor(Math.random() * 3) + 1);
-          if (curatedImages && curatedImages.length > 0) {
-            const randomIndex = Math.floor(Math.random() * curatedImages.length);
+          const { data: curatedData, error: curatedError } = await supabase.functions.invoke('fetch-unsplash-images', {
+            body: { 
+              collection: 'cfl9BkhJD2o',
+              page: Math.floor(Math.random() * 3) + 1,
+              maxImages: 12
+            }
+          });
+          
+          if (!curatedError && curatedData?.images && curatedData.images.length > 0) {
+            const randomIndex = Math.floor(Math.random() * curatedData.images.length);
+            const img = curatedData.images[randomIndex];
             result = {
-              url: curatedImages[randomIndex].url,
-              photographer: curatedImages[randomIndex].photographer,
-              photographerUrl: curatedImages[randomIndex].photographer_url
+              url: img.download_url,
+              photographer: img.photographer,
+              photographerUrl: img.photographer_url
             };
           }
         } catch (err) {
