@@ -11,6 +11,55 @@ interface MediaSelectorImageProps {
   className?: string;
 }
 
+// Helper function to get seasonal search query based on current date
+const getSeasonalSearchQuery = (): string => {
+  const now = new Date();
+  const month = now.getMonth(); // 0-11
+  const day = now.getDate();
+  
+  // Christmas season (Dec 1 - Dec 31)
+  if (month === 11) {
+    return 'christmas decorations garden winter holidays';
+  }
+  
+  // New Year / Winter (Jan 1 - Feb 28)
+  if (month === 0 || month === 1) {
+    return 'winter garden snow frost evergreen';
+  }
+  
+  // Early Spring (Mar 1 - Apr 30)
+  if (month === 2 || month === 3) {
+    return 'spring flowers bloom garden tulips daffodils';
+  }
+  
+  // Late Spring / Early Summer (May 1 - Jun 30)
+  if (month === 4 || month === 5) {
+    return 'summer garden roses colorful flowers sunshine';
+  }
+  
+  // Summer (Jul 1 - Aug 31)
+  if (month === 6 || month === 7) {
+    return 'summer garden vegetables tomatoes sunflowers';
+  }
+  
+  // Fall (Sep 1 - Oct 31)
+  if (month === 8 || month === 9) {
+    return 'fall autumn garden pumpkins harvest leaves';
+  }
+  
+  // Halloween / Thanksgiving prep (Nov 1 - Nov 30)
+  if (month === 10) {
+    if (day < 15) {
+      return 'fall garden harvest pumpkins mums chrysanthemums';
+    } else {
+      return 'thanksgiving autumn harvest garden decorations';
+    }
+  }
+  
+  // Default fallback
+  return 'beautiful garden flowers plants';
+};
+
 export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   src = '',
   onChange,
@@ -40,7 +89,17 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
             }
           }
           
-          // Fallback to curated collection if no content context or smart image fails
+          // Use seasonal search query for default images
+          const seasonalQuery = getSeasonalSearchQuery();
+          console.log('[MediaSelectorImage] Using seasonal query:', seasonalQuery);
+          
+          const seasonalImages = await getSmartImages(seasonalQuery, 1);
+          if (seasonalImages && seasonalImages.length > 0) {
+            setDefaultImageUrl(seasonalImages[0].url);
+            return;
+          }
+          
+          // Final fallback to curated collection if seasonal search fails
           const curatedImages = await getCuratedCollectionImages(1);
           if (curatedImages && curatedImages.length > 0) {
             setDefaultImageUrl(curatedImages[0].url);
