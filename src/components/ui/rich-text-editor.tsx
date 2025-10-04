@@ -277,7 +277,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         )}
         <EditorContent 
           editor={editor} 
-          className={cn("min-h-[100px]", !showToolbar && "p-3")}
+          className={cn("min-h-[100px] max-h-[600px] overflow-y-auto", !showToolbar && "p-3")}
         />
         {!content && (
           <div className="absolute top-3 left-3 text-muted-foreground pointer-events-none">
