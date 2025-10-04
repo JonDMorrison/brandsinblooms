@@ -62,12 +62,14 @@ export const ContentGenerationProvider = ({ children }: ContentGenerationProvide
         
         // Queue AI image generation for each task that needs an image
         result.tasks.forEach((task: any) => {
-          if (task.image_idea && task.id) {
-            console.log('[ContentGeneration] Queuing image generation for task:', task.id);
+          if (task.id) {
+            // Use image_idea if available, otherwise generate from theme and post type
+            const imagePrompt = task.image_idea || `${theme} ${task.post_type} garden`;
+            console.log('[ContentGeneration] Queuing image generation for task:', task.id, 'with prompt:', imagePrompt);
             
             // Add to sequential image loader with AI generation
             SequentialImageLoader.addToQueue(
-              task.image_idea,
+              imagePrompt,
               'normal',
               task.id,
               user.id
