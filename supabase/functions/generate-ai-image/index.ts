@@ -6,13 +6,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to check if taskId is a valid UUID
+function isValidUUID(id: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let body: any = null;
+
   try {
-    const { taskId, imageQuery, userId } = await req.json();
+    // Store parsed body to avoid "Body already consumed" error
+    body = await req.json();
+    const { taskId, imageQuery, userId } = body;
     console.log('[AI-IMAGE] Starting generation:', { taskId, imageQuery, userId });
 
     // Initialize Supabase client
@@ -21,14 +31,19 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Update task status to generating
-    await supabaseClient
-      .from('content_tasks')
-      .update({ 
-        image_generation_status: 'generating',
-        image_generation_error: null 
-      })
-      .eq('id', taskId);
+    // Update task status to generating (only if valid UUID - skip for preview mode)
+    if (isValidUUID(taskId)) {
+      await supabaseClient
+        .from('content_tasks')
+        .update({ 
+          image_generation_status: 'generating',
+          image_generation_error: null 
+        })
+        .eq('id', taskId);
+      console.log('[AI-IMAGE] Updated task status to generating');
+    } else {
+      console.log('[AI-IMAGE] Preview mode - skipping database update');
+    }
 
     // Enhance prompt with garden context
     const gardenPrompt = `Create a beautiful, professional photograph for a garden center marketing campaign. ${imageQuery}. 
@@ -106,28 +121,32 @@ serve(async (req) => {
 
     console.log('[AI-IMAGE] Image uploaded successfully:', publicUrl);
 
-    // Update content task with image URL
-    const { error: updateError } = await supabaseClient
-      .from('content_tasks')
-      .update({
-        image_url: publicUrl,
-        image_source: 'ai_generated',
-        image_generation_status: 'complete',
-        image_generated_at: new Date().toISOString(),
-        image_metadata: {
-          prompt: imageQuery,
-          model: 'google/gemini-2.5-flash-image-preview',
-          generated_at: new Date().toISOString()
-        }
-      })
-      .eq('id', taskId);
+    // Update content task with image URL (only if valid UUID - skip for preview mode)
+    if (isValidUUID(taskId)) {
+      const { error: updateError } = await supabaseClient
+        .from('content_tasks')
+        .update({
+          image_url: publicUrl,
+          image_source: 'ai_generated',
+          image_generation_status: 'complete',
+          image_generated_at: new Date().toISOString(),
+          image_metadata: {
+            prompt: imageQuery,
+            model: 'google/gemini-2.5-flash-image-preview',
+            generated_at: new Date().toISOString()
+          }
+        })
+        .eq('id', taskId);
 
-    if (updateError) {
-      console.error('[AI-IMAGE] Update error:', updateError);
-      throw updateError;
+      if (updateError) {
+        console.error('[AI-IMAGE] Update error:', updateError);
+        throw updateError;
+      }
+
+      console.log('[AI-IMAGE] Task updated successfully');
+    } else {
+      console.log('[AI-IMAGE] Preview mode - image generated, skipping database update');
     }
-
-    console.log('[AI-IMAGE] Task updated successfully');
 
     return new Response(
       JSON.stringify({ 
@@ -144,9 +163,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('[AI-IMAGE] Error:', error);
 
-    // Try to update task with error status
-    if (req.json && (await req.json())?.taskId) {
-      const { taskId } = await req.json();
+    // Try to update task with error status (only if valid UUID)
+    if (body?.taskId && isValidUUID(body.taskId)) {
       const supabaseClient = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -158,7 +176,11 @@ serve(async (req) => {
           image_generation_status: 'failed',
           image_generation_error: error.message
         })
-        .eq('id', taskId);
+        .eq('id', body.taskId);
+      
+      console.log('[AI-IMAGE] Updated task status to failed');
+    } else {
+      console.log('[AI-IMAGE] Preview mode - skipping error status update');
     }
 
     return new Response(
