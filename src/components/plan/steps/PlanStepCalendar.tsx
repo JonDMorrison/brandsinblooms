@@ -28,6 +28,7 @@ import { Eye } from 'lucide-react';
 import { MergeTagsPreviewDialog } from '@/components/crm/MergeTagsPreviewDialog';
 import { useImageLoading } from '@/contexts/ImageLoadingContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { SequentialImageLoader } from '@/services/SequentialImageLoader';
 
 interface PlanStepCalendarProps {
   onNext: () => void;
@@ -62,7 +63,6 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
   const [previewItem, setPreviewItem] = useState<PlanItem | null>(null);
   const [previewPlatform, setPreviewPlatform] = useState<'instagram' | 'facebook'>('instagram');
   const [expandedBlogs, setExpandedBlogs] = useState<Set<string>>(new Set());
-  const [generatingImages, setGeneratingImages] = useState<Set<string>>(new Set());
   const { setLoading, clearLoading } = useLoading();
   const { loadingStatus } = useImageLoading();
   const { user } = useAuth();
@@ -102,41 +102,31 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
             const itemsNeedingImages = generatedItems.filter(item => 
               ['facebook', 'instagram', 'blog'].includes(item.type)
             );
-
-            itemsNeedingImages.forEach(async (item) => {
-              try {
-                // Mark as generating
-                setGeneratingImages(prev => new Set(prev).add(item.id));
-
-                // Build context-aware prompt from OpenAI-generated content
-                const imagePrompt = `${item.themeName || ''} ${item.type} content: ${item.caption?.substring(0, 200) || item.title}`;
-                
-                console.log('[AutoImageQueue] Generating image for:', item.id, imagePrompt);
-                
-                const { data, error } = await supabase.functions.invoke('generate-preview-image', {
-                  body: { imageQuery: imagePrompt }
-                });
-
-                if (error) throw error;
-
+            
+            itemsNeedingImages.forEach((item) => {
+              const imagePrompt = `${item.themeName || ''} ${item.type} content: ${item.caption?.substring(0, 200) || item.title}`;
+              
+              console.log('[AutoImageQueue] Queuing image for:', item.id, imagePrompt);
+              
+              SequentialImageLoader.addToQueue(
+                imagePrompt,
+                'normal',
+                item.id,
+                user.id
+              )
+              .then((data) => {
                 if (data?.success && data?.imageUrl) {
-                  console.log('[AutoImageQueue] Image generated for:', item.id);
-                  // Use base64 image directly
+                  console.log('[AutoImageQueue] Successfully processed task:', item.id);
                   updateItem(item.id, { imageUrl: data.imageUrl });
                 }
-              } catch (err) {
-                console.error('[AutoImageQueue] Failed to generate image for item:', item.id, err);
-              } finally {
-                // Remove from generating set
-                setGeneratingImages(prev => {
-                  const next = new Set(prev);
-                  next.delete(item.id);
-                  return next;
-                });
-              }
+              })
+              .catch((err) => {
+                console.error('[AutoImageQueue] Failed to queue task:', item.id, err);
+                toast.error(`Failed to generate image for ${item.type}`);
+              });
             });
             
-            console.log('[AutoImageQueue] Started generation for', itemsNeedingImages.length, 'images');
+            console.log('[AutoImageQueue] Queued', itemsNeedingImages.length, 'images for generation');
           }
         })
         .catch(error => {

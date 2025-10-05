@@ -105,10 +105,10 @@ class SequentialImageLoaderClass {
   getStatus(): LoadingStatus {
     return {
       isLoading: this.isProcessing || this.queue.length > 0,
-      current: this.isProcessing ? this.queue[0]?.prompt || null : null,
+      current: this.isProcessing && this.queue[0]?.taskId ? this.queue[0].taskId : null,
       total: this.completed + this.queue.length + (this.isProcessing ? 1 : 0),
       completed: this.completed,
-      queue: this.queue.map(req => req.prompt)
+      queue: this.queue.map(req => req.taskId).filter(Boolean) as string[]
     };
   }
 
