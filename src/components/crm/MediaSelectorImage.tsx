@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { MediaSelectorSidebar } from './MediaSelectorSidebar';
-import { Camera, Upload } from 'lucide-react';
-import { useUnsplash } from '@/hooks/useUnsplash';
-import { buildSeasonalImageQuery } from '@/utils/seasonalImageQueryBuilder';
+import { Camera, Upload, Sparkles } from 'lucide-react';
+import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface MediaSelectorImageProps {
   src?: string;
@@ -83,7 +84,8 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   });
   
   const [isSelecting, setIsSelecting] = useState(false);
-  // Removed automatic Unsplash image fetching - images are now manual-only
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     console.log('[MediaSelectorImage] Image selected:', imageUrl, metadata);
@@ -93,6 +95,51 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
       console.log('[MediaSelectorImage] onChange called successfully');
     } else {
       console.error('[MediaSelectorImage] onChange prop is missing!');
+    }
+  };
+
+  const handleGenerateImage = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!contentContext) {
+      toast({
+        title: "No content available",
+        description: "Please generate content first before creating an image.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    console.log('[MediaSelectorImage] Generating AI image for context:', contentContext);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-content-image', {
+        body: { contentContext }
+      });
+
+      if (error) throw error;
+
+      if (data?.imageUrl) {
+        console.log('[MediaSelectorImage] Image generated successfully');
+        handleImageSelect(data.imageUrl, { source: 'ai-generated', model: 'gemini' });
+        toast({
+          title: "Image generated!",
+          description: "Your AI-generated image is ready.",
+        });
+      } else {
+        throw new Error('No image URL returned');
+      }
+    } catch (error) {
+      console.error('[MediaSelectorImage] Failed to generate image:', error);
+      toast({
+        title: "Generation failed",
+        description: "Could not generate image. Please try manual selection.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -110,7 +157,14 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
 
   return (
     <>
-      <div className={`relative group w-full h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors ${className}`}>
+      <div className={`relative group w-full h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors ${className}`}>
+        {isGenerating && (
+          <AIImageLoadingOverlay 
+            message="AI is creating your garden image..."
+            showIcon={true}
+          />
+        )}
+        
         {src ? (
           <img 
             src={src} 
@@ -126,15 +180,25 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
           </div>
         )}
 
-        <button
-          onClick={handleSelectClick}
-          data-media-selector-button
-          className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-sm font-medium z-50"
-          style={{ pointerEvents: 'auto' }}
-        >
-          <Upload className="w-4 h-4 mr-2" />
-          {src ? 'Change Image' : 'Select Image'}
-        </button>
+        {!isGenerating && (
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 items-center justify-center z-50">
+            <button
+              onClick={handleGenerateImage}
+              disabled={!contentContext}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              Generate with AI
+            </button>
+            <button
+              onClick={handleSelectClick}
+              className="bg-secondary hover:bg-secondary/90 text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              Select Image
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Sidebar */}
