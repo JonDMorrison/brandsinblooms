@@ -5,7 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Leaf, Gift, Sprout, Flower, Bug, Plus, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Leaf, Gift, Sprout, Flower, Bug, Plus, X, ChevronDown } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { PlanTheme } from '../constants';
 import { usePlanWizard } from '../PlanWizardContext';
 import { getSeasonalThemesForMonth } from '@/services/seasonalPlanGenerator';
@@ -31,6 +35,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
   const [showCustomTheme, setShowCustomTheme] = React.useState(false);
   const [hasMoreThemes, setHasMoreThemes] = React.useState(false);
   const [loadingMore, setLoadingMore] = React.useState(false);
+  const [calendarOpen, setCalendarOpen] = React.useState(false);
 
   // Default to next month
   React.useEffect(() => {
@@ -109,7 +114,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center gap-2">
-          <Calendar className="h-8 w-8 text-primary" />
+          <CalendarIcon className="h-8 w-8 text-primary" />
           <h2 className="text-3xl font-bold">Plan Your Marketing Focus</h2>
         </div>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
@@ -123,7 +128,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
         <CardHeader className="relative">
           <CardTitle className="flex items-center gap-3 text-xl">
             <div className="p-2 bg-primary/10 rounded-full">
-              <Calendar className="h-6 w-6 text-primary" />
+              <CalendarIcon className="h-6 w-6 text-primary" />
             </div>
             Target Month
           </CardTitle>
@@ -133,22 +138,44 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
         </CardHeader>
         <CardContent className="relative">
           <div className="space-y-3">
-            <Label htmlFor="month" className="text-sm font-medium text-foreground/80">
+            <Label className="text-sm font-medium text-foreground/80">
               Campaign Month
             </Label>
-            <div className="relative">
-              <Input
-                id="month"
-                type="month"
-                value={state.month}
-                onChange={(e) => setMonth(e.target.value)}
-                className="h-12 text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-200 shadow-sm"
-              />
-              <div className="absolute inset-0 rounded-md bg-gradient-to-r from-primary/5 to-accent/5 pointer-events-none" />
-            </div>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full h-12 justify-between text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 hover:border-primary/40 hover:bg-background/70 transition-all duration-200 shadow-sm",
+                    !state.month && "text-muted-foreground"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-5 w-5 text-primary" />
+                    {state.month ? format(new Date(state.month + '-01'), 'MMMM yyyy') : 'Select a month'}
+                  </div>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={state.month ? new Date(state.month + '-01') : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      const monthString = format(date, 'yyyy-MM');
+                      setMonth(monthString);
+                      setCalendarOpen(false);
+                    }
+                  }}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
             <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
               <div className="w-1 h-1 bg-primary rounded-full" />
-              Choose any upcoming month to start planning your campaigns
+              Click to choose any upcoming month to start planning your campaigns
             </p>
           </div>
         </CardContent>
