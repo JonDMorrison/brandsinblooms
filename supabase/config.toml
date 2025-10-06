@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.fetch-and-assign-images]
 verify_jwt = true
+
+[functions.generate-social-content]
+verify_jwt = false

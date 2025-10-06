@@ -67,6 +67,8 @@ export interface PlanItem {
   emailSubject?: string;
   emailPreheader?: string;
   notes?: string;
+  // Social media fields
+  hashtags?: string; // Space-separated hashtags for Instagram
   // Audience targeting
   audienceTarget?: 'all' | 'segments' | 'personas';
   selectedSegmentIds?: string[];

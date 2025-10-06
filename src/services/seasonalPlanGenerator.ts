@@ -5,6 +5,7 @@ import { PlanItem } from '@/components/plan/constants';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { batchGenerateEmails } from './emailContentService';
+import { batchGenerateSocialPosts } from './socialContentService';
 import { generateEnhancedBlogContent } from './blogContentGenerator';
 import { mediaSelector } from '@/utils/mediaSelector';
 import { buildSeasonalImageQuery } from '@/utils/seasonalImageQueryBuilder';
@@ -151,6 +152,14 @@ export const generateMultiThemeSeasonalPlanContent = async (
     allItems = await batchGenerateEmails(allItems, month, themes);
   } catch (error) {
     console.error('Failed to enhance emails with AI, continuing with basic content:', error);
+  }
+
+  // Generate enhanced Facebook and Instagram content using AI
+  try {
+    console.log('Enhancing Facebook/Instagram content with AI...');
+    allItems = await batchGenerateSocialPosts(allItems, month, themes);
+  } catch (error) {
+    console.error('Failed to enhance social posts with AI, continuing with basic content:', error);
   }
 
   return allItems;
