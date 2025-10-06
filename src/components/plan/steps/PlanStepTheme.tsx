@@ -146,18 +146,19 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full h-12 justify-between text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 hover:border-primary/40 hover:bg-background/70 transition-all duration-200 shadow-sm",
+                    "w-full h-12 justify-between text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 hover:border-primary/40 hover:bg-background/70 transition-all duration-200 shadow-sm pointer-events-auto relative z-10",
                     !state.month && "text-muted-foreground"
                   )}
+                  onClick={() => setCalendarOpen(true)}
                 >
-                  <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-2">
                     <CalendarIcon className="h-5 w-5 text-primary" />
                     {state.month ? format(new Date(state.month + '-01'), 'MMMM yyyy') : 'Select a month'}
-                  </div>
+                  </span>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 pointer-events-auto z-[1000020]" align="start">
                 <Calendar
                   mode="single"
                   selected={state.month ? new Date(state.month + '-01') : undefined}
@@ -169,12 +170,11 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                     }
                   }}
                   initialFocus
-                  className="pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
             <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
-              <div className="w-1 h-1 bg-primary rounded-full" />
+              <span className="w-1 h-1 bg-primary rounded-full inline-block" />
               Click to choose any upcoming month to start planning your campaigns
             </p>
           </div>
