@@ -66,5 +66,11 @@ verify_jwt = false
 [functions.fetch-and-assign-images]
 verify_jwt = true
 
+[functions.get-unsplash-image]
+verify_jwt = false
+
 [functions.generate-social-content]
+verify_jwt = false
+
+[functions.generate-plan-email]
 verify_jwt = false

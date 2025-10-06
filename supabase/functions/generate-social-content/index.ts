@@ -1,6 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const corsHeaders = {
@@ -31,8 +30,11 @@ serve(async (req) => {
     const request: SocialContentRequest = await req.json();
     const { platform, theme, themeDescription, month, weekNumber, contentType = 'tips', companyProfile } = request;
 
+    console.log(`[generate-social-content] Request received:`, { platform, theme, month, weekNumber, contentType });
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
+      console.error('[generate-social-content] LOVABLE_API_KEY not configured');
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
@@ -131,10 +133,26 @@ Make it compelling, actionable, and seasonal. Return valid JSON only.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[generate-social-content] AI API error:', response.status, errorText);
-      throw new Error(`AI API error: ${response.status}`);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'Payment required. Please add credits to your Lovable AI workspace.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      throw new Error(`AI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('[generate-social-content] AI response received');
+    
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
     if (!toolCall?.function?.arguments) {
@@ -145,10 +163,9 @@ Make it compelling, actionable, and seasonal. Return valid JSON only.`;
     const result = JSON.parse(toolCall.function.arguments);
     
     // Validate and fix imageQuery
-    const validatedQuery = validateAndLogQuery(result.imageQuery || '', `${platform} ${theme}`);
+    const validatedQuery = validateAndLogQuery(result.imageQuery || 'garden', `${platform} ${theme}`);
     
-    console.log(`[generate-social-content] Generated ${platform} content successfully`);
-    console.log(`[generate-social-content] Content length: ${result.content?.length || 0}, imageQuery: "${validatedQuery}"`);
+    console.log(`[generate-social-content] Success - Content length: ${result.content?.length || 0}, imageQuery: "${validatedQuery}"`);
 
     return new Response(
       JSON.stringify({
