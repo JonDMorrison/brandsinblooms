@@ -123,7 +123,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
       </div>
 
       {/* Month Selection */}
-      <Card className="relative overflow-hidden bg-gradient-to-br from-background via-primary/5 to-accent/10 border-primary/20 shadow-lg">
+      <Card className="relative bg-gradient-to-br from-background via-primary/5 to-accent/10 border-primary/20 shadow-lg">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-50" />
         <CardHeader className="relative">
           <CardTitle className="flex items-center gap-3 text-xl">
@@ -141,35 +141,36 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
             <Label className="text-sm font-medium text-foreground/80">
               Campaign Month
             </Label>
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger asChild>
-                <div className="relative">
-                  <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary pointer-events-none z-10" />
-                  <div
+            <div className="relative">
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
                     className={cn(
-                      "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 transition-all duration-200 shadow-sm cursor-pointer pointer-events-auto rounded-md flex items-center",
+                      "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 transition-all duration-200 shadow-sm cursor-pointer rounded-md flex items-center text-left",
                       state.month ? "text-gray-900" : "text-muted-foreground"
                     )}
                   >
+                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
                     {state.month ? format(new Date(state.month + '-01'), 'MMMM yyyy') : 'Select a month'}
-                  </div>
-                </div>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 pointer-events-auto z-[1000020]" align="start">
-                <Calendar
-                  mode="single"
-                  selected={state.month ? new Date(state.month + '-01') : undefined}
-                  onSelect={(date) => {
-                    if (date) {
-                      const monthString = format(date, 'yyyy-MM');
-                      setMonth(monthString);
-                      setCalendarOpen(false);
-                    }
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 pointer-events-auto z-[1000020]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={state.month ? new Date(state.month + '-01') : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const monthString = format(date, 'yyyy-MM');
+                        setMonth(monthString);
+                        setCalendarOpen(false);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
             <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
               <span className="w-1 h-1 bg-primary rounded-full inline-block" />
               Click to choose any upcoming month to start planning your campaigns
