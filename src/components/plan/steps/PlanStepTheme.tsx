@@ -111,7 +111,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
   const canProceed = state.month && state.themes.length > 0;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 overflow-visible">
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center gap-2">
           <CalendarIcon className="h-8 w-8 text-primary" />
@@ -142,10 +142,17 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
               Campaign Month
             </Label>
             <div className="relative">
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <Popover open={calendarOpen} onOpenChange={(open) => {
+                console.log('[DEBUG] Popover state changing to:', open);
+                setCalendarOpen(open);
+              }}>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
+                    onClick={() => {
+                      console.log('[DEBUG] Button clicked, current calendarOpen:', calendarOpen);
+                      setCalendarOpen(true);
+                    }}
                     className={cn(
                       "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background border-2 border-input transition-all duration-200 shadow-sm cursor-pointer rounded-md flex items-center text-left hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       state.month ? "text-gray-900" : "text-muted-foreground"
