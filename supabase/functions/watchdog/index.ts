@@ -30,7 +30,7 @@ async function handler(req: Request): Promise<Response> {
       .from('content_tasks')
       .select('id, created_at, ai_output, image_url, post_type, status')
       .lt('created_at', fiveMinutesAgo)
-      .neq('status', 'error')
+      .neq('status', 'failed')
       .neq('status', 'cancelled')
       .or('ai_output.is.null,ai_output.eq.,image_url.is.null,image_url.eq.');
 
@@ -51,11 +51,11 @@ async function handler(req: Request): Promise<Response> {
           status: task.status
         });
         
-        // Mark as error
+        // Mark as failed
         await supabaseAdmin
           .from('content_tasks')
           .update({ 
-            status: 'error',
+            status: 'failed',
             notes: `Watchdog: Stuck for ${ageMinutes} minutes without output`
           })
           .eq('id', task.id);
