@@ -142,42 +142,17 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
               Campaign Month
             </Label>
             <div className="relative">
-              <Popover open={calendarOpen} onOpenChange={(open) => {
-                console.log('[DEBUG] Popover onOpenChange called with:', open);
-                setCalendarOpen(open);
-              }}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background border-2 border-input transition-all duration-200 shadow-sm cursor-pointer rounded-md flex items-center text-left hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                      state.month ? "text-gray-900" : "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
-                    {state.month ? format(new Date(state.month + '-01'), 'MMMM yyyy') : 'Select a month'}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent 
-                  className="w-auto p-0" 
-                  align="start"
-                  sideOffset={8}
-                >
-                  <Calendar
-                    mode="single"
-                    selected={state.month ? new Date(state.month + '-01') : undefined}
-                    onSelect={(date) => {
-                      if (date) {
-                        const monthString = format(date, 'yyyy-MM');
-                        setMonth(monthString);
-                        setCalendarOpen(false);
-                      }
-                    }}
-                    initialFocus
-                    className="rounded-md border pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary z-10 pointer-events-none" />
+              <input
+                type="month"
+                value={state.month || ''}
+                onChange={(e) => setMonth(e.target.value)}
+                min={format(new Date(), 'yyyy-MM')}
+                className={cn(
+                  "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background border-2 border-input transition-all duration-200 shadow-sm cursor-pointer rounded-md hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  state.month ? "text-gray-900" : "text-muted-foreground"
+                )}
+              />
             </div>
             <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
               <span className="w-1 h-1 bg-primary rounded-full inline-block" />
