@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
+import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -31,6 +32,7 @@ interface EmailContent {
   cta_primary?: string;
   alt_subjects?: string[];
   notes?: string;
+  imageQuery?: string;
 }
 
 const serve_handler = async (req: Request): Promise<Response> => {
@@ -83,7 +85,9 @@ Content specifications:
 - Tone: ${constraints.tone || 'expert yet approachable'}
 - Format: Use HTML tags for structure (<h3> for headings, <p> for paragraphs, <strong> for emphasis)
 
-Return ONLY a valid JSON object with: subject, preheader, body, cta_primary`;
+${getImageQueryPromptInstructions()}
+
+Return structured output with: subject, preheader, body, cta_primary, imageQuery`;
 
     const userPrompt = `Create ${emailType} email content for ${monthName} focused on: ${themeContext}
 
@@ -119,8 +123,36 @@ Example format:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_tokens: 600,
+        max_tokens: 700,
         temperature: 0.8,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "return_email_content",
+              description: "Return the generated email content with Unsplash image query",
+              parameters: {
+                type: "object",
+                properties: {
+                  subject: { type: "string", description: "Email subject line" },
+                  preheader: { type: "string", description: "Email preheader text" },
+                  body: { type: "string", description: "HTML email body content" },
+                  cta_primary: { type: "string", description: "Primary call-to-action text" },
+                  imageQuery: {
+                    type: "string",
+                    description: "3-5 word Unsplash search query. MUST include 'garden', 'nursery', or 'botanical'. Focus on visual plants and garden scenes."
+                  }
+                },
+                required: ["subject", "preheader", "body", "cta_primary", "imageQuery"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        tool_choice: {
+          type: "function",
+          function: { name: "return_email_content" }
+        }
       }),
     });
 
@@ -131,25 +163,36 @@ Example format:
     }
 
     const data = await response.json();
-    let generatedContent = data.choices[0].message.content;
-
-    console.log(`[${requestId}] Raw AI response:`, generatedContent);
-
-    // Clean up potential code fences
-    generatedContent = generatedContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-    // Parse JSON response
+    
+    // Extract structured output from tool call
+    const toolCall = data.choices[0].message.tool_calls?.[0];
     let emailContent: EmailContent;
-    try {
-      emailContent = JSON.parse(generatedContent);
-    } catch (parseError) {
-      console.error(`[${requestId}] JSON parse error:`, parseError);
+    
+    if (toolCall && toolCall.function.arguments) {
+      try {
+        emailContent = JSON.parse(toolCall.function.arguments);
+        console.log(`[${requestId}] Structured output received with imageQuery: "${emailContent.imageQuery}"`);
+        
+        // Validate and fix image query using centralized validator
+        if (emailContent.imageQuery) {
+          emailContent.imageQuery = validateAndLogQuery(
+            emailContent.imageQuery,
+            `[${requestId}] Plan Email`
+          );
+        }
+      } catch (parseError) {
+        console.error(`[${requestId}] Failed to parse tool call:`, parseError);
+        throw parseError;
+      }
+    } else {
+      console.error(`[${requestId}] No structured output received, using fallback`);
       // Fallback to structured extraction
       emailContent = {
         subject: `${themes[0]?.label || 'Seasonal'} Tips for ${monthName}`,
         preheader: `Expert advice for your ${monthName.toLowerCase()} garden`,
         body: `<h3>Perfect Timing for Your Garden</h3><p>Get the most out of your garden this ${monthName} with expert timing and seasonal recommendations.</p><p><strong>This Month's Focus:</strong> Perfect conditions await for your next gardening success.</p>`,
-        cta_primary: 'Get Started Today'
+        cta_primary: 'Get Started Today',
+        imageQuery: 'garden center seasonal display'
       };
     }
 

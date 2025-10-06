@@ -1,6 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -61,6 +62,8 @@ REGIONAL CONSIDERATIONS:
             - Avoid generic openings and cliché phrases
             - **CRITICAL: Use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence**
             
+            ${getImageQueryPromptInstructions()}
+            
             Keep it concise and compelling - this will guide all content creation for the week including social media, newsletters, and videos.`
           },
           { 
@@ -69,10 +72,14 @@ REGIONAL CONSIDERATIONS:
 
 ${regionalContext}
 
-Create a description that can guide region-specific content creation, considering how this theme would be relevant across different geographic locations and climate zones.  Use engaging, visually suggestive language that sparks curiosity and sounds conversational like a local garden center expert speaking to their community.  Ensure exactly two spaces after every sentence ending.`
+Create a description that can guide region-specific content creation, considering how this theme would be relevant across different geographic locations and climate zones.  Use engaging, visually suggestive language that sparks curiosity and sounds conversational like a local garden center expert speaking to their community.  Ensure exactly two spaces after every sentence ending.
+
+Also provide an Unsplash image search query (3-5 words, garden-focused) that captures the visual essence of this theme.
+
+Return JSON with: { description: string, imageQuery: string }`
           }
         ],
-        max_tokens: 150,
+        max_tokens: 200,
         temperature: 0.7,
       }),
     });
@@ -83,9 +90,25 @@ Create a description that can guide region-specific content creation, considerin
     }
 
     const data = await response.json();
-    const description = data.choices[0].message.content.trim();
+    let aiResponse = data.choices[0].message.content.trim();
+    
+    // Try to parse as JSON first
+    let description: string;
+    let imageQuery: string = 'garden center seasonal display';
+    
+    try {
+      const parsed = JSON.parse(aiResponse);
+      description = parsed.description || aiResponse;
+      imageQuery = parsed.imageQuery || imageQuery;
+      
+      // Validate and fix image query
+      imageQuery = validateAndLogQuery(imageQuery, 'Theme Description');
+    } catch {
+      // If not JSON, use the whole response as description
+      description = aiResponse;
+    }
 
-    return new Response(JSON.stringify({ description }), {
+    return new Response(JSON.stringify({ description, imageQuery }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

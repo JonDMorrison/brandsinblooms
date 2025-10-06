@@ -1,4 +1,6 @@
 
+import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
+
 export const generateNewsletterWithOpenAI = async (
   openAIApiKey: string,
   prompt: string
@@ -45,11 +47,17 @@ REQUIRED CONTENT STRUCTURE:
 - SOUND like a knowledgeable local garden expert
 - END with clear invitation to visit the garden center
 
+${getImageQueryPromptInstructions()}
+
 IMMEDIATE REJECTION if content contains:
 - Any week number references
 - Bullet points or numbered lists
 - Generic "Welcome" openings
-- Missing StoryBrand elements`;
+- Missing StoryBrand elements
+- Missing imageQuery field`;
+    } else {
+      // Add image query instructions to first attempt
+      enhancedPrompt += `\n\n${getImageQueryPromptInstructions()}`;
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -63,7 +71,7 @@ IMMEDIATE REJECTION if content contains:
         messages: [
           { 
             role: 'system', 
-            content: `You are a certified StoryBrand Guide specializing in garden center communications. You MUST create newsletters that follow the StoryBrand framework precisely: Character → Problem → Guide → Plan → CTA → Success. Write naturally flowing paragraphs without any lists, bullet points, or numbered items. Never use week numbers or generic openings. Position customers as heroes of their garden story with the garden center as their trusted guide. Always respond with valid JSON.` 
+            content: `You are a certified StoryBrand Guide specializing in garden center communications. You MUST create newsletters that follow the StoryBrand framework precisely: Character → Problem → Guide → Plan → CTA → Success. Write naturally flowing paragraphs without any lists, bullet points, or numbered items. Never use week numbers or generic openings. Position customers as heroes of their garden story with the garden center as their trusted guide. Always respond with valid JSON including both "content", "subject", and "imageQuery" fields.` 
           },
           { role: 'user', content: enhancedPrompt }
         ],
@@ -84,6 +92,18 @@ IMMEDIATE REJECTION if content contains:
     
     if (validation.isValid) {
       console.log(`✅ Newsletter validation passed on attempt ${attempts}`);
+      
+      // Extract and validate image query if present
+      try {
+        const parsed = JSON.parse(content);
+        if (parsed.imageQuery) {
+          parsed.imageQuery = validateAndLogQuery(parsed.imageQuery, 'Newsletter');
+          return JSON.stringify(parsed);
+        }
+      } catch {
+        // If parsing fails, just return content as-is
+      }
+      
       return content;
     } else {
       console.log(`❌ Newsletter validation failed on attempt ${attempts}:`, validation.issues);
@@ -91,7 +111,17 @@ IMMEDIATE REJECTION if content contains:
       // If we're on the last attempt, return what we have with a warning
       if (attempts === maxAttempts) {
         console.warn(`⚠️ Returning newsletter after ${attempts} attempts with issues:`, validation.issues);
-        return content;
+        
+        // Try to add default image query if missing
+        try {
+          const parsed = JSON.parse(content);
+          if (!parsed.imageQuery) {
+            parsed.imageQuery = 'garden center seasonal newsletter';
+          }
+          return JSON.stringify(parsed);
+        } catch {
+          return content;
+        }
       }
     }
   }

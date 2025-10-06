@@ -1,6 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -42,6 +43,8 @@ Seasonal Context:
 - Upcoming Tasks: ${seasonal_context?.garden_tasks?.join(', ')}
 - Holiday Context: ${seasonal_context?.upcoming_holidays?.map(h => h.holiday_name).join(', ')}
 
+${getImageQueryPromptInstructions()}
+
 Please regenerate the content to be more engaging, season-appropriate, and conversion-focused while maintaining the core message.`;
 
     const userPrompt = `Campaign Title: ${campaign_title}
@@ -54,13 +57,15 @@ Please regenerate this email content following the guidelines above. Also provid
 2. 2 call-to-action variations
 3. Brief tone analysis
 4. 2 improvement suggestions
+5. Unsplash image search query (garden-focused, 3-5 words)
 
 Format your response as JSON with these keys:
 - regenerated_content
 - subject_variations (array)
 - cta_variations (array)
 - tone_analysis (string)
-- improvement_suggestions (array)`;
+- improvement_suggestions (array)
+- imageQuery (string)`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -94,13 +99,25 @@ Format your response as JSON with these keys:
     let parsedResponse;
     try {
       parsedResponse = JSON.parse(aiResponse);
+      
+      // Validate and fix image query if present
+      if (parsedResponse.imageQuery) {
+        parsedResponse.imageQuery = validateAndLogQuery(
+          parsedResponse.imageQuery,
+          'Regenerate Email'
+        );
+      } else {
+        // Generate default query if missing
+        parsedResponse.imageQuery = 'garden center seasonal display';
+      }
     } catch {
       parsedResponse = {
         regenerated_content: aiResponse,
         subject_variations: [],
         cta_variations: [],
         tone_analysis: 'Content regenerated successfully',
-        improvement_suggestions: []
+        improvement_suggestions: [],
+        imageQuery: 'garden center seasonal display'
       };
     }
 
