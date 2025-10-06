@@ -147,7 +147,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                   <button
                     type="button"
                     className={cn(
-                      "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 transition-all duration-200 shadow-sm cursor-pointer rounded-md flex items-center text-left",
+                      "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background border-2 border-input transition-all duration-200 shadow-sm cursor-pointer rounded-md flex items-center text-left hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       state.month ? "text-gray-900" : "text-muted-foreground"
                     )}
                   >
@@ -155,7 +155,11 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                     {state.month ? format(new Date(state.month + '-01'), 'MMMM yyyy') : 'Select a month'}
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 pointer-events-auto z-[1000020]" align="start">
+                <PopoverContent 
+                  className="w-auto p-0" 
+                  align="start"
+                  sideOffset={8}
+                >
                   <Calendar
                     mode="single"
                     selected={state.month ? new Date(state.month + '-01') : undefined}
@@ -167,6 +171,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                       }
                     }}
                     initialFocus
+                    className="rounded-md border pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
