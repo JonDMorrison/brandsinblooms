@@ -143,20 +143,20 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
             </Label>
             <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full h-12 justify-between text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 transition-all duration-200 shadow-sm pointer-events-auto relative z-10 hover:bg-background/50 hover:border-primary/20",
-                    state.month ? "text-gray-900" : "text-muted-foreground"
-                  )}
-                  onClick={() => setCalendarOpen(true)}
-                >
-                  <span className="flex items-center gap-2">
-                    <CalendarIcon className="h-5 w-5 text-primary" />
-                    {state.month ? format(new Date(state.month + '-01'), 'MMMM yyyy') : 'Select a month'}
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
+                <div className="relative">
+                  <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary pointer-events-none z-10" />
+                  <Input
+                    readOnly
+                    value={state.month ? format(new Date(state.month + '-01'), 'MMMM yyyy') : ''}
+                    placeholder="Select a month"
+                    onClick={() => setCalendarOpen(true)}
+                    onFocus={() => setCalendarOpen(true)}
+                    className={cn(
+                      "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 transition-all duration-200 shadow-sm cursor-pointer pointer-events-auto relative z-10",
+                      state.month ? "text-gray-900" : "text-muted-foreground"
+                    )}
+                  />
+                </div>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 pointer-events-auto z-[1000020]" align="start">
                 <Calendar
