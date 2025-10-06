@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { FileText, Edit2, RefreshCw, Image as ImageIcon, Clock } from 'lucide-react';
 import { PlanItem } from '../constants';
 import { format } from 'date-fns';
-import { useImageLoading } from '@/contexts/ImageLoadingContext';
 import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
 
 interface BlogPreviewCardProps {
@@ -20,10 +19,8 @@ export const BlogPreviewCard: React.FC<BlogPreviewCardProps> = ({
   onRegenerate,
   onImageSelect
 }) => {
-  const { loadingStatus } = useImageLoading();
-  // Check both queue and current for loading state - item.id matches the taskId in queue
-  const isGenerating = loadingStatus.queue.some(taskId => taskId === item.id) || 
-                        loadingStatus.current === item.id;
+  // Image loading removed - placeholder for new AI implementation
+  const isGenerating = false;
   
   const truncateText = (text: string, length: number) => {
     if (text.length <= length) return text;

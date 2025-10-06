@@ -8,7 +8,7 @@ import { batchGenerateEmails } from './emailContentService';
 import { generateEnhancedBlogContent } from './blogContentGenerator';
 import { mediaSelector } from '@/utils/mediaSelector';
 import { buildSeasonalImageQuery } from '@/utils/seasonalImageQueryBuilder';
-import { SequentialImageLoader } from '@/services/SequentialImageLoader';
+
 
 // Simple title sanitizer to remove week references
 const sanitizeTitle = (title: string): string => {

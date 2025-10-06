@@ -26,9 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SocialPostPreviewModal } from '@/components/publish/preview/SocialPostPreviewModal';
 import { Eye } from 'lucide-react';
 import { MergeTagsPreviewDialog } from '@/components/crm/MergeTagsPreviewDialog';
-import { useImageLoading } from '@/contexts/ImageLoadingContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { SequentialImageLoader } from '@/services/SequentialImageLoader';
 
 interface PlanStepCalendarProps {
   onNext: () => void;
@@ -64,7 +62,6 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
   const [previewPlatform, setPreviewPlatform] = useState<'instagram' | 'facebook'>('instagram');
   const [expandedBlogs, setExpandedBlogs] = useState<Set<string>>(new Set());
   const { setLoading, clearLoading } = useLoading();
-  const { loadingStatus } = useImageLoading();
   const { user } = useAuth();
 
   // Helper functions for blog expansion
@@ -96,38 +93,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
       generateMultiThemeSeasonalPlanContent(state.themes, state.month)
         .then(generatedItems => {
           setItems(generatedItems);
-          
-          // Auto-queue AI image generation for all items that need images
-          if (user) {
-            const itemsNeedingImages = generatedItems.filter(item => 
-              ['facebook', 'instagram', 'blog'].includes(item.type)
-            );
-            
-            itemsNeedingImages.forEach((item) => {
-              const imagePrompt = `${item.themeName || ''} ${item.type} content: ${item.caption?.substring(0, 200) || item.title}`;
-              
-              console.log('[AutoImageQueue] Queuing image for:', item.id, imagePrompt);
-              
-              SequentialImageLoader.addToQueue(
-                imagePrompt,
-                'normal',
-                item.id,
-                user.id
-              )
-              .then((data) => {
-                if (data?.success && data?.imageUrl) {
-                  console.log('[AutoImageQueue] Successfully processed task:', item.id);
-                  updateItem(item.id, { imageUrl: data.imageUrl });
-                }
-              })
-              .catch((err) => {
-                console.error('[AutoImageQueue] Failed to queue task:', item.id, err);
-                toast.error(`Failed to generate image for ${item.type}`);
-              });
-            });
-            
-            console.log('[AutoImageQueue] Queued', itemsNeedingImages.length, 'images for generation');
-          }
+          console.log('[PlanStepCalendar] Generated', generatedItems.length, 'items');
         })
         .catch(error => {
           console.error('Error generating multi-theme content:', error);

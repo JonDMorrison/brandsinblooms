@@ -13,7 +13,6 @@ import { useState } from "react";
 import { WeeklyContentBanner } from "./current-campaign/WeeklyContentBanner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { ContentViewer } from "@/components/content/ContentViewer";
-import { useAutoImageGeneration } from "@/hooks/useAutoImageGeneration";
 
 interface CurrentCampaignSectionProps {
   activeCampaign: any;

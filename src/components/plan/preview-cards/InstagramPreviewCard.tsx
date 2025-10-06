@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Instagram, Edit2, RefreshCw, Image as ImageIcon, Heart, MessageCircle, Send } from 'lucide-react';
 import { PlanItem } from '../constants';
 import { format } from 'date-fns';
-import { useImageLoading } from '@/contexts/ImageLoadingContext';
 import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
 
 interface InstagramPreviewCardProps {
@@ -20,10 +19,8 @@ export const InstagramPreviewCard: React.FC<InstagramPreviewCardProps> = ({
   onRegenerate,
   onImageSelect
 }) => {
-  const { loadingStatus } = useImageLoading();
-  // Check both queue and current for loading state - item.id matches the taskId in queue
-  const isGenerating = loadingStatus.queue.some(taskId => taskId === item.id) || 
-                        loadingStatus.current === item.id;
+  // Image loading removed - placeholder for new AI implementation
+  const isGenerating = false;
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 bg-white dark:bg-card border-2 hover:border-primary/40">

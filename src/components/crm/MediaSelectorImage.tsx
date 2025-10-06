@@ -98,50 +98,6 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
     }
   };
 
-  const handleGenerateImage = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!contentContext) {
-      toast({
-        title: "No content available",
-        description: "Please generate content first before creating an image.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-    console.log('[MediaSelectorImage] Generating AI image for context:', contentContext);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-content-image', {
-        body: { contentContext }
-      });
-
-      if (error) throw error;
-
-      if (data?.imageUrl) {
-        console.log('[MediaSelectorImage] Image generated successfully');
-        handleImageSelect(data.imageUrl, { source: 'ai-generated', model: 'gemini' });
-        toast({
-          title: "Image generated!",
-          description: "Your AI-generated image is ready.",
-        });
-      } else {
-        throw new Error('No image URL returned');
-      }
-    } catch (error) {
-      console.error('[MediaSelectorImage] Failed to generate image:', error);
-      toast({
-        title: "Generation failed",
-        description: "Could not generate image. Please try manual selection.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const handleSelectClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -183,16 +139,8 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
         {!isGenerating && (
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 items-center justify-center z-50">
             <button
-              onClick={handleGenerateImage}
-              disabled={!contentContext}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Sparkles className="w-4 h-4" />
-              Generate with AI
-            </button>
-            <button
               onClick={handleSelectClick}
-              className="bg-secondary hover:bg-secondary/90 text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
             >
               <Upload className="w-4 h-4" />
               Select Image

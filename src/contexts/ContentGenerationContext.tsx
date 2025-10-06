@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { generateCampaignContent } from '@/components/homepage/ContentGenerationServices';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
-import { SequentialImageLoader } from '@/services/SequentialImageLoader';
+
 
 
 interface ContentGenerationContextType {
@@ -58,27 +58,7 @@ export const ContentGenerationProvider = ({ children }: ContentGenerationProvide
       );
 
       if (result.success && result.tasks) {
-        console.log('[ContentGeneration] Content generated, queuing AI image generation for', result.tasks.length, 'tasks');
-        
-        // Queue AI image generation for each task that needs an image
-        result.tasks.forEach((task: any) => {
-          if (task.id) {
-            // Use image_idea if available, otherwise generate from theme and post type
-            const imagePrompt = task.image_idea || `${theme} ${task.post_type} garden`;
-            console.log('[ContentGeneration] Queuing image generation for task:', task.id, 'with prompt:', imagePrompt);
-            
-            // Add to sequential image loader with AI generation
-            SequentialImageLoader.addToQueue(
-              imagePrompt,
-              'normal',
-              task.id,
-              user.id
-            ).catch(error => {
-              console.error('[ContentGeneration] Image generation failed for task:', task.id, error);
-            });
-          }
-        });
-        
+        console.log('[ContentGeneration] Content generated successfully with', result.tasks.length, 'tasks');
         return true;
       } else {
         return false;

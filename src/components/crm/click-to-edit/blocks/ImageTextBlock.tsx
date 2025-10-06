@@ -7,7 +7,7 @@ import { ContextualEditButton } from '../contextual/ContextualEditButton';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { BlockGeneratingOverlay } from './BlockGeneratingOverlay';
-import { SequentialImageLoader } from '@/services/SequentialImageLoader';
+
 import { extractImageSummaryWithContext } from '@/utils/imageContentSummary';
 import { useUnsplash } from '@/hooks/useUnsplash';
 import { ImageSkeleton } from '@/components/ui/image-skeleton';
@@ -40,53 +40,38 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   const fetchOperationRef = useRef<number>(0);
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   
-  // Sequential image fetch to prevent race conditions and flashing
+  // Sequential image fetch using Unsplash only
   const sequentialImageFetch = useCallback(async (contentForImage: string, operationId: number) => {
     if (!contentForImage) return;
     
-    console.log(`[ImageTextBlock] Queuing image fetch operation ${operationId} for:`, contentForImage);
+    console.log(`[ImageTextBlock] Fetching image for operation ${operationId}:`, contentForImage);
     setIsImageLoading(true);
     setImageError(false);
     
     const smartSummary = extractImageSummaryWithContext(contentForImage, true);
     
     try {
-      const result = await SequentialImageLoader.addToQueue(smartSummary, 'normal');
+      const curatedImages = await getCuratedCollectionImages(1);
       
       // Check if this operation is still current
       if (fetchOperationRef.current !== operationId) {
-        console.log(`[ImageTextBlock] Operation ${operationId} cancelled, current is ${fetchOperationRef.current}`);
+        console.log(`[ImageTextBlock] Operation ${operationId} cancelled`);
         return;
       }
       
-      console.log(`[ImageTextBlock] Operation ${operationId} completed:`, result.url);
-      onUpdate?.({ 
-        imageUrl: result.url,
-        altText: result.alt || 'Auto-selected image'
-      });
+      if (curatedImages.length > 0) {
+        console.log(`[ImageTextBlock] Operation ${operationId} using curated image`);
+        onUpdate?.({ 
+          imageUrl: curatedImages[0].download_url,
+          altText: curatedImages[0].alt || 'Garden center image'
+        });
+      } else {
+        setIsImageLoading(false);
+      }
     } catch (error) {
-      // Check if this operation is still current
-      if (fetchOperationRef.current !== operationId) {
-        console.log(`[ImageTextBlock] Operation ${operationId} cancelled during fallback`);
-        return;
-      }
-      
-      console.error(`[ImageTextBlock] Operation ${operationId} sequential fetch failed:`, error);
-      
-      try {
-        const curatedImages = await getCuratedCollectionImages(1);
-        if (curatedImages.length > 0 && fetchOperationRef.current === operationId) {
-          console.log(`[ImageTextBlock] Operation ${operationId} using curated image`);
-          onUpdate?.({ 
-            imageUrl: curatedImages[0].download_url,
-            altText: curatedImages[0].alt || 'Garden center image'
-          });
-        }
-      } catch (curatedError) {
-        if (fetchOperationRef.current === operationId) {
-          console.error(`[ImageTextBlock] Operation ${operationId} all fetches failed:`, curatedError);
-          setIsImageLoading(false);
-        }
+      if (fetchOperationRef.current === operationId) {
+        console.error(`[ImageTextBlock] Operation ${operationId} fetch failed:`, error);
+        setIsImageLoading(false);
       }
     }
   }, [onUpdate, getCuratedCollectionImages]);

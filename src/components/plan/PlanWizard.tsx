@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { PlanWizardProvider, usePlanWizard } from './PlanWizardContext';
-import { ImageLoadingProvider } from '@/contexts/ImageLoadingContext';
 import { PlanStepTheme } from './steps/PlanStepTheme';
 import { PlanStepCalendar } from './steps/PlanStepCalendar';
 import { PlanStepPreview } from './steps/PlanStepPreview';
@@ -204,9 +203,7 @@ const PlanWizardContent: React.FC = () => {
 export const PlanWizard: React.FC = () => {
   return (
     <PlanWizardProvider>
-      <ImageLoadingProvider>
-        <PlanWizardContent />
-      </ImageLoadingProvider>
+      <PlanWizardContent />
     </PlanWizardProvider>
   );
 };
