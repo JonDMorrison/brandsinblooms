@@ -146,8 +146,8 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full h-12 justify-between text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 hover:border-primary/40 hover:bg-background/70 transition-all duration-200 shadow-sm pointer-events-auto relative z-10",
-                    !state.month && "text-muted-foreground"
+                    "w-full h-12 justify-between text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 transition-all duration-200 shadow-sm pointer-events-auto relative z-10 hover:bg-background/50 hover:border-primary/20",
+                    state.month ? "text-gray-900" : "text-muted-foreground"
                   )}
                   onClick={() => setCalendarOpen(true)}
                 >
