@@ -141,20 +141,20 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
             <Label className="text-sm font-medium text-foreground/80">
               Campaign Month
             </Label>
-            <div className="relative">
-              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary pointer-events-none z-10" />
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Input
-                    readOnly
-                    value={state.month ? format(new Date(state.month + '-01'), 'MMMM yyyy') : ''}
-                    placeholder="Select a month"
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <div className="relative">
+                  <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary pointer-events-none z-10" />
+                  <div
                     className={cn(
-                      "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 transition-all duration-200 shadow-sm cursor-pointer pointer-events-auto relative",
+                      "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background/50 backdrop-blur-sm border-2 border-primary/20 transition-all duration-200 shadow-sm cursor-pointer pointer-events-auto rounded-md flex items-center",
                       state.month ? "text-gray-900" : "text-muted-foreground"
                     )}
-                  />
-                </PopoverTrigger>
+                  >
+                    {state.month ? format(new Date(state.month + '-01'), 'MMMM yyyy') : 'Select a month'}
+                  </div>
+                </div>
+              </PopoverTrigger>
               <PopoverContent className="w-auto p-0 pointer-events-auto z-[1000020]" align="start">
                 <Calendar
                   mode="single"
@@ -169,8 +169,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                   initialFocus
                 />
               </PopoverContent>
-              </Popover>
-            </div>
+            </Popover>
             <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
               <span className="w-1 h-1 bg-primary rounded-full inline-block" />
               Click to choose any upcoming month to start planning your campaigns
