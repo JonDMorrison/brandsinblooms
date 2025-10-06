@@ -62,3 +62,6 @@ verify_jwt = true
 
 [functions.send-admin-notification]
 verify_jwt = false
+
+[functions.fetch-and-assign-images]
+verify_jwt = true

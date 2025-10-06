@@ -52,10 +52,13 @@ export interface PlanItem {
   enabled: boolean;
   imageUrl?: string;
   imageIdea?: string;
+  imageQuery?: string; // AI-generated Unsplash search keyword
   imageMetadata?: {
     alt?: string;
     photographer?: string;
+    photographer_url?: string;
     source?: string;
+    unsplash_id?: string;
   };
   week: number;
   themeId?: string;

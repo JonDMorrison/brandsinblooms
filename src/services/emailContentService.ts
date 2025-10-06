@@ -9,6 +9,7 @@ interface EmailGenerationResult {
   body: string;
   cta_primary?: string;
   notes?: string;
+  imageQuery?: string; // AI-generated Unsplash search keyword
 }
 
 interface BatchEmailRequest {
@@ -111,7 +112,8 @@ export async function batchGenerateEmails(
             emailPreheader: finalContent.preheader,
             title: finalContent.subject, // Keep backward compatibility
             caption: formatEmailContent(finalContent.body),
-            notes: finalContent.notes
+            notes: finalContent.notes,
+            imageQuery: finalContent.imageQuery // Preserve AI-generated image keyword
           };
 
           processedEmailItems.push(updatedItem);

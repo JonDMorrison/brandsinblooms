@@ -91,9 +91,70 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
       });
 
       generateMultiThemeSeasonalPlanContent(state.themes, state.month)
-        .then(generatedItems => {
+        .then(async (generatedItems) => {
           setItems(generatedItems);
           console.log('[PlanStepCalendar] Generated', generatedItems.length, 'items');
+          
+          // Auto-fetch images for Facebook, Instagram, and Blog posts
+          const itemsNeedingImages = generatedItems.filter(item => 
+            ['facebook', 'instagram', 'blog'].includes(item.type) && 
+            item.imageQuery && 
+            !item.imageUrl
+          );
+          
+          if (itemsNeedingImages.length > 0) {
+            console.log(`[PlanStepCalendar] Auto-fetching ${itemsNeedingImages.length} images...`);
+            toast.info(`Fetching ${itemsNeedingImages.length} images from Unsplash...`);
+            
+            try {
+              // Note: Items don't have taskId yet (not persisted), so we'll fetch images
+              // and update local state. Images will be properly saved when plan is launched.
+              const tasks = itemsNeedingImages.map(item => ({
+                itemId: item.id,
+                imageQuery: item.imageQuery!
+              }));
+              
+              // Fetch images one by one and update state progressively
+              let successCount = 0;
+              for (const task of tasks) {
+                try {
+                  const { data: imageData, error } = await supabase.functions.invoke('get-unsplash-image', {
+                    body: { query: task.imageQuery }
+                  });
+                  
+                  if (!error && imageData?.urls?.regular) {
+                    // Update the item in state with fetched image
+                    updateItem(task.itemId, {
+                      imageUrl: imageData.urls.regular,
+                      imageMetadata: {
+                        alt: imageData.alt_description || task.imageQuery,
+                        photographer: imageData.user?.name,
+                        photographer_url: imageData.user?.links?.html,
+                        source: 'unsplash_auto',
+                        unsplash_id: imageData.id
+                      }
+                    });
+                    successCount++;
+                    console.log(`[PlanStepCalendar] Fetched image ${successCount}/${tasks.length}`);
+                  }
+                  
+                  // Small delay to respect rate limits
+                  await new Promise(resolve => setTimeout(resolve, 150));
+                } catch (err) {
+                  console.warn(`[PlanStepCalendar] Failed to fetch image for ${task.itemId}:`, err);
+                }
+              }
+              
+              if (successCount > 0) {
+                toast.success(`Successfully fetched ${successCount} images!`);
+              } else {
+                toast.warning('No images were fetched. You can add them manually later.');
+              }
+            } catch (error) {
+              console.error('[PlanStepCalendar] Error fetching images:', error);
+              toast.warning('Some images could not be fetched. You can add them manually.');
+            }
+          }
         })
         .catch(error => {
           console.error('Error generating multi-theme content:', error);

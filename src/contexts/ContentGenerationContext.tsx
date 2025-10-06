@@ -59,6 +59,36 @@ export const ContentGenerationProvider = ({ children }: ContentGenerationProvide
 
       if (result.success && result.tasks) {
         console.log('[ContentGeneration] Content generated successfully with', result.tasks.length, 'tasks');
+        
+        // Auto-fetch images for tasks with imageQuery
+        const tasksNeedingImages = result.tasks.filter((task: any) => 
+          task.imageQuery && !task.image_url
+        );
+        
+        if (tasksNeedingImages.length > 0) {
+          console.log(`[ContentGeneration] Triggering image fetch for ${tasksNeedingImages.length} tasks`);
+          
+          // Don't await - let images fetch in background
+          import('@/integrations/supabase/client').then(({ supabase }) => {
+            const imageTasks = tasksNeedingImages.map((task: any) => ({
+              taskId: task.id,
+              imageQuery: task.imageQuery
+            }));
+            
+            supabase.functions.invoke('fetch-and-assign-images', {
+              body: { tasks: imageTasks }
+            }).then(({ data, error }) => {
+              if (error) {
+                console.error('[ContentGeneration] Image fetch error:', error);
+              } else if (data) {
+                console.log(`[ContentGeneration] Image fetch complete: ${data.summary?.successful}/${data.summary?.total} successful`);
+              }
+            }).catch(err => {
+              console.error('[ContentGeneration] Image fetch exception:', err);
+            });
+          });
+        }
+        
         return true;
       } else {
         return false;
