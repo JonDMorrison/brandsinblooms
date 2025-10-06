@@ -90,7 +90,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
             </div>
           </header>
           
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1">
             <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
               {children}
             </div>
