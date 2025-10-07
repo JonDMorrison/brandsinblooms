@@ -65,9 +65,25 @@ Your task: Generate 4-6 highly specific and visual keywords that would find beau
 
     const data = await response.json();
     const keywordsText = data.choices[0].message.content.trim();
-    const keywords = keywordsText.split(',').map((k: string) => k.trim());
+    
+    console.log('Raw OpenAI response:', keywordsText);
+    
+    // Split by comma and filter out empty strings
+    const keywords = keywordsText
+      .split(',')
+      .map((k: string) => k.trim())
+      .filter((k: string) => k.length > 0);
 
     console.log('Generated keywords:', keywords);
+    
+    // Validate that we have at least one keyword
+    if (keywords.length === 0) {
+      console.error('No valid keywords generated from OpenAI response');
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate valid keywords' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ keywords }),
