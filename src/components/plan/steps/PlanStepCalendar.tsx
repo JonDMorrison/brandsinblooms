@@ -11,7 +11,7 @@ import { SafeHtml } from '@/components/ui/safe-html';
 import { renderMarkdownToMagazineHtml } from '@/utils/renderMarkdown';
 import { convertMarkdownToHtml } from '@/utils/markdownUtils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
-import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles, Replace, Plus, Clock, Tag, FileText } from 'lucide-react';
+import { Calendar, Mail, MessageSquare, Facebook, Instagram, Edit, Image as ImageIcon, Sparkles, Replace, Plus, Clock, Tag, FileText, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { parseMonthParam } from '@/utils/dateUtils';
 import { usePlanWizard } from '../PlanWizardContext';
@@ -822,12 +822,12 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                       ) : (
                                         <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
                                       )}
-                                    {item.imageUrl && (
-                                      <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
-                                        <ImageIcon className="h-4 w-4" />
+                                     {item.imageUrl && (
+                                      <div className="flex items-center gap-2 text-sm text-green-500 transition-colors">
+                                        <Check className="h-4 w-4" />
                                         <span>Image selected</span>
                                       </div>
-                                    )}
+                                     )}
                                   </div>
                                )}
                             </div>
