@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { MediaSelectorSidebar } from './MediaSelectorSidebar';
+import { AIPersonalizationDialog } from './AIPersonalizationDialog';
 import { Camera, Upload, Sparkles } from 'lucide-react';
 import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
 import { supabase } from '@/integrations/supabase/client';
@@ -84,6 +85,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   });
   
   const [isSelecting, setIsSelecting] = useState(false);
+  const [isPersonalizing, setIsPersonalizing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
 
@@ -150,7 +152,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('[MediaSelectorImage] Personalize with AI clicked');
-                // TODO: Add personalization logic
+                setIsPersonalizing(true);
               }}
               className="bg-secondary hover:bg-secondary/90 text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
             >
@@ -168,6 +170,12 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
         onImageSelect={handleImageSelect}
         contentContext={contentContext}
         selectedImageUrl={src}
+      />
+
+      {/* AI Personalization Dialog */}
+      <AIPersonalizationDialog
+        open={isPersonalizing}
+        onOpenChange={setIsPersonalizing}
       />
     </>
   );
