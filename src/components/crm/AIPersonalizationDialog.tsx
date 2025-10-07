@@ -8,7 +8,9 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface AIPersonalizationDialogProps {
   open: boolean;
@@ -35,6 +37,71 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const { toast } = useToast();
+
+  const handleGenerateImages = async () => {
+    if (!prompt.trim()) return;
+
+    setIsGenerating(true);
+    try {
+      // Step 1: Generate keywords using OpenAI
+      const { data: keywordData, error: keywordError } = await supabase.functions.invoke(
+        'generate-image-keywords',
+        { body: { prompt } }
+      );
+
+      if (keywordError) throw keywordError;
+
+      const keywords = keywordData.keywords as string[];
+      console.log('AI generated keywords:', keywords);
+
+      // Step 2: Fetch images from Unsplash for each keyword
+      const imagePromises = keywords.slice(0, 4).map(async (keyword) => {
+        const { data, error } = await supabase.functions.invoke(
+          'get-unsplash-image',
+          { body: { query: keyword } }
+        );
+        
+        if (error || !data) {
+          console.error('Error fetching image for keyword:', keyword, error);
+          return null;
+        }
+        
+        return data.thumb_url || data.urls?.small;
+      });
+
+      const fetchedImages = await Promise.all(imagePromises);
+      const validImages = fetchedImages.filter(Boolean) as string[];
+
+      if (validImages.length === 0) {
+        throw new Error('No images found for your search');
+      }
+
+      // Prepend new images to the grid
+      setGeneratedImages(prev => [...validImages, ...prev]);
+      
+      toast({
+        title: 'Images generated!',
+        description: `Found ${validImages.length} images based on your prompt.`,
+      });
+
+      setPrompt('');
+    } catch (error) {
+      console.error('Error generating images:', error);
+      toast({
+        title: 'Failed to generate images',
+        description: error.message || 'Please try again with a different prompt.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Combine generated images with sample images
+  const allImages = [...generatedImages, ...sampleImages];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -48,7 +115,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
           </p>
           
           <div className="grid grid-cols-5 gap-4 w-full">
-            {sampleImages.map((image, index) => (
+            {allImages.map((image, index) => (
               <div
                 key={index}
                 onClick={() => setSelectedImage(image)}
@@ -94,9 +161,14 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
               />
               <Button
                 className="rounded-full w-8 h-8 p-0 flex-shrink-0"
-                disabled={!selectedImage || !prompt.trim()}
+                disabled={!prompt.trim() || isGenerating}
+                onClick={handleGenerateImages}
               >
-                <ArrowUp className="w-3 h-3" />
+                {isGenerating ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <ArrowUp className="w-3 h-3" />
+                )}
               </Button>
             </div>
           </div>
