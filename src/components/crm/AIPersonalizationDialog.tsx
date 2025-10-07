@@ -94,10 +94,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
               />
             </div>
             <Button
-              className="rounded-full w-12 h-12 p-0"
+              className="rounded-full w-10 h-10 p-0"
               disabled={!selectedImage || !prompt.trim()}
             >
-              <ArrowUp className="w-5 h-5" />
+              <ArrowUp className="w-4 h-4" />
             </Button>
           </div>
         </div>
