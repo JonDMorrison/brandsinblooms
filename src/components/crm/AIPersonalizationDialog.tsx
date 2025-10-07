@@ -5,6 +5,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 
 interface AIPersonalizationDialogProps {
   open: boolean;
@@ -30,6 +33,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   onOpenChange,
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState('');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -75,6 +79,28 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
                 )}
               </div>
             ))}
+          </div>
+
+          <div className="mt-8 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ai-prompt" className="text-sm font-medium">
+                Describe your personalization
+              </Label>
+              <Textarea
+                id="ai-prompt"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Describe how you want to personalize this image (e.g., 'Make it more vibrant', 'Add spring flowers', 'Create a sunset atmosphere')..."
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+            <Button
+              className="w-full"
+              disabled={!selectedImage || !prompt.trim()}
+            >
+              Generate Personalized Image
+            </Button>
           </div>
         </div>
       </DialogContent>
