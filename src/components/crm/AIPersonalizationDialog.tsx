@@ -43,6 +43,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [loadingPlaceholders, setLoadingPlaceholders] = useState<number>(0);
+  const [visibleCount, setVisibleCount] = useState(5);
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -118,6 +119,8 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
 
   // Combine generated images with sample images
   const allImages = [...generatedImages, ...sampleImages];
+  const visibleImages = allImages.slice(0, visibleCount);
+  const hasMoreImages = allImages.length > visibleCount;
 
   // Loading placeholder component
   const LoadingPlaceholder = ({ index }: { index: number }) => (
@@ -159,7 +162,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
               ))}
               
               {/* Then show actual images */}
-              {allImages.map((image, index) => (
+              {visibleImages.map((image, index) => (
                 <div
                   key={index}
                   onClick={() => setSelectedImage(image)}
@@ -193,6 +196,18 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
               ))}
             </div>
           </ScrollArea>
+
+          {hasMoreImages && (
+            <div className="flex justify-center mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setVisibleCount(prev => prev + 5)}
+                className="text-sm"
+              >
+                Load More Images
+              </Button>
+            </div>
+          )}
 
           <div className="mt-8 w-1/2 mx-auto">
             <div className="flex gap-2 items-end">
