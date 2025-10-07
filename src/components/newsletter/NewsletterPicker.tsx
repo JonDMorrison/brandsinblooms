@@ -56,13 +56,6 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
       console.log('✅ Generated ideas:', newIdeas?.length || 0);
       setAiPrompt('');
       setTextareaRows(1); // Reset to default rows
-      
-      // Force a small delay to ensure the ideas have been added to the DOM
-      // Then refetch to ensure the UI updates with the new ideas
-      setTimeout(() => {
-        console.log('🔄 Refreshing ideas after generation');
-        refetch();
-      }, 100);
     } catch (error) {
       console.error('❌ Failed to generate AI ideas:', error);
     } finally {
