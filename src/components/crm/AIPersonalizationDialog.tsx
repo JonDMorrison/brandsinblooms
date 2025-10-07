@@ -82,23 +82,23 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
             ))}
           </div>
 
-          <div className="mt-8 space-y-4 w-1/2 mx-auto">
-            <div className="space-y-2">
+          <div className="mt-8 w-1/2 mx-auto">
+            <div className="flex gap-2 items-end">
               <Textarea
                 id="ai-prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Tell something about the image you are looking for, how it should look?"
                 rows={4}
-                className="resize-none"
+                className="resize-none flex-1"
               />
+              <Button
+                className="rounded-full w-10 h-10 p-0 flex-shrink-0"
+                disabled={!selectedImage || !prompt.trim()}
+              >
+                <ArrowUp className="w-4 h-4" />
+              </Button>
             </div>
-            <Button
-              className="rounded-full w-10 h-10 p-0"
-              disabled={!selectedImage || !prompt.trim()}
-            >
-              <ArrowUp className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       </DialogContent>
