@@ -18,7 +18,7 @@ export const MetaConnectionSuccess = ({
   onManageConnections
 }: MetaConnectionSuccessProps) => {
   return (
-    <Card className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+    <Card className="border-border bg-card">
       <CardHeader className="text-center pb-4">
         <CardTitle className="text-2xl font-bold text-gray-900">
           Your Meta Accounts
@@ -29,10 +29,10 @@ export const MetaConnectionSuccess = ({
       </CardHeader>
       
       <CardContent>
-        <div className="bg-white rounded-xl p-6 border border-green-200 shadow-sm">
+        <div className="bg-background rounded-xl p-6 border border-border shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-gray-900">Meta Platforms</h3>
-            <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+            <Badge className="bg-success/10 text-success hover:bg-success/10">
               Both platforms connected!
             </Badge>
           </div>
