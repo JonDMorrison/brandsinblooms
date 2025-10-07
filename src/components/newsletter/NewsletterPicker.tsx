@@ -185,13 +185,20 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
 
       {/* AI Idea Generator - Fixed at bottom */}
       {currentStep === 'ideas' && (
-        <div className="fixed left-1/2 transform -translate-x-1/2 z-50" style={{ bottom: '48px' }}>
+        <div 
+          className="fixed left-1/2 transform -translate-x-1/2 z-[1000020] pointer-events-auto" 
+          style={{ bottom: '48px' }}
+          onClick={(e) => {
+            console.log('🎯 AI Prompt container clicked');
+            e.stopPropagation();
+          }}
+        >
           <div 
-            className="bg-background/90 backdrop-blur-sm border border-gray-300 rounded-lg p-4 shadow-lg transition-all duration-200" 
+            className="bg-white backdrop-blur-sm border-2 border-primary/30 rounded-xl p-4 shadow-2xl transition-all duration-200" 
             style={{ 
               width: '600px',
-              minHeight: `${1 * 24 + 120}px`, // 1 row + extra padding + button area
-              height: `${textareaRows * 24 + 120}px` // Dynamic height with more padding for button (now up to 5 rows)
+              minHeight: `${1 * 24 + 120}px`,
+              height: `${textareaRows * 24 + 120}px`
             }}
           >
             <div className="space-y-3">
@@ -200,23 +207,29 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
                 <Textarea
                   id="ai-prompt"
                   placeholder="Write your AI prompt here..."
-                  className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 resize-none overflow-hidden bg-white text-base"
+                  className="w-full p-3 rounded-lg border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none overflow-hidden bg-white text-foreground text-base transition-all"
                   value={aiPrompt}
                   onChange={handleTextareaChange}
                   onKeyDown={handleKeyDown}
+                  onFocus={() => console.log('✏️ AI Prompt textarea focused')}
+                  onBlur={() => console.log('👋 AI Prompt textarea blurred')}
                   rows={textareaRows}
                   style={{ 
-                    minHeight: `${1 * 24 + 24}px`, // 1 row + padding
-                    maxHeight: `${5 * 24 + 24}px`, // 5 rows + padding
+                    minHeight: `${1 * 24 + 24}px`,
+                    maxHeight: `${5 * 24 + 24}px`,
                     overflowY: textareaRows >= 5 ? 'auto' : 'hidden'
                   }}
                 />
               </div>
               <div className="flex justify-end mt-3">
                 <Button 
-                  onClick={handleGenerateAI}
+                  onClick={(e) => {
+                    console.log('🚀 Generate button clicked with prompt:', aiPrompt);
+                    handleGenerateAI();
+                  }}
                   disabled={!aiPrompt.trim() || generatingAI}
                   size="sm"
+                  className="pointer-events-auto"
                 >
                   {generatingAI ? (
                     <>
