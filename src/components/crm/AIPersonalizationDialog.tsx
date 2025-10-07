@@ -121,8 +121,13 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   const LoadingPlaceholder = ({ index }: { index: number }) => (
     <div 
       key={`loading-${index}`}
-      className="relative aspect-square rounded-lg overflow-hidden bg-muted ring-1 ring-border"
-      style={{ minHeight: '120px', minWidth: '120px' }}
+      className="relative aspect-square rounded-lg overflow-hidden bg-muted ring-1 ring-border animate-fade-in animate-scale-in"
+      style={{ 
+        minHeight: '120px', 
+        minWidth: '120px',
+        animationDelay: `${index * 50}ms`,
+        animationFillMode: 'backwards'
+      }}
     >
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 animate-pulse">
         <Loader2 className="w-6 h-6 text-primary animate-spin" />
