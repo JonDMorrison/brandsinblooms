@@ -74,6 +74,22 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
     }
   }, [initialSlide]);
 
+  // Watch for new ideas being added (e.g., from AI generation)
+  // and scroll to the first one to show the user their new content
+  useEffect(() => {
+    if (swiperRef.current && ideas.length > 0) {
+      // Check if the first idea is an AI-generated one (they have category 'ai-generated')
+      const firstIdea = ideas[0];
+      if (firstIdea && firstIdea.category === 'ai-generated') {
+        console.log('🎯 New AI-generated ideas detected, scrolling to first one');
+        setTimeout(() => {
+          swiperRef.current?.slideTo(0, 600); // Smooth scroll to first slide
+          setCurrentSlide(0);
+        }, 300);
+      }
+    }
+  }, [ideas.length]); // Re-run when ideas count changes
+
   const handleSwiper = (swiper: any) => {
     swiperRef.current = swiper;
   };
