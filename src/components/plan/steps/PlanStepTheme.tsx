@@ -149,7 +149,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                 onChange={(e) => setMonth(e.target.value)}
                 min={format(new Date(), 'yyyy-MM')}
                 className={cn(
-                  "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background border-2 border-input transition-all duration-200 shadow-sm cursor-pointer rounded-md hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background border border-gray-300 transition-all duration-200 shadow-sm cursor-pointer rounded-md hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   state.month ? "text-gray-900" : "text-muted-foreground"
                 )}
               />
