@@ -48,6 +48,16 @@ serve(async (req) => {
             - heroQuery: Unsplash search query for hero image
             - estimatedReadTime: reading time estimate
 
+            CRITICAL FORMATTING RULES for templateBlocks content:
+            - Use HTML tags for formatting: <strong>text</strong> for bold, <br><br> for paragraph breaks
+            - Main section titles should be formatted as: <strong>Title Text: Description</strong>
+            - Numbered lists should have bold labels: <strong>1. Step Name:</strong> Description text
+            - Always include 2 line breaks (<br><br>) between paragraphs
+            - Use proper spacing and structure for readability
+            
+            Example format:
+            "<strong>Master Winter Plant Care: Step-by-Step Guide</strong><br><br>Winter doesn't mean your gardening passion has to hibernate!<br><br><strong>1. Assess Your Plants:</strong> Begin by checking for any signs of stress.<br><br><strong>2. Adjust Watering:</strong> Understand that many plants require less water."
+
             Focus on practical, engaging newsletter ideas that would be useful for businesses. Make the content professional but approachable.`
           },
           {
