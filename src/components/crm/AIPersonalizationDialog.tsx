@@ -93,10 +93,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
                 className="resize-none flex-1"
               />
               <Button
-                className="rounded-full w-10 h-10 p-0 flex-shrink-0"
+                className="rounded-full w-8 h-8 p-0 flex-shrink-0"
                 disabled={!selectedImage || !prompt.trim()}
               >
-                <ArrowUp className="w-4 h-4" />
+                <ArrowUp className="w-3 h-3" />
               </Button>
             </div>
           </div>
