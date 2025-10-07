@@ -12,12 +12,14 @@ import { ImageUploader } from '@/lib/image/imageUploader';
 import { ImageProcessor, getOptimalFormat } from '@/lib/image/imageProcessor';
 import { ImageSelectButton } from '@/components/image';
 import { trackUnsplashDownload } from '@/lib/unsplashAttribution';
+import { CountryCodeSelect } from './CountryCodeSelect';
 
 interface SMSQuickSendProps {
   onSent: () => void;
 }
 
 export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
+  const [countryCode, setCountryCode] = useState('+1');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -195,15 +197,19 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
         }
       }
 
+      // Combine country code with phone number
+      const fullPhone = `${countryCode}${phone.replace(/^[+\s()-]*/g, '')}`;
+      
       // Send SMS using TwilioClient
       await twilioClient.sendSMS({
-        to: phone,
+        to: fullPhone,
         body: message,
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
       });
 
       const hasImage = imageFile || externalImageUrl;
       toast.success(hasImage ? 'Test MMS sent successfully!' : 'Test SMS sent successfully!');
+      setCountryCode('+1');
       setPhone('');
       setMessage('');
       setImageFile(null);
@@ -236,16 +242,23 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
         <form onSubmit={handleSend} className="space-y-4">
           <div>
             <Label htmlFor="phone">Phone Number</Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="+1 (555) 123-4567"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="mt-1"
-            />
+            <div className="flex gap-2 mt-1">
+              <CountryCodeSelect
+                value={countryCode}
+                onChange={setCountryCode}
+                disabled={sending}
+              />
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="(555) 123-4567"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="flex-1"
+              />
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Include country code (e.g., +1 for US)
+              Select your country code and enter phone number
             </p>
           </div>
 
