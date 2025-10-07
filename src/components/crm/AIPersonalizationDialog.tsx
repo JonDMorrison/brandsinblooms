@@ -115,7 +115,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
             Select a style to personalize your image with AI
           </p>
           
-          <ScrollArea className="h-[270px] w-full pr-4">
+          <ScrollArea className="h-[320px] w-full pr-4">
             <div className="grid grid-cols-5 gap-4 w-full">
               {allImages.map((image, index) => (
                 <div
