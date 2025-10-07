@@ -67,15 +67,15 @@ const SocialMediaPage = () => {
         {/* Main Content */}
         <Tabs defaultValue="connections" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="connections" className="flex items-center gap-2">
+            <TabsTrigger value="connections" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <Link className="w-4 h-4" />
               Connections
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <BarChart3 className="w-4 h-4" />
               Analytics
             </TabsTrigger>
-            <TabsTrigger value="scheduling" className="flex items-center gap-2">
+            <TabsTrigger value="scheduling" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <Calendar className="w-4 h-4" />
               Auto-Scheduling
             </TabsTrigger>
