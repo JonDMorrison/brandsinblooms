@@ -32,7 +32,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini-2025-08-07',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -50,20 +50,32 @@ Your task: Generate 4-6 highly specific and visual keywords that would find beau
             content: prompt
           }
         ],
-        max_completion_tokens: 100,
+        max_tokens: 100,
+        temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('OpenAI API error:', errorData);
+      console.error('OpenAI API error:', response.status, errorData);
       return new Response(
-        JSON.stringify({ error: 'Failed to generate keywords' }),
+        JSON.stringify({ error: 'Failed to generate keywords', details: errorData }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await response.json();
+    console.log('Full OpenAI response:', JSON.stringify(data, null, 2));
+    
+    // Validate response structure
+    if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+      console.error('Invalid OpenAI response structure:', data);
+      return new Response(
+        JSON.stringify({ error: 'Invalid response from OpenAI' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     const keywordsText = data.choices[0].message.content.trim();
     
     console.log('Raw OpenAI response:', keywordsText);
