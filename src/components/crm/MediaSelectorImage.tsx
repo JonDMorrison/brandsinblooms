@@ -137,13 +137,25 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
         )}
 
         {!isGenerating && (
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 items-center justify-center z-50">
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2 items-center justify-center z-50">
             <button
               onClick={handleSelectClick}
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
             >
               <Upload className="w-4 h-4" />
               Select Image
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[MediaSelectorImage] Personalize with AI clicked');
+                // TODO: Add personalization logic
+              }}
+              className="bg-secondary hover:bg-secondary/90 text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              Personalize with AI
             </button>
           </div>
         )}
