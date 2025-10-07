@@ -4978,6 +4978,10 @@ export type Database = {
         Args: { p_days: number; p_tenant_id: string }
         Returns: undefined
       }
+      admin_extend_trial_by_email: {
+        Args: { p_days: number; p_email: string }
+        Returns: Json
+      }
       admin_get_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
