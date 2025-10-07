@@ -149,7 +149,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
                 onChange={(e) => setMonth(e.target.value)}
                 min={format(new Date(), 'yyyy-MM')}
                 className={cn(
-                  "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background border border-gray-300 transition-all duration-200 shadow-sm cursor-pointer rounded-md hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background border border-gray-300 transition-all duration-200 shadow-sm cursor-pointer rounded-md hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer",
                   state.month ? "text-gray-900" : "text-muted-foreground"
                 )}
               />
