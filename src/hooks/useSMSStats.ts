@@ -5,9 +5,13 @@ import { useTenant } from '@/hooks/useTenant';
 
 export interface SMSStats {
   subscribers: number;
+  subscribersGrowth: number;
   credits: number;
+  creditsUsed: number;
   deliverability: number;
+  deliverabilityGrowth: number;
   clicks: number;
+  clicksGrowth: number;
   queuedMessages: number;
   recentCampaigns: Array<{
     id: string;
@@ -35,16 +39,20 @@ export const useSMSStats = () => {
       if (!user) {
         return {
           subscribers: 0,
-          credits: 2847,
-          deliverability: 95,
+          subscribersGrowth: 0,
+          credits: 0,
+          creditsUsed: 0,
+          deliverability: 0,
+          deliverabilityGrowth: 0,
           clicks: 0,
+          clicksGrowth: 0,
           queuedMessages: 0,
           recentCampaigns: [],
           recentMessages: []
         };
       }
 
-      // Get user's tenant_id
+      // Get user's tenant_id and subscription
       const { data: userData } = await supabase
         .from('users')
         .select('tenant_id')
@@ -52,6 +60,19 @@ export const useSMSStats = () => {
         .maybeSingle();
 
       const tenantId = userData?.tenant_id;
+
+      // Get subscription data for credits
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('sms_quota, sms_usage')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const smsQuota = subscription?.sms_quota || 0;
+      const smsUsage = subscription?.sms_usage || 0;
+      const creditsRemaining = Math.max(0, smsQuota - smsUsage);
 
       // Fetch campaigns for user or tenant
       let campaignQuery = supabase
@@ -106,10 +127,42 @@ export const useSMSStats = () => {
 
       const { data: customers = [] } = await customerQuery;
 
-      // Calculate stats
+      // Calculate current period stats (last 30 days)
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
       const getMetrics = (campaign: any) => 
         campaign.metrics && typeof campaign.metrics === 'object' ? campaign.metrics : {};
 
+      // Current period campaigns (last 30 days)
+      const currentPeriodCampaigns = campaigns.filter(c => 
+        new Date(c.created_at) >= thirtyDaysAgo
+      );
+
+      // Previous period campaigns (30-60 days ago)
+      const previousPeriodCampaigns = campaigns.filter(c => {
+        const date = new Date(c.created_at);
+        return date >= sixtyDaysAgo && date < thirtyDaysAgo;
+      });
+
+      // Calculate current period metrics
+      const currentSent = currentPeriodCampaigns.reduce((sum, campaign) => 
+        sum + (getMetrics(campaign).sent || 0), 0);
+      const currentDelivered = currentPeriodCampaigns.reduce((sum, campaign) => 
+        sum + (getMetrics(campaign).delivered || 0), 0);
+      const currentClicks = currentPeriodCampaigns.reduce((sum, campaign) => 
+        sum + (getMetrics(campaign).clicked || 0), 0);
+
+      // Calculate previous period metrics
+      const previousSent = previousPeriodCampaigns.reduce((sum, campaign) => 
+        sum + (getMetrics(campaign).sent || 0), 0);
+      const previousDelivered = previousPeriodCampaigns.reduce((sum, campaign) => 
+        sum + (getMetrics(campaign).delivered || 0), 0);
+      const previousClicks = previousPeriodCampaigns.reduce((sum, campaign) => 
+        sum + (getMetrics(campaign).clicked || 0), 0);
+
+      // Calculate all-time totals for display
       const totalSent = campaigns.reduce((sum, campaign) => 
         sum + (getMetrics(campaign).sent || 0), 0);
       const totalDelivered = campaigns.reduce((sum, campaign) => 
@@ -117,14 +170,31 @@ export const useSMSStats = () => {
       const totalClicked = campaigns.reduce((sum, campaign) => 
         sum + (getMetrics(campaign).clicked || 0), 0);
 
+      // Calculate growth percentages
+      const subscribersGrowth = 0; // Would need historical customer data
+      
+      const currentDeliverability = currentSent > 0 ? (currentDelivered / currentSent) * 100 : 0;
+      const previousDeliverability = previousSent > 0 ? (previousDelivered / previousSent) * 100 : 0;
+      const deliverabilityGrowth = previousDeliverability > 0 
+        ? ((currentDeliverability - previousDeliverability) / previousDeliverability) * 100 
+        : 0;
+
+      const clicksGrowth = previousClicks > 0 
+        ? ((currentClicks - previousClicks) / previousClicks) * 100 
+        : (currentClicks > 0 ? 100 : 0);
+
       const queuedMessages = messages.filter(m => m.status === 'queued').length;
-      const deliverability = totalSent > 0 ? (totalDelivered / totalSent) * 100 : 95;
+      const deliverability = totalSent > 0 ? (totalDelivered / totalSent) * 100 : 0;
 
       return {
         subscribers: customers.length,
-        credits: 2847, // This would come from subscription/billing
+        subscribersGrowth,
+        credits: creditsRemaining,
+        creditsUsed: smsUsage,
         deliverability: Math.round(deliverability),
+        deliverabilityGrowth: Math.round(deliverabilityGrowth * 10) / 10,
         clicks: totalClicked,
+        clicksGrowth: Math.round(clicksGrowth * 10) / 10,
         queuedMessages,
         recentCampaigns: campaigns.slice(0, 5).map(campaign => ({
           id: campaign.id,

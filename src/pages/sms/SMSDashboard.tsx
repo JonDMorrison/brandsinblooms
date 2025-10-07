@@ -123,9 +123,13 @@ export default function SMSDashboard() {
       ) : (
         <SMSStatCards stats={stats || {
           subscribers: 0,
-          credits: 2847,
-          deliverability: 95,
+          subscribersGrowth: 0,
+          credits: 0,
+          creditsUsed: 0,
+          deliverability: 0,
+          deliverabilityGrowth: 0,
           clicks: 0,
+          clicksGrowth: 0,
           queuedMessages: 0,
           recentCampaigns: [],
           recentMessages: []

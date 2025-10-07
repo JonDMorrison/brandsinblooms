@@ -10,6 +10,12 @@ interface SMSStatCardsProps {
 }
 
 export const SMSStatCards: React.FC<SMSStatCardsProps> = ({ stats, onCardClick }) => {
+  const formatTrend = (value: number | null | undefined) => {
+    if (value === null || value === undefined || value === 0) return null;
+    const sign = value > 0 ? '+' : '';
+    return `${sign}${value.toFixed(1)}%`;
+  };
+
   const cards = [
     {
       key: 'subscribers',
@@ -17,14 +23,14 @@ export const SMSStatCards: React.FC<SMSStatCardsProps> = ({ stats, onCardClick }
       value: stats.subscribers.toLocaleString(),
       description: 'SMS opted-in customers',
       icon: Users,
-      trend: '+12%',
+      trend: formatTrend(stats.subscribersGrowth),
       color: 'text-blue-600'
     },
     {
       key: 'credits',
       title: 'Credits',
       value: stats.credits.toLocaleString(),
-      description: 'SMS credits remaining',
+      description: `${stats.creditsUsed} used this month`,
       icon: CreditCard,
       trend: null,
       color: 'text-green-600'
@@ -35,7 +41,7 @@ export const SMSStatCards: React.FC<SMSStatCardsProps> = ({ stats, onCardClick }
       value: `${stats.deliverability}%`,
       description: 'Messages delivered',
       icon: TrendingUp,
-      trend: '+2%',
+      trend: formatTrend(stats.deliverabilityGrowth),
       color: 'text-emerald-600'
     },
     {
@@ -44,7 +50,7 @@ export const SMSStatCards: React.FC<SMSStatCardsProps> = ({ stats, onCardClick }
       value: stats.clicks.toLocaleString(),
       description: 'Total link clicks',
       icon: MousePointer,
-      trend: '+8%',
+      trend: formatTrend(stats.clicksGrowth),
       color: 'text-purple-600'
     },
     {
