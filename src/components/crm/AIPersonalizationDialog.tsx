@@ -8,6 +8,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { ArrowUp } from 'lucide-react';
 
 interface AIPersonalizationDialogProps {
   open: boolean;
@@ -93,10 +94,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
               />
             </div>
             <Button
-              className="w-full"
+              className="rounded-full w-12 h-12 p-0"
               disabled={!selectedImage || !prompt.trim()}
             >
-              Generate Personalized Image
+              <ArrowUp className="w-5 h-5" />
             </Button>
           </div>
         </div>
