@@ -202,17 +202,38 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
                 rows={4}
                 className="resize-none flex-1"
               />
-              <Button
-                className="rounded-full w-8 h-8 p-0 flex-shrink-0"
-                disabled={!prompt.trim() || isGenerating}
-                onClick={handleGenerateImages}
-              >
-                {isGenerating ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <ArrowUp className="w-3 h-3" />
-                )}
-              </Button>
+              
+              {/* Conditionally render button based on state */}
+              {selectedImage && !prompt.trim() ? (
+                <Button
+                  key="select-button"
+                  className="flex-shrink-0 animate-fade-in animate-scale-in"
+                  variant="default"
+                  onClick={() => {
+                    // Handle image selection
+                    toast({
+                      title: 'Image selected!',
+                      description: 'Your personalized image has been applied.',
+                    });
+                    onOpenChange(false);
+                  }}
+                >
+                  Select this image
+                </Button>
+              ) : (
+                <Button
+                  key="send-button"
+                  className="rounded-full w-8 h-8 p-0 flex-shrink-0 animate-fade-in animate-scale-in"
+                  disabled={!prompt.trim() || isGenerating}
+                  onClick={handleGenerateImages}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <ArrowUp className="w-3 h-3" />
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>
