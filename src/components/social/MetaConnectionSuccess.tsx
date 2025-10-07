@@ -37,22 +37,12 @@ export const MetaConnectionSuccess = ({
             </Badge>
           </div>
           
-          <div className="flex items-center gap-4 mb-6">
-            {/* Facebook Icon */}
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Facebook className="w-6 h-6 text-white" />
-            </div>
-            
-            {/* Instagram Icon */}
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
-              <Instagram className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {/* Facebook Status */}
-            <div className="flex items-center gap-3">
-              <Facebook className="w-5 h-5 text-blue-600" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Facebook */}
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Facebook className="w-6 h-6 text-white" />
+              </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-900">Facebook</span>
@@ -60,14 +50,16 @@ export const MetaConnectionSuccess = ({
                   <span className="text-sm text-green-600 font-medium">Connected</span>
                 </div>
                 <p className="text-sm text-gray-500">
-                  Facebook: {facebookConnection?.platform_account_name || 'Connected'}
+                  {facebookConnection?.platform_account_name || 'Connected'}
                 </p>
               </div>
             </div>
             
-            {/* Instagram Status */}
-            <div className="flex items-center gap-3">
-              <Instagram className="w-5 h-5 text-purple-600" />
+            {/* Instagram */}
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Instagram className="w-6 h-6 text-white" />
+              </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-900">Instagram</span>
@@ -75,7 +67,7 @@ export const MetaConnectionSuccess = ({
                   <span className="text-sm text-green-600 font-medium">Connected</span>
                 </div>
                 <p className="text-sm text-gray-500">
-                  Instagram: {instagramConnection?.platform_account_name || 'Connected'}
+                  {instagramConnection?.platform_account_name || 'Connected'}
                 </p>
               </div>
             </div>
