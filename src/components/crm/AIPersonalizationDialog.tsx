@@ -38,11 +38,11 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
           <DialogTitle>AI Personalization</DialogTitle>
         </DialogHeader>
         <div className="py-4">
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-foreground mb-4">
             Select a style to personalize your image with AI
           </p>
           
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-5 gap-4 w-full">
             {sampleImages.map((image, index) => (
               <div
                 key={index}
@@ -50,17 +50,25 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
                 className={`
                   relative aspect-square rounded-lg overflow-hidden cursor-pointer
                   transition-all duration-200 hover:scale-105 hover:shadow-lg
+                  bg-muted
                   ${selectedImage === image ? 'ring-4 ring-primary shadow-xl' : 'ring-1 ring-border'}
                 `}
+                style={{ minHeight: '120px', minWidth: '120px' }}
               >
                 <img
                   src={image}
                   alt={`Style ${index + 1}`}
                   className="w-full h-full object-cover"
+                  loading="eager"
+                  onError={(e) => {
+                    console.error('Failed to load image:', image);
+                    e.currentTarget.style.display = 'none';
+                  }}
+                  onLoad={() => console.log('Image loaded:', index)}
                 />
                 {selectedImage === image && (
-                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                    <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center z-10">
+                    <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold">
                       ✓
                     </div>
                   </div>
