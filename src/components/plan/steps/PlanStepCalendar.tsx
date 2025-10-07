@@ -823,7 +823,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                         <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">{item.caption}</p>
                                       )}
                                      {item.imageUrl && (
-                                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/50 text-sm text-green-600 font-medium">
+                                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/75 text-sm text-green-600 font-medium">
                                         <Check className="h-3.5 w-3.5" />
                                         <span>Image selected</span>
                                       </div>
