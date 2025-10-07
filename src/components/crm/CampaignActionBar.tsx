@@ -107,7 +107,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
               className="flex items-center space-x-2"
             >
               <Sparkles className="h-4 w-4" />
-              <span>Write with AI</span>
+              <span>Regenerate with AI</span>
             </Button>
 
             {onBlockUpdate && (
