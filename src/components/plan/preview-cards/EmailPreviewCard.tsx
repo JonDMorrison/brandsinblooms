@@ -19,8 +19,34 @@ export const EmailPreviewCard: React.FC<EmailPreviewCardProps> = ({
   onImageSelect
 }) => {
   const truncateText = (text: string, length: number) => {
-    if (text.length <= length) return text;
-    return text.substring(0, length) + '...';
+    // Strip HTML tags for length calculation
+    const plainText = text.replace(/<[^>]*>/g, '');
+    if (plainText.length <= length) return text;
+    
+    // If we need to truncate, find the best cut-off point in the original HTML
+    let charCount = 0;
+    let result = '';
+    const htmlChars = text.split('');
+    let inTag = false;
+    
+    for (let i = 0; i < htmlChars.length; i++) {
+      const char = htmlChars[i];
+      result += char;
+      
+      if (char === '<') {
+        inTag = true;
+      } else if (char === '>') {
+        inTag = false;
+      } else if (!inTag) {
+        charCount++;
+        if (charCount >= length) {
+          result += '...';
+          break;
+        }
+      }
+    }
+    
+    return result;
   };
 
   return (
@@ -79,9 +105,10 @@ export const EmailPreviewCard: React.FC<EmailPreviewCardProps> = ({
         )}
 
         {/* Email Content Preview */}
-        <div className="text-sm text-foreground/80 leading-relaxed">
-          {truncateText(item.caption, 200)}
-        </div>
+        <div 
+          className="text-sm text-foreground/80 leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: truncateText(item.caption, 200) }}
+        />
 
         {/* CTA Button Preview */}
         <div className="pt-2">
