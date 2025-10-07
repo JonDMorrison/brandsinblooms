@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client'
+import { formatPhoneForTwilio } from '@/lib/utils/phoneFormatter'
 
 interface SMSMessage {
   to: string
@@ -28,12 +29,14 @@ export class TwilioClient {
 
   async sendSMS(message: SMSMessage): Promise<TwilioResponse> {
     try {
-      console.log(`Sending SMS to ${message.to}`)
+      // Format phone number to E.164 before sending
+      const formattedPhone = formatPhoneForTwilio(message.to)
+      console.log(`Sending SMS to ${formattedPhone} (original: ${message.to})`)
       
       // Call the send-sms edge function
       const { data, error } = await supabase.functions.invoke('send-sms', {
         body: {
-          to: message.to,
+          to: formattedPhone,
           body: message.body,
           mediaUrl: message.mediaUrl,
           mediaUrls: message.mediaUrls
