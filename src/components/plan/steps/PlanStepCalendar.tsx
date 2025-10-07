@@ -95,6 +95,16 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           setItems(generatedItems);
           console.log('[PlanStepCalendar] Generated', generatedItems.length, 'items');
           
+          // Ensure all Facebook, Instagram, and Blog posts have imageQuery if missing
+          generatedItems.forEach(item => {
+            if (['facebook', 'instagram', 'blog'].includes(item.type) && !item.imageQuery) {
+              // Create fallback imageQuery from theme and content type
+              const themeName = item.themeName || state.themes[0]?.label || 'garden';
+              item.imageQuery = `${themeName} ${item.type === 'facebook' ? 'community garden' : item.type === 'instagram' ? 'beautiful garden' : 'garden guide'}`;
+              console.log(`[PlanStepCalendar] Added fallback imageQuery for ${item.type}: "${item.imageQuery}"`);
+            }
+          });
+          
           // Auto-fetch images for Facebook, Instagram, and Blog posts
           const itemsNeedingImages = generatedItems.filter(item => 
             ['facebook', 'instagram', 'blog'].includes(item.type) && 
