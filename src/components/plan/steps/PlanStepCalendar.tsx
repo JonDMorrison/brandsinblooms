@@ -762,14 +762,51 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                         />
                                       )}
                                    </div>
-                                   {(item.type === 'facebook' || item.type === 'instagram' || item.type === 'email') && (
+                                   {(item.type === 'facebook' || item.type === 'instagram' || item.type === 'email' || item.type === 'blog') && (
                                      <div>
-                                       <Label>Featured Image</Label>
+                                       <div className="flex items-center justify-between mb-2">
+                                         <Label>Featured Image</Label>
+                                         {featuredImage && !item.imageUrl && (
+                                           <Button
+                                             variant="outline"
+                                             size="sm"
+                                             onClick={() => useFeaturedImage(item.id)}
+                                             className="gap-2"
+                                           >
+                                             <Check className="h-3 w-3" />
+                                             Use Featured Image
+                                           </Button>
+                                         )}
+                                       </div>
+                                       
+                                       {featuredImage && !item.imageUrl && (
+                                         <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-dashed border-primary/30">
+                                           <div className="flex items-start gap-3">
+                                             <img 
+                                               src={featuredImage.url} 
+                                               alt="Featured" 
+                                               className="w-24 h-24 object-cover rounded"
+                                             />
+                                             <div className="flex-1 space-y-1">
+                                               <p className="text-sm font-medium">Theme Featured Image Available</p>
+                                               <p className="text-xs text-muted-foreground">
+                                                 {featuredImage.metadata.alt}
+                                               </p>
+                                               {featuredImage.metadata.photographer && (
+                                                 <p className="text-xs text-muted-foreground">
+                                                   Photo by {featuredImage.metadata.photographer}
+                                                 </p>
+                                               )}
+                                             </div>
+                                           </div>
+                                         </div>
+                                       )}
+                                       
                                        <div className="mt-2">
                                          <MediaSelectorImage
                                            src={item.imageUrl}
                                            onChange={(imageUrl, metadata) => handleImageSelect(item.id, imageUrl, metadata)}
-                                           contentContext={`${item.type} ${item.type === 'email' ? 'newsletter' : 'post'}: ${item.title}`}
+                                           contentContext={`${item.type} ${item.type === 'email' ? 'newsletter' : item.type === 'blog' ? 'article' : 'post'}: ${item.title}`}
                                            className="max-w-md"
                                          />
                                        </div>
