@@ -5,9 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, Leaf, Gift, Sprout, Flower, Bug, Plus, X, ChevronDown } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { Calendar as CalendarIcon, Leaf, Gift, Sprout, Flower, Bug, Plus, X } from 'lucide-react';
+import { MonthPicker } from '@/components/ui/month-picker';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { PlanTheme } from '../constants';
@@ -141,19 +140,11 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
             <Label className="text-sm font-medium text-foreground/80">
               Campaign Month
             </Label>
-            <div className="relative">
-              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary z-10 pointer-events-none" />
-              <input
-                type="month"
-                value={state.month || ''}
-                onChange={(e) => setMonth(e.target.value)}
-                min={format(new Date(), 'yyyy-MM')}
-                className={cn(
-                  "w-full h-12 pl-11 pr-4 text-lg font-medium bg-background border border-gray-300 transition-all duration-200 shadow-sm cursor-pointer rounded-md hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer",
-                  state.month ? "text-gray-900" : "text-muted-foreground"
-                )}
-              />
-            </div>
+            <MonthPicker
+              value={state.month || ''}
+              onChange={setMonth}
+              minDate={new Date()}
+            />
             <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
               <span className="w-1 h-1 bg-primary rounded-full inline-block" />
               Click to choose any upcoming month to start planning your campaigns
