@@ -95,19 +95,25 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           setItems(generatedItems);
           console.log('[PlanStepCalendar] Generated', generatedItems.length, 'items');
           
-          // Ensure all Facebook, Instagram, and Blog posts have imageQuery if missing
+          // Ensure all Facebook, Instagram, Blog, and Email posts have imageQuery if missing
           generatedItems.forEach(item => {
-            if (['facebook', 'instagram', 'blog'].includes(item.type) && !item.imageQuery) {
+            if (['facebook', 'instagram', 'blog', 'email'].includes(item.type) && !item.imageQuery) {
               // Create fallback imageQuery from theme and content type
               const themeName = item.themeName || state.themes[0]?.label || 'garden';
-              item.imageQuery = `${themeName} ${item.type === 'facebook' ? 'community garden' : item.type === 'instagram' ? 'beautiful garden' : 'garden guide'}`;
+              const typeKeywords = {
+                facebook: 'community garden',
+                instagram: 'beautiful garden',
+                blog: 'garden guide',
+                email: 'newsletter garden'
+              };
+              item.imageQuery = `${themeName} ${typeKeywords[item.type as keyof typeof typeKeywords] || 'garden'}`;
               console.log(`[PlanStepCalendar] Added fallback imageQuery for ${item.type}: "${item.imageQuery}"`);
             }
           });
           
-          // Auto-fetch images for Facebook, Instagram, and Blog posts
+          // Auto-fetch images for Facebook, Instagram, Blog, and Email posts
           const itemsNeedingImages = generatedItems.filter(item => 
-            ['facebook', 'instagram', 'blog'].includes(item.type) && 
+            ['facebook', 'instagram', 'blog', 'email'].includes(item.type) && 
             item.imageQuery && 
             !item.imageUrl
           );
@@ -699,19 +705,19 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                         />
                                       )}
                                    </div>
-                                  {(item.type === 'facebook' || item.type === 'instagram') && (
-                                    <div>
-                                      <Label>Featured Image</Label>
-                                      <div className="mt-2">
-                                        <MediaSelectorImage
-                                          src={item.imageUrl}
-                                          onChange={(imageUrl, metadata) => handleImageSelect(item.id, imageUrl, metadata)}
-                                          contentContext={`${item.type} post: ${item.title}`}
-                                          className="max-w-md"
-                                        />
-                                      </div>
-                                    </div>
-                                   )}
+                                   {(item.type === 'facebook' || item.type === 'instagram' || item.type === 'email') && (
+                                     <div>
+                                       <Label>Featured Image</Label>
+                                       <div className="mt-2">
+                                         <MediaSelectorImage
+                                           src={item.imageUrl}
+                                           onChange={(imageUrl, metadata) => handleImageSelect(item.id, imageUrl, metadata)}
+                                           contentContext={`${item.type} ${item.type === 'email' ? 'newsletter' : 'post'}: ${item.title}`}
+                                           className="max-w-md"
+                                         />
+                                       </div>
+                                     </div>
+                                    )}
                                    
                                     {/* Action Buttons */}
                                     <div className="flex justify-between pt-2">
