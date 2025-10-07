@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -40,12 +40,23 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [loadingPlaceholders, setLoadingPlaceholders] = useState<number>(0);
   const { toast } = useToast();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to top when placeholders appear
+  useEffect(() => {
+    if (loadingPlaceholders > 0 && scrollAreaRef.current) {
+      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      viewport?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [loadingPlaceholders]);
 
   const handleGenerateImages = async () => {
     if (!prompt.trim()) return;
 
     setIsGenerating(true);
+    setLoadingPlaceholders(4); // Show 4 skeleton loaders
     try {
       // Step 1: Generate keywords using OpenAI
       const { data: keywordData, error: keywordError } = await supabase.functions.invoke(
@@ -82,6 +93,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
 
       // Prepend new images to the grid
       setGeneratedImages(prev => [...validImages, ...prev]);
+      setLoadingPlaceholders(0); // Clear placeholders
       
       toast({
         title: 'Images generated!',
@@ -96,6 +108,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         description: error.message || 'Please try again with a different prompt.',
         variant: 'destructive',
       });
+      setLoadingPlaceholders(0); // Clear placeholders on error
     } finally {
       setIsGenerating(false);
     }
@@ -103,6 +116,22 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
 
   // Combine generated images with sample images
   const allImages = [...generatedImages, ...sampleImages];
+
+  // Loading placeholder component
+  const LoadingPlaceholder = ({ index }: { index: number }) => (
+    <div 
+      key={`loading-${index}`}
+      className="relative aspect-square rounded-lg overflow-hidden bg-muted ring-1 ring-border"
+      style={{ minHeight: '120px', minWidth: '120px' }}
+    >
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 animate-pulse">
+        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+        <span className="text-xs text-muted-foreground font-medium">
+          Generating image
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -115,8 +144,14 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
             Select a style to personalize your image with AI
           </p>
           
-          <ScrollArea className="h-[320px] w-full pr-4">
+          <ScrollArea className="h-[320px] w-full pr-4" ref={scrollAreaRef}>
             <div className="grid grid-cols-5 gap-4 w-full">
+              {/* Show loading placeholders first */}
+              {Array.from({ length: loadingPlaceholders }).map((_, index) => (
+                <LoadingPlaceholder key={`loading-${index}`} index={index} />
+              ))}
+              
+              {/* Then show actual images */}
               {allImages.map((image, index) => (
                 <div
                   key={index}
