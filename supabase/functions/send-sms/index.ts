@@ -120,6 +120,13 @@ async function handler(req: Request): Promise<Response> {
       formData.append('MediaUrl', url);
     });
 
+    // Add status callback to track delivery (optional - set a webhook URL if available)
+    // This will help track actual delivery vs just "queued"
+    const statusCallbackUrl = Deno.env.get('TWILIO_STATUS_CALLBACK_URL');
+    if (statusCallbackUrl) {
+      formData.append('StatusCallback', statusCallbackUrl);
+    }
+
     // Send SMS via Twilio
     const twilioResponse = await fetch(twilioUrl, {
       method: 'POST',
@@ -146,16 +153,20 @@ async function handler(req: Request): Promise<Response> {
     }
 
     console.log('SMS sent successfully:', twilioData.sid);
+    console.log('Initial Twilio status:', twilioData.status);
+    console.log('Twilio error code (if any):', twilioData.error_code);
+    console.log('Twilio error message (if any):', twilioData.error_message);
 
     // Log the SMS send (optional - for test messages we might not want to log)
     try {
       await supabase.from('sms_messages').insert({
         phone: formattedTo,
         content: body,
-        status: 'sent',
+        status: twilioData.status || 'queued', // Use actual Twilio status
         twilio_sid: twilioData.sid,
         media_urls: allMediaUrls.length > 0 ? allMediaUrls : null,
-        sent_at: new Date().toISOString()
+        sent_at: new Date().toISOString(),
+        error_message: twilioData.error_message || null
       });
     } catch (logError) {
       console.warn('Failed to log SMS send:', logError);
