@@ -87,7 +87,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
                 id="ai-prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe how you want to personalize this image (e.g., 'Make it more vibrant', 'Add spring flowers', 'Create a sunset atmosphere')..."
+                placeholder="Tell something about the image you are looking for, how it should look?"
                 rows={4}
                 className="resize-none"
               />
