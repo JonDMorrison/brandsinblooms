@@ -61,6 +61,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
   const [previewItem, setPreviewItem] = useState<PlanItem | null>(null);
   const [previewPlatform, setPreviewPlatform] = useState<'instagram' | 'facebook'>('instagram');
   const [expandedBlogs, setExpandedBlogs] = useState<Set<string>>(new Set());
+  const [featuredImage, setFeaturedImage] = useState<{ url: string; metadata: any } | null>(null);
   const { setLoading, clearLoading } = useLoading();
   const { user } = useAuth();
 
@@ -88,6 +89,32 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
         isLoading: true,
         message: 'Generating your content calendar...',
         priority: 'page'
+      });
+
+      // Fetch featured image first
+      const featuredQuery = `${state.themes[0]?.label || 'garden'} ${format(parseMonthParam(state.month), 'MMMM')} professional`;
+      console.log('[PlanStepCalendar] Fetching featured image:', featuredQuery);
+      
+      supabase.functions.invoke('get-unsplash-image', {
+        body: { query: featuredQuery }
+      }).then(({ data: featuredData, error: featuredError }) => {
+        if (!featuredError && featuredData?.urls?.regular) {
+          const featured = {
+            url: featuredData.urls.regular,
+            metadata: {
+              alt: featuredData.alt_description || featuredQuery,
+              photographer: featuredData.user?.name,
+              photographer_url: featuredData.user?.links?.html,
+              source: 'unsplash_featured',
+              unsplash_id: featuredData.id
+            }
+          };
+          setFeaturedImage(featured);
+          console.log('[PlanStepCalendar] Featured image loaded:', featured.url);
+          toast.success('Featured image loaded');
+        }
+      }).catch(err => {
+        console.warn('[PlanStepCalendar] Featured image fetch failed:', err);
       });
 
       generateMultiThemeSeasonalPlanContent(state.themes, state.month)
@@ -190,7 +217,20 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
   };
 
   const handleImageSelect = (itemId: string, imageUrl: string, metadata?: any) => {
-    updateItem(itemId, { imageUrl });
+    updateItem(itemId, { 
+      imageUrl,
+      imageMetadata: metadata 
+    });
+  };
+
+  const useFeaturedImage = (itemId: string) => {
+    if (featuredImage) {
+      updateItem(itemId, {
+        imageUrl: featuredImage.url,
+        imageMetadata: featuredImage.metadata
+      });
+      toast.success('Featured image applied');
+    }
   };
 
   // Regenerate content with AI
@@ -383,9 +423,26 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                         }`}>
                           <CardContent className="p-6">
                             <div className="flex items-start gap-4">
-                              {/* Type Icon */}
-                              <div className={`flex-shrink-0 w-10 h-10 rounded-full ${typeConfig[item.type].color} flex items-center justify-center text-white shadow-md`}>
-                                <TypeIcon className="h-5 w-5" />
+                              {/* Type Icon & Featured Image Option */}
+                              <div className="flex-shrink-0 space-y-2">
+                                <div className={`w-10 h-10 rounded-full ${typeConfig[item.type].color} flex items-center justify-center text-white shadow-md`}>
+                                  <TypeIcon className="h-5 w-5" />
+                                </div>
+                                {featuredImage && !item.imageUrl && ['facebook', 'instagram', 'blog', 'email'].includes(item.type) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => useFeaturedImage(item.id)}
+                                    className="w-10 h-10 p-0"
+                                    title="Use featured image"
+                                  >
+                                    <img 
+                                      src={featuredImage.url} 
+                                      alt="Featured" 
+                                      className="w-full h-full object-cover rounded"
+                                    />
+                                  </Button>
+                                )}
                               </div>
                             
                             {/* Content */}
