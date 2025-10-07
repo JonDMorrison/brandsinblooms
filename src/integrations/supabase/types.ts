@@ -1775,6 +1775,7 @@ export type Database = {
       crm_sms_campaigns: {
         Row: {
           created_at: string
+          from_phone: string | null
           id: string
           image_url: string | null
           media_urls: Json | null
@@ -1794,6 +1795,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          from_phone?: string | null
           id?: string
           image_url?: string | null
           media_urls?: Json | null
@@ -1813,6 +1815,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          from_phone?: string | null
           id?: string
           image_url?: string | null
           media_urls?: Json | null
@@ -4109,6 +4112,7 @@ export type Database = {
           customer_id: string | null
           delivered_at: string | null
           error_message: string | null
+          from_phone: string | null
           id: string
           media_urls: Json | null
           phone: string
@@ -4125,6 +4129,7 @@ export type Database = {
           customer_id?: string | null
           delivered_at?: string | null
           error_message?: string | null
+          from_phone?: string | null
           id?: string
           media_urls?: Json | null
           phone: string
@@ -4141,6 +4146,7 @@ export type Database = {
           customer_id?: string | null
           delivered_at?: string | null
           error_message?: string | null
+          from_phone?: string | null
           id?: string
           media_urls?: Json | null
           phone?: string
@@ -4601,6 +4607,57 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      twilio_phone_numbers: {
+        Row: {
+          capabilities: Json | null
+          created_at: string | null
+          friendly_name: string
+          id: string
+          is_active: boolean | null
+          is_verified: boolean | null
+          phone_number: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          capabilities?: Json | null
+          created_at?: string | null
+          friendly_name: string
+          id?: string
+          is_active?: boolean | null
+          is_verified?: boolean | null
+          phone_number: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          capabilities?: Json | null
+          created_at?: string | null
+          friendly_name?: string
+          id?: string
+          is_active?: boolean | null
+          is_verified?: boolean | null
+          phone_number?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "twilio_phone_numbers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "twilio_phone_numbers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_integrations: {
         Row: {

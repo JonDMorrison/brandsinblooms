@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Calendar, Users, MessageSquare, Send, CheckCircle, User, Target, Eye, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +16,7 @@ import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { toast } from 'sonner';
 import { SMSComposer } from './SMSComposer';
 import { RecipientsPreview } from './RecipientsPreview';
+import { displayPhoneNumber } from '@/lib/utils/phoneFormatter';
 
 interface CRMSegment {
   id: string;
@@ -63,6 +65,8 @@ export const SMSCampaignWizard: React.FC = () => {
   const [imageUrl, setImageUrl] = useState<string>('');
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [scheduledAt, setScheduledAt] = useState<string>('');
+  const [fromPhone, setFromPhone] = useState<string>('default');
+  const [availablePhoneNumbers, setAvailablePhoneNumbers] = useState<Array<{id: string, phone_number: string, friendly_name: string}>>([]);
   
   const [segments, setSegments] = useState<CRMSegment[]>([]);
   const [targetCustomers, setTargetCustomers] = useState<CRMCustomer[]>([]);
@@ -75,6 +79,7 @@ export const SMSCampaignWizard: React.FC = () => {
     if (!tenant) return;
     loadSegments();
     loadCustomers();
+    fetchAvailablePhoneNumbers();
   }, [tenant]);
 
   // Recalculate target customers when selections change
@@ -125,6 +130,23 @@ export const SMSCampaignWizard: React.FC = () => {
     } catch (error) {
       console.error('Error loading customers:', error);
       toast.error('Failed to load customers');
+    }
+  };
+
+  const fetchAvailablePhoneNumbers = async () => {
+    if (!tenant) return;
+    try {
+      const { data, error } = await supabase
+        .from('twilio_phone_numbers')
+        .select('id, phone_number, friendly_name')
+        .eq('tenant_id', tenant.id)
+        .eq('is_active', true)
+        .order('friendly_name');
+      
+      if (error) throw error;
+      setAvailablePhoneNumbers(data || []);
+    } catch (error) {
+      console.error('Error loading phone numbers:', error);
     }
   };
 
@@ -295,7 +317,8 @@ export const SMSCampaignWizard: React.FC = () => {
           scheduled_at: scheduledAt || null,
           targeting_persona_ids: selectedPersonas,
           targeting_persona_names: selectedPersonaNames,
-          targeting_logic: 'any'
+          targeting_logic: 'any',
+          from_phone: fromPhone !== 'default' ? fromPhone : null,
         })
         .select()
         .single();
@@ -354,6 +377,27 @@ export const SMSCampaignWizard: React.FC = () => {
                 placeholder="Enter campaign name..."
                 className="mt-1"
               />
+            </div>
+
+            <div>
+              <Label htmlFor="from-phone">Reply-To Phone Number</Label>
+              <NativeSelect
+                id="from-phone"
+                value={fromPhone}
+                onChange={(e) => setFromPhone(e.target.value)}
+                placeholder="Select sender number"
+                className="mt-1"
+                options={[
+                  { value: 'default', label: 'Default Number' },
+                  ...availablePhoneNumbers.map(phone => ({
+                    value: phone.phone_number,
+                    label: `${phone.friendly_name} (${displayPhoneNumber(phone.phone_number)})`
+                  }))
+                ]}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                This is the number recipients will see and can reply to
+              </p>
             </div>
 
             <div className="space-y-4">
@@ -537,6 +581,15 @@ export const SMSCampaignWizard: React.FC = () => {
                   {scheduledAt && (
                     <p><strong>Scheduled for:</strong> {new Date(scheduledAt).toLocaleString()}</p>
                   )}
+                  <p><strong>Reply-To Number:</strong> {fromPhone === 'default' 
+                    ? 'Default Number' 
+                    : (() => {
+                        const phone = availablePhoneNumbers.find(p => p.phone_number === fromPhone);
+                        return phone 
+                          ? `${phone.friendly_name} - ${displayPhoneNumber(phone.phone_number)}`
+                          : displayPhoneNumber(fromPhone);
+                      })()
+                  }</p>
                 </div>
 
                 <div className="p-4 border rounded-lg">

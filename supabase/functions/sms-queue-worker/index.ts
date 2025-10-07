@@ -36,11 +36,16 @@ function formatPhoneForTwilio(phone: string): string {
   return `+1${cleaned}`;
 }
 
-async function sendSMS(config: TwilioConfig, to: string, body: string, mediaUrl?: string) {
+async function sendSMS(config: TwilioConfig, to: string, body: string, mediaUrl?: string, fromPhone?: string) {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`
   
+  // Select from phone: custom fromPhone or default config
+  const selectedFromPhone = fromPhone 
+    ? formatPhoneForTwilio(fromPhone) 
+    : formatPhoneForTwilio(config.phoneNumber);
+  
   const formData = new FormData()
-  formData.append('From', config.phoneNumber)
+  formData.append('From', selectedFromPhone)
   formData.append('To', to)
   formData.append('Body', body)
   if (mediaUrl) {
@@ -85,7 +90,7 @@ Deno.serve(async (req) => {
     // Get queued SMS messages that are ready to send
     const { data: queuedMessages, error: fetchError } = await supabase
       .from('sms_messages')
-      .select('*')
+      .select('id, phone, content, media_url, from_phone, campaign_id, customer_id, scheduled_at, status')
       .eq('status', 'queued')
       .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`)
       .limit(50) // Process in batches
@@ -112,7 +117,8 @@ Deno.serve(async (req) => {
           twilioConfig,
           formattedPhone,
           message.content,
-          message.media_url
+          message.media_url,
+          message.from_phone // Pass the from_phone from message
         )
 
         if (result.error_code) {

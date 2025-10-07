@@ -54,6 +54,24 @@ async function handler(req: Request): Promise<Response> {
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
     const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
+    
+    /**
+     * Format phone number to E.164 format for Twilio
+     */
+    function formatPhoneForTwilio(phone: string): string {
+      if (!phone) return '';
+      const cleaned = phone.replace(/\D/g, '');
+      if (cleaned.length === 11 && cleaned.startsWith('1')) {
+        return `+${cleaned}`;
+      }
+      if (cleaned.length === 10) {
+        return `+1${cleaned}`;
+      }
+      if (phone.startsWith('+') && cleaned.length >= 10) {
+        return phone;
+      }
+      return `+1${cleaned}`;
+    }
 
     if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
       console.error('Missing Twilio credentials');
@@ -80,6 +98,14 @@ async function handler(req: Request): Promise<Response> {
       `)
       .eq('id', campaignId)
       .single();
+    
+    // Select from phone: campaign's from_phone or default
+    const defaultFromPhone = twilioPhoneNumber;
+    const campaignFromPhone = campaign?.from_phone 
+      ? formatPhoneForTwilio(campaign.from_phone) 
+      : formatPhoneForTwilio(defaultFromPhone);
+    
+    console.log(`Campaign ${campaignId} using From number: ${campaignFromPhone} (${campaign?.from_phone ? 'custom' : 'default'})`);
 
     if (campaignError || !campaign) {
       console.error('Campaign not found:', campaignError);
@@ -178,7 +204,7 @@ async function handler(req: Request): Promise<Response> {
         const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
         const formData = new URLSearchParams();
         formData.append('To', phone);
-        formData.append('From', twilioPhoneNumber);
+        formData.append('From', campaignFromPhone);
         formData.append('Body', messageBody);
 
         // Add media URL if campaign has an image

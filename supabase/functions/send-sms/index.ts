@@ -56,7 +56,7 @@ async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const { to, body, mediaUrl, mediaUrls } = await req.json();
+    const { to, body, mediaUrl, mediaUrls, fromPhone } = await req.json();
 
     if (!to || !body) {
       return new Response(
@@ -93,6 +93,14 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
+    // Select from phone: custom fromPhone or default
+    const defaultFromPhone = twilioPhoneNumber;
+    const selectedFromPhone = fromPhone 
+      ? formatPhoneForTwilio(fromPhone) 
+      : formatPhoneForTwilio(defaultFromPhone);
+    
+    console.log(`Using From number: ${selectedFromPhone} (${fromPhone ? 'custom' : 'default'})`);
+
     // Prepare Twilio API request
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const auth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
@@ -100,7 +108,7 @@ async function handler(req: Request): Promise<Response> {
     // Prepare form data
     const formData = new FormData();
     formData.append('To', formattedTo);
-    formData.append('From', twilioPhoneNumber);
+    formData.append('From', selectedFromPhone);
     formData.append('Body', body);
 
     // Add media URLs if provided (for MMS)
