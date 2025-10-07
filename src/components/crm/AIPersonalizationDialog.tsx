@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 interface AIPersonalizationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onImageSelect?: (imageUrl: string) => void;
 }
 
 // Sample images for the grid (using Unsplash garden/plant images)
@@ -35,6 +36,7 @@ const sampleImages = [
 export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = ({
   open,
   onOpenChange,
+  onImageSelect,
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -210,12 +212,17 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
                   className="flex-shrink-0 animate-fade-in animate-scale-in"
                   variant="default"
                   onClick={() => {
-                    // Handle image selection
-                    toast({
-                      title: 'Image selected!',
-                      description: 'Your personalized image has been applied.',
-                    });
-                    onOpenChange(false);
+                    if (selectedImage && onImageSelect) {
+                      onImageSelect(selectedImage);
+                      toast({
+                        title: 'Image selected!',
+                        description: 'Your personalized image has been applied.',
+                      });
+                      // Reset states
+                      setSelectedImage(null);
+                      setPrompt('');
+                      onOpenChange(false);
+                    }
                   }}
                 >
                   Select this image

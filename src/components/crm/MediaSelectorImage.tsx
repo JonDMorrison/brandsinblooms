@@ -176,6 +176,10 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
       <AIPersonalizationDialog
         open={isPersonalizing}
         onOpenChange={setIsPersonalizing}
+        onImageSelect={(imageUrl) => {
+          handleImageSelect(imageUrl);
+          setIsPersonalizing(false);
+        }}
       />
     </>
   );
