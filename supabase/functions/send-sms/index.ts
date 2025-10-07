@@ -9,6 +9,35 @@ Sentry.init({
   environment: Deno.env.get("ENV") ?? "production",
 });
 
+/**
+ * Format phone number to E.164 format for Twilio
+ * Handles US/Canada phone numbers by adding +1 country code
+ */
+function formatPhoneForTwilio(phone: string): string {
+  if (!phone) return '';
+  
+  // Remove all non-numeric characters
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // If already has country code (11 digits starting with 1)
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    return `+${cleaned}`;
+  }
+  
+  // If 10 digit US/Canada number
+  if (cleaned.length === 10) {
+    return `+1${cleaned}`;
+  }
+  
+  // If original phone starts with + and has valid length, return as-is
+  if (phone.startsWith('+') && cleaned.length >= 10) {
+    return phone;
+  }
+  
+  // Default: assume US/Canada and prepend +1
+  return `+1${cleaned}`;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -39,7 +68,9 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
-    console.log(`Sending SMS to ${to}: ${body.substring(0, 50)}...`);
+    // Format phone number to E.164 format
+    const formattedTo = formatPhoneForTwilio(to);
+    console.log(`Sending SMS to ${to} (formatted: ${formattedTo}): ${body.substring(0, 50)}...`);
 
     // Initialize Supabase client for logging
     const supabase = createClient(
@@ -68,7 +99,7 @@ async function handler(req: Request): Promise<Response> {
 
     // Prepare form data
     const formData = new FormData();
-    formData.append('To', to);
+    formData.append('To', formattedTo);
     formData.append('From', twilioPhoneNumber);
     formData.append('Body', body);
 
@@ -111,7 +142,7 @@ async function handler(req: Request): Promise<Response> {
     // Log the SMS send (optional - for test messages we might not want to log)
     try {
       await supabase.from('sms_messages').insert({
-        phone: to,
+        phone: formattedTo,
         content: body,
         status: 'sent',
         twilio_sid: twilioData.sid,

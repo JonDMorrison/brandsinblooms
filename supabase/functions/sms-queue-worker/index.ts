@@ -7,6 +7,35 @@ interface TwilioConfig {
   phoneNumber: string
 }
 
+/**
+ * Format phone number to E.164 format for Twilio
+ * Handles US/Canada phone numbers by adding +1 country code
+ */
+function formatPhoneForTwilio(phone: string): string {
+  if (!phone) return '';
+  
+  // Remove all non-numeric characters
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // If already has country code (11 digits starting with 1)
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    return `+${cleaned}`;
+  }
+  
+  // If 10 digit US/Canada number
+  if (cleaned.length === 10) {
+    return `+1${cleaned}`;
+  }
+  
+  // If original phone starts with + and has valid length, return as-is
+  if (phone.startsWith('+') && cleaned.length >= 10) {
+    return phone;
+  }
+  
+  // Default: assume US/Canada and prepend +1
+  return `+1${cleaned}`;
+}
+
 async function sendSMS(config: TwilioConfig, to: string, body: string, mediaUrl?: string) {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`
   
@@ -74,10 +103,14 @@ Deno.serve(async (req) => {
 
     for (const message of queuedMessages || []) {
       try {
+        // Format phone number to E.164 format
+        const formattedPhone = formatPhoneForTwilio(message.phone);
+        console.log(`Processing SMS to ${message.phone} (formatted: ${formattedPhone})`);
+        
         // Send SMS via Twilio
         const result = await sendSMS(
           twilioConfig,
-          message.phone,
+          formattedPhone,
           message.content,
           message.media_url
         )
