@@ -81,7 +81,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
             ))}
           </div>
 
-          <div className="mt-8 space-y-4 w-1/2">
+          <div className="mt-8 space-y-4 w-1/2 mx-auto">
             <div className="space-y-2">
               <Label htmlFor="ai-prompt" className="text-sm font-medium">
                 Describe your personalization
