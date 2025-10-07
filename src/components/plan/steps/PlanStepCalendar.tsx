@@ -104,7 +104,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           
           if (itemsNeedingImages.length > 0) {
             console.log(`[PlanStepCalendar] Auto-fetching ${itemsNeedingImages.length} images...`);
-            toast.info(`Fetching ${itemsNeedingImages.length} images from Unsplash...`);
+            toast.info(`Generating ${itemsNeedingImages.length} images...`);
             
             try {
               // Note: Items don't have taskId yet (not persisted), so we'll fetch images
@@ -146,7 +146,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
               }
               
               if (successCount > 0) {
-                toast.success(`Successfully fetched ${successCount} images!`);
+                toast.success(`Generated ${successCount} images`);
               } else {
                 toast.warning('No images were fetched. You can add them manually later.');
               }
