@@ -60,8 +60,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         const { data, error } = await supabase
           .from('tenants')
-          .select('id, name, company_name, created_at')
-          .order('company_name');
+          .select('id, name, created_at')
+          .order('name');
 
         if (error) throw error;
         setAvailableTenants(data || []);
@@ -102,8 +102,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const { data, error } = await supabase
         .from('tenants')
-        .select('id, name, company_name, created_at')
-        .order('company_name');
+        .select('id, name, created_at')
+        .order('name');
 
       if (error) throw error;
       setAvailableTenants(data || []);
