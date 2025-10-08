@@ -69,6 +69,22 @@ export const AuthPage = () => {
       if (error) {
         toast.error(error.message);
       } else if (data.user) {
+        // Send admin notification about new signup
+        try {
+          await supabase.functions.invoke('send-admin-notification', {
+            body: {
+              type: 'trial_signup',
+              user_id: data.user.id,
+              user_email: data.user.email || email,
+              user_name: fullName,
+              company_name: companyName
+            }
+          });
+        } catch (notifError) {
+          console.error('Failed to send admin notification:', notifError);
+          // Don't block signup flow if notification fails
+        }
+
         if (data.user.email_confirmed_at) {
           toast.success('Account created successfully!');
           navigate('/dashboard');
