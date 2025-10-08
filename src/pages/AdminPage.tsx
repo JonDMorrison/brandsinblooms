@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { UserMenu } from "@/components/UserMenu";
-import { Shield, RefreshCw } from "lucide-react";
+import { Shield, RefreshCw, FileText } from "lucide-react";
 import { isSuperAdmin } from "@/utils/adminUtils";
 import { useAdminTenants } from "@/hooks/useAdminTenants";
 import { AdminStats } from "@/components/admin/AdminStats";
@@ -97,6 +97,13 @@ const AdminPage = () => {
                 </div>
               </div>
               <div className="flex items-center gap-4">
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.href = '/admin/reports'}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Reports
+                </Button>
                 <Button
                   variant="outline"
                   onClick={refetch}
