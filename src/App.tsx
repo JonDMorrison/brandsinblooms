@@ -54,6 +54,7 @@ import { AboutPage } from '@/pages/AboutPage';
 import { FeaturesPage } from '@/pages/FeaturesPage';
 import { Home1Page } from '@/pages/Home1Page';
 import AdminPage from '@/pages/AdminPage';
+import AdminManage from '@/pages/AdminManage';
 import { AdminReportsPage } from '@/pages/AdminReportsPage';
 
 function App() {
@@ -361,6 +362,13 @@ function App() {
           <Route path="/admin" element={
             <ProtectedRoute>
               <AdminPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/manage" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <AdminManage />
+              </SidebarLayout>
             </ProtectedRoute>
           } />
           <Route path="/admin/reports" element={

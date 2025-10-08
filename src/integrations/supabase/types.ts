@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action_details: Json | null
+          action_type: string
+          admin_user_id: string
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          target_tenant_id: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action_details?: Json | null
+          action_type: string
+          admin_user_id: string
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          target_tenant_id?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action_details?: Json | null
+          action_type?: string
+          admin_user_id?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          target_tenant_id?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_audit_log_target_tenant_id_fkey"
+            columns: ["target_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "admin_audit_log_target_tenant_id_fkey"
+            columns: ["target_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_session_context: {
+        Row: {
+          active_tenant_id: string | null
+          admin_user_id: string
+          created_at: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          active_tenant_id?: string | null
+          admin_user_id: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          active_tenant_id?: string | null
+          admin_user_id?: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_session_context_active_tenant_id_fkey"
+            columns: ["active_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "admin_session_context_active_tenant_id_fkey"
+            columns: ["active_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_generation_resources: {
         Row: {
           content: string
@@ -4692,6 +4779,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          created_by_user_id: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by_user_id?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by_user_id?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_segment_preferences: {
         Row: {
           created_at: string
@@ -5120,6 +5231,13 @@ export type Database = {
           total_usage: number
         }[]
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       increment_image_usage: {
         Args: { asset_id: string }
         Returns: undefined
@@ -5127,6 +5245,19 @@ export type Database = {
       increment_template_usage: {
         Args: { template_id: string }
         Returns: undefined
+      }
+      is_master_admin: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      log_admin_action: {
+        Args: {
+          p_action_details?: Json
+          p_action_type: string
+          p_target_tenant_id?: string
+          p_target_user_id?: string
+        }
+        Returns: string
       }
       mark_onboarding_completed: {
         Args: { p_company?: string }
@@ -5172,6 +5303,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "master_admin" | "admin" | "user"
       billing_interval: "monthly" | "annual"
       content_status: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED"
       draft_doc_type: "newsletter" | "automation" | "content_bundle"
@@ -5307,6 +5439,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["master_admin", "admin", "user"],
       billing_interval: ["monthly", "annual"],
       content_status: ["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED"],
       draft_doc_type: ["newsletter", "automation", "content_bundle"],
