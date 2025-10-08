@@ -5,6 +5,8 @@ interface TwilioConfig {
   accountSid: string
   authToken: string
   phoneNumber: string
+  messagingServiceSid?: string
+  statusCallbackUrl?: string
 }
 
 /**
@@ -39,17 +41,32 @@ function formatPhoneForTwilio(phone: string): string {
 async function sendSMS(config: TwilioConfig, to: string, body: string, mediaUrl?: string, fromPhone?: string) {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`
   
-  // Select from phone: custom fromPhone or default config
-  const selectedFromPhone = fromPhone 
-    ? formatPhoneForTwilio(fromPhone) 
-    : formatPhoneForTwilio(config.phoneNumber);
-  
   const formData = new FormData()
-  formData.append('From', selectedFromPhone)
+  
+  // Use Messaging Service SID for A2P 10DLC compliance (preferred)
+  if (config.messagingServiceSid) {
+    formData.append('MessagingServiceSid', config.messagingServiceSid)
+    console.log('Using Messaging Service SID for A2P 10DLC compliance')
+  } else {
+    // Fallback to From phone number (legacy mode)
+    const selectedFromPhone = fromPhone 
+      ? formatPhoneForTwilio(fromPhone) 
+      : formatPhoneForTwilio(config.phoneNumber);
+    formData.append('From', selectedFromPhone)
+    console.log('Using From phone number (legacy mode)')
+  }
+  
   formData.append('To', to)
   formData.append('Body', body)
+  
   if (mediaUrl) {
     formData.append('MediaUrl', mediaUrl)
+  }
+  
+  // Add status callback URL for delivery tracking
+  if (config.statusCallbackUrl) {
+    formData.append('StatusCallback', config.statusCallbackUrl)
+    console.log('Status callback configured for delivery tracking')
   }
 
   const response = await fetch(url, {
@@ -80,7 +97,9 @@ Deno.serve(async (req) => {
     const twilioConfig: TwilioConfig = {
       accountSid: Deno.env.get('TWILIO_ACCOUNT_SID') ?? '',
       authToken: Deno.env.get('TWILIO_AUTH_TOKEN') ?? '',
-      phoneNumber: Deno.env.get('TWILIO_PHONE_NUMBER') ?? ''
+      phoneNumber: Deno.env.get('TWILIO_PHONE_NUMBER') ?? '',
+      messagingServiceSid: Deno.env.get('TWILIO_MESSAGING_SERVICE_SID'),
+      statusCallbackUrl: 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/twilio-status-callback'
     }
 
     if (!twilioConfig.accountSid || !twilioConfig.authToken || !twilioConfig.phoneNumber) {
