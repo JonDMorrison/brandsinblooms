@@ -39,12 +39,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signOutCompletely } from "@/integrations/supabase/client";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { isSuperAdmin } from "@/utils/adminUtils";
+import { useAdmin } from "@/contexts/AdminContext";
 
 
 export const UserMenu = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { refreshStatus } = useOnboardingStatus();
+  const { isMasterAdmin } = useAdmin();
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -213,6 +215,13 @@ export const UserMenu = () => {
                 <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/admin')}>
                   <Settings className="mr-2 h-4 w-4" />
                   Admin Dashboard
+                </button>
+              )}
+              
+              {isMasterAdmin && (
+                <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/admin/manage')}>
+                  <Users className="mr-2 h-4 w-4" />
+                  Manage Clients
                 </button>
               )}
               
