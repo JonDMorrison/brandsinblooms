@@ -263,13 +263,34 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
       let result;
       try {
         result = await Promise.race([generation, timeout]) as any;
-        if (result.error) throw result.error;
+        
+        // Log the full response for debugging
+        console.log('📥 Edge function response:', {
+          hasData: !!result.data,
+          hasError: !!result.error,
+          dataKeys: result.data ? Object.keys(result.data) : [],
+          data: result.data
+        });
+        
+        if (result.error) {
+          console.error('❌ Edge function returned error:', result.error);
+          throw new Error(`Generation failed: ${result.error.message || JSON.stringify(result.error)}`);
+        }
 
         // Validate response contains required fields
         if (!result.data?.id || !result.data?.snapshotId) {
-          console.error('❌ Invalid response from edge function:', result.data);
-          throw new Error('Edge function did not return valid bundle IDs');
+          console.error('❌ Invalid response from edge function:', {
+            received: result.data,
+            expectedFields: ['id', 'snapshotId', 'content']
+          });
+          throw new Error(`Edge function did not return valid bundle IDs. Received: ${JSON.stringify(result.data)}`);
         }
+        
+        console.log('✅ Valid bundle IDs received:', {
+          bundleId: result.data.id,
+          snapshotId: result.data.snapshotId,
+          itemCount: result.data.content?.items?.length || 0
+        });
 
         setBundleIds(result.data.id, result.data.snapshotId);
         completeJob(jobId, { bundleId: result.data.id, snapshotId: result.data.snapshotId });

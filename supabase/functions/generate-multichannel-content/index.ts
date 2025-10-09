@@ -185,63 +185,79 @@ serve(async (req) => {
 
     console.log(`📦 Saving bundle to database: ${bundleId}`);
 
-    // Get auth header from request
-    const authHeader = req.headers.get('Authorization') || '';
-    
-    // Save to database using draft-merge
-    const mergeResponse = await fetch(`${supabaseUrl}/functions/v1/draft-merge`, {
-      method: 'POST',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
-        'apikey': supabaseKey
-      },
-      body: JSON.stringify({
-        doc_type: 'content_bundle',
-        doc_id: bundleId,
-        base_version: null,
-        new_content: bundleContent
-      })
-    });
-
-    if (!mergeResponse.ok) {
-      const errorText = await mergeResponse.text();
-      console.error('❌ Failed to save bundle:', errorText);
-      throw new Error(`Failed to save bundle: ${errorText}`);
+    // Get user and tenant for RLS compliance
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('❌ Authentication error:', userError);
+      throw new Error('User authentication failed');
     }
 
-    console.log(`✅ Bundle saved successfully`);
-
-    // Get the snapshot ID from draft_snapshots
-    const { data: snapshot, error: snapshotError } = await supabase
-      .from('draft_snapshots')
-      .select('id')
-      .eq('doc_id', bundleId)
-      .eq('doc_type', 'content_bundle')
-      .order('version', { ascending: false })
-      .limit(1)
+    const { data: userTenant, error: tenantError } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
       .single();
 
-    if (snapshotError || !snapshot) {
-      console.error('❌ Failed to retrieve snapshot:', snapshotError);
-      throw new Error('Failed to retrieve snapshot after save');
+    if (tenantError || !userTenant?.tenant_id) {
+      console.error('❌ Tenant lookup error:', tenantError);
+      throw new Error('User tenant not found');
     }
 
-    console.log(`✅ Retrieved snapshot ID: ${snapshot.id}`);
+    const tenantId = userTenant.tenant_id;
+    console.log(`✅ User authenticated: ${user.id}, Tenant: ${tenantId}`);
+
+    // Insert directly into draft_snapshots
+    const { data: newSnapshot, error: insertError } = await supabase
+      .from('draft_snapshots')
+      .insert({
+        user_id: user.id,
+        tenant_id: tenantId,
+        doc_type: 'content_bundle',
+        doc_id: bundleId,
+        version: 1,
+        content: bundleContent
+      })
+      .select('id')
+      .single();
+
+    if (insertError || !newSnapshot) {
+      console.error('❌ Failed to save bundle to database:', insertError);
+      throw new Error(`Database save failed: ${insertError?.message || 'Unknown error'}`);
+    }
+
+    const snapshotId = newSnapshot.id;
+    console.log(`✅ Bundle saved successfully: ${bundleId}, snapshot: ${snapshotId}`);
 
     // Return proper response with id, snapshotId, and content
     return new Response(
       JSON.stringify({ 
         id: bundleId,
-        snapshotId: snapshot.id,
+        snapshotId: snapshotId,
         content: bundleContent
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
-    console.error('❌ Error:', error);
+    console.error('❌ Generation error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      mode,
+      sourceId,
+      topicTitle,
+      channels
+    });
+    
+    // Return detailed error for debugging
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message || 'Failed to generate content',
+        details: {
+          step: error.step || 'unknown',
+          mode,
+          topicTitle
+        }
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
