@@ -77,7 +77,22 @@ async function generateChannelContent(
   topicDescription: string,
   companyContext: string
 ): Promise<any> {
-  const systemPrompt = `You are an expert horticulturist and garden center educator creating ${channel} content that TEACHES customers practical gardening skills.
+  const systemPrompt = `You are an expert horticulturist and garden center RETAIL educator creating ${channel} content for a GARDEN CENTER BUSINESS.
+
+🏪 GARDEN CENTER RETAIL CONTEXT - CRITICAL:
+You are creating content for a RETAIL garden center where customers:
+- Browse greenhouse displays and outdoor plant inventory
+- See products arranged by category (perennials, annuals, vegetables, houseplants)
+- Interact with staff and ask questions about plant care
+- Purchase plants, tools, soil, fertilizers, and garden supplies
+- Visit regularly for seasonal supplies and advice
+
+ALL content must reflect this RETAIL ENVIRONMENT and show:
+- Customers browsing or shopping in garden center
+- Product displays, inventory shelves, greenhouse sections
+- Specific plant varieties available for purchase
+- Tools and supplies sold in-store
+- Staff helping customers or demonstrating products
 
 ${channel === 'facebook' || channel === 'instagram' ? `
 ⚠️⚠️⚠️ CRITICAL FOR SOCIAL MEDIA - PLAIN TEXT ONLY ⚠️⚠️⚠️
@@ -178,15 +193,95 @@ FOR VIDEO SCRIPTS:
 - Common mistakes to avoid with explanations
 - Step-by-step tutorials viewers can follow along
 
-🎨 IMAGE QUERY GENERATION:
-Generate a descriptive Unsplash search query (3-6 words) showing the SPECIFIC plant or technique.
-Be highly specific: exact plant names, growth stages, seasons, colors, actions.
+🎨 IMAGE QUERY GENERATION - MANDATORY REQUIREMENTS:
+
+YOUR imageQuery MUST SHOW A GARDEN CENTER RETAIL ENVIRONMENT.
+
+CHANNEL-SPECIFIC REQUIREMENTS:
+
+${channel === 'facebook' ? `
+FACEBOOK imageQuery MUST include:
+1. CUSTOMERS or PEOPLE browsing/shopping (REQUIRED)
+2. GARDEN CENTER setting (greenhouse, nursery, retail display)
+3. SPECIFIC PLANT NAME or product type
+4. Action word (browsing, selecting, shopping, viewing)
 
 Examples:
-- "heirloom tomato seedlings transplanting hands" (NOT "gardening")
-- "purple dahlia deadheading pruning shears" (NOT "flowers")
-- "autumn kale frost vegetable garden" (NOT "garden")
-- "basil propagation cuttings water jar" (NOT "herbs")
+✅ "customers browsing pink hydrangea greenhouse display"
+✅ "shoppers selecting tomato seedlings garden center"
+✅ "people viewing perennial flowers nursery shelves"
+✅ "customer choosing houseplants indoor garden shop"
+❌ "hydrangea flowers" (too generic, no retail context)
+❌ "garden center" (no specific plant or people)
+` : ''}
+
+${channel === 'instagram' ? `
+INSTAGRAM imageQuery MUST include:
+1. CLOSE-UP of SPECIFIC PLANT (REQUIRED - use exact variety/color)
+2. PRODUCT DISPLAY or retail presentation
+3. Visual appeal (vibrant colors, detailed textures)
+4. Garden center context (tags, pots, shelves visible)
+
+Examples:
+✅ "purple echinacea flowers garden center display pot"
+✅ "red tomato heirloom seedlings nursery tray close"
+✅ "succulent variety collection retail display shelf"
+✅ "vibrant orange marigolds garden shop containers"
+❌ "flowers" (too generic, no specific plant)
+❌ "echinacea plant" (no retail context or color)
+` : ''}
+
+${channel === 'blog' ? `
+BLOG imageQuery MUST include:
+1. SPECIFIC GARDENING TECHNIQUE or plant care activity
+2. HANDS or TOOLS performing the action (REQUIRED)
+3. Exact plant species or garden element
+4. Context showing the process or result
+
+Examples:
+✅ "hands deadheading spent roses pruning shears garden"
+✅ "pruning tomato suckers fingers removing growth"
+✅ "transplanting seedlings trowel compost soil hands"
+✅ "mulching garden bed hands spreading wood chips"
+❌ "rose garden" (no action or technique shown)
+❌ "gardening tools" (no specific plant or activity)
+` : ''}
+
+${channel === 'newsletter' ? `
+NEWSLETTER imageQuery MUST include:
+1. SEASONAL CONTEXT (spring, summer, fall, winter keywords)
+2. Garden center INVENTORY or featured products
+3. Specific plant varieties or tools for that season
+4. Retail display showing selection/abundance
+
+Examples:
+✅ "spring seedling trays greenhouse nursery display variety"
+✅ "autumn mums chrysanthemum garden center fall selection"
+✅ "winter houseplants tropical indoor plant shop inventory"
+✅ "summer vegetables tomato pepper garden center abundance"
+❌ "seasonal plants" (not specific to season or retail)
+❌ "plant variety" (too generic, no season or context)
+` : ''}
+
+UNIVERSAL imageQuery RULES (ALL CHANNELS):
+- MUST be 5-7 words (shorter queries are too generic)
+- MUST include SPECIFIC plant name, color, or variety (not just "plant" or "flower")
+- MUST show garden center retail context (display, inventory, greenhouse, customers, shelves)
+- MUST be visually descriptive (colors, textures, actions)
+- MUST be unique per channel (each channel needs different visual angle)
+
+BAD imageQuery examples (DO NOT USE):
+❌ "garden plants" (too generic)
+❌ "flowers" (no specifics)
+❌ "gardening" (no context)
+❌ "plant care" (no visual specifics)
+❌ "tomato" (too short, no context)
+
+GOOD imageQuery examples (USE THESE AS TEMPLATES):
+✅ "customers browsing purple petunias hanging baskets greenhouse"
+✅ "close up pink dahlia blooms garden center pot"
+✅ "hands transplanting basil seedlings soil trowel"
+✅ "autumn kale varieties colorful garden center display"
 
 CONTENT QUALITY STANDARDS:
 - Prioritize education over promotion (80% teaching, 20% selling)
@@ -248,7 +343,12 @@ Generate educational content that empowers garden center customers to succeed.`;
               },
               imageQuery: {
                 type: "string",
-                description: "Garden-focused Unsplash search query (3-5 words, MUST include garden context)"
+                description: `CRITICAL: Must be 5-7 words showing garden center RETAIL environment. ${
+                  channel === 'facebook' ? 'MUST show customers/people browsing + specific plant + garden center/greenhouse/nursery. Example: "customers browsing pink hydrangea greenhouse display"' :
+                  channel === 'instagram' ? 'MUST show close-up of SPECIFIC plant variety/color + retail display context. Example: "purple echinacea flowers garden center display pot"' :
+                  channel === 'blog' ? 'MUST show hands/tools performing technique + specific plant. Example: "hands deadheading spent roses pruning shears garden"' :
+                  'MUST show seasonal context + garden center inventory + specific plants. Example: "spring seedling trays greenhouse nursery display variety"'
+                }. Always include: 1) Specific plant name/color, 2) Garden center/retail context, 3) Visual descriptors. NO generic terms like "flowers" or "plants" alone.`
               },
               cta: {
                 type: "string",
@@ -287,7 +387,54 @@ Generate educational content that empowers garden center customers to succeed.`;
   // Use OpenAI's image query directly
   const imageQuery = result.imageQuery || 'garden center seasonal plants';
   
-  console.log(`✅ Generated ${channel} content with imageQuery: "${imageQuery}"`);
+  // ========== VALIDATE IMAGE QUERY QUALITY ==========
+  const validateImageQuery = (query: string, channelType: string): { valid: boolean; warnings: string[] } => {
+    const warnings: string[] = [];
+    const words = query.trim().split(/\s+/);
+    
+    // Check word count
+    if (words.length < 4) {
+      warnings.push(`Too short (${words.length} words, need 5-7)`);
+    }
+    
+    // Check for generic terms without specifics
+    const genericTerms = ['plant', 'flower', 'garden', 'gardening', 'plants', 'flowers'];
+    const hasOnlyGeneric = words.some(w => genericTerms.includes(w.toLowerCase())) && 
+                          !words.some(w => w.length > 6 && !genericTerms.includes(w.toLowerCase()));
+    if (hasOnlyGeneric) {
+      warnings.push('Too generic - needs specific plant names or varieties');
+    }
+    
+    // Check for retail context
+    const retailTerms = ['garden center', 'greenhouse', 'nursery', 'display', 'customers', 'browsing', 'shopping', 'retail', 'shop', 'store'];
+    const hasRetailContext = retailTerms.some(term => query.toLowerCase().includes(term));
+    if (!hasRetailContext && channelType !== 'blog') {
+      warnings.push('Missing garden center/retail context');
+    }
+    
+    // Check for visual descriptors (colors, sizes, actions)
+    const visualTerms = ['pink', 'purple', 'red', 'yellow', 'blue', 'white', 'orange', 'green', 'colorful', 'vibrant', 'bright', 'close', 'hands', 'pruning', 'planting', 'transplanting'];
+    const hasVisualDescriptor = visualTerms.some(term => query.toLowerCase().includes(term));
+    if (!hasVisualDescriptor) {
+      warnings.push('Missing visual descriptors (colors, actions, details)');
+    }
+    
+    return {
+      valid: warnings.length === 0,
+      warnings
+    };
+  };
+  
+  const validation = validateImageQuery(imageQuery, channel);
+  
+  if (!validation.valid) {
+    console.warn(`⚠️ [${channel.toUpperCase()}] Image query quality issues:`, {
+      query: imageQuery,
+      issues: validation.warnings
+    });
+  } else {
+    console.log(`✅ [${channel.toUpperCase()}] High-quality image query: "${imageQuery}"`);
+  }
   
   return {
     title: result.title,
@@ -346,16 +493,16 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get company context from workspace
+    // Get company context from workspace with extended details
     const { data: companyProfile } = await supabase
       .from('company_profiles')
-      .select('company_name, about_business, brand_voice')
+      .select('company_name, company_overview, about_business, brand_voice, specializations, location_info, seasonal_focus')
       .eq('user_id', workspaceId)
       .single();
 
     const companyContext = companyProfile 
-      ? `${companyProfile.company_name || ''} - ${companyProfile.about_business || ''}`
-      : 'Garden center business';
+      ? `${companyProfile.company_name || 'Garden Center'} - ${companyProfile.company_overview || companyProfile.about_business || 'Retail garden center'}. Specializations: ${companyProfile.specializations || 'General gardening'}. Location: ${companyProfile.location_info || 'Local area'}. Seasonal Focus: ${companyProfile.seasonal_focus || 'Year-round gardening'}.`
+      : 'Retail garden center specializing in plants, gardening supplies, and horticultural education';
 
     console.log(`🎯 Generating content for ${channels.length} channels`);
 
@@ -397,47 +544,94 @@ serve(async (req) => {
     // Generate bundle ID and save to database
     const bundleId = crypto.randomUUID();
     
-    // ========== PHASE 2: FETCH IMAGES FOR THE BUNDLE ==========
-    console.log('🖼️ Starting image fetch for bundle content...');
+    // ========== PHASE 2: MULTI-QUERY IMAGE FETCHING FOR VISUAL DIVERSITY ==========
+    console.log('🖼️ Starting MULTI-QUERY image fetch for bundle content...');
     
-    // Collect all unique image queries from generated content
-    const imageQueries = content.flatMap((channelContent: any) => 
+    // Collect all unique image queries with their source channels
+    const imageQueriesWithContext = content.flatMap((channelContent: any) => 
       channelContent.items
         .filter((item: any) => item.imageQuery)
-        .map((item: any) => item.imageQuery)
+        .map((item: any) => ({
+          query: item.imageQuery,
+          channel: channelContent.type
+        }))
     );
     
-    const uniqueQueries = [...new Set(imageQueries)];
-    console.log(`🔍 Found ${uniqueQueries.length} unique image queries:`, uniqueQueries);
+    // Get unique queries (preserve order for priority)
+    const uniqueQueries = [...new Map(
+      imageQueriesWithContext.map(item => [item.query, item])
+    ).values()];
+    
+    console.log(`🔍 Found ${uniqueQueries.length} unique image queries:`, uniqueQueries.map(q => `[${q.channel}] ${q.query}`));
     
     let fetchedImages: any[] = [];
     
-    // Fetch images for the most relevant query (usually the first one)
+    // Fetch images from multiple queries for diversity (up to 5 queries)
     if (uniqueQueries.length > 0) {
-      try {
-        const primaryQuery = uniqueQueries[0];
-        console.log(`📸 Fetching images for: "${primaryQuery}"`);
-        
-        const imageResponse = await supabase.functions.invoke('fetch-unsplash-images', {
-          body: { 
-            query: primaryQuery,
-            maxImages: 12,
-            orientation: 'squarish',
-            rawQuery: true  // Trust OpenAI's query
+      const queriesToFetch = uniqueQueries.slice(0, 5); // Use up to 5 different queries
+      const imagesPerQuery = Math.ceil(12 / queriesToFetch.length); // Distribute 12 images
+      
+      console.log(`📸 Fetching strategy: ${queriesToFetch.length} queries × ~${imagesPerQuery} images each = 12 total`);
+      
+      // Fetch images from each query in parallel
+      const fetchPromises = queriesToFetch.map(async ({ query, channel }) => {
+        try {
+          console.log(`📸 [${channel.toUpperCase()}] Fetching from: "${query}"`);
+          
+          const imageResponse = await supabase.functions.invoke('fetch-unsplash-images', {
+            body: { 
+              query: query,
+              maxImages: imagesPerQuery,
+              orientation: 'squarish',
+              rawQuery: true  // Trust OpenAI's query
+            }
+          });
+          
+          if (imageResponse.error) {
+            console.error(`❌ [${channel}] Image fetch error:`, imageResponse.error);
+            return { images: [], sourceQuery: query, sourceChannel: channel };
           }
-        });
-        
-        if (imageResponse.error) {
-          console.error('❌ Image fetch error:', imageResponse.error);
-        } else if (imageResponse.data?.images) {
-          fetchedImages = imageResponse.data.images;
-          console.log(`✅ Fetched ${fetchedImages.length} images from Unsplash`);
-        } else {
-          console.warn('⚠️ No images returned from fetch function');
+          
+          if (imageResponse.data?.images) {
+            console.log(`✅ [${channel}] Fetched ${imageResponse.data.images.length} images from "${query}"`);
+            return {
+              images: imageResponse.data.images,
+              sourceQuery: query,
+              sourceChannel: channel
+            };
+          }
+          
+          console.warn(`⚠️ [${channel}] No images returned for "${query}"`);
+          return { images: [], sourceQuery: query, sourceChannel: channel };
+          
+        } catch (imageError) {
+          console.error(`❌ [${channel}] Exception fetching images:`, imageError);
+          return { images: [], sourceQuery: query, sourceChannel: channel };
         }
-      } catch (imageError) {
-        console.error('❌ Exception fetching images:', imageError);
-      }
+      });
+      
+      // Aggregate all fetched images
+      const fetchResults = await Promise.all(fetchPromises);
+      
+      // Flatten and tag images with source info
+      fetchedImages = fetchResults.flatMap(result => 
+        result.images.map((img: any) => ({
+          ...img,
+          _sourceQuery: result.sourceQuery,
+          _sourceChannel: result.sourceChannel
+        }))
+      );
+      
+      console.log(`✅ Multi-query fetch complete: ${fetchedImages.length} total images from ${queriesToFetch.length} queries`);
+      
+      // Log diversity stats
+      const queryStats = fetchResults.map(r => ({
+        channel: r.sourceChannel,
+        query: r.sourceQuery,
+        count: r.images.length
+      }));
+      console.log('📊 Image diversity breakdown:', queryStats);
+      
     } else {
       console.warn('⚠️ No image queries found in generated content');
     }
@@ -449,15 +643,19 @@ serve(async (req) => {
       alt: img.alt || img.alt_description || topicTitle,
       photographer: img.photographer || img.user?.name || 'Unknown',
       photographerUrl: img.photographer_url || img.user?.links?.html,
-      unsplashId: img.unsplash_id || img.id
+      unsplashId: img.unsplash_id || img.id,
+      sourceQuery: img._sourceQuery,
+      sourceChannel: img._sourceChannel
     }));
     
-    console.log('🖼️ Image fetch summary:', {
-      queriesFound: uniqueQueries.length,
+    console.log('🖼️ Multi-query image fetch summary:', {
+      uniqueQueriesFound: uniqueQueries.length,
+      queriesUsed: Math.min(uniqueQueries.length, 5),
       imagesFetched: fetchedImages.length,
       imagesFormatted: formattedImages.length,
       firstImageUrl: formattedImages[0]?.url || null,
-      sampleQueries: uniqueQueries.slice(0, 3)
+      diversityAchieved: uniqueQueries.length > 1 ? 'Yes' : 'No (single query)',
+      sampleQueries: uniqueQueries.slice(0, 3).map(q => q.query)
     });
     
     // Helper function to convert markdown to HTML for blog content
