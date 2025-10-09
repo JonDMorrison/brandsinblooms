@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
-import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -85,7 +84,10 @@ Content specifications:
 - Tone: ${constraints.tone || 'expert yet approachable'}
 - Format: Use HTML tags for structure (<h3> for headings, <p> for paragraphs, <strong> for emphasis)
 
-${getImageQueryPromptInstructions()}
+🎨 IMAGE QUERY GENERATION:
+Generate a descriptive Unsplash search query (3-6 words) for the email hero image.
+Focus on visually compelling garden center content that matches the email theme.
+Be specific with plant names, seasons, and visual elements.
 
 Return structured output with: subject, preheader, body, cta_primary, imageQuery`;
 
@@ -172,14 +174,6 @@ Example format:
       try {
         emailContent = JSON.parse(toolCall.function.arguments);
         console.log(`[${requestId}] Structured output received with imageQuery: "${emailContent.imageQuery}"`);
-        
-        // Validate and fix image query using centralized validator
-        if (emailContent.imageQuery) {
-          emailContent.imageQuery = validateAndLogQuery(
-            emailContent.imageQuery,
-            `[${requestId}] Plan Email`
-          );
-        }
       } catch (parseError) {
         console.error(`[${requestId}] Failed to parse tool call:`, parseError);
         throw parseError;

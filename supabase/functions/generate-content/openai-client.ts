@@ -1,7 +1,6 @@
 
 import { validateContent } from './validation.ts';
 import { sanitizeWeekNumbers, validateNoWeekNumbers } from './week-sanitizer.ts';
-import { validateAndLogQuery, getImageQueryPromptInstructions } from '../_shared/unsplash-keyword-validator.ts';
 
 export async function generateContentWithValidation(prompt: string, openAIApiKey: string, contentType?: string, maxAttempts: number = 3) {
   console.log(`🚀 OPTIMIZED: Starting content generation with max ${maxAttempts} attempts`);
@@ -124,6 +123,10 @@ FACEBOOK SPECIFIC QUALITY RULES:
 QUALITY VALIDATION:
 Your content will be evaluated for natural tone, specific gardening value, engagement potential, and proper spacing.  Content that sounds robotic, uses corporate language, lacks specific gardening advice, or has incorrect sentence spacing will be rejected.
 
+🎨 IMAGE QUERY GENERATION:
+Generate a descriptive Unsplash search query (3-6 words) that captures the visual essence of this content.
+Focus on what would make a compelling, relevant photo. Be specific with plant names and visual elements.
+
 ${contentType?.toLowerCase() === 'blog' ? `
 BLOG CONTENT CRITICAL REQUIREMENTS:
 - MANDATORY: Output must be properly structured HTML using semantic tags
@@ -139,9 +142,6 @@ BLOG CONTENT CRITICAL REQUIREMENTS:
 CRITICAL REQUIREMENTS:
 Apply ALL quality guidelines above strictly. Focus on natural, conversational gardening expertise with proper spacing.`;
     }
-    
-    // Add enhanced image query instruction from centralized validator
-    const imageQueryInstruction = `\n\n${getImageQueryPromptInstructions()}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -159,7 +159,7 @@ Apply ALL quality guidelines above strictly. Focus on natural, conversational ga
           },
           {
             role: 'user',
-            content: qualityEnhancedPrompt + imageQueryInstruction
+            content: qualityEnhancedPrompt
           }
         ],
         tools: [
@@ -177,7 +177,7 @@ Apply ALL quality guidelines above strictly. Focus on natural, conversational ga
                   },
                   imageQuery: {
                     type: "string",
-                    description: "A 3-5 word Unsplash search query. MUST include one of: 'garden', 'garden center', 'nursery', or 'botanical'. Focus on plants, flowers, outdoor garden scenes, garden displays. Example: 'spring garden tulip display'"
+                    description: "A 3-6 word Unsplash search query that captures the visual essence. Be specific with plant names, seasons, and visual elements."
                   }
                 },
                 required: ["content", "imageQuery"],
@@ -211,12 +211,6 @@ Apply ALL quality guidelines above strictly. Focus on natural, conversational ga
     
     // CRITICAL: Sanitize week numbers from generated content
     content = sanitizeWeekNumbers(content);
-    
-    // CRITICAL: Validate and fix imageQuery using centralized validator
-    imageQuery = validateAndLogQuery(
-      imageQuery, 
-      `Content Type: ${contentType}, Attempt: ${attemptNumber}`
-    );
     
     console.log(`Generated content attempt ${attemptNumber}:`, content.substring(0, 200));
     console.log(`Suggested image query: "${imageQuery}"`);

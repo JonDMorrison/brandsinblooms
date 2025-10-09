@@ -1,6 +1,4 @@
 
-import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
-
 export const generateNewsletterWithOpenAI = async (
   openAIApiKey: string,
   prompt: string
@@ -47,7 +45,9 @@ REQUIRED CONTENT STRUCTURE:
 - SOUND like a knowledgeable local garden expert
 - END with clear invitation to visit the garden center
 
-${getImageQueryPromptInstructions()}
+🎨 IMAGE QUERY GENERATION:
+Generate a descriptive Unsplash search query (3-6 words) for the newsletter hero image.
+Focus on visually compelling garden center content. Be specific with plant names and seasons.
 
 IMMEDIATE REJECTION if content contains:
 - Any week number references
@@ -55,9 +55,6 @@ IMMEDIATE REJECTION if content contains:
 - Generic "Welcome" openings
 - Missing StoryBrand elements
 - Missing imageQuery field`;
-    } else {
-      // Add image query instructions to first attempt
-      enhancedPrompt += `\n\n${getImageQueryPromptInstructions()}`;
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -92,18 +89,6 @@ IMMEDIATE REJECTION if content contains:
     
     if (validation.isValid) {
       console.log(`✅ Newsletter validation passed on attempt ${attempts}`);
-      
-      // Extract and validate image query if present
-      try {
-        const parsed = JSON.parse(content);
-        if (parsed.imageQuery) {
-          parsed.imageQuery = validateAndLogQuery(parsed.imageQuery, 'Newsletter');
-          return JSON.stringify(parsed);
-        }
-      } catch {
-        // If parsing fails, just return content as-is
-      }
-      
       return content;
     } else {
       console.log(`❌ Newsletter validation failed on attempt ${attempts}:`, validation.issues);

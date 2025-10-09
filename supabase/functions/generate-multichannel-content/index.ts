@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,7 +18,16 @@ async function generateChannelContent(
   const systemPrompt = `You are an expert marketing content creator for garden centers and nurseries. 
 Generate engaging ${channel} content that is authentic, informative, and valuable to the audience.
 
-${getImageQueryPromptInstructions()}
+🎨 IMAGE QUERY GENERATION:
+Generate a descriptive Unsplash search query (3-6 words) that captures the visual essence of this content.
+Focus on what would make a compelling, relevant photo for this garden center content.
+Be specific with plant names, seasons, and visual elements.
+
+Examples:
+- "heirloom tomato seedlings greenhouse"
+- "colorful dahlia bouquet display"
+- "autumn maple leaves fall garden"
+- "organic herb garden basil rosemary"
 
 Your content should:
 - Speak directly to the audience's interests
@@ -111,20 +119,17 @@ Generate compelling content that resonates with garden center customers.`;
 
   const result = JSON.parse(toolCall.function.arguments);
   
-  // Validate and fix image query before returning
-  const validatedImageQuery = validateAndLogQuery(
-    result.imageQuery || 'garden',
-    `${channel} ${topicTitle}`
-  );
+  // Use OpenAI's image query directly
+  const imageQuery = result.imageQuery || 'garden center seasonal plants';
   
-  console.log(`✅ Generated ${channel} content with validated imageQuery: "${validatedImageQuery}"`);
+  console.log(`✅ Generated ${channel} content with imageQuery: "${imageQuery}"`);
   
   return {
     title: result.title,
     content: result.content,
     caption: result.caption,
     hashtags: result.hashtags || [],
-    imageQuery: validatedImageQuery,
+    imageQuery: imageQuery,
     cta: result.cta
   };
 }
@@ -250,10 +255,10 @@ serve(async (req) => {
         
         const imageResponse = await supabase.functions.invoke('fetch-unsplash-images', {
           body: { 
-            query: primaryQuery,  // Already validated
-            maxImages: 12,  // Increase to 12 for more variety
+            query: primaryQuery,
+            maxImages: 12,
             orientation: 'squarish',
-            rawQuery: false  // Use garden validation in fetch function
+            rawQuery: true  // Trust OpenAI's query
           }
         });
         

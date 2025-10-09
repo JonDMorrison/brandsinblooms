@@ -82,25 +82,18 @@ serve(async (req) => {
       if (query) {
         let searchQuery = query;
         
-        // ALWAYS ensure garden context unless rawQuery flag is set
+        // Simplified: Only sanitize truly problematic queries
         if (!rawQuery) {
-          const hasGardenKeyword = /\b(garden|nursery|botanical|plant nursery)\b/i.test(query);
-          
-          if (!hasGardenKeyword) {
-            // Prepend garden context to ensure relevance
-            searchQuery = `garden ${query}`;
-            console.log(`[UNSPLASH] Enhanced query with garden context: "${searchQuery}"`);
-          }
-          
-          // Still filter out problematic terms
           const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe)\b/i;
           if (problematicTerms.test(query)) {
-            console.warn(`[UNSPLASH] Query contains problematic terms: "${query}"`);
-            searchQuery = `garden center plants ${query.replace(problematicTerms, '').trim()}`;
-            console.log(`[UNSPLASH] Using sanitized query: "${searchQuery}"`);
+            console.warn(`[UNSPLASH] Query contains food terms, adding plant context: "${query}"`);
+            searchQuery = `${query.replace(problematicTerms, '').trim()} garden plants`;
+          } else {
+            searchQuery = query;  // Trust the input query
           }
+          console.log(`[UNSPLASH] Search query: "${searchQuery}"`);
         } else {
-          console.log(`[UNSPLASH] Using raw query without garden filtering: "${searchQuery}"`);
+          console.log(`[UNSPLASH] Using raw query: "${searchQuery}"`);
         }
 
         // Enhanced Unsplash API call with quality parameters
@@ -150,82 +143,21 @@ serve(async (req) => {
     // Limit to exactly maxImages
     const limitedImages = images.slice(0, maxImages);
 
-    // Enhanced image validation and filtering
+    // Minimal filtering - only remove obviously inappropriate content
     const validImages = limitedImages.filter(image => {
-      // For curated collections, apply minimal filtering since they're already curated
-      if (collection) {
-        // Only filter out obviously problematic content for collections
-        const alt = (image.alt_description || '').toLowerCase();
-        const desc = (image.description || '').toLowerCase();
-        const content = `${alt} ${desc}`;
-        
-        const problematicTerms = /\b(inappropriate|nsfw|adult)\b/i;
-        if (problematicTerms.test(content)) {
-          console.warn(`[UNSPLASH] Filtering out inappropriate collection image: ${image.id} - ${alt}`);
-          return false;
-        }
-        return true;
-      }
-      
-      // For raw queries, skip garden-specific filtering
-      if (rawQuery) {
-        const alt = (image.alt_description || '').toLowerCase();
-        const desc = (image.description || '').toLowerCase();
-        const content = `${alt} ${desc}`;
-        
-        // Only filter out obviously problematic content
-        const problematicTerms = /\b(inappropriate|nsfw|adult)\b/i;
-        if (problematicTerms.test(content)) {
-          console.warn(`[UNSPLASH] Filtering out inappropriate image: ${image.id} - ${alt}`);
-          return false;
-        }
-        return true;
-      }
-      
-      // For garden-specific search queries, apply full filtering
       const alt = (image.alt_description || '').toLowerCase();
       const desc = (image.description || '').toLowerCase();
-      const tags = image.tags?.map(t => t.title.toLowerCase()).join(' ') || '';
+      const content = `${alt} ${desc}`;
       
-      const content = `${alt} ${desc} ${tags}`;
-      const queryWords = query ? query.toLowerCase().split(' ') : [];
-      
-      // Check for problematic content (expanded list)
-      const problematicTerms = /\b(ice.?cream|dessert|sweet|indoor|office|computer|technology)\b/i;
-      if (problematicTerms.test(content)) {
-        console.warn(`[UNSPLASH] Filtering out irrelevant image: ${image.id} - ${alt}`);
+      // Only filter out NSFW/inappropriate content
+      const inappropriateTerms = /\b(inappropriate|nsfw|adult|explicit)\b/i;
+      if (inappropriateTerms.test(content)) {
+        console.warn(`[UNSPLASH] Filtering inappropriate image: ${image.id}`);
         return false;
       }
       
-      // Positive validation - ensure garden/plant relevance (expanded list)
-      const gardenTerms = [
-        'garden', 'plant', 'flower', 'bloom', 'nursery', 'botanical', 
-        'leaf', 'green', 'nature', 'outdoor', 'gardening', 'planter',
-        'greenhouse', 'seedling', 'perennial', 'annual', 'shrub',
-        'mulch', 'soil', 'pot', 'container garden', 'landscaping'
-      ];
-      
-      // Trust Unsplash when we searched with garden terms
-      const queryHasGardenContext = queryWords.some(word => 
-        gardenTerms.includes(word) || word === 'garden'
-      );
-      
-      if (queryHasGardenContext) {
-        // If we searched for garden content, trust Unsplash's relevance
-        // Only filter out obviously wrong content (already done above)
-        console.log(`[UNSPLASH] ✓ Accepting image from garden query: ${image.id}`);
-        return true;
-      }
-      
-      // For generic queries without garden context, require validation
-      const hasGardenContext = gardenTerms.some(term => content.includes(term));
-      const hasQueryMatch = queryWords.some(word => word.length > 2 && content.includes(word));
-      
-      if (!hasGardenContext && !hasQueryMatch) {
-        console.warn(`[UNSPLASH] Filtering out non-relevant image: ${image.id} - no garden context or query match`);
-        return false;
-      }
-      
+      // Trust Unsplash's relevance algorithm - if it matched the query, it's likely relevant
+      console.log(`[UNSPLASH] ✓ Including image: ${image.id} - ${alt || 'no alt'}`);
       return true;
     });
 

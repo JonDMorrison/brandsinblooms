@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,7 +70,9 @@ ${needsHashtags ? '6. Include 5-8 relevant hashtags on separate lines at the end
 7. Speak directly to garden center customers
 8. Emphasize seasonal urgency and timing
 
-${getImageQueryPromptInstructions()}
+🎨 IMAGE QUERY: Generate a 3-6 word Unsplash search query that visually represents this ${platform} post.
+Be specific with plant names, seasons, colors, and garden settings.
+Think about what photo would stop someone scrolling.
 
 Return JSON with these exact fields:
 {
@@ -164,16 +165,16 @@ Make it compelling, actionable, and seasonal. Return valid JSON only.`;
 
     const result = JSON.parse(toolCall.function.arguments);
     
-    // Validate and fix imageQuery
-    const validatedQuery = validateAndLogQuery(result.imageQuery || 'garden', `${platform} ${theme}`);
+    // Use OpenAI's image query directly
+    const imageQuery = result.imageQuery || 'garden center plants';
     
-    console.log(`[generate-social-content] Success - Content length: ${result.content?.length || 0}, imageQuery: "${validatedQuery}"`);
+    console.log(`[generate-social-content] Success - Content length: ${result.content?.length || 0}, imageQuery: "${imageQuery}"`);
 
     // Fetch images from Unsplash using validated query
     let fetchedImages: any[] = [];
 
     try {
-      console.log(`[generate-social-content] 📸 Fetching images for: "${validatedQuery}"`);
+      console.log(`[generate-social-content] 📸 Fetching images for: "${imageQuery}"`);
       
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -181,10 +182,10 @@ Make it compelling, actionable, and seasonal. Return valid JSON only.`;
       
       const imageResponse = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
-          query: validatedQuery,
-          maxImages: 8,  // More images for social posts
+          query: imageQuery,
+          maxImages: 8,
           orientation: 'squarish',
-          rawQuery: false
+          rawQuery: true  // Trust OpenAI's query
         }
       });
       
@@ -212,7 +213,7 @@ Make it compelling, actionable, and seasonal. Return valid JSON only.`;
     return new Response(
       JSON.stringify({
         content: result.content,
-        imageQuery: validatedQuery,
+        imageQuery: imageQuery,
         hashtags: result.hashtags || '',
         images: formattedImages,
         imageCount: formattedImages.length
