@@ -43,10 +43,32 @@ export function usePublishActions() {
       throw new Error('Both caption and media are required for publishing');
     }
 
-    // Now call the publish-task function
+    // Create generated_content record first
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { data: generatedContent, error: contentError } = await supabase
+      .from('generated_content')
+      .insert({
+        user_id: user.user.id,
+        caption: input.caption ?? '',
+        media_url: input.mediaUrl ?? null,
+        status: 'DRAFT'
+      })
+      .select()
+      .single();
+
+    if (contentError) {
+      throw new Error(`Failed to create content record: ${contentError.message}`);
+    }
+
+    // Now call the publish-task function with contentId
     const { data, error } = await supabase.functions.invoke("publish-task", {
       body: {
         taskId,
+        contentId: generatedContent.id,
         platforms: [input.platform], // Convert single platform to array
         accountId: input.accountId,
         caption: input.caption ?? "",
@@ -111,10 +133,32 @@ export function usePublishActions() {
       throw new Error('Both caption and media are required for scheduling');
     }
 
-    // Now call the publish-task function
+    // Create generated_content record first
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { data: generatedContent, error: contentError } = await supabase
+      .from('generated_content')
+      .insert({
+        user_id: user.user.id,
+        caption: input.caption ?? '',
+        media_url: input.mediaUrl ?? null,
+        status: 'DRAFT'
+      })
+      .select()
+      .single();
+
+    if (contentError) {
+      throw new Error(`Failed to create content record: ${contentError.message}`);
+    }
+
+    // Now call the publish-task function with contentId
     const { data, error } = await supabase.functions.invoke("publish-task", {
       body: {
         taskId,
+        contentId: generatedContent.id,
         platforms: [input.platform], // Convert single platform to array
         accountId: input.accountId,
         caption: input.caption ?? "",

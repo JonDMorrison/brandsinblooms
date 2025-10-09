@@ -49,9 +49,9 @@ async function handler(req: Request): Promise<Response> {
 
   try {
     const requestBody = await req.json();
-    const { taskId, platforms, accountId, caption, imageUrl, firstComment, publishAt } = requestBody;
+    const { taskId, contentId, platforms, accountId, caption, imageUrl, firstComment, publishAt } = requestBody;
 
-    console.log('[PUBLISH-TASK] Request:', { taskId, platforms, accountId, hasCaption: !!caption, hasImage: !!imageUrl, publishAt });
+    console.log('[PUBLISH-TASK] Request:', { taskId, contentId, platforms, accountId, hasCaption: !!caption, hasImage: !!imageUrl, publishAt });
 
     if (!taskId) {
       return new Response(
@@ -135,7 +135,7 @@ async function handler(req: Request): Promise<Response> {
             const { error: scheduleError } = await supabase
               .from('scheduled_posts')
               .insert({
-                content_id: taskId,
+                content_id: contentId,
                 user_id: taskData.user_id,
                 tenant_id: taskData.tenant_id,
                 platform: mapPlatformToEnum(platforms?.[0] || 'facebook'),
@@ -177,7 +177,7 @@ async function handler(req: Request): Promise<Response> {
             const { error: createScheduleError } = await supabase
               .from('scheduled_posts')
               .insert({
-                content_id: taskId,
+                content_id: contentId,
                 user_id: taskData.user_id,
                 tenant_id: taskData.tenant_id,
                 platform: mapPlatformToEnum(platforms?.[0] || 'facebook'),

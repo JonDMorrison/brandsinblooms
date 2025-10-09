@@ -43,6 +43,7 @@ export type PublishNowInput = {
   caption?: string | null;
   mediaUrl?: string | null;
   firstComment?: string | null; // IG
+  contentId?: string; // Optional: generated_content.id for foreign key
 };
 
 export type ScheduleInput = PublishNowInput & {
