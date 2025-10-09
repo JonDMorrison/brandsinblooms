@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GeneratedContentModal } from "@/components/create-flow/GeneratedContentModal";
+import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import { useBundlePreviewTitle } from "@/hooks/useBundlePreviewTitle";
 import { GenerationProgressBanner } from "@/components/generation/GenerationProgressBanner";
@@ -287,6 +288,7 @@ export const BundleLibrary = () => {
   const del = useDeleteBundle();
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { setBundleIds } = useCreateFlow();
 
   const openBundle = (bundleId: string, snapshotId?: string) => {
@@ -369,7 +371,7 @@ export const BundleLibrary = () => {
         ) : items.length === 0 && bundleJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 border border-dashed rounded-2xl">
             <p className="text-sm text-muted-foreground mb-3">No content yet</p>
-            <Button onClick={() => navigate('/')}>Create Content</Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>Create Content</Button>
           </div>
         ) : (
           <div className="space-y-6">
@@ -401,6 +403,7 @@ export const BundleLibrary = () => {
       </main>
 
       <GeneratedContentModal open={modalOpen} onOpenChange={setModalOpen} />
+      <CreateFlowDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
 
       {/* Simple pagination */}
       {total > 24 && (
