@@ -89,6 +89,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Force redeployment - v2.0.0 with userId auth fix
+  const FUNCTION_VERSION = '2.0.0';
+  console.log(`🚀 Edge function started - v${FUNCTION_VERSION}`);
+  console.log(`📋 Configuration check:`, {
+    hasLovableApiKey: !!Deno.env.get('LOVABLE_API_KEY'),
+    hasSupabaseUrl: !!Deno.env.get('SUPABASE_URL'),
+    timestamp: new Date().toISOString()
+  });
+
   // ✅ Phase 1: Declare variables at function scope with default values
   let mode: string = 'unknown';
   let sourceId: string = 'unknown';
