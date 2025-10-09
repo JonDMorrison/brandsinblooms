@@ -70,7 +70,7 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
 
   return (
     <Card className={cn(
-      "relative p-4 hover:shadow-md transition-all duration-300 transform-gpu",
+      "relative p-4 hover:shadow-md transition-all duration-300 transform-gpu w-full max-w-[80%] mx-auto",
       isDeleting && "animate-fade-out opacity-0 scale-95 pointer-events-none"
     )}>
       {/* Delete Button */}
