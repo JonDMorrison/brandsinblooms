@@ -210,13 +210,18 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-gray-900">{item.accountName || 'Your Page'}</span>
               <div className="flex items-center gap-1 text-xs text-gray-500">
-                <Clock className="w-3 h-3" />
                 {item.status === 'scheduled' && item.scheduledFor ? (
-                  <span>Scheduled: {format(new Date(item.scheduledFor), 'MMM d, yyyy • h:mm a')}</span>
+                  <>
+                    <span>{format(new Date(item.scheduledFor), 'MMMM d')} at {format(new Date(item.scheduledFor), 'h:mm a')}</span>
+                    <span>• 🌍</span>
+                  </>
                 ) : item.status === 'published' && publishedAt ? (
-                  <span>Published: {format(new Date(publishedAt), 'MMM d, yyyy • h:mm a')}</span>
+                  <>
+                    <span>{format(new Date(publishedAt), 'MMMM d')} at {format(new Date(publishedAt), 'h:mm a')}</span>
+                    <span>• 🌍</span>
+                  </>
                 ) : (
-                  <span>Just now</span>
+                  <span>Just now • 🌍</span>
                 )}
               </div>
             </div>
