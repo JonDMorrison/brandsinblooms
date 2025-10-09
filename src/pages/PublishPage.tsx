@@ -432,22 +432,8 @@ const PublishPage = () => {
         </TabsList>
 
         <TabsContent value="ready" className="space-y-6">
-          {/* Ready to Post Content Grid */}
-          <div className="flex flex-wrap gap-6 transition-all duration-300">
-            <style>{`
-              @media (min-width: 768px) {
-                .flex-wrap > * {
-                  flex: 1 1 calc(50% - 12px);
-                  max-width: calc(50% - 12px);
-                }
-              }
-              @media (min-width: 1024px) {
-                .flex-wrap > * {
-                  flex: 1 1 calc(33.333% - 16px);
-                  max-width: calc(33.333% - 16px);
-                }
-              }
-            `}</style>
+          {/* Ready to Post Content List */}
+          <div className="space-y-4">
             {filteredReadyItems.length === 0 ? (
               <Card className="col-span-full">
                 <CardContent className="text-center py-12">
@@ -465,37 +451,22 @@ const PublishPage = () => {
               </Card>
             ) : (
               filteredReadyItems.map((item) => (
-                <div key={`ready-${item.taskId}-${filteredReadyItems.length}`} className="w-full transition-all duration-300">
-                  <PostCard
+                <PostCard
+                  key={`ready-${item.taskId}-${filteredReadyItems.length}`}
                     item={item}
                     onEdit={(item) => handleOpenDrawer(item, 'edit')}
                     onPublishNow={(item) => handleOpenDrawer(item, 'edit')}
                     onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
                     onDelete={handleDelete}
                   />
-                </div>
               ))
             )}
           </div>
         </TabsContent>
 
         <TabsContent value="published" className="space-y-6">
-          {/* Published Content Grid */}
-          <div className="flex flex-wrap gap-6 transition-all duration-300">
-            <style>{`
-              @media (min-width: 768px) {
-                .flex-wrap > * {
-                  flex: 1 1 calc(50% - 12px);
-                  max-width: calc(50% - 12px);
-                }
-              }
-              @media (min-width: 1024px) {
-                .flex-wrap > * {
-                  flex: 1 1 calc(33.333% - 16px);
-                  max-width: calc(33.333% - 16px);
-                }
-              }
-            `}</style>
+          {/* Published Content List */}
+          <div className="space-y-4">
             {filteredPublishedItems.length === 0 ? (
               <Card className="col-span-full">
                 <CardContent className="text-center py-12">
@@ -513,8 +484,8 @@ const PublishPage = () => {
               </Card>
             ) : (
               filteredPublishedItems.map((item) => (
-                <div key={`published-${item.taskId}-${filteredPublishedItems.length}`} className="w-full transition-all duration-300">
-                  <PostCard
+                <PostCard
+                  key={`published-${item.taskId}-${filteredPublishedItems.length}`}
                     item={item}
                     publishedAt={item.publishedAt}
                     onEdit={(item) => handleOpenDrawer(item, 'edit')}
@@ -522,7 +493,6 @@ const PublishPage = () => {
                     onSchedule={(item) => handleOpenDrawer(item, 'schedule')}
                     onDelete={handleDelete}
                   />
-                </div>
               ))
             )}
           </div>
