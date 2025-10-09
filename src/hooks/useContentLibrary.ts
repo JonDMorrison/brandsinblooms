@@ -25,16 +25,25 @@ export function useContentLibrary(filters: LibraryFilters = {}) {
     queryKey,
     queryFn: async () => {
       if (!tenant?.id) {
+        console.warn('⚠️ useContentLibrary: No tenant found');
         throw new Error('No tenant found');
       }
+
+      console.log('📚 useContentLibrary: Fetching content for tenant:', tenant.id, 'filters:', { search, mode, channel, page, sort });
 
       let q = supabase.from(table).select('*', { count: 'exact' });
 
       // Security filter: Only show content from current user's workspace
       q = q.eq('workspace_id', tenant.id);
+      
+      // CRITICAL: Only show non-deleted content
+      q = q.is('deleted_at', null);
 
       // Filters
-      if (search) q = q.ilike('source_label', `%${search}%`);
+      if (search) {
+        console.log('🔍 Filtering by search term:', search);
+        q = q.ilike('source_label', `%${search}%`);
+      }
       if (mode !== 'all') q = q.eq('mode', mode);
       if (channel !== 'all') q = q.contains('channels', [channel as string]);
 
@@ -45,7 +54,22 @@ export function useContentLibrary(filters: LibraryFilters = {}) {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
       const { data, error, count } = await q.range(from, to);
-      if (error) throw error;
+      
+      if (error) {
+        console.error('❌ useContentLibrary: Error fetching content:', error);
+        throw error;
+      }
+
+      console.log(`✅ useContentLibrary: Found ${data?.length || 0} items (total: ${count})`);
+      
+      if (data && data.length > 0) {
+        console.log('📦 First 3 bundles:', data.slice(0, 3).map((d: any) => ({
+          bundleId: d.bundle_id,
+          sourceLabel: d.source_label,
+          mode: d.mode,
+          createdAt: d.created_at
+        })));
+      }
 
       const items: ContentSummary[] = (data || []).map((row: any) => ({
         bundleId: row.bundle_id,
@@ -65,6 +89,9 @@ export function useContentLibrary(filters: LibraryFilters = {}) {
       return { items, total: count || 0 };
     },
     enabled: !!tenant?.id, // Only run query when tenant is available
+    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: true, // Refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
   });
 
   return query;
