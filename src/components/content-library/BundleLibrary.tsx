@@ -201,6 +201,14 @@ export const BundleLibrary = () => {
   const total = data?.total || 0;
   const items = data?.items || [];
   
+  // Track if initial load has completed
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  useEffect(() => {
+    if (!isLoading) {
+      setHasLoadedOnce(true);
+    }
+  }, [isLoading]);
+  
   // Check for active generation jobs
   const activeJobs = getActiveJobs();
   const bundleJobs = getJobsByType('bundle').concat(getJobsByType('custom'));
@@ -295,7 +303,7 @@ export const BundleLibrary = () => {
       <GenerationProgressBanner />
 
       <main>
-        {isLoading ? (
+        {isLoading || !hasLoadedOnce ? (
           <div className="flex items-center justify-center py-24">
             <LoadingSpinner 
               size="lg" 
