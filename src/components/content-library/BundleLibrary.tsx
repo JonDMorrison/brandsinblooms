@@ -19,6 +19,16 @@ import { GenerationProgressBanner } from "@/components/generation/GenerationProg
 import { ContentGenerationSkeleton } from "@/components/generation/ContentGenerationSkeleton";
 import { useGenerationJobTracker } from "@/state/useGenerationJobTracker";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const channelLabels: Record<Channel, string> = {
   instagram: 'IG',
@@ -289,6 +299,8 @@ export const BundleLibrary = () => {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bundleToDelete, setBundleToDelete] = useState<string | null>(null);
   const { setBundleIds } = useCreateFlow();
 
   const openBundle = (bundleId: string, snapshotId?: string) => {
@@ -298,22 +310,32 @@ export const BundleLibrary = () => {
     window.dispatchEvent(new CustomEvent('library_card_open', { detail: { bundleId } }));
   };
 
-  const handleDelete = async (bundleId: string) => {
-    window.dispatchEvent(new CustomEvent('library_delete_confirm', { detail: { bundleId } }));
-    await del.mutateAsync({ bundleId, deletedAt: new Date().toISOString() });
-    const t = toast({
+  const confirmDelete = (bundleId: string) => {
+    setBundleToDelete(bundleId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!bundleToDelete) return;
+    
+    window.dispatchEvent(new CustomEvent('library_delete_confirm', { detail: { bundleId: bundleToDelete } }));
+    await del.mutateAsync({ bundleId: bundleToDelete, deletedAt: new Date().toISOString() });
+    
+    toast({
       title: 'Deleted',
       description: 'Bundle moved to trash',
       action: (
         <ToastAction altText="Undo" onClick={async () => {
-          await del.mutateAsync({ bundleId, deletedAt: null });
+          await del.mutateAsync({ bundleId: bundleToDelete, deletedAt: null });
           toast({ title: 'Restored', description: 'Bundle restored' });
         }}>
           Undo
         </ToastAction>
       )
     });
-    return t;
+    
+    setDeleteDialogOpen(false);
+    setBundleToDelete(null);
   };
 
   return (
@@ -392,7 +414,7 @@ export const BundleLibrary = () => {
                     key={it.bundleId} 
                     it={it} 
                     openBundle={openBundle} 
-                    handleDelete={handleDelete}
+                    handleDelete={confirmDelete}
                     isHighlighted={highlightedBundles.has(it.bundleId)}
                   />
                 ))}
@@ -404,6 +426,32 @@ export const BundleLibrary = () => {
 
       <GeneratedContentModal open={modalOpen} onOpenChange={setModalOpen} />
       <CreateFlowDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Content Bundle?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move the content bundle to trash. You can undo this action immediately after deletion.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDeleteDialogOpen(false);
+              setBundleToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Simple pagination */}
       {total > 24 && (
