@@ -329,9 +329,10 @@ const PublishPage = () => {
     setDrawerOpen(false);
     setSelectedItem(null);
     
-    // Refresh data to show updated status
-    refetch?.();
-  }, [publishNow, refetch]);
+    // Force refresh to show updated status and scheduled time
+    queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
+    await refetch?.();
+  }, [publishNow, refetch, queryClient]);
 
   // Schedule handler  
   const handleSchedule = useCallback(async (taskId: string, input: ScheduleInput) => {
@@ -341,9 +342,10 @@ const PublishPage = () => {
     setDrawerOpen(false);
     setSelectedItem(null);
     
-    // Refresh data to show updated status
-    refetch?.();
-  }, [schedule, refetch]);
+    // Force refresh to show updated status and scheduled time
+    queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
+    await refetch?.();
+  }, [schedule, refetch, queryClient]);
 
   // Delete handler
   const handleDelete = useCallback(async (item: PublishItem) => {
