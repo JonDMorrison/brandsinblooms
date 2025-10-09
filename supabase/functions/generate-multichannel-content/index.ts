@@ -17,6 +17,36 @@ async function generateChannelContent(
 ): Promise<any> {
   const systemPrompt = `You are an expert horticulturist and garden center educator creating ${channel} content that TEACHES customers practical gardening skills.
 
+${channel === 'blog' ? `
+⚠️⚠️⚠️ CRITICAL FOR BLOG CONTENT - MANDATORY HTML FORMAT ⚠️⚠️⚠️
+
+YOU MUST FORMAT ALL BLOG CONTENT AS HTML. THIS IS NON-NEGOTIABLE.
+
+REQUIRED HTML TAGS (use these and ONLY these):
+- <h2>Heading Text</h2> for ALL section headings
+- <p>Paragraph text here.</p> for ALL paragraphs  
+- <ul><li>Item one</li><li>Item two</li></ul> for ALL lists
+- <strong>emphasized text</strong> for emphasis
+
+FORBIDDEN - WILL CAUSE ERRORS:
+- ## Markdown headers (USE <h2> instead)
+- Plain text paragraphs (USE <p> tags)
+- - or * for lists (USE <ul><li> instead)
+- ** or __ for bold (USE <strong> instead)
+
+EXAMPLE CORRECT BLOG FORMAT:
+<h2>How to Plant Tomatoes Successfully</h2>
+<p>Tomatoes are one of the most rewarding vegetables to grow in your garden. Here's everything you need to know to ensure a bountiful harvest.</p>
+<ul>
+  <li>Choose a sunny location with at least 6-8 hours of direct sunlight</li>
+  <li>Prepare soil with compost 2 weeks before planting</li>
+  <li>Space plants 24-36 inches apart for proper air circulation</li>
+</ul>
+<p>Following these steps will give your tomatoes the best start possible.</p>
+
+YOUR BLOG CONTENT MUST LOOK EXACTLY LIKE THIS EXAMPLE - ALL HTML TAGS, ZERO MARKDOWN.
+` : ''}
+
 🌱 EDUCATIONAL FOCUS - CRITICAL:
 Every piece of content MUST include specific, actionable plant care guidance:
 
@@ -28,11 +58,24 @@ FOR SOCIAL MEDIA (Instagram/Facebook):
 - Step-by-step how-to guidance when relevant
 
 FOR BLOG POSTS:
+⚠️ CRITICAL: BLOG CONTENT MUST BE FORMATTED AS HTML, NOT MARKDOWN ⚠️
+- MANDATORY: Use <h2> for headings (NEVER use ## markdown syntax)
+- MANDATORY: Use <p> for paragraphs (NEVER use plain text)
+- MANDATORY: Use <ul><li> for lists (NEVER use - or * markdown syntax)
+- MANDATORY: Use <strong> for emphasis (NEVER use ** or * markdown syntax)
 - In-depth growing guides with complete care requirements
 - Seasonal planning advice with specific timing windows
 - Variety comparisons with pros/cons for each
 - Problem-solving sections addressing common issues
 - Expert tips and tricks from professional growers
+
+BLOG HTML STRUCTURE EXAMPLE (COPY THIS FORMAT):
+<h2>Section Heading Here</h2>
+<p>Paragraph content goes here with detailed information.</p>
+<ul>
+  <li>List item one with specific details</li>
+  <li>List item two with actionable steps</li>
+</ul>
 
 FOR NEWSLETTERS:
 - Educational series teaching techniques progressively
@@ -327,6 +370,49 @@ serve(async (req) => {
       firstImageUrl: formattedImages[0]?.url || null
     });
     
+    // Helper function to convert markdown to HTML for blog content
+    const markdownToHtml = (text: string): string => {
+      if (!text) return text;
+      
+      // Convert headers (## to <h2>, ### to <h3>)
+      let html = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+      html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+      html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+      
+      // Convert bold (**text** or __text__ to <strong>)
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+      
+      // Convert italic (*text* or _text_ to <em>)
+      html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+      
+      // Convert unordered lists (- or * to <ul><li>)
+      html = html.replace(/^[*-]\s+(.+)$/gm, '<li>$1</li>');
+      html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => `<ul>\n${match}</ul>\n`);
+      
+      // Convert numbered lists (1. to <ol><li>)
+      html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+      html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => {
+        // Check if this is part of unordered list
+        if (match.includes('<ul>')) return match;
+        return `<ol>\n${match}</ol>\n`;
+      });
+      
+      // Convert paragraphs (text not already in tags)
+      const lines = html.split('\n');
+      const processed = lines.map(line => {
+        const trimmed = line.trim();
+        // Skip if empty or already has HTML tags
+        if (!trimmed || trimmed.startsWith('<') || trimmed.endsWith('>')) {
+          return line;
+        }
+        return `<p>${trimmed}</p>`;
+      });
+      
+      return processed.join('\n');
+    };
+    
     // Transform content into GeneratedBundle format
     const bundleContent = {
       id: bundleId,
@@ -335,20 +421,38 @@ serve(async (req) => {
       sourceLabel: topicTitle || 'Untitled Content',  // ✅ Root level for view
       channels: channels || [],                 // ✅ Root level for view
       items: content.flatMap((channelContent: any) => 
-        channelContent.items.map((item: any) => ({
-          channel: channelContent.type,
-          title: item.title,
-          body: item.content,
-          caption: item.caption,
-          summary: item.caption,
-          hashtags: item.hashtags || [],
-          ctaSuggestions: [item.cta],
-          media: item.imageQuery ? { 
-            alt: item.imageQuery,
-            url: null 
-          } : null,
-          _approved: false
-        }))
+        channelContent.items.map((item: any) => {
+          // For blog content, ensure HTML format
+          let bodyContent = item.content;
+          if (channelContent.type === 'blog') {
+            // Check if content contains markdown syntax
+            const hasMarkdown = /^#+\s|^\s*[-*+]\s|\*\*|\*[^*]|__/m.test(bodyContent);
+            if (hasMarkdown) {
+              console.log('🔄 Converting markdown to HTML for blog content');
+              bodyContent = markdownToHtml(bodyContent);
+            }
+            // Ensure content has basic HTML structure if missing
+            if (!bodyContent.includes('<h2>') && !bodyContent.includes('<p>')) {
+              console.warn('⚠️ Blog content missing HTML tags, converting...');
+              bodyContent = markdownToHtml(bodyContent);
+            }
+          }
+          
+          return {
+            channel: channelContent.type,
+            title: item.title,
+            body: bodyContent,
+            caption: item.caption,
+            summary: item.caption,
+            hashtags: item.hashtags || [],
+            ctaSuggestions: [item.cta],
+            media: item.imageQuery ? { 
+              alt: item.imageQuery,
+              url: null 
+            } : null,
+            _approved: false
+          };
+        })
       ),
       recommendedImages: formattedImages,  // ✅ Store fetched images
       thumbnail: formattedImages.length > 0 ? formattedImages[0].url : null,  // ✅ Add thumbnail
