@@ -91,6 +91,18 @@ export default function ComposerDrawer({
       setMode(initialMode);
       setPreviewPlatform(item.platform);
       
+      // Load scheduled date/time if post is already scheduled
+      if (item.scheduledFor) {
+        const scheduledDateTime = new Date(item.scheduledFor);
+        setSelectedDate(scheduledDateTime);
+        setSelectedTime(scheduledDateTime);
+      } else {
+        // Default to 1 hour from now for new schedules
+        const defaultDateTime = addHours(new Date(), 1);
+        setSelectedDate(defaultDateTime);
+        setSelectedTime(defaultDateTime);
+      }
+      
       // Auto-select first available account for platform if none selected
       if (!item.accountId) {
         const matchingAccounts = accounts.filter(acc => acc.platform === item.platform);
