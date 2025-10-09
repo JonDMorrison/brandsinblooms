@@ -13,14 +13,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Facebook, Instagram, Clock, Calendar as CalendarIcon, Send, Save, AlertTriangle, Info, Eye } from 'lucide-react';
+import { Facebook, Instagram, Clock, Send, Save, AlertTriangle, Info, Eye } from 'lucide-react';
 import { SocialPostPreviewModal } from './preview/SocialPostPreviewModal';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format, addHours, setHours, setMinutes } from 'date-fns';
+import { format, addHours } from 'date-fns';
 import { ImageSelectButton } from '@/components/image';
 import { validatePostForPlatform } from '@/utils/validatePost';
 import type { PublishItem, PublishNowInput, ScheduleInput, ValidationResult } from '@/types/publish';
@@ -244,46 +242,6 @@ export default function ComposerDrawer({
     }
   };
 
-  const TimePicker = ({ 
-    selectedTime, 
-    onTimeChange 
-  }: { 
-    selectedTime: Date; 
-    onTimeChange: (time: Date) => void; 
-  }) => {
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    const minutes = [0, 15, 30, 45];
-    
-    const currentHour = selectedTime.getHours();
-    const currentMinute = selectedTime.getMinutes();
-    
-    return (
-      <div className="flex items-center gap-2">
-        <NativeSelect 
-          value={currentHour.toString()} 
-          onChange={(e) => onTimeChange(setHours(selectedTime, parseInt(e.target.value)))}
-          className="w-20"
-          options={hours.map(hour => ({
-            value: hour.toString(),
-            label: hour.toString().padStart(2, '0')
-          }))}
-        />
-        
-        <span className="text-gray-500">:</span>
-        
-        <NativeSelect 
-          value={currentMinute.toString()} 
-          onChange={(e) => onTimeChange(setMinutes(selectedTime, parseInt(e.target.value)))}
-          className="w-20"
-          options={minutes.map(minute => ({
-            value: minute.toString(),
-            label: minute.toString().padStart(2, '0')
-          }))}
-        />
-      </div>
-    );
-  };
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white z-50">
@@ -382,33 +340,29 @@ export default function ComposerDrawer({
           {mode === 'schedule' && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(selectedDate, "PPP")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => date && setSelectedDate(date)}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Time</Label>
-                <TimePicker 
-                  selectedTime={selectedTime}
-                  onTimeChange={setSelectedTime}
-                />
+                <Label>Date & Time</Label>
+                <div className="relative">
+                  <input
+                    type="datetime-local"
+                    value={format(
+                      new Date(
+                        selectedDate.getFullYear(),
+                        selectedDate.getMonth(),
+                        selectedDate.getDate(),
+                        selectedTime.getHours(),
+                        selectedTime.getMinutes()
+                      ),
+                      "yyyy-MM-dd'T'HH:mm"
+                    )}
+                    onChange={(e) => {
+                      const newDateTime = new Date(e.target.value);
+                      setSelectedDate(newDateTime);
+                      setSelectedTime(newDateTime);
+                    }}
+                    min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
               </div>
             </div>
           )}
