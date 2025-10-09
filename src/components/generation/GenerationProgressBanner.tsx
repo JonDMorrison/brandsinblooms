@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { CheckCircle, AlertCircle, X, Eye } from 'lucide-react';
 import { useGenerationJobTracker, GenerationJob } from '@/state/useGenerationJobTracker';
 import { useNavigate } from 'react-router-dom';
+import { useCreateFlow } from '@/state/useCreateFlow';
+import { GeneratedContentModal } from '@/components/create-flow/GeneratedContentModal';
 
 interface GenerationProgressBannerProps {
   className?: string;
@@ -13,6 +15,8 @@ interface GenerationProgressBannerProps {
 export const GenerationProgressBanner: React.FC<GenerationProgressBannerProps> = ({ className }) => {
   const { jobs, removeJob, clearCompletedJobs } = useGenerationJobTracker();
   const navigate = useNavigate();
+  const { setBundleIds } = useCreateFlow();
+  const [modalOpen, setModalOpen] = useState(false);
   
   const activeJobs = Object.values(jobs).filter(job => job.status === 'generating');
   const completedJobs = Object.values(jobs).filter(job => job.status === 'completed');
@@ -24,8 +28,10 @@ export const GenerationProgressBanner: React.FC<GenerationProgressBannerProps> =
 
   const handleViewContent = (job: GenerationJob) => {
     if (job.bundleId) {
-      // Navigate to content library with highlighting for the new bundle
-      navigate(`/content/library?from=generation&jobId=${job.id}`);
+      // Open the content modal directly
+      setBundleIds(job.bundleId, job.snapshotId || null);
+      setModalOpen(true);
+      window.dispatchEvent(new CustomEvent('library_card_open', { detail: { bundleId: job.bundleId } }));
     } else if (job.redirectPath) {
       navigate(job.redirectPath);
     }
@@ -127,6 +133,8 @@ export const GenerationProgressBanner: React.FC<GenerationProgressBannerProps> =
           </Button>
         </div>
       )}
+
+      <GeneratedContentModal open={modalOpen} onOpenChange={setModalOpen} />
     </div>
   );
 };
