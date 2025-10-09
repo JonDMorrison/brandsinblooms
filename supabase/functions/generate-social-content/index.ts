@@ -7,6 +7,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Strip markdown formatting - Facebook/Instagram don't render it
+function stripMarkdownForSocial(text: string): string {
+  if (!text) return text;
+  
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/(?<!https?:\/\/[^\s]*)_([^_]+)_/g, '$1')
+    .replace(/~~([^~]+)~~/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .trim();
+}
+
 interface SocialContentRequest {
   platform: 'facebook' | 'instagram';
   theme: string;
@@ -241,10 +257,13 @@ Return valid JSON only.`;
 
     const result = JSON.parse(toolCall.function.arguments);
     
+    // CRITICAL: Strip any markdown that AI generated despite instructions
+    const cleanContent = stripMarkdownForSocial(result.content || '');
+    
     // Use OpenAI's image query directly
     const imageQuery = result.imageQuery || 'garden center plants';
     
-    console.log(`[generate-social-content] Success - Content length: ${result.content?.length || 0}, imageQuery: "${imageQuery}"`);
+    console.log(`[generate-social-content] Success - Content length: ${cleanContent.length}, imageQuery: "${imageQuery}"`);
 
     // Fetch images from Unsplash using validated query
     let fetchedImages: any[] = [];
@@ -288,7 +307,7 @@ Return valid JSON only.`;
 
     return new Response(
       JSON.stringify({
-        content: result.content,
+        content: cleanContent,  // Use cleaned content without markdown
         imageQuery: imageQuery,
         hashtags: result.hashtags || '',
         images: formattedImages,
