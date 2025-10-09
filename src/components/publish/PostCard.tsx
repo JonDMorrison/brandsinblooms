@@ -193,14 +193,139 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
     );
   }
 
-  // Facebook and default layout
+  // Facebook native layout
+  if (item.platform === 'facebook') {
+    return (
+      <Card className={cn(
+        "relative hover:shadow-md transition-all duration-300 transform-gpu w-full max-w-[80%] mx-auto overflow-hidden",
+        "min-h-[600px] bg-white",
+        isDeleting && "animate-fade-out opacity-0 scale-95 pointer-events-none"
+      )}>
+        {/* Facebook Header */}
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
+              <Facebook className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-gray-900">{item.accountName || 'Your Page'}</span>
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <Clock className="w-3 h-3" />
+                <span>Just now</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDelete}
+              disabled={disabled || isDeleting}
+              className="w-8 h-8 p-0 text-gray-400 hover:text-red-500"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+            <MoreHorizontal className="w-5 h-5 text-gray-600" />
+          </div>
+        </div>
+
+        {/* Status Badge */}
+        <div className="px-4 pb-2">
+          <Badge className={cn("text-xs", getStatusColor(item.status))}>
+            {formatStatus(item.status, item.scheduledFor)}
+          </Badge>
+        </div>
+
+        {/* Caption */}
+        {item.caption && (
+          <div className="px-4 pb-3">
+            <p className="text-sm text-gray-900 whitespace-pre-wrap">{item.caption}</p>
+          </div>
+        )}
+
+        {/* Facebook Image - Full width, no padding */}
+        {item.mediaUrl && (
+          <div className="w-full bg-gray-100">
+            <img 
+              src={item.mediaUrl} 
+              alt="Facebook post"
+              className="w-full h-auto object-cover"
+            />
+          </div>
+        )}
+
+        {/* Engagement Bar */}
+        <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-500 border-b">
+          <div className="flex items-center gap-1">
+            <div className="flex -space-x-1">
+              <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                <Heart className="w-2.5 h-2.5 text-white fill-white" />
+              </div>
+            </div>
+            <span>0</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span>0 comments</span>
+            <span>0 shares</span>
+          </div>
+        </div>
+
+        {/* Published Date */}
+        {item.status === 'published' && publishedAt && (
+          <div className="px-4 py-2 text-xs text-gray-500 bg-gray-50">
+            Published {format(new Date(publishedAt), 'MMMM d, yyyy')}
+          </div>
+        )}
+
+        {/* Action Buttons - Facebook style */}
+        <div className="px-4 py-2 border-t">
+          <div className="flex items-center justify-between w-full gap-2">
+            <button
+              onClick={() => onEdit(item)}
+              disabled={disabled}
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              title="Edit"
+            >
+              <Edit3 className="w-6 h-6" />
+              <span className="text-xs font-medium">Edit</span>
+            </button>
+            
+            {canPublish && (
+              <button
+                onClick={() => onPublishNow(item)}
+                disabled={!canPublish}
+                className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                title="Publish Now"
+              >
+                <Send className="w-6 h-6" />
+                <span className="text-xs font-medium">Publish</span>
+              </button>
+            )}
+            
+            {canSchedule && (
+              <button
+                onClick={() => onSchedule(item)}
+                disabled={!canSchedule}
+                className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                title="Schedule"
+              >
+                <Clock className="w-6 h-6" />
+                <span className="text-xs font-medium">Schedule</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  // Default fallback layout
   return (
     <Card className={cn(
       "relative p-4 hover:shadow-md transition-all duration-300 transform-gpu w-full max-w-[80%] mx-auto",
       "min-h-[500px]",
       isDeleting && "animate-fade-out opacity-0 scale-95 pointer-events-none"
     )}>
-      {/* Delete Button */}
       <Button
         variant="ghost"
         size="sm"
@@ -212,7 +337,6 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
       </Button>
       
       <div className="space-y-4">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <PlatformIcon className={cn("w-5 h-5", platformColor)} />
@@ -226,9 +350,7 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
           </Badge>
         </div>
 
-        {/* Content Preview */}
         <div className="space-y-3">
-          {/* Image Thumbnail */}
           {item.mediaUrl && (
             <div className="w-full h-64 rounded-lg overflow-hidden bg-gray-100">
               <img 
@@ -239,14 +361,12 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
             </div>
           )}
 
-          {/* Caption Preview */}
           <div>
             <p className="text-sm text-gray-600 line-clamp-4">
               {item.caption || "No caption"}
             </p>
           </div>
 
-          {/* Published Date (Published posts only) */}
           {item.status === 'published' && publishedAt && (
             <div className="flex items-center gap-2 text-sm text-gray-500 bg-green-50 px-2 py-1 rounded">
               <Clock className="w-4 h-4" />
@@ -255,7 +375,6 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
           )}
         </div>
 
-        {/* Action Buttons */}
         <div className="flex items-center justify-between w-full gap-2 pt-2 border-t">
           <button
             onClick={() => onEdit(item)}
