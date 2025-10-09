@@ -225,6 +225,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
         mode: selectedPath as Mode,
         sourceId: selectedSourceId || undefined,
         workspaceId,
+        userId: currentUser.id, // ✅ Phase 2: Pass user ID to edge function
         channels: (Object.keys(channels).filter((k) => (channels as any)[k]) as any[]),
       };
       if (selectedPath === 'custom') {

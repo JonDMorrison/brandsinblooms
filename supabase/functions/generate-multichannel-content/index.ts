@@ -89,11 +89,29 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ✅ Phase 1: Declare variables at function scope with default values
+  let mode: string = 'unknown';
+  let sourceId: string = 'unknown';
+  let topicTitle: string = 'Unknown Topic';
+  let topicDescription: string = '';
+  let channels: string[] = [];
+  let workspaceId: string = '';
+  let userId: string = '';
+
   try {
     const body = await req.json();
     console.log('📨 Request body:', JSON.stringify(body, null, 2));
 
-    const { mode, sourceId, workspaceId, channels, topicTitle, topicDescription } = body;
+    // ✅ Assign the actual values from request body
+    ({ mode, sourceId, workspaceId, channels, topicTitle, topicDescription, userId } = body);
+
+    // ✅ Phase 2: Validate required fields
+    if (!userId) {
+      throw new Error('userId is required in request body');
+    }
+    if (!workspaceId) {
+      throw new Error('workspaceId is required in request body');
+    }
 
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY not configured');
@@ -185,32 +203,28 @@ serve(async (req) => {
 
     console.log(`📦 Saving bundle to database: ${bundleId}`);
 
-    // Get user and tenant for RLS compliance
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error('❌ Authentication error:', userError);
-      throw new Error('User authentication failed');
-    }
+    // ✅ Phase 2: Use the provided userId directly (no auth.getUser() needed)
+    console.log(`🔐 Using provided user ID: ${userId}`);
 
     const { data: userTenant, error: tenantError } = await supabase
       .from('users')
       .select('tenant_id')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
     if (tenantError || !userTenant?.tenant_id) {
       console.error('❌ Tenant lookup error:', tenantError);
-      throw new Error('User tenant not found');
+      throw new Error(`User tenant not found for user ${userId}: ${tenantError?.message || 'Unknown'}`);
     }
 
     const tenantId = userTenant.tenant_id;
-    console.log(`✅ User authenticated: ${user.id}, Tenant: ${tenantId}`);
+    console.log(`✅ User authenticated: ${userId}, Tenant: ${tenantId}`);
 
     // Insert directly into draft_snapshots
     const { data: newSnapshot, error: insertError } = await supabase
       .from('draft_snapshots')
       .insert({
-        user_id: user.id,
+        user_id: userId,  // ✅ Use the provided userId
         tenant_id: tenantId,
         doc_type: 'content_bundle',
         doc_id: bundleId,
