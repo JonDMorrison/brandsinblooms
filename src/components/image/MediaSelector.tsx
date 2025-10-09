@@ -298,7 +298,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                     variant="outline" 
                     size="sm"
                     onClick={(e) => handleDownload(selectedImageMetadata, e)}
-                    className="bg-white/90 hover:bg-white"
+                    className="bg-white/90 hover:bg-primary hover:text-white hover:border-primary transition-colors"
                   >
                     <Download className="h-3 w-3" />
                   </Button>
