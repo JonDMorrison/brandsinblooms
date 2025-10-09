@@ -57,8 +57,8 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
   const PlatformIcon = item.platform === 'facebook' ? Facebook : Instagram;
   const platformColor = item.platform === 'facebook' ? 'text-blue-600' : 'text-pink-500';
   
-  const canPublish = !disabled && ['approved', 'ready', 'draft', 'review'].includes(item.status);
-  const canSchedule = !disabled && ['approved', 'ready', 'draft', 'review'].includes(item.status);
+  const canPublish = !disabled && ['approved', 'ready', 'draft', 'review', 'planned'].includes(item.status);
+  const canSchedule = !disabled && ['approved', 'ready', 'draft', 'review', 'planned'].includes(item.status);
 
   const handleDelete = () => {
     setIsDeleting(true);
