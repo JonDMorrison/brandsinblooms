@@ -22,7 +22,7 @@ async function handler(req: Request): Promise<Response> {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log('[PUBLISH-TASK] Function invoked - Sentry logging test');
+  console.log('[PUBLISH-TASK] Function invoked');
   
   // Test error endpoint for Sentry verification
   const url = new URL(req.url);
@@ -32,7 +32,10 @@ async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const { taskId, action } = await req.json();
+    const requestBody = await req.json();
+    const { taskId, platforms, accountId, caption, imageUrl, firstComment, publishAt } = requestBody;
+
+    console.log('[PUBLISH-TASK] Request:', { taskId, platforms, accountId, hasCaption: !!caption, hasImage: !!imageUrl, publishAt });
 
     if (!taskId) {
       return new Response(
@@ -44,13 +47,18 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
+    // Determine action based on request data
+    const action = publishAt ? 'schedule' : 'publish';
+    console.log(`[PUBLISH-TASK] Processing task ${taskId} with action: ${action}`);
+
     // Initialize Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    console.log(`[PUBLISH-TASK] Processing task ${taskId} with action: ${action}`);
+    // Declare result outside the retry loop
+    let result: any = null;
 
     // Add retry logic with exponential backoff
     let attempt = 0;
@@ -59,18 +67,16 @@ async function handler(req: Request): Promise<Response> {
 
     while (attempt <= maxRetries) {
       try {
-        // Simulate task processing based on action with validation
-        let result;
+        // Process task based on action
         switch (action) {
           case 'publish':
             console.log(`[PUBLISH-TASK] Publishing task ${taskId} (attempt ${attempt + 1})`);
             
-            // Simulate validation for missing media/content
-            const hasContent = Math.random() > 0.1; // 90% success rate
-            if (!hasContent) {
-              softFail("publish_no_media_container_created", { 
+            // Validate required fields
+            if (!caption && !imageUrl) {
+              softFail("publish_no_content", { 
                 taskId, 
-                platform: "test", 
+                platform: platforms?.[0] || "unknown", 
                 attempt: attempt + 1 
               });
               
@@ -79,28 +85,88 @@ async function handler(req: Request): Promise<Response> {
                 await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
                 continue;
               } else {
-                softFail("publish_retry_exhausted", { 
-                  taskId, 
-                  lastError: "No media container created",
-                  totalAttempts: attempt + 1
-                });
                 return new Response(
-                  JSON.stringify({ ok: false, code: "NO_MEDIA", message: "No media to publish" }),
-                  { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  JSON.stringify({ ok: false, code: "NO_CONTENT", message: "No content to publish" }),
+                  { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                 );
               }
             }
             
-            result = { status: 'published', taskId, timestamp: new Date().toISOString() };
+            // Update task status to published
+            const { error: publishError } = await supabase
+              .from('content_tasks')
+              .update({ status: 'published' })
+              .eq('id', taskId);
+
+            if (publishError) throw publishError;
+
+            // Create scheduled post record
+            const { error: scheduleError } = await supabase
+              .from('scheduled_posts')
+              .insert({
+                content_id: taskId,
+                platform: platforms?.[0] || 'facebook',
+                publish_at: new Date().toISOString(),
+                status: 'PUBLISHED',
+                account_id: accountId || null,
+                caption: caption || null,
+                media_url: imageUrl || null,
+                first_comment: firstComment || null
+              });
+
+            if (scheduleError) throw scheduleError;
+            
+            result = { 
+              status: 'published', 
+              taskId, 
+              timestamp: new Date().toISOString(),
+              platform: platforms?.[0] || 'facebook'
+            };
             break;
+
           case 'schedule':
-            console.log(`[PUBLISH-TASK] Scheduling task ${taskId}`);
-            result = { status: 'scheduled', taskId, timestamp: new Date().toISOString() };
+            console.log(`[PUBLISH-TASK] Scheduling task ${taskId} for ${publishAt}`);
+            
+            // Validate required fields
+            if (!publishAt) {
+              return new Response(
+                JSON.stringify({ error: 'publishAt is required for scheduling' }),
+                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+            
+            // Update task status to scheduled
+            const { error: scheduleUpdateError } = await supabase
+              .from('content_tasks')
+              .update({ status: 'scheduled' })
+              .eq('id', taskId);
+
+            if (scheduleUpdateError) throw scheduleUpdateError;
+
+            // Create scheduled post record
+            const { error: createScheduleError } = await supabase
+              .from('scheduled_posts')
+              .insert({
+                content_id: taskId,
+                platform: platforms?.[0] || 'facebook',
+                publish_at: publishAt,
+                status: 'SCHEDULED',
+                account_id: accountId || null,
+                caption: caption || null,
+                media_url: imageUrl || null,
+                first_comment: firstComment || null
+              });
+
+            if (createScheduleError) throw createScheduleError;
+            
+            result = { 
+              status: 'scheduled', 
+              taskId, 
+              scheduledFor: publishAt,
+              platform: platforms?.[0] || 'facebook'
+            };
             break;
-          case 'cancel':
-            console.log(`[PUBLISH-TASK] Cancelling task ${taskId}`);
-            result = { status: 'cancelled', taskId, timestamp: new Date().toISOString() };
-            break;
+
           default:
             console.log(`[PUBLISH-TASK] Unknown action: ${action}`);
             result = { status: 'unknown', taskId, action };
@@ -125,8 +191,7 @@ async function handler(req: Request): Promise<Response> {
       }
     }
 
-    // Add a deliberate test log line
-    console.log('[PUBLISH-TASK] Test log line - this should appear in logs');
+    console.log('[PUBLISH-TASK] Task processed successfully:', result);
 
     return new Response(
       JSON.stringify({ 
