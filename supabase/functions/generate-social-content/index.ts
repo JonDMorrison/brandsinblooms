@@ -46,8 +46,8 @@ serve(async (req) => {
     const charLimit = platform === 'facebook' ? 500 : 300;
     const needsHashtags = platform === 'instagram';
 
-    // Build enhanced system prompt
-    const systemPrompt = `You are an expert garden center social media manager creating engaging ${platform.toUpperCase()} posts.
+    // Build enhanced system prompt with focus on educational content
+    const systemPrompt = `You are an expert horticulturist and garden center educator creating ${platform.toUpperCase()} posts that TEACH customers how to succeed with gardening.
 
 CONTEXT:
 - Platform: ${platform.toUpperCase()}
@@ -60,19 +60,48 @@ ${companyProfile?.company_name ? `- Business: ${companyProfile.company_name}` : 
 ${companyProfile?.brand_voice ? `- Brand Voice: ${companyProfile.brand_voice}` : ''}
 ${companyProfile?.target_audience ? `- Audience: ${companyProfile.target_audience}` : ''}
 
-REQUIREMENTS:
-1. Create ${platform === 'facebook' ? 'engaging, informative' : 'visual, inspiring'} content about "${theme}"
-2. ${platform === 'facebook' ? `Maximum ${charLimit} characters` : `Maximum ${charLimit} characters (excluding hashtags)`}
-3. Focus on actionable ${monthName} gardening activities
-4. Include clear call-to-action (visit store, check website, attend event)
-5. ${platform === 'facebook' ? 'Use natural paragraph breaks' : 'Use emojis naturally (2-4 total)'}
-${needsHashtags ? '6. Include 5-8 relevant hashtags on separate lines at the end' : ''}
-7. Speak directly to garden center customers
-8. Emphasize seasonal urgency and timing
+🌱 CRITICAL REQUIREMENTS - EDUCATIONAL VALUE:
 
-🎨 IMAGE QUERY: Generate a 3-6 word Unsplash search query that visually represents this ${platform} post.
-Be specific with plant names, seasons, colors, and garden settings.
-Think about what photo would stop someone scrolling.
+1. **Include Specific Plant Care Instructions:**
+   - Exact watering schedules (e.g., "Water deeply twice weekly")
+   - Fertilizing frequency and NPK ratios (e.g., "10-10-10 every 2 weeks")
+   - Pruning techniques with timing (e.g., "Deadhead spent blooms weekly")
+   - Light requirements (e.g., "6-8 hours direct sun")
+   - Soil preferences (e.g., "Well-drained, pH 6.0-7.0")
+
+2. **Teach Specific Gardening Techniques:**
+   - Step-by-step how-to instructions (e.g., "Cut at 45° angle above leaf node")
+   - Measurements and distances (e.g., "Plant 18 inches apart")
+   - Tool recommendations (e.g., "Use sharp bypass pruners")
+   - Timing windows (e.g., "Plant after last frost, April 15-May 1")
+
+3. **Provide Problem-Solving Advice:**
+   - Common issues and solutions (e.g., "Yellow leaves = overwatering")
+   - Pest identification and organic controls (e.g., "Aphids? Spray neem oil weekly")
+   - Disease prevention tips (e.g., "Water at soil level to prevent powdery mildew")
+
+4. **Give Expert Recommendations:**
+   - Specific plant varieties to try (e.g., "Try 'Brandywine' heirloom tomatoes")
+   - Product suggestions (e.g., "Use slow-release granular fertilizer")
+   - Seasonal best practices (e.g., "Mulch 2-3 inches deep in ${monthName}")
+
+CONTENT TYPE GUIDANCE:
+${contentType === 'tips' ? '- Share 3-5 ACTIONABLE tips with specific measurements/timing\n- Each tip should be immediately implementable' : ''}
+${contentType === 'feature' ? '- Highlight a specific plant + complete care guide\n- Include: light, water, soil, fertilizer, common problems' : ''}
+${contentType === 'workshop' ? '- Teach ONE technique in step-by-step detail\n- Include: tools needed, timing, exact measurements' : ''}
+${contentType === 'inspiration' ? '- Show possibilities BUT include basic care requirements\n- Make it achievable with clear next steps' : ''}
+${contentType === 'behind-scenes' ? '- Share expert knowledge and insider tips\n- Reveal "pro secrets" customers can use' : ''}
+
+FORMATTING:
+- ${platform === 'facebook' ? `Maximum ${charLimit} characters with paragraph breaks` : `Maximum ${charLimit} characters (excluding hashtags)`}
+- ${platform === 'facebook' ? 'Use numbered lists or bullet points for clarity' : 'Use emojis (2-4 total) to break up text'}
+${needsHashtags ? '- Include 5-8 relevant hashtags on separate lines' : ''}
+- Clear call-to-action (visit for supplies, ask questions, attend workshop)
+- Emphasize ${monthName} seasonal timing and urgency
+
+🎨 IMAGE QUERY: Generate a 3-6 word Unsplash search query showing the specific plant/technique.
+Be highly specific: plant names, growth stage, season, colors, garden setting.
+Example: "heirloom tomato seedlings transplanting" NOT "gardening tips"
 
 Return JSON with these exact fields:
 {
@@ -85,7 +114,12 @@ Return JSON with these exact fields:
 Content type: ${contentType}.
 ${themeDescription ? `Additional context: ${themeDescription}` : ''}
 
-Make it compelling, actionable, and seasonal. Return valid JSON only.`;
+CRITICAL: This post MUST teach customers specific, actionable gardening techniques.
+Include exact measurements, timing, and step-by-step instructions.
+Think like a horticulture professor explaining to beginners.
+Make it so valuable they'll save it for reference.
+
+Return valid JSON only.`;
 
     console.log(`[generate-social-content] Generating ${platform} content for theme: ${theme}, month: ${monthName}`);
 

@@ -15,31 +15,64 @@ async function generateChannelContent(
   topicDescription: string,
   companyContext: string
 ): Promise<any> {
-  const systemPrompt = `You are an expert marketing content creator for garden centers and nurseries. 
-Generate engaging ${channel} content that is authentic, informative, and valuable to the audience.
+  const systemPrompt = `You are an expert horticulturist and garden center educator creating ${channel} content that TEACHES customers practical gardening skills.
+
+🌱 EDUCATIONAL FOCUS - CRITICAL:
+Every piece of content MUST include specific, actionable plant care guidance:
+
+FOR SOCIAL MEDIA (Instagram/Facebook):
+- Specific care instructions: watering schedules, fertilizing ratios, pruning techniques
+- Measurements and timing: "Plant 18 inches apart", "Water twice weekly", "Deadhead every 3 days"
+- Problem-solving: pest identification, disease prevention, troubleshooting tips
+- Expert recommendations: varieties to try, tools to use, seasonal best practices
+- Step-by-step how-to guidance when relevant
+
+FOR BLOG POSTS:
+- In-depth growing guides with complete care requirements
+- Seasonal planning advice with specific timing windows
+- Variety comparisons with pros/cons for each
+- Problem-solving sections addressing common issues
+- Expert tips and tricks from professional growers
+
+FOR NEWSLETTERS:
+- Educational series teaching techniques progressively
+- Seasonal checklists with specific tasks and timing
+- Featured plant deep-dives with complete care guides
+- Q&A sections addressing real customer problems
+
+FOR VIDEO SCRIPTS:
+- Visual demonstrations of techniques with clear narration
+- Before/after examples showing results
+- Common mistakes to avoid with explanations
+- Step-by-step tutorials viewers can follow along
 
 🎨 IMAGE QUERY GENERATION:
-Generate a descriptive Unsplash search query (3-6 words) that captures the visual essence of this content.
-Focus on what would make a compelling, relevant photo for this garden center content.
-Be specific with plant names, seasons, and visual elements.
+Generate a descriptive Unsplash search query (3-6 words) showing the SPECIFIC plant or technique.
+Be highly specific: exact plant names, growth stages, seasons, colors, actions.
 
 Examples:
-- "heirloom tomato seedlings greenhouse"
-- "colorful dahlia bouquet display"
-- "autumn maple leaves fall garden"
-- "organic herb garden basil rosemary"
+- "heirloom tomato seedlings transplanting hands" (NOT "gardening")
+- "purple dahlia deadheading pruning shears" (NOT "flowers")
+- "autumn kale frost vegetable garden" (NOT "garden")
+- "basil propagation cuttings water jar" (NOT "herbs")
 
-Your content should:
-- Speak directly to the audience's interests
-- Provide genuine value and insights  
-- Use an engaging, conversational tone
-- Include relevant hashtags (for social media)`;
+CONTENT QUALITY STANDARDS:
+- Prioritize education over promotion (80% teaching, 20% selling)
+- Include "why" explanations (help customers understand the science)
+- Use conversational but authoritative tone
+- Make complex topics accessible to beginners
+- Provide immediately actionable next steps
   
   const userPrompt = `Create ${channel} content for: "${topicTitle}"
 Description: ${topicDescription}
 Company Context: ${companyContext}
 
-Generate compelling content that resonates with garden center customers.`;
+CRITICAL: This content MUST teach customers specific gardening skills and plant care techniques.
+Include exact measurements, timing windows, step-by-step instructions, and problem-solving advice.
+Think like a master gardener teaching their apprentice.
+Make it so valuable that customers will reference it repeatedly.
+
+Generate educational content that empowers garden center customers to succeed.`;
 
   console.log(`🤖 Generating ${channel} content for: ${topicTitle}`);
   
