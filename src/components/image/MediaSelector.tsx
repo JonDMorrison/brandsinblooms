@@ -288,7 +288,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="bg-white/90 hover:bg-white"
+                  className="bg-white/90 hover:bg-primary hover:text-white hover:border-primary transition-colors"
                 >
                   <Edit3 className="h-3 w-3 mr-1" />
                   Change Image
