@@ -153,41 +153,41 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
 
         {/* Action Buttons */}
         <div className="px-3 pb-3 pt-2 border-t">
-          <ActionGroup className="w-full justify-center">
-            <Button
-              variant="ghost"
+          <div className="flex items-center gap-4">
+            <button
               onClick={() => onEdit(item)}
               disabled={disabled}
-              className="flex-1 text-gray-600 hover:bg-gray-50"
+              className="flex items-center gap-1 text-gray-700 hover:text-gray-500 transition-colors disabled:opacity-50"
+              title="Edit"
             >
-              <Edit3 className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
+              <Edit3 className="w-6 h-6" />
+              <span className="text-sm font-medium">Edit</span>
+            </button>
             
             {canPublish && (
-              <Button
-                variant="success"
+              <button
                 onClick={() => onPublishNow(item)}
                 disabled={!canPublish}
-                className="flex-1"
+                className="flex items-center gap-1 text-green-600 hover:text-green-500 transition-colors disabled:opacity-50"
+                title="Publish Now"
               >
-                <Send className="w-4 h-4 mr-1" />
-                Publish
-              </Button>
+                <Send className="w-6 h-6" />
+                <span className="text-sm font-medium">Publish</span>
+              </button>
             )}
             
             {canSchedule && (
-              <Button
-                variant="soft-blue"
+              <button
                 onClick={() => onSchedule(item)}
                 disabled={!canSchedule}
-                className="flex-1"
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-500 transition-colors disabled:opacity-50"
+                title="Schedule"
               >
-                <Clock className="w-4 h-4 mr-1" />
-                Schedule
-              </Button>
+                <Clock className="w-6 h-6" />
+                <span className="text-sm font-medium">Schedule</span>
+              </button>
             )}
-          </ActionGroup>
+          </div>
         </div>
       </Card>
     );
@@ -256,41 +256,41 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
         </div>
 
         {/* Action Buttons */}
-        <ActionGroup className="w-full justify-center">
-          <Button
-            variant="ghost"
+        <div className="flex items-center gap-4 pt-2 border-t">
+          <button
             onClick={() => onEdit(item)}
             disabled={disabled}
-            className="flex-1 text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm"
+            className="flex items-center gap-1 text-gray-700 hover:text-gray-500 transition-colors disabled:opacity-50"
+            title="Edit"
           >
-            <Edit3 className="w-4 h-4 mr-1" />
-            Edit
-          </Button>
+            <Edit3 className="w-6 h-6" />
+            <span className="text-sm font-medium">Edit</span>
+          </button>
           
           {canPublish && (
-            <Button
-              variant="success"
+            <button
               onClick={() => onPublishNow(item)}
               disabled={!canPublish}
-              className="flex-1"
+              className="flex items-center gap-1 text-green-600 hover:text-green-500 transition-colors disabled:opacity-50"
+              title="Publish Now"
             >
-              <Send className="w-4 h-4 mr-1" />
-              Publish
-            </Button>
+              <Send className="w-6 h-6" />
+              <span className="text-sm font-medium">Publish</span>
+            </button>
           )}
           
           {canSchedule && (
-            <Button
-              variant="soft-blue"
+            <button
               onClick={() => onSchedule(item)}
               disabled={!canSchedule}
-              className="flex-1"
+              className="flex items-center gap-1 text-blue-600 hover:text-blue-500 transition-colors disabled:opacity-50"
+              title="Schedule"
             >
-              <Clock className="w-4 h-4 mr-1" />
-              Schedule
-            </Button>
+              <Clock className="w-6 h-6" />
+              <span className="text-sm font-medium">Schedule</span>
+            </button>
           )}
-        </ActionGroup>
+        </div>
       </div>
     </Card>
   );
