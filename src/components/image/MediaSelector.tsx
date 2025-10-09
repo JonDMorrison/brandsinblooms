@@ -286,19 +286,15 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
                 <Button 
-                  variant="outline" 
                   size="sm"
-                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300 hover:border-blue-400 transition-colors duration-300"
                 >
                   <Edit3 className="h-3 w-3 mr-1" />
                   Change Image
                 </Button>
                 {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
                   <Button 
-                    variant="outline" 
                     size="sm"
                     onClick={(e) => handleDownload(selectedImageMetadata, e)}
-                    className="bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300 hover:border-blue-400 transition-colors duration-300"
                   >
                     <Download className="h-3 w-3" />
                   </Button>
