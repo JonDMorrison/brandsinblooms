@@ -1,7 +1,6 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -61,8 +60,7 @@ REGIONAL CONSIDERATIONS:
             - Sound conversational like a local expert
             - Avoid generic openings and cliché phrases
             - **CRITICAL: Use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence**
-            
-            ${getImageQueryPromptInstructions()}
+            - For imageQuery: Create a vivid, specific 3-5 word query perfect for Unsplash searches. Focus on visual garden elements (plants, flowers, tools, landscapes). Examples: "native wildflower meadow display", "heirloom tomato seedlings greenhouse", "autumn planting bulbs tulips"
             
             Keep it concise and compelling - this will guide all content creation for the week including social media, newsletters, and videos.`
           },
@@ -101,8 +99,7 @@ Return JSON with: { description: string, imageQuery: string }`
       description = parsed.description || aiResponse;
       imageQuery = parsed.imageQuery || imageQuery;
       
-      // Validate and fix image query
-      imageQuery = validateAndLogQuery(imageQuery, 'Theme Description');
+      console.log(`[THEME-DESC] OpenAI generated imageQuery: "${imageQuery}"`);
     } catch {
       // If not JSON, use the whole response as description
       description = aiResponse;

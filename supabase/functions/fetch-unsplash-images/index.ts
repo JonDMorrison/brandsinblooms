@@ -34,6 +34,28 @@ serve(async (req) => {
       throw new Error('Either query or collection parameter is required');
     }
 
+    // === ENHANCED DEBUG LOGGING ===
+    console.log(`[UNSPLASH-DEBUG] ===== REQUEST START =====`);
+    console.log(`[UNSPLASH-DEBUG] Raw input query: "${query}"`);
+    console.log(`[UNSPLASH-DEBUG] rawQuery flag: ${rawQuery}`);
+    console.log(`[UNSPLASH-DEBUG] contentTaskId: ${contentTaskId}`);
+    
+    // Query quality analysis
+    if (query) {
+      const queryWords = query.trim().split(/\s+/);
+      const isSpecific = queryWords.length >= 3 && !query.toLowerCase().includes('garden center');
+      console.log(`[UNSPLASH-DEBUG] Query specificity: ${isSpecific ? '✅ SPECIFIC' : '⚠️ GENERIC'} (${queryWords.length} words)`);
+      
+      // Check for problematic patterns
+      if (query.includes('garden garden')) {
+        console.warn(`[UNSPLASH-DEBUG] ⚠️ DUPLICATE "garden" detected in query!`);
+      }
+      if (query === 'garden') {
+        console.warn(`[UNSPLASH-DEBUG] ⚠️ Query is just "garden" - too generic!`);
+      }
+    }
+    console.log(`[UNSPLASH-DEBUG] ===== END DEBUG =====`);
+
     console.log(`[UNSPLASH] ===== ENHANCED FETCH DEBUG =====`);
     console.log(`[UNSPLASH] Received query: "${query}", collection: "${collection}", page: ${page}`);
     console.log(`[UNSPLASH] Parameters: maxImages=${maxImages}, orientation=${orientation}, orderBy=${orderBy}, contentFilter=${contentFilter}, rawQuery=${rawQuery}`);

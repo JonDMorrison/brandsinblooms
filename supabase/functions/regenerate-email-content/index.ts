@@ -1,7 +1,6 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -43,7 +42,10 @@ Seasonal Context:
 - Upcoming Tasks: ${seasonal_context?.garden_tasks?.join(', ')}
 - Holiday Context: ${seasonal_context?.upcoming_holidays?.map(h => h.holiday_name).join(', ')}
 
-${getImageQueryPromptInstructions()}
+Image Query Guidelines:
+- Create vivid, specific 3-5 word queries perfect for Unsplash searches
+- Focus on visual garden elements (plants, flowers, tools, landscapes)
+- Examples: "native wildflower meadow display", "heirloom tomato seedlings greenhouse", "autumn planting bulbs tulips"
 
 Please regenerate the content to be more engaging, season-appropriate, and conversion-focused while maintaining the core message.`;
 
@@ -100,16 +102,12 @@ Format your response as JSON with these keys:
     try {
       parsedResponse = JSON.parse(aiResponse);
       
-      // Validate and fix image query if present
-      if (parsedResponse.imageQuery) {
-        parsedResponse.imageQuery = validateAndLogQuery(
-          parsedResponse.imageQuery,
-          'Regenerate Email'
-        );
-      } else {
-        // Generate default query if missing
+      // Use OpenAI's image query directly, or fallback to generic
+      if (!parsedResponse.imageQuery) {
         parsedResponse.imageQuery = 'garden center seasonal display';
       }
+      
+      console.log(`[REGEN-EMAIL] OpenAI generated imageQuery: "${parsedResponse.imageQuery}"`);
     } catch {
       parsedResponse = {
         regenerated_content: aiResponse,
