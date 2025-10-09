@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ActionGroup } from '@/components/ui/action-group';
 import { Badge } from '@/components/ui/badge';
-import { Facebook, Instagram, Clock, Send, Edit3, Trash2 } from 'lucide-react';
+import { Facebook, Instagram, Clock, Send, Edit3, Trash2, Heart, MessageCircle, Bookmark, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { PublishItem } from '@/types/publish';
@@ -68,9 +68,136 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
     }, 300);
   };
 
+  // Instagram native layout
+  if (item.platform === 'instagram') {
+    return (
+      <Card className={cn(
+        "relative hover:shadow-md transition-all duration-300 transform-gpu w-full max-w-[80%] mx-auto overflow-hidden",
+        "min-h-[600px]",
+        isDeleting && "animate-fade-out opacity-0 scale-95 pointer-events-none"
+      )}>
+        {/* Instagram Header */}
+        <div className="flex items-center justify-between p-3 border-b">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[2px]">
+              <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
+                <Instagram className="w-4 h-4 text-pink-500" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold">{item.accountName || 'Your Account'}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDelete}
+              disabled={disabled || isDeleting}
+              className="w-8 h-8 p-0 text-gray-400 hover:text-red-500"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+            <MoreHorizontal className="w-5 h-5 text-gray-700" />
+          </div>
+        </div>
+
+        {/* Instagram Image - Square aspect ratio */}
+        {item.mediaUrl && (
+          <div className="w-full aspect-square bg-gray-100">
+            <img 
+              src={item.mediaUrl} 
+              alt="Instagram post"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
+        {/* Instagram Actions */}
+        <div className="px-3 pt-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-4">
+              <Heart className="w-6 h-6" />
+              <MessageCircle className="w-6 h-6" />
+              <Send className="w-6 h-6" />
+            </div>
+            <Bookmark className="w-6 h-6" />
+          </div>
+
+          {/* Status Badge */}
+          <Badge className={cn("mb-2", getStatusColor(item.status))}>
+            {formatStatus(item.status, item.scheduledFor)}
+          </Badge>
+
+          {/* Caption */}
+          <div className="mb-2">
+            <span className="font-semibold text-sm mr-2">{item.accountName || 'Your Account'}</span>
+            <span className="text-sm">{item.caption || "No caption"}</span>
+          </div>
+
+          {/* First Comment */}
+          {item.firstComment && (
+            <div className="text-sm text-gray-500 mb-2">
+              <span className="font-semibold text-gray-700 mr-2">{item.accountName || 'Your Account'}</span>
+              {item.firstComment}
+            </div>
+          )}
+
+          {/* Published Date */}
+          {item.status === 'published' && publishedAt && (
+            <div className="text-xs text-gray-500 mb-3">
+              {format(new Date(publishedAt), 'MMMM d, yyyy')}
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="px-3 pb-3 pt-2 border-t">
+          <ActionGroup className="w-full justify-center">
+            <Button
+              variant="ghost"
+              onClick={() => onEdit(item)}
+              disabled={disabled}
+              className="flex-1 text-gray-600 hover:bg-gray-50"
+            >
+              <Edit3 className="w-4 h-4 mr-1" />
+              Edit
+            </Button>
+            
+            {canPublish && (
+              <Button
+                variant="success"
+                onClick={() => onPublishNow(item)}
+                disabled={!canPublish}
+                className="flex-1"
+              >
+                <Send className="w-4 h-4 mr-1" />
+                Publish
+              </Button>
+            )}
+            
+            {canSchedule && (
+              <Button
+                variant="soft-blue"
+                onClick={() => onSchedule(item)}
+                disabled={!canSchedule}
+                className="flex-1"
+              >
+                <Clock className="w-4 h-4 mr-1" />
+                Schedule
+              </Button>
+            )}
+          </ActionGroup>
+        </div>
+      </Card>
+    );
+  }
+
+  // Facebook and default layout
   return (
     <Card className={cn(
       "relative p-4 hover:shadow-md transition-all duration-300 transform-gpu w-full max-w-[80%] mx-auto",
+      "min-h-[500px]",
       isDeleting && "animate-fade-out opacity-0 scale-95 pointer-events-none"
     )}>
       {/* Delete Button */}
@@ -94,13 +221,16 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
               <span className="text-sm text-gray-500">• {item.accountName}</span>
             )}
           </div>
+          <Badge className={getStatusColor(item.status)}>
+            {formatStatus(item.status, item.scheduledFor)}
+          </Badge>
         </div>
 
         {/* Content Preview */}
         <div className="space-y-3">
           {/* Image Thumbnail */}
           {item.mediaUrl && (
-            <div className="w-full h-32 rounded-lg overflow-hidden bg-gray-100">
+            <div className="w-full h-64 rounded-lg overflow-hidden bg-gray-100">
               <img 
                 src={item.mediaUrl} 
                 alt="Content preview"
@@ -111,18 +241,10 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
 
           {/* Caption Preview */}
           <div>
-            <p className="text-sm text-gray-600 line-clamp-3">
+            <p className="text-sm text-gray-600 line-clamp-4">
               {item.caption || "No caption"}
             </p>
           </div>
-
-          {/* First Comment Preview (IG only) */}
-          {item.firstComment && item.platform === 'instagram' && (
-            <div className="border-l-2 border-gray-200 pl-3">
-              <p className="text-xs text-gray-500 mb-1">First comment:</p>
-              <p className="text-sm text-gray-600 line-clamp-2">{item.firstComment}</p>
-            </div>
-          )}
 
           {/* Published Date (Published posts only) */}
           {item.status === 'published' && publishedAt && (
