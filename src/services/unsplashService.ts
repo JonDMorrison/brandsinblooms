@@ -20,13 +20,13 @@ export interface UnsplashImage {
   };
 }
 
-export async function fetchSmartImage(keyword: string, context = '', useRawKeyword = false): Promise<UnsplashImage | null> {
+export async function fetchSmartImage(keyword: string, context = '', useRawKeyword = true): Promise<UnsplashImage | null> {
   try {
-    // Use keyword as-is if useRawKeyword is true, otherwise create concise summary
+    // Trust the keyword as-is (usually from OpenAI) - changed default to true
     const query = useRawKeyword ? keyword.trim() : 
       extractImageSummary(keyword) || 'garden';
     
-    console.log(`[UNSPLASH] Fetching smart image for: "${query}"`);
+    console.log(`[UNSPLASH] Fetching smart image for: "${query}" (useRawKeyword: ${useRawKeyword})`);
     
     const { data, error } = await supabase.functions.invoke('get-unsplash-image', {
       body: { query }

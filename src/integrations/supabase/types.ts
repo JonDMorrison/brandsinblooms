@@ -4999,33 +4999,55 @@ export type Database = {
         Row: {
           approved_count: number | null
           bundle_id: string | null
-          channels: string[] | null
+          channels: Json | null
           created_at: string | null
+          deleted_at: string | null
           mode: string | null
+          recommended_images: Json | null
           snapshot_id: string | null
-          source_id: string | null
           source_label: string | null
           thumbnail: string | null
           total_items: number | null
           updated_at: string | null
+          user_id: string | null
+          version: number | null
           workspace_id: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "users_tenant_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "admin_tenant_overview"
-            referencedColumns: ["tenant_id"]
-          },
-          {
-            foreignKeyName: "users_tenant_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Insert: {
+          approved_count?: never
+          bundle_id?: string | null
+          channels?: never
+          created_at?: string | null
+          deleted_at?: string | null
+          mode?: never
+          recommended_images?: never
+          snapshot_id?: string | null
+          source_label?: never
+          thumbnail?: never
+          total_items?: never
+          updated_at?: string | null
+          user_id?: string | null
+          version?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          approved_count?: never
+          bundle_id?: string | null
+          channels?: never
+          created_at?: string | null
+          deleted_at?: string | null
+          mode?: never
+          recommended_images?: never
+          snapshot_id?: string | null
+          source_label?: never
+          thumbnail?: never
+          total_items?: never
+          updated_at?: string | null
+          user_id?: string | null
+          version?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: []
       }
       customer_360_enriched: {
         Row: {

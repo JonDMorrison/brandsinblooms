@@ -44,149 +44,43 @@ const CONTEXT_WORDS = [
 ];
 
 /**
- * Extracts a concise 3-5 word garden-focused summary from content for image search
- * IMPROVED: Now returns more specific queries for better Unsplash results
+ * UPDATED: Trust OpenAI's image keywords - NO transformation
+ * 
+ * This function now acts as a passthrough. OpenAI generates perfect
+ * Unsplash search queries, so we trust them completely.
  */
 export function extractImageSummary(content: string): string {
   if (!content?.trim()) {
     return 'garden center plants';
   }
-
-  // Clean and normalize the content
-  const cleanContent = content
-    .toLowerCase()
-    .replace(/<[^>]*>/g, ' ')  // Remove HTML
-    .replace(/[^\w\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const words = cleanContent.split(' ');
-
-  // Priority 1: Build multi-word query with specific terms
-  const foundPriorityTerms: string[] = [];
-  for (const term of PRIORITY_GARDEN_TERMS) {
-    if (words.includes(term) || cleanContent.includes(term)) {
-      // For plural terms, prefer singular if available
-      if (term.endsWith('s') && term.length > 4) {
-        const singular = term.slice(0, -1);
-        if (PRIORITY_GARDEN_TERMS.includes(singular)) {
-          foundPriorityTerms.push(singular);
-        } else {
-          foundPriorityTerms.push(term);
-        }
-      } else {
-        foundPriorityTerms.push(term);
-      }
-      
-      // Stop after finding 2-3 specific terms
-      if (foundPriorityTerms.length >= 3) break;
-    }
-  }
-
-  // If we found specific terms, combine them with context
-  if (foundPriorityTerms.length > 0) {
-    // Add seasonal context if present
-    const seasons = ['spring', 'summer', 'fall', 'autumn', 'winter', 'thanksgiving', 'holiday'];
-    const seasonContext = seasons.find(s => cleanContent.includes(s));
-    
-    if (seasonContext && !foundPriorityTerms.includes(seasonContext)) {
-      return `${seasonContext} garden ${foundPriorityTerms.slice(0, 2).join(' ')}`;
-    }
-    
-    // Return with garden context if not already present
-    const query = foundPriorityTerms.slice(0, 3).join(' ');
-    return cleanContent.includes('garden') ? query : `${query} garden`;
-  }
-
-  // Priority 3: Enhanced topic-specific mappings (prioritize exact topic searches)
-  const topicMappings: Record<string, string> = {
-    'national honey month': 'honey bees pollinator garden',
-    'honey month': 'honey bees garden flowers',
-    'pollinator': 'bee pollinator garden',
-    'bee friendly': 'bee friendly garden plants',
-    'hydrangea care': 'hydrangea flowers garden',
-    'rose pruning': 'rose bush garden pruning',
-    'tomato growing': 'tomato vegetable garden',
-    'orchid care': 'orchid flowers care',
-    'succulent care': 'succulent plants indoor',
-    'herb garden': 'herb garden basil rosemary',
-    'vegetable garden': 'vegetable garden harvest',
-    'summer heat': 'summer garden heat',
-    'heat protection': 'shade garden summer',
-    'plant rescue': 'plant care recovery',
-    'plant recovery': 'plant care watering',
-    'garden planning': 'garden design planning',
-    'garden preparation': 'garden tools preparation',
-    'fall garden': 'autumn garden harvest',
-    'winter garden': 'winter garden evergreen',
-    'thanksgiving': 'thanksgiving harvest pumpkin',
-    'thanksgiving garden': 'thanksgiving garden harvest vegetables',
-    'garden gratitude': 'harvest abundance thanksgiving garden',
-    'holiday garden': 'holiday garden decorations',
-    'spring planting': 'spring garden planting flowers',
-    'autumn harvest': 'autumn harvest vegetables garden'
-  };
-
-  for (const [phrase, mapping] of Object.entries(topicMappings)) {
-    if (cleanContent.includes(phrase)) {
-      return mapping;
-    }
-  }
-
-  // Priority 4: Look for specific months that indicate seasonal content
-  const seasonalTerms: Record<string, string> = {
-    'january': 'winter garden evergreen',
-    'february': 'winter garden planning', 
-    'march': 'spring garden seeds',
-    'april': 'spring garden flowers',
-    'may': 'spring garden blooms',
-    'june': 'summer garden flowers',
-    'july': 'summer garden vegetables',
-    'august': 'summer garden harvest',
-    'september': 'autumn garden harvest',
-    'october': 'autumn garden pumpkin',
-    'november': 'autumn garden thanksgiving',
-    'december': 'winter garden evergreen'
-  };
-
-  for (const [month, seasonQuery] of Object.entries(seasonalTerms)) {
-    if (cleanContent.includes(month)) {
-      return seasonQuery;
-    }
-  }
-
-  // Priority 5: Look for action words with garden context
-  const actionWords = ['pruning', 'planting', 'watering', 'fertilizing', 'harvesting'];
-  for (const action of actionWords) {
-    if (cleanContent.includes(action) || cleanContent.includes(action.slice(0, -3))) {
-      const root = action.slice(0, -3); // Remove 'ing' suffix
-      return `${root} garden tools`;
-    }
-  }
-
-  // Priority 6: Look for meaningful multi-word queries
-  const meaningfulWords = words.filter(word => 
-    word.length > 4 && 
-    !CONTEXT_WORDS.includes(word) &&
-    !['the', 'and', 'for', 'with', 'your', 'that', 'this', 'from', 'care', 'tips', 'guide'].includes(word)
-  );
-
-  if (meaningfulWords.length > 0) {
-    // Combine 2-3 meaningful words with garden context
-    const topWords = meaningfulWords.slice(0, 2);
-    return `${topWords.join(' ')} garden plants`;
-  }
-
-  // Final fallback - use seasonal garden term based on current month
-  const currentMonth = new Date().getMonth();
-  const seasonalFallbacks: Record<number, string> = {
-    0: 'winter garden plants', 1: 'winter garden plants', 2: 'spring garden flowers',
-    3: 'spring garden flowers', 4: 'spring garden flowers', 5: 'summer garden flowers',
-    6: 'summer garden flowers', 7: 'pollinator garden bees', // July is National Honey Month
-    8: 'autumn garden harvest', 9: 'autumn garden harvest', 10: 'autumn garden harvest', 11: 'winter garden plants'
-  };
   
-  return seasonalFallbacks[currentMonth] || 'garden center seasonal plants';
+  // If it's already a short, specific query (from OpenAI), use it as-is
+  const words = content.trim().split(/\s+/);
+  if (words.length >= 2 && words.length <= 6) {
+    console.log('[extractImageSummary] Using query as-is:', content);
+    return content;
+  }
+  
+  // Only for very long text (like full blog posts), extract key terms
+  if (words.length > 50) {
+    // Simple extraction: first 4 meaningful words
+    const cleaned = content
+      .toLowerCase()
+      .replace(/<[^>]+>/g, '') // Remove HTML
+      .replace(/[^\w\s]/g, ' ') // Remove punctuation
+      .trim();
+    
+    const meaningfulWords = cleaned
+      .split(/\s+/)
+      .filter(w => w.length > 3 && !['the', 'and', 'for', 'with', 'this', 'that'].includes(w))
+      .slice(0, 4)
+      .join(' ');
+    
+    return meaningfulWords || 'garden plants';
+  }
+  
+  // For medium-length text, use as-is
+  return content;
 }
 
 /**
@@ -210,10 +104,10 @@ export function extractImageSummaryWithContext(content: string, addContext = fal
 
 /**
  * Validates that the summary will likely return good image results
+ * UPDATED: Trust OpenAI keywords - removed strict validation
  */
 export function validateImageSummary(summary: string): boolean {
   if (!summary || summary.length < 2) return false;
-  if (summary.split(' ').length > 6) return false; // Allow up to 6 words
-  if (summary.split(' ').length === 1 && CONTEXT_WORDS.includes(summary.toLowerCase())) return false;
+  // Allow any reasonable query length (OpenAI knows best)
   return true;
 }

@@ -456,7 +456,10 @@ serve(async (req) => {
       queriesFound: uniqueQueries.length,
       imagesFetched: fetchedImages.length,
       imagesFormatted: formattedImages.length,
-      firstImageUrl: formattedImages[0]?.url || null
+      firstImageUrl: formattedImages[0]?.url || null,
+      thumbnailSet: !!bundleContent.thumbnail,
+      recommendedImagesCount: bundleContent.recommendedImages?.length || 0,
+      sampleQueries: uniqueQueries.slice(0, 3)
     });
     
     // Helper function to convert markdown to HTML for blog content
