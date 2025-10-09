@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Trash2, Search, Filter, Clock, CheckCircle2, ChevronRight } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useContentLibrary, useDeleteBundle } from "@/hooks/useContentLibrary";
 import type { Channel } from "@/lib/content/libraryTypes";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -295,7 +296,13 @@ export const BundleLibrary = () => {
 
       <main>
         {isLoading ? (
-          <div className="text-sm text-muted-foreground">Loading…</div>
+          <div className="flex items-center justify-center py-24">
+            <LoadingSpinner 
+              size="lg" 
+              color="primary"
+              text="Loading your content..."
+            />
+          </div>
         ) : items.length === 0 && bundleJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 border border-dashed rounded-2xl">
             <p className="text-sm text-muted-foreground mb-3">No content yet</p>
