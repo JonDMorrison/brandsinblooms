@@ -242,7 +242,7 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
 
         {/* Status Badge */}
         <div className="px-4 pb-2">
-          <Badge className={cn("text-xs", getStatusColor(item.status))}>
+          <Badge className={cn("text-xs pointer-events-none", getStatusColor(item.status))}>
             {formatStatus(item.status, item.scheduledFor)}
           </Badge>
         </div>
