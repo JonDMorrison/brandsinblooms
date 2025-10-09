@@ -185,6 +185,10 @@ serve(async (req) => {
     // Transform content into GeneratedBundle format
     const bundleContent = {
       id: bundleId,
+      mode: mode || 'event',                    // ✅ Root level for view compatibility
+      sourceId: sourceId || '',
+      sourceLabel: topicTitle || 'Untitled Content',  // ✅ Root level for view
+      channels: channels || [],                 // ✅ Root level for view
       items: content.flatMap((channelContent: any) => 
         channelContent.items.map((item: any) => ({
           channel: channelContent.type,
@@ -205,10 +209,24 @@ serve(async (req) => {
       meta: {
         mode: mode as 'event' | 'seasonal' | 'custom',
         sourceId: sourceId,
-        sourceLabel: topicTitle, // Save the actual title here
+        sourceLabel: topicTitle,
         topicDescription: topicDescription
       }
     };
+
+    // ✅ Phase 3: Validate bundle structure before saving
+    console.log('🔍 Validating bundle structure:', {
+      hasId: !!bundleContent.id,
+      hasMode: !!bundleContent.mode,
+      hasSourceLabel: !!bundleContent.sourceLabel,
+      hasChannels: Array.isArray(bundleContent.channels) && bundleContent.channels.length > 0,
+      hasItems: Array.isArray(bundleContent.items) && bundleContent.items.length > 0
+    });
+
+    if (!bundleContent.mode || !bundleContent.sourceLabel || !Array.isArray(bundleContent.channels)) {
+      console.error('❌ Invalid bundle structure:', bundleContent);
+      throw new Error('Bundle missing required metadata fields');
+    }
 
     console.log(`📦 Saving bundle to database: ${bundleId}`);
 

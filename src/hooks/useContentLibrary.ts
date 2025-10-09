@@ -35,9 +35,6 @@ export function useContentLibrary(filters: LibraryFilters = {}) {
 
       // Security filter: Only show content from current user's workspace
       q = q.eq('workspace_id', tenant.id);
-      
-      // CRITICAL: Only show non-deleted content
-      q = q.is('deleted_at', null);
 
       // Filters
       if (search) {
