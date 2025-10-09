@@ -60,6 +60,14 @@ ${companyProfile?.company_name ? `- Business: ${companyProfile.company_name}` : 
 ${companyProfile?.brand_voice ? `- Brand Voice: ${companyProfile.brand_voice}` : ''}
 ${companyProfile?.target_audience ? `- Audience: ${companyProfile.target_audience}` : ''}
 
+🚨 FORMATTING CRITICAL RULES:
+- **PLAIN TEXT ONLY** - DO NOT use markdown syntax like **bold** or _italic_
+- Facebook and Instagram display markdown as literal text (users see the asterisks/underscores)
+- Use plain text for all content - no **bold**, no _italic_, no ~~strikethrough~~
+- For emphasis, use: CAPS, emojis, or line breaks
+- Example: Write "Water deeply twice weekly" NOT "**Water deeply twice weekly**"
+- Example: Write "Try Brandywine tomatoes" NOT "Try _Brandywine_ tomatoes"
+
 🌱 CRITICAL REQUIREMENTS - EDUCATIONAL VALUE:
 
 1. **Include Specific Plant Care Instructions:**
@@ -147,7 +155,7 @@ Return valid JSON only.`;
               properties: {
                 content: {
                   type: "string",
-                  description: `The ${platform} post content (${charLimit} chars max)`
+                  description: `The ${platform} post content in PLAIN TEXT ONLY (${charLimit} chars max, no markdown formatting)`
                 },
                 imageQuery: {
                   type: "string",

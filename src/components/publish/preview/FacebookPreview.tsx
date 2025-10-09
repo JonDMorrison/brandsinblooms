@@ -2,6 +2,7 @@
 import React from 'react';
 import { ThumbsUp, MessageCircle, Share } from 'lucide-react';
 import { truncateWithMore } from './truncate';
+import { stripMarkdownForSocial } from '@/utils/markdownStripper';
 import type { PreviewProps } from './types';
 
 interface FacebookPreviewProps extends PreviewProps {
@@ -16,8 +17,10 @@ export const FacebookPreview = ({
   likeCount = 1248, 
   commentCount = 89 
 }: FacebookPreviewProps) => {
-  const truncatedCaption = truncateWithMore(caption, 240);
-  const showSeeMore = caption.length > 240;
+  // Strip markdown as Facebook doesn't render it
+  const cleanCaption = stripMarkdownForSocial(caption);
+  const truncatedCaption = truncateWithMore(cleanCaption, 240);
+  const showSeeMore = cleanCaption.length > 240;
   
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden max-w-lg mx-auto">

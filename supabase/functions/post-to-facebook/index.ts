@@ -7,6 +7,22 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
+// Strip markdown formatting for Facebook (which doesn't render it)
+function stripMarkdownForSocial(text: string): string {
+  if (!text) return text;
+  
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/(?<!https?:\/\/[^\s]*)_([^_]+)_/g, '$1')
+    .replace(/~~([^~]+)~~/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .trim();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -42,9 +58,9 @@ serve(async (req) => {
     // Refresh token if needed
     await refreshTokenIfNeeded(connection, supabaseAdmin)
 
-    // Post to Facebook
+    // Post to Facebook (strip markdown as Facebook doesn't render it)
     const formData = new FormData()
-    formData.append('message', content)
+    formData.append('message', stripMarkdownForSocial(content))
     formData.append('access_token', connection.access_token)
 
     const response = await fetch(`https://graph.facebook.com/v19.0/${connection.page_id || connection.platform_account_id}/feed`, {

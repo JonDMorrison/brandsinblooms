@@ -2,6 +2,7 @@
 import React from 'react';
 import { Heart, MessageCircle, Send, Bookmark } from 'lucide-react';
 import { truncateWithMore } from './truncate';
+import { stripMarkdownForSocial } from '@/utils/markdownStripper';
 import type { PreviewProps } from './types';
 
 interface InstagramPreviewProps extends PreviewProps {
@@ -16,8 +17,10 @@ export const InstagramPreview = ({
   likeCount = 1248, 
   commentCount = 89 
 }: InstagramPreviewProps) => {
-  const truncatedCaption = truncateWithMore(caption, 140);
-  const showMore = caption.length > 140;
+  // Strip markdown as Instagram doesn't render it
+  const cleanCaption = stripMarkdownForSocial(caption);
+  const truncatedCaption = truncateWithMore(cleanCaption, 140);
+  const showMore = cleanCaption.length > 140;
   
   return (
     <div className="bg-white rounded-lg overflow-hidden max-w-sm mx-auto">

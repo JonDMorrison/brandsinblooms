@@ -7,6 +7,22 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
+// Strip markdown formatting for Instagram (which doesn't render it)
+function stripMarkdownForSocial(text: string): string {
+  if (!text) return text;
+  
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/(?<!https?:\/\/[^\s]*)_([^_]+)_/g, '$1')
+    .replace(/~~([^~]+)~~/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .trim();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -45,13 +61,14 @@ serve(async (req) => {
     let result;
     
     if (media_url) {
-      // Create media object first
+      // Create media object first (strip markdown as Instagram doesn't render it)
+      const cleanContent = stripMarkdownForSocial(content);
       const mediaResponse = await fetch(`https://graph.facebook.com/v19.0/${connection.platform_account_id}/media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image_url: media_url,
-          caption: content,
+          caption: cleanContent,
           access_token: connection.access_token
         })
       })
