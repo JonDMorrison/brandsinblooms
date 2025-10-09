@@ -57,6 +57,21 @@ async function handler(req: Request): Promise<Response> {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    // Get task details to retrieve user_id and tenant_id
+    const { data: taskData, error: taskError } = await supabase
+      .from('content_tasks')
+      .select('user_id, tenant_id')
+      .eq('id', taskId)
+      .single();
+
+    if (taskError || !taskData) {
+      console.error('[PUBLISH-TASK] Failed to fetch task:', taskError);
+      return new Response(
+        JSON.stringify({ error: 'Task not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Declare result outside the retry loop
     let result: any = null;
 
@@ -100,18 +115,17 @@ async function handler(req: Request): Promise<Response> {
 
             if (publishError) throw publishError;
 
-            // Create scheduled post record
+            // Create scheduled post record with correct schema
             const { error: scheduleError } = await supabase
               .from('scheduled_posts')
               .insert({
                 content_id: taskId,
+                user_id: taskData.user_id,
+                tenant_id: taskData.tenant_id,
                 platform: platforms?.[0] || 'facebook',
                 publish_at: new Date().toISOString(),
                 status: 'PUBLISHED',
-                account_id: accountId || null,
-                caption: caption || null,
-                media_url: imageUrl || null,
-                first_comment: firstComment || null
+                mode: 'MANUAL'
               });
 
             if (scheduleError) throw scheduleError;
@@ -143,18 +157,17 @@ async function handler(req: Request): Promise<Response> {
 
             if (scheduleUpdateError) throw scheduleUpdateError;
 
-            // Create scheduled post record
+            // Create scheduled post record with correct schema
             const { error: createScheduleError } = await supabase
               .from('scheduled_posts')
               .insert({
                 content_id: taskId,
+                user_id: taskData.user_id,
+                tenant_id: taskData.tenant_id,
                 platform: platforms?.[0] || 'facebook',
                 publish_at: publishAt,
-                status: 'SCHEDULED',
-                account_id: accountId || null,
-                caption: caption || null,
-                media_url: imageUrl || null,
-                first_comment: firstComment || null
+                status: 'QUEUED',
+                mode: 'MANUAL'
               });
 
             if (createScheduleError) throw createScheduleError;
