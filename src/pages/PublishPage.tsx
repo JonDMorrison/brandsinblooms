@@ -56,6 +56,7 @@ const PublishPage = () => {
   const publishItems: PublishItem[] = useMemo(() => {
     const tasks = dashboardData?.tasks || [];
     const socialConnections = dashboardData?.socialConnections || [];
+    const scheduledPosts = dashboardData?.scheduledPosts || [];
 
     return tasks
       .filter(task => 
@@ -67,6 +68,9 @@ const PublishPage = () => {
           conn => conn.platform === task.post_type && conn.is_active
         );
 
+        // Find matching scheduled post to get publish_at timestamp
+        const scheduledPost = scheduledPosts.find(sp => sp.content_id === task.id);
+
         return {
           taskId: task.id,
           tenantId: task.tenant_id,
@@ -76,7 +80,7 @@ const PublishPage = () => {
           caption: task.ai_output?.trim() || null,
           firstComment: (task as any).first_comment || null,
           mediaUrl: task.image_url || (task.attachments as any)?.image?.url || null,
-          scheduledFor: (task as any).scheduled_for || null,
+          scheduledFor: scheduledPost?.publish_at || null,
           status: task.status.toLowerCase() as PublishItem['status'],
           attachments: task.attachments
         };
