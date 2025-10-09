@@ -265,6 +265,12 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
         result = await Promise.race([generation, timeout]) as any;
         if (result.error) throw result.error;
 
+        // Validate response contains required fields
+        if (!result.data?.id || !result.data?.snapshotId) {
+          console.error('❌ Invalid response from edge function:', result.data);
+          throw new Error('Edge function did not return valid bundle IDs');
+        }
+
         setBundleIds(result.data.id, result.data.snapshotId);
         completeJob(jobId, { bundleId: result.data.id, snapshotId: result.data.snapshotId });
         toast({ title: 'Content generated successfully!', description: 'Your content is ready for review.' });

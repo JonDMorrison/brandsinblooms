@@ -152,8 +152,90 @@ serve(async (req) => {
     
     console.log(`✅ Generated ${content.length} pieces of content`);
 
+    // Generate bundle ID and save to database
+    const bundleId = crypto.randomUUID();
+    
+    // Transform content into GeneratedBundle format
+    const bundleContent = {
+      id: bundleId,
+      items: content.flatMap((channelContent: any) => 
+        channelContent.items.map((item: any) => ({
+          channel: channelContent.type,
+          title: item.title,
+          body: item.content,
+          caption: item.caption,
+          summary: item.caption,
+          hashtags: item.hashtags || [],
+          ctaSuggestions: [item.cta],
+          media: item.imageQuery ? { 
+            alt: item.imageQuery,
+            url: null 
+          } : null,
+          _approved: false
+        }))
+      ),
+      recommendedImages: [],
+      meta: {
+        mode: mode as 'event' | 'seasonal' | 'custom',
+        sourceId: sourceId,
+        sourceLabel: topicTitle, // Save the actual title here
+        topicDescription: topicDescription
+      }
+    };
+
+    console.log(`📦 Saving bundle to database: ${bundleId}`);
+
+    // Get auth header from request
+    const authHeader = req.headers.get('Authorization') || '';
+    
+    // Save to database using draft-merge
+    const mergeResponse = await fetch(`${supabaseUrl}/functions/v1/draft-merge`, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+        'apikey': supabaseKey
+      },
+      body: JSON.stringify({
+        doc_type: 'content_bundle',
+        doc_id: bundleId,
+        base_version: null,
+        new_content: bundleContent
+      })
+    });
+
+    if (!mergeResponse.ok) {
+      const errorText = await mergeResponse.text();
+      console.error('❌ Failed to save bundle:', errorText);
+      throw new Error(`Failed to save bundle: ${errorText}`);
+    }
+
+    console.log(`✅ Bundle saved successfully`);
+
+    // Get the snapshot ID from draft_snapshots
+    const { data: snapshot, error: snapshotError } = await supabase
+      .from('draft_snapshots')
+      .select('id')
+      .eq('doc_id', bundleId)
+      .eq('doc_type', 'content_bundle')
+      .order('version', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (snapshotError || !snapshot) {
+      console.error('❌ Failed to retrieve snapshot:', snapshotError);
+      throw new Error('Failed to retrieve snapshot after save');
+    }
+
+    console.log(`✅ Retrieved snapshot ID: ${snapshot.id}`);
+
+    // Return proper response with id, snapshotId, and content
     return new Response(
-      JSON.stringify({ content }),
+      JSON.stringify({ 
+        id: bundleId,
+        snapshotId: snapshot.id,
+        content: bundleContent
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
