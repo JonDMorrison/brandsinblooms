@@ -17,6 +17,7 @@ import { useBundlePreviewTitle } from "@/hooks/useBundlePreviewTitle";
 import { GenerationProgressBanner } from "@/components/generation/GenerationProgressBanner";
 import { ContentGenerationSkeleton } from "@/components/generation/ContentGenerationSkeleton";
 import { useGenerationJobTracker } from "@/state/useGenerationJobTracker";
+import { useQueryClient } from "@tanstack/react-query";
 
 const channelLabels: Record<Channel, string> = {
   instagram: 'IG',
@@ -149,7 +150,9 @@ function BundleCard({ it, openBundle, handleDelete, isHighlighted }: { it: any; 
 export const BundleLibrary = () => {
   const navigate = useNavigate();
   const params = useQueryParams();
-  const { getJobsByType, getActiveJobs, getJobById } = useGenerationJobTracker();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { getJobsByType, getActiveJobs, getJobById, jobs } = useGenerationJobTracker();
   
   // Handle new content highlighting from generation
   const [highlightedBundles, setHighlightedBundles] = useState<Set<string>>(new Set());
@@ -208,6 +211,59 @@ export const BundleLibrary = () => {
       setHasLoadedOnce(true);
     }
   }, [isLoading]);
+
+  // Track completed jobs to trigger refresh
+  const [lastCompletedJobs, setLastCompletedJobs] = useState<Set<string>>(new Set());
+
+  // Watch for job completions and refresh content library
+  useEffect(() => {
+    const completedJobs = Object.values(jobs).filter(
+      job => job.status === 'completed' && !lastCompletedJobs.has(job.id)
+    );
+    
+    if (completedJobs.length > 0) {
+      console.log(`🔄 ${completedJobs.length} job(s) completed, refreshing library...`);
+      
+      // Invalidate queries to fetch fresh data
+      queryClient.invalidateQueries({ queryKey: ['content-library'] });
+      queryClient.invalidateQueries({ queryKey: ['content-library-count'] });
+      
+      // Update tracking to avoid duplicate refreshes
+      setLastCompletedJobs(prev => {
+        const next = new Set(prev);
+        completedJobs.forEach(job => next.add(job.id));
+        return next;
+      });
+      
+      // Auto-highlight newly completed bundles
+      const newBundleIds = completedJobs
+        .filter(job => job.bundleId)
+        .map(job => job.bundleId!);
+        
+      if (newBundleIds.length > 0) {
+        setHighlightedBundles(prev => {
+          const next = new Set([...prev, ...newBundleIds]);
+          return next;
+        });
+        
+        // Show success feedback
+        toast({
+          title: "Content Generated!",
+          description: `${completedJobs.length} new bundle${completedJobs.length > 1 ? 's' : ''} added to your library.`,
+          duration: 5000
+        });
+        
+        // Auto-remove highlight after 8 seconds
+        setTimeout(() => {
+          setHighlightedBundles(prev => {
+            const next = new Set(prev);
+            newBundleIds.forEach(id => next.delete(id));
+            return next;
+          });
+        }, 8000);
+      }
+    }
+  }, [jobs, lastCompletedJobs, queryClient, toast]);
   
   // Check for active generation jobs
   const activeJobs = getActiveJobs();
@@ -228,7 +284,6 @@ export const BundleLibrary = () => {
     }
   }, [highlightedBundles, items]);
 
-  const { toast } = useToast();
   const del = useDeleteBundle();
 
   const [modalOpen, setModalOpen] = useState(false);
