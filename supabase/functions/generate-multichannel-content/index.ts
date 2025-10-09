@@ -9,6 +9,68 @@ const corsHeaders = {
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
+// Strip HTML tags to plain text for social media
+function stripHtmlToPlainText(text: string): string {
+  if (!text) return text;
+  
+  return text
+    // Convert headers to plain text with line breaks
+    .replace(/<h[1-6]>(.+?)<\/h[1-6]>/gi, '\n$1\n')
+    // Convert list items to bullets before stripping tags
+    .replace(/<li>(.+?)<\/li>/gi, '• $1\n')
+    // Convert paragraph breaks
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<p>/gi, '')
+    // Convert line breaks
+    .replace(/<br\s*\/?>/gi, '\n')
+    // Strip <strong>, <em>, <b>, <i> but keep text
+    .replace(/<\/?strong>/gi, '')
+    .replace(/<\/?em>/gi, '')
+    .replace(/<\/?b>/gi, '')
+    .replace(/<\/?i>/gi, '')
+    // Remove remaining HTML tags
+    .replace(/<[^>]+>/g, '')
+    // Decode HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    // Clean up excessive whitespace
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/  +/g, ' ')
+    .trim();
+}
+
+// Strip markdown formatting for social media
+function stripMarkdownForSocial(text: string): string {
+  if (!text) return text;
+  
+  return text
+    // Bold-italic: ***text*** -> text (must come first)
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+    // Bold: **text** or __text__ -> text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    // Italic: *text* or _text_ -> text
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/(?<!https?:\/\/[^\s]*)_([^_]+)_/g, '$1')
+    // Strikethrough: ~~text~~ -> text
+    .replace(/~~([^~]+)~~/g, '$1')
+    // Code: `text` -> text
+    .replace(/`([^`]+)`/g, '$1')
+    // Links: [text](url) -> text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Headers: ## text -> text
+    .replace(/^#{1,6}\s+/gm, '')
+    // Convert bullet * to bullet point
+    .replace(/^(\s*)\*\s+/gm, '$1• ')
+    // Clean up multiple spaces and trim
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function generateChannelContent(
   channel: string,
   topicTitle: string,
@@ -16,6 +78,33 @@ async function generateChannelContent(
   companyContext: string
 ): Promise<any> {
   const systemPrompt = `You are an expert horticulturist and garden center educator creating ${channel} content that TEACHES customers practical gardening skills.
+
+${channel === 'facebook' || channel === 'instagram' ? `
+⚠️⚠️⚠️ CRITICAL FOR SOCIAL MEDIA - PLAIN TEXT ONLY ⚠️⚠️⚠️
+
+ABSOLUTELY FORBIDDEN:
+- NO HTML tags (<h2>, <p>, <ul>, <li>, <strong>, <em>, etc.)
+- NO markdown syntax (**, __, *, ##, etc.)
+- Write like you're typing a normal social media post
+
+ALLOWED:
+- Plain text with natural language
+- CAPS for emphasis
+- Emojis for visual breaks
+- Line breaks for structure
+- Simple bullets using • symbol
+
+Example CORRECT social media format:
+"HARVEST TIPS FOR THIS WEEK
+
+• Pick tomatoes when fully red
+• Water deeply twice weekly
+• Deadhead flowers every 3 days
+
+Come visit us for fresh supplies! 🌱"
+
+If you use ANY HTML tags or markdown, you have FAILED this task.
+` : ''}
 
 ${channel === 'blog' ? `
 ⚠️⚠️⚠️ CRITICAL FOR BLOG CONTENT - MANDATORY HTML FORMAT ⚠️⚠️⚠️
@@ -422,10 +511,12 @@ serve(async (req) => {
       channels: channels || [],                 // ✅ Root level for view
       items: content.flatMap((channelContent: any) => 
         channelContent.items.map((item: any) => {
-          // For blog content, ensure HTML format
+          // CRITICAL: Different formatting rules per channel
           let bodyContent = item.content;
+          const originalContent = bodyContent;
+          
           if (channelContent.type === 'blog') {
-            // Check if content contains markdown syntax
+            // ✅ BLOG: Ensure HTML format
             const hasMarkdown = /^#+\s|^\s*[-*+]\s|\*\*|\*[^*]|__/m.test(bodyContent);
             if (hasMarkdown) {
               console.log('🔄 Converting markdown to HTML for blog content');
@@ -435,6 +526,23 @@ serve(async (req) => {
             if (!bodyContent.includes('<h2>') && !bodyContent.includes('<p>')) {
               console.warn('⚠️ Blog content missing HTML tags, converting...');
               bodyContent = markdownToHtml(bodyContent);
+            }
+          } else if (channelContent.type === 'facebook' || channelContent.type === 'instagram') {
+            // ✅ SOCIAL MEDIA: Strip ALL HTML and markdown to plain text
+            console.log(`🧹 Stripping HTML/markdown for ${channelContent.type} content`);
+            const htmlStripped = stripHtmlToPlainText(bodyContent);
+            bodyContent = stripMarkdownForSocial(htmlStripped);
+            
+            // Log if formatting was detected and stripped
+            const hasHtml = originalContent.match(/<[^>]+>/);
+            const hasMarkdown = originalContent.includes('**') || originalContent.includes('__');
+            
+            if (hasHtml || hasMarkdown) {
+              console.log(`[${channelContent.type.toUpperCase()} FORMATTING FIXED]`);
+              if (hasHtml) console.log('  - Removed HTML tags');
+              if (hasMarkdown) console.log('  - Removed markdown syntax');
+              console.log('  - Original:', originalContent.substring(0, 150));
+              console.log('  - Cleaned:', bodyContent.substring(0, 150));
             }
           }
           

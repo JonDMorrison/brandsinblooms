@@ -7,6 +7,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Strip HTML tags to plain text - Facebook/Instagram display HTML as raw text
+function stripHtmlToPlainText(text: string): string {
+  if (!text) return text;
+  
+  return text
+    // Convert headers to plain text with line breaks
+    .replace(/<h[1-6]>(.+?)<\/h[1-6]>/gi, '\n$1\n')
+    // Convert list items to bullets before stripping tags
+    .replace(/<li>(.+?)<\/li>/gi, '• $1\n')
+    // Convert paragraph breaks
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<p>/gi, '')
+    // Convert line breaks
+    .replace(/<br\s*\/?>/gi, '\n')
+    // Strip <strong>, <em>, <b>, <i> but keep text
+    .replace(/<\/?strong>/gi, '')
+    .replace(/<\/?em>/gi, '')
+    .replace(/<\/?b>/gi, '')
+    .replace(/<\/?i>/gi, '')
+    // Remove remaining HTML tags
+    .replace(/<[^>]+>/g, '')
+    // Decode HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    // Clean up excessive whitespace
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/  +/g, ' ')
+    .trim();
+}
+
 // Strip markdown formatting - Facebook/Instagram don't render it
 // Enhanced to handle all markdown patterns including nested formatting
 function stripMarkdownForSocial(text: string): string {
@@ -93,7 +127,14 @@ ${companyProfile?.target_audience ? `- Audience: ${companyProfile.target_audienc
 PLAIN TEXT ONLY - NO MARKDOWN ALLOWED
 Facebook and Instagram DO NOT render markdown. They show asterisks and underscores as literal text.
 
-DO NOT USE:
+DO NOT USE HTML TAGS:
+- No <h2> or <h3> headers (use plain text with CAPS)
+- No <p> paragraph tags (just write normal text)
+- No <strong> or <b> for bold (use CAPS instead)
+- No <ul>, <ol>, <li> for lists (use • bullets)
+- No HTML whatsoever - this is social media, not a webpage
+
+DO NOT USE MARKDOWN:
 - Asterisks for bold (like this: Water deeply twice weekly)
 - Underscores for italic (like this: important note)
 - Double asterisks (forbidden: Timing Your Harvest)
@@ -270,17 +311,25 @@ Return valid JSON only.`;
 
     const result = JSON.parse(toolCall.function.arguments);
     
-    // CRITICAL: Strip any markdown that AI generated despite instructions
+    // CRITICAL: Strip HTML first, then markdown - social media needs plain text
     const originalContent = result.content || '';
-    const cleanContent = stripMarkdownForSocial(originalContent);
+    const htmlStripped = stripHtmlToPlainText(originalContent);
+    const cleanContent = stripMarkdownForSocial(htmlStripped);
     
-    // Log if markdown was detected and stripped
-    if (originalContent.includes('**') || originalContent.includes('__') || originalContent.match(/\*[^*\s]/)) {
-      console.log('[MARKDOWN DETECTED] Original content length:', originalContent.length);
-      console.log('[MARKDOWN DETECTED] Sample with markdown:', originalContent.substring(0, 200));
-      console.log('[MARKDOWN STRIPPED] Clean content length:', cleanContent.length);
-      console.log('[MARKDOWN STRIPPED] Sample without markdown:', cleanContent.substring(0, 200));
-      console.log('[MARKDOWN STRIPPED] Markdown patterns removed: bold(**), italic(*), underline(__)');
+    // Log if HTML or markdown was detected and stripped
+    const hasHtml = originalContent.match(/<[^>]+>/);
+    const hasMarkdown = originalContent.includes('**') || originalContent.includes('__') || originalContent.match(/\*[^*\s]/);
+    
+    if (hasHtml || hasMarkdown) {
+      console.log('[FORMATTING ISSUES DETECTED]');
+      if (hasHtml) {
+        console.log('  - HTML tags found:', originalContent.match(/<[^>]+>/g)?.slice(0, 5));
+      }
+      if (hasMarkdown) {
+        console.log('  - Markdown syntax found');
+      }
+      console.log('[ORIGINAL]:', originalContent.substring(0, 300));
+      console.log('[CLEANED]:', cleanContent.substring(0, 300));
     }
     
     // Use OpenAI's image query directly
