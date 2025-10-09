@@ -1,4 +1,15 @@
 // src/types/publish.ts
+
+/**
+ * Frontend Platform Type - User-friendly identifiers
+ * These are used in the UI and API requests.
+ * 
+ * Note: These values are mapped to database enum values before storage:
+ * - "facebook" → "FB" (database enum)
+ * - "instagram" → "IG_FEED" (database enum for feed posts)
+ * 
+ * See src/utils/platformMapping.ts for the mapping logic.
+ */
 export type Platform = "facebook" | "instagram";
 
 export type PostStatus =

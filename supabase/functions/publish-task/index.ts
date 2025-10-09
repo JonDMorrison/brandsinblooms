@@ -17,6 +17,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Maps frontend platform values to database enum values
+ * Database expects: "FB" | "IG_FEED" | "IG_REEL"
+ * Frontend sends: "facebook" | "instagram"
+ */
+function mapPlatformToEnum(platform: string): "FB" | "IG_FEED" | "IG_REEL" {
+  const map: Record<string, "FB" | "IG_FEED" | "IG_REEL"> = {
+    'facebook': 'FB',
+    'instagram': 'IG_FEED',
+    'fb': 'FB',
+    'ig_feed': 'IG_FEED',
+    'ig_reel': 'IG_REEL'
+  };
+  return map[platform.toLowerCase()] || 'FB';
+}
+
 async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -122,7 +138,7 @@ async function handler(req: Request): Promise<Response> {
                 content_id: taskId,
                 user_id: taskData.user_id,
                 tenant_id: taskData.tenant_id,
-                platform: platforms?.[0] || 'facebook',
+                platform: mapPlatformToEnum(platforms?.[0] || 'facebook'),
                 publish_at: new Date().toISOString(),
                 status: 'PUBLISHED',
                 mode: 'MANUAL'
@@ -164,7 +180,7 @@ async function handler(req: Request): Promise<Response> {
                 content_id: taskId,
                 user_id: taskData.user_id,
                 tenant_id: taskData.tenant_id,
-                platform: platforms?.[0] || 'facebook',
+                platform: mapPlatformToEnum(platforms?.[0] || 'facebook'),
                 publish_at: publishAt,
                 status: 'QUEUED',
                 mode: 'MANUAL'
