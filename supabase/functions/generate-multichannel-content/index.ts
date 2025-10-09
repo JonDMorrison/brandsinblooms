@@ -182,6 +182,68 @@ serve(async (req) => {
     // Generate bundle ID and save to database
     const bundleId = crypto.randomUUID();
     
+    // ========== PHASE 2: FETCH IMAGES FOR THE BUNDLE ==========
+    console.log('🖼️ Starting image fetch for bundle content...');
+    
+    // Collect all unique image queries from generated content
+    const imageQueries = content.flatMap((channelContent: any) => 
+      channelContent.items
+        .filter((item: any) => item.imageQuery)
+        .map((item: any) => item.imageQuery)
+    );
+    
+    const uniqueQueries = [...new Set(imageQueries)];
+    console.log(`🔍 Found ${uniqueQueries.length} unique image queries:`, uniqueQueries);
+    
+    let fetchedImages: any[] = [];
+    
+    // Fetch images for the most relevant query (usually the first one)
+    if (uniqueQueries.length > 0) {
+      try {
+        const primaryQuery = uniqueQueries[0];
+        console.log(`📸 Fetching images for: "${primaryQuery}"`);
+        
+        const imageResponse = await supabase.functions.invoke('fetch-unsplash-images', {
+          body: { 
+            query: primaryQuery,
+            maxImages: 4,
+            orientation: 'squarish',
+            rawQuery: true  // Use raw query to avoid over-filtering
+          }
+        });
+        
+        if (imageResponse.error) {
+          console.error('❌ Image fetch error:', imageResponse.error);
+        } else if (imageResponse.data?.images) {
+          fetchedImages = imageResponse.data.images;
+          console.log(`✅ Fetched ${fetchedImages.length} images from Unsplash`);
+        } else {
+          console.warn('⚠️ No images returned from fetch function');
+        }
+      } catch (imageError) {
+        console.error('❌ Exception fetching images:', imageError);
+      }
+    } else {
+      console.warn('⚠️ No image queries found in generated content');
+    }
+    
+    // Format images for bundle storage
+    const formattedImages = fetchedImages.map((img: any) => ({
+      url: img.urls?.regular || img.url,
+      thumb: img.urls?.thumb || img.urls?.small || img.url,
+      alt: img.alt || img.alt_description || topicTitle,
+      photographer: img.photographer || img.user?.name || 'Unknown',
+      photographerUrl: img.photographer_url || img.user?.links?.html,
+      unsplashId: img.unsplash_id || img.id
+    }));
+    
+    console.log('🖼️ Image fetch summary:', {
+      queriesFound: uniqueQueries.length,
+      imagesFetched: fetchedImages.length,
+      imagesFormatted: formattedImages.length,
+      firstImageUrl: formattedImages[0]?.url || null
+    });
+    
     // Transform content into GeneratedBundle format
     const bundleContent = {
       id: bundleId,
@@ -205,7 +267,8 @@ serve(async (req) => {
           _approved: false
         }))
       ),
-      recommendedImages: [],
+      recommendedImages: formattedImages,  // ✅ Store fetched images
+      thumbnail: formattedImages.length > 0 ? formattedImages[0].url : null,  // ✅ Add thumbnail
       meta: {
         mode: mode as 'event' | 'seasonal' | 'custom',
         sourceId: sourceId,
@@ -220,12 +283,22 @@ serve(async (req) => {
       hasMode: !!bundleContent.mode,
       hasSourceLabel: !!bundleContent.sourceLabel,
       hasChannels: Array.isArray(bundleContent.channels) && bundleContent.channels.length > 0,
-      hasItems: Array.isArray(bundleContent.items) && bundleContent.items.length > 0
+      hasItems: Array.isArray(bundleContent.items) && bundleContent.items.length > 0,
+      hasThumbnail: !!bundleContent.thumbnail,
+      recommendedImagesCount: bundleContent.recommendedImages?.length || 0
     });
 
     if (!bundleContent.mode || !bundleContent.sourceLabel || !Array.isArray(bundleContent.channels)) {
       console.error('❌ Invalid bundle structure:', bundleContent);
       throw new Error('Bundle missing required metadata fields');
+    }
+    
+    // Warn if images are missing but don't block save
+    if (!bundleContent.thumbnail) {
+      console.warn('⚠️ Bundle has no thumbnail - images may not have been fetched successfully');
+    }
+    if (!bundleContent.recommendedImages || bundleContent.recommendedImages.length === 0) {
+      console.warn('⚠️ Bundle has no recommendedImages - check image fetch logic');
     }
 
     console.log(`📦 Saving bundle to database: ${bundleId}`);
