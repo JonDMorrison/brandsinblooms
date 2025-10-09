@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { memoryCache, apiDeduplicator } from '@/utils/performanceOptimizations';
-import { toast } from '@/utils/toast';
+import { useToast } from '@/hooks/use-toast';
 import { TASK_STATUS, type TaskStatus } from "@/constants/taskStatus";
 import { reportSoftFail } from '@/lib/softFail';
 
@@ -172,12 +172,23 @@ export const generateCampaignContent = async (
   tenantId?: string
 ): Promise<ContentGenerationResult> => {
   try {
-    console.log('🎯 Generating campaign content using optimized function...', {
+    // CRITICAL: Validate tenant context to prevent multi-tenant data leakage
+    if (!tenantId) {
+      console.error('❌ [CRITICAL] tenantId is missing - multi-tenant isolation broken!', {
+        campaignId,
+        userId,
+        campaignTheme
+      });
+      
+      throw new Error('Tenant ID is required for content generation');
+    }
+
+    console.log('🎯 Generating campaign content with validated tenant context:', {
       campaignId,
       campaignTheme,
       userId,
-      weekNumber,
-      tenantId
+      tenantId,
+      weekNumber
     });
 
     // Create cache key for deduplication

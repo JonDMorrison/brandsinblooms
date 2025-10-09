@@ -12,18 +12,45 @@ const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const REQUIRED_CONTENT_TYPES = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
 
 serve(async (req) => {
+  console.log('🎯 [ENTRY] generate_campaign_content edge function invoked');
+  
   // Handle CORS preflight requests
   const corsResponse = handleCorsPrelight(req);
-  if (corsResponse) return corsResponse;
+  if (corsResponse) {
+    console.log('✅ [CORS] Preflight request handled');
+    return corsResponse;
+  }
 
   try {
+    console.log('📥 [REQUEST] Parsing request body...');
     const { campaign_id, campaign_title, description, user_id, week_number, tenant_id } = await req.json();
     
-    console.log('🎯 Generating campaign content for:', { campaign_id, campaign_title, user_id, tenant_id });
+    console.log('✅ [REQUEST] Request parsed successfully:', { 
+      campaign_id, 
+      campaign_title, 
+      user_id, 
+      tenant_id,
+      week_number,
+      has_description: !!description,
+      has_openai_key: !!openAIApiKey 
+    });
+
+    // Validate tenant_id
+    if (!tenant_id) {
+      console.error('❌ [CRITICAL] tenant_id is missing - multi-tenant isolation broken!');
+      return corsJsonResponse({
+        success: false,
+        error: 'Tenant ID is required for content generation',
+        tasks: []
+      }, { status: 400 });
+    }
 
     if (!openAIApiKey) {
+      console.error('❌ [ERROR] OPENAI_API_KEY not configured in Edge Function secrets');
       throw new Error('OpenAI API key not configured');
     }
+    
+    console.log('✅ [CONFIG] OpenAI API key validated');
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -312,7 +339,7 @@ serve(async (req) => {
     // Function to generate content for a single content type
     const generateContentForType = async (contentType: string) => {
       try {
-        console.log(`📝 Generating ${contentType} content...`);
+        console.log(`📝 [${contentType.toUpperCase()}] Starting generation...`);
         
         // Enhanced prompts to prevent emojis and video formatting
         let systemPrompt = `You are a professional content creator for garden centers. Create engaging, helpful content. Business: ${businessName}. Focus: ${campaign_title}. ${description ? `Context: ${description}` : ''} 
@@ -326,6 +353,8 @@ serve(async (req) => {
         - Write in a professional, friendly tone
         - ${contentType === 'video' ? 'Write ONLY the script dialogue/narration without any scene descriptions, visual cues, or production notes. Just the spoken words.' : ''}`;
 
+        console.log(`📡 [${contentType.toUpperCase()}] Calling OpenAI API...`);
+        
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -349,8 +378,16 @@ serve(async (req) => {
           }),
         });
 
+        console.log(`📊 [${contentType.toUpperCase()}] OpenAI response status:`, response.status);
+
         if (!response.ok) {
-          throw new Error(`OpenAI API error for ${contentType}: ${response.status}`);
+          const errorText = await response.text();
+          console.error(`❌ [${contentType.toUpperCase()}] OpenAI API Error:`, {
+            status: response.status,
+            statusText: response.statusText,
+            body: errorText
+          });
+          throw new Error(`OpenAI API failed: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
@@ -388,7 +425,11 @@ serve(async (req) => {
         };
         
       } catch (error) {
-        console.error(`❌ Error generating ${contentType} content:`, error);
+        console.error(`❌ [${contentType.toUpperCase()}] Generation failed:`, {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
         return {
           contentType,
           error: error.message,
@@ -490,10 +531,15 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('❌ Error in generate_campaign_content:', error);
+    console.error('❌ [FATAL ERROR] Edge function crashed:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return corsJsonResponse({
       success: false,
-      error: error.message,
+      error: `Fatal error: ${error.message}`,
+      details: error.stack,
       tasks: []
     }, { status: 500 });
   }
