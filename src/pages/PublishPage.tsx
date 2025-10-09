@@ -69,7 +69,7 @@ const PublishPage = () => {
         );
 
         // Find matching scheduled post to get publish_at timestamp
-        const scheduledPost = scheduledPosts.find(sp => sp.content_id === task.id);
+        const scheduledPost = scheduledPosts.find(sp => sp.task_id === task.id);
 
         return {
           taskId: task.id,

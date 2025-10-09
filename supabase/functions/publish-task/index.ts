@@ -136,6 +136,7 @@ async function handler(req: Request): Promise<Response> {
               .from('scheduled_posts')
               .insert({
                 content_id: contentId,
+                task_id: taskId,  // NEW: Direct link to content_tasks
                 user_id: taskData.user_id,
                 tenant_id: taskData.tenant_id,
                 platform: mapPlatformToEnum(platforms?.[0] || 'facebook'),
@@ -178,6 +179,7 @@ async function handler(req: Request): Promise<Response> {
               .from('scheduled_posts')
               .insert({
                 content_id: contentId,
+                task_id: taskId,  // NEW: Direct link to content_tasks
                 user_id: taskData.user_id,
                 tenant_id: taskData.tenant_id,
                 platform: mapPlatformToEnum(platforms?.[0] || 'facebook'),

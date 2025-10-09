@@ -71,12 +71,13 @@ export const useDashboardData = () => {
 
       const { data: tasks } = await taskQuery;
 
-      // Fetch scheduled posts - no join needed, we'll match by content_id
+      // Fetch scheduled posts - no join needed, we'll match by task_id
       const scheduledPostsQuery = supabase
         .from('scheduled_posts')
         .select(`
           id,
           content_id,
+          task_id,
           platform,
           publish_at,
           status,
