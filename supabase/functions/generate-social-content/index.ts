@@ -8,18 +8,31 @@ const corsHeaders = {
 };
 
 // Strip markdown formatting - Facebook/Instagram don't render it
+// Enhanced to handle all markdown patterns including nested formatting
 function stripMarkdownForSocial(text: string): string {
   if (!text) return text;
   
   return text
+    // Bold-italic: ***text*** -> text (must come first)
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+    // Bold: **text** or __text__ -> text
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/__([^_]+)__/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
+    // Italic: *text* or _text_ -> text (but not at line start or in URLs)
+    .replace(/\*([^*\n]+)\*/g, '$1')
     .replace(/(?<!https?:\/\/[^\s]*)_([^_]+)_/g, '$1')
+    // Strikethrough: ~~text~~ -> text
     .replace(/~~([^~]+)~~/g, '$1')
+    // Code: `text` -> text
     .replace(/`([^`]+)`/g, '$1')
+    // Links: [text](url) -> text
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Headers: ## text -> text
     .replace(/^#{1,6}\s+/gm, '')
+    // Convert bullet * to bullet point
+    .replace(/^(\s*)\*\s+/gm, '$1• ')
+    // Clean up multiple spaces and trim
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -258,7 +271,17 @@ Return valid JSON only.`;
     const result = JSON.parse(toolCall.function.arguments);
     
     // CRITICAL: Strip any markdown that AI generated despite instructions
-    const cleanContent = stripMarkdownForSocial(result.content || '');
+    const originalContent = result.content || '';
+    const cleanContent = stripMarkdownForSocial(originalContent);
+    
+    // Log if markdown was detected and stripped
+    if (originalContent.includes('**') || originalContent.includes('__') || originalContent.match(/\*[^*\s]/)) {
+      console.log('[MARKDOWN DETECTED] Original content length:', originalContent.length);
+      console.log('[MARKDOWN DETECTED] Sample with markdown:', originalContent.substring(0, 200));
+      console.log('[MARKDOWN STRIPPED] Clean content length:', cleanContent.length);
+      console.log('[MARKDOWN STRIPPED] Sample without markdown:', cleanContent.substring(0, 200));
+      console.log('[MARKDOWN STRIPPED] Markdown patterns removed: bold(**), italic(*), underline(__)');
+    }
     
     // Use OpenAI's image query directly
     const imageQuery = result.imageQuery || 'garden center plants';
