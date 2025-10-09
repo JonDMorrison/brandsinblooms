@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
 async function generateChannelContent(
   channel: string,
@@ -40,19 +40,19 @@ Return JSON in this format:
 
   console.log(`🤖 Generating ${channel} content for: ${topicTitle}`);
   
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'Authorization': `Bearer ${openAIApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.8,
+      temperature: 0.7,
     }),
   });
 
@@ -93,7 +93,7 @@ serve(async (req) => {
   const FUNCTION_VERSION = '2.0.0';
   console.log(`🚀 Edge function started - v${FUNCTION_VERSION}`);
   console.log(`📋 Configuration check:`, {
-    hasLovableApiKey: !!Deno.env.get('LOVABLE_API_KEY'),
+    hasOpenAIApiKey: !!Deno.env.get('OPENAI_API_KEY'),
     hasSupabaseUrl: !!Deno.env.get('SUPABASE_URL'),
     timestamp: new Date().toISOString()
   });
@@ -122,8 +122,8 @@ serve(async (req) => {
       throw new Error('workspaceId is required in request body');
     }
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    if (!openAIApiKey) {
+      throw new Error('OPENAI_API_KEY not configured');
     }
 
     // Initialize Supabase client
