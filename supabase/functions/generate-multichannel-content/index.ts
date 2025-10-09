@@ -104,7 +104,7 @@ CONTENT QUALITY STANDARDS:
 - Include "why" explanations (help customers understand the science)
 - Use conversational but authoritative tone
 - Make complex topics accessible to beginners
-- Provide immediately actionable next steps
+- Provide immediately actionable next steps`;
   
   const userPrompt = `Create ${channel} content for: "${topicTitle}"
 Description: ${topicDescription}
