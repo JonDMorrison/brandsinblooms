@@ -288,7 +288,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="bg-white/90 hover:bg-primary hover:text-white hover:border-primary transition-colors"
+                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300 hover:border-blue-400 transition-colors duration-300"
                 >
                   <Edit3 className="h-3 w-3 mr-1" />
                   Change Image
@@ -298,7 +298,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                     variant="outline" 
                     size="sm"
                     onClick={(e) => handleDownload(selectedImageMetadata, e)}
-                    className="bg-white/90 hover:bg-primary hover:text-white hover:border-primary transition-colors"
+                    className="bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300 hover:border-blue-400 transition-colors duration-300"
                   >
                     <Download className="h-3 w-3" />
                   </Button>
