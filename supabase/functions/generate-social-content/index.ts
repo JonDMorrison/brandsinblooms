@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const corsHeaders = {
@@ -168,11 +169,53 @@ Make it compelling, actionable, and seasonal. Return valid JSON only.`;
     
     console.log(`[generate-social-content] Success - Content length: ${result.content?.length || 0}, imageQuery: "${validatedQuery}"`);
 
+    // Fetch images from Unsplash using validated query
+    let fetchedImages: any[] = [];
+
+    try {
+      console.log(`[generate-social-content] 📸 Fetching images for: "${validatedQuery}"`);
+      
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      const imageResponse = await supabase.functions.invoke('fetch-unsplash-images', {
+        body: { 
+          query: validatedQuery,
+          maxImages: 8,  // More images for social posts
+          orientation: 'squarish',
+          rawQuery: false
+        }
+      });
+      
+      if (imageResponse.error) {
+        console.error('[generate-social-content] ❌ Image fetch error:', imageResponse.error);
+      } else if (imageResponse.data?.images) {
+        fetchedImages = imageResponse.data.images;
+        console.log(`[generate-social-content] ✅ Fetched ${fetchedImages.length} images`);
+      }
+    } catch (imageError) {
+      console.error('[generate-social-content] ❌ Exception fetching images:', imageError);
+      // Continue without images - don't fail
+    }
+
+    // Format images for response
+    const formattedImages = fetchedImages.map((img: any) => ({
+      url: img.urls?.regular || img.url,
+      thumb: img.urls?.thumb || img.urls?.small || img.url,
+      alt: img.alt || img.alt_description || theme,
+      photographer: img.photographer || img.user?.name || 'Unknown',
+      photographerUrl: img.photographer_url || img.user?.links?.html,
+      unsplashId: img.unsplash_id || img.id
+    }));
+
     return new Response(
       JSON.stringify({
         content: result.content,
         imageQuery: validatedQuery,
-        hashtags: result.hashtags || ''
+        hashtags: result.hashtags || '',
+        images: formattedImages,
+        imageCount: formattedImages.length
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

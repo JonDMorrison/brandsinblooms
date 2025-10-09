@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { validateAndLogQuery, getImageQueryPromptInstructions } from "../_shared/unsplash-keyword-validator.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,28 +16,22 @@ async function generateChannelContent(
   topicDescription: string,
   companyContext: string
 ): Promise<any> {
-  const systemPrompt = `You are an expert marketing content creator. Generate engaging ${channel} content that is authentic, informative, and valuable to the audience.`;
+  const systemPrompt = `You are an expert marketing content creator for garden centers and nurseries. 
+Generate engaging ${channel} content that is authentic, informative, and valuable to the audience.
+
+${getImageQueryPromptInstructions()}
+
+Your content should:
+- Speak directly to the audience's interests
+- Provide genuine value and insights  
+- Use an engaging, conversational tone
+- Include relevant hashtags (for social media)`;
   
   const userPrompt = `Create ${channel} content for: "${topicTitle}"
 Description: ${topicDescription}
 Company Context: ${companyContext}
 
-Generate compelling content that:
-- Speaks directly to the audience's interests
-- Provides genuine value and insights
-- Uses an engaging, conversational tone
-- Includes relevant hashtags (for social media)
-- Suggests an appropriate image search query
-
-Return JSON in this format:
-{
-  "title": "Engaging title",
-  "content": "Main content (500-800 chars for social, 1500-2000 for blog/newsletter)",
-  "caption": "Short compelling hook (100-150 chars)",
-  "hashtags": ["#relevant", "#tags"],
-  "imageQuery": "descriptive image search query",
-  "cta": "Call to action"
-}`;
+Generate compelling content that resonates with garden center customers.`;
 
   console.log(`🤖 Generating ${channel} content for: ${topicTitle}`);
   
@@ -48,11 +43,54 @@ Return JSON in this format:
     },
     body: JSON.stringify({
       model: 'gpt-4o-mini',
+      temperature: 0.7,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.7,
+      tools: [{
+        type: "function",
+        function: {
+          name: "generate_marketing_content",
+          description: `Generate ${channel} content with image query`,
+          parameters: {
+            type: "object",
+            properties: {
+              title: {
+                type: "string",
+                description: "Engaging title for the content"
+              },
+              content: {
+                type: "string",
+                description: "Main content (500-800 chars for social, 1500-2000 for blog/newsletter)"
+              },
+              caption: {
+                type: "string",
+                description: "Short compelling hook (100-150 chars)"
+              },
+              hashtags: {
+                type: "array",
+                items: { type: "string" },
+                description: "Array of relevant hashtags"
+              },
+              imageQuery: {
+                type: "string",
+                description: "Garden-focused Unsplash search query (3-5 words, MUST include garden context)"
+              },
+              cta: {
+                type: "string",
+                description: "Call to action"
+              }
+            },
+            required: ["title", "content", "caption", "hashtags", "imageQuery", "cta"],
+            additionalProperties: false
+          }
+        }
+      }],
+      tool_choice: { 
+        type: "function", 
+        function: { name: "generate_marketing_content" } 
+      }
     }),
   });
 
@@ -63,25 +101,32 @@ Return JSON in this format:
   }
 
   const data = await response.json();
-  const aiContent = data.choices[0].message.content;
   
-  // Clean up markdown code blocks if present
-  const cleanedContent = aiContent.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
   
-  try {
-    return JSON.parse(cleanedContent);
-  } catch (e) {
-    console.error('❌ Failed to parse AI response:', cleanedContent);
-    // Return fallback structure
-    return {
-      title: topicTitle,
-      content: cleanedContent,
-      caption: topicTitle,
-      hashtags: [],
-      imageQuery: topicTitle,
-      cta: 'Learn more'
-    };
+  if (!toolCall?.function?.arguments) {
+    console.error('❌ No structured output from AI:', JSON.stringify(data, null, 2));
+    throw new Error('AI did not return structured output');
   }
+
+  const result = JSON.parse(toolCall.function.arguments);
+  
+  // Validate and fix image query before returning
+  const validatedImageQuery = validateAndLogQuery(
+    result.imageQuery || 'garden',
+    `${channel} ${topicTitle}`
+  );
+  
+  console.log(`✅ Generated ${channel} content with validated imageQuery: "${validatedImageQuery}"`);
+  
+  return {
+    title: result.title,
+    content: result.content,
+    caption: result.caption,
+    hashtags: result.hashtags || [],
+    imageQuery: validatedImageQuery,
+    cta: result.cta
+  };
 }
 
 serve(async (req) => {
@@ -205,10 +250,10 @@ serve(async (req) => {
         
         const imageResponse = await supabase.functions.invoke('fetch-unsplash-images', {
           body: { 
-            query: primaryQuery,
-            maxImages: 4,
+            query: primaryQuery,  // Already validated
+            maxImages: 12,  // Increase to 12 for more variety
             orientation: 'squarish',
-            rawQuery: true  // Use raw query to avoid over-filtering
+            rawQuery: false  // Use garden validation in fetch function
           }
         });
         
