@@ -60,38 +60,62 @@ ${companyProfile?.company_name ? `- Business: ${companyProfile.company_name}` : 
 ${companyProfile?.brand_voice ? `- Brand Voice: ${companyProfile.brand_voice}` : ''}
 ${companyProfile?.target_audience ? `- Audience: ${companyProfile.target_audience}` : ''}
 
-🚨 FORMATTING CRITICAL RULES:
-- **PLAIN TEXT ONLY** - DO NOT use markdown syntax like **bold** or _italic_
-- Facebook and Instagram display markdown as literal text (users see the asterisks/underscores)
-- Use plain text for all content - no **bold**, no _italic_, no ~~strikethrough~~
-- For emphasis, use: CAPS, emojis, or line breaks
-- Example: Write "Water deeply twice weekly" NOT "**Water deeply twice weekly**"
-- Example: Write "Try Brandywine tomatoes" NOT "Try _Brandywine_ tomatoes"
+=== CRITICAL FORMATTING RULE ===
+PLAIN TEXT ONLY - NO MARKDOWN ALLOWED
+Facebook and Instagram DO NOT render markdown. They show asterisks and underscores as literal text.
+
+DO NOT USE:
+- Asterisks for bold (like this: Water deeply twice weekly)
+- Underscores for italic (like this: important note)
+- Double asterisks (forbidden: Timing Your Harvest)
+- Any markdown syntax whatsoever
+
+INSTEAD USE FOR EMPHASIS:
+- CAPITAL LETTERS for emphasis
+- Emojis to break up text
+- Line breaks for structure
+- Plain text with natural language emphasis
+
+CORRECT EXAMPLES:
+✅ "Timing Your Harvest:" (plain text with colon)
+✅ "IMPORTANT: Water deeply twice weekly" (caps for emphasis)
+✅ "Maple Trees - Known for brilliant red hues" (plain dash)
+
+WRONG EXAMPLES (NEVER DO THIS):
+❌ "Timing Your Harvest:" (has asterisks - forbidden)
+❌ "Water deeply twice weekly" (has underscores - forbidden)
+❌ "Maple Trees (Acer)" (has asterisks - forbidden)
+
+If you use ANY asterisks or underscores for formatting, you have FAILED this task.
+Write everything in plain text as if you were typing a regular text message.
+=== END CRITICAL FORMATTING RULE ===
 
 🌱 CRITICAL REQUIREMENTS - EDUCATIONAL VALUE:
 
-1. **Include Specific Plant Care Instructions:**
+1. Include Specific Plant Care Instructions (PLAIN TEXT ONLY):
    - Exact watering schedules (e.g., "Water deeply twice weekly")
    - Fertilizing frequency and NPK ratios (e.g., "10-10-10 every 2 weeks")
    - Pruning techniques with timing (e.g., "Deadhead spent blooms weekly")
    - Light requirements (e.g., "6-8 hours direct sun")
    - Soil preferences (e.g., "Well-drained, pH 6.0-7.0")
 
-2. **Teach Specific Gardening Techniques:**
-   - Step-by-step how-to instructions (e.g., "Cut at 45° angle above leaf node")
+2. Teach Specific Gardening Techniques (PLAIN TEXT ONLY):
+   - Step-by-step how-to instructions (e.g., "Cut at 45 degree angle above leaf node")
    - Measurements and distances (e.g., "Plant 18 inches apart")
    - Tool recommendations (e.g., "Use sharp bypass pruners")
    - Timing windows (e.g., "Plant after last frost, April 15-May 1")
 
-3. **Provide Problem-Solving Advice:**
+3. Provide Problem-Solving Advice (PLAIN TEXT ONLY):
    - Common issues and solutions (e.g., "Yellow leaves = overwatering")
    - Pest identification and organic controls (e.g., "Aphids? Spray neem oil weekly")
    - Disease prevention tips (e.g., "Water at soil level to prevent powdery mildew")
 
-4. **Give Expert Recommendations:**
-   - Specific plant varieties to try (e.g., "Try 'Brandywine' heirloom tomatoes")
+4. Give Expert Recommendations (PLAIN TEXT ONLY):
+   - Specific plant varieties to try (e.g., "Try Brandywine heirloom tomatoes")
    - Product suggestions (e.g., "Use slow-release granular fertilizer")
    - Seasonal best practices (e.g., "Mulch 2-3 inches deep in ${monthName}")
+
+REMINDER: Write all content in PLAIN TEXT - no asterisks, no underscores, no markdown formatting.
 
 CONTENT TYPE GUIDANCE:
 ${contentType === 'tips' ? '- Share 3-5 ACTIONABLE tips with specific measurements/timing\n- Each tip should be immediately implementable' : ''}
@@ -100,12 +124,13 @@ ${contentType === 'workshop' ? '- Teach ONE technique in step-by-step detail\n- 
 ${contentType === 'inspiration' ? '- Show possibilities BUT include basic care requirements\n- Make it achievable with clear next steps' : ''}
 ${contentType === 'behind-scenes' ? '- Share expert knowledge and insider tips\n- Reveal "pro secrets" customers can use' : ''}
 
-FORMATTING:
+FORMATTING (PLAIN TEXT ONLY - CRITICAL):
 - ${platform === 'facebook' ? `Maximum ${charLimit} characters with paragraph breaks` : `Maximum ${charLimit} characters (excluding hashtags)`}
-- ${platform === 'facebook' ? 'Use numbered lists or bullet points for clarity' : 'Use emojis (2-4 total) to break up text'}
+- ${platform === 'facebook' ? 'Use numbered lists or bullet points for clarity (1. 2. 3. format with plain text)' : 'Use emojis (2-4 total) to break up text'}
 ${needsHashtags ? '- Include 5-8 relevant hashtags on separate lines' : ''}
 - Clear call-to-action (visit for supplies, ask questions, attend workshop)
 - Emphasize ${monthName} seasonal timing and urgency
+- CRITICAL: NO ASTERISKS, NO UNDERSCORES, NO MARKDOWN - Only plain text like a regular social media post
 
 🎨 IMAGE QUERY: Generate a 3-6 word Unsplash search query showing the specific plant/technique.
 Be highly specific: plant names, growth stage, season, colors, garden setting.
@@ -122,10 +147,19 @@ Return JSON with these exact fields:
 Content type: ${contentType}.
 ${themeDescription ? `Additional context: ${themeDescription}` : ''}
 
-CRITICAL: This post MUST teach customers specific, actionable gardening techniques.
-Include exact measurements, timing, and step-by-step instructions.
-Think like a horticulture professor explaining to beginners.
-Make it so valuable they'll save it for reference.
+CRITICAL REQUIREMENTS:
+1. This post MUST teach customers specific, actionable gardening techniques
+2. Include exact measurements, timing, and step-by-step instructions
+3. Think like a horticulture professor explaining to beginners
+4. Make it so valuable they will save it for reference
+
+ABSOLUTELY CRITICAL FORMATTING RULE:
+- Write in PLAIN TEXT ONLY
+- DO NOT use asterisks for bold (forbidden)
+- DO NOT use underscores for italic (forbidden)
+- Write like a normal social media post without any markdown
+- Use CAPS, emojis, or line breaks for emphasis instead
+- If you include ANY asterisks or underscores for formatting, you have FAILED
 
 Return valid JSON only.`;
 
@@ -155,7 +189,7 @@ Return valid JSON only.`;
               properties: {
                 content: {
                   type: "string",
-                  description: `The ${platform} post content in PLAIN TEXT ONLY (${charLimit} chars max, no markdown formatting)`
+                  description: `The ${platform} post content in PLAIN TEXT ONLY - NO asterisks, NO underscores, NO markdown. Write like a normal social media post (${charLimit} chars max). Use CAPS and emojis for emphasis, not markdown.`
                 },
                 imageQuery: {
                   type: "string",
