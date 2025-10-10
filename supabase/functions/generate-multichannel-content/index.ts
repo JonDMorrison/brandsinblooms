@@ -343,12 +343,27 @@ Generate educational content that empowers garden center customers to succeed.`;
               },
               imageQuery: {
                 type: "string",
-                description: `CRITICAL: Must be 5-7 words showing garden center RETAIL environment. ${
-                  channel === 'facebook' ? 'MUST show customers/people browsing + specific plant + garden center/greenhouse/nursery. Example: "customers browsing pink hydrangea greenhouse display"' :
-                  channel === 'instagram' ? 'MUST show close-up of SPECIFIC plant variety/color + retail display context. Example: "purple echinacea flowers garden center display pot"' :
-                  channel === 'blog' ? 'MUST show hands/tools performing technique + specific plant. Example: "hands deadheading spent roses pruning shears garden"' :
-                  'MUST show seasonal context + garden center inventory + specific plants. Example: "spring seedling trays greenhouse nursery display variety"'
-                }. Always include: 1) Specific plant name/color, 2) Garden center/retail context, 3) Visual descriptors. NO generic terms like "flowers" or "plants" alone.`
+                description: `MANDATORY GARDEN IMAGE QUERY - 5-7 words ONLY:
+                
+REQUIREMENTS FOR ALL CHANNELS:
+1. MUST include SPECIFIC plant name (e.g., "pink petunia", "red tomato seedlings", "purple hydrangea") - NO generic "flowers" or "plants"
+2. MUST include COLOR descriptor for the plant
+3. MUST include garden center retail context (greenhouse, nursery, garden center, display, pots, shelves)
+4. Extract plant names directly from the content you're writing
+
+CHANNEL-SPECIFIC:
+${channel === 'facebook' ? 
+  '- MUST show "customers" or "shoppers" or "people" interacting with plants\n- Example: "customers browsing pink hydrangea greenhouse display"' :
+  channel === 'instagram' ? 
+  '- MUST be close-up showing plant details with vibrant colors\n- Example: "purple echinacea flowers potted garden center display"' :
+  channel === 'blog' ? 
+  '- MUST show "hands" performing gardening technique\n- Example: "hands deadheading pink roses garden pruning shears"' :
+  '- MUST show seasonal inventory display\n- Example: "spring vegetable seedlings greenhouse nursery trays"'
+}
+
+FORBIDDEN: Generic terms like "beautiful flowers", "garden plants", abstract concepts, or any query without specific plant names and colors.
+
+EXTRACT the actual plant/topic from this content: "${topicTitle}" - Use those specific plant names in your query.`
               },
               cta: {
                 type: "string",

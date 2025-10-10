@@ -12,83 +12,98 @@ const corsHeaders = {
  * Generate channel-specific system prompts with strict garden validation
  */
 function getSystemPrompt(channel: string): string {
-  const basePrompt = `You are an expert garden center image curator generating Unsplash search keywords.
+  const basePrompt = `You are an expert garden center image curator. Your ONE JOB: Generate SPECIFIC plant-focused Unsplash search keywords.
 
-🌱 MANDATORY GARDEN FOCUS:
-ALL keywords MUST relate to:
-- Plants: flowers, vegetables, herbs, trees, shrubs, houseplants
-- Garden elements: soil, pots, tools, greenhouse, nursery, display
-- Garden activities: planting, pruning, watering, harvesting
-- Seasons: spring, summer, fall, winter, seasonal
-- Nature: leaves, blooms, foliage, growth, botanical
+🚨 ABSOLUTE REQUIREMENTS - NO EXCEPTIONS:
+1. EVERY query MUST include SPECIFIC plant names (rose, tomato, basil, petunia, succulent, maple tree, etc.)
+2. EVERY query MUST include COLOR (pink, red, purple, yellow, green, vibrant, etc.)
+3. EVERY query MUST include garden retail context (greenhouse, nursery, garden center, potted, display, shelves)
+4. EXTRACT plant names from the user's content - use those EXACT plants
 
-FORBIDDEN TOPICS:
-❌ Food (unless it's growing plants)
-❌ People alone (must include plants/garden)
-❌ Abstract concepts without visual elements
-❌ Indoor spaces without plants
-❌ Tools alone without plants/garden
-❌ Week numbers, dates, generic terms`;
+✅ CORRECT EXAMPLES:
+- "pink petunia hanging baskets greenhouse customers"
+- "red tomato seedlings potted nursery display"
+- "purple lavender plants garden center shelves"
+- "orange marigold flowers potted display customers browsing"
+
+❌ FORBIDDEN - These will be REJECTED:
+- "beautiful flowers" (no specific plant)
+- "garden plants" (no specific plant or color)
+- "seasonal display" (no plant names)
+- "flowering plants" (not specific enough)
+- "colorful blooms" (what plant? what color specifically?)
+- Generic terms without plant variety names
+
+🌱 APPROVED PLANT CATEGORIES:
+- Flowers: rose, petunia, marigold, zinnia, sunflower, dahlia, tulip, geranium
+- Vegetables: tomato, pepper, cucumber, lettuce, basil, cilantro, kale
+- Herbs: basil, rosemary, thyme, mint, oregano, parsley
+- Shrubs: hydrangea, azalea, boxwood, rhododendron
+- Houseplants: pothos, monstera, succulent, fern, spider plant
+- Trees: maple, oak, pine, fruit trees (apple, pear, cherry)
+
+EXTRACT & USE: Read the user's content carefully and identify the specific plants mentioned. Use those EXACT plant names in your keywords.`;
 
   const channelRequirements: Record<string, string> = {
     facebook: `
-FACEBOOK REQUIREMENTS:
-- MUST show CUSTOMERS or PEOPLE interacting with plants
-- MUST show garden center RETAIL environment
-- MUST include specific plant type + action
-- Examples:
-  ✅ ["customers browsing", "pink petunia", "hanging baskets", "greenhouse"]
-  ✅ ["shoppers selecting", "vegetable seedlings", "spring", "nursery"]
-  ✅ ["people viewing", "flowering perennials", "garden center", "display"]
-  ❌ ["flowers"] (too generic)
-  ❌ ["petunia"] (no retail context or people)`,
+FACEBOOK - Social Engagement Focus:
+MANDATORY: 
+- Specific plant name + color (e.g., "pink petunia", "red geranium")
+- Customers/shoppers/people interacting
+- Retail setting (greenhouse/garden center/nursery)
+
+✅ CORRECT FORMAT: "customers selecting red geranium hanging baskets greenhouse"
+✅ CORRECT FORMAT: "shoppers browsing purple hydrangea potted display nursery"
+❌ WRONG: "people shopping for flowers" (no specific plant/color)
+❌ WRONG: "garden center customers" (no plant mentioned)`,
 
     instagram: `
-INSTAGRAM REQUIREMENTS:
-- MUST show CLOSE-UP of specific plant variety with COLOR
-- MUST show retail/display context (pots, tags, shelves)
-- MUST be visually stunning (vibrant, detailed, textured)
-- Examples:
-  ✅ ["vibrant orange", "marigolds", "potted", "garden center", "display"]
-  ✅ ["purple echinacea", "flower", "close", "nursery", "pot", "label"]
-  ✅ ["red heirloom", "tomato seedlings", "greenhouse", "tray"]
-  ❌ ["flowers"] (too generic)
-  ❌ ["marigold plant"] (no color, no retail context)`,
+INSTAGRAM - Visual Impact Focus:
+MANDATORY:
+- Specific plant name + vibrant color descriptor (e.g., "vibrant orange marigold", "deep purple lavender")
+- Close-up/detailed shot emphasis
+- Potted/display context
+
+✅ CORRECT FORMAT: "vibrant orange marigold flowers potted display close-up"
+✅ CORRECT FORMAT: "deep purple lavender plants garden center shelves"
+❌ WRONG: "colorful flowers display" (no specific plant)
+❌ WRONG: "beautiful blooms" (too generic)`,
 
     blog: `
-BLOG REQUIREMENTS:
-- MUST show HANDS or TOOLS performing technique
-- MUST show specific plant + gardening action
-- MUST demonstrate the "how-to" visually
-- Examples:
-  ✅ ["hands transplanting", "basil seedlings", "soil", "trowel"]
-  ✅ ["pruning", "tomato suckers", "fingers", "garden", "technique"]
-  ✅ ["mulching", "rose bed", "hands", "spreading", "wood chips"]
-  ❌ ["rose garden"] (no action shown)
-  ❌ ["pruning tools"] (no hands or specific plant)`,
+BLOG - Educational How-To Focus:
+MANDATORY:
+- Specific plant name being worked on
+- Hands/tools showing technique
+- Action verb (pruning, planting, transplanting, etc.)
+
+✅ CORRECT FORMAT: "hands pruning red rose bush garden shears technique"
+✅ CORRECT FORMAT: "transplanting basil seedlings hands trowel soil"
+❌ WRONG: "gardening techniques" (no specific plant)
+❌ WRONG: "pruning demonstration" (no plant specified)`,
 
     newsletter: `
-NEWSLETTER REQUIREMENTS:
-- MUST show SEASONAL context
-- MUST show garden center INVENTORY or featured products
-- MUST include specific plant varieties for that season
-- Examples:
-  ✅ ["spring", "seedling trays", "greenhouse", "nursery", "display", "variety"]
-  ✅ ["autumn mums", "chrysanthemum", "garden center", "fall", "selection"]
-  ✅ ["winter houseplants", "tropical", "indoor", "plant shop", "inventory"]
-  ❌ ["seasonal plants"] (not specific)
-  ❌ ["plant variety"] (too generic)`,
+NEWSLETTER - Product Showcase Focus:
+MANDATORY:
+- Seasonal context word (spring, summer, fall, winter)
+- Specific plant varieties for that season
+- Garden center inventory/display context
+
+✅ CORRECT FORMAT: "spring vegetable seedlings tomato pepper greenhouse trays"
+✅ CORRECT FORMAT: "fall mum chrysanthemum plants garden center display"
+❌ WRONG: "seasonal display" (no specific plants)
+❌ WRONG: "spring plants available" (too generic)`,
 
     video: `
-VIDEO REQUIREMENTS:
-- MUST show ACTION or DEMONSTRATION
-- MUST show hands/people performing technique
-- MUST include specific plant + context
-- Examples:
-  ✅ ["demonstrating", "plant care", "garden center", "customer", "tutorial"]
-  ✅ ["hands planting", "tomato", "raised bed", "technique"]
-  ✅ ["pruning demo", "rose bush", "garden shop", "shears"]
-  ❌ ["gardening video"] (too generic)`
+VIDEO - Action/Demo Focus:
+MANDATORY:
+- Action verb (demonstrating, showing, planting, etc.)
+- Specific plant name
+- Hands/person performing task
+
+✅ CORRECT FORMAT: "hands demonstrating tomato plant pruning technique garden"
+✅ CORRECT FORMAT: "planting petunia seedlings raised bed tutorial"
+❌ WRONG: "gardening tutorial" (no specific plant)
+❌ WRONG: "plant care video" (too generic)`
   };
 
   return `${basePrompt}
@@ -132,7 +147,17 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: prompt
+            content: `CONTENT TO ANALYZE: ${prompt}
+
+TASK: Generate Unsplash search keywords by:
+1. IDENTIFYING specific plant names mentioned in the content above (tomato, rose, basil, petunia, etc.)
+2. EXTRACTING color descriptors or adding appropriate ones (pink, red, purple, vibrant, etc.)
+3. ADDING garden retail context (greenhouse, nursery, garden center, potted, display)
+4. COMBINING into a 5-7 word search query
+
+REMEMBER: Use the ACTUAL PLANT NAMES from the content. If the content mentions "Christmas Collection" or "Holiday Plants", specify which plants (e.g., poinsettia, holly, evergreen). If it mentions "Summer Flowers", specify which flowers (e.g., petunia, marigold, zinnia).
+
+Extract and use SPECIFIC plant varieties from the content above.`
           }
         ],
         tools: [{
@@ -152,7 +177,7 @@ serve(async (req) => {
                 },
                 primaryQuery: {
                   type: "string",
-                  description: "5-7 word Unsplash query combining best keywords"
+                  description: "5-7 word Unsplash query. MUST include: 1) SPECIFIC plant name extracted from content, 2) COLOR word, 3) Retail context (greenhouse/nursery/garden center/potted/display). Example: 'vibrant red poinsettia potted greenhouse display' NOT 'holiday plants display'"
                 }
               },
               required: ["keywords", "primaryQuery"],
