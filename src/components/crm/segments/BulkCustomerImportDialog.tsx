@@ -112,33 +112,54 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
           console.log('📊 Headers found:', headers);
           console.log('📊 Data rows:', dataRows.length);
 
-          // Intelligently detect email column by looking for "@" symbols
+          // Intelligently detect email column
+          // Method 1: Check if any header contains email-related keywords
+          const emailKeywords = ['email', 'e-mail', 'mail', 'address'];
           let emailColumnIndex = -1;
-          let maxAtSymbolDensity = 0;
-
-          headers.forEach((header, index) => {
-            // Count how many cells in this column contain "@"
-            const cellsWithAt = dataRows.filter(row => 
-              row[index] && row[index].includes('@')
-            ).length;
-            
-            const density = dataRows.length > 0 ? cellsWithAt / dataRows.length : 0;
-            
-            console.log(`📧 Column "${header}" (index ${index}): ${cellsWithAt}/${dataRows.length} cells with @ (${(density * 100).toFixed(1)}%)`);
-            
-            // If this column has more "@" symbols, it's likely the email column
-            if (density > maxAtSymbolDensity) {
-              maxAtSymbolDensity = density;
-              emailColumnIndex = index;
+          
+          for (let i = 0; i < headers.length; i++) {
+            const headerLower = headers[i].toLowerCase().trim();
+            if (emailKeywords.some(keyword => headerLower.includes(keyword))) {
+              // Verify this column actually has emails with "@"
+              const cellsWithAt = dataRows.filter(row => 
+                row[i] && row[i].includes('@')
+              ).length;
+              const density = dataRows.length > 0 ? cellsWithAt / dataRows.length : 0;
+              
+              if (density > 0.5) { // At least 50% of cells have "@"
+                emailColumnIndex = i;
+                console.log(`✅ Email column found by header name: "${headers[i]}" (index ${i}) with ${(density * 100).toFixed(1)}% @ density`);
+                break;
+              }
             }
-          });
-
-          if (emailColumnIndex === -1 || maxAtSymbolDensity < 0.5) {
-            reject(new Error(`No email column detected. Highest @ density: ${(maxAtSymbolDensity * 100).toFixed(1)}%`));
-            return;
           }
 
-          console.log(`✅ Email column detected: "${headers[emailColumnIndex]}" (index ${emailColumnIndex}) with ${(maxAtSymbolDensity * 100).toFixed(1)}% @ density`);
+          // Method 2: If no email header found, detect by "@" symbol density
+          if (emailColumnIndex === -1) {
+            let maxAtSymbolDensity = 0;
+
+            headers.forEach((header, index) => {
+              const cellsWithAt = dataRows.filter(row => 
+                row[index] && row[index].includes('@')
+              ).length;
+              
+              const density = dataRows.length > 0 ? cellsWithAt / dataRows.length : 0;
+              
+              console.log(`📧 Column "${header}" (index ${index}): ${cellsWithAt}/${dataRows.length} cells with @ (${(density * 100).toFixed(1)}%)`);
+              
+              if (density > maxAtSymbolDensity) {
+                maxAtSymbolDensity = density;
+                emailColumnIndex = index;
+              }
+            });
+
+            if (emailColumnIndex === -1 || maxAtSymbolDensity < 0.5) {
+              reject(new Error(`No email column detected. Highest @ density: ${(maxAtSymbolDensity * 100).toFixed(1)}%`));
+              return;
+            }
+
+            console.log(`✅ Email column detected by @ density: "${headers[emailColumnIndex]}" (index ${emailColumnIndex}) with ${(maxAtSymbolDensity * 100).toFixed(1)}%`);
+          }
 
           // Extract and validate emails from the detected column
           const emails = dataRows
