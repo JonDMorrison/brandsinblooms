@@ -101,8 +101,8 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
   // Smart field detection mappings
   const fieldMappings = {
     email: ['email', 'email_address', 'e_mail', 'customer_email', 'mail'],
-    first_name: ['first_name', 'firstname', 'given_name', 'fname', 'first'],
-    last_name: ['last_name', 'lastname', 'surname', 'family_name', 'lname', 'last'],
+    first_name: ['first_name', 'firstname', 'given_name', 'fname', 'first', 'first name'],
+    last_name: ['last_name', 'lastname', 'surname', 'family_name', 'familyname', 'lname', 'last name'],
     phone: ['phone', 'phone_number', 'mobile', 'cell', 'telephone', 'tel'],
     persona: ['persona', 'customer_type', 'segment', 'category', 'type'],
     tags: ['tags', 'interests', 'categories', 'labels'],
@@ -116,9 +116,33 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
     const mapping: FieldMapping = {};
     const normalizedHeaders = headers.map(h => h.toLowerCase().trim());
 
-    Object.entries(fieldMappings).forEach(([field, variations]) => {
+    // Helper to test header against variation with word boundaries
+    const matches = (header: string, variation: string) => {
+      if (header === variation) return true;
+      const pattern = new RegExp(`(^|[^a-z0-9])${variation}([^a-z0-9]|$)`);
+      return pattern.test(header);
+    };
+
+    // Order matters – map more specific fields first to avoid collisions (e.g., last_purchase vs last_name)
+    const orderedEntries = Object.entries(fieldMappings).sort(([a], [b]) => {
+      const priority: Record<string, number> = {
+        email: 0,
+        first_name: 1,
+        last_name: 2,
+        phone: 3,
+        last_purchase_date: 4,
+        lifetime_value: 5,
+        persona: 6,
+        tags: 7,
+        sms_opt_in: 8,
+        name: 9,
+      };
+      return (priority[a] ?? 99) - (priority[b] ?? 99);
+    });
+
+    orderedEntries.forEach(([field, variations]) => {
       const match = normalizedHeaders.find(header => 
-        variations.some(variation => header.includes(variation))
+        (variations as string[]).some(variation => matches(header, variation))
       );
       if (match) {
         const originalHeader = headers[normalizedHeaders.indexOf(match)];
@@ -128,12 +152,21 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
 
     return mapping;
   };
-
   const parseCSV = (csvText: string): ParsedCustomer[] => {
-    const lines = csvText.split('\n').filter(line => line.trim());
+    const rawLines = csvText.split(/\r?\n/);
+    const lines = rawLines.filter(line => line.trim());
     if (lines.length < 2) throw new Error('CSV must have at least a header and one data row');
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    // Auto-detect delimiter (comma, semicolon, or tab)
+    const detectDelimiter = (line: string) => {
+      const candidates = [',', ';', '\t'];
+      const counts = candidates.map(d => (line.match(new RegExp(`\\${d}`, 'g')) || []).length);
+      const maxCount = Math.max(...counts);
+      return candidates[counts.indexOf(maxCount)] || ',';
+    };
+    const delimiter = detectDelimiter(lines[0]);
+
+    const headers = lines[0].split(delimiter).map(h => h.replace(/\r/g, '').trim().replace(/"/g, ''));
     const detectedMapping = detectFieldMapping(headers);
     setFieldMapping(detectedMapping);
 
@@ -141,7 +174,7 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
     const importErrors: ImportError[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      const values = lines[i].split(delimiter).map(v => v.replace(/\r/g, '').trim().replace(/"/g, ''));
       const customer: ParsedCustomer = { email: '' };
 
       headers.forEach((header, index) => {
