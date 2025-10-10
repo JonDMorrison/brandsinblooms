@@ -56,6 +56,7 @@ import { Home1Page } from '@/pages/Home1Page';
 import AdminPage from '@/pages/AdminPage';
 import AdminManage from '@/pages/AdminManage';
 import { AdminReportsPage } from '@/pages/AdminReportsPage';
+import AdminDashboard from '@/pages/admin/AdminDashboard';
 import { CommunityPage } from '@/pages/CommunityPage';
 import { SavedBlocksPage } from '@/pages/crm/SavedBlocksPage';
 
@@ -371,6 +372,13 @@ function App() {
           <Route path="/admin" element={
             <ProtectedRoute>
               <AdminPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/search" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <AdminDashboard />
+              </SidebarLayout>
             </ProtectedRoute>
           } />
           <Route path="/admin/manage" element={
