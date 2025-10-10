@@ -191,8 +191,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                   const { data: keywordData, error: keywordError } = await supabase.functions.invoke('generate-image-keywords', {
                     body: {
                       channel: task.type === 'instagram' ? 'instagram' : 'facebook',
-                      content: task.imageQuery,
-                      title: task.imageQuery
+                      prompt: task.imageQuery
                     }
                   });
                   
