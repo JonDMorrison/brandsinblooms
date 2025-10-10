@@ -77,3 +77,9 @@ verify_jwt = false
 
 [functions.generate-image-keywords]
 verify_jwt = false
+
+[functions.analyze-csv-columns]
+verify_jwt = true
+
+[functions.send-bulk-campaign]
+verify_jwt = true

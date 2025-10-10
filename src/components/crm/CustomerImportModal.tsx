@@ -77,6 +77,8 @@ export const CustomerImportModal = () => {
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [aiMappingSuggestions, setAiMappingSuggestions] = useState<Record<string, any>>({});
+  const [analyzingColumns, setAnalyzingColumns] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -92,6 +94,8 @@ export const CustomerImportModal = () => {
     setImportProgress(0);
     setImportResult(null);
     setShowAISuggestions(false);
+    setAiMappingSuggestions({});
+    setAnalyzingColumns(false);
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,7 +132,7 @@ export const CustomerImportModal = () => {
 
       setFileData(parsedData);
       
-      // Auto-map columns
+      // Auto-map columns with basic string matching
       const autoMapping: Record<string, string> = {};
       expectedColumns.forEach(col => {
         const matchedHeader = headers.find(h => 
@@ -142,6 +146,9 @@ export const CustomerImportModal = () => {
       
       setColumnMapping(autoMapping);
       setStep('mapping');
+      
+      // Automatically trigger AI analysis with sample data
+      analyzeColumnsWithAI(headers, parsedData.slice(0, 3));
       
     } catch (error) {
       toast({
@@ -172,6 +179,57 @@ export const CustomerImportModal = () => {
     }
     
     return phone; // Return original if can't format
+  };
+
+  const analyzeColumnsWithAI = async (headers: string[], sampleRows: ImportData[]) => {
+    setAnalyzingColumns(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-csv-columns', {
+        body: { 
+          headers,
+          sampleRows 
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data.columnMapping) {
+        // Apply AI suggestions to column mapping
+        setColumnMapping(data.columnMapping);
+        setAiMappingSuggestions(data.suggestions || {});
+        
+        toast({
+          title: "AI Analysis Complete",
+          description: "Column mappings have been automatically suggested",
+        });
+      }
+    } catch (error: any) {
+      console.error('AI analysis error:', error);
+      
+      // Handle specific error cases
+      if (error.message?.includes('Rate limit')) {
+        toast({
+          title: "Rate limit reached",
+          description: "AI analysis temporarily unavailable. Using basic mapping.",
+          variant: "default",
+        });
+      } else if (error.message?.includes('credits')) {
+        toast({
+          title: "AI credits needed",
+          description: "Add credits to use AI mapping. Using basic mapping for now.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "AI analysis unavailable",
+          description: "Using basic column mapping instead",
+          variant: "default",
+        });
+      }
+    } finally {
+      setAnalyzingColumns(false);
+    }
   };
 
   const validateData = () => {
@@ -422,35 +480,68 @@ export const CustomerImportModal = () => {
       <div>
         <h3 className="text-lg font-semibold mb-2">Map Your Columns</h3>
         <p className="text-muted-foreground">
-          We've auto-detected some columns. Please verify the mapping below.
+          {analyzingColumns 
+            ? "AI is analyzing your columns..." 
+            : "AI has suggested column mappings. Please verify them below."
+          }
         </p>
       </div>
+
+      {analyzingColumns && (
+        <Alert>
+          <Lightbulb className="h-4 w-4 animate-pulse" />
+          <AlertDescription>
+            AI is analyzing your column headers and sample data to suggest the best mappings...
+          </AlertDescription>
+        </Alert>
+      )}
       
       <div className="space-y-4">
-        {expectedColumns.map(col => (
-          <div key={col.key} className="grid grid-cols-2 gap-4 items-center">
-            <Label>{col.label}</Label>
-            <NativeSelect
-              value={columnMapping[col.key] || ''} 
-              onChange={(e) => setColumnMapping(prev => ({ ...prev, [col.key]: e.target.value }))}
-              placeholder="Select column..."
-              options={[
-                { value: '', label: '-- Skip --' },
-                ...Object.keys(fileData[0] || {}).map(header => ({
-                  value: header,
-                  label: header
-                }))
-              ]}
-            />
-          </div>
-        ))}
+        {expectedColumns.map(col => {
+          const suggestion = aiMappingSuggestions[col.key];
+          
+          return (
+            <div key={col.key} className="space-y-2">
+              <div className="grid grid-cols-2 gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <Label>{col.label}</Label>
+                  {suggestion && (
+                    <Badge 
+                      variant={suggestion.confidence === 'high' ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
+                      AI: {suggestion.confidence}
+                    </Badge>
+                  )}
+                </div>
+                <NativeSelect
+                  value={columnMapping[col.key] || ''} 
+                  onChange={(e) => setColumnMapping(prev => ({ ...prev, [col.key]: e.target.value }))}
+                  placeholder="Select column..."
+                  options={[
+                    { value: '', label: '-- Skip --' },
+                    ...Object.keys(fileData[0] || {}).map(header => ({
+                      value: header,
+                      label: header
+                    }))
+                  ]}
+                />
+              </div>
+              {suggestion && (
+                <p className="text-xs text-muted-foreground ml-2">
+                  💡 {suggestion.reasoning}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
       
       <div className="flex justify-between">
         <Button variant="outline" onClick={() => setStep('upload')}>
           Back
         </Button>
-        <Button onClick={validateData}>
+        <Button onClick={validateData} disabled={analyzingColumns}>
           Validate Data
         </Button>
       </div>
