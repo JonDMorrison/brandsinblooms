@@ -199,8 +199,12 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
     }
 
     setImporting(true);
+    console.log('🚀 Starting import for file:', file.name);
+    
     try {
+      console.log('📖 Parsing CSV...');
       const emails = await parseCSV(file);
+      console.log('✅ CSV parsed successfully, emails found:', emails.length);
       
       if (emails.length === 0) {
         toast({
@@ -213,13 +217,22 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       }
 
       console.log('🔍 Found emails to import:', emails.length);
+      console.log('📧 Sample emails:', emails.slice(0, 3));
 
       // Check which emails already exist in the CRM
-      const { data: existingCustomers } = await supabase
+      console.log('🔍 Checking existing customers in tenant:', tenantId);
+      const { data: existingCustomers, error: fetchError } = await supabase
         .from('crm_customers')
         .select('id, email')
         .eq('tenant_id', tenantId)
         .in('email', emails);
+
+      if (fetchError) {
+        console.error('❌ Error fetching existing customers:', fetchError);
+        throw fetchError;
+      }
+
+      console.log('✅ Existing customers found:', existingCustomers?.length || 0);
 
       const existingEmailsMap = new Map(
         (existingCustomers || []).map(c => [c.email.toLowerCase(), c.id])
@@ -236,9 +249,12 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
         }
       });
 
+      console.log('📊 Analysis: Found:', found.length, 'To Create:', toCreate.length);
+
       // Create new customers for emails not in database
       const created: string[] = [];
       if (toCreate.length > 0) {
+        console.log('➕ Creating', toCreate.length, 'new customers...');
         const newCustomers = toCreate.map(email => ({
           email,
           tenant_id: tenantId,
@@ -251,13 +267,14 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
           .select('id, email');
 
         if (createError) {
-          console.error('Error creating customers:', createError);
+          console.error('❌ Error creating customers:', createError);
           toast({
             title: "Partial import",
-            description: "Some customers could not be created",
+            description: `Created ${found.length} customers but failed to create ${toCreate.length} new ones: ${createError.message}`,
             variant: "destructive",
           });
         } else if (createdCustomers) {
+          console.log('✅ Created customers:', createdCustomers.length);
           createdCustomers.forEach(c => {
             created.push(c.email);
             existingEmailsMap.set(c.email.toLowerCase(), c.id);
@@ -269,6 +286,8 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       const customerIdsToAdd = emails
         .map(email => existingEmailsMap.get(email))
         .filter((id): id is string => Boolean(id));
+
+      console.log('📝 Adding', customerIdsToAdd.length, 'customers to segment...');
 
       if (customerIdsToAdd.length > 0) {
         await onImport(customerIdsToAdd);
@@ -282,20 +301,27 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       });
 
       const totalAdded = found.length + created.length;
+      console.log('🎉 Import complete! Total added:', totalAdded);
       toast({
         title: "Import complete",
         description: `${totalAdded} customer${totalAdded !== 1 ? 's' : ''} added to segment${created.length > 0 ? ` (${created.length} new)` : ''}`,
       });
 
-    } catch (error) {
-      console.error('Import error:', error);
+    } catch (error: any) {
+      console.error('❌ Import error:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
       toast({
         title: "Import failed",
-        description: "Failed to process the CSV file",
+        description: error.message || "Failed to process the CSV file. Check console for details.",
         variant: "destructive",
       });
     } finally {
       setImporting(false);
+      console.log('✅ Import process finished');
     }
   };
 
