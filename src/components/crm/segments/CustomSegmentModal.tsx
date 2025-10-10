@@ -65,11 +65,6 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
   };
 
   const calculateEstimatedCount = async (filters: any[]) => {
-    if (!filters || filters.length === 0) {
-      setEstimatedCount(null);
-      return;
-    }
-
     setLoading(true);
     try {
       // Get total customer count for estimation
@@ -78,6 +73,12 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
         .select('*', { count: 'exact', head: true });
 
       if (error) throw error;
+
+      // If no filters, show all customers
+      if (!filters || filters.length === 0) {
+        setEstimatedCount(count || 0);
+        return;
+      }
 
       // Simple estimation logic - in reality this would be more sophisticated
       // For now, just show a percentage based on filter complexity
@@ -365,9 +366,13 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                       {loading ? (
                         <span className="animate-pulse">Calculating...</span>
                       ) : estimatedCount !== null ? (
-                        `~${estimatedCount} customers`
+                        segmentData.filters.length === 0 ? (
+                          `${estimatedCount} customers (All)`
+                        ) : (
+                          `~${estimatedCount} customers`
+                        )
                       ) : (
-                        'Add filters to see estimate'
+                        'Calculating...'
                       )}
                     </span>
                   </div>
@@ -375,9 +380,13 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                     <Settings className="h-3 w-3" />
                     Custom Segment
                   </Badge>
-                  {segmentData.filters.length > 0 && (
+                  {segmentData.filters.length > 0 ? (
                     <Badge variant="secondary">
                       {segmentData.filters.length} {segmentData.filters.length === 1 ? 'filter' : 'filters'}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-muted-foreground">
+                      No filters (All customers)
                     </Badge>
                   )}
                 </div>
@@ -401,7 +410,7 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                 </Button>
                 <Button 
                   onClick={handleSave}
-                  disabled={!segmentData || !segmentData.name.trim() || segmentData.filters.length === 0}
+                  disabled={!segmentData || !segmentData.name.trim()}
                 >
                   Create Segment
                 </Button>
