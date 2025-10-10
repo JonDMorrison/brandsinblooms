@@ -282,8 +282,8 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           )}
 
           {/* Two Column Layout */}
-          <div className="flex-1 overflow-hidden">
-            <div className="grid grid-cols-2 gap-6 h-full">
+          <div className="flex-1 min-h-0">
+            <div className="grid grid-cols-2 gap-6 h-[400px]">
               {/* Left Column - Assigned Customers */}
               <div className="flex flex-col">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
