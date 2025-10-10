@@ -113,66 +113,67 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
           console.log('📊 Data rows:', dataRows.length);
 
           // Intelligently detect email column
-          // Method 1: Check if any header contains email-related keywords
-          const emailKeywords = ['email', 'e-mail', 'mail', 'address'];
+          // Helper: basic email validator
+          const isValidEmail = (val: string) => {
+            if (!val) return false;
+            const email = val.trim().toLowerCase();
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+          };
+
           let emailColumnIndex = -1;
-          
+
+          // Method 1: Prefer explicit header names like "Email" or "Email Address" (no density requirement)
           for (let i = 0; i < headers.length; i++) {
             const headerLower = headers[i].toLowerCase().trim();
-            if (emailKeywords.some(keyword => headerLower.includes(keyword))) {
-              // Verify this column actually has emails with "@"
-              const cellsWithAt = dataRows.filter(row => 
-                row[i] && row[i].includes('@')
-              ).length;
-              const density = dataRows.length > 0 ? cellsWithAt / dataRows.length : 0;
-              
-              if (density > 0.5) { // At least 50% of cells have "@"
+            const normalized = headerLower.replace(/[^a-z0-9]/g, '');
+            const isEmailHeader =
+              normalized === 'email' ||
+              normalized.includes('emailaddress') ||
+              normalized.startsWith('email') ||
+              normalized.endsWith('email');
+
+            if (isEmailHeader) {
+              const validCount = dataRows.filter(row => isValidEmail(row[i] || '')).length;
+              const density = dataRows.length > 0 ? validCount / dataRows.length : 0;
+              console.log(`📧 Header match "${headers[i]}" → valid emails: ${validCount}/${dataRows.length} (${(density * 100).toFixed(1)}%)`);
+              if (validCount > 0) {
                 emailColumnIndex = i;
-                console.log(`✅ Email column found by header name: "${headers[i]}" (index ${i}) with ${(density * 100).toFixed(1)}% @ density`);
+                console.log(`✅ Email column selected by header: "${headers[i]}" (index ${i})`);
                 break;
               }
             }
           }
 
-          // Method 2: If no email header found, detect by "@" symbol density
+          // Method 2: Fallback by valid email count/density (more lenient than 50%)
           if (emailColumnIndex === -1) {
-            let maxAtSymbolDensity = 0;
+            let maxValidCount = 0;
+            let maxValidDensity = 0;
 
             headers.forEach((header, index) => {
-              const cellsWithAt = dataRows.filter(row => 
-                row[index] && row[index].includes('@')
-              ).length;
-              
-              const density = dataRows.length > 0 ? cellsWithAt / dataRows.length : 0;
-              
-              console.log(`📧 Column "${header}" (index ${index}): ${cellsWithAt}/${dataRows.length} cells with @ (${(density * 100).toFixed(1)}%)`);
-              
-              if (density > maxAtSymbolDensity) {
-                maxAtSymbolDensity = density;
+              const validCount = dataRows.filter(row => isValidEmail(row[index] || '')).length;
+              const atCount = dataRows.filter(row => (row[index] || '').includes('@')).length;
+              const density = dataRows.length > 0 ? validCount / dataRows.length : 0;
+              console.log(`📊 Column "${header}" (idx ${index}): valid ${validCount}/${dataRows.length} (${(density * 100).toFixed(1)}%), has@ ${atCount}`);
+
+              if (validCount > maxValidCount) {
+                maxValidCount = validCount;
+                maxValidDensity = density;
                 emailColumnIndex = index;
               }
             });
 
-            if (emailColumnIndex === -1 || maxAtSymbolDensity < 0.5) {
-              reject(new Error(`No email column detected. Highest @ density: ${(maxAtSymbolDensity * 100).toFixed(1)}%`));
-              return;
+            // Accept if we have at least a small number of valid emails OR a small density
+            if (emailColumnIndex === -1 || (maxValidCount < 5 && maxValidDensity < 0.02)) {
+              throw new Error(`No email column detected. Best column valid rate: ${(maxValidDensity * 100).toFixed(1)}% (${maxValidCount} valid)`);
             }
 
-            console.log(`✅ Email column detected by @ density: "${headers[emailColumnIndex]}" (index ${emailColumnIndex}) with ${(maxAtSymbolDensity * 100).toFixed(1)}%`);
+            console.log(`✅ Email column detected by validity: "${headers[emailColumnIndex]}" (index ${emailColumnIndex}) with ${(maxValidDensity * 100).toFixed(1)}% valid`);
           }
 
           // Extract and validate emails from the detected column
           const emails = dataRows
-            .map(row => row[emailColumnIndex]?.trim().toLowerCase() || '')
-            .filter(email => {
-              // Basic email validation
-              const isValid = email && email.length > 0 && 
-                            email.includes('@') && 
-                            email.includes('.') &&
-                            email.indexOf('@') > 0 &&
-                            email.lastIndexOf('.') > email.indexOf('@');
-              return isValid;
-            });
+            .map(row => (row[emailColumnIndex] || '').trim().toLowerCase())
+            .filter(isValidEmail);
           
           console.log('✅ Valid emails extracted:', emails.length);
           console.log('📧 Sample emails:', emails.slice(0, 5));
