@@ -365,8 +365,28 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                         {item.channel === 'instagram' || item.channel === 'facebook' ? (
                           <textarea
                             className="w-full min-h-[200px] rounded-md border p-3 text-sm leading-relaxed resize-y text-gray-900"
-                            value={sanitizeWeekNumbers(item.caption || '')}
-                            onChange={(e) => editItem(idx, { caption: e.target.value })}
+                            value={sanitizeWeekNumbers(
+                              // Extract the longest content from all possible fields (same logic as PublishPage)
+                              [item.body, item.markdown, item.script, item.caption, item.text, item.content]
+                                .filter(Boolean)
+                                .sort((a, b) => (b?.length || 0) - (a?.length || 0))[0] || ''
+                            )}
+                            onChange={(e) => {
+                              // Update the primary field that has content, or caption as fallback
+                              const currentContent = [
+                                { field: 'body', value: item.body },
+                                { field: 'markdown', value: item.markdown },
+                                { field: 'script', value: item.script },
+                                { field: 'caption', value: item.caption },
+                                { field: 'text', value: item.text },
+                                { field: 'content', value: item.content }
+                              ]
+                                .filter(f => f.value)
+                                .sort((a, b) => (b.value?.length || 0) - (a.value?.length || 0))[0];
+                              
+                              const fieldToUpdate = currentContent?.field || 'caption';
+                              editItem(idx, { [fieldToUpdate]: e.target.value });
+                            }}
                             placeholder="Write your social media caption..."
                           />
                         ) : item.channel === 'video' ? (
