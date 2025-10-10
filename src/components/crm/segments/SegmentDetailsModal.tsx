@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Users, Target, Search, Plus, X, Loader2 } from 'lucide-react';
+import { Users, Target, Search, Plus, X, Loader2, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { BulkCustomerImportDialog } from './BulkCustomerImportDialog';
 
 interface Customer {
   id: string;
@@ -44,6 +45,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingCustomerId, setLoadingCustomerId] = useState<string | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -171,6 +173,32 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
       console.error('Error removing customer:', error);
     } finally {
       setLoadingCustomerId(null);
+    }
+  };
+
+  const bulkAddCustomers = async (customerIds: string[]) => {
+    if (!segment || customerIds.length === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('customer_segments')
+        .insert(
+          customerIds.map(id => ({
+            customer_id: id,
+            segment_id: segment.id
+          }))
+        );
+
+      if (error) throw error;
+
+      // Update local state
+      const customersToMove = availableCustomers.filter(c => customerIds.includes(c.id));
+      setSegmentCustomers(prev => [...prev, ...customersToMove]);
+      setAvailableCustomers(prev => prev.filter(c => !customerIds.includes(c.id)));
+
+    } catch (error) {
+      console.error('Error bulk adding customers:', error);
+      throw error;
     }
   };
 
@@ -308,11 +336,24 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                     <Plus className="h-4 w-4" />
                     Available Customers ({filteredAvailableCustomers.length})
                   </h3>
-                  {!isCustomSegment && (
-                    <Badge variant="secondary" className="text-xs">
-                      View Only
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isCustomSegment && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowBulkImport(true)}
+                        className="gap-2"
+                      >
+                        <Upload className="h-3 w-3" />
+                        Bulk Import
+                      </Button>
+                    )}
+                    {!isCustomSegment && (
+                      <Badge variant="secondary" className="text-xs">
+                        View Only
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto border rounded-lg">
@@ -380,6 +421,14 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
             </Button>
           </div>
         </div>
+
+        {/* Bulk Import Dialog */}
+        <BulkCustomerImportDialog
+          open={showBulkImport}
+          onOpenChange={setShowBulkImport}
+          onImport={bulkAddCustomers}
+          availableCustomers={availableCustomers}
+        />
       </DialogContent>
     </Dialog>
   );
