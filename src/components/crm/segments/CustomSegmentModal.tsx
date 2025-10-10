@@ -410,9 +410,10 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                 </Button>
                 <Button 
                   onClick={handleSave}
-                  disabled={!segmentData || !segmentData.name.trim()}
+                  disabled={!segmentData?.name?.trim()}
+                  className="min-w-[140px]"
                 >
-                  Create Segment
+                  {!segmentData?.name?.trim() ? 'Enter Name' : 'Create Segment'}
                 </Button>
               </div>
             </>

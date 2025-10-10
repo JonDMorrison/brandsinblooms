@@ -419,7 +419,7 @@ export const CustomSegmentBuilder = ({ onSave, onCancel, onChange }: CustomSegme
     <div className="space-y-6">
       <div>
         <label htmlFor="segmentName" className="block text-sm font-medium text-foreground mb-2">
-          Segment Name
+          Segment Name *
         </label>
         <input
           id="segmentName"
@@ -427,7 +427,8 @@ export const CustomSegmentBuilder = ({ onSave, onCancel, onChange }: CustomSegme
           value={segmentName}
           onChange={(e) => setSegmentName(e.target.value)}
           className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          placeholder="Enter segment name..."
+          placeholder="e.g., VIP Customers, Local Shoppers..."
+          autoFocus
         />
       </div>
 
