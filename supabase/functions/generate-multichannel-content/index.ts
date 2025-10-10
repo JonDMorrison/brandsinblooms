@@ -385,55 +385,32 @@ Generate educational content that empowers garden center customers to succeed.`;
   const result = JSON.parse(toolCall.function.arguments);
   
   // Use OpenAI's image query directly
-  const imageQuery = result.imageQuery || 'garden center seasonal plants';
+  let imageQuery = result.imageQuery || 'garden center seasonal plants';
   
-  // ========== VALIDATE IMAGE QUERY QUALITY ==========
-  const validateImageQuery = (query: string, channelType: string): { valid: boolean; warnings: string[] } => {
-    const warnings: string[] = [];
-    const words = query.trim().split(/\s+/);
-    
-    // Check word count
-    if (words.length < 4) {
-      warnings.push(`Too short (${words.length} words, need 5-7)`);
-    }
-    
-    // Check for generic terms without specifics
-    const genericTerms = ['plant', 'flower', 'garden', 'gardening', 'plants', 'flowers'];
-    const hasOnlyGeneric = words.some(w => genericTerms.includes(w.toLowerCase())) && 
-                          !words.some(w => w.length > 6 && !genericTerms.includes(w.toLowerCase()));
-    if (hasOnlyGeneric) {
-      warnings.push('Too generic - needs specific plant names or varieties');
-    }
-    
-    // Check for retail context
-    const retailTerms = ['garden center', 'greenhouse', 'nursery', 'display', 'customers', 'browsing', 'shopping', 'retail', 'shop', 'store'];
-    const hasRetailContext = retailTerms.some(term => query.toLowerCase().includes(term));
-    if (!hasRetailContext && channelType !== 'blog') {
-      warnings.push('Missing garden center/retail context');
-    }
-    
-    // Check for visual descriptors (colors, sizes, actions)
-    const visualTerms = ['pink', 'purple', 'red', 'yellow', 'blue', 'white', 'orange', 'green', 'colorful', 'vibrant', 'bright', 'close', 'hands', 'pruning', 'planting', 'transplanting'];
-    const hasVisualDescriptor = visualTerms.some(term => query.toLowerCase().includes(term));
-    if (!hasVisualDescriptor) {
-      warnings.push('Missing visual descriptors (colors, actions, details)');
-    }
-    
-    return {
-      valid: warnings.length === 0,
-      warnings
-    };
-  };
+  // ========== ENHANCED IMAGE QUERY VALIDATION ==========
+  const { validateImageQuery, getChannelFallback } = await import('../_shared/enhanced-keyword-validator.ts');
   
   const validation = validateImageQuery(imageQuery, channel);
   
-  if (!validation.valid) {
-    console.warn(`⚠️ [${channel.toUpperCase()}] Image query quality issues:`, {
-      query: imageQuery,
-      issues: validation.warnings
-    });
+  console.log(`🔍 [${channel.toUpperCase()}] Image Query Validation:`, {
+    query: imageQuery,
+    score: validation.score,
+    isValid: validation.isValid,
+    issues: validation.issues
+  });
+  
+  // If validation score is low, use fallback
+  if (validation.score < 70) {
+    console.warn(`⚠️ [${channel.toUpperCase()}] Low quality imageQuery (score: ${validation.score})`);
+    console.warn(`Issues: ${validation.issues.join(', ')}`);
+    console.warn(`Suggestions: ${validation.suggestions.join(', ')}`);
+    
+    // Use channel-specific fallback
+    const fallbackQuery = getChannelFallback(channel, topicTitle);
+    console.log(`🔄 Using fallback query: "${fallbackQuery}"`);
+    imageQuery = fallbackQuery;
   } else {
-    console.log(`✅ [${channel.toUpperCase()}] High-quality image query: "${imageQuery}"`);
+    console.log(`✅ [${channel.toUpperCase()}] High-quality image query: "${imageQuery}" (score: ${validation.score})`);
   }
   
   return {
