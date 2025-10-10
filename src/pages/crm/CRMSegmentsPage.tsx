@@ -3,13 +3,14 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Target, Plus, Search, RefreshCw } from 'lucide-react';
+import { Target, Plus, Search, RefreshCw, Upload } from 'lucide-react';
 import { useCRMSegments } from '@/hooks/useCRMSegments';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { SegmentCard } from '@/components/crm/segments/SegmentCard';
 import { CustomSegmentModal } from '@/components/crm/segments/CustomSegmentModal';
 import { SegmentOverviewCard } from '@/components/crm/segments/SegmentOverviewCard';
 import { SegmentCustomersModal } from '@/components/crm/segments/SegmentCustomersModal';
+import { SegmentImportModal } from '@/components/crm/segments/SegmentImportModal';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 
@@ -54,10 +55,11 @@ const predefinedSegments = [
 ];
 
 export const CRMSegmentsPage: React.FC = () => {
-  const { segments, loading, searchTerm, setSearchTerm, fetchSegments, createSegment, deleteSegment } = useCRMSegments();
+  const { segments, loading, searchTerm, setSearchTerm, fetchSegments, createSegment, deleteSegment, bulkImportSegments } = useCRMSegments();
   const { counts, loading: countsLoading, refreshCounts } = useSegmentCounts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [highlightedSegment, setHighlightedSegment] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<{ id: string; name: string } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -84,6 +86,13 @@ export const CRMSegmentsPage: React.FC = () => {
 
   const handleSegmentUpdate = async () => {
     // Refresh both segments and counts when segment customers are modified
+    await fetchSegments();
+    refreshCounts();
+  };
+
+  const handleImportSegments = async (segmentsData: Array<{ name: string; filters: any[] }>) => {
+    await bulkImportSegments(segmentsData);
+    setShowImportModal(false);
     await fetchSegments();
     refreshCounts();
   };
@@ -180,6 +189,15 @@ export const CRMSegmentsPage: React.FC = () => {
           >
             <RefreshCw className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh Data
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => setShowImportModal(true)}
+            className={`${isMobile ? 'mobile-btn-secondary mobile-touch-feedback w-full' : ''} mobile-focus-ring`}
+            size={isMobile ? "default" : "sm"}
+          >
+            <Upload className={`${isMobile ? 'mobile-icon-sm' : 'h-4 w-4'} mr-2`} />
+            Import CSV
           </Button>
           <Button 
             onClick={handleCreateSegment}
@@ -300,6 +318,12 @@ export const CRMSegmentsPage: React.FC = () => {
         open={showCustomBuilder}
         onSave={handleSaveCustomSegment}
         onCancel={() => setShowCustomBuilder(false)}
+      />
+
+      <SegmentImportModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImport={handleImportSegments}
       />
 
       {/* Segment Customers Modal */}

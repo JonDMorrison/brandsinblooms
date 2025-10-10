@@ -144,6 +144,51 @@ export const useCRMSegments = () => {
     }
   }, [user, tenant]);
 
+  const bulkImportSegments = useCallback(async (segmentsData: Array<{ name: string; filters: any[] }>) => {
+    if (!user || !tenant) {
+      console.error('Cannot import segments: missing user or tenant');
+      toast.error('Authentication error. Please refresh and try again.');
+      throw new Error('Missing user or tenant');
+    }
+
+    console.log('Bulk importing segments:', segmentsData.length);
+
+    try {
+      const segmentsToInsert = segmentsData.map(segment => ({
+        name: segment.name,
+        conditions: { filters: segment.filters },
+        tenant_id: tenant.id,
+        user_id: user.id,
+        customer_count: 0,
+        auto_update: true
+      }));
+
+      const { data, error } = await supabase
+        .from('crm_segments')
+        .insert(segmentsToInsert)
+        .select();
+
+      if (error) {
+        console.error('Supabase error importing segments:', error);
+        toast.error(`Failed to import segments: ${error.message}`);
+        throw error;
+      }
+      
+      console.log('Segments imported successfully:', data?.length);
+      
+      // Add the new segments to the list
+      if (data) {
+        setSegments(prev => [...data, ...prev]);
+      }
+      
+      return true;
+    } catch (error: any) {
+      console.error('Error importing segments:', error);
+      toast.error(error.message || 'Failed to import segments');
+      throw error;
+    }
+  }, [user, tenant]);
+
   // Filter segments based on search term
   const filteredSegments = segments.filter(segment =>
     segment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -161,6 +206,7 @@ export const useCRMSegments = () => {
     setSearchTerm,
     fetchSegments,
     createSegment,
-    deleteSegment
+    deleteSegment,
+    bulkImportSegments
   };
 };
