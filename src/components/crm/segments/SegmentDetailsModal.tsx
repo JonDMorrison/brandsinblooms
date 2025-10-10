@@ -201,6 +201,8 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
     if (!segment || customerIds.length === 0) return;
 
     try {
+      console.log('🔄 Bulk adding', customerIds.length, 'customers to segment', segment.id);
+      
       const { error } = await supabase
         .from('customer_segments')
         .insert(
@@ -210,13 +212,33 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           }))
         );
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error bulk adding customers:', error);
+        throw error;
+      }
 
-      // Refresh the available customers and segment customers lists
+      console.log('✅ Successfully bulk added customers, refreshing data...');
+
+      // Refresh the segment data to show newly added customers
       await loadSegmentData();
+      
+      // Also notify parent if callback provided
+      if (onSegmentUpdate) {
+        onSegmentUpdate();
+      }
+
+      toast({
+        title: "Success",
+        description: `Added ${customerIds.length} customers to segment`,
+      });
 
     } catch (error) {
       console.error('Error bulk adding customers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add customers to segment",
+        variant: "destructive",
+      });
       throw error;
     }
   };

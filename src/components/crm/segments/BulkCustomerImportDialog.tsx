@@ -381,7 +381,18 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       });
 
       if (customerIdsToAdd.length > 0) {
-        await onImport(customerIdsToAdd);
+        try {
+          await onImport(customerIdsToAdd);
+          console.log('✅ Successfully added customers to segment');
+        } catch (error) {
+          console.error('❌ Error adding customers to segment:', error);
+          toast({
+            title: "Import issue",
+            description: `Customers were created but couldn't be added to segment. ${error instanceof Error ? error.message : 'Unknown error'}`,
+            variant: "destructive",
+          });
+          throw error;
+        }
       }
       
       setProgress({ 
