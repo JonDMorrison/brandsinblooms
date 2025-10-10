@@ -218,6 +218,9 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
     setProgress({ stage: 'parsing', current: 0, total: 0, message: 'Reading CSV file...' });
     console.log('🚀 Starting import for file:', file.name);
     
+    let existingCustomerCount = 0;
+    let newCustomerCount = 0;
+    
     try {
       console.log('📖 Parsing CSV...');
       const emails = await parseCSV(file);
@@ -265,7 +268,7 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
         
         const { data: batchCustomers, error: fetchError } = await supabase
           .from('crm_customers')
-          .select('id, email')
+          .select('id, email, total_spent, last_purchase_date')
           .eq('tenant_id', tenantId)
           .in('email', batch);
 
@@ -287,8 +290,10 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       emails.forEach(email => {
         if (existingEmailsMap.has(email)) {
           found.push(email);
+          existingCustomerCount++;
         } else {
           toCreate.push(email);
+          newCustomerCount++;
         }
       });
 
@@ -324,7 +329,10 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
           const newCustomers = batch.map(email => ({
             email,
             tenant_id: tenantId,
-            user_id: userId
+            user_id: userId,
+            email_opt_in: false,
+            email_consent_source: 'import',
+            email_consent_method: 'pending_confirmation',
           }));
 
           const { data: createdCustomers, error: createError } = await supabase
@@ -382,11 +390,43 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
         notFound: []
       });
 
+      // Send confirmation emails to new customers
+      const { data: companyProfile } = await supabase
+        .from('company_profiles')
+        .select('company_name')
+        .eq('user_id', userId)
+        .single();
+
+      if (created.length > 0) {
+        console.log(`📧 Queueing confirmation emails for ${created.length} new customers`);
+        
+        // Get the newly created customer records with their IDs
+        const { data: newCustomerRecords } = await supabase
+          .from('crm_customers')
+          .select('id, email, first_name')
+          .eq('tenant_id', tenantId)
+          .in('email', created);
+        
+        // Queue confirmation emails (fire and forget)
+        newCustomerRecords?.forEach(customer => {
+          supabase.functions.invoke('send-email-confirmation', {
+            body: {
+              customerId: customer.id,
+              email: customer.email,
+              firstName: customer.first_name,
+              brandName: companyProfile?.company_name,
+            }
+          }).catch(err => console.error(`Failed to send confirmation to ${customer.email}:`, err));
+        });
+      }
+
       const totalAdded = found.length + created.length;
       console.log('🎉 Import complete! Total added:', totalAdded);
       toast({
         title: "Import complete",
-        description: `${totalAdded} customer${totalAdded !== 1 ? 's' : ''} added to segment${created.length > 0 ? ` (${created.length} new)` : ''}`,
+        description: existingCustomerCount > 0 
+          ? `${existingCustomerCount} existing customers found. ${newCustomerCount} new contacts added - confirmation emails queued.`
+          : `Successfully imported ${newCustomerCount} new customers. Confirmation emails queued.`,
       });
 
     } catch (error: any) {

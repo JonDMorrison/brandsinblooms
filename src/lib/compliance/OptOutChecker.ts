@@ -5,6 +5,7 @@ interface Customer {
   phone: string;
   opt_out: boolean;
   sms_opt_in: boolean;
+  email_opt_in?: boolean;
 }
 
 interface OptOutCheckResult {
@@ -20,7 +21,7 @@ export class OptOutChecker {
     try {
       const { data: customers, error } = await supabase
         .from('crm_customers')
-        .select('id, phone, opt_out, sms_opt_in')
+        .select('id, phone, opt_out, sms_opt_in, email_opt_in')
         .in('phone', phoneNumbers);
 
       if (error) {

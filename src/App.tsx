@@ -60,6 +60,7 @@ import { AdminReportsPage } from '@/pages/AdminReportsPage';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import { CommunityPage } from '@/pages/CommunityPage';
 import { SavedBlocksPage } from '@/pages/crm/SavedBlocksPage';
+import ConfirmSubscription from '@/pages/ConfirmSubscription';
 
 function App() {
   return (
@@ -408,6 +409,9 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
+          
+          {/* Public confirmation page */}
+          <Route path="/confirm-subscription" element={<ConfirmSubscription />} />
           
           {/* Redirect authenticated users to dashboard, unauthenticated to auth */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

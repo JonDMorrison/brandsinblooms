@@ -1446,6 +1446,11 @@ export type Database = {
           created_at: string | null
           custom_fields: Json | null
           email: string
+          email_consent_ip: string | null
+          email_consent_method: string | null
+          email_consent_source: string | null
+          email_opt_in: boolean | null
+          email_opt_in_at: string | null
           first_name: string | null
           footer_last_sent_at: string | null
           id: string
@@ -1474,6 +1479,11 @@ export type Database = {
           created_at?: string | null
           custom_fields?: Json | null
           email: string
+          email_consent_ip?: string | null
+          email_consent_method?: string | null
+          email_consent_source?: string | null
+          email_opt_in?: boolean | null
+          email_opt_in_at?: string | null
           first_name?: string | null
           footer_last_sent_at?: string | null
           id?: string
@@ -1502,6 +1512,11 @@ export type Database = {
           created_at?: string | null
           custom_fields?: Json | null
           email?: string
+          email_consent_ip?: string | null
+          email_consent_method?: string | null
+          email_consent_source?: string | null
+          email_opt_in?: boolean | null
+          email_opt_in_at?: string | null
           first_name?: string | null
           footer_last_sent_at?: string | null
           id?: string
