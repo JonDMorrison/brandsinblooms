@@ -30,7 +30,7 @@ interface ImportResult {
 }
 
 interface ImportProgress {
-  stage: 'idle' | 'parsing' | 'checking' | 'creating' | 'adding' | 'complete';
+  stage: 'idle' | 'parsing' | 'checking' | 'creating' | 'updating' | 'adding' | 'complete';
   current: number;
   total: number;
   message: string;
@@ -391,6 +391,33 @@ interface CustomerData {
       });
 
       console.log('📊 Analysis: Found:', found.length, 'To Create:', toCreate.length);
+
+      // Update existing customers with provided names/phone
+      const updates = found
+        .filter(c => !!(c.first_name || c.last_name || c.phone))
+        .map(c => ({
+          email: c.email,
+          tenant_id: tenantId,
+          ...(c.first_name ? { first_name: c.first_name } : {}),
+          ...(c.last_name ? { last_name: c.last_name } : {}),
+          ...(c.phone ? { phone: c.phone } : {}),
+        }));
+
+      if (updates.length > 0) {
+        console.log('✏️ Updating existing customers with names/phone:', updates.length);
+        setProgress({ stage: 'updating', current: 0, total: updates.length, message: 'Updating existing customers...' });
+        const { error: updateError } = await supabase
+          .from('crm_customers')
+          .upsert(updates, { onConflict: 'email,tenant_id', ignoreDuplicates: false });
+        if (updateError) {
+          console.error('❌ Error updating existing customers:', updateError);
+          toast({
+            title: 'Update issue',
+            description: `Some existing customers could not be updated: ${updateError.message}`,
+            variant: 'destructive',
+          });
+        }
+      }
 
       // Create new customers in batches
       const created: CustomerData[] = [];
