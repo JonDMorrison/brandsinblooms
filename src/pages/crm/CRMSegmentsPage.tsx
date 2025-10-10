@@ -70,12 +70,15 @@ export const CRMSegmentsPage: React.FC = () => {
   };
 
   const handleSaveCustomSegment = async (segmentData: any) => {
-    const success = await createSegment(segmentData);
-    if (success) {
+    try {
+      await createSegment(segmentData);
       setShowCustomBuilder(false);
       // Refresh both segments and counts
       await fetchSegments();
       refreshCounts();
+    } catch (error) {
+      // Error is already handled in createSegment with toast
+      console.error('Failed to save segment:', error);
     }
   };
 

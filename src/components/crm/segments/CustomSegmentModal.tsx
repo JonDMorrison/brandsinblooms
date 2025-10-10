@@ -47,6 +47,7 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
   const [estimatedCount, setEstimatedCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [segmentCustomers, setSegmentCustomers] = useState<Customer[]>([]);
   const [availableCustomers, setAvailableCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,6 +56,7 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
   
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const saveAttemptedRef = useRef(false);
 
   useEffect(() => {
     if (open && segment && mode === 'view') {
@@ -82,7 +84,16 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
       // Check if this request was aborted
       if (abortController.signal.aborted) return;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error calculating count:', error);
+        // Don't block - show warning but keep previous estimate
+        toast({
+          title: "Estimation unavailable",
+          description: "Could not estimate count, but you can still create the segment",
+          variant: "default",
+        });
+        return;
+      }
 
       // If no filters, show all customers
       if (!filters || filters.length === 0) {
@@ -98,7 +109,12 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
     } catch (error) {
       if (!abortController.signal.aborted) {
         console.error('Error calculating estimate:', error);
-        setEstimatedCount(null);
+        // Don't block - show warning
+        toast({
+          title: "Estimation unavailable",
+          description: "Could not estimate count, but you can still create the segment",
+          variant: "default",
+        });
       }
     } finally {
       if (!abortController.signal.aborted) {
@@ -241,9 +257,51 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
     `${customer.first_name} ${customer.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSave = () => {
-    if (segmentData) {
-      onSave(segmentData);
+  const handleSave = async () => {
+    // Prevent multiple simultaneous saves
+    if (isSaving || saveAttemptedRef.current) {
+      return;
+    }
+
+    if (!segmentData?.name?.trim()) {
+      toast({
+        title: "Missing segment name",
+        description: "Please enter a name for your segment",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Cancel any pending estimations
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    saveAttemptedRef.current = true;
+    setIsSaving(true);
+
+    try {
+      console.log('Saving segment:', segmentData);
+      await onSave(segmentData);
+      
+      toast({
+        title: "Success",
+        description: "Segment created successfully",
+      });
+      
+      // Reset on success
+      saveAttemptedRef.current = false;
+    } catch (error) {
+      console.error('Failed to save segment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create segment. Please try again.",
+        variant: "destructive",
+      });
+      saveAttemptedRef.current = false;
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -453,10 +511,19 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                 </Button>
                 <Button 
                   onClick={handleSave}
-                  disabled={!segmentData?.name?.trim()}
+                  disabled={!segmentData?.name?.trim() || isSaving}
                   className="min-w-[140px]"
                 >
-                  {!segmentData?.name?.trim() ? 'Enter Name' : 'Create Segment'}
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : !segmentData?.name?.trim() ? (
+                    'Enter Name'
+                  ) : (
+                    'Create Segment'
+                  )}
                 </Button>
               </div>
             </>

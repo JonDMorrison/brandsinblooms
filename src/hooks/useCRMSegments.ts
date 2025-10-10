@@ -76,7 +76,18 @@ export const useCRMSegments = () => {
   }, [user, tenant]);
 
   const createSegment = useCallback(async (segmentData: { name: string; filters: any[] }) => {
-    if (!user || !tenant) return false;
+    if (!user || !tenant) {
+      console.error('Cannot create segment: missing user or tenant');
+      toast.error('Authentication error. Please refresh and try again.');
+      throw new Error('Missing user or tenant');
+    }
+
+    console.log('Creating segment with data:', {
+      name: segmentData.name,
+      tenant_id: tenant.id,
+      user_id: user.id,
+      filters: segmentData.filters
+    });
 
     try {
       const { data, error } = await supabase
@@ -92,16 +103,21 @@ export const useCRMSegments = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error creating segment:', error);
+        toast.error(`Failed to create segment: ${error.message}`);
+        throw error;
+      }
+      
+      console.log('Segment created successfully:', data);
       
       // Add the new segment to the list
       setSegments(prev => [data, ...prev]);
-      toast.success('Segment created successfully');
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating segment:', error);
-      toast.error('Failed to create segment');
-      return false;
+      toast.error(error.message || 'Failed to create segment');
+      throw error;
     }
   }, [user, tenant]);
 
