@@ -220,24 +220,32 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       console.log('🔍 Found emails to import:', emails.length);
       console.log('📧 Sample emails:', emails.slice(0, 3));
 
-      // Check which emails already exist in the CRM
+      // Check which emails already exist - process in batches to avoid URL length limits
       console.log('🔍 Checking existing customers in tenant:', tenantId);
-      const { data: existingCustomers, error: fetchError } = await supabase
-        .from('crm_customers')
-        .select('id, email')
-        .eq('tenant_id', tenantId)
-        .in('email', emails);
+      const BATCH_SIZE = 500; // Check 500 emails at a time
+      const existingEmailsMap = new Map<string, string>();
+      
+      for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+        const batch = emails.slice(i, i + BATCH_SIZE);
+        console.log(`📦 Checking batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(emails.length / BATCH_SIZE)} (${batch.length} emails)`);
+        
+        const { data: batchCustomers, error: fetchError } = await supabase
+          .from('crm_customers')
+          .select('id, email')
+          .eq('tenant_id', tenantId)
+          .in('email', batch);
 
-      if (fetchError) {
-        console.error('❌ Error fetching existing customers:', fetchError);
-        throw fetchError;
+        if (fetchError) {
+          console.error('❌ Error fetching batch:', fetchError);
+          throw fetchError;
+        }
+
+        batchCustomers?.forEach(c => {
+          existingEmailsMap.set(c.email.toLowerCase(), c.id);
+        });
       }
 
-      console.log('✅ Existing customers found:', existingCustomers?.length || 0);
-
-      const existingEmailsMap = new Map(
-        (existingCustomers || []).map(c => [c.email.toLowerCase(), c.id])
-      );
+      console.log('✅ Existing customers found:', existingEmailsMap.size);
 
       const found: string[] = [];
       const toCreate: string[] = [];
@@ -252,34 +260,42 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
 
       console.log('📊 Analysis: Found:', found.length, 'To Create:', toCreate.length);
 
-      // Create new customers for emails not in database
+      // Create new customers in batches
       const created: string[] = [];
       if (toCreate.length > 0) {
         console.log('➕ Creating', toCreate.length, 'new customers...');
-        const newCustomers = toCreate.map(email => ({
-          email,
-          tenant_id: tenantId,
-          user_id: userId
-        }));
+        const CREATE_BATCH_SIZE = 1000; // Create 1000 at a time
+        
+        for (let i = 0; i < toCreate.length; i += CREATE_BATCH_SIZE) {
+          const batch = toCreate.slice(i, i + CREATE_BATCH_SIZE);
+          console.log(`✏️ Creating batch ${Math.floor(i / CREATE_BATCH_SIZE) + 1}/${Math.ceil(toCreate.length / CREATE_BATCH_SIZE)} (${batch.length} customers)`);
+          
+          const newCustomers = batch.map(email => ({
+            email,
+            tenant_id: tenantId,
+            user_id: userId
+          }));
 
-        const { data: createdCustomers, error: createError } = await supabase
-          .from('crm_customers')
-          .insert(newCustomers)
-          .select('id, email');
+          const { data: createdCustomers, error: createError } = await supabase
+            .from('crm_customers')
+            .insert(newCustomers)
+            .select('id, email');
 
-        if (createError) {
-          console.error('❌ Error creating customers:', createError);
-          toast({
-            title: "Partial import",
-            description: `Created ${found.length} customers but failed to create ${toCreate.length} new ones: ${createError.message}`,
-            variant: "destructive",
-          });
-        } else if (createdCustomers) {
-          console.log('✅ Created customers:', createdCustomers.length);
-          createdCustomers.forEach(c => {
-            created.push(c.email);
-            existingEmailsMap.set(c.email.toLowerCase(), c.id);
-          });
+          if (createError) {
+            console.error('❌ Error creating batch:', createError);
+            toast({
+              title: "Partial import",
+              description: `Created ${created.length} customers but encountered error: ${createError.message}`,
+              variant: "destructive",
+            });
+            break; // Stop on error
+          } else if (createdCustomers) {
+            console.log('✅ Created customers in batch:', createdCustomers.length);
+            createdCustomers.forEach(c => {
+              created.push(c.email);
+              existingEmailsMap.set(c.email.toLowerCase(), c.id);
+            });
+          }
         }
       }
 
