@@ -240,10 +240,18 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       console.log('🔍 Found emails to import:', emails.length);
       console.log('📧 Sample emails:', emails.slice(0, 3));
       
+      // Deduplicate emails (case-insensitive)
+      const uniqueEmails = Array.from(new Set(emails.map(e => e.toLowerCase())));
+      console.log('🔄 After deduplication:', uniqueEmails.length, 'unique emails');
+      
+      if (uniqueEmails.length < emails.length) {
+        console.log('⚠️ Removed', emails.length - uniqueEmails.length, 'duplicate emails');
+      }
+      
       setProgress({ 
         stage: 'checking', 
         current: 0, 
-        total: emails.length, 
+        total: uniqueEmails.length, 
         message: 'Checking existing customers...' 
       });
 
@@ -252,26 +260,25 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       const BATCH_SIZE = 500; // Check 500 emails at a time
       const existingEmailsMap = new Map<string, string>();
       
-      for (let i = 0; i < emails.length; i += BATCH_SIZE) {
-        const batch = emails.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < uniqueEmails.length; i += BATCH_SIZE) {
+        const batch = uniqueEmails.slice(i, i + BATCH_SIZE);
         const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-        const totalBatches = Math.ceil(emails.length / BATCH_SIZE);
+        const totalBatches = Math.ceil(uniqueEmails.length / BATCH_SIZE);
         console.log(`📦 Checking batch ${batchNum}/${totalBatches} (${batch.length} emails)`);
         
         setProgress({ 
           stage: 'checking', 
           current: i, 
-          total: emails.length, 
+          total: uniqueEmails.length, 
           message: 'Checking existing customers...',
           batchInfo: `Batch ${batchNum}/${totalBatches}`
         });
         
-        // Use case-insensitive email matching by using ilike with OR conditions
         const { data: batchCustomers, error: fetchError } = await supabase
           .from('crm_customers')
           .select('id, email, total_spent, last_purchase_date')
           .eq('tenant_id', tenantId)
-          .or(batch.map(email => `email.ilike.${email}`).join(','));
+          .in('email', batch);
 
         if (fetchError) {
           console.error('❌ Error fetching batch:', fetchError);
@@ -288,7 +295,7 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       const found: string[] = [];
       const toCreate: string[] = [];
 
-      emails.forEach(email => {
+      uniqueEmails.forEach(email => {
         if (existingEmailsMap.has(email)) {
           found.push(email);
           existingCustomerCount++;
