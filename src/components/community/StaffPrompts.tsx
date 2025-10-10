@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, Camera, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/hooks/useUser';
+import { useAuth } from '@/hooks/useAuth';
 import { UGCUploadForm } from './UGCUploadForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -29,12 +29,12 @@ export const StaffPrompts = ({ onUploadClick }: StaffPromptsProps) => {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const fetchPrompts = async () => {
     try {
       // Fetch active prompts
-      const { data: promptsData, error: promptsError } = await supabase
+      const { data: promptsData, error: promptsError } = await (supabase as any)
         .from('staff_prompts')
         .select('*')
         .eq('is_active', true)
@@ -44,7 +44,7 @@ export const StaffPrompts = ({ onUploadClick }: StaffPromptsProps) => {
 
       // Fetch completed prompts for today
       const today = new Date().toISOString().split('T')[0];
-      const { data: responsesData, error: responsesError } = await supabase
+      const { data: responsesData, error: responsesError } = await (supabase as any)
         .from('staff_prompt_responses')
         .select('prompt_id')
         .eq('staff_id', user?.id)
@@ -52,8 +52,8 @@ export const StaffPrompts = ({ onUploadClick }: StaffPromptsProps) => {
 
       if (responsesError) throw responsesError;
 
-      setPrompts(promptsData || []);
-      setCompletedPrompts(new Set(responsesData?.map(r => r.prompt_id) || []));
+      setPrompts((promptsData as StaffPrompt[]) || []);
+      setCompletedPrompts(new Set(((responsesData as any[])?.map(r => r.prompt_id)) || []));
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {

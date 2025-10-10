@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Edit2, Trash2, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/hooks/useUser';
+import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 
 interface StaffPrompt {
@@ -34,17 +34,17 @@ export const PromptsAdmin = () => {
     target_role: 'all',
   });
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const fetchPrompts = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('staff_prompts')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPrompts(data || []);
+      setPrompts((data as StaffPrompt[]) || []);
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -52,22 +52,19 @@ export const PromptsAdmin = () => {
 
   const fetchStats = async () => {
     try {
-      // Get completion stats
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('staff_prompt_responses')
         .select('staff_id, prompt_id, completed_at');
 
       if (error) throw error;
 
       // Calculate stats
-      const uniqueStaff = new Set(data?.map(r => r.staff_id) || []).size;
-      const totalCompletions = data?.length || 0;
-      const thisWeek = data?.filter(r => {
-        const date = new Date(r.completed_at);
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return date >= weekAgo;
-      }).length || 0;
+      const list = (data as any[]) || [];
+      const uniqueStaff = new Set(list.map(r => r.staff_id)).size;
+      const totalCompletions = list.length;
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const thisWeek = list.filter(r => new Date(r.completed_at) >= weekAgo).length;
 
       setStats({
         uniqueStaff,
@@ -111,7 +108,7 @@ export const PromptsAdmin = () => {
       };
 
       if (editingPrompt) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('staff_prompts')
           .update(promptData)
           .eq('id', editingPrompt.id);
@@ -119,7 +116,7 @@ export const PromptsAdmin = () => {
         if (error) throw error;
         toast({ title: 'Updated', description: 'Prompt updated successfully' });
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('staff_prompts')
           .insert(promptData);
 
@@ -151,7 +148,7 @@ export const PromptsAdmin = () => {
     if (!confirm('Are you sure you want to delete this prompt?')) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('staff_prompts')
         .delete()
         .eq('id', id);
@@ -166,7 +163,7 @@ export const PromptsAdmin = () => {
 
   const toggleActive = async (id: string, isActive: boolean) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('staff_prompts')
         .update({ is_active: !isActive })
         .eq('id', id);
@@ -248,30 +245,20 @@ export const PromptsAdmin = () => {
               </div>
               <div>
                 <Label htmlFor="frequency">Frequency</Label>
-                <Select value={formData.frequency} onValueChange={(v) => setFormData({ ...formData, frequency: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect id="frequency" value={formData.frequency} onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </NativeSelect>
               </div>
               <div>
                 <Label htmlFor="role">Target Role</Label>
-                <Select value={formData.target_role} onValueChange={(v) => setFormData({ ...formData, target_role: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Staff</SelectItem>
-                    <SelectItem value="manager">Managers</SelectItem>
-                    <SelectItem value="retail">Retail</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect id="role" value={formData.target_role} onChange={(e) => setFormData({ ...formData, target_role: e.target.value })}>
+                  <option value="all">All Staff</option>
+                  <option value="manager">Managers</option>
+                  <option value="retail">Retail</option>
+                  <option value="marketing">Marketing</option>
+                </NativeSelect>
               </div>
               <Button type="submit" className="w-full">
                 {editingPrompt ? 'Update' : 'Create'} Prompt

@@ -75,7 +75,7 @@ export const SavedBlocksPage: React.FC = () => {
 
       if (error) throw error;
 
-      setBlocks(data || []);
+      setBlocks(((data as unknown) as SavedBlock[]) || []);
     } catch (error) {
       console.error('Error loading blocks:', error);
       toast.error('Failed to load saved blocks');
@@ -122,7 +122,7 @@ export const SavedBlocksPage: React.FC = () => {
           block_type: block.block_type,
           tags: block.tags,
           user_id: user.id,
-          tenant_id: userData?.tenant_id || null,
+          tenant_id: (userData as any)?.tenant_id || null,
           is_bloomsuite_block: false,
           is_favorite: false
         });

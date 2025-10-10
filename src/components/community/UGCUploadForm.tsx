@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Upload, Camera, Video, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/hooks/useUser';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UGCUploadFormProps {
   onSuccess?: () => void;
@@ -27,7 +27,7 @@ export const UGCUploadForm = ({ onSuccess, promptId }: UGCUploadFormProps) => {
     consent: false,
   });
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,7 +96,7 @@ export const UGCUploadForm = ({ onSuccess, promptId }: UGCUploadFormProps) => {
         .eq('id', user.id)
         .single();
 
-      const { error } = await supabase.from('ugc_submissions').insert({
+      const { error } = await (supabase as any).from('ugc_submissions').insert({
         image_url: imageUrl,
         video_url: videoUrl,
         caption_text: formData.caption,
@@ -112,7 +112,7 @@ export const UGCUploadForm = ({ onSuccess, promptId }: UGCUploadFormProps) => {
 
       // If this was from a prompt, record the completion
       if (promptId) {
-        await supabase.from('staff_prompt_responses').insert({
+        await (supabase as any).from('staff_prompt_responses').insert({
           prompt_id: promptId,
           staff_id: user.id,
           tenant_id: userData?.tenant_id,

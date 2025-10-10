@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Check, X, Eye, Trash2, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/hooks/useUser';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UGCSubmission {
   id: string;
@@ -25,11 +25,11 @@ export const UGCGallery = () => {
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const fetchSubmissions = async () => {
     try {
-      let query = supabase
+      let query = (supabase as any)
         .from('ugc_submissions')
         .select('*')
         .order('created_at', { ascending: false });
@@ -40,7 +40,7 @@ export const UGCGallery = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      setSubmissions(data || []);
+      setSubmissions((data as UGCSubmission[]) || []);
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -54,7 +54,7 @@ export const UGCGallery = () => {
 
   const updateStatus = async (id: string, status: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('ugc_submissions')
         .update({ status })
         .eq('id', id);
@@ -75,7 +75,7 @@ export const UGCGallery = () => {
     if (!confirm('Are you sure you want to delete this submission?')) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('ugc_submissions')
         .delete()
         .eq('id', id);

@@ -5,11 +5,11 @@ import { UGCGallery } from '@/components/community/UGCGallery';
 import { UGCUploadForm } from '@/components/community/UGCUploadForm';
 import { StaffPrompts } from '@/components/community/StaffPrompts';
 import { PromptsAdmin } from '@/components/community/PromptsAdmin';
-import { useUser } from '@/hooks/useUser';
+import { useAuth } from '@/hooks/useAuth';
 
 export const CommunityPage = () => {
   const [activeTab, setActiveTab] = useState('gallery');
-  const { user } = useUser();
+  const { user } = useAuth();
   
   // Check if user is admin (simplified - in production, check from user_roles table)
   const isAdmin = user?.email?.includes('admin') || user?.email?.includes('jeff') || user?.email?.includes('jon');
