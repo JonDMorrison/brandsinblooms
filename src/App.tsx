@@ -53,7 +53,8 @@ import PlanPage from '@/pages/PlanPage';
 import { AboutPage } from '@/pages/AboutPage';
 import { FeaturesPage } from '@/pages/FeaturesPage';
 import { Home1Page } from '@/pages/Home1Page';
-import AdminPage from '@/pages/AdminPage';
+import AdminHub from '@/pages/admin/AdminHub';
+import AdminTenants from '@/pages/admin/AdminTenants';
 import AdminManage from '@/pages/AdminManage';
 import { AdminReportsPage } from '@/pages/AdminReportsPage';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
@@ -371,7 +372,12 @@ function App() {
           } />
           <Route path="/admin" element={
             <ProtectedRoute>
-              <AdminPage />
+              <AdminHub />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/tenants" element={
+            <ProtectedRoute>
+              <AdminTenants />
             </ProtectedRoute>
           } />
           <Route path="/admin/search" element={
