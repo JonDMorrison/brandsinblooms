@@ -70,6 +70,9 @@ const CRMCustomers = () => {
   const [sortBy, setSortBy] = useState<string>('created_at');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(100); // 100 customers per page
+  const [totalCount, setTotalCount] = useState(0);
   
   
   const { toast } = useToast();
@@ -87,10 +90,11 @@ const CRMCustomers = () => {
     { name: 'Wellness Whitney', count: 0, color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200' },
   ];
 
-  // Fetch customers
+  // Fetch customers with pagination
   const { data: customers = [], isLoading } = useQuery({
-    queryKey: ['crm-customers', searchTerm, personaFilter, smsOptInFilter, sortBy],
+    queryKey: ['crm-customers', searchTerm, personaFilter, smsOptInFilter, sortBy, currentPage, pageSize],
     queryFn: async () => {
+      // Build base query with filters
       let query = supabase
         .from('crm_customers')
         .select(`
@@ -101,33 +105,40 @@ const CRMCustomers = () => {
             icon,
             color_theme
           )
-        `)
-        .order(sortBy, { ascending: sortBy === 'first_name' });
+        `, { count: 'exact' });
 
-      const { data: customersData, error: customersError } = await query;
-      if (customersError) throw customersError;
-
-      // Fetch segments separately for each customer
-      // Apply filters to the original query
+      // Apply search filter
       if (searchTerm) {
         query = query.or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
       }
 
+      // Apply persona filter
       if (personaFilter !== 'all') {
-        // Filter by persona name if we have persona data
-        query = query.eq('personas.name', personaFilter);
+        query = query.eq('persona_id', personaFilter);
       }
 
+      // Apply SMS opt-in filter
       if (smsOptInFilter !== 'all') {
         query = query.eq('sms_opt_in', smsOptInFilter === 'true');
       }
 
-      const { data: filteredCustomersData, error: filteredError } = await query;
-      if (filteredError) throw filteredError;
+      // Apply sorting and pagination
+      const from = (currentPage - 1) * pageSize;
+      const to = from + pageSize - 1;
+      
+      query = query
+        .order(sortBy, { ascending: sortBy === 'first_name' })
+        .range(from, to);
 
-      // Fetch segments separately for each customer
+      const { data: customersData, error: customersError, count } = await query;
+      if (customersError) throw customersError;
+
+      // Update total count for pagination
+      setTotalCount(count || 0);
+
+      // Fetch segments for current page only (optimized)
       const customersWithSegments = await Promise.all(
-        (filteredCustomersData || []).map(async (customer) => {
+        (customersData || []).map(async (customer) => {
           const { data: customerSegments } = await supabase
             .from('customer_segments')
             .select('segment_id')
@@ -153,6 +164,11 @@ const CRMCustomers = () => {
       return customersWithSegments as Customer[];
     }
   });
+
+  // Calculate pagination info
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const hasNextPage = currentPage < totalPages;
+  const hasPrevPage = currentPage > 1;
 
   // Get unique tags for filter
   const { data: allTags = [] } = useQuery({
@@ -254,8 +270,11 @@ const CRMCustomers = () => {
 
         {/* Customer Table */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Customer List</CardTitle>
+            <Badge variant="secondary" className="text-sm">
+              {totalCount.toLocaleString()} total customers
+            </Badge>
           </CardHeader>
           <CardContent>
             {/* Search and Filters */}
@@ -415,6 +434,54 @@ const CRMCustomers = () => {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {!isLoading && customers.length > 0 && totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount.toLocaleString()} customers
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={!hasPrevPage}
+                  >
+                    First
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => p - 1)}
+                    disabled={!hasPrevPage}
+                  >
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-2 px-3">
+                    <span className="text-sm">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    disabled={!hasNextPage}
+                  >
+                    Next
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={!hasNextPage}
+                  >
+                    Last
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

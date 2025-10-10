@@ -277,13 +277,16 @@ export const CustomerImportModal = () => {
     
     setStep('importing');
     setImportProgress(0);
-    
-    const batchSize = 50;
+    const batchSize = 100; // Increased batch size for better performance with large imports
     let imported = 0;
     let failed = 0;
     
     for (let i = 0; i < validRows.length; i += batchSize) {
       const batch = validRows.slice(i, i + batchSize);
+      const batchNumber = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(validRows.length / batchSize);
+      
+      console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} records)`);
       
       try {
         // Get user's tenant_id
@@ -333,7 +336,7 @@ export const CustomerImportModal = () => {
         failed += batch.length;
       }
       
-      setImportProgress(Math.round(((i + batchSize) / validRows.length) * 100));
+      setImportProgress(Math.round((Math.min(i + batchSize, validRows.length) / validRows.length) * 100));
     }
     
     const result: ImportResult = {
