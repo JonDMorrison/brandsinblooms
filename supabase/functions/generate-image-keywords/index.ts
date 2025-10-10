@@ -14,25 +14,30 @@ const corsHeaders = {
 function getSystemPrompt(channel: string): string {
   const basePrompt = `You are an expert garden center image curator. Your ONE JOB: Generate SPECIFIC plant-focused Unsplash search keywords that GUARANTEE garden-relevant images.
 
-🚨 ABSOLUTE REQUIREMENTS - QUERIES WITHOUT THESE WILL RETURN WRONG IMAGES:
-1. SPECIFIC plant name (rose, tomato, basil, petunia, succulent, NOT "plants" or "flowers")
-2. COLOR descriptor (pink, red, purple, yellow, vibrant, NOT "colorful" or "beautiful")
-3. Garden retail context (greenhouse, nursery, garden center, potted, display, shelves)
-4. EXTRACT plant names from content - use EXACT plants mentioned
+🚨 CRITICAL PREFIX REQUIREMENT: Every keyword MUST start with "garden_" to ensure Unsplash returns garden images.
 
-WHY THIS MATTERS: Generic queries return architecture/fashion/people instead of plants!
+🚨 ABSOLUTE REQUIREMENTS - QUERIES WITHOUT THESE WILL RETURN WRONG IMAGES:
+1. MANDATORY "garden_" prefix on EVERY keyword (garden_pink, garden_petunia, garden_nursery)
+2. SPECIFIC plant name (rose, tomato, basil, petunia, succulent, NOT "plants" or "flowers")
+3. COLOR descriptor (pink, red, purple, yellow, vibrant, NOT "colorful" or "beautiful")
+4. Garden retail context (greenhouse, nursery, garden_center, potted, display, shelves)
+5. EXTRACT plant names from content - use EXACT plants mentioned
+
+WHY PREFIX MATTERS: Without "garden_" prefix, generic queries return architecture/fashion/people instead of plants!
 - "Week" → returns buildings and Louis Vuitton stores ❌
 - "garden" alone → returns architecture ❌
 - "plants" alone → returns random objects ❌
+- "pink petunia" → returns fashion and random objects ❌
 
-✅ CORRECT EXAMPLES (these return garden images):
-- "pink petunia hanging baskets greenhouse customers"
-- "red tomato seedlings potted nursery display"
-- "purple lavender plants garden center shelves"
-- "orange marigold flowers potted display close"
+✅ CORRECT EXAMPLES (with garden_ prefix - these return garden images):
+- "garden_pink garden_petunia garden_hanging_baskets garden_greenhouse garden_customers"
+- "garden_red garden_tomato garden_seedlings garden_potted garden_nursery garden_display"
+- "garden_purple garden_lavender garden_plants garden_center garden_shelves"
+- "garden_orange garden_marigold garden_flowers garden_potted garden_display garden_closeup"
 
-❌ FORBIDDEN (these return non-garden images):
+❌ FORBIDDEN (missing garden_ prefix - these return non-garden images):
 - "beautiful flowers" → returns abstract art
+- "pink petunia hanging baskets" → returns fashion/people
 - "garden plants" → returns architecture
 - "seasonal display" → returns store interiors
 - "flowering plants" → returns fashion/people
@@ -58,62 +63,67 @@ MANDATORY PROCESS:
     facebook: `
 FACEBOOK - Social Engagement Focus:
 MANDATORY: 
-- Specific plant name + color (e.g., "pink petunia", "red geranium")
+- Prefix EVERY keyword with "garden_"
+- Specific plant name + color (e.g., "garden_pink garden_petunia", "garden_red garden_geranium")
 - Customers/shoppers/people interacting
-- Retail setting (greenhouse/garden center/nursery)
+- Retail setting (greenhouse/garden_center/nursery)
 
-✅ CORRECT FORMAT: "customers selecting red geranium hanging baskets greenhouse"
-✅ CORRECT FORMAT: "shoppers browsing purple hydrangea potted display nursery"
-❌ WRONG: "people shopping for flowers" (no specific plant/color)
-❌ WRONG: "garden center customers" (no plant mentioned)`,
+✅ CORRECT FORMAT: "garden_customers garden_selecting garden_red garden_geranium garden_hanging_baskets garden_greenhouse"
+✅ CORRECT FORMAT: "garden_shoppers garden_browsing garden_purple garden_hydrangea garden_potted garden_display garden_nursery"
+❌ WRONG: "customers selecting red geranium" (missing garden_ prefix)
+❌ WRONG: "people shopping for flowers" (no prefix, no specific plant)`,
 
     instagram: `
 INSTAGRAM - Visual Impact Focus:
 MANDATORY:
-- Specific plant name + vibrant color descriptor (e.g., "vibrant orange marigold", "deep purple lavender")
+- Prefix EVERY keyword with "garden_"
+- Specific plant name + vibrant color descriptor
 - Close-up/detailed shot emphasis
 - Potted/display context
 
-✅ CORRECT FORMAT: "vibrant orange marigold flowers potted display close-up"
-✅ CORRECT FORMAT: "deep purple lavender plants garden center shelves"
-❌ WRONG: "colorful flowers display" (no specific plant)
-❌ WRONG: "beautiful blooms" (too generic)`,
+✅ CORRECT FORMAT: "garden_vibrant_orange garden_marigold garden_flowers garden_potted garden_display garden_closeup"
+✅ CORRECT FORMAT: "garden_deep_purple garden_lavender garden_plants garden_center garden_shelves"
+❌ WRONG: "vibrant orange marigold" (missing garden_ prefix)
+❌ WRONG: "colorful flowers display" (no prefix, no specific plant)`,
 
     blog: `
 BLOG - Educational How-To Focus:
 MANDATORY:
+- Prefix EVERY keyword with "garden_"
 - Specific plant name being worked on
 - Hands/tools showing technique
-- Action verb (pruning, planting, transplanting, etc.)
+- Action verb (pruning, planting, transplanting)
 
-✅ CORRECT FORMAT: "hands pruning red rose bush garden shears technique"
-✅ CORRECT FORMAT: "transplanting basil seedlings hands trowel soil"
-❌ WRONG: "gardening techniques" (no specific plant)
-❌ WRONG: "pruning demonstration" (no plant specified)`,
+✅ CORRECT FORMAT: "garden_hands garden_pruning garden_red garden_rose garden_bush garden_shears garden_technique"
+✅ CORRECT FORMAT: "garden_transplanting garden_basil garden_seedlings garden_hands garden_trowel garden_soil"
+❌ WRONG: "hands pruning red rose" (missing garden_ prefix)
+❌ WRONG: "gardening techniques" (no prefix, no specific plant)`,
 
     newsletter: `
 NEWSLETTER - Product Showcase Focus:
 MANDATORY:
+- Prefix EVERY keyword with "garden_"
 - Seasonal context word (spring, summer, fall, winter)
 - Specific plant varieties for that season
 - Garden center inventory/display context
 
-✅ CORRECT FORMAT: "spring vegetable seedlings tomato pepper greenhouse trays"
-✅ CORRECT FORMAT: "fall mum chrysanthemum plants garden center display"
-❌ WRONG: "seasonal display" (no specific plants)
-❌ WRONG: "spring plants available" (too generic)`,
+✅ CORRECT FORMAT: "garden_spring garden_vegetable garden_seedlings garden_tomato garden_pepper garden_greenhouse garden_trays"
+✅ CORRECT FORMAT: "garden_fall garden_mum garden_chrysanthemum garden_plants garden_center garden_display"
+❌ WRONG: "spring vegetable seedlings" (missing garden_ prefix)
+❌ WRONG: "seasonal display" (no prefix, no specific plants)`,
 
     video: `
 VIDEO - Action/Demo Focus:
 MANDATORY:
-- Action verb (demonstrating, showing, planting, etc.)
+- Prefix EVERY keyword with "garden_"
+- Action verb (demonstrating, showing, planting)
 - Specific plant name
 - Hands/person performing task
 
-✅ CORRECT FORMAT: "hands demonstrating tomato plant pruning technique garden"
-✅ CORRECT FORMAT: "planting petunia seedlings raised bed tutorial"
-❌ WRONG: "gardening tutorial" (no specific plant)
-❌ WRONG: "plant care video" (too generic)`
+✅ CORRECT FORMAT: "garden_hands garden_demonstrating garden_tomato garden_plant garden_pruning garden_technique"
+✅ CORRECT FORMAT: "garden_planting garden_petunia garden_seedlings garden_raised_bed garden_tutorial"
+❌ WRONG: "hands demonstrating tomato plant" (missing garden_ prefix)
+❌ WRONG: "gardening tutorial" (no prefix, no specific plant)`
   };
 
   return `${basePrompt}
@@ -160,14 +170,24 @@ serve(async (req) => {
             content: `CONTENT TO ANALYZE: ${prompt}
 
 TASK: Generate Unsplash search keywords by:
-1. IDENTIFYING specific plant names mentioned in the content above (tomato, rose, basil, petunia, etc.)
-2. EXTRACTING color descriptors or adding appropriate ones (pink, red, purple, vibrant, etc.)
-3. ADDING garden retail context (greenhouse, nursery, garden center, potted, display)
-4. COMBINING into a 5-7 word search query
+1. PREFIX every single keyword with "garden_" (CRITICAL - this prevents wrong image results!)
+2. IDENTIFYING specific plant names mentioned in the content above (tomato, rose, basil, petunia, etc.)
+3. EXTRACTING color descriptors or adding appropriate ones (pink, red, purple, vibrant, etc.)
+4. ADDING garden retail context (greenhouse, nursery, garden_center, potted, display)
+5. COMBINING into a 5-7 word search query with "garden_" prefix on EACH word
 
-REMEMBER: Use the ACTUAL PLANT NAMES from the content. If the content mentions "Christmas Collection" or "Holiday Plants", specify which plants (e.g., poinsettia, holly, evergreen). If it mentions "Summer Flowers", specify which flowers (e.g., petunia, marigold, zinnia).
+MANDATORY PREFIX EXAMPLES:
+- Content: "Pink Petunias" → Keywords: ["garden_pink", "garden_petunia", "garden_flowers", "garden_potted", "garden_display"]
+- Content: "Holiday Plants" → Keywords: ["garden_poinsettia", "garden_red", "garden_potted", "garden_greenhouse", "garden_holiday"]
+- Content: "Spring Flowers" → Keywords: ["garden_spring", "garden_tulip", "garden_daffodil", "garden_colorful", "garden_nursery"]
 
-Extract and use SPECIFIC plant varieties from the content above.`
+REMEMBER: 
+1. EVERY keyword must start with "garden_" (e.g., "garden_pink garden_petunia" NOT "pink petunia")
+2. Use the ACTUAL PLANT NAMES from the content
+3. If content mentions "Christmas Collection" or "Holiday Plants" → specify "garden_poinsettia garden_holly garden_evergreen"
+4. If content mentions "Summer Flowers" → specify "garden_petunia garden_marigold garden_zinnia"
+
+Extract and use SPECIFIC plant varieties with garden_ prefix from the content above.`
           }
         ],
         tools: [{
@@ -187,7 +207,7 @@ Extract and use SPECIFIC plant varieties from the content above.`
                 },
                 primaryQuery: {
                   type: "string",
-                  description: "5-7 word Unsplash query. CRITICAL: MUST contain specific plant name + color + retail context. BAD: 'garden plants display' GOOD: 'red roses potted nursery display'. BAD: 'Week' GOOD: 'pink petunia hanging baskets greenhouse'. The query MUST pass this test: Does it name a specific plant? Does it include a color? Does it include nursery/greenhouse/potted/garden center?"
+                  description: "5-7 word Unsplash query. CRITICAL: MUST start EACH keyword with 'garden_' prefix. Example: 'garden_red garden_roses garden_potted garden_nursery garden_display'. BAD: 'red roses potted nursery' (missing prefix). BAD: 'garden plants display' (generic). BAD: 'Week' (no prefix, generic). GOOD: 'garden_pink garden_petunia garden_hanging_baskets garden_greenhouse'. The query MUST pass this test: Does EVERY word start with 'garden_'? Does it name a specific plant? Does it include a color?"
                 }
               },
               required: ["keywords", "primaryQuery"],
@@ -231,9 +251,36 @@ Extract and use SPECIFIC plant varieties from the content above.`
     }
 
     const result = JSON.parse(toolCall.function.arguments);
-    const { keywords, primaryQuery } = result;
+    let { keywords, primaryQuery } = result;
 
-    console.log('✅ AI Generated:', { keywords, primaryQuery });
+    // ========== ENFORCE GARDEN_ PREFIX ==========
+    // This guarantees prefix even if OpenAI forgets
+    const ensureGardenPrefix = (keywords: string[]): string[] => {
+      return keywords.map(kw => {
+        const normalized = kw.trim().toLowerCase().replace(/\s+/g, '_');
+        if (!normalized.startsWith('garden_')) {
+          console.log(`[PREFIX-FIX] Adding garden_ prefix to: "${kw}"`);
+          return `garden_${normalized}`;
+        }
+        return normalized;
+      });
+    };
+
+    // Apply prefix to keywords array
+    keywords = ensureGardenPrefix(keywords);
+
+    // Apply prefix to primaryQuery
+    if (!primaryQuery.includes('garden_')) {
+      console.log(`[PREFIX-FIX] Query missing prefix: "${primaryQuery}"`);
+      const queryWords = primaryQuery.split(/\s+/);
+      primaryQuery = queryWords.map(word => {
+        const normalized = word.toLowerCase().replace(/\s+/g, '_');
+        return normalized.startsWith('garden_') ? normalized : `garden_${normalized}`;
+      }).join(' ');
+      console.log(`[PREFIX-FIX] Fixed query: "${primaryQuery}"`);
+    }
+
+    console.log('✅ AI Generated (with prefix):', { keywords, primaryQuery });
 
     // === VALIDATE KEYWORDS ===
     const { validateGardenKeywords, getChannelFallback } = await import('../_shared/enhanced-keyword-validator.ts');
@@ -257,13 +304,14 @@ Extract and use SPECIFIC plant varieties from the content above.`
       
       // Use fixed keywords if available
       if (validation.fixedKeywords) {
-        finalKeywords = validation.fixedKeywords;
-        finalQuery = validation.fixedKeywords.join(' ');
+        finalKeywords = ensureGardenPrefix(validation.fixedKeywords);
+        finalQuery = finalKeywords.join(' ');
       } else {
-        // Use channel fallback
+        // Use channel fallback with garden_ prefix
         const fallback = getChannelFallback(channel, prompt);
-        finalKeywords = fallback.split(' ');
-        finalQuery = fallback;
+        const fallbackWords = fallback.split(' ');
+        finalKeywords = fallbackWords.map(w => `garden_${w.toLowerCase().replace(/\s+/g, '_')}`);
+        finalQuery = finalKeywords.join(' ');
       }
       
       console.log('🔄 Using fallback:', { finalKeywords, finalQuery });

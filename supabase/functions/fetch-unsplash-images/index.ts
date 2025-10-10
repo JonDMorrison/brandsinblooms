@@ -78,26 +78,34 @@ serve(async (req) => {
       const trimmed = q.trim().toLowerCase();
       const words = trimmed.split(/\s+/).filter(w => w.length > 2);
       
-      // Reject generic queries
+      // CHECK 1: Perfect queries with garden_ prefix (highest priority)
+      const hasGardenPrefix = words.every(w => w.startsWith('garden_'));
+      if (hasGardenPrefix && words.length >= 3) {
+        console.log(`[UNSPLASH-VALIDATION] ✅ PERFECT: Query has garden_ prefix: "${q}"`);
+        return { valid: true, enhancedQuery: q, reason: 'Prefixed query - guaranteed garden results' };
+      }
+      
+      // CHECK 2: Reject generic queries
       if (words.length < 2) {
         console.warn(`[UNSPLASH-VALIDATION] ❌ Query too generic: "${q}" (${words.length} meaningful words)`);
+        const prefixedQuery = words.map(w => `garden_${w}`).join(' ') + ' garden_plants garden_nursery garden_flowers';
         return { 
           valid: false, 
-          enhancedQuery: `${q} garden plants nursery flowers`,
-          reason: 'Query too short - needs at least 2 meaningful words'
+          enhancedQuery: prefixedQuery,
+          reason: 'Query too short - enhanced with garden_ prefix'
         };
       }
 
-      // Check for garden-related terms
-      const gardenTerms = ['garden', 'plant', 'flower', 'bloom', 'nursery', 'botanical', 'leaf', 'tree', 'shrub', 'herb', 'vegetable', 'succulent', 'cactus', 'rose', 'tulip', 'orchid', 'fern', 'seed', 'soil', 'pot', 'greenhouse'];
-      const hasGardenTerm = gardenTerms.some(term => trimmed.includes(term));
-      
-      if (!hasGardenTerm) {
-        console.warn(`[UNSPLASH-VALIDATION] ⚠️ No garden terms found in: "${q}"`);
+      // CHECK 3: Add garden_ prefix to all words if missing
+      if (!hasGardenPrefix) {
+        console.log(`[UNSPLASH-VALIDATION] 🔧 Adding garden_ prefix to query: "${q}"`);
+        const prefixedWords = words.map(w => w.startsWith('garden_') ? w : `garden_${w}`);
+        const enhancedQuery = prefixedWords.join(' ');
+        console.log(`[UNSPLASH-VALIDATION] ✅ Enhanced query: "${enhancedQuery}"`);
         return {
           valid: true,
-          enhancedQuery: `${q} garden plants nursery`,
-          reason: 'Enhanced with garden context'
+          enhancedQuery: enhancedQuery,
+          reason: 'Added garden_ prefix for better results'
         };
       }
 
@@ -299,7 +307,7 @@ serve(async (req) => {
       images: formattedImages,
       query: query,
       parameters: { orientation, orderBy, contentFilter },
-      filtered: limitedImages.length - validImages.length
+      filtered: images.length - validImages.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
