@@ -67,16 +67,42 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       reader.onload = (e) => {
         try {
           const text = e.target?.result as string;
-          const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
           
-          // Skip header row if it exists
-          const emails = lines
-            .filter(line => !line.toLowerCase().startsWith('email'))
-            .map(line => line.split(',')[0].trim().toLowerCase())
-            .filter(email => email && email.includes('@'));
+          if (!text || text.trim().length === 0) {
+            reject(new Error('File is empty'));
+            return;
+          }
+
+          const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+          
+          console.log('📄 CSV Lines found:', lines.length);
+          console.log('📄 First 3 lines:', lines.slice(0, 3));
+          
+          // Skip header row if it contains "email" in first column
+          const dataLines = lines.filter(line => {
+            const firstCell = line.split(',')[0].trim().toLowerCase();
+            return firstCell !== 'email' && !firstCell.includes('email');
+          });
+          
+          // Extract and validate emails
+          const emails = dataLines
+            .map(line => {
+              // Get first column (email)
+              const email = line.split(',')[0].trim().toLowerCase();
+              return email;
+            })
+            .filter(email => {
+              // Basic email validation
+              const isValid = email && email.length > 0 && email.includes('@') && email.includes('.');
+              return isValid;
+            });
+          
+          console.log('✅ Valid emails found:', emails.length);
+          console.log('📧 Sample emails:', emails.slice(0, 3));
           
           resolve(emails);
         } catch (error) {
+          console.error('❌ CSV Parse error:', error);
           reject(error);
         }
       };
@@ -86,7 +112,14 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
   };
 
   const handleImport = async () => {
-    if (!file) return;
+    if (!file) {
+      toast({
+        title: "No file selected",
+        description: "Please select a CSV file to import",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setImporting(true);
     try {
@@ -94,8 +127,8 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       
       if (emails.length === 0) {
         toast({
-          title: "No emails found",
-          description: "The CSV file contains no valid email addresses",
+          title: "No valid emails found",
+          description: "Please check that your CSV has an 'email' header and valid email addresses in the first column",
           variant: "destructive",
         });
         setImporting(false);
@@ -262,11 +295,12 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
 
           {/* Instructions */}
           <div className="text-xs text-muted-foreground space-y-1">
-            <p className="font-medium">CSV Format:</p>
+            <p className="font-medium">CSV Format Requirements:</p>
             <ul className="list-disc list-inside space-y-1 pl-2">
-              <li>Must include "email" column header</li>
-              <li>One email address per row</li>
-              <li>New customers will be created automatically</li>
+              <li>First row: "email" (header)</li>
+              <li>Following rows: one email per line</li>
+              <li>Example: customer@example.com</li>
+              <li>New customers created automatically</li>
             </ul>
           </div>
         </div>
