@@ -59,6 +59,7 @@ export interface PlanItem {
     photographer_url?: string;
     source?: string;
     unsplash_id?: string;
+    enhanced_query?: string;
   };
   week: number;
   themeId?: string;

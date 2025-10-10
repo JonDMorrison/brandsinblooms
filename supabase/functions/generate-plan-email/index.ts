@@ -142,7 +142,7 @@ Example format:
                   cta_primary: { type: "string", description: "Primary call-to-action text" },
                   imageQuery: {
                     type: "string",
-                    description: "3-5 word Unsplash search query. MUST include 'garden', 'nursery', or 'botanical'. Focus on visual plants and garden scenes."
+                    description: "3-5 descriptive words for garden/nursery imagery. Focus on specific plants, colors, and seasonal elements. Examples: 'spring tulip display colorful', 'autumn foliage garden beds', 'summer vegetable greenhouse'. Will be enhanced with 'garden_' prefix automatically for validation."
                   }
                 },
                 required: ["subject", "preheader", "body", "cta_primary", "imageQuery"],

@@ -117,8 +117,9 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
           ai_output: item.caption,
           scheduled_date: item.date.toISOString().split('T')[0], // YYYY-MM-DD format
           image_url: item.imageUrl || null, // Preserve AI-generated images
-          image_idea: item.imageUrl ? `${item.themeName} ${item.type}` : null,
-          image_generation_status: item.imageUrl ? 'complete' : 'pending', // Track generation status
+          image_idea: item.imageQuery || `${item.themeName} ${item.type}`, // Preserve original query
+          image_generation_status: item.imageUrl ? 'completed' : 'pending', // Track generation status
+          image_metadata: item.imageMetadata || null, // Preserve image metadata
           plan_id: plan.id,
           plan_theme: item.themeName || planState.themes[0].label,
           preview_image_url: item.imageUrl || null,
