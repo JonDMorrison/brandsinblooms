@@ -203,21 +203,40 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
     try {
       console.log('🔄 Bulk adding', customerIds.length, 'customers to segment', segment.id);
       
-      const { error } = await supabase
-        .from('customer_segments')
-        .insert(
-          customerIds.map(id => ({
-            customer_id: id,
-            segment_id: segment.id
-          }))
-        );
+      // Process in batches to avoid database limits
+      const BATCH_SIZE = 500;
+      let totalAdded = 0;
+      
+      for (let i = 0; i < customerIds.length; i += BATCH_SIZE) {
+        const batch = customerIds.slice(i, i + BATCH_SIZE);
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(customerIds.length / BATCH_SIZE);
+        
+        console.log(`📦 Processing batch ${batchNum}/${totalBatches} (${batch.length} customers)`);
+        
+        const { error } = await supabase
+          .from('customer_segments')
+          .upsert(
+            batch.map(id => ({
+              customer_id: id,
+              segment_id: segment.id
+            })),
+            { 
+              onConflict: 'customer_id,segment_id',
+              ignoreDuplicates: true 
+            }
+          );
 
-      if (error) {
-        console.error('❌ Error bulk adding customers:', error);
-        throw error;
+        if (error) {
+          console.error('❌ Error in batch', batchNum, ':', error);
+          throw error;
+        }
+        
+        totalAdded += batch.length;
+        console.log(`✅ Batch ${batchNum}/${totalBatches} completed (${totalAdded}/${customerIds.length} total)`);
       }
 
-      console.log('✅ Successfully bulk added customers, refreshing data...');
+      console.log('✅ Successfully bulk added all customers, refreshing data...');
 
       // Refresh the segment data to show newly added customers
       await loadSegmentData();
@@ -236,7 +255,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
       console.error('Error bulk adding customers:', error);
       toast({
         title: "Error",
-        description: "Failed to add customers to segment",
+        description: "Failed to add customers to segment. Please try again.",
         variant: "destructive",
       });
       throw error;

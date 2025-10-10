@@ -15,9 +15,16 @@ interface BulkCustomerImportDialogProps {
   userId: string;
 }
 
+interface CustomerData {
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+}
+
 interface ImportResult {
-  found: string[];
-  created: string[];
+  found: CustomerData[];
+  created: CustomerData[];
   alreadyAdded: string[];
   notFound: string[];
 }
@@ -50,7 +57,7 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
   const { toast } = useToast();
 
   const downloadTemplate = () => {
-    const csv = 'email\ncustomer1@example.com\ncustomer2@example.com';
+    const csv = 'email,first_name,last_name,phone\ncustomer1@example.com,John,Doe,555-0100\ncustomer2@example.com,Jane,Smith,555-0200';
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -76,7 +83,14 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
     }
   };
 
-  const parseCSV = async (file: File): Promise<string[]> => {
+interface CustomerData {
+    email: string;
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+  }
+
+  const parseCSV = async (file: File): Promise<CustomerData[]> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -127,7 +141,6 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
           console.log('📊 Headers found:', headers);
           console.log('📊 Data rows:', dataRows.length);
 
-          // Intelligently detect email column
           // Helper: basic email validator
           const isValidEmail = (val: string) => {
             if (!val) return false;
@@ -135,65 +148,106 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
             return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
           };
 
+          // Detect column indices
           let emailColumnIndex = -1;
+          let firstNameColumnIndex = -1;
+          let lastNameColumnIndex = -1;
+          let phoneColumnIndex = -1;
 
-          // Method 1: Prefer explicit header names like "Email" or "Email Address" (no density requirement)
+          // Detect email column
           for (let i = 0; i < headers.length; i++) {
             const headerLower = headers[i].toLowerCase().trim();
             const normalized = headerLower.replace(/[^a-z0-9]/g, '');
-            const isEmailHeader =
-              normalized === 'email' ||
-              normalized.includes('emailaddress') ||
-              normalized.startsWith('email') ||
-              normalized.endsWith('email');
+            
+            // Email detection
+            if (emailColumnIndex === -1) {
+              const isEmailHeader =
+                normalized === 'email' ||
+                normalized.includes('emailaddress') ||
+                normalized.startsWith('email') ||
+                normalized.endsWith('email');
 
-            if (isEmailHeader) {
-              const validCount = dataRows.filter(row => isValidEmail(row[i] || '')).length;
-              const density = dataRows.length > 0 ? validCount / dataRows.length : 0;
-              console.log(`📧 Header match "${headers[i]}" → valid emails: ${validCount}/${dataRows.length} (${(density * 100).toFixed(1)}%)`);
-              if (validCount > 0) {
-                emailColumnIndex = i;
-                console.log(`✅ Email column selected by header: "${headers[i]}" (index ${i})`);
-                break;
+              if (isEmailHeader) {
+                const validCount = dataRows.filter(row => isValidEmail(row[i] || '')).length;
+                if (validCount > 0) {
+                  emailColumnIndex = i;
+                  console.log(`✅ Email column: "${headers[i]}" (index ${i})`);
+                }
+              }
+            }
+
+            // First name detection
+            if (firstNameColumnIndex === -1) {
+              if (normalized === 'firstname' || normalized === 'fname' || normalized === 'first') {
+                firstNameColumnIndex = i;
+                console.log(`✅ First name column: "${headers[i]}" (index ${i})`);
+              }
+            }
+
+            // Last name detection
+            if (lastNameColumnIndex === -1) {
+              if (normalized === 'lastname' || normalized === 'lname' || normalized === 'last') {
+                lastNameColumnIndex = i;
+                console.log(`✅ Last name column: "${headers[i]}" (index ${i})`);
+              }
+            }
+
+            // Phone detection
+            if (phoneColumnIndex === -1) {
+              if (normalized === 'phone' || normalized === 'phonenumber' || normalized === 'mobile' || normalized === 'cell') {
+                phoneColumnIndex = i;
+                console.log(`✅ Phone column: "${headers[i]}" (index ${i})`);
               }
             }
           }
 
-          // Method 2: Fallback by valid email count/density (more lenient than 50%)
+          // Fallback: detect email by content if header detection failed
           if (emailColumnIndex === -1) {
             let maxValidCount = 0;
-            let maxValidDensity = 0;
-
             headers.forEach((header, index) => {
               const validCount = dataRows.filter(row => isValidEmail(row[index] || '')).length;
-              const atCount = dataRows.filter(row => (row[index] || '').includes('@')).length;
-              const density = dataRows.length > 0 ? validCount / dataRows.length : 0;
-              console.log(`📊 Column "${header}" (idx ${index}): valid ${validCount}/${dataRows.length} (${(density * 100).toFixed(1)}%), has@ ${atCount}`);
-
               if (validCount > maxValidCount) {
                 maxValidCount = validCount;
-                maxValidDensity = density;
                 emailColumnIndex = index;
               }
             });
 
-            // Accept if we have at least a small number of valid emails OR a small density
-            if (emailColumnIndex === -1 || (maxValidCount < 5 && maxValidDensity < 0.02)) {
-              throw new Error(`No email column detected. Best column valid rate: ${(maxValidDensity * 100).toFixed(1)}% (${maxValidCount} valid)`);
+            if (emailColumnIndex === -1 || maxValidCount < 5) {
+              throw new Error('No email column detected');
             }
-
-            console.log(`✅ Email column detected by validity: "${headers[emailColumnIndex]}" (index ${emailColumnIndex}) with ${(maxValidDensity * 100).toFixed(1)}% valid`);
+            console.log(`✅ Email column detected by content: "${headers[emailColumnIndex]}" (index ${emailColumnIndex})`);
           }
 
-          // Extract and validate emails from the detected column
-          const emails = dataRows
-            .map(row => (row[emailColumnIndex] || '').trim().toLowerCase())
-            .filter(isValidEmail);
+          // Extract customer data
+          const customers: CustomerData[] = dataRows
+            .map(row => {
+              const email = (row[emailColumnIndex] || '').trim().toLowerCase();
+              if (!isValidEmail(email)) return null;
+
+              const customer: CustomerData = { email };
+              
+              if (firstNameColumnIndex !== -1 && row[firstNameColumnIndex]) {
+                customer.first_name = row[firstNameColumnIndex].trim();
+              }
+              
+              if (lastNameColumnIndex !== -1 && row[lastNameColumnIndex]) {
+                customer.last_name = row[lastNameColumnIndex].trim();
+              }
+              
+              if (phoneColumnIndex !== -1 && row[phoneColumnIndex]) {
+                // Clean phone number
+                const phone = row[phoneColumnIndex].trim().replace(/[^\d+()-]/g, '');
+                if (phone) customer.phone = phone;
+              }
+
+              return customer;
+            })
+            .filter((c): c is CustomerData => c !== null);
           
-          console.log('✅ Valid emails extracted:', emails.length);
-          console.log('📧 Sample emails:', emails.slice(0, 5));
+          console.log('✅ Valid customers extracted:', customers.length);
+          console.log('📧 Sample data:', customers.slice(0, 3));
           
-          resolve(emails);
+          resolve(customers);
         } catch (error) {
           console.error('❌ CSV Parse error:', error);
           reject(error);
@@ -223,13 +277,13 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
     
     try {
       console.log('📖 Parsing CSV...');
-      const emails = await parseCSV(file);
-      console.log('✅ CSV parsed successfully, emails found:', emails.length);
+      const customers = await parseCSV(file);
+      console.log('✅ CSV parsed successfully, customers found:', customers.length);
       
-      if (emails.length === 0) {
+      if (customers.length === 0) {
         toast({
-          title: "No valid emails found",
-          description: "Couldn't find a column with email addresses. Make sure your CSV has emails with @ symbols.",
+          title: "No valid customers found",
+          description: "Couldn't find valid customer data. Make sure your CSV has emails with @ symbols.",
           variant: "destructive",
         });
         setImporting(false);
@@ -237,48 +291,56 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
         return;
       }
 
-      console.log('🔍 Found emails to import:', emails.length);
-      console.log('📧 Sample emails:', emails.slice(0, 3));
+      console.log('🔍 Found customers to import:', customers.length);
+      console.log('📧 Sample data:', customers.slice(0, 3));
       
-      // Deduplicate emails (case-insensitive)
-      const uniqueEmails = Array.from(new Set(emails.map(e => e.toLowerCase())));
-      console.log('🔄 After deduplication:', uniqueEmails.length, 'unique emails');
+      // Deduplicate by email (case-insensitive)
+      const uniqueCustomersMap = new Map<string, CustomerData>();
+      customers.forEach(customer => {
+        const emailLower = customer.email.toLowerCase();
+        if (!uniqueCustomersMap.has(emailLower)) {
+          uniqueCustomersMap.set(emailLower, customer);
+        }
+      });
+      const uniqueCustomers = Array.from(uniqueCustomersMap.values());
+      console.log('🔄 After deduplication:', uniqueCustomers.length, 'unique customers');
       
-      if (uniqueEmails.length < emails.length) {
-        console.log('⚠️ Removed', emails.length - uniqueEmails.length, 'duplicate emails');
+      if (uniqueCustomers.length < customers.length) {
+        console.log('⚠️ Removed', customers.length - uniqueCustomers.length, 'duplicate emails');
       }
       
       setProgress({ 
         stage: 'checking', 
         current: 0, 
-        total: uniqueEmails.length, 
+        total: uniqueCustomers.length, 
         message: 'Checking existing customers...' 
       });
 
       // Check which emails already exist - process in batches to avoid URL length limits
       console.log('🔍 Checking existing customers in tenant:', tenantId);
-      const BATCH_SIZE = 100; // Smaller batches to avoid URL size limits
-      const existingEmailsMap = new Map<string, string>();
+      const BATCH_SIZE = 100;
+      const existingCustomersMap = new Map<string, { id: string; data: CustomerData }>();
       
-      for (let i = 0; i < uniqueEmails.length; i += BATCH_SIZE) {
-        const batch = uniqueEmails.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < uniqueCustomers.length; i += BATCH_SIZE) {
+        const batch = uniqueCustomers.slice(i, i + BATCH_SIZE);
+        const batchEmails = batch.map(c => c.email);
         const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-        const totalBatches = Math.ceil(uniqueEmails.length / BATCH_SIZE);
-        console.log(`📦 Checking batch ${batchNum}/${totalBatches} (${batch.length} emails)`);
+        const totalBatches = Math.ceil(uniqueCustomers.length / BATCH_SIZE);
+        console.log(`📦 Checking batch ${batchNum}/${totalBatches} (${batch.length} customers)`);
         
         setProgress({ 
           stage: 'checking', 
           current: i, 
-          total: uniqueEmails.length, 
+          total: uniqueCustomers.length, 
           message: 'Checking existing customers...',
           batchInfo: `Batch ${batchNum}/${totalBatches}`
         });
         
         const { data: batchCustomers, error: fetchError } = await supabase
           .from('crm_customers')
-          .select('id, email, total_spent, last_purchase_date')
+          .select('id, email')
           .eq('tenant_id', tenantId)
-          .in('email', batch);
+          .in('email', batchEmails);
 
         if (fetchError) {
           console.error('❌ Error fetching batch:', fetchError);
@@ -286,21 +348,24 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
         }
 
         batchCustomers?.forEach(c => {
-          existingEmailsMap.set(c.email.toLowerCase(), c.id);
+          const customerData = batch.find(b => b.email === c.email);
+          if (customerData) {
+            existingCustomersMap.set(c.email.toLowerCase(), { id: c.id, data: customerData });
+          }
         });
       }
 
-      console.log('✅ Existing customers found:', existingEmailsMap.size);
+      console.log('✅ Existing customers found:', existingCustomersMap.size);
 
-      const found: string[] = [];
-      const toCreate: string[] = [];
+      const found: CustomerData[] = [];
+      const toCreate: CustomerData[] = [];
 
-      uniqueEmails.forEach(email => {
-        if (existingEmailsMap.has(email)) {
-          found.push(email);
+      uniqueCustomers.forEach(customer => {
+        if (existingCustomersMap.has(customer.email.toLowerCase())) {
+          found.push(customer);
           existingCustomerCount++;
         } else {
-          toCreate.push(email);
+          toCreate.push(customer);
           newCustomerCount++;
         }
       });
@@ -308,7 +373,7 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       console.log('📊 Analysis: Found:', found.length, 'To Create:', toCreate.length);
 
       // Create new customers in batches
-      const created: string[] = [];
+      const created: CustomerData[] = [];
       if (toCreate.length > 0) {
         console.log('➕ Creating', toCreate.length, 'new customers...');
         setProgress({ 
@@ -318,7 +383,7 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
           message: 'Creating new customers...' 
         });
         
-        const CREATE_BATCH_SIZE = 1000; // Create 1000 at a time
+        const CREATE_BATCH_SIZE = 1000;
         
         for (let i = 0; i < toCreate.length; i += CREATE_BATCH_SIZE) {
           const batch = toCreate.slice(i, i + CREATE_BATCH_SIZE);
@@ -334,8 +399,11 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
             batchInfo: `Batch ${batchNum}/${totalBatches}`
           });
           
-          const newCustomers = batch.map(email => ({
-            email,
+          const newCustomers = batch.map(customer => ({
+            email: customer.email,
+            first_name: customer.first_name,
+            last_name: customer.last_name,
+            phone: customer.phone,
             tenant_id: tenantId,
             user_id: userId,
             email_opt_in: false,
@@ -355,20 +423,22 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
               description: `Created ${created.length} customers but encountered error: ${createError.message}`,
               variant: "destructive",
             });
-            break; // Stop on error
+            break;
           } else if (createdCustomers) {
             console.log('✅ Created customers in batch:', createdCustomers.length);
-            createdCustomers.forEach(c => {
-              created.push(c.email);
-              existingEmailsMap.set(c.email.toLowerCase(), c.id);
+            createdCustomers.forEach((c, idx) => {
+              const customerData = batch[idx];
+              created.push(customerData);
+              existingCustomersMap.set(c.email.toLowerCase(), { id: c.id, data: customerData });
             });
           }
         }
       }
 
       // Collect all customer IDs to add to segment
-      const customerIdsToAdd = emails
-        .map(email => existingEmailsMap.get(email))
+      const allCustomerEmails = [...found, ...created].map(c => c.email.toLowerCase());
+      const customerIdsToAdd = allCustomerEmails
+        .map(email => existingCustomersMap.get(email)?.id)
         .filter((id): id is string => Boolean(id));
 
       console.log('📝 Adding', customerIdsToAdd.length, 'customers to segment...');
@@ -420,11 +490,12 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
         console.log(`📧 Queueing confirmation emails for ${created.length} new customers`);
         
         // Get the newly created customer records with their IDs
+        const createdEmails = created.map(c => c.email);
         const { data: newCustomerRecords } = await supabase
           .from('crm_customers')
           .select('id, email, first_name')
           .eq('tenant_id', tenantId)
-          .in('email', created);
+          .in('email', createdEmails);
         
         // Queue confirmation emails (fire and forget)
         newCustomerRecords?.forEach(customer => {
@@ -610,9 +681,10 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
           <div className="text-xs text-muted-foreground space-y-1">
             <p className="font-medium">How it works:</p>
             <ul className="list-disc list-inside space-y-1 pl-2">
-              <li>Upload any CSV with email addresses</li>
-              <li>Column with @ symbols auto-detected</li>
-              <li>New customers created automatically</li>
+              <li>Upload CSV with email, first_name, last_name, phone</li>
+              <li>Email column auto-detected (required)</li>
+              <li>Other columns detected automatically</li>
+              <li>New customers created with full data</li>
               <li>Works with exports from any system</li>
             </ul>
           </div>
