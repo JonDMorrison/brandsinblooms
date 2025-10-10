@@ -20,6 +20,9 @@ interface Customer {
     persona_id?: string;
     predefined_persona_id?: string;
   }[];
+  customer_segments?: {
+    segment_id: string;
+  }[];
 }
 
 interface UseCustomersOptions {
@@ -51,6 +54,9 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
           customer_personas (
             persona_id,
             predefined_persona_id
+          ),
+          customer_segments (
+            segment_id
           )
         `)
         .eq('tenant_id', userRecord.tenant_id)

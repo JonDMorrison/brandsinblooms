@@ -11,6 +11,7 @@ import { CustomerImportDialog } from '@/components/crm/customers/CustomerImportD
 import { CustomerDetailsSheet } from '@/components/crm/customers/CustomerDetailsSheet';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
+import { useAllSegments } from '@/hooks/useAllSegments';
 import { format } from 'date-fns';
 
 export const CRMCustomersPage: React.FC = () => {
@@ -23,6 +24,7 @@ export const CRMCustomersPage: React.FC = () => {
     search: searchQuery 
   });
   const { personas } = useAllPersonas();
+  const { segments: allSegments } = useAllSegments();
 
   // Get persona details for a customer using unified approach
   const getCustomerPersona = (customer: any) => {
@@ -73,6 +75,24 @@ export const CRMCustomersPage: React.FC = () => {
     return personaNames;
   };
 
+  // Get all assigned segment names for display
+  const getCustomerSegments = (customer: any) => {
+    if (!customer.customer_segments || customer.customer_segments.length === 0) {
+      return [];
+    }
+    
+    const segmentNames = [];
+    for (const assignment of customer.customer_segments) {
+      // Look up segment name from allSegments by matching segment_id
+      const segment = allSegments.find(s => s.id === assignment.segment_id);
+      if (segment?.name) {
+        segmentNames.push(segment.name);
+      }
+    }
+    
+    return segmentNames;
+  };
+
   // Dynamic persona colors based on the actual personas
   const getPersonaColor = (personaName: string) => {
     const colorMap: Record<string, string> = {
@@ -87,6 +107,19 @@ export const CRMCustomersPage: React.FC = () => {
       'Wellness Whitney': 'bg-cyan-100 text-cyan-800',
     };
     return colorMap[personaName] || 'bg-gray-100 text-gray-800';
+  };
+
+  // Dynamic segment colors for visual variety
+  const getSegmentColor = (segmentName: string) => {
+    const colorMap: Record<string, string> = {
+      'Loyalty Members': 'bg-blue-100 text-blue-800',
+      'High-Value Customers': 'bg-emerald-100 text-emerald-800',
+      'New Customers': 'bg-sky-100 text-sky-800',
+      'Lapsed Customers': 'bg-orange-100 text-orange-800',
+      'Seasonal Shoppers': 'bg-violet-100 text-violet-800',
+      'Frequent Buyers': 'bg-rose-100 text-rose-800',
+    };
+    return colorMap[segmentName] || 'bg-slate-100 text-slate-800';
   };
 
   const handleImportComplete = () => {
@@ -180,6 +213,7 @@ export const CRMCustomersPage: React.FC = () => {
                       <TableHead>Customer</TableHead>
                       <TableHead>Contact</TableHead>
                       <TableHead>Persona</TableHead>
+                      <TableHead>Segments</TableHead>
                       <TableHead>Total Spent</TableHead>
                       <TableHead>Last Purchase</TableHead>
                       <TableHead>Added</TableHead>
@@ -233,6 +267,26 @@ export const CRMCustomersPage: React.FC = () => {
                                </div>
                              ) : (
                                <span className="text-muted-foreground text-sm whitespace-nowrap">No persona</span>
+                             );
+                           })()}
+                         </TableCell>
+                         <TableCell>
+                           {(() => {
+                             const assignedSegments = getCustomerSegments(customer);
+                             return assignedSegments.length > 0 ? (
+                               <div className="flex flex-wrap gap-1">
+                                 {assignedSegments.map((segmentName, index) => (
+                                   <Badge 
+                                     key={index}
+                                     variant="secondary" 
+                                     className={getSegmentColor(segmentName)}
+                                   >
+                                     {segmentName}
+                                   </Badge>
+                                 ))}
+                               </div>
+                             ) : (
+                               <span className="text-muted-foreground text-sm whitespace-nowrap">No segments</span>
                              );
                            })()}
                          </TableCell>
