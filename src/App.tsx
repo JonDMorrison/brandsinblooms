@@ -56,6 +56,7 @@ import { Home1Page } from '@/pages/Home1Page';
 import AdminPage from '@/pages/AdminPage';
 import AdminManage from '@/pages/AdminManage';
 import { AdminReportsPage } from '@/pages/AdminReportsPage';
+import { CommunityPage } from '@/pages/CommunityPage';
 
 function App() {
   return (
@@ -375,6 +376,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <AdminReportsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/community" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CommunityPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
