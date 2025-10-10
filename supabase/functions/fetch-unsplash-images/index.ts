@@ -69,6 +69,42 @@ serve(async (req) => {
       throw new Error('Unsplash API key not configured - using garden center fallbacks');
     }
 
+    // VALIDATION STEP 1: Validate query BEFORE calling Unsplash
+    const validateQuery = (q: string): { valid: boolean; enhancedQuery: string; reason?: string } => {
+      if (!q || q.trim().length === 0) {
+        return { valid: false, enhancedQuery: '', reason: 'Empty query' };
+      }
+
+      const trimmed = q.trim().toLowerCase();
+      const words = trimmed.split(/\s+/).filter(w => w.length > 2);
+      
+      // Reject generic queries
+      if (words.length < 2) {
+        console.warn(`[UNSPLASH-VALIDATION] ❌ Query too generic: "${q}" (${words.length} meaningful words)`);
+        return { 
+          valid: false, 
+          enhancedQuery: `${q} garden plants nursery flowers`,
+          reason: 'Query too short - needs at least 2 meaningful words'
+        };
+      }
+
+      // Check for garden-related terms
+      const gardenTerms = ['garden', 'plant', 'flower', 'bloom', 'nursery', 'botanical', 'leaf', 'tree', 'shrub', 'herb', 'vegetable', 'succulent', 'cactus', 'rose', 'tulip', 'orchid', 'fern', 'seed', 'soil', 'pot', 'greenhouse'];
+      const hasGardenTerm = gardenTerms.some(term => trimmed.includes(term));
+      
+      if (!hasGardenTerm) {
+        console.warn(`[UNSPLASH-VALIDATION] ⚠️ No garden terms found in: "${q}"`);
+        return {
+          valid: true,
+          enhancedQuery: `${q} garden plants nursery`,
+          reason: 'Enhanced with garden context'
+        };
+      }
+
+      console.log(`[UNSPLASH-VALIDATION] ✅ Query validated: "${q}"`);
+      return { valid: true, enhancedQuery: q };
+    };
+
     let unsplashUrl: string;
     let images: any[] = [];
 
@@ -97,31 +133,23 @@ serve(async (req) => {
       }
 
       const collectionData = await unsplashResponse.json();
-      images = collectionData || []; // Collection endpoint returns array directly
+      images = collectionData || [];
       console.log(`[UNSPLASH] Found ${images.length} images from collection ${collection}`);
     } else {
       // Search photos with query
       if (query) {
-        let searchQuery = query;
+        // STEP 1: Validate and enhance query
+        const validation = validateQuery(query);
+        let searchQuery = rawQuery ? query : validation.enhancedQuery;
         
-        // Simplified: Only sanitize truly problematic queries
-        if (!rawQuery) {
-          const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe)\b/i;
-          if (problematicTerms.test(query)) {
-            console.warn(`[UNSPLASH] Query contains food terms, adding plant context: "${query}"`);
-            searchQuery = `${query.replace(problematicTerms, '').trim()} garden plants`;
-          } else {
-            searchQuery = query;  // Trust the input query
-          }
-          console.log(`[UNSPLASH] Search query: "${searchQuery}"`);
-        } else {
-          console.log(`[UNSPLASH] Using raw query: "${searchQuery}"`);
+        if (!validation.valid && !rawQuery) {
+          console.warn(`[UNSPLASH] Invalid query "${query}", using enhanced: "${searchQuery}"`);
         }
 
         // Enhanced Unsplash API call with quality parameters
         const searchParams = new URLSearchParams({
           query: encodeURIComponent(searchQuery),
-          per_page: maxImages.toString(),
+          per_page: (maxImages * 2).toString(), // Fetch more to allow for filtering
           orientation: orientation,
           order_by: orderBy,
           content_filter: contentFilter
@@ -162,28 +190,62 @@ serve(async (req) => {
       });
     }
 
-    // Limit to exactly maxImages
-    const limitedImages = images.slice(0, maxImages);
-
-    // Minimal filtering - only remove obviously inappropriate content
-    const validImages = limitedImages.filter(image => {
+    // VALIDATION STEP 2: Score and filter images by garden relevance
+    const scoreImageRelevance = (image: any): { score: number; reason: string } => {
       const alt = (image.alt_description || '').toLowerCase();
       const desc = (image.description || '').toLowerCase();
-      const content = `${alt} ${desc}`;
+      const tags = image.tags?.map((t: any) => t.title.toLowerCase()).join(' ') || '';
+      const content = `${alt} ${desc} ${tags}`;
       
-      // Only filter out NSFW/inappropriate content
-      const inappropriateTerms = /\b(inappropriate|nsfw|adult|explicit)\b/i;
-      if (inappropriateTerms.test(content)) {
-        console.warn(`[UNSPLASH] Filtering inappropriate image: ${image.id}`);
-        return false;
+      let score = 0;
+      let reason = '';
+
+      // BLOCK: Non-garden categories (architecture, fashion, food, people, abstract)
+      const blockedTerms = /\b(building|architecture|pillar|column|louis vuitton|fashion|store|mall|shop|interior|furniture|person|people|human|face|portrait|selfie|abstract|geometric|pattern|food|restaurant|cafe|dessert|ice cream)\b/i;
+      if (blockedTerms.test(content)) {
+        console.warn(`[UNSPLASH-FILTER] ❌ Blocked non-garden image ${image.id}: contains "${content.match(blockedTerms)?.[0]}"`);
+        return { score: -100, reason: 'Non-garden category detected' };
       }
+
+      // REQUIRE: Garden-related terms
+      const gardenTerms = ['garden', 'plant', 'flower', 'bloom', 'nursery', 'botanical', 'leaf', 'tree', 'shrub', 'herb', 'vegetable', 'succulent', 'cactus', 'rose', 'tulip', 'orchid', 'fern', 'seed', 'soil', 'pot', 'greenhouse', 'petal', 'stem', 'blossom', 'foliage'];
+      const gardenMatches = gardenTerms.filter(term => content.includes(term));
       
-      // Trust Unsplash's relevance algorithm - if it matched the query, it's likely relevant
-      console.log(`[UNSPLASH] ✓ Including image: ${image.id} - ${alt || 'no alt'}`);
-      return true;
+      if (gardenMatches.length === 0) {
+        console.warn(`[UNSPLASH-FILTER] ❌ No garden terms found in ${image.id}: "${alt || desc}"`);
+        return { score: 0, reason: 'No garden-related terms' };
+      }
+
+      // Score based on garden term matches
+      score = gardenMatches.length * 20;
+      reason = `Garden terms: ${gardenMatches.slice(0, 3).join(', ')}`;
+
+      // Bonus for plant-specific terms
+      const plantTerms = ['rose', 'tulip', 'orchid', 'fern', 'succulent', 'cactus', 'lily', 'daisy', 'sunflower', 'lavender', 'hydrangea', 'peony', 'iris', 'marigold', 'petunia', 'begonia', 'geranium', 'pansy'];
+      const plantMatches = plantTerms.filter(term => content.includes(term));
+      if (plantMatches.length > 0) {
+        score += plantMatches.length * 15;
+        reason += ` + specific plants: ${plantMatches.slice(0, 2).join(', ')}`;
+      }
+
+      console.log(`[UNSPLASH-FILTER] ✅ Image ${image.id} scored ${score}: ${reason}`);
+      return { score, reason };
+    };
+
+    // Score all images
+    const scoredImages = images.map(image => {
+      const { score, reason } = scoreImageRelevance(image);
+      return { image, score, reason };
     });
 
-    console.log(`[UNSPLASH] After filtering: ${validImages.length}/${limitedImages.length} images are relevant`);
+    // Filter: Only keep images with positive scores (garden-relevant)
+    const validImages = scoredImages
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxImages)
+      .map(item => item.image);
+
+    console.log(`[UNSPLASH] After garden validation: ${validImages.length}/${images.length} images are garden-relevant`);
 
     // If contentTaskId is provided, store the images in the database
     if (contentTaskId && validImages.length > 0) {

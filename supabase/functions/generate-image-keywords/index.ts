@@ -12,37 +12,47 @@ const corsHeaders = {
  * Generate channel-specific system prompts with strict garden validation
  */
 function getSystemPrompt(channel: string): string {
-  const basePrompt = `You are an expert garden center image curator. Your ONE JOB: Generate SPECIFIC plant-focused Unsplash search keywords.
+  const basePrompt = `You are an expert garden center image curator. Your ONE JOB: Generate SPECIFIC plant-focused Unsplash search keywords that GUARANTEE garden-relevant images.
 
-🚨 ABSOLUTE REQUIREMENTS - NO EXCEPTIONS:
-1. EVERY query MUST include SPECIFIC plant names (rose, tomato, basil, petunia, succulent, maple tree, etc.)
-2. EVERY query MUST include COLOR (pink, red, purple, yellow, green, vibrant, etc.)
-3. EVERY query MUST include garden retail context (greenhouse, nursery, garden center, potted, display, shelves)
-4. EXTRACT plant names from the user's content - use those EXACT plants
+🚨 ABSOLUTE REQUIREMENTS - QUERIES WITHOUT THESE WILL RETURN WRONG IMAGES:
+1. SPECIFIC plant name (rose, tomato, basil, petunia, succulent, NOT "plants" or "flowers")
+2. COLOR descriptor (pink, red, purple, yellow, vibrant, NOT "colorful" or "beautiful")
+3. Garden retail context (greenhouse, nursery, garden center, potted, display, shelves)
+4. EXTRACT plant names from content - use EXACT plants mentioned
 
-✅ CORRECT EXAMPLES:
+WHY THIS MATTERS: Generic queries return architecture/fashion/people instead of plants!
+- "Week" → returns buildings and Louis Vuitton stores ❌
+- "garden" alone → returns architecture ❌
+- "plants" alone → returns random objects ❌
+
+✅ CORRECT EXAMPLES (these return garden images):
 - "pink petunia hanging baskets greenhouse customers"
 - "red tomato seedlings potted nursery display"
 - "purple lavender plants garden center shelves"
-- "orange marigold flowers potted display customers browsing"
+- "orange marigold flowers potted display close"
 
-❌ FORBIDDEN - These will be REJECTED:
-- "beautiful flowers" (no specific plant)
-- "garden plants" (no specific plant or color)
-- "seasonal display" (no plant names)
-- "flowering plants" (not specific enough)
-- "colorful blooms" (what plant? what color specifically?)
-- Generic terms without plant variety names
+❌ FORBIDDEN (these return non-garden images):
+- "beautiful flowers" → returns abstract art
+- "garden plants" → returns architecture
+- "seasonal display" → returns store interiors
+- "flowering plants" → returns fashion/people
+- "colorful blooms" → returns random objects
+- "Week" or any single word → returns irrelevant content
 
-🌱 APPROVED PLANT CATEGORIES:
-- Flowers: rose, petunia, marigold, zinnia, sunflower, dahlia, tulip, geranium
-- Vegetables: tomato, pepper, cucumber, lettuce, basil, cilantro, kale
-- Herbs: basil, rosemary, thyme, mint, oregano, parsley
-- Shrubs: hydrangea, azalea, boxwood, rhododendron
-- Houseplants: pothos, monstera, succulent, fern, spider plant
-- Trees: maple, oak, pine, fruit trees (apple, pear, cherry)
+🌱 SPECIFIC PLANT NAMES TO USE:
+- Flowers: rose, petunia, marigold, zinnia, sunflower, dahlia, tulip, geranium, pansy, impatiens
+- Vegetables: tomato, pepper, cucumber, lettuce, basil, cilantro, kale, carrot, onion
+- Herbs: basil, rosemary, thyme, mint, oregano, parsley, sage, dill
+- Shrubs: hydrangea, azalea, boxwood, rhododendron, lilac, forsythia
+- Houseplants: pothos, monstera, succulent, fern, spider plant, peace lily, snake plant
+- Trees: maple, oak, pine, apple, pear, cherry, birch
 
-EXTRACT & USE: Read the user's content carefully and identify the specific plants mentioned. Use those EXACT plant names in your keywords.`;
+MANDATORY PROCESS:
+1. READ content and EXTRACT specific plant names mentioned
+2. If content mentions "Holiday Plants" → specify "poinsettia" or "holly"
+3. If content mentions "Spring Flowers" → specify "tulip" or "daffodil"  
+4. If content mentions "Summer Blooms" → specify "petunia" or "marigold"
+5. ALWAYS add color + retail context to the plant name`;
 
   const channelRequirements: Record<string, string> = {
     facebook: `
@@ -177,7 +187,7 @@ Extract and use SPECIFIC plant varieties from the content above.`
                 },
                 primaryQuery: {
                   type: "string",
-                  description: "5-7 word Unsplash query. MUST include: 1) SPECIFIC plant name extracted from content, 2) COLOR word, 3) Retail context (greenhouse/nursery/garden center/potted/display). Example: 'vibrant red poinsettia potted greenhouse display' NOT 'holiday plants display'"
+                  description: "5-7 word Unsplash query. CRITICAL: MUST contain specific plant name + color + retail context. BAD: 'garden plants display' GOOD: 'red roses potted nursery display'. BAD: 'Week' GOOD: 'pink petunia hanging baskets greenhouse'. The query MUST pass this test: Does it name a specific plant? Does it include a color? Does it include nursery/greenhouse/potted/garden center?"
                 }
               },
               required: ["keywords", "primaryQuery"],
