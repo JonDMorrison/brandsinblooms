@@ -57,6 +57,7 @@ import AdminPage from '@/pages/AdminPage';
 import AdminManage from '@/pages/AdminManage';
 import { AdminReportsPage } from '@/pages/AdminReportsPage';
 import { CommunityPage } from '@/pages/CommunityPage';
+import { SavedBlocksPage } from '@/pages/crm/SavedBlocksPage';
 
 function App() {
   return (
@@ -231,6 +232,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <CRMAutomationBuilderPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/campaigns/blocks" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <SavedBlocksPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />

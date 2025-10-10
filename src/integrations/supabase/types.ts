@@ -3882,6 +3882,7 @@ export type Database = {
           created_at: string
           id: string
           is_bloomsuite_block: boolean | null
+          is_favorite: boolean | null
           name: string
           tags: string[] | null
           tenant_id: string | null
@@ -3895,6 +3896,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_bloomsuite_block?: boolean | null
+          is_favorite?: boolean | null
           name: string
           tags?: string[] | null
           tenant_id?: string | null
@@ -3908,6 +3910,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_bloomsuite_block?: boolean | null
+          is_favorite?: boolean | null
           name?: string
           tags?: string[] | null
           tenant_id?: string | null
