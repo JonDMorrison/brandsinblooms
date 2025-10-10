@@ -46,7 +46,28 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingCustomerId, setLoadingCustomerId] = useState<string | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [tenantId, setTenantId] = useState<string>('');
+  const [userId, setUserId] = useState<string>('');
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        // Get tenant_id from users table
+        const { data: userData } = await supabase
+          .from('users')
+          .select('tenant_id')
+          .eq('id', user.id)
+          .single();
+        if (userData) {
+          setTenantId(userData.tenant_id);
+        }
+      }
+    };
+    fetchUserData();
+  }, []);
 
   useEffect(() => {
     if (open && segment) {
@@ -191,10 +212,8 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
 
       if (error) throw error;
 
-      // Update local state
-      const customersToMove = availableCustomers.filter(c => customerIds.includes(c.id));
-      setSegmentCustomers(prev => [...prev, ...customersToMove]);
-      setAvailableCustomers(prev => prev.filter(c => !customerIds.includes(c.id)));
+      // Refresh the available customers and segment customers lists
+      await loadSegmentData();
 
     } catch (error) {
       console.error('Error bulk adding customers:', error);
@@ -428,6 +447,8 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           onOpenChange={setShowBulkImport}
           onImport={bulkAddCustomers}
           availableCustomers={availableCustomers}
+          tenantId={tenantId}
+          userId={userId}
         />
       </DialogContent>
     </Dialog>

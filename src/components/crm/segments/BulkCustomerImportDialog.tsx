@@ -3,16 +3,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Upload, Download, Check, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BulkCustomerImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (customerIds: string[]) => Promise<void>;
   availableCustomers: Array<{ id: string; email: string }>;
+  tenantId: string;
+  userId: string;
 }
 
 interface ImportResult {
   found: string[];
+  created: string[];
   alreadyAdded: string[];
   notFound: string[];
 }
@@ -21,7 +25,9 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
   open,
   onOpenChange,
   onImport,
-  availableCustomers
+  availableCustomers,
+  tenantId,
+  userId
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -96,25 +102,60 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
         return;
       }
 
-      // Match emails to customer IDs
-      const emailToCustomerMap = new Map(
-        availableCustomers.map(c => [c.email.toLowerCase(), c.id])
+      // Check which emails already exist in the CRM
+      const { data: existingCustomers } = await supabase
+        .from('crm_customers')
+        .select('id, email')
+        .eq('tenant_id', tenantId)
+        .in('email', emails);
+
+      const existingEmailsMap = new Map(
+        (existingCustomers || []).map(c => [c.email.toLowerCase(), c.id])
       );
 
       const found: string[] = [];
-      const notFound: string[] = [];
+      const toCreate: string[] = [];
 
       emails.forEach(email => {
-        const customerId = emailToCustomerMap.get(email);
-        if (customerId) {
+        if (existingEmailsMap.has(email)) {
           found.push(email);
         } else {
-          notFound.push(email);
+          toCreate.push(email);
         }
       });
 
-      const customerIdsToAdd = found
-        .map(email => emailToCustomerMap.get(email))
+      // Create new customers for emails not in database
+      const created: string[] = [];
+      if (toCreate.length > 0) {
+        const newCustomers = toCreate.map(email => ({
+          email,
+          tenant_id: tenantId,
+          user_id: userId
+        }));
+
+        const { data: createdCustomers, error: createError } = await supabase
+          .from('crm_customers')
+          .insert(newCustomers)
+          .select('id, email');
+
+        if (createError) {
+          console.error('Error creating customers:', createError);
+          toast({
+            title: "Partial import",
+            description: "Some customers could not be created",
+            variant: "destructive",
+          });
+        } else if (createdCustomers) {
+          createdCustomers.forEach(c => {
+            created.push(c.email);
+            existingEmailsMap.set(c.email.toLowerCase(), c.id);
+          });
+        }
+      }
+
+      // Collect all customer IDs to add to segment
+      const customerIdsToAdd = emails
+        .map(email => existingEmailsMap.get(email))
         .filter((id): id is string => Boolean(id));
 
       if (customerIdsToAdd.length > 0) {
@@ -123,13 +164,15 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
 
       setResult({
         found,
+        created,
         alreadyAdded: [],
-        notFound
+        notFound: []
       });
 
+      const totalAdded = found.length + created.length;
       toast({
         title: "Import complete",
-        description: `${found.length} customer${found.length !== 1 ? 's' : ''} added to segment`,
+        description: `${totalAdded} customer${totalAdded !== 1 ? 's' : ''} added to segment${created.length > 0 ? ` (${created.length} new)` : ''}`,
       });
 
     } catch (error) {
@@ -205,13 +248,13 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
               {result.found.length > 0 && (
                 <div className="flex items-center gap-2 text-green-600">
                   <Check className="h-4 w-4" />
-                  <span>{result.found.length} customer{result.found.length !== 1 ? 's' : ''} added</span>
+                  <span>{result.found.length} existing customer{result.found.length !== 1 ? 's' : ''} added</span>
                 </div>
               )}
-              {result.notFound.length > 0 && (
-                <div className="flex items-center gap-2 text-destructive">
-                  <X className="h-4 w-4" />
-                  <span>{result.notFound.length} email{result.notFound.length !== 1 ? 's' : ''} not found in database</span>
+              {result.created.length > 0 && (
+                <div className="flex items-center gap-2 text-blue-600">
+                  <Check className="h-4 w-4" />
+                  <span>{result.created.length} new customer{result.created.length !== 1 ? 's' : ''} created & added</span>
                 </div>
               )}
             </div>
@@ -223,7 +266,7 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
             <ul className="list-disc list-inside space-y-1 pl-2">
               <li>Must include "email" column header</li>
               <li>One email address per row</li>
-              <li>Customers must exist in your database</li>
+              <li>New customers will be created automatically</li>
             </ul>
           </div>
         </div>
