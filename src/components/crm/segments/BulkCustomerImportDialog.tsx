@@ -176,25 +176,45 @@ interface CustomerData {
               }
             }
 
-            // First name detection
+            // First name detection - more flexible matching
             if (firstNameColumnIndex === -1) {
-              if (normalized === 'firstname' || normalized === 'fname' || normalized === 'first') {
+              if (
+                normalized === 'firstname' || 
+                normalized === 'fname' || 
+                normalized === 'first' ||
+                normalized === 'givenname' ||
+                normalized.includes('firstname')
+              ) {
                 firstNameColumnIndex = i;
                 console.log(`✅ First name column: "${headers[i]}" (index ${i})`);
               }
             }
 
-            // Last name detection
+            // Last name detection - more flexible matching
             if (lastNameColumnIndex === -1) {
-              if (normalized === 'lastname' || normalized === 'lname' || normalized === 'last') {
+              if (
+                normalized === 'lastname' || 
+                normalized === 'lname' || 
+                normalized === 'last' ||
+                normalized === 'surname' ||
+                normalized === 'familyname' ||
+                normalized.includes('lastname')
+              ) {
                 lastNameColumnIndex = i;
                 console.log(`✅ Last name column: "${headers[i]}" (index ${i})`);
               }
             }
 
-            // Phone detection
+            // Phone detection - more flexible matching
             if (phoneColumnIndex === -1) {
-              if (normalized === 'phone' || normalized === 'phonenumber' || normalized === 'mobile' || normalized === 'cell') {
+              if (
+                normalized === 'phone' || 
+                normalized === 'phonenumber' || 
+                normalized === 'mobile' || 
+                normalized === 'cell' ||
+                normalized === 'telephone' ||
+                normalized.includes('phone')
+              ) {
                 phoneColumnIndex = i;
                 console.log(`✅ Phone column: "${headers[i]}" (index ${i})`);
               }
@@ -383,7 +403,7 @@ interface CustomerData {
           message: 'Creating new customers...' 
         });
         
-        const CREATE_BATCH_SIZE = 1000;
+        const CREATE_BATCH_SIZE = 500; // Reduced to avoid database limits
         
         for (let i = 0; i < toCreate.length; i += CREATE_BATCH_SIZE) {
           const batch = toCreate.slice(i, i + CREATE_BATCH_SIZE);
@@ -414,16 +434,18 @@ interface CustomerData {
           const { data: createdCustomers, error: createError } = await supabase
             .from('crm_customers')
             .insert(newCustomers)
-            .select('id, email');
+            .select('id, email, first_name, last_name, phone');
 
           if (createError) {
             console.error('❌ Error creating batch:', createError);
+            console.error('❌ Error details:', JSON.stringify(createError, null, 2));
             toast({
               title: "Partial import",
-              description: `Created ${created.length} customers but encountered error: ${createError.message}`,
+              description: `Created ${created.length} customers so far. Error: ${createError.message}`,
               variant: "destructive",
             });
-            break;
+            // Continue with next batch instead of breaking
+            continue;
           } else if (createdCustomers) {
             console.log('✅ Created customers in batch:', createdCustomers.length);
             createdCustomers.forEach((c, idx) => {
