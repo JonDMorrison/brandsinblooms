@@ -222,13 +222,13 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                   
                   // Step 3: Update item in state with fetched image
                   updateItem(task.itemId, {
-                    imageUrl: image.url,
+                    imageUrl: image.urls?.regular || image.download_url,
                     imageMetadata: {
-                      alt: image.alt_description || enhancedQuery,
+                      alt: image.alt || enhancedQuery,
                       photographer: image.photographer,
                       photographer_url: image.photographer_url,
                       source: 'unsplash_garden_validated',
-                      unsplash_id: image.id,
+                      unsplash_id: image.id || image.unsplash_id,
                       enhanced_query: enhancedQuery
                     }
                   });
