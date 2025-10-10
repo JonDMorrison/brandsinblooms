@@ -326,7 +326,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
           <div className="flex-1 min-h-0">
             <div className="grid grid-cols-2 gap-6 h-[400px]">
               {/* Left Column - Assigned Customers */}
-              <div className="flex flex-col">
+              <div className="flex flex-col min-h-0">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   Assigned Customers ({segmentCustomers.length})
@@ -390,7 +390,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
               </div>
 
               {/* Right Column - Available Customers */}
-              <div className="flex flex-col">
+              <div className="flex flex-col min-h-0">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold flex items-center gap-2">
                     <Plus className="h-4 w-4" />
