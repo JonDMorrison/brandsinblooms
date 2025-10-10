@@ -75,30 +75,86 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
 
           const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
           
+          if (lines.length === 0) {
+            reject(new Error('No data found in file'));
+            return;
+          }
+
           console.log('📄 CSV Lines found:', lines.length);
           console.log('📄 First 3 lines:', lines.slice(0, 3));
           
-          // Skip header row if it contains "email" in first column
-          const dataLines = lines.filter(line => {
-            const firstCell = line.split(',')[0].trim().toLowerCase();
-            return firstCell !== 'email' && !firstCell.includes('email');
+          // Parse CSV into columns (handle quoted fields)
+          const parseCSVLine = (line: string): string[] => {
+            const result: string[] = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            result.push(current.trim());
+            return result;
+          };
+
+          // Parse all rows
+          const rows = lines.map(parseCSVLine);
+          const headers = rows[0];
+          const dataRows = rows.slice(1);
+
+          console.log('📊 Headers found:', headers);
+          console.log('📊 Data rows:', dataRows.length);
+
+          // Intelligently detect email column by looking for "@" symbols
+          let emailColumnIndex = -1;
+          let maxAtSymbolDensity = 0;
+
+          headers.forEach((header, index) => {
+            // Count how many cells in this column contain "@"
+            const cellsWithAt = dataRows.filter(row => 
+              row[index] && row[index].includes('@')
+            ).length;
+            
+            const density = dataRows.length > 0 ? cellsWithAt / dataRows.length : 0;
+            
+            console.log(`📧 Column "${header}" (index ${index}): ${cellsWithAt}/${dataRows.length} cells with @ (${(density * 100).toFixed(1)}%)`);
+            
+            // If this column has more "@" symbols, it's likely the email column
+            if (density > maxAtSymbolDensity) {
+              maxAtSymbolDensity = density;
+              emailColumnIndex = index;
+            }
           });
-          
-          // Extract and validate emails
-          const emails = dataLines
-            .map(line => {
-              // Get first column (email)
-              const email = line.split(',')[0].trim().toLowerCase();
-              return email;
-            })
+
+          if (emailColumnIndex === -1 || maxAtSymbolDensity < 0.5) {
+            reject(new Error(`No email column detected. Highest @ density: ${(maxAtSymbolDensity * 100).toFixed(1)}%`));
+            return;
+          }
+
+          console.log(`✅ Email column detected: "${headers[emailColumnIndex]}" (index ${emailColumnIndex}) with ${(maxAtSymbolDensity * 100).toFixed(1)}% @ density`);
+
+          // Extract and validate emails from the detected column
+          const emails = dataRows
+            .map(row => row[emailColumnIndex]?.trim().toLowerCase() || '')
             .filter(email => {
               // Basic email validation
-              const isValid = email && email.length > 0 && email.includes('@') && email.includes('.');
+              const isValid = email && email.length > 0 && 
+                            email.includes('@') && 
+                            email.includes('.') &&
+                            email.indexOf('@') > 0 &&
+                            email.lastIndexOf('.') > email.indexOf('@');
               return isValid;
             });
           
-          console.log('✅ Valid emails found:', emails.length);
-          console.log('📧 Sample emails:', emails.slice(0, 3));
+          console.log('✅ Valid emails extracted:', emails.length);
+          console.log('📧 Sample emails:', emails.slice(0, 5));
           
           resolve(emails);
         } catch (error) {
@@ -128,12 +184,14 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       if (emails.length === 0) {
         toast({
           title: "No valid emails found",
-          description: "Please check that your CSV has an 'email' header and valid email addresses in the first column",
+          description: "Couldn't find a column with email addresses. Make sure your CSV has emails with @ symbols.",
           variant: "destructive",
         });
         setImporting(false);
         return;
       }
+
+      console.log('🔍 Found emails to import:', emails.length);
 
       // Check which emails already exist in the CRM
       const { data: existingCustomers } = await supabase
@@ -295,12 +353,12 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
 
           {/* Instructions */}
           <div className="text-xs text-muted-foreground space-y-1">
-            <p className="font-medium">CSV Format Requirements:</p>
+            <p className="font-medium">How it works:</p>
             <ul className="list-disc list-inside space-y-1 pl-2">
-              <li>First row: "email" (header)</li>
-              <li>Following rows: one email per line</li>
-              <li>Example: customer@example.com</li>
+              <li>Upload any CSV with email addresses</li>
+              <li>Column with @ symbols auto-detected</li>
               <li>New customers created automatically</li>
+              <li>Works with exports from any system</li>
             </ul>
           </div>
         </div>
