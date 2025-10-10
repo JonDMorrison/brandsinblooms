@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Upload, Download, Check, X, Loader2 } from 'lucide-react';
+import { Upload, Download, Check, X, Loader2, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { EnhancedProgress } from '@/components/ui/enhanced-progress';
 import { supabase } from '@/integrations/supabase/client';
 
 interface BulkCustomerImportDialogProps {
@@ -21,6 +22,14 @@ interface ImportResult {
   notFound: string[];
 }
 
+interface ImportProgress {
+  stage: 'idle' | 'parsing' | 'checking' | 'creating' | 'adding' | 'complete';
+  current: number;
+  total: number;
+  message: string;
+  batchInfo?: string;
+}
+
 export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> = ({
   open,
   onOpenChange,
@@ -32,6 +41,12 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [progress, setProgress] = useState<ImportProgress>({
+    stage: 'idle',
+    current: 0,
+    total: 0,
+    message: '',
+  });
   const { toast } = useToast();
 
   const downloadTemplate = () => {
@@ -200,6 +215,7 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
     }
 
     setImporting(true);
+    setProgress({ stage: 'parsing', current: 0, total: 0, message: 'Reading CSV file...' });
     console.log('🚀 Starting import for file:', file.name);
     
     try {
@@ -214,11 +230,19 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
           variant: "destructive",
         });
         setImporting(false);
+        setProgress({ stage: 'idle', current: 0, total: 0, message: '' });
         return;
       }
 
       console.log('🔍 Found emails to import:', emails.length);
       console.log('📧 Sample emails:', emails.slice(0, 3));
+      
+      setProgress({ 
+        stage: 'checking', 
+        current: 0, 
+        total: emails.length, 
+        message: 'Checking existing customers...' 
+      });
 
       // Check which emails already exist - process in batches to avoid URL length limits
       console.log('🔍 Checking existing customers in tenant:', tenantId);
@@ -227,7 +251,17 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       
       for (let i = 0; i < emails.length; i += BATCH_SIZE) {
         const batch = emails.slice(i, i + BATCH_SIZE);
-        console.log(`📦 Checking batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(emails.length / BATCH_SIZE)} (${batch.length} emails)`);
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(emails.length / BATCH_SIZE);
+        console.log(`📦 Checking batch ${batchNum}/${totalBatches} (${batch.length} emails)`);
+        
+        setProgress({ 
+          stage: 'checking', 
+          current: i, 
+          total: emails.length, 
+          message: 'Checking existing customers...',
+          batchInfo: `Batch ${batchNum}/${totalBatches}`
+        });
         
         const { data: batchCustomers, error: fetchError } = await supabase
           .from('crm_customers')
@@ -264,11 +298,28 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
       const created: string[] = [];
       if (toCreate.length > 0) {
         console.log('➕ Creating', toCreate.length, 'new customers...');
+        setProgress({ 
+          stage: 'creating', 
+          current: 0, 
+          total: toCreate.length, 
+          message: 'Creating new customers...' 
+        });
+        
         const CREATE_BATCH_SIZE = 1000; // Create 1000 at a time
         
         for (let i = 0; i < toCreate.length; i += CREATE_BATCH_SIZE) {
           const batch = toCreate.slice(i, i + CREATE_BATCH_SIZE);
-          console.log(`✏️ Creating batch ${Math.floor(i / CREATE_BATCH_SIZE) + 1}/${Math.ceil(toCreate.length / CREATE_BATCH_SIZE)} (${batch.length} customers)`);
+          const batchNum = Math.floor(i / CREATE_BATCH_SIZE) + 1;
+          const totalBatches = Math.ceil(toCreate.length / CREATE_BATCH_SIZE);
+          console.log(`✏️ Creating batch ${batchNum}/${totalBatches} (${batch.length} customers)`);
+          
+          setProgress({ 
+            stage: 'creating', 
+            current: i, 
+            total: toCreate.length, 
+            message: 'Creating new customers...',
+            batchInfo: `Batch ${batchNum}/${totalBatches}`
+          });
           
           const newCustomers = batch.map(email => ({
             email,
@@ -305,10 +356,24 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
         .filter((id): id is string => Boolean(id));
 
       console.log('📝 Adding', customerIdsToAdd.length, 'customers to segment...');
+      
+      setProgress({ 
+        stage: 'adding', 
+        current: 0, 
+        total: customerIdsToAdd.length, 
+        message: 'Adding customers to segment...' 
+      });
 
       if (customerIdsToAdd.length > 0) {
         await onImport(customerIdsToAdd);
       }
+      
+      setProgress({ 
+        stage: 'complete', 
+        current: customerIdsToAdd.length, 
+        total: customerIdsToAdd.length, 
+        message: `Successfully imported ${customerIdsToAdd.length} customers!` 
+      });
 
       setResult({
         found,
@@ -331,6 +396,7 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
         name: error.name,
         stack: error.stack
       });
+      setProgress({ stage: 'idle', current: 0, total: 0, message: '' });
       toast({
         title: "Import failed",
         description: error.message || "Failed to process the CSV file. Check console for details.",
@@ -339,13 +405,42 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
     } finally {
       setImporting(false);
       console.log('✅ Import process finished');
+      // Reset progress after showing complete for 2 seconds
+      if (progress.stage === 'complete') {
+        setTimeout(() => {
+          setProgress({ stage: 'idle', current: 0, total: 0, message: '' });
+        }, 2000);
+      }
     }
   };
 
   const handleClose = () => {
     setFile(null);
     setResult(null);
+    setProgress({ stage: 'idle', current: 0, total: 0, message: '' });
     onOpenChange(false);
+  };
+
+  const getStageLabel = (stage: ImportProgress['stage']) => {
+    switch (stage) {
+      case 'parsing': return 'Parsing CSV';
+      case 'checking': return 'Checking Existing';
+      case 'creating': return 'Creating Customers';
+      case 'adding': return 'Adding to Segment';
+      case 'complete': return 'Complete';
+      default: return '';
+    }
+  };
+
+  const getStageNumber = (stage: ImportProgress['stage']) => {
+    switch (stage) {
+      case 'parsing': return 1;
+      case 'checking': return 2;
+      case 'creating': return 3;
+      case 'adding': return 4;
+      case 'complete': return 4;
+      default: return 0;
+    }
   };
 
   return (
@@ -356,6 +451,43 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Progress Indicator */}
+          {progress.stage !== 'idle' && progress.stage !== 'complete' && (
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">
+                  Stage {getStageNumber(progress.stage)}/4: {getStageLabel(progress.stage)}
+                </span>
+                {progress.batchInfo && (
+                  <span className="text-muted-foreground text-xs">{progress.batchInfo}</span>
+                )}
+              </div>
+              
+              <EnhancedProgress 
+                value={progress.current} 
+                max={progress.total || 1}
+                size="md"
+                showIcon={true}
+              />
+              
+              <p className="text-sm text-muted-foreground">
+                {progress.message}
+              </p>
+            </div>
+          )}
+
+          {/* Completion Message */}
+          {progress.stage === 'complete' && (
+            <div className="space-y-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <span className="font-medium text-green-900 dark:text-green-100">
+                  {progress.message}
+                </span>
+              </div>
+            </div>
+          )}
+          
           {/* Template Download */}
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
             <div className="text-sm">
