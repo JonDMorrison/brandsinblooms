@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, X, Users, Target, Settings } from 'lucide-react';
+import { Search, Plus, X, Users, Target, Settings, Loader2 } from 'lucide-react';
 import { CustomSegmentBuilder } from '@/components/crm/CustomSegmentBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -46,11 +46,15 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
   const [segmentData, setSegmentData] = useState<{ name: string; filters: any[] } | null>(null);
   const [estimatedCount, setEstimatedCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
   const [segmentCustomers, setSegmentCustomers] = useState<Customer[]>([]);
   const [availableCustomers, setAvailableCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [addingCustomers, setAddingCustomers] = useState(false);
   const { toast } = useToast();
+  
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (open && segment && mode === 'view') {
@@ -58,19 +62,25 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
     }
   }, [open, segment, mode]);
 
-  const handleSegmentChange = (data: { name: string; filters: any[] }) => {
-    setSegmentData(data);
-    // Calculate estimated customer count based on filters
-    calculateEstimatedCount(data.filters);
-  };
-
-  const calculateEstimatedCount = async (filters: any[]) => {
-    setLoading(true);
+  const calculateEstimatedCount = useCallback(async (filters: any[]) => {
+    // Cancel any previous abort controller
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    setIsCalculating(true);
     try {
       // Get total customer count for estimation
       const { count, error } = await supabase
         .from('crm_customers')
         .select('*', { count: 'exact', head: true });
+
+      // Check if this request was aborted
+      if (abortController.signal.aborted) return;
 
       if (error) throw error;
 
@@ -86,12 +96,42 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
       const estimated = Math.round((count || 0) * (1 - complexityFactor));
       setEstimatedCount(Math.max(estimated, 1));
     } catch (error) {
-      console.error('Error calculating estimate:', error);
-      setEstimatedCount(null);
+      if (!abortController.signal.aborted) {
+        console.error('Error calculating estimate:', error);
+        setEstimatedCount(null);
+      }
     } finally {
-      setLoading(false);
+      if (!abortController.signal.aborted) {
+        setIsCalculating(false);
+      }
     }
-  };
+  }, []);
+
+  const handleSegmentChange = useCallback((data: { name: string; filters: any[] }) => {
+    setSegmentData(data);
+    
+    // Clear existing debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Debounce the calculation by 500ms
+    debounceTimerRef.current = setTimeout(() => {
+      calculateEstimatedCount(data.filters);
+    }, 500);
+  }, [calculateEstimatedCount]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const loadSegmentData = async () => {
     if (!segment) return;
@@ -362,9 +402,12 @@ export const CustomSegmentModal: React.FC<CustomSegmentModalProps> = ({
                 <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg mb-4">
                   <div className="flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
-                    <span className="font-semibold">
-                      {loading ? (
-                        <span className="animate-pulse">Calculating...</span>
+                    <span className="font-semibold flex items-center gap-2">
+                      {isCalculating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Calculating...
+                        </>
                       ) : estimatedCount !== null ? (
                         segmentData.filters.length === 0 ? (
                           `${estimatedCount} customers (All)`
