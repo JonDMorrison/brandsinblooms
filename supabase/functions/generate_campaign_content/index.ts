@@ -521,6 +521,43 @@ serve(async (req) => {
 
     console.log('✅ Content generation completed for all types');
 
+    // Automatically fetch images for all successfully created tasks
+    const tasksWithContent = generatedTasks.filter(task => task.id && task.ai_output);
+    if (tasksWithContent.length > 0) {
+      console.log(`🎨 Starting automatic image fetching for ${tasksWithContent.length} tasks...`);
+      const imageFetchStart = Date.now();
+      
+      try {
+        const taskImageRequests = tasksWithContent.map(task => ({
+          task_id: task.id,
+          post_type: task.post_type,
+          content: task.ai_output,
+          title: campaign_title
+        }));
+        
+        const imageResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-content-images`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ tasks: taskImageRequests })
+        });
+        
+        if (imageResponse.ok) {
+          const imageResults = await imageResponse.json();
+          const successCount = imageResults.results?.filter(r => r.image_url).length || 0;
+          console.log(`🎨 Image fetching completed in ${Date.now() - imageFetchStart}ms`);
+          console.log(`✅ Successfully fetched ${successCount}/${tasksWithContent.length} images`);
+        } else {
+          console.warn('⚠️ Image fetching returned non-OK status:', imageResponse.status);
+        }
+      } catch (imageError) {
+        console.error('⚠️ Image fetching failed (non-blocking):', imageError.message);
+        // Don't throw - image fetching failure shouldn't block content generation
+      }
+    }
+
     const successfulTasks = generatedTasks.filter(task => !task.error);
     const finalFailedTasks = generatedTasks.filter(task => task.error);
 

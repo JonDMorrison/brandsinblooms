@@ -83,3 +83,6 @@ verify_jwt = true
 
 [functions.send-bulk-campaign]
 verify_jwt = true
+
+[functions.fetch-content-images]
+verify_jwt = false
