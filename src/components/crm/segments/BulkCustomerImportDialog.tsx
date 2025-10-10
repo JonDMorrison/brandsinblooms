@@ -257,7 +257,7 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
 
       // Check which emails already exist - process in batches to avoid URL length limits
       console.log('🔍 Checking existing customers in tenant:', tenantId);
-      const BATCH_SIZE = 500; // Check 500 emails at a time
+      const BATCH_SIZE = 100; // Smaller batches to avoid URL size limits
       const existingEmailsMap = new Map<string, string>();
       
       for (let i = 0; i < uniqueEmails.length; i += BATCH_SIZE) {
