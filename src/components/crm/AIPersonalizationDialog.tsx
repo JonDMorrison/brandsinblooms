@@ -60,10 +60,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     setIsGenerating(true);
     setLoadingPlaceholders(4); // Show 4 skeleton loaders
     try {
-      // Step 1: Generate keywords using OpenAI
+      // Step 1: Generate keywords using OpenAI with garden_ prefix validation
       const { data: keywordData, error: keywordError } = await supabase.functions.invoke(
         'generate-image-keywords',
-        { body: { prompt } }
+        { body: { channel: 'instagram', prompt } }
       );
 
       if (keywordError) throw keywordError;
