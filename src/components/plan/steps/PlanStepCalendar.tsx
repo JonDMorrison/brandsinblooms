@@ -236,8 +236,6 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                   successCount++;
                   console.log(`[PlanStepCalendar] ✅ Fetched garden-validated image ${successCount}/${tasks.length}`);
                   
-                  // Small delay to respect rate limits
-                  await new Promise(resolve => setTimeout(resolve, 200));
                 } catch (err) {
                   console.warn(`[PlanStepCalendar] Failed to fetch image for ${task.itemId}:`, err);
                 }
