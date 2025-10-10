@@ -266,11 +266,12 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
           batchInfo: `Batch ${batchNum}/${totalBatches}`
         });
         
+        // Use case-insensitive email matching by using ilike with OR conditions
         const { data: batchCustomers, error: fetchError } = await supabase
           .from('crm_customers')
           .select('id, email, total_spent, last_purchase_date')
           .eq('tenant_id', tenantId)
-          .in('email', batch);
+          .or(batch.map(email => `email.ilike.${email}`).join(','));
 
         if (fetchError) {
           console.error('❌ Error fetching batch:', fetchError);
