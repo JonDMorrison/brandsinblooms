@@ -29,7 +29,6 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
 }) => {
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
-  const [firstRowIsHeader, setFirstRowIsHeader] = useState(true);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
   const [dataRows, setDataRows] = useState<string[][]>([]);
   const [progress, setProgress] = useState<ImportProgress>({
@@ -77,7 +76,7 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
     setProgress({ stage: 'upload', progress: 50, message: 'Parsing CSV file...' });
 
     try {
-      const parsed = await parseCSVFile(selectedFile, firstRowIsHeader);
+      const parsed = await parseCSVFile(selectedFile);
       
       // Auto-detect field mappings
       const autoMapping = autoDetectFieldMapping(parsed.headers);
@@ -377,19 +376,6 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
 
             <div className="border-2 border-dashed rounded-lg p-8 text-center">
               <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <input
-                  type="checkbox"
-                  id="firstRowHeader"
-                  checked={firstRowIsHeader}
-                  onChange={(e) => setFirstRowIsHeader(e.target.checked)}
-                  className="h-4 w-4 rounded border-input"
-                />
-                <label htmlFor="firstRowHeader" className="text-sm font-medium">
-                  First row contains column headers
-                </label>
-              </div>
               
               <Input
                 type="file"

@@ -75,7 +75,7 @@ export const autoDetectFieldMapping = (headers: string[]): Record<string, string
     last_name: /^(last[-_]?name|lname|surname|last|family[-_]?name)$/i,
     phone: /^(phone|telephone|cell|mobile|phone[-_]?number|tel)$/i,
     tags: /^(tags|interests|categories|labels)$/i,
-    persona: /^(persona|customer[-_]?type|segment|category)$/i,
+    persona: /^(persona|customer[-_]?type|segment|category|segment)$/i,
     sms_opt_in: /^(sms[-_]?opt[-_]?in|sms[-_]?consent|text[-_]?marketing|sms)$/i,
   };
   
@@ -108,7 +108,7 @@ export interface ParsedCSVData {
 /**
  * Parses a CSV file and extracts headers, data, and sample data
  */
-export const parseCSVFile = async (file: File, firstRowIsHeader: boolean = true): Promise<ParsedCSVData> => {
+export const parseCSVFile = async (file: File): Promise<ParsedCSVData> => {
   const text = await file.text();
   
   // Detect delimiter
@@ -121,33 +121,17 @@ export const parseCSVFile = async (file: File, firstRowIsHeader: boolean = true)
     throw new Error('CSV file is empty');
   }
   
-  let headers: string[];
-  let dataRows: string[][];
+  // Parse first line as headers
+  const headers = parseCSVLine(lines[0], delimiter);
   
-  if (firstRowIsHeader) {
-    // Parse first line as headers
-    const parsedHeaders = parseCSVLine(lines[0], delimiter);
-    
-    if (parsedHeaders.length === 0) {
-      throw new Error('No headers found in the first row');
-    }
-    
-    headers = parsedHeaders;
-    
-    // Parse remaining lines as data
-    dataRows = lines.slice(1)
-      .map(line => parseCSVLine(line, delimiter))
-      .filter(row => row.some(cell => cell.trim()));
-  } else {
-    // Generate generic column names
-    const firstRow = parseCSVLine(lines[0], delimiter);
-    headers = firstRow.map((_, index) => `Column ${index + 1}`);
-    
-    // All lines are data (including the first line)
-    dataRows = lines
-      .map(line => parseCSVLine(line, delimiter))
-      .filter(row => row.some(cell => cell.trim()));
+  if (headers.length === 0) {
+    throw new Error('No headers found in CSV file');
   }
+  
+  // Parse remaining lines as data
+  const dataRows = lines.slice(1)
+    .map(line => parseCSVLine(line, delimiter))
+    .filter(row => row.some(cell => cell.trim()));
   
   // Extract sample data (first 5 rows)
   const sampleData = headers.map((header, index) => ({
