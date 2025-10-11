@@ -363,41 +363,57 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
         {/* Stage 1: File Upload */}
         {progress.stage === 'upload' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
+            {/* Template Download */}
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <div className="text-sm">
+                <p className="font-medium">Need a template?</p>
+                <p className="text-muted-foreground text-xs">Download a sample CSV file</p>
+              </div>
               <Button
                 variant="outline"
+                size="sm"
                 onClick={handleDownloadTemplate}
                 className="gap-2"
               >
-                <Download className="w-4 h-4" />
-                Download Template
+                <Download className="h-4 w-4" />
+                Template
               </Button>
             </div>
 
-            <div className="border-2 border-dashed rounded-lg p-8 text-center">
-              <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              
-              <Input
+            {/* File Upload */}
+            <div className="border-2 border-dashed rounded-lg p-6 text-center">
+              <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+              <input
                 type="file"
                 accept=".csv"
                 onChange={handleFileChange}
-                className="max-w-xs mx-auto"
+                className="hidden"
+                id="csv-upload"
               />
-              <p className="text-sm text-muted-foreground mt-2">
-                Maximum file size: 10MB
-              </p>
+              <label htmlFor="csv-upload">
+                <Button variant="outline" size="sm" asChild>
+                  <span className="cursor-pointer">
+                    {file ? 'Change File' : 'Choose CSV File'}
+                  </span>
+                </Button>
+              </label>
+              {file && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Selected: {file.name}
+                </p>
+              )}
             </div>
 
-            <Alert>
-              <AlertDescription>
-                <strong>CSV Requirements:</strong>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Email column is required</li>
-                  <li>UTF-8 encoding recommended</li>
-                  <li>Supported delimiters: comma, semicolon, tab</li>
-                </ul>
-              </AlertDescription>
-            </Alert>
+            {/* Instructions */}
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p className="font-medium">CSV Requirements:</p>
+              <ul className="list-disc list-inside space-y-1 pl-2">
+                <li>Email column is required</li>
+                <li>Maximum file size: 10MB</li>
+                <li>UTF-8 encoding recommended</li>
+                <li>Supported delimiters: comma, semicolon, tab, pipe</li>
+              </ul>
+            </div>
           </div>
         )}
 
