@@ -54,24 +54,6 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    if (!selectedFile.name.endsWith('.csv')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload a CSV file',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Please upload a file smaller than 10MB',
-        variant: 'destructive'
-      });
-      return;
-    }
-
     setFile(selectedFile);
     setProgress({ stage: 'upload', progress: 50, message: 'Parsing CSV file...' });
 
@@ -395,7 +377,6 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
                 <Upload className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                 <input
                   type="file"
-                  accept=".csv"
                   onChange={handleFileChange}
                   className="hidden"
                   id="csv-upload"
@@ -404,7 +385,7 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
                   Drag & drop your customer file here, or click to browse
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Supports CSV, Excel (.xlsx, .xls) files up to 10MB
+                  Supports CSV and Excel files
                 </p>
                 
                 {file && (
