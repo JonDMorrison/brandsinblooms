@@ -446,50 +446,55 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Upload Customer File</h3>
               
-              <div 
-                className="border-2 border-dashed rounded-lg p-12 text-center transition-colors hover:border-primary/50 cursor-pointer"
-                onClick={() => document.getElementById('csv-upload')?.click()}
-              >
-                <Upload className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="csv-upload"
-                />
-                <p className="text-base font-medium text-foreground mb-2">
-                  Drag & drop your customer file here, or click to browse
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Supports CSV files with any delimiter
-                </p>
-                
-                {file && (
-                  <div className="mt-4 p-3 bg-primary/10 rounded-md inline-block">
-                    <p className="text-sm font-medium text-primary">
-                      Selected: {file.name}
-                    </p>
-                  </div>
-                )}
-                
-                {isAnalyzing && (
-                  <div className="mt-6 flex flex-col items-center gap-3 p-6 bg-muted/30 rounded-lg">
+              {!isAnalyzing ? (
+                <div 
+                  className="border-2 border-dashed rounded-lg p-12 text-center transition-colors hover:border-primary/50 cursor-pointer"
+                  onClick={() => document.getElementById('csv-upload')?.click()}
+                >
+                  <Upload className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="csv-upload"
+                  />
+                  <p className="text-base font-medium text-foreground mb-2">
+                    Drag & drop your customer file here, or click to browse
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Supports CSV files with any delimiter
+                  </p>
+                  
+                  {file && (
+                    <div className="mt-4 p-3 bg-primary/10 rounded-md inline-block">
+                      <p className="text-sm font-medium text-primary">
+                        Selected: {file.name}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-primary/50 rounded-lg p-12 text-center bg-muted/30">
+                  <div className="flex flex-col items-center gap-4">
                     <LoadingSpinner 
-                      size="md" 
+                      size="lg" 
                       color="primary"
                     />
-                    <div className="text-center space-y-1">
-                      <p className="text-sm font-medium text-foreground">
+                    <div className="text-center space-y-2">
+                      <p className="text-base font-semibold text-foreground">
                         Analyzing file with AI
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {file?.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         This should only take a few seconds
                       </p>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         )}
