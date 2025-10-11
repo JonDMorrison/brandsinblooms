@@ -44,6 +44,7 @@ import AccountPage from '@/pages/AccountPage';
 import ProfilePage from '@/pages/ProfilePage';
 import IntegrationsPage from '@/pages/IntegrationsPage';
 import POSIntegrationsPage from '@/pages/POSIntegrationsPage';
+import MigrationsPage from '@/pages/MigrationsPage';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
 import FAQPage from '@/pages/FAQPage';
@@ -326,6 +327,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <IntegrationsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations/migrations" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <MigrationsPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />

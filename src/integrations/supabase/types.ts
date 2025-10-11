@@ -128,6 +128,59 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_mapping_suggestions: {
+        Row: {
+          confidence: string
+          created_at: string | null
+          id: string
+          import_job_id: string
+          is_applied: boolean | null
+          merge_with_existing_id: string | null
+          rationale: string | null
+          source_id: string
+          source_name: string
+          source_type: string
+          suggested_action: string
+          suggested_name: string | null
+        }
+        Insert: {
+          confidence: string
+          created_at?: string | null
+          id?: string
+          import_job_id: string
+          is_applied?: boolean | null
+          merge_with_existing_id?: string | null
+          rationale?: string | null
+          source_id: string
+          source_name: string
+          source_type: string
+          suggested_action: string
+          suggested_name?: string | null
+        }
+        Update: {
+          confidence?: string
+          created_at?: string | null
+          id?: string
+          import_job_id?: string
+          is_applied?: boolean | null
+          merge_with_existing_id?: string | null
+          rationale?: string | null
+          source_id?: string
+          source_name?: string
+          source_type?: string
+          suggested_action?: string
+          suggested_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_mapping_suggestions_import_job_id_fkey"
+            columns: ["import_job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analytics_data: {
         Row: {
           connection_id: string
@@ -3381,6 +3434,144 @@ export type Database = {
           },
         ]
       }
+      import_job_items: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          error_message: string | null
+          external_id: string
+          id: string
+          import_job_id: string
+          mapped_customer_id: string | null
+          phone: string | null
+          raw_data: Json | null
+          skip_reason: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          error_message?: string | null
+          external_id: string
+          id?: string
+          import_job_id: string
+          mapped_customer_id?: string | null
+          phone?: string | null
+          raw_data?: Json | null
+          skip_reason?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          error_message?: string | null
+          external_id?: string
+          id?: string
+          import_job_id?: string
+          mapped_customer_id?: string | null
+          phone?: string | null
+          raw_data?: Json | null
+          skip_reason?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_job_items_import_job_id_fkey"
+            columns: ["import_job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_jobs: {
+        Row: {
+          ai_recommendations: Json | null
+          applied_mappings: Json | null
+          completed_at: string | null
+          created_at: string | null
+          current_step: string | null
+          error_log: Json | null
+          id: string
+          job_type: string
+          provider_connection_id: string
+          selected_lists: Json | null
+          selected_segments: Json | null
+          selected_tags: Json | null
+          started_at: string | null
+          stats: Json | null
+          status: string
+          tenant_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_recommendations?: Json | null
+          applied_mappings?: Json | null
+          completed_at?: string | null
+          created_at?: string | null
+          current_step?: string | null
+          error_log?: Json | null
+          id?: string
+          job_type?: string
+          provider_connection_id: string
+          selected_lists?: Json | null
+          selected_segments?: Json | null
+          selected_tags?: Json | null
+          started_at?: string | null
+          stats?: Json | null
+          status?: string
+          tenant_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_recommendations?: Json | null
+          applied_mappings?: Json | null
+          completed_at?: string | null
+          created_at?: string | null
+          current_step?: string | null
+          error_log?: Json | null
+          id?: string
+          job_type?: string
+          provider_connection_id?: string
+          selected_lists?: Json | null
+          selected_segments?: Json | null
+          selected_tags?: Json | null
+          started_at?: string | null
+          stats?: Json | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_jobs_provider_connection_id_fkey"
+            columns: ["provider_connection_id"]
+            isOneToOne: false
+            referencedRelation: "provider_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "import_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_logs: {
         Row: {
           can_retry: boolean | null
@@ -3934,6 +4125,116 @@ export type Database = {
             columns: ["content_task_id"]
             isOneToOne: false
             referencedRelation: "content_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_artifacts: {
+        Row: {
+          artifact_type: string
+          created_at: string | null
+          external_id: string
+          fetched_at: string | null
+          id: string
+          member_count: number | null
+          metadata: Json | null
+          name: string
+          provider_connection_id: string
+        }
+        Insert: {
+          artifact_type: string
+          created_at?: string | null
+          external_id: string
+          fetched_at?: string | null
+          id?: string
+          member_count?: number | null
+          metadata?: Json | null
+          name: string
+          provider_connection_id: string
+        }
+        Update: {
+          artifact_type?: string
+          created_at?: string | null
+          external_id?: string
+          fetched_at?: string | null
+          id?: string
+          member_count?: number | null
+          metadata?: Json | null
+          name?: string
+          provider_connection_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_artifacts_provider_connection_id_fkey"
+            columns: ["provider_connection_id"]
+            isOneToOne: false
+            referencedRelation: "provider_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_connections: {
+        Row: {
+          connected_at: string | null
+          created_at: string | null
+          encrypted_access_token: string | null
+          id: string
+          metadata: Json | null
+          provider: string
+          provider_account_id: string | null
+          provider_account_name: string | null
+          revoked_at: string | null
+          status: string
+          tenant_id: string
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          connected_at?: string | null
+          created_at?: string | null
+          encrypted_access_token?: string | null
+          id?: string
+          metadata?: Json | null
+          provider: string
+          provider_account_id?: string | null
+          provider_account_name?: string | null
+          revoked_at?: string | null
+          status?: string
+          tenant_id: string
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          connected_at?: string | null
+          created_at?: string | null
+          encrypted_access_token?: string | null
+          id?: string
+          metadata?: Json | null
+          provider?: string
+          provider_account_id?: string | null
+          provider_account_name?: string | null
+          revoked_at?: string | null
+          status?: string
+          tenant_id?: string
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "provider_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]

@@ -20,7 +20,8 @@ import {
   AlertCircle,
   Facebook,
   Instagram,
-  Store
+  Store,
+  Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { GoogleAnalyticsConnection } from './GoogleAnalyticsConnection';
@@ -242,6 +243,49 @@ export const IntegrationHub = () => {
           </Badge>
         </div>
       </div>
+
+      {/* Featured: One-Time Migrations */}
+      <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Download className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-blue-900">
+                  One-Time Data Migration
+                </CardTitle>
+                <p className="text-blue-700 mt-1">
+                  Import contacts, consent, tags & segments from Mailchimp or Klaviyo
+                </p>
+              </div>
+            </div>
+            <Badge className="bg-blue-600 text-white">
+              New
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <p className="text-sm text-blue-800">
+                <strong>AI-Powered:</strong> Automatically map tags & segments to BloomSuite
+              </p>
+              <p className="text-sm text-blue-700">
+                One-time import with reconciliation report • No ongoing sync required
+              </p>
+            </div>
+            <Button 
+              onClick={() => window.location.href = '/integrations/migrations'}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Start Migration
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex justify-center">
