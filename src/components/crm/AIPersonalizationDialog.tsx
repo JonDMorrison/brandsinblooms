@@ -144,10 +144,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     }
   };
 
-  // Combine generated images with sample images - prioritize all generated images
+  // Show all generated images first, then add sample images
   const allImages = generatedImages.length > 0 
-    ? [...generatedImages, ...sampleImages.slice(0, Math.max(0, 10 - generatedImages.length))]
-    : sampleImages.slice(0, 10);
+    ? [...generatedImages, ...sampleImages]
+    : sampleImages;
 
   // Loading placeholder component
   const LoadingPlaceholder = ({ index }: { index: number }) => (
