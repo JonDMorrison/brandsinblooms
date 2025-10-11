@@ -144,8 +144,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     }
   };
 
-  // Combine generated images with sample images and limit to 5
-  const allImages = [...generatedImages, ...sampleImages].slice(0, 5);
+  // Combine generated images with sample images - prioritize all generated images
+  const allImages = generatedImages.length > 0 
+    ? [...generatedImages, ...sampleImages.slice(0, Math.max(0, 10 - generatedImages.length))]
+    : sampleImages.slice(0, 10);
 
   // Loading placeholder component
   const LoadingPlaceholder = ({ index }: { index: number }) => (
