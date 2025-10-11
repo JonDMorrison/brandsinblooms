@@ -2020,6 +2020,54 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_additional_fields: {
+        Row: {
+          created_at: string
+          customer_id: string
+          field_name: string
+          field_type: string | null
+          field_value: string | null
+          id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          field_name: string
+          field_type?: string | null
+          field_value?: string | null
+          id?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          field_name?: string
+          field_type?: string | null
+          field_value?: string | null
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_additional_fields_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_additional_fields_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_personas: {
         Row: {
           created_at: string
