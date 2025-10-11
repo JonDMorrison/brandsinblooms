@@ -362,57 +362,59 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
 
         {/* Stage 1: File Upload */}
         {progress.stage === 'upload' && (
-          <div className="space-y-4">
-            {/* Template Download */}
-            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-              <div className="text-sm">
-                <p className="font-medium">Need a template?</p>
-                <p className="text-muted-foreground text-xs">Download a sample CSV file</p>
+          <div className="space-y-6">
+            {/* Download Template Section */}
+            <div className="bg-muted/30 rounded-lg p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <Download className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold">Download Template</h3>
               </div>
+              
+              <p className="text-sm text-muted-foreground">
+                Download our CSV template to ensure your data is formatted correctly for import.
+              </p>
+              
               <Button
                 variant="outline"
-                size="sm"
                 onClick={handleDownloadTemplate}
-                className="gap-2"
+                className="gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
               >
                 <Download className="h-4 w-4" />
-                Template
+                Download CSV Template
               </Button>
             </div>
 
-            {/* File Upload */}
-            <div className="border-2 border-dashed rounded-lg p-6 text-center">
-              <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                className="hidden"
-                id="csv-upload"
-              />
-              <label htmlFor="csv-upload">
-                <Button variant="outline" size="sm" asChild>
-                  <span className="cursor-pointer">
-                    {file ? 'Change File' : 'Choose CSV File'}
-                  </span>
-                </Button>
-              </label>
-              {file && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Selected: {file.name}
+            {/* Upload File Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Upload Customer File</h3>
+              
+              <div 
+                className="border-2 border-dashed rounded-lg p-12 text-center transition-colors hover:border-primary/50 cursor-pointer"
+                onClick={() => document.getElementById('csv-upload')?.click()}
+              >
+                <Upload className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="csv-upload"
+                />
+                <p className="text-base font-medium text-foreground mb-2">
+                  Drag & drop your customer file here, or click to browse
                 </p>
-              )}
-            </div>
-
-            {/* Instructions */}
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p className="font-medium">CSV Requirements:</p>
-              <ul className="list-disc list-inside space-y-1 pl-2">
-                <li>Email column is required</li>
-                <li>Maximum file size: 10MB</li>
-                <li>UTF-8 encoding recommended</li>
-                <li>Supported delimiters: comma, semicolon, tab, pipe</li>
-              </ul>
+                <p className="text-sm text-muted-foreground">
+                  Supports CSV, Excel (.xlsx, .xls) files up to 10MB
+                </p>
+                
+                {file && (
+                  <div className="mt-4 p-3 bg-primary/10 rounded-md inline-block">
+                    <p className="text-sm font-medium text-primary">
+                      Selected: {file.name}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
