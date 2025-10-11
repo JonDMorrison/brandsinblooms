@@ -10,6 +10,7 @@ export interface ChannelImageRequest {
   contentContext: string;
   contentTitle?: string;
   useAIKeywords?: boolean;
+  fallbackKeywords?: string[];
 }
 
 export interface FacetedKeywords {
@@ -28,6 +29,7 @@ export interface ImageGenerationResult {
   metadata?: {
     facets?: FacetedKeywords;
     usedQuery?: string;
+    usedFallback?: boolean;
     photographer?: string;
     photographerUrl?: string;
   };
@@ -75,8 +77,45 @@ export class ImageGenerationService {
       }
       
       if (!imageData?.images || imageData.images.length === 0) {
-        console.error('❌ No images returned from Unsplash');
-        throw new Error('No images found for the given keywords');
+        console.warn('⚠️ No images found with AI keywords, trying fallback keywords...');
+        
+        // Step 3: Try fallback keywords if available
+        if (request.fallbackKeywords && request.fallbackKeywords.length > 0) {
+          console.log('🔄 Attempting fallback keywords:', request.fallbackKeywords);
+          
+          for (const fallbackKeyword of request.fallbackKeywords) {
+            console.log(`   Trying: "${fallbackKeyword}"`);
+            const { data: fallbackData, error: fallbackError } = await supabase.functions.invoke('fetch-unsplash-images', {
+              body: {
+                query: fallbackKeyword,
+                variants: [fallbackKeyword],
+                maxImages: 8,
+                orientation: 'squarish',
+                orderBy: 'relevant',
+                contentFilter: 'high'
+              }
+            });
+            
+            if (!fallbackError && fallbackData?.images && fallbackData.images.length > 0) {
+              console.log(`✅ Found ${fallbackData.images.length} images using fallback: "${fallbackKeyword}"`);
+              const bestMatch = fallbackData.images[0];
+              
+              return {
+                imageUrl: bestMatch.urls?.regular || bestMatch.download_url,
+                metadata: {
+                  facets: facetsData,
+                  usedQuery: fallbackKeyword,
+                  usedFallback: true,
+                  photographer: bestMatch.photographer,
+                  photographerUrl: bestMatch.photographer_url
+                }
+              };
+            }
+          }
+        }
+        
+        console.error('❌ No images returned from Unsplash (tried all fallbacks)');
+        throw new Error('No images found for the given keywords or fallback keywords');
       }
       
       // Images are already filtered and sorted by the edge function
