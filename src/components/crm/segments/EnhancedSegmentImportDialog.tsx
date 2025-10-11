@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Upload, CheckCircle, AlertCircle, Download, Loader2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { parseCSVFile, isValidEmail, generateCSVTemplate } from '@/utils/csvParser';
 import type { ColumnMapping, ValidationResult, ImportResult, ImportProgress, DatabaseField, AIAnalysisResult } from '@/types/import';
 
@@ -469,6 +470,23 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
                     <p className="text-sm font-medium text-primary">
                       Selected: {file.name}
                     </p>
+                  </div>
+                )}
+                
+                {isAnalyzing && (
+                  <div className="mt-6 flex flex-col items-center gap-3 p-6 bg-muted/30 rounded-lg">
+                    <LoadingSpinner 
+                      size="md" 
+                      color="primary"
+                    />
+                    <div className="text-center space-y-1">
+                      <p className="text-sm font-medium text-foreground">
+                        Analyzing file with AI
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        This should only take a few seconds
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
