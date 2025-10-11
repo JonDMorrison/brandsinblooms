@@ -107,6 +107,7 @@ export interface ParsedCSVData {
 
 /**
  * Parses a CSV file and extracts headers, data, and sample data
+ * Treats all rows as data with generic column names for maximum flexibility
  */
 export const parseCSVFile = async (file: File): Promise<ParsedCSVData> => {
   const text = await file.text();
@@ -114,26 +115,27 @@ export const parseCSVFile = async (file: File): Promise<ParsedCSVData> => {
   // Detect delimiter
   const delimiter = detectDelimiter(text);
   
-  // Parse all lines
+  // Parse all lines as data
   const lines = text.split(/\r?\n/).filter(line => line.trim());
   
   if (lines.length === 0) {
     throw new Error('CSV file is empty');
   }
   
-  // Parse first line as headers
-  const headers = parseCSVLine(lines[0], delimiter);
-  
-  if (headers.length === 0) {
-    throw new Error('No headers found in CSV file');
-  }
-  
-  // Parse remaining lines as data
-  const dataRows = lines.slice(1)
+  // Parse all lines as data rows (no header assumption)
+  const dataRows = lines
     .map(line => parseCSVLine(line, delimiter))
     .filter(row => row.some(cell => cell.trim()));
   
-  // Extract sample data (first 5 rows)
+  if (dataRows.length === 0) {
+    throw new Error('CSV file contains no data');
+  }
+  
+  // Generate generic column names based on first row's column count
+  const columnCount = dataRows[0].length;
+  const headers = Array.from({ length: columnCount }, (_, i) => `Column ${i + 1}`);
+  
+  // Extract sample data (first 5 rows including what might be headers)
   const sampleData = headers.map((header, index) => ({
     header,
     samples: dataRows.slice(0, 5).map(row => row[index] || '')
