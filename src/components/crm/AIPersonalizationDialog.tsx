@@ -66,7 +66,17 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         { body: { channel: 'instagram', prompt } }
       );
 
-      if (keywordError) throw keywordError;
+      if (keywordError || keywordData?.error) {
+        console.error('Keyword generation failed:', keywordError || keywordData);
+        toast({
+          title: 'Keyword Generation Failed',
+          description: keywordData?.details || 'Failed to generate keywords. Try using more specific plant names.',
+          variant: 'destructive',
+        });
+        setIsGenerating(false);
+        setLoadingPlaceholders(0);
+        return;
+      }
 
       const keywords = keywordData.keywords as string[];
       console.log('AI generated keywords:', keywords);

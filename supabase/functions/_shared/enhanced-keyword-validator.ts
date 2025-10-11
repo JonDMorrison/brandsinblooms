@@ -115,92 +115,60 @@ export function validateGardenKeywords(
     suggestions.push('Add colors or visual details like "purple", "vibrant", "blooming"');
   }
   
-  // === CHECK 4: Channel-Specific Requirements ===
+  // === CHECK 4: Channel-Specific Requirements (RELAXED) ===
   let channelScore = 0;
   
+  // Removed strict channel requirements - focus on garden relevance instead
+  // Just give bonus points for channel-appropriate elements, don't fail without them
+  
   if (channel === 'facebook') {
-    // MUST have: people/customers + retail context
+    // BONUS for people/customers + retail context (not mandatory)
     const hasPeople = /customer|people|shopper|browsing/.test(allKeywordsText);
     const hasRetail = RETAIL_CONTEXT.some(term => allKeywordsText.includes(term));
     
     if (hasPeople && hasRetail) {
       channelScore = 20;
-    } else {
-      if (!hasPeople) {
-        issues.push('Facebook: Missing people element (customers, browsing, shoppers)');
-        suggestions.push('Add "customers browsing" or "shoppers selecting"');
-      }
-      if (!hasRetail) {
-        issues.push('Facebook: Missing retail context (garden center, greenhouse, nursery)');
-        suggestions.push('Add "garden center" or "greenhouse display"');
-      }
+    } else if (hasPeople || hasRetail) {
+      channelScore = 10;
     }
   } else if (channel === 'instagram') {
-    // MUST have: close-up indicator + color + retail display
+    // BONUS for close-up + color + display (not mandatory)
     const hasCloseUp = /close|detail|macro/.test(allKeywordsText);
     const hasColor = VISUAL_DESCRIPTORS.some(d => allKeywordsText.includes(d));
     const hasDisplay = /display|pot|container|shelf/.test(allKeywordsText);
     
-    if (hasCloseUp && hasColor && hasDisplay) {
-      channelScore = 20;
-    } else {
-      if (!hasCloseUp) {
-        issues.push('Instagram: Missing close-up indicator');
-        suggestions.push('Add "close" or "detail" for intimate shots');
-      }
-      if (!hasColor) {
-        issues.push('Instagram: Missing color descriptor');
-        suggestions.push('Add specific color like "purple", "vibrant pink"');
-      }
-      if (!hasDisplay) {
-        issues.push('Instagram: Missing display/pot context');
-        suggestions.push('Add "potted" or "display" for retail context');
-      }
-    }
+    const bonusCount = [hasCloseUp, hasColor, hasDisplay].filter(Boolean).length;
+    channelScore = bonusCount * 7; // Max 21 points
   } else if (channel === 'blog') {
-    // MUST have: hands/tools + action verb + specific plant
+    // BONUS for hands/tools + action (not mandatory)
     const hasHands = ACTION_WORDS.some(word => allKeywordsText.includes(word));
     const hasAction = /planting|pruning|transplanting|deadheading|watering/.test(allKeywordsText);
     
     if (hasHands && hasAction) {
       channelScore = 20;
-    } else {
-      if (!hasHands) {
-        issues.push('Blog: Missing hands or tools');
-        suggestions.push('Add "hands" or tool name like "trowel", "shears"');
-      }
-      if (!hasAction) {
-        issues.push('Blog: Missing action verb');
-        suggestions.push('Add action like "planting", "pruning", "transplanting"');
-      }
+    } else if (hasHands || hasAction) {
+      channelScore = 10;
     }
   } else if (channel === 'newsletter') {
-    // MUST have: seasonal context + inventory/display
+    // BONUS for seasonal + inventory (not mandatory)
     const hasSeasonal = /spring|summer|fall|autumn|winter|seasonal/.test(allKeywordsText);
     const hasInventory = /inventory|selection|variety|display|abundance/.test(allKeywordsText);
     
     if (hasSeasonal && hasInventory) {
       channelScore = 20;
-    } else {
-      if (!hasSeasonal) {
-        issues.push('Newsletter: Missing seasonal context');
-        suggestions.push('Add "spring", "autumn", or "seasonal"');
-      }
-      if (!hasInventory) {
-        issues.push('Newsletter: Missing inventory/display context');
-        suggestions.push('Add "inventory", "selection", or "display"');
-      }
+    } else if (hasSeasonal || hasInventory) {
+      channelScore = 10;
     }
   }
   
   score += channelScore;
   
-  // === CHECK 5: Forbidden Patterns (deduct points) ===
+  // === CHECK 5: Forbidden Patterns (reduced penalty) ===
   for (const pattern of FORBIDDEN_PATTERNS) {
     if (pattern.test(allKeywordsText)) {
-      score -= 15;
+      score -= 5; // Reduced from 15 to 5
       issues.push(`Contains forbidden pattern: ${pattern.source}`);
-      suggestions.push('Remove abstract terms, numbers, dates, and instructional phrases');
+      suggestions.push('Consider removing abstract terms for better results');
     }
   }
   
@@ -219,7 +187,7 @@ export function validateGardenKeywords(
   score = Math.min(100, Math.max(0, score));
   
   return {
-    isValid: score >= 70,
+    isValid: score >= 50, // Lowered from 70 to 50
     score,
     issues,
     suggestions,
@@ -243,17 +211,4 @@ export function validateImageQuery(query: string, channel: string): KeywordValid
   return validation;
 }
 
-/**
- * Get channel-specific fallback query
- */
-export function getChannelFallback(channel: string, topicTitle?: string): string {
-  const fallbacks: Record<string, string> = {
-    facebook: 'customers browsing seasonal plants garden center greenhouse',
-    instagram: 'colorful flowering plants nursery display pots close',
-    blog: 'hands planting seedlings soil garden trowel technique',
-    newsletter: 'seasonal garden center plant inventory greenhouse display',
-    video: 'demonstrating plant care garden center customer tutorial'
-  };
-  
-  return fallbacks[channel] || 'garden center plants seasonal display';
-}
+// REMOVED: getChannelFallback function - no more fallbacks!

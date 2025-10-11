@@ -237,16 +237,13 @@ Extract and use SPECIFIC plant varieties with garden_ prefix from the content ab
     
     if (!toolCall?.function?.arguments) {
       console.error('❌ No structured output from OpenAI:', JSON.stringify(data, null, 2));
-      // Fallback to channel default
-      const fallback = getChannelFallback(channel);
       return new Response(
         JSON.stringify({ 
-          keywords: fallback.split(' '), 
-          primaryQuery: fallback,
-          validationPassed: false,
-          fallbackUsed: true
+          error: 'Failed to generate keywords from AI',
+          details: 'OpenAI did not return structured output. Please try again or use manual search.',
+          retryable: true
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -283,7 +280,7 @@ Extract and use SPECIFIC plant varieties with garden_ prefix from the content ab
     console.log('✅ AI Generated (with prefix):', { keywords, primaryQuery });
 
     // === VALIDATE KEYWORDS ===
-    const { validateGardenKeywords, getChannelFallback } = await import('../_shared/enhanced-keyword-validator.ts');
+    const { validateGardenKeywords } = await import('../_shared/enhanced-keyword-validator.ts');
     
     const validation = validateGardenKeywords(keywords, channel);
     
@@ -293,39 +290,30 @@ Extract and use SPECIFIC plant varieties with garden_ prefix from the content ab
       issues: validation.issues
     });
 
-    let finalKeywords = keywords;
-    let finalQuery = primaryQuery;
-    let retryAttempted = false;
-
-    // If validation fails and score is poor, retry once with stronger constraints
-    if (validation.score < 70 && !retryAttempted) {
-      console.warn('⚠️ Low quality keywords, retrying with enhanced constraints...');
-      retryAttempted = true;
-      
-      // Use fixed keywords if available
-      if (validation.fixedKeywords) {
-        finalKeywords = ensureGardenPrefix(validation.fixedKeywords);
-        finalQuery = finalKeywords.join(' ');
-      } else {
-        // Use channel fallback with garden_ prefix
-        const fallback = getChannelFallback(channel, prompt);
-        const fallbackWords = fallback.split(' ');
-        finalKeywords = fallbackWords.map(w => `garden_${w.toLowerCase().replace(/\s+/g, '_')}`);
-        finalQuery = finalKeywords.join(' ');
-      }
-      
-      console.log('🔄 Using fallback:', { finalKeywords, finalQuery });
+    // If validation fails, return error with details for user to try manual search
+    if (!validation.isValid) {
+      console.error('❌ Keyword validation failed:', validation);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Generated keywords did not meet quality standards',
+          details: validation.issues.join('. '),
+          suggestions: validation.suggestions,
+          score: validation.score,
+          retryable: true
+        }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(
       JSON.stringify({ 
-        keywords: finalKeywords, 
-        primaryQuery: finalQuery,
+        keywords, 
+        primaryQuery,
         channel,
         validationScore: validation.score,
         validationPassed: validation.isValid,
-        issues: validation.issues,
-        suggestions: validation.suggestions
+        issues: validation.issues.length > 0 ? validation.issues : undefined,
+        suggestions: validation.suggestions.length > 0 ? validation.suggestions : undefined
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

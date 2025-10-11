@@ -110,25 +110,34 @@ export class ImageGenerationService {
       
       if (error) {
         console.error('Keyword generation error:', error);
-        // Return fallback
-        const fallback = this.getChannelFallback(request.channel);
+        // Return error details for upstream handling
         return {
-          keywords: fallback.split(' '),
-          primaryQuery: fallback,
-          validationScore: 0,
-          fallbackUsed: true
+          error: true,
+          message: error.message || 'Failed to generate keywords',
+          retryable: true
         };
       }
-      
+
+      // Check if data contains error from edge function (422 validation failure)
+      if (data?.error) {
+        console.error('Keyword validation failed:', data);
+        return {
+          error: true,
+          message: data.error,
+          details: data.details,
+          suggestions: data.suggestions,
+          score: data.score,
+          retryable: data.retryable
+        };
+      }
+
       return data;
     } catch (error) {
-      console.error('Failed to generate keywords:', error);
-      const fallback = this.getChannelFallback(request.channel);
+      console.error('Exception in generateKeywords:', error);
       return {
-        keywords: fallback.split(' '),
-        primaryQuery: fallback,
-        validationScore: 0,
-        fallbackUsed: true
+        error: true,
+        message: 'Unexpected error generating keywords',
+        retryable: true
       };
     }
   }

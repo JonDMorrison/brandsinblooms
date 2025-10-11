@@ -103,8 +103,9 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           title: featuredQuery
         }
       }).then(async ({ data: keywordData, error: keywordError }) => {
-        if (keywordError || !keywordData) {
-          console.warn('[PlanStepCalendar] Featured keyword generation failed:', keywordError);
+        if (keywordError || keywordData?.error) {
+          console.warn('[PlanStepCalendar] Featured keyword generation failed:', keywordError || keywordData?.details);
+          // Continue without featured image - non-critical
           return;
         }
         
@@ -195,8 +196,9 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                     }
                   });
                   
-                  if (keywordError || !keywordData) {
-                    console.error(`[PlanStepCalendar] Keyword generation failed:`, keywordError);
+                  if (keywordError || keywordData?.error) {
+                    console.error(`[PlanStepCalendar] Keyword generation failed:`, keywordError || keywordData?.details);
+                    // Skip this image but continue with others
                     continue;
                   }
                   
