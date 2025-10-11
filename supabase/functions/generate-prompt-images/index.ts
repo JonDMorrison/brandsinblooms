@@ -1,4 +1,4 @@
-// Force deployment - Streamlined image generation for AI prompts
+// Force deployment v1.1 - Streamlined image generation for AI prompts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
 
