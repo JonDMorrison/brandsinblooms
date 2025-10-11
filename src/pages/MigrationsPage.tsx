@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Check } from 'lucide-react';
 import { ConnectStep } from '@/components/migrations/ConnectStep';
 import { ChooseStep } from '@/components/migrations/ChooseStep';
+import { AnalyzeStep } from '@/components/migrations/AnalyzeStep';
 
 type Step = 'connect' | 'choose' | 'analyze' | 'apply' | 'import' | 'report';
 
@@ -18,6 +19,8 @@ const steps: { id: Step; label: string; description: string }[] = [
 const MigrationsPage = () => {
   const [currentStep, setCurrentStep] = useState<Step>('connect');
   const [importSelection, setImportSelection] = useState<{ listIds: string[]; segmentIds: string[] } | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
   
@@ -28,6 +31,11 @@ const MigrationsPage = () => {
   const handleChooseComplete = (selection: { listIds: string[]; segmentIds: string[] }) => {
     setImportSelection(selection);
     setCurrentStep('analyze');
+  };
+
+  const handleAnalyzeComplete = (suggestions: any[]) => {
+    setAiSuggestions(suggestions);
+    setCurrentStep('apply');
   };
 
   return (
@@ -92,7 +100,14 @@ const MigrationsPage = () => {
             onBack={() => setCurrentStep('connect')} 
           />
         )}
-        {currentStepIndex > 1 && (
+        {currentStep === 'analyze' && jobId && (
+          <AnalyzeStep 
+            jobId={jobId}
+            onComplete={handleAnalyzeComplete}
+            onBack={() => setCurrentStep('choose')}
+          />
+        )}
+        {currentStepIndex > 2 && (
           <div className="min-h-[400px] flex flex-col items-center justify-center">
             <h2 className="text-2xl font-semibold mb-4">
               {steps[currentStepIndex].label}

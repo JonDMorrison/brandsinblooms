@@ -1,0 +1,280 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface ImportRequest {
+  listIds: string[];
+  segmentIds: string[];
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { listIds, segmentIds }: ImportRequest = await req.json();
+
+    const authHeader = req.headers.get('Authorization')!;
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Unauthorized');
+
+    // Get connection
+    const { data: connection } = await supabase
+      .from('provider_connections')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('provider', 'klaviyo')
+      .eq('status', 'connected')
+      .single();
+
+    if (!connection) {
+      throw new Error('Klaviyo not connected');
+    }
+
+    // Get tenant
+    const { data: userRecord } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single();
+
+    const tenantId = userRecord?.tenant_id;
+    if (!tenantId) throw new Error('Tenant not found');
+
+    const baseUrl = 'https://a.klaviyo.com/api';
+    const headers = {
+      Authorization: `Klaviyo-OAuth ${connection.access_token}`,
+      revision: '2024-10-15',
+      Accept: 'application/json'
+    };
+
+    // Create import job
+    const { data: importJob, error: jobError } = await supabase
+      .from('import_jobs')
+      .insert({
+        user_id: user.id,
+        provider: 'klaviyo',
+        status: 'running',
+        config: { listIds, segmentIds },
+        report: { started_at: new Date().toISOString() }
+      })
+      .select()
+      .single();
+
+    if (jobError) throw jobError;
+
+    console.log(`[klaviyo-import] Started job ${importJob.id}`);
+
+    let totalContacts = 0;
+    let totalErrors = 0;
+
+    // Process lists
+    for (const listId of listIds) {
+      if (listId === 'segments') continue; // Skip segments container
+
+      let pageUrl = `${baseUrl}/lists/${listId}/profiles/`;
+      
+      while (pageUrl) {
+        const profilesRes = await fetch(pageUrl, { headers });
+        const profilesData = await profilesRes.json();
+        const profiles = profilesData.data || [];
+
+        for (const profile of profiles) {
+          try {
+            const attrs = profile.attributes;
+            const email = attrs.email?.toLowerCase();
+            if (!email) continue;
+
+            const phone = attrs.phone_number || null;
+            const firstName = attrs.first_name || null;
+            const lastName = attrs.last_name || null;
+            const customFields: any = {};
+
+            // Extract custom properties
+            if (attrs.properties) {
+              Object.keys(attrs.properties).forEach(key => {
+                if (!['$email', '$phone_number', '$first_name', '$last_name'].includes(key)) {
+                  customFields[key] = attrs.properties[key];
+                }
+              });
+            }
+
+            // Upsert contact
+            const { data: contact, error: contactError } = await supabase
+              .from('crm_customers')
+              .upsert({
+                tenant_id: tenantId,
+                email,
+                phone,
+                first_name: firstName,
+                last_name: lastName,
+                custom_fields: Object.keys(customFields).length > 0 ? customFields : null,
+                source: 'klaviyo_import'
+              }, { onConflict: 'tenant_id,email' })
+              .select()
+              .single();
+
+            if (contactError) {
+              console.error('Contact upsert error:', contactError);
+              totalErrors++;
+              continue;
+            }
+
+            // Upsert consent
+            const consentStatus = attrs.subscriptions?.email?.marketing?.consent === 'SUBSCRIBED' ? 'opted_in' :
+                                 attrs.subscriptions?.email?.marketing?.consent === 'UNSUBSCRIBED' ? 'opted_out' :
+                                 'suppressed';
+
+            await supabase.from('consents').upsert({
+              customer_id: contact.id,
+              channel: 'email',
+              status: consentStatus,
+              source: 'klaviyo_import',
+              consent_timestamp: new Date().toISOString()
+            }, { onConflict: 'customer_id,channel' });
+
+            // Add to suppression list if needed
+            if (consentStatus === 'suppressed') {
+              await supabase.from('suppression_list').upsert({
+                tenant_id: tenantId,
+                email,
+                reason: 'suppressed',
+                source: 'klaviyo_import'
+              }, { onConflict: 'tenant_id,email' });
+            }
+
+            totalContacts++;
+
+            // Log item
+            await supabase.from('import_job_items').insert({
+              job_id: importJob.id,
+              item_type: 'contact',
+              external_id: profile.id,
+              status: 'success',
+              data: { email, listId }
+            });
+
+          } catch (error) {
+            console.error('Profile processing error:', error);
+            totalErrors++;
+          }
+        }
+
+        // Get next page
+        pageUrl = profilesData.links?.next || null;
+
+        // Update progress
+        await supabase.from('import_jobs').update({
+          report: {
+            started_at: importJob.report?.started_at,
+            contacts_processed: totalContacts,
+            errors: totalErrors
+          }
+        }).eq('id', importJob.id);
+      }
+    }
+
+    // Process segments
+    for (const segmentId of segmentIds) {
+      try {
+        const segRes = await fetch(`${baseUrl}/segments/${segmentId}/`, { headers });
+        const segment = await segRes.json();
+
+        // Create segment in BloomSuite
+        const { data: newSegment } = await supabase
+          .from('segments')
+          .insert({
+            tenant_id: tenantId,
+            name: segment.data.attributes.name,
+            description: `Imported from Klaviyo: ${segment.data.attributes.name}`,
+            source: 'klaviyo_import'
+          })
+          .select()
+          .single();
+
+        if (newSegment) {
+          // Fetch segment members
+          let pageUrl = `${baseUrl}/segments/${segmentId}/profiles/`;
+          
+          while (pageUrl) {
+            const membersRes = await fetch(pageUrl, { headers });
+            const membersData = await membersRes.json();
+
+            for (const member of membersData.data || []) {
+              const email = member.attributes?.email?.toLowerCase();
+              if (!email) continue;
+
+              const { data: contact } = await supabase
+                .from('crm_customers')
+                .select('id')
+                .eq('tenant_id', tenantId)
+                .eq('email', email)
+                .single();
+
+              if (contact) {
+                await supabase.from('segment_members').upsert({
+                  segment_id: newSegment.id,
+                  customer_id: contact.id
+                }, { onConflict: 'segment_id,customer_id' });
+              }
+            }
+
+            pageUrl = membersData.links?.next || null;
+          }
+
+          // Create imported tag
+          await supabase.from('tags').upsert({
+            tenant_id: tenantId,
+            name: `imported-${segment.data.attributes.name.toLowerCase().replace(/\s+/g, '-')}`,
+            source: 'klaviyo_import'
+          }, { onConflict: 'tenant_id,name' });
+        }
+      } catch (error) {
+        console.error('Segment processing error:', error);
+        totalErrors++;
+      }
+    }
+
+    // Finalize job
+    await supabase.from('import_jobs').update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      report: {
+        started_at: importJob.report?.started_at,
+        completed_at: new Date().toISOString(),
+        contacts_imported: totalContacts,
+        segments_imported: segmentIds.length,
+        errors: totalErrors
+      }
+    }).eq('id', importJob.id);
+
+    console.log(`[klaviyo-import] Completed job ${importJob.id}: ${totalContacts} contacts`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        jobId: importJob.id,
+        contacts: totalContacts,
+        errors: totalErrors
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('[klaviyo-import] Error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
+  }
+});
