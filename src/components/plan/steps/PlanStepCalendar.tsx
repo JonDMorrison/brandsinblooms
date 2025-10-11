@@ -98,18 +98,20 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
       // Use new image pipeline for featured image
       supabase.functions.invoke('generate-image-keywords', {
         body: {
-          channel: 'instagram',
-          content: featuredQuery,
-          title: featuredQuery
+          prompt: featuredQuery,
+          channel: 'blog',
+          useAI: true,
+          isRetry: false
         }
       }).then(async ({ data: keywordData, error: keywordError }) => {
         if (keywordError || keywordData?.error) {
-          console.warn('[PlanStepCalendar] Featured keyword generation failed:', keywordError || keywordData?.details);
+          console.warn('[PlanStepCalendar] Featured keyword generation failed:', keywordError || keywordData?.error);
           // Continue without featured image - non-critical
           return;
         }
         
-        const enhancedQuery = keywordData.primaryQuery || keywordData.keywords?.join(' ') || featuredQuery;
+        // Use new faceted format: variants[0] is the primary query
+        const enhancedQuery = keywordData.variants?.[0] || featuredQuery;
         
         const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
           body: {
