@@ -81,6 +81,9 @@ verify_jwt = false
 [functions.analyze-csv-columns]
 verify_jwt = true
 
+[functions.analyze-csv-intelligent]
+verify_jwt = true
+
 [functions.send-bulk-campaign]
 verify_jwt = true
 

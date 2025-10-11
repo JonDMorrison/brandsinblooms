@@ -103,6 +103,8 @@ export interface ParsedCSVData {
   dataRows: string[][];
   sampleData: { header: string; samples: string[] }[];
   delimiter: string;
+  firstFiveRows: string[][];
+  columnCount: number;
 }
 
 /**
@@ -135,17 +137,22 @@ export const parseCSVFile = async (file: File): Promise<ParsedCSVData> => {
   const columnCount = dataRows[0].length;
   const headers = Array.from({ length: columnCount }, (_, i) => `Column ${i + 1}`);
   
+  // Extract first 5 rows for AI analysis
+  const firstFiveRows = dataRows.slice(0, Math.min(5, dataRows.length));
+  
   // Extract sample data (first 5 rows including what might be headers)
   const sampleData = headers.map((header, index) => ({
     header,
-    samples: dataRows.slice(0, 5).map(row => row[index] || '')
+    samples: firstFiveRows.map(row => row[index] || '')
   }));
   
   return {
     headers,
     dataRows,
     sampleData,
-    delimiter
+    delimiter,
+    firstFiveRows,
+    columnCount
   };
 };
 

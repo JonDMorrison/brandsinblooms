@@ -12,6 +12,8 @@ export interface ColumnMapping {
   csvHeader: string;
   databaseField: DatabaseField;
   sampleData: string[];
+  aiConfidence?: 'high' | 'medium' | 'low';
+  aiReasoning?: string;
 }
 
 export interface ValidationResult {
@@ -35,4 +37,24 @@ export interface ImportProgress {
   message: string;
   currentBatch?: number;
   totalBatches?: number;
+}
+
+export interface AIAnalysisResult {
+  success: boolean;
+  analysis: {
+    columnNames: string[];
+    dataConsistency: {
+      isConsistent: boolean;
+      issues: string[];
+      rowsAnalyzed: number;
+    };
+    suggestedMappings: Array<{
+      columnIndex: number;
+      columnName: string;
+      suggestedField: DatabaseField;
+      confidence: 'high' | 'medium' | 'low';
+      reasoning: string;
+    }>;
+  };
+  error?: string;
 }

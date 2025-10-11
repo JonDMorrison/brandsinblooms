@@ -9,8 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Upload, CheckCircle, AlertCircle, Download, Loader2 } from 'lucide-react';
-import { parseCSVFile, autoDetectFieldMapping, isValidEmail, generateCSVTemplate } from '@/utils/csvParser';
-import type { ColumnMapping, ValidationResult, ImportResult, ImportProgress, DatabaseField } from '@/types/import';
+import { parseCSVFile, isValidEmail, generateCSVTemplate } from '@/utils/csvParser';
+import type { ColumnMapping, ValidationResult, ImportResult, ImportProgress, DatabaseField, AIAnalysisResult } from '@/types/import';
 
 interface EnhancedSegmentImportDialogProps {
   open: boolean;
@@ -38,6 +38,8 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
   });
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
 
   const fieldOptions = [
     { value: 'skip', label: '-- Skip Column --' },
@@ -65,39 +67,90 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
     }
 
     setFile(selectedFile);
-    setProgress({ stage: 'upload', progress: 50, message: 'Parsing CSV file...' });
+    setProgress({ stage: 'upload', progress: 30, message: 'Parsing CSV file...' });
 
     try {
+      // Step 1: Parse CSV
       const parsed = await parseCSVFile(selectedFile);
       
-      // Auto-detect field mappings
-      const autoMapping = autoDetectFieldMapping(parsed.headers);
+      setProgress({ 
+        stage: 'upload', 
+        progress: 50, 
+        message: 'Analyzing data with AI...' 
+      });
+      setIsAnalyzing(true);
+
+      // Step 2: Call AI analysis
+      const { data: analysisResult, error: analysisError } = await supabase.functions.invoke(
+        'analyze-csv-intelligent',
+        {
+          body: {
+            csvRows: parsed.firstFiveRows,
+            delimiter: parsed.delimiter,
+            columnCount: parsed.columnCount
+          }
+        }
+      );
+
+      setIsAnalyzing(false);
+
+      // Step 3: Handle AI response
+      let mappings: ColumnMapping[];
       
-      // Create column mappings with sample data
-      const mappings: ColumnMapping[] = parsed.headers.map((header, index) => ({
-        csvHeader: header,
-        databaseField: autoMapping[header] as DatabaseField || 'skip',
-        sampleData: parsed.sampleData[index].samples
-      }));
+      if (analysisError || !analysisResult?.success) {
+        console.warn('AI analysis failed, using fallback:', analysisError);
+        toast({
+          title: 'AI analysis unavailable',
+          description: 'Using basic column detection. You can manually adjust mappings.',
+          variant: 'default'
+        });
+        
+        // Fallback: Use generic column names
+        mappings = parsed.headers.map((header, index) => ({
+          csvHeader: header,
+          databaseField: 'skip' as DatabaseField,
+          sampleData: parsed.sampleData[index].samples
+        }));
+      } else {
+        // Success: Use AI suggestions
+        setAiAnalysis(analysisResult);
+        
+        mappings = analysisResult.analysis.suggestedMappings.map((suggestion) => ({
+          csvHeader: suggestion.columnName,
+          databaseField: suggestion.suggestedField,
+          sampleData: parsed.firstFiveRows.map(row => row[suggestion.columnIndex] || ''),
+          aiConfidence: suggestion.confidence,
+          aiReasoning: suggestion.reasoning
+        }));
+        
+        // Show warnings if data is inconsistent
+        if (!analysisResult.analysis.dataConsistency.isConsistent) {
+          setValidationErrors(analysisResult.analysis.dataConsistency.issues);
+        }
+        
+        toast({
+          title: 'CSV analyzed successfully',
+          description: `AI detected ${mappings.length} columns with ${
+            analysisResult.analysis.dataConsistency.isConsistent ? 'consistent' : 'some inconsistent'
+          } data`
+        });
+      }
 
       setColumnMappings(mappings);
       setDataRows(parsed.dataRows);
+      
       setProgress({ 
         stage: 'mapping', 
         progress: 0, 
-        message: `Loaded ${parsed.dataRows.length} rows. Please map the fields.` 
+        message: `Loaded ${parsed.dataRows.length} rows. ${aiAnalysis ? 'AI analysis complete.' : 'Please verify mappings.'}` 
       });
-      setValidationErrors([]);
 
-      toast({
-        title: 'CSV parsed successfully',
-        description: `Found ${parsed.headers.length} columns and ${parsed.dataRows.length} rows`
-      });
     } catch (error) {
-      console.error('Error parsing CSV:', error);
+      console.error('Error analyzing CSV:', error);
+      setIsAnalyzing(false);
       toast({
-        title: 'Error parsing CSV',
-        description: error instanceof Error ? error.message : 'Failed to parse CSV file',
+        title: 'Error processing CSV',
+        description: error instanceof Error ? error.message : 'Failed to process CSV file',
         variant: 'destructive'
       });
       setFile(null);
@@ -423,12 +476,28 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
                 setColumnMappings([]);
                 setDataRows([]);
                 setProgress({ stage: 'upload', progress: 0, message: '' });
+                setAiAnalysis(null);
               }}>
                 Change File
               </Button>
             </div>
 
-            {validationErrors.length > 0 && (
+            {aiAnalysis && !aiAnalysis.analysis.dataConsistency.isConsistent && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <p className="font-semibold mb-2">Data Consistency Issues Detected:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    {aiAnalysis.analysis.dataConsistency.issues.map((issue, idx) => (
+                      <li key={idx} className="text-sm">{issue}</li>
+                    ))}
+                  </ul>
+                  <p className="text-sm mt-2">Please review the mappings carefully before importing.</p>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {validationErrors.length > 0 && !aiAnalysis && (
               <Alert variant="destructive">
                 <AlertCircle className="w-4 h-4" />
                 <AlertDescription>
@@ -454,7 +523,27 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
                   {columnMappings.map((mapping, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">
-                        {mapping.csvHeader}
+                        <div className="flex items-center gap-2">
+                          <span>{mapping.csvHeader}</span>
+                          {mapping.aiConfidence && (
+                            <span 
+                              className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                mapping.aiConfidence === 'high' 
+                                  ? 'bg-primary/10 text-primary' 
+                                  : mapping.aiConfidence === 'medium' 
+                                  ? 'bg-secondary/30 text-secondary-foreground' 
+                                  : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              {mapping.aiConfidence}
+                            </span>
+                          )}
+                        </div>
+                        {mapping.aiReasoning && (
+                          <p className="text-xs text-muted-foreground mt-1 italic">
+                            {mapping.aiReasoning}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1 text-sm text-muted-foreground max-h-32 overflow-y-auto">
