@@ -71,12 +71,12 @@ export const autoDetectFieldMapping = (headers: string[]): Record<string, string
   
   const fieldPatterns = {
     email: /^(email|e[-_]?mail|customer[-_]?email|contact[-_]?email|mail)$/i,
-    first_name: /^(first[-_]?name|fname|given[-_]?name|forename|first)$/i,
-    last_name: /^(last[-_]?name|lname|surname|family[-_]?name|last)$/i,
-    phone: /^(phone|telephone|mobile|cell|phone[-_]?number|tel)$/i,
+    first_name: /^(first[-_]?name|fname|given[-_]?name|first|forename)$/i,
+    last_name: /^(last[-_]?name|lname|surname|last|family[-_]?name)$/i,
+    phone: /^(phone|telephone|cell|mobile|phone[-_]?number|tel)$/i,
     tags: /^(tags|interests|categories|labels)$/i,
     persona: /^(persona|customer[-_]?type|segment|category)$/i,
-    sms_opt_in: /^(sms[-_]?opt[-_]?in|sms[-_]?consent|text[-_]?marketing|sms)$/i
+    sms_opt_in: /^(sms[-_]?opt[-_]?in|sms[-_]?consent|text[-_]?marketing|sms)$/i,
   };
   
   headers.forEach(header => {
@@ -108,32 +108,48 @@ export interface ParsedCSVData {
 /**
  * Parses a CSV file and extracts headers, data, and sample data
  */
-export const parseCSVFile = async (file: File): Promise<ParsedCSVData> => {
+export const parseCSVFile = async (file: File, firstRowIsHeader: boolean = true): Promise<ParsedCSVData> => {
   const text = await file.text();
   
   // Detect delimiter
   const delimiter = detectDelimiter(text);
   
-  // Split into lines and filter empty lines
+  // Parse all lines
   const lines = text.split(/\r?\n/).filter(line => line.trim());
   
   if (lines.length === 0) {
     throw new Error('CSV file is empty');
   }
   
-  // Parse headers
-  const headers = parseCSVLine(lines[0], delimiter);
+  let headers: string[];
+  let dataRows: string[][];
   
-  if (headers.length === 0) {
-    throw new Error('No headers found in CSV file');
+  if (firstRowIsHeader) {
+    // Parse first line as headers
+    const parsedHeaders = parseCSVLine(lines[0], delimiter);
+    
+    if (parsedHeaders.length === 0) {
+      throw new Error('No headers found in the first row');
+    }
+    
+    headers = parsedHeaders;
+    
+    // Parse remaining lines as data
+    dataRows = lines.slice(1)
+      .map(line => parseCSVLine(line, delimiter))
+      .filter(row => row.some(cell => cell.trim()));
+  } else {
+    // Generate generic column names
+    const firstRow = parseCSVLine(lines[0], delimiter);
+    headers = firstRow.map((_, index) => `Column ${index + 1}`);
+    
+    // All lines are data (including the first line)
+    dataRows = lines
+      .map(line => parseCSVLine(line, delimiter))
+      .filter(row => row.some(cell => cell.trim()));
   }
   
-  // Parse all data rows
-  const dataRows = lines.slice(1)
-    .map(line => parseCSVLine(line, delimiter))
-    .filter(row => row.some(cell => cell.trim())); // Filter completely empty rows
-  
-  // Extract sample data (first 5 rows per column)
+  // Extract sample data (first 5 rows)
   const sampleData = headers.map((header, index) => ({
     header,
     samples: dataRows.slice(0, 5).map(row => row[index] || '')
@@ -153,7 +169,7 @@ export const parseCSVFile = async (file: File): Promise<ParsedCSVData> => {
 export const generateCSVTemplate = (): string => {
   const headers = ['Email', 'First Name', 'Last Name', 'Phone', 'Tags', 'Persona', 'SMS Opt-In'];
   const sampleRows = [
-    ['john.doe@example.com', 'John', 'Doe', '+1234567890', 'vip,premium', 'High Value', 'yes'],
+    ['john.doe@example.com', 'Jane', 'Doe', '+1234567890', 'vip,premium', 'High Value', 'yes'],
     ['jane.smith@example.com', 'Jane', 'Smith', '+1987654321', 'new', 'New Customer', 'no'],
     ['bob.wilson@example.com', 'Bob', 'Wilson', '', 'frequent', 'Frequent Buyer', 'yes']
   ];
