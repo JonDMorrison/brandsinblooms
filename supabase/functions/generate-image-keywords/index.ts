@@ -73,23 +73,7 @@ CONSTRAINTS:
 - Always include at least one plant-specific or garden-related term
 
 CHANNEL GUIDANCE:
-${getChannelGuidance(channel)}`;
-
-  if (isRetry) {
-    basePrompt += `
-
-🔄 RETRY CONTEXT:
-This is a RETRY attempt. The previous query variants did not return suitable images.
-Please adjust your strategy:
-- Try BROADER, MORE COMMON terms (e.g., "garden flowers" instead of specific species)
-- Use DIFFERENT angles or perspectives
-- Consider more GENERIC seasonal or color-based queries
-- Avoid overly specific jargon or technical terms
-- Focus on widely available subjects on Unsplash
-- Simplify the queries to increase image availability`;
-  }
-
-  return basePrompt;
+${getChannelGuidance(channel)}
 
 EXAMPLES:
 
@@ -130,6 +114,22 @@ Response:
 }
 
 Generate natural, visual search queries that will find relevant garden and plant images on Unsplash.`;
+
+  if (isRetry) {
+    basePrompt += `
+
+🔄 RETRY CONTEXT:
+This is a RETRY attempt. The previous query variants did not return suitable images.
+Please adjust your strategy:
+- Try BROADER, MORE COMMON terms (e.g., "garden flowers" instead of specific species)
+- Use DIFFERENT angles or perspectives
+- Consider more GENERIC seasonal or color-based queries
+- Avoid overly specific jargon or technical terms
+- Focus on widely available subjects on Unsplash
+- Simplify the queries to increase image availability`;
+  }
+
+  return basePrompt;
 }
 
 serve(async (req) => {
