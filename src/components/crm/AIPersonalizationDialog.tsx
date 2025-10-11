@@ -81,12 +81,19 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       if (error || data?.error) {
         console.error('❌ Image generation failed:', error || data);
         
-        // Handle rate limit specifically
-        if (data?.details?.includes('rate limit')) {
+        // Detect rate limit errors from multiple sources
+        const isRateLimit = 
+          error?.message?.toLowerCase().includes('rate limit') ||
+          data?.error?.toLowerCase().includes('rate limit') ||
+          data?.details?.toLowerCase().includes('rate limit') ||
+          data?.details?.toLowerCase().includes('429');
+        
+        if (isRateLimit) {
           toast({
-            title: 'Service Temporarily Unavailable',
-            description: 'Image service rate limit reached. Please try again in a moment.',
+            title: '⏳ Image Service Temporarily Unavailable',
+            description: 'The image service has reached its hourly limit. Please try again in 10-15 minutes, or use the existing images in the gallery.',
             variant: 'destructive',
+            duration: 8000,
           });
         } else {
           toast({
