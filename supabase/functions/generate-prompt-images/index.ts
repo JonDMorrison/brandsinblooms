@@ -1,6 +1,8 @@
-// Force deployment v1.1 - Streamlined image generation for AI prompts
+// Force deployment v2.0 - Streamlined image generation with robust error handling
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
+
+console.log('🚀 generate-prompt-images function loaded');
 
 const UNSPLASH_ACCESS_KEY = Deno.env.get('UNSPLASH_ACCESS_KEY');
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
@@ -12,10 +14,16 @@ interface PromptImageRequest {
 }
 
 serve(async (req) => {
+  console.log('📨 Request received:', req.method, req.url);
+  
   const corsResponse = handleCorsPrelight(req);
-  if (corsResponse) return corsResponse;
+  if (corsResponse) {
+    console.log('✅ CORS preflight handled');
+    return corsResponse;
+  }
 
   try {
+    console.log('🔍 Processing request body...');
     const { prompt, maxImages = 4, orientation = 'squarish' }: PromptImageRequest = await req.json();
 
     if (!prompt || prompt.trim().length === 0) {
