@@ -76,6 +76,9 @@ export interface PlanItem {
   selectedPersonaIds?: string[];
   // Enhanced blog content
   enhancedContent?: any;
+  // Image generation fallback fields
+  imageGenerationFailed?: boolean;
+  needsManualImage?: boolean;
 }
 
 // Template content generators

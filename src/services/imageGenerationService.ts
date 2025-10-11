@@ -30,6 +30,7 @@ export interface ImageGenerationResult {
     usedQuery?: string;
     photographer?: string;
     photographerUrl?: string;
+    attemptNumber?: number;
   };
   validationWarnings?: string[];
 }
@@ -37,24 +38,34 @@ export interface ImageGenerationResult {
 export class ImageGenerationService {
   
   /**
-   * Fetch optimized image for specific channel using faceted keywords
+   * Fetch optimized image for specific channel using faceted keywords with retry logic
    */
-  async fetchImageForChannel(request: ChannelImageRequest): Promise<ImageGenerationResult> {
-    console.log(`🎨 Fetching image for ${request.channel}:`, request.contentTitle || request.contentContext.substring(0, 50));
+  async fetchImageForChannel(
+    request: ChannelImageRequest,
+    retryCount = 0
+  ): Promise<ImageGenerationResult> {
+    const MAX_RETRIES = 1; // Only one retry attempt
+    
+    console.log(`🎨 Fetching image (attempt ${retryCount + 1}/${MAX_RETRIES + 1}) for ${request.channel}:`, request.contentTitle || request.contentContext.substring(0, 50));
     
     try {
       // Step 1: Generate faceted keywords using AI
-      const facetsData = await this.generateKeywords(request);
+      const facetsData = await this.generateKeywords(request, retryCount > 0);
       
       // Check if keyword generation failed
       if (facetsData?.error) {
-        throw new Error(facetsData.details || facetsData.message || 'Failed to generate keywords');
+        if (retryCount < MAX_RETRIES) {
+          console.log('⚠️ First keyword generation failed, retrying with enhanced context...');
+          return this.fetchImageForChannel(request, retryCount + 1);
+        }
+        throw new Error('FALLBACK_TO_USER_CONTROL');
       }
       
       console.log('📝 Generated facets:', {
         theme: facetsData.theme,
         variants: facetsData.variants,
-        channel: facetsData.channel
+        channel: facetsData.channel,
+        isRetry: retryCount > 0
       });
       
       // Step 2: Fetch from Unsplash using variants
@@ -71,18 +82,26 @@ export class ImageGenerationService {
       
       if (imageError) {
         console.error('❌ Unsplash error:', imageError);
-        throw new Error(`Unsplash API error: ${imageError.message}`);
+        if (retryCount < MAX_RETRIES) {
+          console.log('⚠️ Unsplash error, retrying with new keywords...');
+          return this.fetchImageForChannel(request, retryCount + 1);
+        }
+        throw new Error('FALLBACK_TO_USER_CONTROL');
       }
       
       if (!imageData?.images || imageData.images.length === 0) {
         console.error('❌ No images returned from Unsplash');
-        throw new Error('No images found for the given keywords');
+        if (retryCount < MAX_RETRIES) {
+          console.log('⚠️ No images found, retrying with new keywords...');
+          return this.fetchImageForChannel(request, retryCount + 1);
+        }
+        throw new Error('FALLBACK_TO_USER_CONTROL');
       }
       
       // Images are already filtered and sorted by the edge function
       const bestMatch = imageData.images[0];
       
-      console.log(`✅ Image fetched using query: "${imageData.query || facetsData.variants[0]}"`);
+      console.log(`✅ Image fetched using query: "${imageData.query || facetsData.variants[0]}" (attempt ${retryCount + 1})`);
       console.log(`   Alt: ${bestMatch.alt?.substring(0, 60)}`);
       
       return {
@@ -91,26 +110,41 @@ export class ImageGenerationService {
           facets: facetsData,
           usedQuery: imageData.query,
           photographer: bestMatch.photographer,
-          photographerUrl: bestMatch.photographer_url
+          photographerUrl: bestMatch.photographer_url,
+          attemptNumber: retryCount + 1
         }
       };
       
     } catch (error) {
+      if (error.message === 'FALLBACK_TO_USER_CONTROL') {
+        throw error;
+      }
+      
       console.error('❌ Error in fetchImageForChannel:', error);
-      throw error;
+      if (retryCount < MAX_RETRIES) {
+        console.log('⚠️ Error occurred, retrying...');
+        return this.fetchImageForChannel(request, retryCount + 1);
+      }
+      
+      throw new Error('FALLBACK_TO_USER_CONTROL');
     }
   }
   
   /**
    * Generate faceted keywords using OpenAI via edge function
    */
-  private async generateKeywords(request: ChannelImageRequest): Promise<FacetedKeywords | any> {
+  private async generateKeywords(
+    request: ChannelImageRequest,
+    isRetry = false
+  ): Promise<FacetedKeywords | any> {
     try {
       const { data, error } = await supabase.functions.invoke('generate-image-keywords', {
         body: {
           prompt: request.contentContext,
           channel: request.channel,
-          useAI: request.useAIKeywords ?? true
+          useAI: request.useAIKeywords ?? true,
+          isRetry: isRetry,
+          originalContent: isRetry ? request.contentContext : undefined
         }
       });
       

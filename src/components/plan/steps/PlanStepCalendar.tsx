@@ -182,69 +182,61 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                 type: item.type
               }));
               
-              // Fetch images with new pipeline (garden_ prefix validation)
+              // Fetch images with retry logic and user fallback
               let successCount = 0;
+              let needsManualCount = 0;
+              
               for (const task of tasks) {
                 try {
-                  console.log(`[PlanStepCalendar] Fetching garden-validated image for: ${task.imageQuery}`);
+                  console.log(`[PlanStepCalendar] Fetching image with retry fallback for: ${task.imageQuery}`);
                   
-                  // Step 1: Generate improved keywords with garden_ prefix
-                  const { data: keywordData, error: keywordError } = await supabase.functions.invoke('generate-image-keywords', {
-                    body: {
-                      channel: task.type === 'instagram' ? 'instagram' : 'facebook',
-                      prompt: task.imageQuery
-                    }
+                  // Use imageGenerationService with retry logic
+                  const { imageGenerationService } = await import('@/services/imageGenerationService');
+                  const result = await imageGenerationService.fetchImageForChannel({
+                    channel: task.type as any,
+                    contentContext: task.imageQuery,
+                    contentTitle: task.imageQuery,
+                    useAIKeywords: true
                   });
                   
-                  if (keywordError || keywordData?.error) {
-                    console.error(`[PlanStepCalendar] Keyword generation failed:`, keywordError || keywordData?.details);
-                    // Skip this image but continue with others
-                    continue;
+                  if (result?.imageUrl) {
+                    updateItem(task.itemId, {
+                      imageUrl: result.imageUrl,
+                      imageMetadata: result.metadata
+                    });
+                    successCount++;
+                    console.log(`✅ Image generated (attempt ${result.metadata?.attemptNumber || 1}) for item ${task.itemId}`);
                   }
                   
-                  const enhancedQuery = keywordData.primaryQuery || keywordData.keywords?.join(' ') || task.imageQuery;
-                  console.log(`[PlanStepCalendar] Enhanced query: "${enhancedQuery}"`);
-                  
-                  // Step 2: Fetch image using enhanced query with validation
-                  const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
-                    body: {
-                      query: enhancedQuery,
-                      maxImages: 1,
-                      orientation: 'squarish',
-                      rawQuery: true
-                    }
-                  });
-                  
-                  if (imageError || !imageData?.images?.[0]) {
-                    console.error(`[PlanStepCalendar] Image fetch failed:`, imageError);
-                    continue;
+                } catch (error: any) {
+                  if (error.message === 'FALLBACK_TO_USER_CONTROL') {
+                    console.log(`⚠️ Image generation exhausted retries for item ${task.itemId}, user control required`);
+                    
+                    // Mark this item as needing manual image selection
+                    updateItem(task.itemId, {
+                      imageGenerationFailed: true,
+                      needsManualImage: true
+                    });
+                    needsManualCount++;
+                  } else {
+                    console.error(`❌ Unexpected error for item ${task.itemId}:`, error);
                   }
-                  
-                  const image = imageData.images[0];
-                  
-                  // Step 3: Update item in state with fetched image
-                  updateItem(task.itemId, {
-                    imageUrl: image.urls?.regular || image.download_url,
-                    imageMetadata: {
-                      alt: image.alt || enhancedQuery,
-                      photographer: image.photographer,
-                      photographer_url: image.photographer_url,
-                      source: 'unsplash_garden_validated',
-                      unsplash_id: image.id || image.unsplash_id,
-                      enhanced_query: enhancedQuery
-                    }
-                  });
-                  successCount++;
-                  console.log(`[PlanStepCalendar] ✅ Fetched garden-validated image ${successCount}/${tasks.length}`);
-                  
-                } catch (err) {
-                  console.warn(`[PlanStepCalendar] Failed to fetch image for ${task.itemId}:`, err);
                 }
               }
               
+              // Show appropriate feedback
               if (successCount > 0) {
-                toast.success(`✅ Generated ${successCount}/${tasks.length} garden-relevant images`, { id: toastId });
-              } else {
+                toast.success(`✅ Generated ${successCount} images successfully`, { id: toastId });
+              }
+              
+              if (needsManualCount > 0) {
+                toast.info(
+                  `${needsManualCount} image(s) need manual selection. Click the image icon to choose.`,
+                  { id: toastId, duration: 6000 }
+                );
+              }
+              
+              if (successCount === 0 && needsManualCount === 0) {
                 toast.error(`Failed to generate images. Please try again.`, { id: toastId });
               }
             } catch (error) {
