@@ -81,6 +81,12 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
       setIsAnalyzing(true);
 
       // Step 2: Call AI analysis
+      console.log('🤖 Calling AI analysis with data:', {
+        rowCount: parsed.firstFiveRows?.length,
+        delimiter: parsed.delimiter,
+        columnCount: parsed.columnCount
+      });
+
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke(
         'analyze-csv-intelligent',
         {
@@ -92,17 +98,23 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
         }
       );
 
+      console.log('🤖 AI analysis response:', { analysisResult, analysisError });
       setIsAnalyzing(false);
 
       // Step 3: Handle AI response
       let mappings: ColumnMapping[];
       
       if (analysisError || !analysisResult?.success) {
-        console.warn('AI analysis failed, using fallback:', analysisError);
+        console.error('❌ AI analysis failed:', {
+          error: analysisError,
+          result: analysisResult,
+          errorMessage: analysisError?.message,
+          resultError: analysisResult?.error
+        });
         toast({
           title: 'AI analysis unavailable',
-          description: 'Using basic column detection. You can manually adjust mappings.',
-          variant: 'default'
+          description: analysisError?.message || analysisResult?.error || 'Using basic column detection. You can manually adjust mappings.',
+          variant: 'destructive'
         });
         
         // Fallback: Use generic column names
