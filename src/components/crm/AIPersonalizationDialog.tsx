@@ -17,6 +17,7 @@ interface AIPersonalizationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImageSelect?: (imageUrl: string) => void;
+  overviewKeywords?: string[];
 }
 
 // Sample images for the grid (using Unsplash garden/plant images)
@@ -37,6 +38,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   open,
   onOpenChange,
   onImageSelect,
+  overviewKeywords = [],
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -64,12 +66,13 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     try {
       console.log('📞 Calling generate-prompt-images edge function...');
       
-      // Single call to generate keywords and fetch images
+      // Single call to generate keywords and fetch images with fallback support
       const { data, error } = await supabase.functions.invoke(
         'generate-prompt-images',
         { 
           body: { 
             prompt: prompt.trim(),
+            fallbackKeywords: overviewKeywords,
             maxImages: 4,
             orientation: 'squarish'
           } 
@@ -124,10 +127,19 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       setGeneratedImages(prev => [...validImages, ...prev]);
       setLoadingPlaceholders(0);
       
-      toast({
-        title: 'Images Generated!',
-        description: `Found ${validImages.length} images using: ${data.keywords.slice(0, 2).join(', ')}`,
-      });
+      // Show different message if fallback was used
+      if (data.usedFallback) {
+        toast({
+          title: 'Overview Images Found!',
+          description: `Found ${validImages.length} images using overview keywords: "${data.usedQuery}"`,
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: 'Images Generated!',
+          description: `Found ${validImages.length} images using: ${data.keywords.slice(0, 2).join(', ')}`,
+        });
+      }
 
       setPrompt('');
     } catch (error) {

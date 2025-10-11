@@ -343,11 +343,36 @@ meta:
       body: JSON.stringify({
         model: 'gpt-4o',
         temperature: 0.7,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "generate_newsletter_content",
+              description: "Generate newsletter content with overview keywords for image search",
+              parameters: {
+                type: "object",
+                properties: {
+                  yamlContent: {
+                    type: "string",
+                    description: "The complete newsletter YAML content following the template"
+                  },
+                  overviewKeywords: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "3-5 simple, visual keywords for finding relevant stock photos on Unsplash related to the theme. These should be concrete, visual terms like 'tomato seedlings', 'garden tools harvest', 'vegetable planting' - not abstract concepts."
+                  }
+                },
+                required: ["yamlContent", "overviewKeywords"]
+              }
+            }
+          }
+        ],
+        tool_choice: { type: "function", function: { name: "generate_newsletter_content" } },
         messages: [
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
-            content: existingContent ? 
+            content: existingContent ?
               `RESTRUCTURE this existing newsletter content into proper YAML format for "${theme}" with focus "${contextualFocus}":
 
 EXISTING CONTENT:
@@ -397,7 +422,19 @@ Template to follow: ${yamlTemplate}`
     }
 
     const data = await response.json();
-    let yamlContent = data.choices[0].message.content;
+    
+    // Extract tool call response
+    const toolCall = data.choices[0].message.tool_calls?.[0];
+    if (!toolCall || toolCall.function.name !== 'generate_newsletter_content') {
+      console.error('No valid tool call in response');
+      throw new Error('Failed to generate structured content');
+    }
+    
+    const functionArgs = JSON.parse(toolCall.function.arguments);
+    let yamlContent = functionArgs.yamlContent;
+    const overviewKeywords = functionArgs.overviewKeywords || [];
+    
+    console.log('📸 Generated overview keywords for image fallback:', overviewKeywords);
 
     // CRITICAL: Sanitize week numbers from generated YAML content
     const originalYaml = yamlContent;
@@ -459,7 +496,8 @@ Template to follow: ${yamlTemplate}`
     return new Response(JSON.stringify({ 
       yamlContent,
       theme: theme,
-      focus: contextualFocus 
+      focus: contextualFocus,
+      overviewKeywords: overviewKeywords
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

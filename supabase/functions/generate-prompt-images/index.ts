@@ -9,6 +9,7 @@ const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
 interface PromptImageRequest {
   prompt: string;
+  fallbackKeywords?: string[];
   maxImages?: number;
   orientation?: 'landscape' | 'portrait' | 'squarish';
 }
@@ -24,7 +25,7 @@ serve(async (req) => {
 
   try {
     console.log('🔍 Processing request body...');
-    const { prompt, maxImages = 4, orientation = 'squarish' }: PromptImageRequest = await req.json();
+    const { prompt, fallbackKeywords = [], maxImages = 4, orientation = 'squarish' }: PromptImageRequest = await req.json();
 
     if (!prompt || prompt.trim().length === 0) {
       return corsJsonResponse(
@@ -70,12 +71,8 @@ serve(async (req) => {
     
     console.log('✅ Generated keywords:', keywords);
 
-    // Step 2: Try each keyword until we find images
-    let images: any[] = [];
-    let usedQuery = '';
-    let lastError = null;
-
-    for (const keyword of keywords) {
+    // Helper function to try Unsplash search
+    const tryUnsplashSearch = async (keyword: string) => {
       try {
         const unsplashUrl = new URL('https://api.unsplash.com/search/photos');
         unsplashUrl.searchParams.set('query', keyword);
@@ -92,20 +89,19 @@ serve(async (req) => {
         });
 
         if (unsplashResponse.status === 403) {
-          lastError = 'Rate limit exceeded. Please try again in a moment.';
           console.warn('⚠️ Unsplash rate limit hit');
-          continue; // Try next keyword
+          return { images: [], rateLimited: true };
         }
 
         if (!unsplashResponse.ok) {
           console.warn(`⚠️ Unsplash error for "${keyword}":`, unsplashResponse.status);
-          continue;
+          return { images: [], rateLimited: false };
         }
 
         const data = await unsplashResponse.json();
         
         if (data.results && data.results.length > 0) {
-          images = data.results.map((photo: any) => ({
+          const images = data.results.map((photo: any) => ({
             id: photo.id,
             urls: {
               regular: photo.urls.regular,
@@ -116,13 +112,53 @@ serve(async (req) => {
             photographer: photo.user?.name || 'Unknown'
           }));
           
-          usedQuery = keyword;
           console.log(`✅ Found ${images.length} images with: "${keyword}"`);
-          break; // Success! Exit loop
+          return { images, rateLimited: false };
         }
+        
+        return { images: [], rateLimited: false };
       } catch (error) {
         console.warn(`⚠️ Error with keyword "${keyword}":`, error);
-        continue; // Try next keyword
+        return { images: [], rateLimited: false };
+      }
+    };
+
+    // Step 2: Try AI-generated keywords first
+    let images: any[] = [];
+    let usedQuery = '';
+    let usedFallback = false;
+    let lastError = null;
+
+    for (const keyword of keywords) {
+      const result = await tryUnsplashSearch(keyword);
+      if (result.rateLimited) {
+        lastError = 'Rate limit exceeded. Please try again in a moment.';
+        continue;
+      }
+      if (result.images.length > 0) {
+        images = result.images;
+        usedQuery = keyword;
+        break;
+      }
+    }
+
+    // Step 3: If no images found and fallback keywords provided, try them
+    if (images.length === 0 && fallbackKeywords && fallbackKeywords.length > 0) {
+      console.log('🔄 Trying fallback overview keywords:', fallbackKeywords);
+      
+      for (const fallbackKeyword of fallbackKeywords) {
+        const result = await tryUnsplashSearch(fallbackKeyword);
+        if (result.rateLimited) {
+          lastError = 'Rate limit exceeded. Please try again in a moment.';
+          continue;
+        }
+        if (result.images.length > 0) {
+          images = result.images;
+          usedQuery = fallbackKeyword;
+          usedFallback = true;
+          console.log(`✅ Found images using fallback keyword: "${fallbackKeyword}"`);
+          break;
+        }
       }
     }
 
@@ -132,6 +168,7 @@ serve(async (req) => {
         { 
           error: lastError || 'No images found',
           keywords,
+          fallbackKeywords,
           details: lastError ? 'Unsplash API rate limit exceeded' : 'Try a different prompt or wait a moment'
         },
         { status: lastError ? 429 : 404 }
@@ -142,6 +179,7 @@ serve(async (req) => {
       images,
       keywords,
       usedQuery,
+      usedFallback,
       count: images.length
     });
 
