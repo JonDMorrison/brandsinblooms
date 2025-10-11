@@ -58,44 +58,69 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     if (!prompt.trim()) return;
 
     setIsGenerating(true);
-    setLoadingPlaceholders(4);
-    
+    setLoadingPlaceholders(4); // Show 4 skeleton loaders
     try {
-      // Use imageGenerationService with retry logic
-      const { imageGenerationService } = await import('@/services/imageGenerationService');
-      const result = await imageGenerationService.fetchImageForChannel({
-        channel: 'instagram',
-        contentContext: prompt,
-        useAIKeywords: true
-      });
-      
-      if (result?.imageUrl) {
-        setGeneratedImages([result.imageUrl]);
+      // Step 1: Generate keywords using OpenAI with garden_ prefix validation
+      const { data: keywordData, error: keywordError } = await supabase.functions.invoke(
+        'generate-image-keywords',
+        { body: { channel: 'instagram', prompt } }
+      );
+
+      if (keywordError || keywordData?.error) {
+        console.error('Keyword generation failed:', keywordError || keywordData);
+        toast({
+          title: 'Keyword Generation Failed',
+          description: keywordData?.details || 'Failed to generate keywords. Try using more specific plant names.',
+          variant: 'destructive',
+        });
+        setIsGenerating(false);
         setLoadingPlaceholders(0);
-        toast({
-          title: 'Image Generated',
-          description: `Found using: "${result.metadata?.usedQuery}" (attempt ${result.metadata?.attemptNumber || 1})`,
-        });
-        setPrompt('');
+        return;
       }
-      
-    } catch (error: any) {
-      setLoadingPlaceholders(0);
-      
-      if (error.message === 'FALLBACK_TO_USER_CONTROL') {
-        toast({
-          title: 'No Images Found',
-          description: 'Try using more general terms like "flowers", "garden", or "plants"',
-          variant: 'destructive',
-        });
-      } else {
-        console.error('Error generating images:', error);
-        toast({
-          title: 'Failed to generate images',
-          description: error.message || 'Please try again with a different prompt.',
-          variant: 'destructive',
-        });
+
+      const keywords = keywordData.keywords as string[];
+      console.log('AI generated keywords:', keywords);
+
+      // Step 2: Fetch images from Unsplash for each keyword
+      const imagePromises = keywords.slice(0, 4).map(async (keyword) => {
+        const { data, error } = await supabase.functions.invoke(
+          'get-unsplash-image',
+          { body: { query: keyword } }
+        );
+        
+        if (error || !data) {
+          console.error('Error fetching image for keyword:', keyword, error);
+          return null;
+        }
+        
+        return data.thumb_url || data.urls?.small;
+      });
+
+      const fetchedImages = await Promise.all(imagePromises);
+      const validImages = fetchedImages.filter(Boolean) as string[];
+
+      if (validImages.length === 0) {
+        throw new Error('No images found for your search');
       }
+
+      // Prepend new images to the grid
+      setGeneratedImages(prev => [...validImages, ...prev]);
+      setLoadingPlaceholders(0); // Clear placeholders
+      
+      toast({
+        title: 'Images generated!',
+        description: `Found ${validImages.length} images based on your prompt.`,
+      });
+
+      setPrompt('');
+    } catch (error) {
+      console.error('Error generating images:', error);
+      toast({
+        title: 'Failed to generate images',
+        description: error.message || 'Please try again with a different prompt.',
+        variant: 'destructive',
+      });
+      setLoadingPlaceholders(0); // Clear placeholders on error
     } finally {
       setIsGenerating(false);
     }

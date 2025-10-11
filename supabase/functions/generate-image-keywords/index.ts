@@ -50,8 +50,8 @@ function getChannelGuidance(channel: string): string {
 /**
  * Generate the system prompt for OpenAI
  */
-function getSystemPrompt(channel: string, isRetry = false): string {
-  let basePrompt = `You are a query composer for Unsplash image search, specialized in garden center and plant photography.
+function getSystemPrompt(channel: string): string {
+  return `You are a query composer for Unsplash image search, specialized in garden center and plant photography.
 
 Given content TEXT, analyze it and return a JSON structure with these facets:
 
@@ -114,22 +114,6 @@ Response:
 }
 
 Generate natural, visual search queries that will find relevant garden and plant images on Unsplash.`;
-
-  if (isRetry) {
-    basePrompt += `
-
-🔄 RETRY CONTEXT:
-This is a RETRY attempt. The previous query variants did not return suitable images.
-Please adjust your strategy:
-- Try BROADER, MORE COMMON terms (e.g., "garden flowers" instead of specific species)
-- Use DIFFERENT angles or perspectives
-- Consider more GENERIC seasonal or color-based queries
-- Avoid overly specific jargon or technical terms
-- Focus on widely available subjects on Unsplash
-- Simplify the queries to increase image availability`;
-  }
-
-  return basePrompt;
 }
 
 serve(async (req) => {
@@ -138,13 +122,7 @@ serve(async (req) => {
   }
 
   try {
-    const { 
-      prompt, 
-      channel = 'instagram', 
-      useAI = true, 
-      isRetry = false,
-      originalContent 
-    } = await req.json();
+    const { prompt, channel = 'instagram', useAI = true } = await req.json();
 
     if (!prompt) {
       return new Response(
@@ -153,7 +131,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`🎨 Generating keywords for ${channel} (retry: ${isRetry}):`, prompt.substring(0, 100));
+    console.log(`🎨 Generating keywords for ${channel}:`, prompt.substring(0, 100));
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -166,13 +144,13 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: getSystemPrompt(channel, isRetry)
+            content: getSystemPrompt(channel)
           },
           {
             role: 'user',
-            content: isRetry 
-              ? `RETRY REQUEST: Previous queries failed to find images. Generate NEW, BROADER variants for: ${prompt}\n\nOriginal content context: ${originalContent?.substring(0, 200)}`
-              : `CONTENT TO ANALYZE: ${prompt}\n\nGenerate faceted search queries for Unsplash. Focus on creating natural, visual queries that will return high-quality garden and plant images.`
+            content: `CONTENT TO ANALYZE: ${prompt}
+
+Generate faceted search queries for Unsplash. Focus on creating natural, visual queries that will return high-quality garden and plant images.`
           }
         ],
         tools: [{
