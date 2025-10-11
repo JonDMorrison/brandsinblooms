@@ -59,18 +59,26 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
 
     setIsGenerating(true);
     setLoadingPlaceholders(4); // Show 4 skeleton loaders
+    
     try {
-      // Step 1: Generate keywords using OpenAI with garden_ prefix validation
-      const { data: keywordData, error: keywordError } = await supabase.functions.invoke(
+      // Step 1: Generate faceted keywords using AI
+      const { data: facetsData, error: keywordError } = await supabase.functions.invoke(
         'generate-image-keywords',
-        { body: { channel: 'instagram', prompt } }
+        { 
+          body: { 
+            prompt: prompt.trim(),
+            channel: 'instagram',
+            useAI: true,
+            isRetry: false
+          } 
+        }
       );
 
-      if (keywordError || keywordData?.error) {
-        console.error('Keyword generation failed:', keywordError || keywordData);
+      if (keywordError || facetsData?.error) {
+        console.error('Keyword generation failed:', keywordError || facetsData);
         toast({
           title: 'Keyword Generation Failed',
-          description: keywordData?.details || 'Failed to generate keywords. Try using more specific plant names.',
+          description: facetsData?.details || 'Failed to generate keywords.',
           variant: 'destructive',
         });
         setIsGenerating(false);
@@ -78,26 +86,36 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         return;
       }
 
-      const keywords = keywordData.keywords as string[];
-      console.log('AI generated keywords:', keywords);
+      console.log('AI generated facets:', facetsData);
 
-      // Step 2: Fetch images from Unsplash for each keyword
-      const imagePromises = keywords.slice(0, 4).map(async (keyword) => {
-        const { data, error } = await supabase.functions.invoke(
-          'get-unsplash-image',
-          { body: { query: keyword } }
-        );
-        
-        if (error || !data) {
-          console.error('Error fetching image for keyword:', keyword, error);
-          return null;
+      // Step 2: Fetch images using the faceted approach
+      const { data: imageData, error: imageError } = await supabase.functions.invoke(
+        'fetch-unsplash-images',
+        { 
+          body: { 
+            query: facetsData.variants?.[0] || prompt.trim(),
+            variants: facetsData.variants || [],
+            maxImages: 4,
+            orientation: 'squarish'
+          } 
         }
-        
-        return data.thumb_url || data.urls?.small;
-      });
+      );
 
-      const fetchedImages = await Promise.all(imagePromises);
-      const validImages = fetchedImages.filter(Boolean) as string[];
+      if (imageError || !imageData?.images) {
+        console.error('Image fetching failed:', imageError || imageData);
+        toast({
+          title: 'Image Fetching Failed',
+          description: 'Failed to fetch images. Please try again.',
+          variant: 'destructive',
+        });
+        setIsGenerating(false);
+        setLoadingPlaceholders(0);
+        return;
+      }
+
+      const validImages = imageData.images
+        .map((img: any) => img.urls?.regular || img.urls?.small)
+        .filter(Boolean) as string[];
 
       if (validImages.length === 0) {
         throw new Error('No images found for your search');
@@ -109,7 +127,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       
       toast({
         title: 'Images generated!',
-        description: `Found ${validImages.length} images based on your prompt.`,
+        description: `Found ${validImages.length} relevant images.`,
       });
 
       setPrompt('');
@@ -117,10 +135,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       console.error('Error generating images:', error);
       toast({
         title: 'Failed to generate images',
-        description: error.message || 'Please try again with a different prompt.',
+        description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive',
       });
-      setLoadingPlaceholders(0); // Clear placeholders on error
+      setLoadingPlaceholders(0);
     } finally {
       setIsGenerating(false);
     }
