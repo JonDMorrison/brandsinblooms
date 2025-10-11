@@ -86,3 +86,6 @@ verify_jwt = true
 
 [functions.fetch-content-images]
 verify_jwt = false
+
+[functions.fetch-unsplash-images]
+verify_jwt = false
