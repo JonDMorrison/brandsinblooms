@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, Check } from "lucide-react";
+import { useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Check } from 'lucide-react';
+import { ConnectStep } from '@/components/migrations/ConnectStep';
+import { ChooseStep } from '@/components/migrations/ChooseStep';
 
 type Step = 'connect' | 'choose' | 'analyze' | 'apply' | 'import' | 'report';
 
@@ -16,19 +17,17 @@ const steps: { id: Step; label: string; description: string }[] = [
 
 const MigrationsPage = () => {
   const [currentStep, setCurrentStep] = useState<Step>('connect');
+  const [importSelection, setImportSelection] = useState<{ listIds: string[]; segmentIds: string[] } | null>(null);
   
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
   
-  const goToNextStep = () => {
-    if (currentStepIndex < steps.length - 1) {
-      setCurrentStep(steps[currentStepIndex + 1].id);
-    }
+  const handleConnectComplete = () => {
+    setCurrentStep('choose');
   };
-  
-  const goToPreviousStep = () => {
-    if (currentStepIndex > 0) {
-      setCurrentStep(steps[currentStepIndex - 1].id);
-    }
+
+  const handleChooseComplete = (selection: { listIds: string[]; segmentIds: string[] }) => {
+    setImportSelection(selection);
+    setCurrentStep('analyze');
   };
 
   return (
@@ -86,36 +85,27 @@ const MigrationsPage = () => {
 
       {/* Step Content */}
       <Card className="p-8">
-        <div className="min-h-[400px] flex flex-col items-center justify-center">
-          <h2 className="text-2xl font-semibold mb-4">
-            {steps[currentStepIndex].label}
-          </h2>
-          <p className="text-muted-foreground text-center mb-8 max-w-md">
-            {steps[currentStepIndex].description}
-          </p>
-          <div className="text-sm text-muted-foreground italic">
-            Step content will be implemented in next phase
+        {currentStep === 'connect' && <ConnectStep onComplete={handleConnectComplete} />}
+        {currentStep === 'choose' && (
+          <ChooseStep 
+            onComplete={handleChooseComplete} 
+            onBack={() => setCurrentStep('connect')} 
+          />
+        )}
+        {currentStepIndex > 1 && (
+          <div className="min-h-[400px] flex flex-col items-center justify-center">
+            <h2 className="text-2xl font-semibold mb-4">
+              {steps[currentStepIndex].label}
+            </h2>
+            <p className="text-muted-foreground text-center mb-8 max-w-md">
+              {steps[currentStepIndex].description}
+            </p>
+            <div className="text-sm text-muted-foreground italic">
+              Step content will be implemented in next phase
+            </div>
           </div>
-        </div>
+        )}
       </Card>
-
-      {/* Navigation Buttons */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={goToPreviousStep}
-          disabled={currentStepIndex === 0}
-        >
-          Previous
-        </Button>
-        <Button
-          onClick={goToNextStep}
-          disabled={currentStepIndex === steps.length - 1}
-        >
-          Next Step
-          <ArrowRight className="ml-2 w-4 h-4" />
-        </Button>
-      </div>
     </div>
   );
 };

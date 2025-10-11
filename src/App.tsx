@@ -45,6 +45,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import IntegrationsPage from '@/pages/IntegrationsPage';
 import POSIntegrationsPage from '@/pages/POSIntegrationsPage';
 import MigrationsPage from '@/pages/MigrationsPage';
+import { OAuthCallbackHandler } from '@/components/migrations/OAuthCallbackHandler';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
 import FAQPage from '@/pages/FAQPage';
