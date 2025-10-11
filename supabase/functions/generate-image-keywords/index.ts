@@ -9,130 +9,111 @@ const corsHeaders = {
 };
 
 /**
- * Generate channel-specific system prompts with strict garden validation
+ * Generate channel-specific guidance for faceted query composition
  */
-function getSystemPrompt(channel: string): string {
-  const basePrompt = `You are an expert garden center image curator. Your ONE JOB: Generate SPECIFIC plant-focused Unsplash search keywords that GUARANTEE garden-relevant images.
+function getChannelGuidance(channel: string): string {
+  const channelGuidance: Record<string, string> = {
+    facebook: `FACEBOOK GUIDANCE:
+- Include "customers" or "shoppers" in setting when appropriate
+- Emphasize social/retail context (nursery, garden center)
+- Consider people interacting with plants
+- Focus on community and engagement aspects`,
 
-🚨 CRITICAL PREFIX REQUIREMENT: Every keyword MUST start with "garden_" to ensure Unsplash returns garden images.
+    instagram: `INSTAGRAM GUIDANCE:
+- Prioritize visual impact and aesthetic appeal
+- Use vibrant color descriptors (vivid, bright, colorful)
+- Focus on close-ups and detail shots
+- Emphasize mood and style (professional, artistic, natural)`,
 
-🚨 ABSOLUTE REQUIREMENTS - QUERIES WITHOUT THESE WILL RETURN WRONG IMAGES:
-1. MANDATORY "garden_" prefix on EVERY keyword (garden_pink, garden_petunia, garden_nursery)
-2. SPECIFIC plant name (rose, tomato, basil, petunia, succulent, NOT "plants" or "flowers")
-3. COLOR descriptor (pink, red, purple, yellow, vibrant, NOT "colorful" or "beautiful")
-4. Garden retail context (greenhouse, nursery, garden_center, potted, display, shelves)
-5. EXTRACT plant names from content - use EXACT plants mentioned
+    blog: `BLOG GUIDANCE:
+- Include action words (planting, pruning, growing)
+- Educational and how-to context
+- Hands-on demonstrations
+- Practical gardening activities`,
 
-WHY PREFIX MATTERS: Without "garden_" prefix, generic queries return architecture/fashion/people instead of plants!
-- "Week" → returns buildings and Louis Vuitton stores ❌
-- "garden" alone → returns architecture ❌
-- "plants" alone → returns random objects ❌
-- "pink petunia" → returns fashion and random objects ❌
+    newsletter: `NEWSLETTER GUIDANCE:
+- Emphasize seasonal context (spring, summer, fall, winter)
+- Product showcase and inventory display
+- Garden center setting
+- Professional presentation`,
 
-✅ CORRECT EXAMPLES (with garden_ prefix - these return garden images):
-- "garden_pink garden_petunia garden_hanging_baskets garden_greenhouse garden_customers"
-- "garden_red garden_tomato garden_seedlings garden_potted garden_nursery garden_display"
-- "garden_purple garden_lavender garden_plants garden_center garden_shelves"
-- "garden_orange garden_marigold garden_flowers garden_potted garden_display garden_closeup"
-
-❌ FORBIDDEN (missing garden_ prefix - these return non-garden images):
-- "beautiful flowers" → returns abstract art
-- "pink petunia hanging baskets" → returns fashion/people
-- "garden plants" → returns architecture
-- "seasonal display" → returns store interiors
-- "flowering plants" → returns fashion/people
-- "colorful blooms" → returns random objects
-- "Week" or any single word → returns irrelevant content
-
-🌱 SPECIFIC PLANT NAMES TO USE:
-- Flowers: rose, petunia, marigold, zinnia, sunflower, dahlia, tulip, geranium, pansy, impatiens
-- Vegetables: tomato, pepper, cucumber, lettuce, basil, cilantro, kale, carrot, onion
-- Herbs: basil, rosemary, thyme, mint, oregano, parsley, sage, dill
-- Shrubs: hydrangea, azalea, boxwood, rhododendron, lilac, forsythia
-- Houseplants: pothos, monstera, succulent, fern, spider plant, peace lily, snake plant
-- Trees: maple, oak, pine, apple, pear, cherry, birch
-
-MANDATORY PROCESS:
-1. READ content and EXTRACT specific plant names mentioned
-2. If content mentions "Holiday Plants" → specify "poinsettia" or "holly"
-3. If content mentions "Spring Flowers" → specify "tulip" or "daffodil"  
-4. If content mentions "Summer Blooms" → specify "petunia" or "marigold"
-5. ALWAYS add color + retail context to the plant name`;
-
-  const channelRequirements: Record<string, string> = {
-    facebook: `
-FACEBOOK - Social Engagement Focus:
-MANDATORY: 
-- Prefix EVERY keyword with "garden_"
-- Specific plant name + color (e.g., "garden_pink garden_petunia", "garden_red garden_geranium")
-- Customers/shoppers/people interacting
-- Retail setting (greenhouse/garden_center/nursery)
-
-✅ CORRECT FORMAT: "garden_customers garden_selecting garden_red garden_geranium garden_hanging_baskets garden_greenhouse"
-✅ CORRECT FORMAT: "garden_shoppers garden_browsing garden_purple garden_hydrangea garden_potted garden_display garden_nursery"
-❌ WRONG: "customers selecting red geranium" (missing garden_ prefix)
-❌ WRONG: "people shopping for flowers" (no prefix, no specific plant)`,
-
-    instagram: `
-INSTAGRAM - Visual Impact Focus:
-MANDATORY:
-- Prefix EVERY keyword with "garden_"
-- Specific plant name + vibrant color descriptor
-- Close-up/detailed shot emphasis
-- Potted/display context
-
-✅ CORRECT FORMAT: "garden_vibrant_orange garden_marigold garden_flowers garden_potted garden_display garden_closeup"
-✅ CORRECT FORMAT: "garden_deep_purple garden_lavender garden_plants garden_center garden_shelves"
-❌ WRONG: "vibrant orange marigold" (missing garden_ prefix)
-❌ WRONG: "colorful flowers display" (no prefix, no specific plant)`,
-
-    blog: `
-BLOG - Educational How-To Focus:
-MANDATORY:
-- Prefix EVERY keyword with "garden_"
-- Specific plant name being worked on
-- Hands/tools showing technique
-- Action verb (pruning, planting, transplanting)
-
-✅ CORRECT FORMAT: "garden_hands garden_pruning garden_red garden_rose garden_bush garden_shears garden_technique"
-✅ CORRECT FORMAT: "garden_transplanting garden_basil garden_seedlings garden_hands garden_trowel garden_soil"
-❌ WRONG: "hands pruning red rose" (missing garden_ prefix)
-❌ WRONG: "gardening techniques" (no prefix, no specific plant)`,
-
-    newsletter: `
-NEWSLETTER - Product Showcase Focus:
-MANDATORY:
-- Prefix EVERY keyword with "garden_"
-- Seasonal context word (spring, summer, fall, winter)
-- Specific plant varieties for that season
-- Garden center inventory/display context
-
-✅ CORRECT FORMAT: "garden_spring garden_vegetable garden_seedlings garden_tomato garden_pepper garden_greenhouse garden_trays"
-✅ CORRECT FORMAT: "garden_fall garden_mum garden_chrysanthemum garden_plants garden_center garden_display"
-❌ WRONG: "spring vegetable seedlings" (missing garden_ prefix)
-❌ WRONG: "seasonal display" (no prefix, no specific plants)`,
-
-    video: `
-VIDEO - Action/Demo Focus:
-MANDATORY:
-- Prefix EVERY keyword with "garden_"
-- Action verb (demonstrating, showing, planting)
-- Specific plant name
-- Hands/person performing task
-
-✅ CORRECT FORMAT: "garden_hands garden_demonstrating garden_tomato garden_plant garden_pruning garden_technique"
-✅ CORRECT FORMAT: "garden_planting garden_petunia garden_seedlings garden_raised_bed garden_tutorial"
-❌ WRONG: "hands demonstrating tomato plant" (missing garden_ prefix)
-❌ WRONG: "gardening tutorial" (no prefix, no specific plant)`
+    video: `VIDEO GUIDANCE:
+- Action-oriented (demonstrating, showing, tutorial)
+- Process and technique focus
+- Hands performing tasks
+- Step-by-step context`
   };
 
-  return `${basePrompt}
+  return channelGuidance[channel] || channelGuidance.instagram;
+}
 
-${channelRequirements[channel] || channelRequirements.instagram}
+/**
+ * Generate the system prompt for OpenAI
+ */
+function getSystemPrompt(channel: string): string {
+  return `You are a query composer for Unsplash image search, specialized in garden center and plant photography.
 
-RESPONSE FORMAT:
-Generate 4-6 keywords as an array, plus a primaryQuery (5-7 words combining the best keywords).
-Focus on VISUAL, PHOTOGRAPHIC elements that a professional garden photographer would capture.`;
+Given content TEXT, analyze it and return a JSON structure with these facets:
+
+FACET DEFINITIONS:
+- theme: 1-3 words describing the main subject (e.g., "pink petunia", "tomato seedlings", "succulent collection")
+- action: 0-2 words for activity/state (e.g., "blooming", "growing", "displayed") - OPTIONAL
+- setting: 0-2 words for location context (e.g., "greenhouse", "nursery", "garden center") - OPTIONAL
+- season_time: 0-2 words for temporal context (e.g., "spring", "morning light") - OPTIONAL
+- mood_style: 0-2 words for aesthetic (e.g., "vibrant", "close-up", "professional") - OPTIONAL
+- exclusions: Array of 0-2 simple words to exclude (e.g., ["people", "text", "logos"]) - OPTIONAL
+- variants: 3-5 natural search queries (2-5 words each) that mix the above facets naturally
+
+CONSTRAINTS:
+- No underscores, commas, or punctuation in queries
+- Prefer common words over niche jargon
+- Each variant should feel natural, like a human would search
+- Avoid repetition across variants
+- Focus on VISUAL, PHOTOGRAPHIC elements
+- Always include at least one plant-specific or garden-related term
+
+CHANNEL GUIDANCE:
+${getChannelGuidance(channel)}
+
+EXAMPLES:
+
+Content: "Beautiful red poinsettias perfect for Christmas decorating"
+Response:
+{
+  "theme": "red poinsettia",
+  "action": "displayed",
+  "setting": "nursery",
+  "season_time": "christmas",
+  "mood_style": "festive vibrant",
+  "exclusions": ["people", "text"],
+  "variants": [
+    "red poinsettia christmas display",
+    "vibrant poinsettia potted nursery",
+    "festive red poinsettia closeup",
+    "christmas poinsettia plants greenhouse",
+    "red holiday poinsettia flowers"
+  ]
+}
+
+Content: "Spring vegetable garden seedlings ready to plant"
+Response:
+{
+  "theme": "vegetable seedlings",
+  "action": "ready planting",
+  "setting": "greenhouse",
+  "season_time": "spring",
+  "mood_style": "fresh green",
+  "exclusions": ["text"],
+  "variants": [
+    "spring vegetable seedlings greenhouse",
+    "fresh green seedling trays",
+    "vegetable plants ready planting",
+    "tomato pepper seedlings nursery",
+    "spring garden starter plants"
+  ]
+}
+
+Generate natural, visual search queries that will find relevant garden and plant images on Unsplash.`;
 }
 
 serve(async (req) => {
@@ -169,54 +150,57 @@ serve(async (req) => {
             role: 'user',
             content: `CONTENT TO ANALYZE: ${prompt}
 
-TASK: Generate Unsplash search keywords by:
-1. PREFIX every single keyword with "garden_" (CRITICAL - this prevents wrong image results!)
-2. IDENTIFYING specific plant names mentioned in the content above (tomato, rose, basil, petunia, etc.)
-3. EXTRACTING color descriptors or adding appropriate ones (pink, red, purple, vibrant, etc.)
-4. ADDING garden retail context (greenhouse, nursery, garden_center, potted, display)
-5. COMBINING into a 5-7 word search query with "garden_" prefix on EACH word
-
-MANDATORY PREFIX EXAMPLES:
-- Content: "Pink Petunias" → Keywords: ["garden_pink", "garden_petunia", "garden_flowers", "garden_potted", "garden_display"]
-- Content: "Holiday Plants" → Keywords: ["garden_poinsettia", "garden_red", "garden_potted", "garden_greenhouse", "garden_holiday"]
-- Content: "Spring Flowers" → Keywords: ["garden_spring", "garden_tulip", "garden_daffodil", "garden_colorful", "garden_nursery"]
-
-REMEMBER: 
-1. EVERY keyword must start with "garden_" (e.g., "garden_pink garden_petunia" NOT "pink petunia")
-2. Use the ACTUAL PLANT NAMES from the content
-3. If content mentions "Christmas Collection" or "Holiday Plants" → specify "garden_poinsettia garden_holly garden_evergreen"
-4. If content mentions "Summer Flowers" → specify "garden_petunia garden_marigold garden_zinnia"
-
-Extract and use SPECIFIC plant varieties with garden_ prefix from the content above.`
+Generate faceted search queries for Unsplash. Focus on creating natural, visual queries that will return high-quality garden and plant images.`
           }
         ],
         tools: [{
           type: "function",
           function: {
-            name: "generate_image_keywords",
-            description: `Generate garden-focused image search keywords for ${channel}`,
+            name: "compose_unsplash_query",
+            description: "Generate faceted search queries for Unsplash",
             parameters: {
               type: "object",
               properties: {
-                keywords: {
+                theme: {
+                  type: "string",
+                  description: "Main subject, 1-3 words (e.g., 'pink petunia', 'tomato plants')"
+                },
+                action: {
+                  type: "string",
+                  description: "Activity or state, 0-2 words (optional)"
+                },
+                setting: {
+                  type: "string",
+                  description: "Location context, 0-2 words (optional)"
+                },
+                season_time: {
+                  type: "string",
+                  description: "Temporal context, 0-2 words (optional)"
+                },
+                mood_style: {
+                  type: "string",
+                  description: "Aesthetic quality, 0-2 words (optional)"
+                },
+                exclusions: {
                   type: "array",
                   items: { type: "string" },
-                  minItems: 4,
-                  maxItems: 6,
-                  description: "4-6 garden-related keywords"
+                  description: "Words to exclude, 0-2 items (optional)"
                 },
-                primaryQuery: {
-                  type: "string",
-                  description: "5-7 word Unsplash query. CRITICAL: MUST start EACH keyword with 'garden_' prefix. Example: 'garden_red garden_roses garden_potted garden_nursery garden_display'. BAD: 'red roses potted nursery' (missing prefix). BAD: 'garden plants display' (generic). BAD: 'Week' (no prefix, generic). GOOD: 'garden_pink garden_petunia garden_hanging_baskets garden_greenhouse'. The query MUST pass this test: Does EVERY word start with 'garden_'? Does it name a specific plant? Does it include a color?"
+                variants: {
+                  type: "array",
+                  items: { type: "string" },
+                  minItems: 3,
+                  maxItems: 5,
+                  description: "3-5 natural search queries mixing facets"
                 }
               },
-              required: ["keywords", "primaryQuery"],
+              required: ["theme", "variants"],
               additionalProperties: false
             }
           }
         }],
-        tool_choice: { type: "function", function: { name: "generate_image_keywords" } },
-        max_tokens: 200,
+        tool_choice: { type: "function", function: { name: "compose_unsplash_query" } },
+        max_tokens: 300,
         temperature: 0.7,
       }),
     });
@@ -248,57 +232,25 @@ Extract and use SPECIFIC plant varieties with garden_ prefix from the content ab
     }
 
     const result = JSON.parse(toolCall.function.arguments);
-    let { keywords, primaryQuery } = result;
+    const { theme, action, setting, season_time, mood_style, exclusions, variants } = result;
 
-    // ========== ENFORCE GARDEN_ PREFIX ==========
-    // This guarantees prefix even if OpenAI forgets
-    const ensureGardenPrefix = (keywords: string[]): string[] => {
-      return keywords.map(kw => {
-        const normalized = kw.trim().toLowerCase().replace(/\s+/g, '_');
-        if (!normalized.startsWith('garden_')) {
-          console.log(`[PREFIX-FIX] Adding garden_ prefix to: "${kw}"`);
-          return `garden_${normalized}`;
-        }
-        return normalized;
-      });
-    };
-
-    // Apply prefix to keywords array
-    keywords = ensureGardenPrefix(keywords);
-
-    // Apply prefix to primaryQuery
-    if (!primaryQuery.includes('garden_')) {
-      console.log(`[PREFIX-FIX] Query missing prefix: "${primaryQuery}"`);
-      const queryWords = primaryQuery.split(/\s+/);
-      primaryQuery = queryWords.map(word => {
-        const normalized = word.toLowerCase().replace(/\s+/g, '_');
-        return normalized.startsWith('garden_') ? normalized : `garden_${normalized}`;
-      }).join(' ');
-      console.log(`[PREFIX-FIX] Fixed query: "${primaryQuery}"`);
-    }
-
-    console.log('✅ AI Generated (with prefix):', { keywords, primaryQuery });
-
-    // === VALIDATE KEYWORDS ===
-    const { validateGardenKeywords } = await import('../_shared/enhanced-keyword-validator.ts');
-    
-    const validation = validateGardenKeywords(keywords, channel);
-    
-    console.log('🔍 Validation Results:', {
-      score: validation.score,
-      isValid: validation.isValid,
-      issues: validation.issues
+    console.log('✅ AI Generated faceted query:', {
+      theme,
+      action,
+      setting,
+      season_time,
+      mood_style,
+      exclusions,
+      variants
     });
 
-    // If validation fails, return error with details for user to try manual search
-    if (!validation.isValid) {
-      console.error('❌ Keyword validation failed:', validation);
+    // Validate that we have at least the required fields
+    if (!theme || !variants || variants.length < 3) {
+      console.error('❌ Invalid faceted response:', result);
       return new Response(
         JSON.stringify({ 
-          error: 'Generated keywords did not meet quality standards',
-          details: validation.issues.join('. '),
-          suggestions: validation.suggestions,
-          score: validation.score,
+          error: 'Failed to generate valid query variants',
+          details: 'AI did not return sufficient query variants. Please try again or use manual search.',
           retryable: true
         }),
         { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -307,13 +259,14 @@ Extract and use SPECIFIC plant varieties with garden_ prefix from the content ab
 
     return new Response(
       JSON.stringify({ 
-        keywords, 
-        primaryQuery,
-        channel,
-        validationScore: validation.score,
-        validationPassed: validation.isValid,
-        issues: validation.issues.length > 0 ? validation.issues : undefined,
-        suggestions: validation.suggestions.length > 0 ? validation.suggestions : undefined
+        theme,
+        action,
+        setting,
+        season_time,
+        mood_style,
+        exclusions,
+        variants,
+        channel
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

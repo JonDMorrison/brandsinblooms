@@ -42,34 +42,15 @@ export function useImageGeneration(): UseImageGenerationReturn {
         useAIKeywords: true
       };
       
-      // Attempt 1: AI-generated keywords
+      // Generate image using faceted approach
       setProgress(30);
-      let result = await imageGenerationService.fetchImageForChannel(request);
+      const result = await imageGenerationService.fetchImageForChannel(request);
       
       setProgress(70);
       
-      // Check quality and retry if needed
-      if (result.validationScore !== undefined && result.validationScore < 70 && maxRetries > 0) {
-        const warning = `Low quality image (score: ${result.validationScore}), retrying... (${maxRetries} attempts left)`;
-        setValidationWarnings(prev => [...prev, warning]);
-        console.warn(warning);
-        
-        setProgress(40);
-        
-        // Retry with remaining attempts
-        result = await generateImageForChannel(channel, content, title, maxRetries - 1);
-        
-        if (!result) {
-          throw new Error('All retry attempts failed');
-        }
-      }
-      
-      // Add warnings if fallback was used
-      if (result.fallbackUsed) {
-        setValidationWarnings(prev => [
-          ...prev,
-          'AI keywords failed validation - using fallback query'
-        ]);
+      // Add any validation warnings from metadata
+      if (result.validationWarnings && result.validationWarnings.length > 0) {
+        setValidationWarnings(result.validationWarnings);
       }
       
       setProgress(100);
@@ -77,10 +58,8 @@ export function useImageGeneration(): UseImageGenerationReturn {
       
     } catch (error) {
       console.error('Image generation failed:', error);
-      setValidationWarnings(prev => [
-        ...prev,
-        'Image generation failed. Please try manual selection.'
-      ]);
+      const errorMessage = error instanceof Error ? error.message : 'Image generation failed';
+      setValidationWarnings([errorMessage]);
       return null;
     } finally {
       setIsGenerating(false);

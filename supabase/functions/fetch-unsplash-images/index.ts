@@ -19,99 +19,31 @@ serve(async (req) => {
 
   try {
     const { 
-      query, 
+      query,
+      variants = [],
       collection,
       page = 1,
       contentTaskId, 
       maxImages = 4,
       orientation = 'squarish',
       orderBy = 'relevant',
-      contentFilter = 'high',
-      rawQuery = false
+      contentFilter = 'high'
     } = await req.json();
 
-    if (!query && !collection) {
-      throw new Error('Either query or collection parameter is required');
+    if (!query && !collection && variants.length === 0) {
+      throw new Error('Either query, variants, or collection parameter is required');
     }
 
-    // === ENHANCED DEBUG LOGGING ===
-    console.log(`[UNSPLASH-DEBUG] ===== REQUEST START =====`);
-    console.log(`[UNSPLASH-DEBUG] Raw input query: "${query}"`);
-    console.log(`[UNSPLASH-DEBUG] rawQuery flag: ${rawQuery}`);
-    console.log(`[UNSPLASH-DEBUG] contentTaskId: ${contentTaskId}`);
-    
-    // Query quality analysis
-    if (query) {
-      const queryWords = query.trim().split(/\s+/);
-      const isSpecific = queryWords.length >= 3 && !query.toLowerCase().includes('garden center');
-      console.log(`[UNSPLASH-DEBUG] Query specificity: ${isSpecific ? '✅ SPECIFIC' : '⚠️ GENERIC'} (${queryWords.length} words)`);
-      
-      // Check for problematic patterns
-      if (query.includes('garden garden')) {
-        console.warn(`[UNSPLASH-DEBUG] ⚠️ DUPLICATE "garden" detected in query!`);
-      }
-      if (query === 'garden') {
-        console.warn(`[UNSPLASH-DEBUG] ⚠️ Query is just "garden" - too generic!`);
-      }
-    }
-    console.log(`[UNSPLASH-DEBUG] ===== END DEBUG =====`);
-
-    console.log(`[UNSPLASH] ===== ENHANCED FETCH DEBUG =====`);
-    console.log(`[UNSPLASH] Received query: "${query}", collection: "${collection}", page: ${page}`);
-    console.log(`[UNSPLASH] Parameters: maxImages=${maxImages}, orientation=${orientation}, orderBy=${orderBy}, contentFilter=${contentFilter}, rawQuery=${rawQuery}`);
-    console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey} (${unsplashAccessKey ? 'Available' : 'Missing - will use garden center fallbacks'})`);
-    console.log(`[UNSPLASH] Supabase URL: ${!!supabaseUrl}`);
-    console.log(`[UNSPLASH] Service Key: ${!!supabaseServiceKey}`);
+    console.log(`[UNSPLASH] ===== FETCH REQUEST =====`);
+    console.log(`[UNSPLASH] Query: "${query}", Variants: ${variants.length}, Collection: "${collection}"`);
+    console.log(`[UNSPLASH] Variants:`, variants);
+    console.log(`[UNSPLASH] Parameters: maxImages=${maxImages}, orientation=${orientation}, orderBy=${orderBy}, contentFilter=${contentFilter}`);
+    console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey}`);
 
     if (!unsplashAccessKey) {
-      console.log('[UNSPLASH] ❌ API key not configured - falling back to garden center images');
-      console.log('[UNSPLASH] This is expected behavior when API key is not set');
-      throw new Error('Unsplash API key not configured - using garden center fallbacks');
+      console.log('[UNSPLASH] ❌ API key not configured');
+      throw new Error('Unsplash API key not configured');
     }
-
-    // VALIDATION STEP 1: Validate query BEFORE calling Unsplash
-    const validateQuery = (q: string): { valid: boolean; enhancedQuery: string; reason?: string } => {
-      if (!q || q.trim().length === 0) {
-        return { valid: false, enhancedQuery: '', reason: 'Empty query' };
-      }
-
-      const trimmed = q.trim().toLowerCase();
-      const words = trimmed.split(/\s+/).filter(w => w.length > 2);
-      
-      // CHECK 1: Perfect queries with garden_ prefix (highest priority)
-      const hasGardenPrefix = words.every(w => w.startsWith('garden_'));
-      if (hasGardenPrefix && words.length >= 3) {
-        console.log(`[UNSPLASH-VALIDATION] ✅ PERFECT: Query has garden_ prefix: "${q}"`);
-        return { valid: true, enhancedQuery: q, reason: 'Prefixed query - guaranteed garden results' };
-      }
-      
-      // CHECK 2: Reject generic queries
-      if (words.length < 2) {
-        console.warn(`[UNSPLASH-VALIDATION] ❌ Query too generic: "${q}" (${words.length} meaningful words)`);
-        const prefixedQuery = words.map(w => `garden_${w}`).join(' ') + ' garden_plants garden_nursery garden_flowers';
-        return { 
-          valid: false, 
-          enhancedQuery: prefixedQuery,
-          reason: 'Query too short - enhanced with garden_ prefix'
-        };
-      }
-
-      // CHECK 3: Add garden_ prefix to all words if missing
-      if (!hasGardenPrefix) {
-        console.log(`[UNSPLASH-VALIDATION] 🔧 Adding garden_ prefix to query: "${q}"`);
-        const prefixedWords = words.map(w => w.startsWith('garden_') ? w : `garden_${w}`);
-        const enhancedQuery = prefixedWords.join(' ');
-        console.log(`[UNSPLASH-VALIDATION] ✅ Enhanced query: "${enhancedQuery}"`);
-        return {
-          valid: true,
-          enhancedQuery: enhancedQuery,
-          reason: 'Added garden_ prefix for better results'
-        };
-      }
-
-      console.log(`[UNSPLASH-VALIDATION] ✅ Query validated: "${q}"`);
-      return { valid: true, enhancedQuery: q };
-    };
 
     let unsplashUrl: string;
     let images: any[] = [];
@@ -144,19 +76,17 @@ serve(async (req) => {
       images = collectionData || [];
       console.log(`[UNSPLASH] Found ${images.length} images from collection ${collection}`);
     } else {
-      // Search photos with query
-      if (query) {
-        // STEP 1: Validate and enhance query
-        const validation = validateQuery(query);
-        let searchQuery = rawQuery ? query : validation.enhancedQuery;
+      // Search photos - try variants or single query
+      const queriesToTry = variants.length > 0 ? variants : [query];
+      let usedQuery = '';
+      
+      for (const searchQuery of queriesToTry) {
+        if (!searchQuery || searchQuery.trim().length === 0) continue;
         
-        if (!validation.valid && !rawQuery) {
-          console.warn(`[UNSPLASH] Invalid query "${query}", using enhanced: "${searchQuery}"`);
-        }
+        console.log(`[UNSPLASH] Trying query variant: "${searchQuery}"`);
 
-        // Enhanced Unsplash API call with quality parameters
         const searchParams = new URLSearchParams({
-          query: encodeURIComponent(searchQuery),
+          query: searchQuery,
           per_page: (maxImages * 2).toString(), // Fetch more to allow for filtering
           orientation: orientation,
           order_by: orderBy,
@@ -164,7 +94,6 @@ serve(async (req) => {
         });
 
         unsplashUrl = `https://api.unsplash.com/search/photos?${searchParams.toString()}`;
-        console.log(`[UNSPLASH] Search Request URL: ${unsplashUrl}`);
 
         const unsplashResponse = await fetch(unsplashUrl, {
           headers: {
@@ -172,17 +101,29 @@ serve(async (req) => {
           },
         });
 
-        console.log(`[UNSPLASH] Search API Response status: ${unsplashResponse.status}`);
+        console.log(`[UNSPLASH] API Response status: ${unsplashResponse.status}`);
 
         if (!unsplashResponse.ok) {
           const errorText = await unsplashResponse.text();
-          console.error(`[UNSPLASH] Search API error ${unsplashResponse.status}: ${errorText}`);
-          throw new Error(`Unsplash Search API error: ${unsplashResponse.status}`);
+          console.error(`[UNSPLASH] API error ${unsplashResponse.status}: ${errorText}`);
+          continue; // Try next variant
         }
 
         const unsplashData = await unsplashResponse.json();
-        images = unsplashData.results || [];
-        console.log(`[UNSPLASH] Found ${images.length} images from search`);
+        const results = unsplashData.results || [];
+        console.log(`[UNSPLASH] Found ${results.length} images for query: "${searchQuery}"`);
+        
+        if (results.length > 0) {
+          images = results;
+          usedQuery = searchQuery;
+          break; // Found results, stop trying variants
+        }
+      }
+      
+      if (images.length === 0) {
+        console.warn(`[UNSPLASH] No images found for any variant. Tried: ${queriesToTry.join(', ')}`);
+      } else {
+        console.log(`[UNSPLASH] Successfully used query: "${usedQuery}"`);
       }
     }
 

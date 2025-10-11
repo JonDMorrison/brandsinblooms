@@ -12,93 +12,99 @@ export interface ChannelImageRequest {
   useAIKeywords?: boolean;
 }
 
+export interface FacetedKeywords {
+  theme: string;
+  action?: string;
+  setting?: string;
+  season_time?: string;
+  mood_style?: string;
+  exclusions?: string[];
+  variants: string[];
+  channel: string;
+}
+
 export interface ImageGenerationResult {
   imageUrl: string;
-  metadata?: any;
-  validationScore?: number;
-  keywordsUsed?: string[];
-  fallbackUsed?: boolean;
+  metadata?: {
+    facets?: FacetedKeywords;
+    usedQuery?: string;
+    photographer?: string;
+    photographerUrl?: string;
+  };
+  validationWarnings?: string[];
 }
 
 export class ImageGenerationService {
   
   /**
-   * Fetch optimized image for specific channel
+   * Fetch optimized image for specific channel using faceted keywords
    */
   async fetchImageForChannel(request: ChannelImageRequest): Promise<ImageGenerationResult> {
     console.log(`🎨 Fetching image for ${request.channel}:`, request.contentTitle || request.contentContext.substring(0, 50));
     
     try {
-      // Step 1: Generate channel-specific keywords
-      const keywordData = await this.generateKeywords(request);
+      // Step 1: Generate faceted keywords using AI
+      const facetsData = await this.generateKeywords(request);
       
-      console.log('📝 Generated keywords:', {
-        keywords: keywordData.keywords,
-        primaryQuery: keywordData.primaryQuery,
-        validationScore: keywordData.validationScore
-      });
-      
-      // Step 2: Use primary query for Unsplash search
-      const query = keywordData.primaryQuery || keywordData.keywords.join(' ');
-      
-      // Step 3: Fetch from Unsplash
-      const image = await this.fetchFromUnsplash(query);
-      
-      if (!image) {
-        // Retry with fallback if primary fails
-        console.warn('⚠️ Primary query failed, trying fallback...');
-        const fallbackQuery = this.getChannelFallback(request.channel, request.contentTitle);
-        const fallbackImage = await this.fetchFromUnsplash(fallbackQuery);
-        
-        if (fallbackImage) {
-          return {
-            imageUrl: fallbackImage.download_url || fallbackImage.urls?.regular,
-            metadata: fallbackImage,
-            fallbackUsed: true,
-            keywordsUsed: fallbackQuery.split(' ')
-          };
-        }
-        
-        throw new Error('Failed to fetch image from Unsplash');
+      // Check if keyword generation failed
+      if (facetsData?.error) {
+        throw new Error(facetsData.details || facetsData.message || 'Failed to generate keywords');
       }
       
-      // Step 4: Validate image relevance
-      const relevanceScore = this.validateImageRelevance(image, keywordData.keywords);
+      console.log('📝 Generated facets:', {
+        theme: facetsData.theme,
+        variants: facetsData.variants,
+        channel: facetsData.channel
+      });
       
-      console.log(`✅ Image fetched (relevance: ${relevanceScore}%):`, image.alt_description?.substring(0, 60));
+      // Step 2: Fetch from Unsplash using variants
+      const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
+        body: {
+          query: facetsData.variants[0], // Primary query
+          variants: facetsData.variants, // All variants to try
+          maxImages: 8,
+          orientation: 'squarish',
+          orderBy: 'relevant',
+          contentFilter: 'high'
+        }
+      });
+      
+      if (imageError) {
+        console.error('❌ Unsplash error:', imageError);
+        throw new Error(`Unsplash API error: ${imageError.message}`);
+      }
+      
+      if (!imageData?.images || imageData.images.length === 0) {
+        console.error('❌ No images returned from Unsplash');
+        throw new Error('No images found for the given keywords');
+      }
+      
+      // Images are already filtered and sorted by the edge function
+      const bestMatch = imageData.images[0];
+      
+      console.log(`✅ Image fetched using query: "${imageData.query || facetsData.variants[0]}"`);
+      console.log(`   Alt: ${bestMatch.alt?.substring(0, 60)}`);
       
       return {
-        imageUrl: image.download_url || image.urls?.regular,
-        metadata: image,
-        validationScore: keywordData.validationScore,
-        keywordsUsed: keywordData.keywords,
-        fallbackUsed: false
+        imageUrl: bestMatch.urls?.regular || bestMatch.download_url,
+        metadata: {
+          facets: facetsData,
+          usedQuery: imageData.query,
+          photographer: bestMatch.photographer,
+          photographerUrl: bestMatch.photographer_url
+        }
       };
       
     } catch (error) {
       console.error('❌ Error in fetchImageForChannel:', error);
-      
-      // Final fallback: use generic garden query
-      const fallbackQuery = this.getChannelFallback(request.channel);
-      const fallbackImage = await this.fetchFromUnsplash(fallbackQuery);
-      
-      if (fallbackImage) {
-        return {
-          imageUrl: fallbackImage.download_url || fallbackImage.urls?.regular,
-          metadata: fallbackImage,
-          fallbackUsed: true,
-          keywordsUsed: fallbackQuery.split(' ')
-        };
-      }
-      
       throw error;
     }
   }
   
   /**
-   * Generate channel-specific keywords using AI
+   * Generate faceted keywords using OpenAI via edge function
    */
-  private async generateKeywords(request: ChannelImageRequest): Promise<any> {
+  private async generateKeywords(request: ChannelImageRequest): Promise<FacetedKeywords | any> {
     try {
       const { data, error } = await supabase.functions.invoke('generate-image-keywords', {
         body: {
@@ -110,7 +116,6 @@ export class ImageGenerationService {
       
       if (error) {
         console.error('Keyword generation error:', error);
-        // Return error details for upstream handling
         return {
           error: true,
           message: error.message || 'Failed to generate keywords',
@@ -120,18 +125,16 @@ export class ImageGenerationService {
 
       // Check if data contains error from edge function (422 validation failure)
       if (data?.error) {
-        console.error('Keyword validation failed:', data);
+        console.error('Keyword generation failed:', data);
         return {
           error: true,
           message: data.error,
           details: data.details,
-          suggestions: data.suggestions,
-          score: data.score,
           retryable: data.retryable
         };
       }
 
-      return data;
+      return data as FacetedKeywords;
     } catch (error) {
       console.error('Exception in generateKeywords:', error);
       return {
@@ -143,72 +146,9 @@ export class ImageGenerationService {
   }
   
   /**
-   * Fetch image from Unsplash using query
+   * DEPRECATED: These methods are no longer needed with faceted approach
+   * Images are fetched and filtered by the edge function
    */
-  private async fetchFromUnsplash(query: string): Promise<any> {
-    try {
-      const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
-        body: {
-          query,
-          maxImages: 1,
-          orientation: 'squarish',
-          orderBy: 'relevant',
-          contentFilter: 'high'
-        }
-      });
-      
-      if (error || !data?.images || data.images.length === 0) {
-        console.error('Unsplash fetch error:', error);
-        return null;
-      }
-      
-      return data.images[0];
-    } catch (error) {
-      console.error('Failed to fetch from Unsplash:', error);
-      return null;
-    }
-  }
-  
-  /**
-   * Validate image relevance to keywords
-   */
-  private validateImageRelevance(image: any, keywords: string[]): number {
-    const altText = image.alt_description?.toLowerCase() || '';
-    const description = image.description?.toLowerCase() || '';
-    const searchText = `${altText} ${description}`;
-    
-    // Check for garden terms
-    const gardenTerms = ['garden', 'plant', 'flower', 'nursery', 'greenhouse', 'leaf', 'bloom', 'botanical'];
-    const hasGardenTerm = gardenTerms.some(term => searchText.includes(term));
-    
-    if (!hasGardenTerm) {
-      console.warn('⚠️ Image may not be garden-related:', altText.substring(0, 60));
-    }
-    
-    // Check for keyword matches
-    const matchCount = keywords.filter(kw => 
-      searchText.includes(kw.toLowerCase())
-    ).length;
-    
-    const relevanceScore = Math.round((matchCount / keywords.length) * 100);
-    
-    return relevanceScore;
-  }
-  
-  /**
-   * Get channel-specific fallback query
-   */
-  private getChannelFallback(channel: string, title?: string): string {
-    const fallbacks: Record<string, string> = {
-      facebook: 'customers browsing seasonal plants garden center greenhouse',
-      instagram: 'colorful flowering plants nursery display pots close',
-      blog: 'hands planting seedlings soil garden trowel technique',
-      newsletter: 'seasonal garden center plant inventory greenhouse display',
-      video: 'demonstrating plant care garden center customer tutorial'
-    };
-    
-    return fallbacks[channel] || 'garden center plants seasonal display';
-  }
 }
 
 // Export singleton instance
