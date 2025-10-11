@@ -10,7 +10,7 @@ import { SegmentCard } from '@/components/crm/segments/SegmentCard';
 import { CustomSegmentModal } from '@/components/crm/segments/CustomSegmentModal';
 import { SegmentOverviewCard } from '@/components/crm/segments/SegmentOverviewCard';
 import { SegmentCustomersModal } from '@/components/crm/segments/SegmentCustomersModal';
-import { SegmentImportModal } from '@/components/crm/segments/SegmentImportModal';
+import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedSegmentImportDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 
@@ -90,8 +90,7 @@ export const CRMSegmentsPage: React.FC = () => {
     refreshCounts();
   };
 
-  const handleImportSegments = async (segmentsData: Array<{ name: string; filters: any[] }>) => {
-    await bulkImportSegments(segmentsData);
+  const handleImportComplete = async () => {
     setShowImportModal(false);
     await fetchSegments();
     refreshCounts();
@@ -320,10 +319,10 @@ export const CRMSegmentsPage: React.FC = () => {
         onCancel={() => setShowCustomBuilder(false)}
       />
 
-      <SegmentImportModal
+      <EnhancedSegmentImportDialog
         open={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImport={handleImportSegments}
+        onOpenChange={setShowImportModal}
+        onImportComplete={handleImportComplete}
       />
 
       {/* Segment Customers Modal */}
