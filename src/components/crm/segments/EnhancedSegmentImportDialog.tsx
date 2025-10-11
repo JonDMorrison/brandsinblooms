@@ -54,6 +54,16 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
+    // Only validate file type, no size or format restrictions
+    if (!selectedFile.name.endsWith('.csv')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload a CSV file',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setFile(selectedFile);
     setProgress({ stage: 'upload', progress: 50, message: 'Parsing CSV file...' });
 
@@ -377,6 +387,7 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
                 <Upload className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                 <input
                   type="file"
+                  accept=".csv"
                   onChange={handleFileChange}
                   className="hidden"
                   id="csv-upload"
@@ -385,7 +396,7 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
                   Drag & drop your customer file here, or click to browse
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Supports CSV and Excel files
+                  Supports CSV files with any delimiter
                 </p>
                 
                 {file && (
