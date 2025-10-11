@@ -58,62 +58,45 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     if (!prompt.trim()) return;
 
     setIsGenerating(true);
-    setLoadingPlaceholders(4); // Show 4 skeleton loaders
+    setLoadingPlaceholders(4);
     
     try {
-      // Step 1: Generate faceted keywords using AI
-      const { data: facetsData, error: keywordError } = await supabase.functions.invoke(
-        'generate-image-keywords',
+      // Single call to generate keywords and fetch images
+      const { data, error } = await supabase.functions.invoke(
+        'generate-prompt-images',
         { 
           body: { 
             prompt: prompt.trim(),
-            channel: 'instagram',
-            useAI: true,
-            isRetry: false
-          } 
-        }
-      );
-
-      if (keywordError || facetsData?.error) {
-        console.error('Keyword generation failed:', keywordError || facetsData);
-        toast({
-          title: 'Keyword Generation Failed',
-          description: facetsData?.details || 'Failed to generate keywords.',
-          variant: 'destructive',
-        });
-        setIsGenerating(false);
-        setLoadingPlaceholders(0);
-        return;
-      }
-
-      console.log('AI generated facets:', facetsData);
-
-      // Step 2: Fetch images using the faceted approach
-      const { data: imageData, error: imageError } = await supabase.functions.invoke(
-        'fetch-unsplash-images',
-        { 
-          body: { 
-            query: facetsData.variants?.[0] || prompt.trim(),
-            variants: facetsData.variants || [],
             maxImages: 4,
             orientation: 'squarish'
           } 
         }
       );
 
-      if (imageError || !imageData?.images) {
-        console.error('Image fetching failed:', imageError || imageData);
-        toast({
-          title: 'Image Fetching Failed',
-          description: 'Failed to fetch images. Please try again.',
-          variant: 'destructive',
-        });
+      if (error || data?.error) {
+        console.error('Image generation failed:', error || data);
+        
+        // Handle rate limit specifically
+        if (data?.details?.includes('rate limit')) {
+          toast({
+            title: 'Service Temporarily Unavailable',
+            description: 'Image service rate limit reached. Please try again in a moment.',
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Failed to Generate Images',
+            description: data?.details || 'Please try a different prompt.',
+            variant: 'destructive',
+          });
+        }
+        
         setIsGenerating(false);
         setLoadingPlaceholders(0);
         return;
       }
 
-      const validImages = imageData.images
+      const validImages = data.images
         .map((img: any) => img.urls?.regular || img.urls?.small)
         .filter(Boolean) as string[];
 
@@ -121,20 +104,22 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         throw new Error('No images found for your search');
       }
 
+      console.log(`✅ Generated ${validImages.length} images using: "${data.usedQuery}"`);
+      
       // Prepend new images to the grid
       setGeneratedImages(prev => [...validImages, ...prev]);
-      setLoadingPlaceholders(0); // Clear placeholders
+      setLoadingPlaceholders(0);
       
       toast({
-        title: 'Images generated!',
-        description: `Found ${validImages.length} relevant images.`,
+        title: 'Images Generated!',
+        description: `Found ${validImages.length} images using: ${data.keywords.slice(0, 2).join(', ')}`,
       });
 
       setPrompt('');
     } catch (error) {
       console.error('Error generating images:', error);
       toast({
-        title: 'Failed to generate images',
+        title: 'Failed to Generate Images',
         description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive',
       });
