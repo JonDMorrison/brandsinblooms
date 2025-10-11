@@ -57,10 +57,13 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   const handleGenerateImages = async () => {
     if (!prompt.trim()) return;
 
+    console.log('🎨 Starting image generation with prompt:', prompt);
     setIsGenerating(true);
     setLoadingPlaceholders(4);
     
     try {
+      console.log('📞 Calling generate-prompt-images edge function...');
+      
       // Single call to generate keywords and fetch images
       const { data, error } = await supabase.functions.invoke(
         'generate-prompt-images',
@@ -73,8 +76,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         }
       );
 
+      console.log('📥 Response received:', { data, error });
+
       if (error || data?.error) {
-        console.error('Image generation failed:', error || data);
+        console.error('❌ Image generation failed:', error || data);
         
         // Handle rate limit specifically
         if (data?.details?.includes('rate limit')) {
@@ -86,7 +91,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         } else {
           toast({
             title: 'Failed to Generate Images',
-            description: data?.details || 'Please try a different prompt.',
+            description: data?.details || error?.message || 'Please try a different prompt.',
             variant: 'destructive',
           });
         }
@@ -99,6 +104,8 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       const validImages = data.images
         .map((img: any) => img.urls?.regular || img.urls?.small)
         .filter(Boolean) as string[];
+
+      console.log('✅ Valid images extracted:', validImages.length);
 
       if (validImages.length === 0) {
         throw new Error('No images found for your search');
@@ -117,7 +124,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
 
       setPrompt('');
     } catch (error) {
-      console.error('Error generating images:', error);
+      console.error('💥 Caught error generating images:', error);
       toast({
         title: 'Failed to Generate Images',
         description: error instanceof Error ? error.message : 'Please try again.',
@@ -126,6 +133,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       setLoadingPlaceholders(0);
     } finally {
       setIsGenerating(false);
+      console.log('🏁 Image generation complete');
     }
   };
 
