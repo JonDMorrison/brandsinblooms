@@ -4,7 +4,11 @@ import { Check } from 'lucide-react';
 import { ConnectStep } from '@/components/migrations/ConnectStep';
 import { ChooseStep } from '@/components/migrations/ChooseStep';
 import { AnalyzeStep } from '@/components/migrations/AnalyzeStep';
+import { ApplyStep } from '@/components/migrations/ApplyStep';
+import { ImportStep } from '@/components/migrations/ImportStep';
+import { ReportStep } from '@/components/migrations/ReportStep';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 type Step = 'connect' | 'choose' | 'analyze' | 'apply' | 'import' | 'report';
 
@@ -18,10 +22,12 @@ const steps: { id: Step; label: string; description: string }[] = [
 ];
 
 const MigrationsPage = () => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<Step>('connect');
   const [importSelection, setImportSelection] = useState<{ listIds: string[]; segmentIds: string[] } | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+  const [importReport, setImportReport] = useState<any>(null);
   
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
   
@@ -73,6 +79,25 @@ const MigrationsPage = () => {
   const handleAnalyzeComplete = (suggestions: any[]) => {
     setAiSuggestions(suggestions);
     setCurrentStep('apply');
+  };
+
+  const handleApplyComplete = () => {
+    setCurrentStep('import');
+  };
+
+  const handleImportComplete = (report: any) => {
+    setImportReport(report);
+    setCurrentStep('report');
+  };
+
+  const handleDisconnect = () => {
+    // Reset wizard and navigate back
+    setCurrentStep('connect');
+    setImportSelection(null);
+    setJobId(null);
+    setAiSuggestions([]);
+    setImportReport(null);
+    navigate('/integrations');
   };
 
   return (
@@ -144,18 +169,27 @@ const MigrationsPage = () => {
             onBack={() => setCurrentStep('choose')}
           />
         )}
-        {currentStepIndex > 2 && (
-          <div className="min-h-[400px] flex flex-col items-center justify-center">
-            <h2 className="text-2xl font-semibold mb-4">
-              {steps[currentStepIndex].label}
-            </h2>
-            <p className="text-muted-foreground text-center mb-8 max-w-md">
-              {steps[currentStepIndex].description}
-            </p>
-            <div className="text-sm text-muted-foreground italic">
-              Step content will be implemented in next phase
-            </div>
-          </div>
+        {currentStep === 'apply' && (
+          <ApplyStep 
+            suggestions={aiSuggestions}
+            onComplete={handleApplyComplete}
+            onBack={() => setCurrentStep('analyze')}
+          />
+        )}
+        {currentStep === 'import' && jobId && (
+          <ImportStep 
+            jobId={jobId}
+            suggestions={aiSuggestions}
+            onComplete={handleImportComplete}
+            onBack={() => setCurrentStep('apply')}
+          />
+        )}
+        {currentStep === 'report' && jobId && (
+          <ReportStep 
+            jobId={jobId}
+            report={importReport}
+            onDisconnect={handleDisconnect}
+          />
         )}
       </Card>
     </div>
