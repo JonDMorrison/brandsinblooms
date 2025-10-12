@@ -4,6 +4,7 @@ import { Check } from 'lucide-react';
 import { ConnectStep } from '@/components/migrations/ConnectStep';
 import { ChooseStep } from '@/components/migrations/ChooseStep';
 import { AnalyzeStep } from '@/components/migrations/AnalyzeStep';
+import { supabase } from '@/integrations/supabase/client';
 
 type Step = 'connect' | 'choose' | 'analyze' | 'apply' | 'import' | 'report';
 
@@ -28,9 +29,45 @@ const MigrationsPage = () => {
     setCurrentStep('choose');
   };
 
-  const handleChooseComplete = (selection: { listIds: string[]; segmentIds: string[] }) => {
+  const handleChooseComplete = async (selection: { listIds: string[]; segmentIds: string[] }) => {
     setImportSelection(selection);
-    setCurrentStep('analyze');
+    
+    // Create import job
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: connection } = await supabase
+        .from('provider_connections')
+        .select('id, tenant_id')
+        .eq('status', 'connected')
+        .in('provider', ['mailchimp', 'klaviyo'])
+        .single();
+
+      if (!connection) return;
+
+      const { data: job } = await supabase
+        .from('import_jobs')
+        .insert({
+          tenant_id: connection.tenant_id,
+          user_id: user.id,
+          provider_connection_id: connection.id,
+          job_type: 'full',
+          status: 'analyzing',
+          current_step: 'analyze',
+          selected_lists: selection.listIds,
+          selected_segments: selection.segmentIds
+        })
+        .select('id')
+        .single();
+
+      if (job) {
+        setJobId(job.id);
+        setCurrentStep('analyze');
+      }
+    } catch (error) {
+      console.error('Error creating job:', error);
+    }
   };
 
   const handleAnalyzeComplete = (suggestions: any[]) => {

@@ -95,3 +95,27 @@ verify_jwt = false
 
 [functions.generate-prompt-images]
 verify_jwt = false
+
+[functions.oauth-authorize]
+verify_jwt = true
+
+[functions.migrations-oauth-callback]
+verify_jwt = false
+
+[functions.mailchimp-fetch-lists]
+verify_jwt = true
+
+[functions.mailchimp-import]
+verify_jwt = true
+
+[functions.klaviyo-fetch-lists]
+verify_jwt = true
+
+[functions.klaviyo-import]
+verify_jwt = true
+
+[functions.migration-ai-embed]
+verify_jwt = true
+
+[functions.migration-ai-suggest]
+verify_jwt = true

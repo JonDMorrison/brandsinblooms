@@ -59,11 +59,9 @@ export const ChooseStep = ({ onComplete, onBack }: ChooseStepProps) => {
         if (error) throw error;
         setLists(data.lists || []);
       } else if (provider === 'klaviyo') {
-        // TODO: Implement Klaviyo list fetching
-        toast({
-          title: 'Coming Soon',
-          description: 'Klaviyo import will be implemented next',
-        });
+        const { data, error } = await supabase.functions.invoke('klaviyo-fetch-lists');
+        if (error) throw error;
+        setLists(data.lists || []);
       }
     } catch (error: any) {
       console.error('Fetch lists error:', error);

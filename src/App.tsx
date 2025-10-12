@@ -338,6 +338,7 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
+          <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
           <Route path="/crm/pos" element={
             <ProtectedRoute>
               <SidebarLayout>
