@@ -171,15 +171,7 @@ export type Database = {
           suggested_action?: string
           suggested_name?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "ai_mapping_suggestions_import_job_id_fkey"
-            columns: ["import_job_id"]
-            isOneToOne: false
-            referencedRelation: "import_jobs"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       analytics_data: {
         Row: {
@@ -3477,100 +3469,46 @@ export type Database = {
           status?: string
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "import_job_items_import_job_id_fkey"
-            columns: ["import_job_id"]
-            isOneToOne: false
-            referencedRelation: "import_jobs"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       import_jobs: {
         Row: {
-          ai_recommendations: Json | null
-          applied_mappings: Json | null
           completed_at: string | null
-          created_at: string | null
-          current_step: string | null
-          error_log: Json | null
+          config: Json
+          created_at: string
           id: string
-          job_type: string
-          provider_connection_id: string
-          selected_lists: Json | null
-          selected_segments: Json | null
-          selected_tags: Json | null
-          started_at: string | null
-          stats: Json | null
+          provider: string
+          report: Json | null
           status: string
-          tenant_id: string
-          updated_at: string | null
+          tenant_id: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          ai_recommendations?: Json | null
-          applied_mappings?: Json | null
           completed_at?: string | null
-          created_at?: string | null
-          current_step?: string | null
-          error_log?: Json | null
+          config?: Json
+          created_at?: string
           id?: string
-          job_type?: string
-          provider_connection_id: string
-          selected_lists?: Json | null
-          selected_segments?: Json | null
-          selected_tags?: Json | null
-          started_at?: string | null
-          stats?: Json | null
+          provider: string
+          report?: Json | null
           status?: string
-          tenant_id: string
-          updated_at?: string | null
+          tenant_id?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
-          ai_recommendations?: Json | null
-          applied_mappings?: Json | null
           completed_at?: string | null
-          created_at?: string | null
-          current_step?: string | null
-          error_log?: Json | null
+          config?: Json
+          created_at?: string
           id?: string
-          job_type?: string
-          provider_connection_id?: string
-          selected_lists?: Json | null
-          selected_segments?: Json | null
-          selected_tags?: Json | null
-          started_at?: string | null
-          stats?: Json | null
+          provider?: string
+          report?: Json | null
           status?: string
-          tenant_id?: string
-          updated_at?: string | null
+          tenant_id?: string | null
+          updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "import_jobs_provider_connection_id_fkey"
-            columns: ["provider_connection_id"]
-            isOneToOne: false
-            referencedRelation: "provider_connections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "import_jobs_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "admin_tenant_overview"
-            referencedColumns: ["tenant_id"]
-          },
-          {
-            foreignKeyName: "import_jobs_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       integration_logs: {
         Row: {

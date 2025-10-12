@@ -26,36 +26,35 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
     setStatus('Fetching provider data...');
 
     try {
-      // Get the connection to determine provider
+      // Fetch job details
       const { data: job } = await supabase
         .from('import_jobs')
-        .select('provider_connection_id, selected_lists, selected_segments')
+        .select('*')
         .eq('id', jobId)
         .single();
 
-      if (!job) throw new Error('Job not found');
+      if (!job) {
+        throw new Error('Job not found');
+      }
 
-      const { data: connection } = await supabase
-        .from('provider_connections')
-        .select('provider')
-        .eq('id', job.provider_connection_id)
-        .single();
-
-      if (!connection) throw new Error('Connection not found');
+      const provider = job.provider;
+      const config = job.config as any || {};
+      const listIds = config.listIds || [];
+      const segmentIds = config.segmentIds || [];
 
       setProgress(30);
       setStatus('Importing contacts and data...');
 
       // Call the appropriate import function
-      const importFunction = connection.provider === 'mailchimp' 
+      const importFunction = provider === 'mailchimp' 
         ? 'mailchimp-import' 
         : 'klaviyo-import';
 
       const { data: importResult, error: importError } = await supabase.functions.invoke(importFunction, {
         body: {
           jobId,
-          listIds: job.selected_lists,
-          segmentIds: job.selected_segments,
+          listIds,
+          segmentIds,
           suggestions: suggestions.filter(s => !s.error && s.action !== 'skip')
         }
       });
@@ -76,7 +75,6 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
         .from('import_jobs')
         .update({
           status: 'completed',
-          current_step: 'report',
           report: importResult
         })
         .eq('id', jobId);

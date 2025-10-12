@@ -43,32 +43,42 @@ const MigrationsPage = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const { data: userData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!userData?.tenant_id) return;
+
+      // Determine provider from connection
       const { data: connection } = await supabase
         .from('provider_connections')
-        .select('id, tenant_id')
+        .select('provider')
         .eq('status', 'connected')
         .in('provider', ['mailchimp', 'klaviyo'])
-        .single();
+        .maybeSingle();
 
       if (!connection) return;
 
-      const { data: job } = await supabase
+      const { data: jobData, error: jobError } = await supabase
         .from('import_jobs')
         .insert({
-          tenant_id: connection.tenant_id,
           user_id: user.id,
-          provider_connection_id: connection.id,
-          job_type: 'full',
-          status: 'analyzing',
-          current_step: 'analyze',
-          selected_lists: selection.listIds,
-          selected_segments: selection.segmentIds
+          provider: connection.provider,
+          status: 'pending',
+          config: selection,
         })
-        .select('id')
+        .select()
         .single();
 
-      if (job) {
-        setJobId(job.id);
+      if (jobError) {
+        console.error('Error creating job:', jobError);
+        return;
+      }
+
+      if (jobData) {
+        setJobId(jobData.id);
         setCurrentStep('analyze');
       }
     } catch (error) {

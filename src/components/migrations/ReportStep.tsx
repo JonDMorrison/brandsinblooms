@@ -49,23 +49,26 @@ export const ReportStep = ({ jobId, report, onDisconnect }: ReportStepProps) => 
   const handleDisconnect = async () => {
     setDisconnecting(true);
     try {
-      // Get the connection ID from the job
+      // Get job to find provider
       const { data: job } = await supabase
         .from('import_jobs')
-        .select('provider_connection_id')
+        .select('provider')
         .eq('id', jobId)
         .single();
 
       if (!job) throw new Error('Job not found');
 
-      // Revoke the connection
+      const provider = job.provider;
+
+      // Update provider connection status to disconnected
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       await supabase
         .from('provider_connections')
-        .update({
-          status: 'disconnected',
-          revoked_at: new Date().toISOString()
-        })
-        .eq('id', job.provider_connection_id);
+        .update({ status: 'disconnected', revoked_at: new Date().toISOString() })
+        .eq('provider', provider)
+        .eq('user_id', user.id);
 
       toast({
         title: 'Provider Disconnected',
