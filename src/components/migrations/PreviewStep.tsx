@@ -40,7 +40,7 @@ export const PreviewStep = ({ jobId, onComplete, onBack }: PreviewStepProps) => 
 
   useEffect(() => {
     fetchPreview();
-  }, [jobId]);
+  }, [jobId]); // fetchPreview is stable, no need to include
 
   const fetchPreview = async () => {
     try {
@@ -165,36 +165,43 @@ export const PreviewStep = ({ jobId, onComplete, onBack }: PreviewStepProps) => 
       {/* Sample Contacts */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">Sample Contacts (First 10)</h3>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>First Name</TableHead>
-                <TableHead>Last Name</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {preview.contacts.map((contact, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-mono text-sm">{contact.email}</TableCell>
-                  <TableCell>{contact.firstName || '—'}</TableCell>
-                  <TableCell>{contact.lastName || '—'}</TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                      contact.status === 'subscribed' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {contact.status || 'unknown'}
-                    </span>
-                  </TableCell>
+        {preview.contacts.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>No contacts found in selected lists/segments</p>
+            <p className="text-sm mt-2">Please go back and select different data sources</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>First Name</TableHead>
+                  <TableHead>Last Name</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {preview.contacts.map((contact, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-mono text-sm">{contact.email}</TableCell>
+                    <TableCell>{contact.firstName || '—'}</TableCell>
+                    <TableCell>{contact.lastName || '—'}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                        contact.status === 'subscribed' 
+                          ? 'bg-success/10 text-success' 
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {contact.status || 'unknown'}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </Card>
 
       {/* Lists */}

@@ -122,6 +122,16 @@ Deno.serve(async (req) => {
           `${baseUrl}/lists/${listId}/members?count=${count}&offset=${offset}&fields=members.id,members.email_address,members.status,members.merge_fields,members.tags`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
+        
+        // Check for token expiry
+        if (membersRes.status === 401) {
+          throw new Error('Access token expired. Please reconnect Mailchimp and try again.');
+        }
+        
+        if (!membersRes.ok) {
+          throw new Error(`Mailchimp API error: ${membersRes.status}`);
+        }
+        
         const membersData = await membersRes.json();
         const members = membersData.members || [];
 
@@ -344,8 +354,19 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         jobId: importJob.id,
-        contacts: totalContacts,
-        errors: totalErrors
+        contactsImported: totalContacts,
+        segmentsImported: segmentIds.length,
+        errors: totalErrors,
+        progress: {
+          stage: 'complete',
+          contactsProcessed: totalContacts,
+          contactsTotal: totalContacts,
+          segmentsProcessed: segmentIds.length,
+          segmentsTotal: segmentIds.length,
+          currentBatch: 0,
+          totalBatches: 0,
+          errors: detailedErrors.slice(0, 50)
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -42,8 +42,10 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
 
   const startImport = async () => {
     setImporting(true);
-    setProgress(10);
-    setStatus('Fetching provider data...');
+    setValidating(true);
+    setProgress(5);
+    setStatus('Validating data...');
+    setErrors([]);
 
     try {
       // Fetch job details
@@ -58,14 +60,42 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
       }
 
       const provider = job.provider;
-      const config = job.config as any || {};
-      const listIds = config.listIds || [];
-      const segmentIds = config.segmentIds || [];
 
-      setProgress(30);
+      // Step 1: Validate data
+      const validateFunction = provider === 'mailchimp' 
+        ? 'mailchimp-validate' 
+        : 'klaviyo-validate';
+
+      const { data: validation, error: validationError } = await supabase.functions.invoke(validateFunction, {
+        body: { jobId }
+      });
+
+      if (validationError) {
+        toast({
+          title: 'Validation Failed',
+          description: validationError.message,
+          variant: 'destructive'
+        });
+        throw validationError;
+      }
+
+      if (!validation.valid) {
+        setErrors(validation.validationErrors || ['Unknown validation error']);
+        setStatus('Validation failed');
+        setValidating(false);
+        toast({
+          title: 'Data Validation Issues',
+          description: `Found ${validation.validationErrors?.length || 0} validation errors`,
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      setValidating(false);
+      setProgress(15);
       setStatus('Importing contacts and data...');
 
-      // Call the appropriate import function
+      // Step 2: Import data with progress tracking
       const importFunction = provider === 'mailchimp' 
         ? 'mailchimp-import' 
         : 'klaviyo-import';
@@ -74,13 +104,57 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
         body: { jobId }
       });
 
-      if (importError) throw importError;
+      if (importError) {
+        toast({
+          title: 'Import Failed',
+          description: importError.message,
+          variant: 'destructive'
+        });
+        throw importError;
+      }
+
+      // Update detailed progress from import result
+      if (importResult.progress) {
+        setDetailedProgress(importResult.progress);
+      }
 
       setProgress(70);
       setStatus('Applying AI mappings...');
 
-      // Apply suggestions would happen here in a real implementation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Step 3: Apply AI suggestions to imported data
+      if (suggestions.length > 0) {
+        for (const suggestion of suggestions) {
+          if (suggestion.action === 'create_segment') {
+            // Create segment in crm_segments
+            await supabase
+              .from('crm_segments')
+              .upsert({
+                name: suggestion.segmentName,
+                tenant_id: job.tenant_id,
+                filters: suggestion.filters || {}
+              });
+          } else if (suggestion.action === 'map_tag') {
+            // Apply tag mappings to customers by updating tags
+            const { data: customers } = await supabase
+              .from('crm_customers')
+              .select('id, tags')
+              .eq('tenant_id', job.tenant_id)
+              .contains('tags', [suggestion.oldTag]);
+            
+            if (customers) {
+              for (const customer of customers) {
+                const updatedTags = customer.tags?.map((t: string) => 
+                  t === suggestion.oldTag ? suggestion.newTag : t
+                );
+                await supabase
+                  .from('crm_customers')
+                  .update({ tags: updatedTags })
+                  .eq('id', customer.id);
+              }
+            }
+          }
+        }
+      }
 
       setProgress(100);
       setStatus('Import complete!');
@@ -96,7 +170,7 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
 
       toast({
         title: 'Import Complete',
-        description: 'All data has been successfully imported'
+        description: `Successfully imported ${importResult.contactsImported || 0} contacts`
       });
 
       onComplete(importResult);
@@ -118,6 +192,7 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
         .eq('id', jobId);
     } finally {
       setImporting(false);
+      setValidating(false);
     }
   };
 

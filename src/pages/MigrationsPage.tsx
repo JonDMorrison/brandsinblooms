@@ -10,6 +10,7 @@ import { ImportStep } from '@/components/migrations/ImportStep';
 import { ReportStep } from '@/components/migrations/ReportStep';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 type Step = 'connect' | 'choose' | 'preview' | 'analyze' | 'apply' | 'import' | 'report';
 
@@ -25,6 +26,7 @@ const steps: { id: Step; label: string; description: string }[] = [
 
 const MigrationsPage = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<Step>('connect');
   const [importSelection, setImportSelection] = useState<{ listIds: string[]; segmentIds: string[] } | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -76,6 +78,11 @@ const MigrationsPage = () => {
 
       if (jobError) {
         console.error('Error creating job:', jobError);
+        toast({
+          title: 'Failed to Create Import Job',
+          description: jobError.message,
+          variant: 'destructive'
+        });
         return;
       }
 
@@ -83,8 +90,13 @@ const MigrationsPage = () => {
         setJobId(jobData.id);
         setCurrentStep('preview');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating job:', error);
+      toast({
+        title: 'Failed to Create Import Job',
+        description: error.message || 'An unexpected error occurred',
+        variant: 'destructive'
+      });
     }
   };
 

@@ -123,6 +123,16 @@ Deno.serve(async (req) => {
       
       while (pageUrl) {
         const profilesRes = await fetch(pageUrl, { headers });
+        
+        // Check for token expiry
+        if (profilesRes.status === 401) {
+          throw new Error('Access token expired. Please reconnect Klaviyo and try again.');
+        }
+        
+        if (!profilesRes.ok) {
+          throw new Error(`Klaviyo API error: ${profilesRes.status}`);
+        }
+        
         const profilesData = await profilesRes.json();
         const profiles = profilesData.data || [];
 
@@ -309,8 +319,19 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         jobId: importJob.id,
-        contacts: totalContacts,
-        errors: totalErrors
+        contactsImported: totalContacts,
+        segmentsImported: segmentIds.length,
+        errors: totalErrors,
+        progress: {
+          stage: 'complete',
+          contactsProcessed: totalContacts,
+          contactsTotal: totalContacts,
+          segmentsProcessed: segmentIds.length,
+          segmentsTotal: segmentIds.length,
+          currentBatch: 0,
+          totalBatches: 0,
+          errors: detailedErrors.slice(0, 50)
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
