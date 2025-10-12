@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     const { data: artifacts } = await supabase
       .from('provider_artifacts')
       .select('*')
-      .eq('job_id', jobId);
+      .eq('import_job_id', jobId);
 
     if (!artifacts || artifacts.length === 0) {
       throw new Error('No artifacts found for this job');
@@ -164,13 +164,15 @@ Return JSON only.`;
 
         // Store suggestion
         await supabase.from('ai_mapping_suggestions').insert({
+          import_job_id: jobId,
+          tenant_id: tenantId,
           artifact_id: artifact.id,
-          action: suggestion.action,
-          suggested_type: suggestion.suggested_type,
-          target_id: suggestion.target_id || null,
-          target_name: suggestion.target_name,
-          confidence: suggestion.confidence,
-          rationale: suggestion.rationale
+          suggested_action: suggestion.action,
+          target_segment_id: suggestion.action.includes('segment') ? suggestion.target_id : null,
+          target_persona_id: suggestion.action.includes('persona') ? suggestion.target_id : null,
+          confidence_score: suggestion.confidence,
+          rationale: suggestion.rationale,
+          suggestion_data: suggestion
         });
 
         suggestions.push({
