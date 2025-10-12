@@ -51,12 +51,7 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
         : 'klaviyo-import';
 
       const { data: importResult, error: importError } = await supabase.functions.invoke(importFunction, {
-        body: {
-          jobId,
-          listIds,
-          segmentIds,
-          suggestions: suggestions.filter(s => !s.error && s.action !== 'skip')
-        }
+        body: { jobId }
       });
 
       if (importError) throw importError;

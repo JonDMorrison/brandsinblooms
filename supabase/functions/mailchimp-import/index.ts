@@ -5,9 +5,33 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ImportRequest {
-  listIds: string[];
-  segmentIds: string[];
+const ENCRYPTION_KEY = Deno.env.get('ENCRYPTION_KEY');
+
+async function decryptToken(encryptedToken: string): Promise<string> {
+  const parts = encryptedToken.split(':');
+  if (parts.length !== 3) throw new Error('Invalid encrypted token format');
+  
+  const [ivHex, authTagHex, encryptedHex] = parts;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(ENCRYPTION_KEY),
+    { name: 'AES-GCM' },
+    false,
+    ['decrypt']
+  );
+  
+  const iv = new Uint8Array(ivHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  const authTag = new Uint8Array(authTagHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  const encrypted = new Uint8Array(encryptedHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  
+  const combined = new Uint8Array([...encrypted, ...authTag]);
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    combined
+  );
+  
+  return new TextDecoder().decode(decrypted);
 }
 
 Deno.serve(async (req) => {
@@ -16,7 +40,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { listIds, segmentIds }: ImportRequest = await req.json();
+    const { jobId } = await req.json();
 
     const authHeader = req.headers.get('Authorization')!;
     const supabase = createClient(
@@ -28,18 +52,15 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Unauthorized');
 
-    // Get connection
-    const { data: connection } = await supabase
-      .from('provider_connections')
+    // Get existing job
+    const { data: importJob, error: jobError } = await supabase
+      .from('import_jobs')
       .select('*')
+      .eq('id', jobId)
       .eq('user_id', user.id)
-      .eq('provider', 'mailchimp')
-      .eq('status', 'connected')
       .single();
 
-    if (!connection) {
-      throw new Error('Mailchimp not connected');
-    }
+    if (jobError || !importJob) throw new Error('Job not found');
 
     // Get tenant
     const { data: userRecord } = await supabase
@@ -51,25 +72,39 @@ Deno.serve(async (req) => {
     const tenantId = userRecord?.tenant_id;
     if (!tenantId) throw new Error('Tenant not found');
 
-    const dc = connection.account_info?.dc || connection.account_info?.api_endpoint?.match(/https:\/\/(.+?)\.api\.mailchimp\.com/)?.[1];
-    const baseUrl = `https://${dc}.api.mailchimp.com/3.0`;
-
-    // Create import job
-    const { data: importJob, error: jobError } = await supabase
-      .from('import_jobs')
-      .insert({
-        user_id: user.id,
-        provider: 'mailchimp',
-        status: 'running',
-        config: { listIds, segmentIds },
-        report: { started_at: new Date().toISOString() }
-      })
-      .select()
+    // Get connection with encrypted token
+    const { data: connection } = await supabase
+      .from('provider_connections')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('provider', 'mailchimp')
+      .eq('status', 'connected')
       .single();
 
-    if (jobError) throw jobError;
+    if (!connection?.encrypted_access_token) {
+      throw new Error('Mailchimp not connected or token missing');
+    }
+
+    // Decrypt access token
+    const accessToken = await decryptToken(connection.encrypted_access_token);
+
+    const dc = connection.metadata?.dc || connection.metadata?.api_endpoint?.match(/https:\/\/(.+?)\.api\.mailchimp\.com/)?.[1];
+    const baseUrl = `https://${dc}.api.mailchimp.com/3.0`;
+
+    // Update job status
+    await supabase
+      .from('import_jobs')
+      .update({ 
+        status: 'running',
+        report: { started_at: new Date().toISOString() }
+      })
+      .eq('id', importJob.id);
 
     console.log(`[mailchimp-import] Started job ${importJob.id}`);
+
+    const config = importJob.config as any || {};
+    const listIds = config.listIds || [];
+    const segmentIds = config.segmentIds || [];
 
     // Process lists
     let totalContacts = 0;
@@ -83,7 +118,7 @@ Deno.serve(async (req) => {
       while (hasMore) {
         const membersRes = await fetch(
           `${baseUrl}/lists/${listId}/members?count=${count}&offset=${offset}&fields=members.id,members.email_address,members.status,members.merge_fields,members.tags`,
-          { headers: { Authorization: `Bearer ${connection.access_token}` } }
+          { headers: { Authorization: `Bearer ${accessToken}` } }
         );
         const membersData = await membersRes.json();
         const members = membersData.members || [];
@@ -219,7 +254,7 @@ Deno.serve(async (req) => {
         const [listId, segId] = segmentId.split(':');
         
         const segRes = await fetch(`${baseUrl}/lists/${listId}/segments/${segId}`, {
-          headers: { Authorization: `Bearer ${connection.access_token}` }
+          headers: { Authorization: `Bearer ${accessToken}` }
         });
         const segment = await segRes.json();
 
@@ -239,7 +274,7 @@ Deno.serve(async (req) => {
           // Fetch segment members
           const membersRes = await fetch(
             `${baseUrl}/lists/${listId}/segments/${segId}/members?count=1000`,
-            { headers: { Authorization: `Bearer ${connection.access_token}` } }
+            { headers: { Authorization: `Bearer ${accessToken}` } }
           );
           const membersData = await membersRes.json();
 

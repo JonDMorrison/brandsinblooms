@@ -130,48 +130,66 @@ export type Database = {
       }
       ai_mapping_suggestions: {
         Row: {
-          confidence: string
-          created_at: string | null
+          artifact_id: string
+          confidence_score: number | null
+          created_at: string
           id: string
           import_job_id: string
-          is_applied: boolean | null
-          merge_with_existing_id: string | null
+          new_persona_name: string | null
+          new_segment_name: string | null
           rationale: string | null
-          source_id: string
-          source_name: string
-          source_type: string
           suggested_action: string
-          suggested_name: string | null
+          suggestion_data: Json | null
+          target_persona_id: string | null
+          target_segment_id: string | null
+          tenant_id: string
         }
         Insert: {
-          confidence: string
-          created_at?: string | null
+          artifact_id: string
+          confidence_score?: number | null
+          created_at?: string
           id?: string
           import_job_id: string
-          is_applied?: boolean | null
-          merge_with_existing_id?: string | null
+          new_persona_name?: string | null
+          new_segment_name?: string | null
           rationale?: string | null
-          source_id: string
-          source_name: string
-          source_type: string
           suggested_action: string
-          suggested_name?: string | null
+          suggestion_data?: Json | null
+          target_persona_id?: string | null
+          target_segment_id?: string | null
+          tenant_id: string
         }
         Update: {
-          confidence?: string
-          created_at?: string | null
+          artifact_id?: string
+          confidence_score?: number | null
+          created_at?: string
           id?: string
           import_job_id?: string
-          is_applied?: boolean | null
-          merge_with_existing_id?: string | null
+          new_persona_name?: string | null
+          new_segment_name?: string | null
           rationale?: string | null
-          source_id?: string
-          source_name?: string
-          source_type?: string
           suggested_action?: string
-          suggested_name?: string | null
+          suggestion_data?: Json | null
+          target_persona_id?: string | null
+          target_segment_id?: string | null
+          tenant_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_mapping_suggestions_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "provider_artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_mapping_suggestions_import_job_id_fkey"
+            columns: ["import_job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       analytics_data: {
         Row: {
@@ -4070,43 +4088,49 @@ export type Database = {
       provider_artifacts: {
         Row: {
           artifact_type: string
-          created_at: string | null
+          created_at: string
+          data: Json | null
+          embedding: string | null
           external_id: string
-          fetched_at: string | null
           id: string
+          import_job_id: string
           member_count: number | null
-          metadata: Json | null
           name: string
-          provider_connection_id: string
+          provider: string
+          tenant_id: string
         }
         Insert: {
           artifact_type: string
-          created_at?: string | null
+          created_at?: string
+          data?: Json | null
+          embedding?: string | null
           external_id: string
-          fetched_at?: string | null
           id?: string
+          import_job_id: string
           member_count?: number | null
-          metadata?: Json | null
           name: string
-          provider_connection_id: string
+          provider: string
+          tenant_id: string
         }
         Update: {
           artifact_type?: string
-          created_at?: string | null
+          created_at?: string
+          data?: Json | null
+          embedding?: string | null
           external_id?: string
-          fetched_at?: string | null
           id?: string
+          import_job_id?: string
           member_count?: number | null
-          metadata?: Json | null
           name?: string
-          provider_connection_id?: string
+          provider?: string
+          tenant_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "provider_artifacts_provider_connection_id_fkey"
-            columns: ["provider_connection_id"]
+            foreignKeyName: "provider_artifacts_import_job_id_fkey"
+            columns: ["import_job_id"]
             isOneToOne: false
-            referencedRelation: "provider_connections"
+            referencedRelation: "import_jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -5474,6 +5498,10 @@ export type Database = {
         Args: { p_active: boolean; p_tenant_id: string }
         Returns: undefined
       }
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
       bundle_approved_counts: {
         Args: { j: Json }
         Returns: Json
@@ -5588,12 +5616,44 @@ export type Database = {
         Args: { "": unknown }
         Returns: unknown
       }
+      halfvec_avg: {
+        Args: { "": number[] }
+        Returns: unknown
+      }
+      halfvec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      halfvec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      hnsw_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_sparsevec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnswhandler: {
+        Args: { "": unknown }
+        Returns: unknown
       }
       increment_image_usage: {
         Args: { asset_id: string }
@@ -5606,6 +5666,26 @@ export type Database = {
       is_master_admin: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      ivfflat_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflathandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: string
       }
       log_admin_action: {
         Args: {
@@ -5652,6 +5732,18 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
+      sparsevec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      sparsevec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
       spend_tokens: {
         Args: {
           p_action_type?: string
@@ -5669,6 +5761,30 @@ export type Database = {
           original_size_bytes: number
         }
         Returns: undefined
+      }
+      vector_avg: {
+        Args: { "": number[] }
+        Returns: string
+      }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
+      vector_norm: {
+        Args: { "": string }
+        Returns: number
+      }
+      vector_out: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      vector_send: {
+        Args: { "": string }
+        Returns: string
+      }
+      vector_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
       }
     }
     Enums: {
