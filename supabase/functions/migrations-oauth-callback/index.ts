@@ -5,6 +5,42 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Token encryption using AES-GCM
+async function encryptToken(token: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  
+  // Get encryption key from environment
+  const keyString = Deno.env.get('ENCRYPTION_KEY');
+  if (!keyString) {
+    throw new Error('ENCRYPTION_KEY not configured');
+  }
+  
+  const keyData = encoder.encode(keyString);
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData.slice(0, 32),
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt']
+  );
+  
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encryptedData = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    data
+  );
+  
+  // Combine IV and encrypted data
+  const combined = new Uint8Array(iv.length + encryptedData.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(encryptedData), iv.length);
+  
+  // Return as base64
+  return btoa(String.fromCharCode(...combined));
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -23,11 +59,22 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Unauthorized');
 
+    // Get tenant_id
+    const { data: userData } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!userData?.tenant_id) {
+      throw new Error('No tenant found for user');
+    }
+
     // Verify state token
     const { data: connection } = await supabase
       .from('provider_connections')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('tenant_id', userData.tenant_id)
       .eq('provider', provider)
       .single();
 
@@ -38,9 +85,9 @@ Deno.serve(async (req) => {
     // Get OAuth credentials
     const clientId = Deno.env.get(`${provider.toUpperCase()}_CLIENT_ID`);
     const clientSecret = Deno.env.get(`${provider.toUpperCase()}_CLIENT_SECRET`);
-    const redirectUri = Deno.env.get(`${provider.toUpperCase()}_REDIRECT_URI`);
+    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/migrations-oauth-callback`;
 
-    if (!clientId || !clientSecret || !redirectUri) {
+    if (!clientId || !clientSecret) {
       throw new Error('OAuth credentials not configured');
     }
 
@@ -82,6 +129,9 @@ Deno.serve(async (req) => {
       throw new Error('Failed to obtain access token');
     }
 
+    // Encrypt access token
+    const encryptedToken = await encryptToken(tokenData.access_token);
+
     // Fetch account info
     let accountInfo: any = {};
     if (provider === 'mailchimp') {
@@ -93,26 +143,30 @@ Deno.serve(async (req) => {
       const accountRes = await fetch('https://a.klaviyo.com/api/accounts/', {
         headers: { 
           Authorization: `Klaviyo-OAuth ${tokenData.access_token}`,
-          revision: '2024-10-15'
+          revision: '2024-10-15',
+          'Accept': 'application/json'
         },
       });
       const accData = await accountRes.json();
       accountInfo = accData.data?.[0]?.attributes || {};
     }
 
-    // Update connection with tokens (encrypted)
+    // Update connection with encrypted tokens
     await supabase.from('provider_connections').upsert({
+      tenant_id: userData.tenant_id,
       user_id: user.id,
       provider,
       status: 'connected',
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
+      encrypted_access_token: encryptedToken,
+      provider_account_id: accountInfo.id || accountInfo.account_id || '',
+      provider_account_name: accountInfo.accountname || accountInfo.name || '',
       token_expires_at: tokenData.expires_in 
         ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
         : null,
-      account_info: accountInfo,
-      connected_at: new Date().toISOString(),
-      metadata: { ...connection.metadata, state: null }
+      metadata: accountInfo,
+      connected_at: new Date().toISOString()
+    }, {
+      onConflict: 'tenant_id,provider'
     });
 
     console.log(`[migrations-oauth-callback] Successfully connected ${provider} for user ${user.id}`);
