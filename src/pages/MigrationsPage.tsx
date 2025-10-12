@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Check } from 'lucide-react';
 import { ConnectStep } from '@/components/migrations/ConnectStep';
 import { ChooseStep } from '@/components/migrations/ChooseStep';
+import { PreviewStep } from '@/components/migrations/PreviewStep';
 import { AnalyzeStep } from '@/components/migrations/AnalyzeStep';
 import { ApplyStep } from '@/components/migrations/ApplyStep';
 import { ImportStep } from '@/components/migrations/ImportStep';
@@ -10,11 +11,12 @@ import { ReportStep } from '@/components/migrations/ReportStep';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
-type Step = 'connect' | 'choose' | 'analyze' | 'apply' | 'import' | 'report';
+type Step = 'connect' | 'choose' | 'preview' | 'analyze' | 'apply' | 'import' | 'report';
 
 const steps: { id: Step; label: string; description: string }[] = [
   { id: 'connect', label: 'Connect', description: 'Connect to Mailchimp or Klaviyo' },
   { id: 'choose', label: 'Choose', description: 'Select lists, segments, and tags' },
+  { id: 'preview', label: 'Preview', description: 'Review sample data' },
   { id: 'analyze', label: 'Analyze (AI)', description: 'AI recommends mappings' },
   { id: 'apply', label: 'Apply', description: 'Review and apply mappings' },
   { id: 'import', label: 'Import', description: 'Import contacts and data' },
@@ -79,11 +81,15 @@ const MigrationsPage = () => {
 
       if (jobData) {
         setJobId(jobData.id);
-        setCurrentStep('analyze');
+        setCurrentStep('preview');
       }
     } catch (error) {
       console.error('Error creating job:', error);
     }
+  };
+
+  const handlePreviewComplete = () => {
+    setCurrentStep('analyze');
   };
 
   const handleAnalyzeComplete = (suggestions: any[]) => {
@@ -172,11 +178,18 @@ const MigrationsPage = () => {
             onBack={() => setCurrentStep('connect')} 
           />
         )}
+        {currentStep === 'preview' && jobId && (
+          <PreviewStep 
+            jobId={jobId}
+            onComplete={handlePreviewComplete}
+            onBack={() => setCurrentStep('choose')}
+          />
+        )}
         {currentStep === 'analyze' && jobId && (
           <AnalyzeStep 
             jobId={jobId}
             onComplete={handleAnalyzeComplete}
-            onBack={() => setCurrentStep('choose')}
+            onBack={() => setCurrentStep('preview')}
           />
         )}
         {currentStep === 'apply' && (

@@ -119,3 +119,15 @@ verify_jwt = true
 
 [functions.migration-ai-suggest]
 verify_jwt = true
+
+[functions.mailchimp-fetch-preview]
+verify_jwt = true
+
+[functions.klaviyo-fetch-preview]
+verify_jwt = true
+
+[functions.mailchimp-validate]
+verify_jwt = true
+
+[functions.klaviyo-validate]
+verify_jwt = true

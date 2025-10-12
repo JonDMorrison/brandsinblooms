@@ -109,6 +109,8 @@ Deno.serve(async (req) => {
     // Process lists
     let totalContacts = 0;
     let totalErrors = 0;
+    const batchSize = 100;
+    const detailedErrors: Array<{ item: string; error: string }> = [];
 
     for (const listId of listIds) {
       let offset = 0;
@@ -236,12 +238,20 @@ Deno.serve(async (req) => {
 
         offset += count;
         
-        // Update progress
+        // Update real-time progress
         await supabase.from('import_jobs').update({
           report: { 
             started_at: importJob.report?.started_at,
-            contacts_processed: totalContacts,
-            errors: totalErrors
+            progress: {
+              stage: `Importing from list ${listId}`,
+              contactsProcessed: totalContacts,
+              contactsTotal: offset + count,
+              segmentsProcessed: 0,
+              segmentsTotal: segmentIds.length,
+              currentBatch: Math.floor(offset / batchSize),
+              totalBatches: Math.ceil((offset + count) / batchSize),
+              errors: detailedErrors.slice(-10)
+            }
           }
         }).eq('id', importJob.id);
       }

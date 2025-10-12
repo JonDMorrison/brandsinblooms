@@ -112,6 +112,8 @@ Deno.serve(async (req) => {
 
     let totalContacts = 0;
     let totalErrors = 0;
+    const batchSize = 100;
+    const detailedErrors: Array<{ item: string; error: string }> = [];
 
     // Process lists
     for (const listId of listIds) {
@@ -208,12 +210,20 @@ Deno.serve(async (req) => {
         // Get next page
         pageUrl = profilesData.links?.next || null;
 
-        // Update progress
+        // Update real-time progress
         await supabase.from('import_jobs').update({
           report: {
             started_at: importJob.report?.started_at,
-            contacts_processed: totalContacts,
-            errors: totalErrors
+            progress: {
+              stage: `Importing from list ${listId}`,
+              contactsProcessed: totalContacts,
+              contactsTotal: totalContacts + 100,
+              segmentsProcessed: 0,
+              segmentsTotal: segmentIds.length,
+              currentBatch: Math.floor(totalContacts / batchSize),
+              totalBatches: Math.ceil((totalContacts + 100) / batchSize),
+              errors: detailedErrors.slice(-10)
+            }
           }
         }).eq('id', importJob.id);
       }
