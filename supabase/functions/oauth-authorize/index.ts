@@ -73,16 +73,43 @@ Deno.serve(async (req) => {
     // Generate state token for CSRF protection
     const state = crypto.randomUUID();
     
-    // Store state in database for verification
-    await supabase.from('provider_connections').upsert({
-      tenant_id: userData.tenant_id,
-      user_id: user.id,
-      provider,
-      status: 'pending',
-      metadata: { state, initiated_at: new Date().toISOString() }
-    }, {
-      onConflict: 'tenant_id,provider'
-    });
+    // Store state in database for verification (no reliance on unique index)
+    const { data: existing, error: findErr } = await supabase
+      .from('provider_connections')
+      .select('id')
+      .eq('tenant_id', userData.tenant_id)
+      .eq('provider', provider)
+      .maybeSingle();
+
+    if (findErr) {
+      console.error('[oauth-authorize] Lookup error:', findErr);
+    }
+
+    if (existing) {
+      const { error: updateErr } = await supabase
+        .from('provider_connections')
+        .update({
+          status: 'pending',
+          metadata: { state, initiated_at: new Date().toISOString() }
+        })
+        .eq('id', existing.id);
+      if (updateErr) {
+        console.error('[oauth-authorize] Update pending state failed:', updateErr);
+      }
+    } else {
+      const { error: insertErr } = await supabase
+        .from('provider_connections')
+        .insert({
+          tenant_id: userData.tenant_id,
+          user_id: user.id,
+          provider,
+          status: 'pending',
+          metadata: { state, initiated_at: new Date().toISOString() }
+        });
+      if (insertErr) {
+        console.error('[oauth-authorize] Insert pending state failed:', insertErr);
+      }
+    }
 
     const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/migrations-oauth-callback?provider=${provider}`;
 

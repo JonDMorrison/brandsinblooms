@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     // Find the pending connection by matching the exact state token
     const { data: connection, error: connectionError } = await supabase
       .from('provider_connections')
-      .select('*, users!inner(tenant_id)')
+      .select('tenant_id,user_id,provider,status,metadata')
       .eq('status', 'pending')
       .contains('metadata', { state })
       .maybeSingle();
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     }
 
     const user_id = connection.user_id;
-    const tenant_id = connection.users.tenant_id;
+    const tenant_id = connection.tenant_id;
 
     // Get OAuth credentials
     const clientId = Deno.env.get(`${provider.toUpperCase()}_CLIENT_ID`);
@@ -157,23 +157,57 @@ Deno.serve(async (req) => {
       accountInfo = accData.data?.[0]?.attributes || {};
     }
 
-    // Update connection with encrypted tokens
-    await supabase.from('provider_connections').upsert({
-      tenant_id: tenant_id,
-      user_id: user_id,
-      provider,
-      status: 'connected',
-      encrypted_access_token: encryptedToken,
-      provider_account_id: accountInfo.id || accountInfo.account_id || '',
-      provider_account_name: accountInfo.accountname || accountInfo.name || '',
-      token_expires_at: tokenData.expires_in 
-        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-        : null,
-      metadata: accountInfo,
-      connected_at: new Date().toISOString()
-    }, {
-      onConflict: 'tenant_id,provider'
-    });
+    // Update connection with encrypted tokens (update existing tenant+provider row if present)
+    const { data: existingConn, error: findConnErr } = await supabase
+      .from('provider_connections')
+      .select('id')
+      .eq('tenant_id', tenant_id)
+      .eq('provider', provider)
+      .maybeSingle();
+
+    if (findConnErr) {
+      console.error('[migrations-oauth-callback] Find connection error:', findConnErr);
+    }
+
+    if (existingConn) {
+      const { error: updateConnErr } = await supabase
+        .from('provider_connections')
+        .update({
+          status: 'connected',
+          encrypted_access_token: encryptedToken,
+          provider_account_id: accountInfo.id || accountInfo.account_id || '',
+          provider_account_name: accountInfo.accountname || accountInfo.name || '',
+          token_expires_at: tokenData.expires_in 
+            ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+            : null,
+          metadata: accountInfo,
+          connected_at: new Date().toISOString()
+        })
+        .eq('id', existingConn.id);
+      if (updateConnErr) {
+        console.error('[migrations-oauth-callback] Update connection error:', updateConnErr);
+      }
+    } else {
+      const { error: insertConnErr } = await supabase
+        .from('provider_connections')
+        .insert({
+          tenant_id,
+          user_id,
+          provider,
+          status: 'connected',
+          encrypted_access_token: encryptedToken,
+          provider_account_id: accountInfo.id || accountInfo.account_id || '',
+          provider_account_name: accountInfo.accountname || accountInfo.name || '',
+          token_expires_at: tokenData.expires_in 
+            ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+            : null,
+          metadata: accountInfo,
+          connected_at: new Date().toISOString()
+        });
+      if (insertConnErr) {
+        console.error('[migrations-oauth-callback] Insert connection error:', insertConnErr);
+      }
+    }
 
     console.log(`[migrations-oauth-callback] Successfully connected ${provider} for user ${user_id}`);
 
