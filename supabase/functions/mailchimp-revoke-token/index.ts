@@ -1,22 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { decryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
 
-// Decrypt helper (matches encrypt in oauth-callback)
-async function decryptToken(encryptedToken: string): Promise<string> {
-  const key = Deno.env.get('ENCRYPTION_KEY');
-  if (!key) throw new Error('Encryption key not configured');
-
-  const keyData = new TextEncoder().encode(key.padEnd(32).slice(0, 32));
-  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-GCM' }, false, ['decrypt']);
-
-  const parts = encryptedToken.split(':');
-  if (parts.length !== 2) throw new Error('Invalid encrypted token format');
-
-  const iv = new Uint8Array(parts[0].match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-  const ciphertext = new Uint8Array(parts[1].match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-
-  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, ciphertext);
-  return new TextDecoder().decode(decrypted);
+// Fail fast if encryption key is not configured
+try {
+  assertEncryptionKeyConfigured();
+} catch (error: any) {
+  console.error('[mailchimp-revoke-token] FATAL:', error.message);
 }
 
 Deno.serve(async (req) => {
@@ -72,7 +62,13 @@ Deno.serve(async (req) => {
     // Attempt to revoke token at provider's API
     if (connection.encrypted_access_token) {
       try {
-        const accessToken = await decryptToken(connection.encrypted_access_token);
+        let accessToken: string;
+        try {
+          accessToken = await decryptToken(connection.encrypted_access_token);
+        } catch (decryptError: any) {
+          console.error('[mailchimp-revoke-token] Decryption failed:', decryptError.message);
+          throw new Error('Failed to decrypt token');
+        }
 
         if (provider === 'mailchimp') {
           // Mailchimp OAuth2 token revocation

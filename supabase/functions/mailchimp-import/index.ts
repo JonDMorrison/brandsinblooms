@@ -1,37 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { decryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ENCRYPTION_KEY = Deno.env.get('ENCRYPTION_KEY');
-
-async function decryptToken(encryptedToken: string): Promise<string> {
-  const parts = encryptedToken.split(':');
-  if (parts.length !== 3) throw new Error('Invalid encrypted token format');
-  
-  const [ivHex, authTagHex, encryptedHex] = parts;
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(ENCRYPTION_KEY),
-    { name: 'AES-GCM' },
-    false,
-    ['decrypt']
-  );
-  
-  const iv = new Uint8Array(ivHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-  const authTag = new Uint8Array(authTagHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-  const encrypted = new Uint8Array(encryptedHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-  
-  const combined = new Uint8Array([...encrypted, ...authTag]);
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    combined
-  );
-  
-  return new TextDecoder().decode(decrypted);
+// Fail fast if encryption key is not configured
+try {
+  assertEncryptionKeyConfigured();
+} catch (error: any) {
+  console.error('[mailchimp-import] FATAL:', error.message);
 }
 
 Deno.serve(async (req) => {
@@ -86,7 +65,13 @@ Deno.serve(async (req) => {
     }
 
     // Decrypt access token
-    const accessToken = await decryptToken(connection.encrypted_access_token);
+    let accessToken: string;
+    try {
+      accessToken = await decryptToken(connection.encrypted_access_token);
+    } catch (error: any) {
+      console.error('[mailchimp-import] Decryption failed:', error.message);
+      throw new Error('Failed to decrypt access token. Please reconnect Mailchimp.');
+    }
 
     const dc = connection.metadata?.dc || connection.metadata?.api_endpoint?.match(/https:\/\/(.+?)\.api\.mailchimp\.com/)?.[1];
     const baseUrl = `https://${dc}.api.mailchimp.com/3.0`;

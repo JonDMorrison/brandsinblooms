@@ -1,45 +1,34 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { verify } from 'https://deno.land/x/djwt@v2.8/mod.ts';
+import { encryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Token encryption using AES-GCM
-async function encryptToken(token: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(token);
-  
-  // Get encryption key from environment (supports both TOKEN_ENCRYPTION_KEY and ENCRYPTION_KEY)
-  const keyString = Deno.env.get('TOKEN_ENCRYPTION_KEY') ?? Deno.env.get('ENCRYPTION_KEY');
-  if (!keyString) {
-    throw new Error('TOKEN_ENCRYPTION_KEY not configured');
-  }
-  
-  const keyData = encoder.encode(keyString);
-  const key = await crypto.subtle.importKey(
-    'raw',
-    keyData.slice(0, 32),
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt']
-  );
-  
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encryptedData = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    data
-  );
-  
-  // Combine IV and encrypted data
-  const combined = new Uint8Array(iv.length + encryptedData.byteLength);
-  combined.set(iv, 0);
-  combined.set(new Uint8Array(encryptedData), iv.length);
-  
-  // Return as base64
-  return btoa(String.fromCharCode(...combined));
+// Fail fast if encryption key is not configured
+try {
+  assertEncryptionKeyConfigured();
+} catch (error: any) {
+  console.error('[migrations-oauth-callback] FATAL:', error.message);
+}
+
+function htmlClose(type: 'oauth-success' | 'oauth-error', message: string): Response {
+  const appOrigin = Deno.env.get('APP_ORIGIN') ?? Deno.env.get('APP_BASE_URL') ?? '*';
+  return new Response(`
+    <!DOCTYPE html><html><body>
+    <script>
+      if (window.opener) {
+        window.opener.postMessage({ type: '${type}', message: ${JSON.stringify(message)}, provider: 'mailchimp' }, '${appOrigin}');
+      }
+      setTimeout(() => window.close(), 300);
+    </script>
+    <p>${message}</p>
+    </body></html>`, { 
+    headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+    status: type === 'oauth-error' ? 400 : 200
+  });
 }
 
 Deno.serve(async (req) => {
@@ -70,40 +59,35 @@ Deno.serve(async (req) => {
       }
     );
 
-    // Verify signed JWT state
-    const secret = Deno.env.get('OAUTH_STATE_SECRET');
-    if (!secret) {
-      throw new Error('Invalid state');
+    // Validate encryption key is configured before proceeding
+    try {
+      assertEncryptionKeyConfigured();
+    } catch (error: any) {
+      console.error('[migrations-oauth-callback] Missing encryption key:', error.message);
+      return htmlClose('oauth-error', 'TOKEN_ENCRYPTION_KEY not configured. Please contact support.');
     }
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign', 'verify']
-    );
 
+    // Verify signed JWT state
     let claims: any;
     try {
+      const secret = Deno.env.get('OAUTH_STATE_SECRET');
+      if (!secret) {
+        return htmlClose('oauth-error', 'OAUTH_STATE_SECRET not configured');
+      }
+
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(secret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['verify']
+      );
+
       claims = await verify(state, key);
     } catch (e) {
-      const appOrigin = Deno.env.get('APP_ORIGIN') ?? Deno.env.get('APP_BASE_URL') ?? '*';
-      const html = `
-        <!DOCTYPE html>
-        <html>
-          <head><title>Connection Failed</title></head>
-          <body>
-            <script>
-              if (window.opener) {
-                window.opener.postMessage({ type: 'oauth-error', error: 'Invalid state (expired or bad signature)' }, '${appOrigin}');
-              }
-              setTimeout(() => window.close(), 300);
-            </script>
-            <p>Connection failed: Invalid state (expired or bad signature)</p>
-          </body>
-        </html>`;
-      return new Response(html, { headers: { ...corsHeaders, 'Content-Type': 'text/html' }, status: 400 });
+      console.error('[migrations-oauth-callback] JWT verification failed:', e);
+      return htmlClose('oauth-error', 'Invalid or expired state token');
     }
 
     // Override provider from claims and derive redirectUri/user/tenant
@@ -170,8 +154,15 @@ Deno.serve(async (req) => {
       throw new Error('Failed to obtain access token');
     }
 
-    // Encrypt access token
-    const encryptedToken = await encryptToken(tokenData.access_token);
+    // Encrypt access token before storing
+    let encryptedToken: string;
+    try {
+      encryptedToken = await encryptToken(tokenData.access_token);
+      console.log(`[migrations-oauth-callback] Token encrypted successfully`);
+    } catch (error: any) {
+      console.error('[migrations-oauth-callback] Encryption failed:', error.message);
+      return htmlClose('oauth-error', 'Failed to encrypt token');
+    }
 
     // Fetch account info
     let accountInfo: any = {};
@@ -247,61 +238,10 @@ Deno.serve(async (req) => {
     console.log(`[migrations-oauth-callback] Successfully connected ${provider} for user ${user_id}`);
 
     // Return HTML that closes the popup and notifies parent window
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Connection Successful</title>
-        </head>
-        <body>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({
-                type: 'oauth-success',
-                provider: '${provider}',
-                accountInfo: ${JSON.stringify(accountInfo)}
-              }, '*');
-            }
-            window.close();
-          </script>
-          <p>Connection successful! This window will close automatically...</p>
-        </body>
-      </html>
-    `;
+    return htmlClose('oauth-success', `Successfully connected ${provider}`);
 
-    return new Response(html, {
-      headers: { ...corsHeaders, 'Content-Type': 'text/html' }
-    });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('[migrations-oauth-callback] Error:', error);
-    
-    // Return HTML with error message
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Connection Failed</title>
-        </head>
-        <body>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({
-                type: 'oauth-error',
-                error: '${error.message}'
-              }, '*');
-            }
-            setTimeout(() => window.close(), 3000);
-          </script>
-          <p>Connection failed: ${error.message}</p>
-          <p>This window will close in 3 seconds...</p>
-        </body>
-      </html>
-    `;
-    
-    return new Response(html, {
-      headers: { ...corsHeaders, 'Content-Type': 'text/html' },
-      status: 400
-    });
+    return htmlClose('oauth-error', error.message || 'Connection failed');
   }
 });
