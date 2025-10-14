@@ -51,6 +51,12 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
       
       // Listen for OAuth callback messages
       const handleCallback = async (event: MessageEvent) => {
+        // Validate origin for security
+        if (event.origin !== window.location.origin) {
+          console.warn('Ignoring message from untrusted origin:', event.origin);
+          return;
+        }
+
         // Handle success message from callback
         if (event.data.type === 'oauth-success' && event.data.provider === provider) {
           popup?.close();
