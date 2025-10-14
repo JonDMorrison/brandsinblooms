@@ -10,10 +10,10 @@ async function encryptToken(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(token);
   
-  // Get encryption key from environment
-  const keyString = Deno.env.get('ENCRYPTION_KEY');
+  // Get encryption key from environment (supports both TOKEN_ENCRYPTION_KEY and ENCRYPTION_KEY)
+  const keyString = Deno.env.get('TOKEN_ENCRYPTION_KEY') ?? Deno.env.get('ENCRYPTION_KEY');
   if (!keyString) {
-    throw new Error('ENCRYPTION_KEY not configured');
+    throw new Error('TOKEN_ENCRYPTION_KEY not configured');
   }
   
   const keyData = encoder.encode(keyString);
@@ -69,12 +69,14 @@ Deno.serve(async (req) => {
       }
     );
 
-    // Find the pending connection by matching the exact state token
+    // Find the connection by matching the exact state token (ignore status)
     const { data: connection, error: connectionError } = await supabase
       .from('provider_connections')
-      .select('tenant_id,user_id,provider,status,metadata')
-      .eq('status', 'pending')
+      .select('id,tenant_id,user_id,provider,status,metadata')
+      .eq('provider', provider)
       .contains('metadata', { state })
+      .order('updated_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (connectionError) {
