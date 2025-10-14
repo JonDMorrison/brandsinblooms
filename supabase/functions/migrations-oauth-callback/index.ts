@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { verify } from 'https://deno.land/x/djwt@v2.8/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
-    const provider = url.searchParams.get('provider') || 'mailchimp'; // Default to mailchimp for now
+    let provider = url.searchParams.get('provider') || 'mailchimp'; // May be overridden by verified state
 
     if (!code || !state) {
       throw new Error('Missing required parameters: code and state');
@@ -69,35 +70,67 @@ Deno.serve(async (req) => {
       }
     );
 
-    // Find the connection by matching the exact state token (ignore status)
-    const { data: connection, error: connectionError } = await supabase
-      .from('provider_connections')
-      .select('id,tenant_id,user_id,provider,status,metadata')
-      .eq('provider', provider)
-      .contains('metadata', { state })
-      .order('updated_at', { ascending: false })
-      .limit(1)
+    // Verify signed JWT state
+    const secret = Deno.env.get('OAUTH_STATE_SECRET');
+    if (!secret) {
+      throw new Error('Invalid state');
+    }
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign', 'verify']
+    );
+
+    let claims: any;
+    try {
+      claims = await verify(state, key);
+    } catch (e) {
+      const appOrigin = Deno.env.get('APP_ORIGIN') ?? Deno.env.get('APP_BASE_URL') ?? '*';
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head><title>Connection Failed</title></head>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'oauth-error', error: 'Invalid state (expired or bad signature)' }, '${appOrigin}');
+              }
+              setTimeout(() => window.close(), 300);
+            </script>
+            <p>Connection failed: Invalid state (expired or bad signature)</p>
+          </body>
+        </html>`;
+      return new Response(html, { headers: { ...corsHeaders, 'Content-Type': 'text/html' }, status: 400 });
+    }
+
+    // Override provider from claims and derive redirectUri/user/tenant
+    provider = (claims?.provider as string) || provider;
+    const redirectUri = claims?.redirectUri as string;
+    const uid = claims?.uid as string;
+
+    const { data: userRow, error: userErr } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', uid)
       .maybeSingle();
 
-    if (connectionError) {
-      console.error('[migrations-oauth-callback] State lookup error:', connectionError);
+    if (userErr || !userRow?.tenant_id) {
+      throw new Error('User or tenant not found for state');
     }
 
-    if (!connection) {
-      throw new Error('Invalid state token or connection not found');
-    }
-
-    const user_id = connection.user_id;
-    const tenant_id = connection.tenant_id;
+    const user_id = uid;
+    const tenant_id = userRow.tenant_id;
 
     // Get OAuth credentials
     const clientId = Deno.env.get(`${provider.toUpperCase()}_CLIENT_ID`);
     const clientSecret = Deno.env.get(`${provider.toUpperCase()}_CLIENT_SECRET`);
-    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/migrations-oauth-callback?provider=${provider}`;
-
     if (!clientId || !clientSecret) {
       throw new Error('OAuth credentials not configured');
     }
+    // redirectUri is derived from verified state claims
 
     // Exchange code for tokens
     let tokenUrl = '';

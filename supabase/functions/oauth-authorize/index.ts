@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { create, getNumericDate } from 'https://deno.land/x/djwt@v2.8/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -70,46 +71,41 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate state token for CSRF protection
-    const state = crypto.randomUUID();
-    
-    // Store state in database for verification (no reliance on unique index)
-    const { data: existing, error: findErr } = await supabase
-      .from('provider_connections')
-      .select('id')
-      .eq('tenant_id', userData.tenant_id)
-      .eq('provider', provider)
-      .maybeSingle();
-
-    if (findErr) {
-      console.error('[oauth-authorize] Lookup error:', findErr);
-    }
-
-    if (existing) {
-      const { error: updateErr } = await supabase
-        .from('provider_connections')
-        .update({
-          metadata: { state, initiated_at: new Date().toISOString() }
-        })
-        .eq('id', existing.id);
-      if (updateErr) {
-        console.error('[oauth-authorize] Update pending state failed:', updateErr);
-      }
-    } else {
-      const { error: insertErr } = await supabase
-        .from('provider_connections')
-        .insert({
-          tenant_id: userData.tenant_id,
-          user_id: user.id,
-          provider,
-          metadata: { state, initiated_at: new Date().toISOString() }
-        });
-      if (insertErr) {
-        console.error('[oauth-authorize] Insert pending state failed:', insertErr);
-      }
-    }
-
+    // Build callback redirect URI
     const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/migrations-oauth-callback?provider=${provider}`;
+
+    // Create signed JWT state (no DB writes)
+    const secret = Deno.env.get('OAUTH_STATE_SECRET');
+    if (!secret) {
+      return new Response(
+        JSON.stringify({ 
+          error: true,
+          message: 'Please configure OAUTH_STATE_SECRET as a Supabase Function secret' 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign', 'verify']
+    );
+
+    const statePayload = {
+      uid: user.id,
+      provider,
+      nonce: crypto.randomUUID(),
+      ts: Date.now(),
+      redirectUri,
+      exp: getNumericDate(60 * 10), // 10 minutes
+    };
+
+    const state = await create({ alg: 'HS256', typ: 'JWT' }, statePayload as Record<string, unknown>, key);
+
 
     // Build OAuth URL
     let authUrl = '';
