@@ -6,6 +6,36 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
+const APP_ORIGIN = Deno.env.get('APP_ORIGIN') ?? 'https://bloomsuite.app';
+
+function htmlClose(type: 'oauth-success' | 'oauth-error', payload: any) {
+  const msg = JSON.stringify({ type, provider: 'mailchimp', ...payload });
+  return new Response(
+    `<!DOCTYPE html><html><body>
+      <script>
+        try {
+          if (window.opener) {
+            window.opener.postMessage(${msg}, '${APP_ORIGIN}');
+          }
+        } catch (e) {
+          console.error('postMessage failed:', e);
+        }
+        setTimeout(() => window.close(), 300);
+      </script>
+      <p style="text-align:center;padding:20px;font-family:system-ui;">
+        ${type === 'oauth-success' ? '✓ Successfully connected Mailchimp!' : '✗ Connection failed'}
+      </p>
+    </body></html>`,
+    { 
+      status: 200,
+      headers: { 
+        'Content-Type': 'text/html',
+        ...corsHeaders
+      } 
+    }
+  );
+}
+
 async function encryptToken(token: string): Promise<string> {
   const key = Deno.env.get('TOKEN_ENCRYPTION_KEY');
   if (!key) throw new Error('Encryption key not configured');
@@ -49,24 +79,12 @@ Deno.serve(async (req) => {
     // Handle OAuth errors
     if (error) {
       console.error('OAuth error:', error);
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: `${Deno.env.get('APP_BASE_URL')}/dashboard?ga_error=${encodeURIComponent(error)}`,
-          ...corsHeaders
-        }
-      });
+      return htmlClose('oauth-error', { error: error });
     }
 
     if (!code || !state) {
       console.error('Missing code or state parameter');
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: `${Deno.env.get('APP_BASE_URL')}/dashboard?ga_error=invalid_callback`,
-          ...corsHeaders
-        }
-      });
+      return htmlClose('oauth-error', { error: 'invalid_callback' });
     }
 
     // Parse state parameter
@@ -74,13 +92,7 @@ Deno.serve(async (req) => {
     
     if (!userId || !propertyId) {
       console.error('Invalid state parameter');
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: `${Deno.env.get('APP_BASE_URL')}/dashboard?ga_error=invalid_state`,
-          ...corsHeaders
-        }
-      });
+      return htmlClose('oauth-error', { error: 'invalid_state' });
     }
 
     // Exchange code for tokens
@@ -101,13 +113,7 @@ Deno.serve(async (req) => {
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
       console.error('Token exchange failed:', errorText);
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: `${Deno.env.get('APP_BASE_URL')}/dashboard?ga_error=token_exchange_failed`,
-          ...corsHeaders
-        }
-      });
+      return htmlClose('oauth-error', { error: 'token_exchange_failed' });
     }
 
     const tokens = await tokenResponse.json();
@@ -153,23 +159,11 @@ Deno.serve(async (req) => {
     // For now, we'll just log success
     console.log('✅ OAuth callback successful for user:', userId);
 
-    // Redirect back to dashboard with success
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: `${Deno.env.get('APP_BASE_URL')}/dashboard?ga_success=true`,
-        ...corsHeaders
-      }
-    });
+    // Return success HTML with postMessage
+    return htmlClose('oauth-success', { message: 'Connected successfully' });
 
   } catch (error) {
     console.error('❌ OAuth callback error:', error);
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: `${Deno.env.get('APP_BASE_URL')}/dashboard?ga_error=callback_failed`,
-        ...corsHeaders
-      }
-    });
+    return htmlClose('oauth-error', { error: 'callback_failed' });
   }
 });

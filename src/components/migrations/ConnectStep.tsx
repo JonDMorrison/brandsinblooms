@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+
+const APP_ORIGIN = window.location.origin;
 
 interface ConnectStepProps {
   onComplete: () => void;
@@ -15,6 +17,66 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
   const [klaviyoStatus, setKlaviyoStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [mailchimpAccount, setMailchimpAccount] = useState<any>(null);
   const [klaviyoAccount, setKlaviyoAccount] = useState<any>(null);
+  const popupRef = useRef<Window | null>(null);
+
+  // Listen for OAuth postMessage
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin !== APP_ORIGIN) return;
+      const { type, provider, message, error } = e.data || {};
+      if (provider !== 'mailchimp') return;
+
+      if (type === 'oauth-success') {
+        console.log('✅ OAuth success received:', message);
+        // Close popup
+        try { popupRef.current?.close(); } catch {}
+        // Refresh connection state
+        refreshConnections();
+        // Advance wizard
+        toast({
+          title: 'Connected!',
+          description: 'Mailchimp connected successfully',
+        });
+        onComplete();
+      }
+      if (type === 'oauth-error') {
+        console.error('❌ OAuth error received:', error);
+        toast({
+          title: 'Connection Failed',
+          description: error || 'Mailchimp connection failed',
+          variant: 'destructive'
+        });
+        setMailchimpStatus('error');
+        try { popupRef.current?.close(); } catch {}
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [toast, onComplete]);
+
+  const refreshConnections = async () => {
+    try {
+      const { data: connections } = await supabase
+        .from('provider_connections')
+        .select('*')
+        .eq('status', 'connected')
+        .in('provider', ['mailchimp', 'klaviyo']);
+
+      const mailchimp = connections?.find(c => c.provider === 'mailchimp');
+      const klaviyo = connections?.find(c => c.provider === 'klaviyo');
+
+      if (mailchimp) {
+        setMailchimpStatus('connected');
+        setMailchimpAccount(mailchimp.metadata);
+      }
+      if (klaviyo) {
+        setKlaviyoStatus('connected');
+        setKlaviyoAccount(klaviyo.metadata);
+      }
+    } catch (error) {
+      console.error('Error refreshing connections:', error);
+    }
+  };
 
   const handleConnect = async (provider: 'mailchimp' | 'klaviyo') => {
     const setStatus = provider === 'mailchimp' ? setMailchimpStatus : setKlaviyoStatus;
@@ -46,67 +108,28 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
         return;
       }
 
-      // Open OAuth popup
-      const popup = window.open(data.authUrl, `${provider}-oauth`, 'width=600,height=700');
+      const authUrl = data.authUrl;
+      if (!authUrl) {
+        throw new Error('Failed to get authorization URL');
+      }
+
+      console.log('Opening OAuth popup:', authUrl);
       
-      // Listen for OAuth callback messages
-      const handleCallback = async (event: MessageEvent) => {
-        // Validate origin for security
-        if (event.origin !== window.location.origin) {
-          console.warn('Ignoring message from untrusted origin:', event.origin);
-          return;
-        }
+      // Open OAuth popup
+      const width = 520;
+      const height = 720;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      
+      popupRef.current = window.open(
+        authUrl,
+        `oauth_${provider}`,
+        `width=${width},height=${height},left=${left},top=${top},noopener,noreferrer`
+      );
 
-        // Handle success message from callback
-        if (event.data.type === 'oauth-success' && event.data.provider === provider) {
-          popup?.close();
-          
-          if (provider === 'mailchimp') {
-            setMailchimpAccount(event.data.accountInfo);
-            setMailchimpStatus('connected');
-          } else {
-            setKlaviyoAccount(event.data.accountInfo);
-            setKlaviyoStatus('connected');
-          }
-
-          toast({
-            title: 'Connected!',
-            description: `Successfully connected to ${provider}`
-          });
-          
-          window.removeEventListener('message', handleCallback);
-        }
-        
-        // Handle error message from callback
-        if (event.data.type === 'oauth-error') {
-          popup?.close();
-          
-          toast({
-            title: 'Connection Failed',
-            description: event.data.error || 'Failed to connect',
-            variant: 'destructive'
-          });
-          setStatus('error');
-          
-          window.removeEventListener('message', handleCallback);
-        }
-      };
-
-      window.addEventListener('message', handleCallback);
-
-      // Cleanup
-      const checkClosed = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', handleCallback);
-          if (provider === 'mailchimp' && mailchimpStatus === 'connecting') {
-            setMailchimpStatus('idle');
-          } else if (provider === 'klaviyo' && klaviyoStatus === 'connecting') {
-            setKlaviyoStatus('idle');
-          }
-        }
-      }, 500);
-
+      if (!popupRef.current || popupRef.current.closed) {
+        throw new Error('Failed to open OAuth popup. Please check your popup blocker settings.');
+      }
     } catch (error: any) {
       console.error('Connect error:', error);
       toast({
