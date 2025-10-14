@@ -21,13 +21,14 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
     setStatus('connecting');
 
     try {
-      // Check if user is authenticated
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Please log in to connect your account');
+      // Refresh session to ensure we have a valid token
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      
+      if (sessionError || !session) {
+        throw new Error('Your session has expired. Please refresh the page and log in again.');
       }
 
-      // Request OAuth URL with proper auth
+      // Request OAuth URL with refreshed auth token
       const { data, error } = await supabase.functions.invoke('oauth-authorize', {
         body: { provider }
       });
