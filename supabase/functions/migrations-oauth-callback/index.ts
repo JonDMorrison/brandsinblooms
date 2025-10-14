@@ -47,41 +47,42 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { code, state, provider } = await req.json();
+    // Parse query parameters from the URL (OAuth callback is a GET request)
+    const url = new URL(req.url);
+    const code = url.searchParams.get('code');
+    const state = url.searchParams.get('state');
+    const provider = url.searchParams.get('provider') || 'mailchimp'; // Default to mailchimp for now
 
-    const authHeader = req.headers.get('Authorization')!;
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (!user || authError) throw new Error('Unauthorized');
-
-    // Get tenant_id
-    const { data: userData } = await supabase
-      .from('users')
-      .select('tenant_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!userData?.tenant_id) {
-      throw new Error('No tenant found for user');
+    if (!code || !state) {
+      throw new Error('Missing required parameters: code and state');
     }
 
-    // Verify state token
+    // OAuth callback doesn't have Authorization header - use service role
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    // Find the pending connection by state token to get user/tenant info
     const { data: connection } = await supabase
       .from('provider_connections')
-      .select('*')
-      .eq('tenant_id', userData.tenant_id)
+      .select('*, users!inner(tenant_id)')
       .eq('provider', provider)
+      .eq('status', 'pending')
       .single();
 
     if (!connection || connection.metadata?.state !== state) {
-      throw new Error('Invalid state token');
+      throw new Error('Invalid state token or connection not found');
     }
+
+    const user_id = connection.user_id;
+    const tenant_id = connection.users.tenant_id;
 
     // Get OAuth credentials
     const clientId = Deno.env.get(`${provider.toUpperCase()}_CLIENT_ID`);
@@ -154,8 +155,8 @@ Deno.serve(async (req) => {
 
     // Update connection with encrypted tokens
     await supabase.from('provider_connections').upsert({
-      tenant_id: userData.tenant_id,
-      user_id: user.id,
+      tenant_id: tenant_id,
+      user_id: user_id,
       provider,
       status: 'connected',
       encrypted_access_token: encryptedToken,
@@ -170,18 +171,64 @@ Deno.serve(async (req) => {
       onConflict: 'tenant_id,provider'
     });
 
-    console.log(`[migrations-oauth-callback] Successfully connected ${provider} for user ${user.id}`);
+    console.log(`[migrations-oauth-callback] Successfully connected ${provider} for user ${user_id}`);
 
-    return new Response(
-      JSON.stringify({ success: true, accountInfo }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Return HTML that closes the popup and notifies parent window
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Connection Successful</title>
+        </head>
+        <body>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'oauth-success',
+                provider: '${provider}',
+                accountInfo: ${JSON.stringify(accountInfo)}
+              }, '*');
+            }
+            window.close();
+          </script>
+          <p>Connection successful! This window will close automatically...</p>
+        </body>
+      </html>
+    `;
+
+    return new Response(html, {
+      headers: { ...corsHeaders, 'Content-Type': 'text/html' }
+    });
 
   } catch (error) {
     console.error('[migrations-oauth-callback] Error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-    );
+    
+    // Return HTML with error message
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Connection Failed</title>
+        </head>
+        <body>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'oauth-error',
+                error: '${error.message}'
+              }, '*');
+            }
+            setTimeout(() => window.close(), 3000);
+          </script>
+          <p>Connection failed: ${error.message}</p>
+          <p>This window will close in 3 seconds...</p>
+        </body>
+      </html>
+    `;
+    
+    return new Response(html, {
+      headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+      status: 400
+    });
   }
 });

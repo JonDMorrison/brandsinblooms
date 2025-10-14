@@ -49,45 +49,40 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
       // Open OAuth popup
       const popup = window.open(data.authUrl, `${provider}-oauth`, 'width=600,height=700');
       
-      // Listen for OAuth callback
+      // Listen for OAuth callback messages
       const handleCallback = async (event: MessageEvent) => {
-        if (event.data.type === 'oauth-callback' && event.data.provider === provider) {
+        // Handle success message from callback
+        if (event.data.type === 'oauth-success' && event.data.provider === provider) {
           popup?.close();
           
-          try {
-            // Exchange code for tokens
-            const { data: callbackData, error: callbackError } = await supabase.functions.invoke('migrations-oauth-callback', {
-              body: {
-                code: event.data.code,
-                state: data.state,
-                provider
-              }
-            });
-
-            if (callbackError) throw callbackError;
-
-            if (provider === 'mailchimp') {
-              setMailchimpAccount(callbackData.accountInfo);
-              setMailchimpStatus('connected');
-            } else {
-              setKlaviyoAccount(callbackData.accountInfo);
-              setKlaviyoStatus('connected');
-            }
-
-            toast({
-              title: 'Connected!',
-              description: `Successfully connected to ${provider}`
-            });
-
-          } catch (error: any) {
-            console.error('OAuth callback error:', error);
-            toast({
-              title: 'Connection Failed',
-              description: error.message,
-              variant: 'destructive'
-            });
-            setStatus('error');
+          if (provider === 'mailchimp') {
+            setMailchimpAccount(event.data.accountInfo);
+            setMailchimpStatus('connected');
+          } else {
+            setKlaviyoAccount(event.data.accountInfo);
+            setKlaviyoStatus('connected');
           }
+
+          toast({
+            title: 'Connected!',
+            description: `Successfully connected to ${provider}`
+          });
+          
+          window.removeEventListener('message', handleCallback);
+        }
+        
+        // Handle error message from callback
+        if (event.data.type === 'oauth-error') {
+          popup?.close();
+          
+          toast({
+            title: 'Connection Failed',
+            description: event.data.error || 'Failed to connect',
+            variant: 'destructive'
+          });
+          setStatus('error');
+          
+          window.removeEventListener('message', handleCallback);
         }
       };
 

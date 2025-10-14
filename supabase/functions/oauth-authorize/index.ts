@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       onConflict: 'tenant_id,provider'
     });
 
-    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/migrations-oauth-callback`;
+    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/migrations-oauth-callback?provider=${provider}`;
 
     // Build OAuth URL
     let authUrl = '';
