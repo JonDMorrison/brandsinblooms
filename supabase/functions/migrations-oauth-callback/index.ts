@@ -69,15 +69,19 @@ Deno.serve(async (req) => {
       }
     );
 
-    // Find the pending connection by state token to get user/tenant info
-    const { data: connection } = await supabase
+    // Find the pending connection by matching the exact state token
+    const { data: connection, error: connectionError } = await supabase
       .from('provider_connections')
       .select('*, users!inner(tenant_id)')
-      .eq('provider', provider)
       .eq('status', 'pending')
-      .single();
+      .contains('metadata', { state })
+      .maybeSingle();
 
-    if (!connection || connection.metadata?.state !== state) {
+    if (connectionError) {
+      console.error('[migrations-oauth-callback] State lookup error:', connectionError);
+    }
+
+    if (!connection) {
       throw new Error('Invalid state token or connection not found');
     }
 
@@ -87,7 +91,7 @@ Deno.serve(async (req) => {
     // Get OAuth credentials
     const clientId = Deno.env.get(`${provider.toUpperCase()}_CLIENT_ID`);
     const clientSecret = Deno.env.get(`${provider.toUpperCase()}_CLIENT_SECRET`);
-    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/migrations-oauth-callback`;
+    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/migrations-oauth-callback?provider=${provider}`;
 
     if (!clientId || !clientSecret) {
       throw new Error('OAuth credentials not configured');
