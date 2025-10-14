@@ -89,7 +89,6 @@ Deno.serve(async (req) => {
       const { error: updateErr } = await supabase
         .from('provider_connections')
         .update({
-          status: 'pending',
           metadata: { state, initiated_at: new Date().toISOString() }
         })
         .eq('id', existing.id);
@@ -103,7 +102,6 @@ Deno.serve(async (req) => {
           tenant_id: userData.tenant_id,
           user_id: user.id,
           provider,
-          status: 'pending',
           metadata: { state, initiated_at: new Date().toISOString() }
         });
       if (insertErr) {
