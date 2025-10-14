@@ -117,29 +117,32 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
   };
 
   const handleDisconnect = async (provider: 'mailchimp' | 'klaviyo') => {
+    const setStatus = provider === 'mailchimp' ? setMailchimpStatus : setKlaviyoStatus;
+    const setAccount = provider === 'mailchimp' ? setMailchimpAccount : setKlaviyoAccount;
+    
     try {
-      const { error } = await supabase
-        .from('provider_connections')
-        .update({ status: 'disconnected', revoked_at: new Date().toISOString() })
-        .eq('provider', provider);
+      setStatus('connecting'); // Show loading state
+
+      // Call revoke-token edge function
+      const { data, error } = await supabase.functions.invoke('mailchimp-revoke-token', {
+        body: { provider }
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.message);
 
-      if (provider === 'mailchimp') {
-        setMailchimpStatus('idle');
-        setMailchimpAccount(null);
-      } else {
-        setKlaviyoStatus('idle');
-        setKlaviyoAccount(null);
-      }
+      setStatus('idle');
+      setAccount(null);
 
       toast({
         title: 'Disconnected',
-        description: `Disconnected from ${provider}`
+        description: data?.message || `Successfully disconnected from ${provider}`
       });
     } catch (error: any) {
+      console.error('Disconnect error:', error);
+      setStatus('error');
       toast({
-        title: 'Error',
+        title: 'Disconnect Failed',
         description: error.message,
         variant: 'destructive'
       });

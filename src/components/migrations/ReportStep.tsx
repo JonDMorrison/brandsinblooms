@@ -60,19 +60,17 @@ export const ReportStep = ({ jobId, report, onDisconnect }: ReportStepProps) => 
 
       const provider = job.provider;
 
-      // Update provider connection status to disconnected
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      // Call revoke-token edge function to properly revoke OAuth token
+      const { data, error } = await supabase.functions.invoke('mailchimp-revoke-token', {
+        body: { provider }
+      });
 
-      await supabase
-        .from('provider_connections')
-        .update({ status: 'disconnected', revoked_at: new Date().toISOString() })
-        .eq('provider', provider)
-        .eq('user_id', user.id);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message);
 
       toast({
         title: 'Provider Disconnected',
-        description: 'OAuth tokens have been revoked'
+        description: data?.message || 'OAuth tokens have been revoked successfully'
       });
 
       onDisconnect();
