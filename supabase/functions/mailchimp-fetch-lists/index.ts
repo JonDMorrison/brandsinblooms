@@ -1,9 +1,17 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { decryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Fail fast if encryption key is not configured
+try {
+  assertEncryptionKeyConfigured();
+} catch (error: any) {
+  console.error('[mailchimp-fetch-lists] FATAL:', error.message);
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -24,22 +32,31 @@ Deno.serve(async (req) => {
     // Get connection
     const { data: connection } = await supabase
       .from('provider_connections')
-      .select('*')
+      .select('encrypted_access_token, metadata')
       .eq('user_id', user.id)
       .eq('provider', 'mailchimp')
       .eq('status', 'connected')
       .single();
 
-    if (!connection) {
-      throw new Error('Mailchimp not connected');
+    if (!connection?.encrypted_access_token) {
+      throw new Error('Mailchimp not connected or token missing');
     }
 
-    const dc = connection.account_info?.dc || connection.account_info?.api_endpoint?.match(/https:\/\/(.+?)\.api\.mailchimp\.com/)?.[1];
+    // Decrypt access token
+    let accessToken: string;
+    try {
+      accessToken = await decryptToken(connection.encrypted_access_token);
+    } catch (error: any) {
+      console.error('[mailchimp-fetch-lists] Decryption failed:', error.message);
+      throw new Error('Failed to decrypt access token. Please reconnect Mailchimp.');
+    }
+
+    const dc = connection.metadata?.dc || connection.metadata?.api_endpoint?.match(/https:\/\/(.+?)\.api\.mailchimp\.com/)?.[1];
     const baseUrl = `https://${dc}.api.mailchimp.com/3.0`;
 
     // Fetch lists
     const listsRes = await fetch(`${baseUrl}/lists?count=100`, {
-      headers: { Authorization: `Bearer ${connection.access_token}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     const listsData = await listsRes.json();
 
@@ -47,7 +64,7 @@ Deno.serve(async (req) => {
     const listsWithSegments = await Promise.all(
       (listsData.lists || []).map(async (list: any) => {
         const segmentsRes = await fetch(`${baseUrl}/lists/${list.id}/segments?count=100`, {
-          headers: { Authorization: `Bearer ${connection.access_token}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
         });
         const segmentsData = await segmentsRes.json();
         
