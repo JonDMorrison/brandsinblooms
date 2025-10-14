@@ -21,7 +21,13 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
     setStatus('connecting');
 
     try {
-      // Request OAuth URL
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Please log in to connect your account');
+      }
+
+      // Request OAuth URL with proper auth
       const { data, error } = await supabase.functions.invoke('oauth-authorize', {
         body: { provider }
       });
