@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 
-const publicRoutes = ["/", "/landing", "/auth", "/signup", "/login", "/get-started", "/pricing"];
+const publicRoutes = ["/", "/landing", "/auth", "/signup", "/login", "/get-started", "/pricing", "/oauth/callback"];
 
 export const useRedirectIfAuthenticated = () => {
   const { user, loading, isInLimboState, authError } = useAuth();
