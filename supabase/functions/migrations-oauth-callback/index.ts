@@ -16,19 +16,65 @@ try {
 
 function htmlClose(type: 'oauth-success' | 'oauth-error', message: string): Response {
   const appOrigin = Deno.env.get('APP_ORIGIN') ?? Deno.env.get('APP_BASE_URL') ?? '*';
-  return new Response(`
-    <!DOCTYPE html><html><body>
-    <script>
-      if (window.opener) {
-        window.opener.postMessage({ type: '${type}', message: ${JSON.stringify(message)}, provider: 'mailchimp' }, '${appOrigin}');
+  const escapedMessage = JSON.stringify(message);
+  
+  return new Response(
+    `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${type === 'oauth-success' ? 'Success' : 'Error'}</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: ${type === 'oauth-success' ? '#f0fdf4' : '#fef2f2'};
+    }
+    .message {
+      text-align: center;
+      padding: 2rem;
+      color: ${type === 'oauth-success' ? '#166534' : '#991b1b'};
+    }
+  </style>
+</head>
+<body>
+  <div class="message">
+    <p>${type === 'oauth-success' ? '✓' : '✗'} ${message}</p>
+  </div>
+  <script>
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({
+          type: '${type}',
+          message: ${escapedMessage},
+          provider: 'mailchimp'
+        }, '${appOrigin}');
       }
-      setTimeout(() => window.close(), 300);
-    </script>
-    <p>${message}</p>
-    </body></html>`, { 
-    headers: { ...corsHeaders, 'Content-Type': 'text/html' },
-    status: type === 'oauth-error' ? 400 : 200
-  });
+    } catch (e) {
+      console.error('postMessage failed:', e);
+    }
+    setTimeout(() => {
+      try {
+        window.close();
+      } catch (e) {
+        console.log('Could not close window:', e);
+      }
+    }, 300);
+  </script>
+</body>
+</html>`, 
+    { 
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'text/html; charset=utf-8'
+      },
+      status: type === 'oauth-error' ? 400 : 200
+    }
+  );
 }
 
 Deno.serve(async (req) => {
