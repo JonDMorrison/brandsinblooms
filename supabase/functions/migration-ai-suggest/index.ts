@@ -23,58 +23,57 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Missing Authorization header');
 
-    // Create client for user authentication
+    // Create admin client for all operations
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: authHeader }
-      },
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
       }
     });
 
-    // Verify the user
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    // Verify the JWT token using the service role client
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     if (authError || !user) {
       console.error('[migration-ai-suggest] Auth error:', authError);
       throw new Error('Unauthorized');
     }
 
-    // Create admin client for database operations
-    const supabaseAdmin = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-
     // Get user's tenant
-    const { data: userRecord } = await supabaseAdmin
+    const { data: userRecord, error: userError } = await supabaseAdmin
       .from('users')
       .select('tenant_id')
       .eq('id', user.id)
       .single();
 
-    const tenantId = userRecord?.tenant_id;
-    if (!tenantId) throw new Error('Tenant not found');
+    if (userError || !userRecord?.tenant_id) {
+      console.error('[migration-ai-suggest] User lookup error:', userError);
+      throw new Error('Tenant not found');
+    }
+
+    const tenantId = userRecord.tenant_id;
 
     // Get provider artifacts for this job
-    const { data: artifacts } = await supabaseAdmin
+    const { data: artifacts, error: artifactsError } = await supabaseAdmin
       .from('provider_artifacts')
       .select('*')
-      .eq('import_job_id', jobId);
+      .eq('import_job_id', jobId)
+      .eq('tenant_id', tenantId);
+
+    if (artifactsError) {
+      console.error('[migration-ai-suggest] Error fetching artifacts:', artifactsError);
+      throw new Error('Failed to fetch artifacts');
+    }
 
     if (!artifacts || artifacts.length === 0) {
-      throw new Error('No artifacts found for this job');
+      console.log('[migration-ai-suggest] No artifacts found for job:', jobId);
+      throw new Error('No artifacts found for this job. Please run the embed step first.');
     }
+
+    console.log(`[migration-ai-suggest] Found ${artifacts.length} artifacts to analyze`);
 
     // Get existing segments and personas
     const { data: existingSegments } = await supabaseAdmin
