@@ -206,7 +206,7 @@ export const CRMCustomersPage: React.FC = () => {
                 }}
               />
             ) : (
-              <div className="w-full overflow-x-auto rounded-md border">
+              <div className="w-full overflow-x-auto overflow-y-visible rounded-md border">
                 <Table data-testid="customers-table" className="min-w-[800px]">
                       <TableHeader>
                         <TableRow>
@@ -316,15 +316,15 @@ export const CRMCustomersPage: React.FC = () => {
                                 {format(new Date(customer.created_at), 'MMM d, yyyy')}
                               </span>
                             </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()} className="relative">
-                              <DropdownMenu>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenu modal={false}>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-8 w-8">
                                     <MoreVertical className="h-4 w-4" />
                                     <span className="sr-only">Open menu</span>
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuContent align="end" side="bottom" className="w-48 z-[1000020]">
                                   <DropdownMenuItem onClick={() => navigate(`/crm/customers/${customer.id}`)}>
                                     <Eye className="h-4 w-4 mr-2" />
                                     View Customer
