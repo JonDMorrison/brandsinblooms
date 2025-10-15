@@ -14,13 +14,28 @@ export const OAuthCallbackHandler = () => {
 
     // Add a small delay to ensure component has mounted
     const timer = setTimeout(() => {
+      console.log('[OAuthCallbackHandler] params check', {
+        href: window.location.href,
+        status,
+        provider,
+        code: !!code,
+        state: !!state,
+        hasOpener: !!window.opener,
+      });
+
       // New flow: when server handled token exchange and redirected back
-      if (status && provider && window.opener) {
-        window.opener.postMessage({
-          type: status === 'success' ? 'oauth-success' : 'oauth-error',
-          provider,
-          message: status === 'success' ? 'Connected successfully' : 'Connection failed'
-        }, window.location.origin);
+      if (status && provider) {
+        if (window.opener) {
+          try {
+            window.opener.postMessage({
+              type: status === 'success' ? 'oauth-success' : 'oauth-error',
+              provider,
+              message: status === 'success' ? 'Connected successfully' : 'Connection failed'
+            }, '*');
+          } catch (e) {
+            console.warn('[OAuthCallbackHandler] postMessage failed', e);
+          }
+        }
         
         // Try to close the window, show fallback if it fails
         try {
@@ -28,7 +43,7 @@ export const OAuthCallbackHandler = () => {
           // If window.close() doesn't work, show fallback after a delay
           setTimeout(() => {
             setShowFallback(true);
-          }, 500);
+          }, 600);
         } catch (error) {
           setShowFallback(true);
         }
@@ -36,24 +51,34 @@ export const OAuthCallbackHandler = () => {
       }
 
       // Legacy flow: when provider redirected directly with code/state
-      if (code && state && provider && window.opener) {
-        window.opener.postMessage({
-          type: 'oauth-callback',
-          provider,
-          code,
-          state
-        }, window.location.origin);
+      if (code && state && provider) {
+        if (window.opener) {
+          try {
+            window.opener.postMessage({
+              type: 'oauth-callback',
+              provider,
+              code,
+              state
+            }, '*');
+          } catch (e) {
+            console.warn('[OAuthCallbackHandler] legacy postMessage failed', e);
+          }
+        }
 
         // Try to close the window, show fallback if it fails
         try {
           window.close();
           setTimeout(() => {
             setShowFallback(true);
-          }, 500);
+          }, 600);
         } catch (error) {
           setShowFallback(true);
         }
+        return;
       }
+
+      // If we reach here, params are missing – show manual fallback
+      setShowFallback(true);
     }, 100);
 
     return () => clearTimeout(timer);
