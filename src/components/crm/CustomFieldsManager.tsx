@@ -158,7 +158,7 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({
               {fieldEntries.map(([key, value]) => (
                 <div
                   key={key}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   <div className="flex-1 space-y-1">
                     <div className="font-medium text-sm text-muted-foreground">
