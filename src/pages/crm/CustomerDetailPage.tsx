@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CustomerPersonaSelector } from '@/components/crm/CustomerPersonaSelector';
 import { CustomerSegmentSelector } from '@/components/crm/CustomerSegmentSelector';
+import { CustomFieldsManager } from '@/components/crm/CustomFieldsManager';
 import { Mail, Phone, Calendar, DollarSign, Save, User, ArrowLeft, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -27,6 +28,7 @@ interface Customer {
   sms_opt_in?: boolean;
   created_at: string;
   updated_at: string;
+  custom_fields?: Record<string, any>;
 }
 
 export const CustomerDetailPage: React.FC = () => {
@@ -75,7 +77,10 @@ export const CustomerDetailPage: React.FC = () => {
       if (error) throw error;
       
       if (data) {
-        setCustomer(data);
+        setCustomer({
+          ...data,
+          custom_fields: (data.custom_fields as Record<string, any>) || {}
+        });
         setFormData({
           first_name: data.first_name || '',
           last_name: data.last_name || '',
@@ -369,6 +374,13 @@ export const CustomerDetailPage: React.FC = () => {
           <CustomerSegmentSelector customerId={customer.id} />
         </CardContent>
       </Card>
+
+      {/* Custom Fields Section */}
+      <CustomFieldsManager
+        customerId={customer.id}
+        customFields={customer.custom_fields || {}}
+        onFieldsUpdate={fetchCustomer}
+      />
     </div>
   );
 };
