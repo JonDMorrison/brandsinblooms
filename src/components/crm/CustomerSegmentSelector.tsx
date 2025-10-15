@@ -47,7 +47,11 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
   };
 
   if (isLoading) {
-    return <div className="text-sm text-muted-foreground">Loading segments...</div>;
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   const assignedCount = customerSegments.length;
@@ -105,7 +109,9 @@ export const CustomerSegmentSelector = ({ customerId }: CustomerSegmentSelectorP
           </CardHeader>
           <CardContent>
             {segmentsLoading ? (
-              <div className="text-sm text-muted-foreground py-4">Loading segments...</div>
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
             ) : availableSegments.filter(segment => !assignedSegmentIds.has(segment.id)).length > 0 ? (
               <ScrollArea className="h-64">
                 <div className="space-y-2 pr-4">
