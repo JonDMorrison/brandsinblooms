@@ -56,8 +56,19 @@ export const ChooseStep = ({ onComplete, onBack }: ChooseStepProps) => {
       // Fetch lists based on provider
       if (provider === 'mailchimp') {
         const { data, error } = await supabase.functions.invoke('mailchimp-fetch-lists');
-        if (error) throw error;
-        setLists(data.lists || []);
+        
+        console.log('Mailchimp response:', { data, error });
+        
+        if (error) {
+          console.error('Mailchimp invoke error:', error);
+          throw error;
+        }
+        
+        if (data?.error) {
+          throw new Error(data.error);
+        }
+        
+        setLists(data?.lists || []);
       } else if (provider === 'klaviyo') {
         const { data, error } = await supabase.functions.invoke('klaviyo-fetch-lists');
         if (error) throw error;
