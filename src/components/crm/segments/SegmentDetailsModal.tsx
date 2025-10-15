@@ -272,7 +272,8 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
   if (!segment) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <div className="flex items-center gap-3">
@@ -401,10 +402,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          setShowBulkImport(true);
-                          onOpenChange(false); // Close segment dialog for better visibility
-                        }}
+                        onClick={() => setShowBulkImport(true)}
                         className="gap-2"
                       >
                         <Upload className="h-3 w-3" />
@@ -484,21 +482,22 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
             </Button>
           </div>
         </div>
-
-        {/* Bulk Import Dialog */}
-        <EnhancedSegmentImportDialog
-          open={showBulkImport}
-          onOpenChange={setShowBulkImport}
-          segmentId={segment.id}
-          segmentName={segment.name}
-          onImportComplete={() => {
-            loadSegmentData();
-            if (onSegmentUpdate) {
-              onSegmentUpdate();
-            }
-          }}
-        />
       </DialogContent>
     </Dialog>
+
+    {/* Bulk Import Dialog - rendered outside parent dialog */}
+    <EnhancedSegmentImportDialog
+      open={showBulkImport}
+      onOpenChange={setShowBulkImport}
+      segmentId={segment?.id}
+      segmentName={segment?.name}
+      onImportComplete={() => {
+        loadSegmentData();
+        if (onSegmentUpdate) {
+          onSegmentUpdate();
+        }
+      }}
+    />
+  </>
   );
 };
