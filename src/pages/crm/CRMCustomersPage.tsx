@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign } from 'lucide-react';
-import { CustomerImportDialog } from '@/components/crm/customers/CustomerImportDialog';
+import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign, Upload } from 'lucide-react';
+import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedSegmentImportDialog';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { useAllSegments } from '@/hooks/useAllSegments';
@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 export const CRMCustomersPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [showImportDialog, setShowImportDialog] = useState(false);
   
   const { data: customers = [], isLoading, invalidateCustomers } = useCustomers({
     search: searchQuery 
@@ -133,7 +134,10 @@ export const CRMCustomersPage: React.FC = () => {
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Customers</h1>
           <div className="flex gap-2">
-            <CustomerImportDialog onImportComplete={handleImportComplete} />
+            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import Customers
+            </Button>
             <Button onClick={() => navigate('/crm/customers/new')}>
               <Plus className="h-4 w-4 mr-2" />
               Add Customer
@@ -152,7 +156,10 @@ export const CRMCustomersPage: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Customers</h1>
         <div className="flex gap-2">
-          <CustomerImportDialog onImportComplete={handleImportComplete} />
+          <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import Customers
+          </Button>
           <Button onClick={() => navigate('/crm/customers/new')}>
             <Plus className="h-4 w-4 mr-2" />
             Add Customer
@@ -315,6 +322,12 @@ export const CRMCustomersPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <EnhancedSegmentImportDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        onImportComplete={handleImportComplete}
+      />
     </div>
   );
 };
