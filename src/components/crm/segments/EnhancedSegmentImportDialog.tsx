@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Upload, CheckCircle, AlertCircle, Download, Loader2 } from 'lucide-react';
+import { Upload, CheckCircle, AlertCircle, Download, Loader2, X } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { parseCSVFile, isValidEmail, generateCSVTemplate } from '@/utils/csvParser';
 import type { ColumnMapping, ValidationResult, ImportResult, ImportProgress, DatabaseField, AIAnalysisResult } from '@/types/import';
@@ -414,6 +414,15 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          onClick={handleClose}
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </Button>
         <DialogHeader>
           <DialogTitle>
             Import Customers {segmentName && `to "${segmentName}"`}
