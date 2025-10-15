@@ -6,7 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign, Upload } from 'lucide-react';
+import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign, Upload, MoreVertical, Eye, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedSegmentImportDialog';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
@@ -211,6 +217,7 @@ export const CRMCustomersPage: React.FC = () => {
                           <TableHead className="hidden sm:table-cell">Total Spent</TableHead>
                           <TableHead className="hidden xl:table-cell">Last Purchase</TableHead>
                           <TableHead className="hidden lg:table-cell">Added</TableHead>
+                          <TableHead className="w-[50px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -308,6 +315,31 @@ export const CRMCustomersPage: React.FC = () => {
                               <span className="text-sm text-muted-foreground">
                                 {format(new Date(customer.created_at), 'MMM d, yyyy')}
                               </span>
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48 bg-white z-50">
+                                  <DropdownMenuItem onClick={() => navigate(`/crm/customers/${customer.id}`)}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Customer
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => {
+                                      // TODO: Add delete confirmation dialog
+                                      console.log('Delete customer:', customer.id);
+                                    }}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Customer
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         ))}
