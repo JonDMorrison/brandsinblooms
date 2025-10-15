@@ -226,14 +226,19 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
         user_id: user.user.id,
         email_opt_in: false,
         email_consent_source: 'csv_import',
-        email_consent_method: 'pending_confirmation'
+        email_consent_method: 'pending_confirmation',
+        custom_fields: {}
       };
       
       columnMappings.forEach((mapping, index) => {
-        if (mapping.databaseField === 'skip') return;
-        
         const value = row[index]?.trim();
         if (!value) return;
+        
+        // Store unmapped columns in custom_fields
+        if (mapping.databaseField === 'skip') {
+          customer.custom_fields[mapping.csvHeader] = value;
+          return;
+        }
         
         switch (mapping.databaseField) {
           case 'email':
