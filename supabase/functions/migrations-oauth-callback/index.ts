@@ -139,6 +139,7 @@ Deno.serve(async (req) => {
     // Override provider from claims and derive redirectUri/user/tenant
     provider = (claims?.provider as string) || provider;
     const redirectUri = claims?.redirectUri as string;
+    const appOriginFromState = claims?.appOrigin as string | undefined;
     const uid = claims?.uid as string;
 
     const { data: userRow, error: userErr } = await supabase
@@ -284,12 +285,12 @@ Deno.serve(async (req) => {
     console.log(`[migrations-oauth-callback] Successfully connected ${provider} for user ${user_id}`);
 
     // Redirect to app route so the SPA handles closing and messaging
-    const appOrigin = Deno.env.get('APP_ORIGIN') ?? Deno.env.get('APP_BASE_URL') ?? 'https://bloomsuite.app';
+    const appOrigin = appOriginFromState || Deno.env.get('APP_ORIGIN') || Deno.env.get('APP_BASE_URL') || 'https://bloomsuite.app';
     const redirectUrl = `${appOrigin}/oauth/callback?provider=${provider}&status=success`;
     return new Response(null, { status: 302, headers: { ...corsHeaders, 'Location': redirectUrl } });
   } catch (error: any) {
     console.error('[migrations-oauth-callback] Error:', error);
-    const appOrigin = Deno.env.get('APP_ORIGIN') ?? Deno.env.get('APP_BASE_URL') ?? 'https://bloomsuite.app';
+    const appOrigin = appOriginFromState || Deno.env.get('APP_ORIGIN') || Deno.env.get('APP_BASE_URL') || 'https://bloomsuite.app';
     const redirectUrl = `${appOrigin}/oauth/callback?provider=mailchimp&status=error`;
     return new Response(null, { status: 302, headers: { ...corsHeaders, 'Location': redirectUrl } });
   }

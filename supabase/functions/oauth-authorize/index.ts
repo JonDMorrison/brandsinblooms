@@ -74,6 +74,10 @@ Deno.serve(async (req) => {
     // Build callback redirect URI
     const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/migrations-oauth-callback?provider=${provider}`;
 
+    // Determine app origin (for popup redirect back to SPA)
+    const requestOrigin = req.headers.get('origin') || req.headers.get('referer') || '';
+    const appOrigin = requestOrigin ? new URL(requestOrigin).origin : (Deno.env.get('APP_ORIGIN') || Deno.env.get('APP_BASE_URL') || 'https://bloomsuite.app');
+
     // Create signed JWT state (no DB writes)
     const secret = Deno.env.get('OAUTH_STATE_SECRET');
     if (!secret) {
@@ -101,6 +105,7 @@ Deno.serve(async (req) => {
       nonce: crypto.randomUUID(),
       ts: Date.now(),
       redirectUri,
+      appOrigin,
       exp: getNumericDate(60 * 10), // 10 minutes
     };
 
