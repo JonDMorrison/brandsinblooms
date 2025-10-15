@@ -18,17 +18,32 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { useAllSegments } from '@/hooks/useAllSegments';
 import { format } from 'date-fns';
+import { 
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from '@/components/ui/pagination';
 
 export const CRMCustomersPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
   
-  const { data: customers = [], isLoading, invalidateCustomers } = useCustomers({
-    search: searchQuery 
+  const { data: customers = [], totalCount = 0, isLoading, invalidateCustomers } = useCustomers({
+    search: searchQuery,
+    page: currentPage,
+    pageSize
   });
   const { personas } = useAllPersonas();
   const { segments: allSegments } = useAllSegments();
+
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   // Get persona details for a customer using unified approach
   const getCustomerPersona = (customer: any) => {
@@ -128,10 +143,39 @@ export const CRMCustomersPage: React.FC = () => {
 
   const handleImportComplete = () => {
     invalidateCustomers();
+    setCurrentPage(1);
   };
 
   const handleCustomerClick = (customer: any) => {
     navigate(`/crm/customers/${customer.id}`);
+  };
+
+  // Reset to page 1 when search changes
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  // Generate pagination items
+  const getPaginationItems = () => {
+    const items = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        items.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        items.push(1, 2, 3, 4, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        items.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        items.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+    }
+    
+    return items;
   };
 
   if (isLoading) {
@@ -177,7 +221,7 @@ export const CRMCustomersPage: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Customer Management ({customers.length})
+            Customer Management ({totalCount} total)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -188,7 +232,7 @@ export const CRMCustomersPage: React.FC = () => {
                 placeholder="Search customers by name or email..." 
                 className="max-w-sm" 
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
               />
             </div>
             
@@ -347,6 +391,47 @@ export const CRMCustomersPage: React.FC = () => {
                       </TableBody>
                     </Table>
                   </div>
+            )}
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} customers
+                </div>
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    
+                    {getPaginationItems().map((item, index) => (
+                      <PaginationItem key={index}>
+                        {item === '...' ? (
+                          <PaginationEllipsis />
+                        ) : (
+                          <PaginationLink
+                            onClick={() => setCurrentPage(item as number)}
+                            isActive={currentPage === item}
+                            className="cursor-pointer"
+                          >
+                            {item}
+                          </PaginationLink>
+                        )}
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             )}
           </div>
         </CardContent>

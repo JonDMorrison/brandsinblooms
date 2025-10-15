@@ -27,14 +27,17 @@ interface Customer {
 
 interface UseCustomersOptions {
   search?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export const useCustomers = (options: UseCustomersOptions = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { page = 1, pageSize = 50 } = options;
 
   const query = useQuery({
-    queryKey: ['customers', options.search],
+    queryKey: ['customers', options.search, page, pageSize],
     queryFn: async () => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('User not authenticated');
@@ -47,6 +50,9 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
 
       if (!userRecord?.tenant_id) throw new Error('You are not assigned to a tenant. Please contact support or create an organization to continue.');
 
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from('crm_customers')
         .select(`
@@ -58,18 +64,22 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
           customer_segments (
             segment_id
           )
-        `)
+        `, { count: 'exact' })
         .eq('tenant_id', userRecord.tenant_id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (options.search) {
         query = query.or(`email.ilike.%${options.search}%,first_name.ilike.%${options.search}%,last_name.ilike.%${options.search}%`);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
 
       if (error) throw error;
-      return data as Customer[];
+      return { 
+        customers: data as Customer[], 
+        totalCount: count || 0 
+      };
     },
   });
 
@@ -78,7 +88,10 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
   };
 
   return {
-    ...query,
+    data: query.data?.customers,
+    totalCount: query.data?.totalCount,
+    isLoading: query.isLoading,
+    error: query.error,
     invalidateCustomers,
   };
 };
