@@ -316,14 +316,15 @@ export const CRMCustomersPage: React.FC = () => {
                                 {format(new Date(customer.created_at), 'MMM d, yyyy')}
                               </span>
                             </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <DropdownMenu modal={false}>
+                            <TableCell onClick={(e) => e.stopPropagation()} className="relative">
+                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-8 w-8">
                                     <MoreVertical className="h-4 w-4" />
+                                    <span className="sr-only">Open menu</span>
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48 bg-background dark:bg-background z-[100]">
+                                <DropdownMenuContent align="end" className="w-48">
                                   <DropdownMenuItem onClick={() => navigate(`/crm/customers/${customer.id}`)}>
                                     <Eye className="h-4 w-4 mr-2" />
                                     View Customer
