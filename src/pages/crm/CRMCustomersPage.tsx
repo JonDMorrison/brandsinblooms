@@ -200,10 +200,8 @@ export const CRMCustomersPage: React.FC = () => {
                 }}
               />
             ) : (
-              <div className="rounded-md border overflow-hidden">
-                <div className="w-full overflow-x-auto">
-                  <div className="min-w-[800px]">
-                    <Table data-testid="customers-table">
+              <div className="w-full overflow-x-auto rounded-md border">
+                <Table data-testid="customers-table" className="min-w-[800px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Customer</TableHead>
@@ -316,8 +314,6 @@ export const CRMCustomersPage: React.FC = () => {
                       </TableBody>
                     </Table>
                   </div>
-                </div>
-              </div>
             )}
           </div>
         </CardContent>
