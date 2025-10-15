@@ -317,13 +317,13 @@ export const CRMCustomersPage: React.FC = () => {
                               </span>
                             </TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
-                              <DropdownMenu>
+                              <DropdownMenu modal={false}>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-8 w-8">
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48 bg-white z-50">
+                                <DropdownMenuContent align="end" className="w-48 bg-background dark:bg-background z-[100]">
                                   <DropdownMenuItem onClick={() => navigate(`/crm/customers/${customer.id}`)}>
                                     <Eye className="h-4 w-4 mr-2" />
                                     View Customer
