@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign } from 'lucide-react';
 import { CustomerImportDialog } from '@/components/crm/customers/CustomerImportDialog';
-import { CustomerDetailsSheet } from '@/components/crm/customers/CustomerDetailsSheet';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { useAllSegments } from '@/hooks/useAllSegments';
@@ -17,10 +16,8 @@ import { format } from 'date-fns';
 export const CRMCustomersPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   
-  const { data: customers = [], isLoading, invalidateCustomers } = useCustomers({ 
+  const { data: customers = [], isLoading, invalidateCustomers } = useCustomers({
     search: searchQuery 
   });
   const { personas } = useAllPersonas();
@@ -127,17 +124,7 @@ export const CRMCustomersPage: React.FC = () => {
   };
 
   const handleCustomerClick = (customer: any) => {
-    setSelectedCustomer(customer);
-    setIsSheetOpen(true);
-  };
-
-  const handleCloseSheet = () => {
-    setIsSheetOpen(false);
-    setSelectedCustomer(null);
-  };
-
-  const handleCustomerUpdated = () => {
-    invalidateCustomers();
+    navigate(`/crm/customers/${customer.id}`);
   };
 
   if (isLoading) {
@@ -324,13 +311,6 @@ export const CRMCustomersPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-
-      <CustomerDetailsSheet 
-        customer={selectedCustomer}
-        isOpen={isSheetOpen}
-        onClose={handleCloseSheet}
-        onCustomerUpdated={handleCustomerUpdated}
-      />
     </div>
   );
 };

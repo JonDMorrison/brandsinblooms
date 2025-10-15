@@ -33,6 +33,7 @@ import { CRMCustomersPage } from '@/pages/crm/CRMCustomersPage';
 import { CRMSegmentsPage } from '@/pages/crm/CRMSegmentsPage';
 import { CRMPersonasPage } from '@/pages/crm/CRMPersonasPage';
 import AddCustomer from '@/pages/crm/AddCustomer';
+import { CustomerDetailPage } from '@/pages/crm/CustomerDetailPage';
 import CRMAnalytics from '@/pages/crm/CRMAnalytics';
 import CRMAutomations from '@/pages/crm/CRMAutomations';
 import AnalyticsPage from '@/pages/AnalyticsPage';
@@ -174,6 +175,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <AddCustomer />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/customers/:customerId" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CustomerDetailPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
