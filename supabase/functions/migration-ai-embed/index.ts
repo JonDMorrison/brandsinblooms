@@ -23,34 +23,37 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Missing Authorization header');
 
-    // Create client with service role to verify JWT and access all data
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
+    // Create authenticated client using the user's JWT
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
       }
-    );
+    });
 
-    // Verify the JWT token
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
-      console.error('[migration-ai-embed] Auth error:', authError);
+    // Get the authenticated user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('[migration-ai-embed] User auth error:', userError);
       throw new Error('Unauthorized');
     }
 
-    // Get tenant_id
-    const { data: userData } = await supabaseAdmin
+    // Get user's tenant using service role
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: userData, error: tenantError } = await supabaseAdmin
       .from('users')
       .select('tenant_id')
       .eq('id', user.id)
       .single();
 
-    if (!userData?.tenant_id) {
+    if (tenantError || !userData?.tenant_id) {
+      console.error('[migration-ai-embed] Tenant lookup error:', tenantError);
       throw new Error('No tenant found for user');
     }
 
@@ -143,11 +146,13 @@ Deno.serve(async (req) => {
           .insert({
             import_job_id: jobId,
             tenant_id: userData.tenant_id,
+            user_id: user.id,
+            provider: job.provider,
             artifact_type: artifact.artifact_type,
             external_id: artifact.external_id,
             name: artifact.name,
             member_count: artifact.member_count,
-            data: artifact.sample_data,
+            sample_data: artifact.sample_data,
             embedding: JSON.stringify(embedding)
           })
           .select()

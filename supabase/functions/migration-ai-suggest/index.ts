@@ -23,38 +23,44 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Missing Authorization header');
 
-    // Create admin client for all operations
+    // Create authenticated client using the user's JWT
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
       }
     });
 
-    // Verify the JWT token using the service role client
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
-      console.error('[migration-ai-suggest] Auth error:', authError);
+    // Get the authenticated user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('[migration-ai-suggest] User auth error:', userError);
       throw new Error('Unauthorized');
     }
 
-    // Get user's tenant
-    const { data: userRecord, error: userError } = await supabaseAdmin
+    console.log('[migration-ai-suggest] Authenticated user:', user.id);
+
+    // Get user's tenant using service role for this query
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: userRecord, error: tenantError } = await supabaseAdmin
       .from('users')
       .select('tenant_id')
       .eq('id', user.id)
       .single();
 
-    if (userError || !userRecord?.tenant_id) {
-      console.error('[migration-ai-suggest] User lookup error:', userError);
+    if (tenantError || !userRecord?.tenant_id) {
+      console.error('[migration-ai-suggest] Tenant lookup error:', tenantError);
       throw new Error('Tenant not found');
     }
 
     const tenantId = userRecord.tenant_id;
+    console.log('[migration-ai-suggest] Tenant ID:', tenantId);
 
     // Get provider artifacts for this job
     const { data: artifacts, error: artifactsError } = await supabaseAdmin
