@@ -18,36 +18,73 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
   const [mailchimpAccount, setMailchimpAccount] = useState<any>(null);
   const [klaviyoAccount, setKlaviyoAccount] = useState<any>(null);
   const popupRef = useRef<Window | null>(null);
+  const popupCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const currentProviderRef = useRef<'mailchimp' | 'klaviyo' | null>(null);
+
+  // Cleanup popup monitoring on unmount
+  useEffect(() => {
+    return () => {
+      if (popupCheckIntervalRef.current) {
+        clearInterval(popupCheckIntervalRef.current);
+      }
+      if (popupRef.current && !popupRef.current.closed) {
+        popupRef.current.close();
+      }
+    };
+  }, []);
 
   // Listen for OAuth postMessage
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.origin !== APP_ORIGIN) return;
       const { type, provider, message, error } = e.data || {};
-      if (provider !== 'mailchimp') return;
+      
+      // Check if this message is for the current provider
+      if (provider !== currentProviderRef.current) return;
+
+      console.log(`📨 OAuth message received:`, { type, provider, message, error });
+
+      // Clear popup monitoring
+      if (popupCheckIntervalRef.current) {
+        clearInterval(popupCheckIntervalRef.current);
+        popupCheckIntervalRef.current = null;
+      }
+
+      const setStatus = provider === 'mailchimp' ? setMailchimpStatus : setKlaviyoStatus;
 
       if (type === 'oauth-success') {
         console.log('✅ OAuth success received:', message);
         // Close popup
         try { popupRef.current?.close(); } catch {}
+        popupRef.current = null;
+        currentProviderRef.current = null;
+        
         // Refresh connection state
         refreshConnections();
-        // Advance wizard
+        
+        // Show success toast
         toast({
           title: 'Connected!',
-          description: 'Mailchimp connected successfully',
+          description: `${provider === 'mailchimp' ? 'Mailchimp' : 'Klaviyo'} connected successfully`,
         });
-        onComplete();
+        
+        // Advance wizard if Mailchimp
+        if (provider === 'mailchimp') {
+          onComplete();
+        }
       }
+      
       if (type === 'oauth-error') {
         console.error('❌ OAuth error received:', error);
         toast({
           title: 'Connection Failed',
-          description: error || 'Mailchimp connection failed',
+          description: error || `${provider === 'mailchimp' ? 'Mailchimp' : 'Klaviyo'} connection failed`,
           variant: 'destructive'
         });
-        setMailchimpStatus('error');
+        setStatus('error');
         try { popupRef.current?.close(); } catch {}
+        popupRef.current = null;
+        currentProviderRef.current = null;
       }
     };
     window.addEventListener('message', onMsg);
@@ -81,6 +118,7 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
   const handleConnect = async (provider: 'mailchimp' | 'klaviyo') => {
     const setStatus = provider === 'mailchimp' ? setMailchimpStatus : setKlaviyoStatus;
     setStatus('connecting');
+    currentProviderRef.current = provider;
 
     try {
       // Refresh session to ensure we have a valid token
@@ -105,6 +143,7 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
           variant: 'destructive'
         });
         setStatus('error');
+        currentProviderRef.current = null;
         return;
       }
 
@@ -113,7 +152,7 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
         throw new Error('Failed to get authorization URL');
       }
 
-      console.log('Opening OAuth popup:', authUrl);
+      console.log(`🔗 Opening ${provider} OAuth popup:`, authUrl);
       
       // Open OAuth popup
       const width = 520;
@@ -130,14 +169,50 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
       if (!popupRef.current || popupRef.current.closed) {
         throw new Error('Failed to open OAuth popup. Please check your popup blocker settings.');
       }
+
+      console.log(`✅ Popup opened successfully for ${provider}`);
+
+      // Start monitoring the popup
+      if (popupCheckIntervalRef.current) {
+        clearInterval(popupCheckIntervalRef.current);
+      }
+
+      popupCheckIntervalRef.current = setInterval(() => {
+        if (popupRef.current?.closed) {
+          console.log(`🪟 Popup was closed for ${provider}`);
+          clearInterval(popupCheckIntervalRef.current!);
+          popupCheckIntervalRef.current = null;
+          
+          // Only show cancellation if we didn't receive a success/error message
+          if (currentProviderRef.current === provider) {
+            console.log(`⚠️ User closed popup without completing OAuth for ${provider}`);
+            toast({
+              title: 'Connection Cancelled',
+              description: `You closed the ${provider === 'mailchimp' ? 'Mailchimp' : 'Klaviyo'} authorization window`,
+            });
+            setStatus('idle');
+            currentProviderRef.current = null;
+          }
+          
+          popupRef.current = null;
+        }
+      }, 500); // Check every 500ms
+
     } catch (error: any) {
-      console.error('Connect error:', error);
+      console.error('❌ Connect error:', error);
       toast({
         title: 'Connection Error',
         description: error.message,
         variant: 'destructive'
       });
       setStatus('error');
+      currentProviderRef.current = null;
+      
+      // Clean up popup monitoring
+      if (popupCheckIntervalRef.current) {
+        clearInterval(popupCheckIntervalRef.current);
+        popupCheckIntervalRef.current = null;
+      }
     }
   };
 
