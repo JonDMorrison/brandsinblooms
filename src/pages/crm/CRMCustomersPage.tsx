@@ -31,6 +31,7 @@ import {
 export const CRMCustomersPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
@@ -151,9 +152,15 @@ export const CRMCustomersPage: React.FC = () => {
   };
 
   // Reset to page 1 when search changes
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
+  const handleSearchSubmit = () => {
+    setSearchQuery(searchInput);
     setCurrentPage(1);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearchSubmit();
+    }
   };
 
   // Generate pagination items
@@ -229,10 +236,11 @@ export const CRMCustomersPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Search className="h-4 w-4" />
               <Input 
-                placeholder="Search customers by name or email..." 
+                placeholder="Search customers by name or email (press Enter)..." 
                 className="max-w-sm" 
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
               />
             </div>
             
