@@ -401,7 +401,10 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setShowBulkImport(true)}
+                        onClick={() => {
+                          setShowBulkImport(true);
+                          onOpenChange(false); // Close segment dialog for better visibility
+                        }}
                         className="gap-2"
                       >
                         <Upload className="h-3 w-3" />
