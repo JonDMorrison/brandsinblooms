@@ -39,14 +39,26 @@ Deno.serve(async (req) => {
     const { jobId } = await req.json();
 
     const authHeader = req.headers.get('Authorization')!;
-    const supabase = createClient(
+    
+    // Extract JWT token from Authorization header
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Create client for auth verification
+    const supabaseAuth = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    // Verify token and get user
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+    if (authError || !user) throw new Error('Unauthorized');
+    
+    // Use service role for database queries
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
 
     // Get job and tenant
     const { data: job } = await supabase
