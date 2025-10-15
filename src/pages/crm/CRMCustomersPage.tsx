@@ -33,7 +33,7 @@ export const CRMCustomersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 50;
+  const pageSize = 15;
   
   const { data: customers = [], totalCount = 0, isLoading, invalidateCustomers } = useCustomers({
     search: searchQuery,
