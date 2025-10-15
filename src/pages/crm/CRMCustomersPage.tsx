@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign } from 'lucide-react';
 import { CustomerImportDialog } from '@/components/crm/customers/CustomerImportDialog';
@@ -193,119 +194,123 @@ export const CRMCustomersPage: React.FC = () => {
                 }}
               />
             ) : (
-              <div className="rounded-md border">
-                <Table data-testid="customers-table">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Persona</TableHead>
-                      <TableHead>Segments</TableHead>
-                      <TableHead>Total Spent</TableHead>
-                      <TableHead>Last Purchase</TableHead>
-                      <TableHead>Added</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {customers.map((customer) => (
-                       <TableRow 
-                         key={customer.id}
-                         className="cursor-pointer hover:bg-muted/50"
-                         onClick={() => handleCustomerClick(customer)}
-                       >
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">
-                              {customer.first_name || customer.last_name 
-                                ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
-                                : 'No name'
-                              }
-                            </div>
-                            <div className="text-sm text-muted-foreground flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              {customer.email}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {customer.phone ? (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Phone className="h-3 w-3" />
-                              {customer.phone}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">No phone</span>
-                          )}
-                        </TableCell>
-                         <TableCell>
-                           {(() => {
-                             const assignedPersonas = getCustomerPersonas(customer);
-                             return assignedPersonas.length > 0 ? (
-                               <div className="flex flex-wrap gap-1">
-                                 {assignedPersonas.map((personaName, index) => (
-                                   <Badge 
-                                     key={index}
-                                     variant="secondary" 
-                                     className={getPersonaColor(personaName)}
-                                   >
-                                     {personaName}
-                                   </Badge>
-                                 ))}
-                               </div>
-                             ) : (
-                               <span className="text-muted-foreground text-sm whitespace-nowrap">No persona</span>
-                             );
-                           })()}
-                         </TableCell>
-                         <TableCell>
-                           {(() => {
-                             const assignedSegments = getCustomerSegments(customer);
-                             return assignedSegments.length > 0 ? (
-                               <div className="flex flex-wrap gap-1">
-                                 {assignedSegments.map((segmentName, index) => (
-                                   <Badge 
-                                     key={index}
-                                     variant="secondary" 
-                                     className={getSegmentColor(segmentName)}
-                                   >
-                                     {segmentName}
-                                   </Badge>
-                                 ))}
-                               </div>
-                             ) : (
-                               <span className="text-muted-foreground text-sm whitespace-nowrap">No segments</span>
-                             );
-                           })()}
-                         </TableCell>
-                        <TableCell>
-                          {customer.total_spent ? (
-                            <div className="flex items-center gap-1">
-                              <DollarSign className="h-3 w-3" />
-                              ${customer.total_spent.toFixed(2)}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">$0.00</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {customer.last_purchase_date ? (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Calendar className="h-3 w-3" />
-                              {format(new Date(customer.last_purchase_date), 'MMM d, yyyy')}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">No purchases</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(customer.created_at), 'MMM d, yyyy')}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="rounded-md border overflow-hidden">
+                <ScrollArea className="w-full">
+                  <div className="min-w-[800px]">
+                    <Table data-testid="customers-table">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Customer</TableHead>
+                          <TableHead className="hidden md:table-cell">Contact</TableHead>
+                          <TableHead>Persona</TableHead>
+                          <TableHead className="hidden lg:table-cell">Segments</TableHead>
+                          <TableHead className="hidden sm:table-cell">Total Spent</TableHead>
+                          <TableHead className="hidden xl:table-cell">Last Purchase</TableHead>
+                          <TableHead className="hidden lg:table-cell">Added</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {customers.map((customer) => (
+                           <TableRow 
+                             key={customer.id}
+                             className="cursor-pointer hover:bg-muted/50"
+                             onClick={() => handleCustomerClick(customer)}
+                           >
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {customer.first_name || customer.last_name 
+                                    ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
+                                    : 'No name'
+                                  }
+                                </div>
+                                <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  {customer.email}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {customer.phone ? (
+                                <div className="flex items-center gap-1 text-sm">
+                                  <Phone className="h-3 w-3" />
+                                  {customer.phone}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">No phone</span>
+                              )}
+                            </TableCell>
+                             <TableCell>
+                               {(() => {
+                                 const assignedPersonas = getCustomerPersonas(customer);
+                                 return assignedPersonas.length > 0 ? (
+                                   <div className="flex flex-wrap gap-1">
+                                     {assignedPersonas.map((personaName, index) => (
+                                       <Badge 
+                                         key={index}
+                                         variant="secondary" 
+                                         className={getPersonaColor(personaName)}
+                                       >
+                                         {personaName}
+                                       </Badge>
+                                     ))}
+                                   </div>
+                                 ) : (
+                                   <span className="text-muted-foreground text-sm whitespace-nowrap">No persona</span>
+                                 );
+                               })()}
+                             </TableCell>
+                             <TableCell className="hidden lg:table-cell">
+                               {(() => {
+                                 const assignedSegments = getCustomerSegments(customer);
+                                 return assignedSegments.length > 0 ? (
+                                   <div className="flex flex-wrap gap-1">
+                                     {assignedSegments.map((segmentName, index) => (
+                                       <Badge 
+                                         key={index}
+                                         variant="secondary" 
+                                         className={getSegmentColor(segmentName)}
+                                       >
+                                         {segmentName}
+                                       </Badge>
+                                     ))}
+                                   </div>
+                                 ) : (
+                                   <span className="text-muted-foreground text-sm whitespace-nowrap">No segments</span>
+                                 );
+                               })()}
+                             </TableCell>
+                            <TableCell className="hidden sm:table-cell">
+                              {customer.total_spent ? (
+                                <div className="flex items-center gap-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  ${customer.total_spent.toFixed(2)}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">$0.00</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden xl:table-cell whitespace-nowrap">
+                              {customer.last_purchase_date ? (
+                                <div className="flex items-center gap-1 text-sm">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(customer.last_purchase_date), 'MMM d, yyyy')}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">No purchases</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell whitespace-nowrap">
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(customer.created_at), 'MMM d, yyyy')}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </ScrollArea>
               </div>
             )}
           </div>
