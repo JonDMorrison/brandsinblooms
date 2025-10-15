@@ -9,10 +9,12 @@ import { supabase } from '@/integrations/supabase/client';
 interface BulkCustomerImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImport: (customerIds: string[]) => Promise<void>;
-  availableCustomers: Array<{ id: string; email: string }>;
-  tenantId: string;
-  userId: string;
+  segmentId?: string;
+  segmentName?: string;
+  onImportComplete?: () => void;
+  availableCustomers?: Array<{ id: string; email: string }>;
+  tenantId?: string;
+  userId?: string;
 }
 
 interface CustomerData {
@@ -40,10 +42,12 @@ interface ImportProgress {
 export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> = ({
   open,
   onOpenChange,
-  onImport,
-  availableCustomers,
-  tenantId,
-  userId
+  segmentId,
+  segmentName,
+  onImportComplete,
+  availableCustomers = [],
+  tenantId: propTenantId,
+  userId: propUserId
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -55,6 +59,32 @@ export const BulkCustomerImportDialog: React.FC<BulkCustomerImportDialogProps> =
     message: '',
   });
   const { toast } = useToast();
+
+  // Get tenant and user IDs if not provided
+  const [tenantId, setTenantId] = useState(propTenantId || '');
+  const [userId, setUserId] = useState(propUserId || '');
+
+  React.useEffect(() => {
+    const fetchUserData = async () => {
+      if (propTenantId && propUserId) return;
+
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      const { data: userRecord } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.user.id)
+        .single();
+
+      if (userRecord?.tenant_id) {
+        setTenantId(userRecord.tenant_id);
+        setUserId(user.user.id);
+      }
+    };
+
+    fetchUserData();
+  }, [propTenantId, propUserId]);
 
   const downloadTemplate = () => {
     const csv = 'email,first_name,last_name,phone\ncustomer1@example.com,John,Doe,555-0100\ncustomer2@example.com,Jane,Smith,555-0200';
@@ -484,41 +514,66 @@ interface CustomerData {
         }
       }
 
-      // Collect all customer IDs to add to segment
-      const allCustomerEmails = [...found, ...created].map(c => c.email.toLowerCase());
-      const customerIdsToAdd = allCustomerEmails
-        .map(email => existingCustomersMap.get(email)?.id)
-        .filter((id): id is string => Boolean(id));
+      // Collect all customer IDs (existing + newly created)
+      const allCustomerIds: string[] = [];
+      existingCustomersMap.forEach(({ id }) => allCustomerIds.push(id));
 
-      console.log('📝 Adding', customerIdsToAdd.length, 'customers to segment...');
-      
-      setProgress({ 
-        stage: 'adding', 
-        current: 0, 
-        total: customerIdsToAdd.length, 
-        message: 'Adding customers to segment...' 
-      });
+      console.log('📋 Total customers to add to segment:', allCustomerIds.length);
 
-      if (customerIdsToAdd.length > 0) {
-        try {
-          await onImport(customerIdsToAdd);
-          console.log('✅ Successfully added customers to segment');
-        } catch (error) {
-          console.error('❌ Error adding customers to segment:', error);
-          toast({
-            title: "Import issue",
-            description: `Customers were created but couldn't be added to segment. ${error instanceof Error ? error.message : 'Unknown error'}`,
-            variant: "destructive",
+      // Add customers to segment if segmentId is provided
+      if (segmentId && allCustomerIds.length > 0) {
+        console.log(`🔗 Adding ${allCustomerIds.length} customers to segment ${segmentId}...`);
+        setProgress({ 
+          stage: 'adding', 
+          current: 0, 
+          total: allCustomerIds.length, 
+          message: 'Adding customers to segment...' 
+        });
+
+        const SEGMENT_BATCH_SIZE = 500;
+        for (let i = 0; i < allCustomerIds.length; i += SEGMENT_BATCH_SIZE) {
+          const batch = allCustomerIds.slice(i, i + SEGMENT_BATCH_SIZE);
+          const batchNum = Math.floor(i / SEGMENT_BATCH_SIZE) + 1;
+          const totalBatches = Math.ceil(allCustomerIds.length / SEGMENT_BATCH_SIZE);
+          console.log(`🔗 Adding batch ${batchNum}/${totalBatches} to segment`);
+
+          setProgress({ 
+            stage: 'adding', 
+            current: i, 
+            total: allCustomerIds.length, 
+            message: 'Adding customers to segment...',
+            batchInfo: `Batch ${batchNum}/${totalBatches}`
           });
-          throw error;
+
+          const segmentAssignments = batch.map(customerId => ({
+            customer_id: customerId,
+            segment_id: segmentId,
+            assigned_by_user_id: userId
+          }));
+
+          const { error: segmentError } = await supabase
+            .from('customer_segments')
+            .upsert(segmentAssignments, {
+              onConflict: 'customer_id,segment_id'
+            });
+
+          if (segmentError) {
+            console.error('❌ Error adding customers to segment:', segmentError);
+            toast({
+              title: 'Segment assignment failed',
+              description: `Could not add all customers to segment: ${segmentError.message}`,
+              variant: 'destructive',
+            });
+          }
         }
+        console.log('✅ All customers added to segment');
       }
       
       setProgress({ 
         stage: 'complete', 
-        current: customerIdsToAdd.length, 
-        total: customerIdsToAdd.length, 
-        message: `Successfully imported ${customerIdsToAdd.length} customers!` 
+        current: allCustomerIds.length, 
+        total: allCustomerIds.length, 
+        message: `Successfully imported ${allCustomerIds.length} customers!` 
       });
 
       setResult({
@@ -528,45 +583,16 @@ interface CustomerData {
         notFound: []
       });
 
-      // Send confirmation emails to new customers
-      const { data: companyProfile } = await supabase
-        .from('company_profiles')
-        .select('company_name')
-        .eq('user_id', userId)
-        .single();
-
-      if (created.length > 0) {
-        console.log(`📧 Queueing confirmation emails for ${created.length} new customers`);
-        
-        // Get the newly created customer records with their IDs
-        const createdEmails = created.map(c => c.email);
-        const { data: newCustomerRecords } = await supabase
-          .from('crm_customers')
-          .select('id, email, first_name')
-          .eq('tenant_id', tenantId)
-          .in('email', createdEmails);
-        
-        // Queue confirmation emails (fire and forget)
-        newCustomerRecords?.forEach(customer => {
-          supabase.functions.invoke('send-email-confirmation', {
-            body: {
-              customerId: customer.id,
-              email: customer.email,
-              firstName: customer.first_name,
-              brandName: companyProfile?.company_name,
-            }
-          }).catch(err => console.error(`Failed to send confirmation to ${customer.email}:`, err));
-        });
-      }
-
       const totalAdded = found.length + created.length;
       console.log('🎉 Import complete! Total added:', totalAdded);
       toast({
         title: "Import complete",
-        description: existingCustomerCount > 0 
-          ? `${existingCustomerCount} existing customers found. ${newCustomerCount} new contacts added - confirmation emails queued.`
-          : `Successfully imported ${newCustomerCount} new customers. Confirmation emails queued.`,
+        description: `Successfully imported ${totalAdded} customers${segmentId ? ` and added to segment` : ''}`,
       });
+
+      if (onImportComplete) {
+        onImportComplete();
+      }
 
     } catch (error: any) {
       console.error('❌ Import error:', error);

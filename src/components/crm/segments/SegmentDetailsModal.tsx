@@ -486,7 +486,14 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
         <BulkCustomerImportDialog
           open={showBulkImport}
           onOpenChange={setShowBulkImport}
-          onImport={bulkAddCustomers}
+          segmentId={segment.id}
+          segmentName={segment.name}
+          onImportComplete={() => {
+            loadSegmentData();
+            if (onSegmentUpdate) {
+              onSegmentUpdate();
+            }
+          }}
           availableCustomers={availableCustomers}
           tenantId={tenantId}
           userId={userId}
