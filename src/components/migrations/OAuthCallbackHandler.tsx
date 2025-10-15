@@ -8,7 +8,20 @@ export const OAuthCallbackHandler = () => {
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const provider = searchParams.get('provider');
+    const status = searchParams.get('status');
 
+    // New flow: when server handled token exchange and redirected back
+    if (status && provider && window.opener) {
+      window.opener.postMessage({
+        type: status === 'success' ? 'oauth-success' : 'oauth-error',
+        provider,
+        message: status === 'success' ? 'Connected successfully' : 'Connection failed'
+      }, window.location.origin);
+      window.close();
+      return;
+    }
+
+    // Legacy flow: when provider redirected directly with code/state
     if (code && state && provider && window.opener) {
       // Send message to parent window
       window.opener.postMessage({
