@@ -21,6 +21,11 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
   const popupCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentProviderRef = useRef<'mailchimp' | 'klaviyo' | null>(null);
 
+  // Load existing connections on mount
+  useEffect(() => {
+    refreshConnections();
+  }, []);
+
   // Cleanup popup monitoring on unmount
   useEffect(() => {
     return () => {
