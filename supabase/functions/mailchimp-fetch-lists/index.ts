@@ -19,24 +19,49 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization')!;
+    const authHeader = req.headers.get('Authorization');
+    
+    if (!authHeader) {
+      console.error('[mailchimp-fetch-lists] No Authorization header found');
+      throw new Error('Missing Authorization header');
+    }
+
+    console.log('[mailchimp-fetch-lists] Auth header present');
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    // Try to get user from auth
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError) {
+      console.error('[mailchimp-fetch-lists] Auth error:', authError);
+      throw new Error(`Authentication failed: ${authError.message}`);
+    }
+    
+    if (!user) {
+      console.error('[mailchimp-fetch-lists] No user found after auth check');
+      throw new Error('User not authenticated');
+    }
+
+    console.log('[mailchimp-fetch-lists] User authenticated:', user.id);
 
     // Get connection
-    const { data: connection } = await supabase
+    const { data: connection, error: connectionError } = await supabase
       .from('provider_connections')
       .select('encrypted_access_token, metadata')
       .eq('user_id', user.id)
       .eq('provider', 'mailchimp')
       .eq('status', 'connected')
       .single();
+
+    if (connectionError) {
+      console.error('[mailchimp-fetch-lists] Connection query error:', connectionError);
+      throw new Error(`Failed to fetch connection: ${connectionError.message}`);
+    }
 
     if (!connection?.encrypted_access_token) {
       throw new Error('Mailchimp not connected or token missing');
