@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign } from 'lucide-react';
 import { CustomerImportDialog } from '@/components/crm/customers/CustomerImportDialog';
@@ -195,7 +194,7 @@ export const CRMCustomersPage: React.FC = () => {
               />
             ) : (
               <div className="rounded-md border overflow-hidden">
-                <ScrollArea className="w-full">
+                <div className="w-full overflow-x-auto">
                   <div className="min-w-[800px]">
                     <Table data-testid="customers-table">
                       <TableHeader>
@@ -310,7 +309,7 @@ export const CRMCustomersPage: React.FC = () => {
                       </TableBody>
                     </Table>
                   </div>
-                </ScrollArea>
+                </div>
               </div>
             )}
           </div>
