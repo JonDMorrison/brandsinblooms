@@ -28,14 +28,24 @@ Deno.serve(async (req) => {
 
     console.log('[mailchimp-fetch-lists] Auth header present');
     
-    const supabase = createClient(
+    // Create client for auth verification
+    const supabaseAuth = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Try to get user from auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Get JWT token from header
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Use service role to verify and get user
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Verify token and get user
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
     
     if (authError) {
       console.error('[mailchimp-fetch-lists] Auth error:', authError);
@@ -49,7 +59,7 @@ Deno.serve(async (req) => {
 
     console.log('[mailchimp-fetch-lists] User authenticated:', user.id);
 
-    // Get connection
+    // Get connection using service role
     const { data: connection, error: connectionError } = await supabase
       .from('provider_connections')
       .select('encrypted_access_token, metadata')
