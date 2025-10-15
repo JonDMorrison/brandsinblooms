@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Users, Target, Search, Plus, X, Loader2, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { BulkCustomerImportDialog } from './BulkCustomerImportDialog';
+import { EnhancedSegmentImportDialog } from './EnhancedSegmentImportDialog';
 
 interface Customer {
   id: string;
@@ -483,7 +483,7 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
         </div>
 
         {/* Bulk Import Dialog */}
-        <BulkCustomerImportDialog
+        <EnhancedSegmentImportDialog
           open={showBulkImport}
           onOpenChange={setShowBulkImport}
           segmentId={segment.id}
@@ -494,9 +494,6 @@ export const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({
               onSegmentUpdate();
             }
           }}
-          availableCustomers={availableCustomers}
-          tenantId={tenantId}
-          userId={userId}
         />
       </DialogContent>
     </Dialog>
