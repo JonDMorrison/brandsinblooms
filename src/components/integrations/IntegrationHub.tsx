@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { GoogleAnalyticsConnection } from './GoogleAnalyticsConnection';
+
+const APP_ORIGIN = window.location.origin;
 
 interface Integration {
   id: string;
@@ -57,6 +59,8 @@ export const IntegrationHub = () => {
   const [userIntegrations, setUserIntegrations] = useState<UserIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('marketplace');
+  const [providerConnections, setProviderConnections] = useState<any[]>([]);
+  const oauthPopupRef = useRef<Window | null>(null);
 
   // Available integrations marketplace
   const availableIntegrations: Integration[] = [
@@ -156,10 +160,27 @@ export const IntegrationHub = () => {
     }
   ];
 
+  const fetchProviderConnections = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('provider_connections')
+        .select('*')
+        .eq('status', 'connected');
+
+      if (error) throw error;
+      setProviderConnections(data || []);
+    } catch (error) {
+      console.error('Error fetching provider connections:', error);
+    }
+  };
+
   const fetchUserIntegrations = async () => {
     if (!user) return;
 
     try {
+      await fetchProviderConnections();
       // TODO: Replace with actual database call once migration is applied
       setUserIntegrations([]);
     } catch (error) {
@@ -174,8 +195,31 @@ export const IntegrationHub = () => {
     }
   };
 
+  const handleConnectMailchimp = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('oauth-authorize', {
+        body: { provider: 'mailchimp' }
+      });
+
+      if (error) throw error;
+
+      const { authUrl } = data;
+      const popup = window.open(authUrl, 'oauth', 'width=600,height=700');
+      oauthPopupRef.current = popup;
+    } catch (error: any) {
+      console.error('Error initiating Mailchimp OAuth:', error);
+      toast({
+        title: "Connection Failed",
+        description: error.message || "Failed to connect to Mailchimp",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleConnectIntegration = async (integration: Integration) => {
-    if (integration.setupUrl) {
+    if (integration.provider === 'mailchimp') {
+      await handleConnectMailchimp();
+    } else if (integration.setupUrl) {
       // Navigate to specific setup page
       window.location.href = integration.setupUrl;
     } else {
@@ -196,6 +240,13 @@ export const IntegrationHub = () => {
   };
 
   const getConnectionStatus = (providerId: string) => {
+    // Check provider_connections first
+    const providerConnection = providerConnections.find(
+      conn => conn.provider === providerId
+    );
+    if (providerConnection) return providerConnection;
+
+    // Fallback to user_integrations
     return userIntegrations.find(
       int => int.provider === providerId && int.is_active
     );
@@ -204,6 +255,29 @@ export const IntegrationHub = () => {
   useEffect(() => {
     fetchUserIntegrations();
   }, [user]);
+
+  useEffect(() => {
+    const handleOAuthMessage = (e: MessageEvent) => {
+      if (e.origin !== APP_ORIGIN) return;
+
+      if (e.data.type === 'oauth-success') {
+        toast({
+          title: "Connected!",
+          description: `Successfully connected to ${e.data.provider}`,
+        });
+        fetchProviderConnections();
+      } else if (e.data.type === 'oauth-error') {
+        toast({
+          title: "Connection Failed",
+          description: e.data.message || "Failed to connect",
+          variant: "destructive",
+        });
+      }
+    };
+
+    window.addEventListener('message', handleOAuthMessage);
+    return () => window.removeEventListener('message', handleOAuthMessage);
+  }, [toast]);
 
   const getIntegrationsByCategory = (category: string) => {
     return availableIntegrations.filter(int => int.category === category);
