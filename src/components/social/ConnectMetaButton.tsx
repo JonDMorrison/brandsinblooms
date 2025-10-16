@@ -61,6 +61,26 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     fetchMetaConnectionStatus();
   }, [onSuccess, user]);
 
+  // Listen for OAuth popup messages
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'oauth-success') {
+        console.log('✅ OAuth success message received from popup');
+        toast.success('Successfully connected to Meta platforms!');
+        setLoading(false);
+        fetchMetaConnectionStatus();
+        onSuccess();
+      } else if (event.data?.type === 'oauth-error') {
+        console.error('❌ OAuth error message received from popup:', event.data.message);
+        toast.error(event.data.message || 'Failed to connect');
+        setLoading(false);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onSuccess]);
+
   const handleConnect = async () => {
     if (!user) {
       toast.error('Please log in to connect your account');
@@ -123,7 +143,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       authUrl.searchParams.set('state', combinedState);
       authUrl.searchParams.set('auth_type', 'rerequest');
       
-      console.log('🔗 Opening Meta OAuth in new tab:', {
+      console.log('🔗 Opening Meta OAuth in popup:', {
         redirectUri,
         state: combinedState.substring(0, 12) + '...',
         clientId: clientId.substring(0, 8) + '...',
@@ -136,12 +156,21 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
       const oauthUrlStr = authUrl.toString();
 
-      // Open OAuth in new tab
-      const oauthTab = window.open(oauthUrlStr, '_blank', 'noopener,noreferrer');
+      // Open OAuth in popup window with centered positioning
+      const width = 600;
+      const height = 700;
+      const left = Math.max(0, (window.screen.width - width) / 2);
+      const top = Math.max(0, (window.screen.height - height) / 2);
       
-      if (!oauthTab) {
-        console.warn('❌ New tab blocked. Please allow popups/tabs for Facebook login.');
-        toast.error('Please allow popups/new tabs to connect Facebook. Click the button again after allowing.');
+      const oauthPopup = window.open(
+        oauthUrlStr, 
+        'facebookOAuth', 
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      );
+      
+      if (!oauthPopup) {
+        console.warn('❌ Popup blocked. Please allow popups for Facebook login.');
+        toast.error('Please allow popups to connect Facebook. Click the button again after allowing.');
         setLoading(false);
         return;
       }

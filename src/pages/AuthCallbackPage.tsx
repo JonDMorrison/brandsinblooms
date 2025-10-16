@@ -167,21 +167,48 @@ export const AuthCallbackPage = () => {
           setConnectedPlatforms(data.connections);
         }
         
-        // Set success flag for social accounts page with platform details
-        sessionStorage.setItem('social_connection_success', JSON.stringify({
-          message: successMessage,
-          platforms: data.connections || [],
-          timestamp: Date.now()
-        }));
+        // Check if opened in popup and communicate with parent
+        const isPopup = window.opener && !window.opener.closed;
         
-        // Mark code as processed ONLY after successful exchange
-        const processedCodes = sessionStorage.getItem('processed_oauth_codes');
-        const processedCodesArray = processedCodes ? JSON.parse(processedCodes) : [];
-        processedCodesArray.push(code);
-        sessionStorage.setItem('processed_oauth_codes', JSON.stringify(processedCodesArray.slice(-10)));
-        
-        console.log('OAuth success, redirecting to social accounts');
-        setTimeout(() => navigate(`/social-accounts${window.location.search}`), 3000);
+        if (isPopup) {
+          console.log('✅ Running in popup, posting success message to parent');
+          try {
+            window.opener.postMessage({
+              type: 'oauth-success',
+              platforms: data.connections || [],
+              message: successMessage
+            }, '*');
+            
+            // Mark code as processed
+            const processedCodes = sessionStorage.getItem('processed_oauth_codes');
+            const processedCodesArray = processedCodes ? JSON.parse(processedCodes) : [];
+            processedCodesArray.push(code);
+            sessionStorage.setItem('processed_oauth_codes', JSON.stringify(processedCodesArray.slice(-10)));
+            
+            // Close popup after short delay
+            setTimeout(() => {
+              window.close();
+            }, 1500);
+          } catch (error) {
+            console.error('Failed to post message to parent:', error);
+          }
+        } else {
+          // Fallback: Set success flag for social accounts page with platform details
+          sessionStorage.setItem('social_connection_success', JSON.stringify({
+            message: successMessage,
+            platforms: data.connections || [],
+            timestamp: Date.now()
+          }));
+          
+          // Mark code as processed ONLY after successful exchange
+          const processedCodes = sessionStorage.getItem('processed_oauth_codes');
+          const processedCodesArray = processedCodes ? JSON.parse(processedCodes) : [];
+          processedCodesArray.push(code);
+          sessionStorage.setItem('processed_oauth_codes', JSON.stringify(processedCodesArray.slice(-10)));
+          
+          console.log('OAuth success, redirecting to social accounts');
+          setTimeout(() => navigate(`/social-accounts${window.location.search}`), 3000);
+        }
         
       } catch (error: any) {
         console.error('OAuth exchange error:', error);
@@ -198,7 +225,29 @@ export const AuthCallbackPage = () => {
         }
         
         setMessage(errorMessage);
-        setTimeout(() => navigate('/social-accounts'), 5000);
+        
+        // Check if opened in popup and communicate error to parent
+        const isPopup = window.opener && !window.opener.closed;
+        
+        if (isPopup) {
+          console.log('❌ Running in popup, posting error message to parent');
+          try {
+            window.opener.postMessage({
+              type: 'oauth-error',
+              message: errorMessage
+            }, '*');
+            
+            // Close popup after short delay
+            setTimeout(() => {
+              window.close();
+            }, 2000);
+          } catch (error) {
+            console.error('Failed to post error message to parent:', error);
+          }
+        } else {
+          // Fallback: redirect
+          setTimeout(() => navigate('/social-accounts'), 5000);
+        }
       }
     };
 
