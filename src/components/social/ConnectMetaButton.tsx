@@ -81,6 +81,8 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   const initiateOAuthFlow = async () => {
     setLoading(true);
     setLoadingStep('preparing');
+    // Pre-open popup synchronously to avoid blockers
+    const prePopup = window.open('', 'meta_oauth', 'noopener,noreferrer,width=600,height=700');
     
     try {
       // Clear any previous OAuth state
@@ -133,21 +135,17 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       
       // Show redirecting step
       setLoadingStep('redirecting');
-      
-      // Open OAuth in a new tab/popup to avoid iframe X-Frame-Options issues
-      const oauthUrlStr = authUrl.toString();
-      const popup = window.open(oauthUrlStr, '_blank', 'noopener,noreferrer,width=600,height=700');
 
-      // Fallback: if popup blocked, navigate the top window if possible
-      if (!popup) {
-        try {
-          if (window.top) {
-            (window.top as Window).location.href = oauthUrlStr;
-          } else {
-            window.location.assign(oauthUrlStr);
-          }
-        } catch {
-          window.location.assign(oauthUrlStr);
+      const oauthUrlStr = authUrl.toString();
+
+      // If we pre-opened a popup, navigate it. Otherwise try to open now.
+      if (prePopup && !prePopup.closed) {
+        prePopup.location.href = oauthUrlStr;
+      } else {
+        const popup = window.open(oauthUrlStr, 'meta_oauth', 'noopener,noreferrer,width=600,height=700');
+        if (!popup) {
+          console.warn('Popup blocked. Ask user to allow pop-ups for Facebook login.');
+          toast.error('Please allow pop-ups to connect Facebook/Instagram.');
         }
       }
       

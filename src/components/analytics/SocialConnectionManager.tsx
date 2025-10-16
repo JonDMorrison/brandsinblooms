@@ -77,6 +77,8 @@ export const SocialConnectionManager = () => {
 
   const connectMeta = async (platformId: string) => {
     setConnecting(platformId);
+    // Pre-open popup synchronously to avoid blockers
+    const prePopup = window.open('', 'meta_oauth', 'noopener,noreferrer,width=600,height=700');
     
     try {
       // Clear any previous OAuth state
@@ -115,20 +117,14 @@ export const SocialConnectionManager = () => {
         timestamp: new Date().toISOString()
       });
       
-      // Open OAuth in a new tab/popup to avoid iframe X-Frame-Options issues
+      // Open or navigate popup to avoid iframe X-Frame-Options issues
       const oauthUrlStr = authUrl.toString();
-      const popup = window.open(oauthUrlStr, '_blank', 'noopener,noreferrer,width=600,height=700');
-
-      // Fallback: if popup blocked, navigate the top window if possible
-      if (!popup) {
-        try {
-          if (window.top) {
-            (window.top as Window).location.href = oauthUrlStr;
-          } else {
-            window.location.assign(oauthUrlStr);
-          }
-        } catch {
-          window.location.assign(oauthUrlStr);
+      if (prePopup && !prePopup.closed) {
+        prePopup.location.href = oauthUrlStr;
+      } else {
+        const popup = window.open(oauthUrlStr, 'meta_oauth', 'noopener,noreferrer,width=600,height=700');
+        if (!popup) {
+          console.warn('Popup blocked. Please enable pop-ups for Facebook login.');
         }
       }
     } catch (error) {
