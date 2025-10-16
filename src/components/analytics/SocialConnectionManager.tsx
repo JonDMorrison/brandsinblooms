@@ -32,25 +32,6 @@ export const SocialConnectionManager = () => {
     }
   }, [user]);
 
-  // Listen for OAuth popup messages
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'oauth-success') {
-        console.log('✅ OAuth success message received from popup');
-        toast.success('Successfully connected to Meta platforms!');
-        fetchConnections();
-        setConnecting(null);
-      } else if (event.data?.type === 'oauth-error') {
-        console.error('❌ OAuth error message received from popup:', event.data.message);
-        toast.error(event.data.message || 'Failed to connect');
-        setConnecting(null);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
   // Check for successful connection and refresh
   useEffect(() => {
     const successData = sessionStorage.getItem('social_connection_success');
@@ -129,29 +110,19 @@ export const SocialConnectionManager = () => {
       authUrl.searchParams.set('state', combinedState);
       authUrl.searchParams.set('auth_type', 'rerequest');
       
-      console.log(`🔗 Opening ${platformId} OAuth in popup:`, {
+      console.log(`🔗 Opening ${platformId} OAuth in new tab:`, {
         redirectUri,
         state: combinedState.substring(0, 12) + '...',
         timestamp: new Date().toISOString()
       });
       
-      // Open OAuth in popup window with centered positioning
+      // Open OAuth in new tab
       const oauthUrlStr = authUrl.toString();
-      const width = 600;
-      const height = 700;
-      const left = Math.max(0, (window.screen.width - width) / 2);
-      const top = Math.max(0, (window.screen.height - height) / 2);
+      const oauthTab = window.open(oauthUrlStr, '_blank', 'noopener,noreferrer');
       
-      const oauthPopup = window.open(
-        oauthUrlStr, 
-        'facebookOAuth', 
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-      );
-      
-      if (!oauthPopup) {
-        console.warn('❌ Popup blocked. Please allow popups for Facebook login.');
-        toast.error('Please allow popups to connect Facebook. Click the button again after allowing.');
-        setConnecting(null);
+      if (!oauthTab) {
+        console.warn('❌ New tab blocked. Please allow popups/tabs for Facebook login.');
+        toast.error('Please allow popups/new tabs to connect Facebook. Click the button again after allowing.');
       }
     } catch (error) {
       console.error(`Failed to connect ${platformId}:`, error);
