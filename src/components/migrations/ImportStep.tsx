@@ -40,6 +40,65 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
   const [detailedProgress, setDetailedProgress] = useState<DetailedProgress | null>(null);
   const [validating, setValidating] = useState(false);
 
+  // Helper to ensure fresh session
+  const ensureFreshSession = async () => {
+    const { data: { session }, error } = await supabase.auth.refreshSession();
+    
+    if (error || !session) {
+      console.error('Session refresh failed:', error);
+      toast({
+        title: 'Session Expired',
+        description: 'Please log in again to continue.',
+        variant: 'destructive'
+      });
+      throw new Error('Session refresh failed');
+    }
+    
+    return session;
+  };
+
+  // Helper to invoke edge functions with retry logic
+  const invokeWithRetry = async (functionName: string, body: any, maxRetries = 2) => {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Get fresh session for each attempt
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          throw new Error('No active session');
+        }
+        
+        const { data, error } = await supabase.functions.invoke(functionName, {
+          body,
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        return { data, error: null };
+      } catch (error: any) {
+        console.warn(`[ImportStep] Attempt ${attempt}/${maxRetries} failed for ${functionName}:`, error);
+        lastError = error;
+        
+        // If it's an auth error and we have retries left, refresh session and try again
+        if (attempt < maxRetries && (error.message?.includes('Auth') || error.message?.includes('session'))) {
+          await supabase.auth.refreshSession();
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+        } else {
+          break;
+        }
+      }
+    }
+    
+    return { data: null, error: lastError };
+  };
+
   const startImport = async () => {
     setImporting(true);
     setValidating(true);
@@ -48,6 +107,22 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
     setErrors([]);
 
     try {
+      // Ensure we have a fresh session
+      const session = await ensureFreshSession();
+      console.log('[ImportStep] Using session:', session.user.id);
+
+      // Verify we have an active session before proceeding
+      if (!session) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Your session has expired. Please log in again.',
+          variant: 'destructive'
+        });
+        throw new Error('No active session');
+      }
+
+      console.log('[ImportStep] Active session verified for user:', session.user.id);
+
       // Fetch job details
       const { data: job } = await supabase
         .from('import_jobs')
@@ -66,9 +141,7 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
         ? 'mailchimp-validate' 
         : 'klaviyo-validate';
 
-      const { data: validation, error: validationError } = await supabase.functions.invoke(validateFunction, {
-        body: { jobId }
-      });
+      const { data: validation, error: validationError } = await invokeWithRetry(validateFunction, { jobId });
 
       if (validationError) {
         toast({
@@ -100,9 +173,7 @@ export const ImportStep = ({ jobId, suggestions, onComplete, onBack }: ImportSte
         ? 'mailchimp-import' 
         : 'klaviyo-import';
 
-      const { data: importResult, error: importError } = await supabase.functions.invoke(importFunction, {
-        body: { jobId }
-      });
+      const { data: importResult, error: importError } = await invokeWithRetry(importFunction, { jobId });
 
       if (importError) {
         toast({

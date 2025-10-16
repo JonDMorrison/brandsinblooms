@@ -57,8 +57,22 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      console.error('[mailchimp-validate] Auth error:', userError);
-      throw new Error('Authentication failed');
+      console.error('[mailchimp-validate] Auth error:', {
+        error: userError,
+        hasAuthHeader: !!authHeader,
+        authHeaderPreview: authHeader ? authHeader.substring(0, 20) + '...' : 'none'
+      });
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'Authentication failed. Please refresh the page and try again.',
+          details: userError?.message || 'No user session found'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 401 
+        }
+      );
     }
 
     console.log('[mailchimp-validate] Authenticated user:', user.id);
@@ -155,11 +169,27 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
-    console.error('[mailchimp-validate] Validation error:', error);
+  } catch (error: any) {
+    console.error('[mailchimp-validate] Error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
+    
+    // Determine appropriate status code
+    const statusCode = error.message?.includes('Auth') || error.message?.includes('Unauthorized') 
+      ? 401 
+      : error.message?.includes('not found') 
+      ? 404 
+      : 500;
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        error: error.message,
+        type: error.name
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: statusCode }
     );
   }
 });
