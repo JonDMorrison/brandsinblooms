@@ -183,7 +183,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
           onCheckedChange={setIsAgeAndTermsVerified}
         />
         <Button
-          onClick={handleConnect} 
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConnect(); }} 
           disabled={loading || !user || !isAgeAndTermsVerified}
           className={`relative overflow-hidden px-8 w-full shadow-2xl backdrop-blur-sm border border-white/20 transition-all duration-500 group ${
             isMetaConnected 

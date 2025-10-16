@@ -119,6 +119,7 @@ export const SocialConnectionManager = () => {
       
       // Open or navigate popup to avoid iframe X-Frame-Options issues
       const oauthUrlStr = authUrl.toString();
+      console.log('Meta OAuth URL built:', oauthUrlStr);
       if (prePopup && !prePopup.closed) {
         prePopup.location.href = oauthUrlStr;
       } else {
@@ -351,9 +352,11 @@ export const SocialConnectionManager = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                        if (platform.id === 'facebook') connectMeta(platform.id);
-                        else if (platform.id === 'instagram') connectMeta(platform.id);
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (platform.id === 'facebook') connectMeta(platform.id);
+                            else if (platform.id === 'instagram') connectMeta(platform.id);
                             else if (platform.id === 'google_my_business') connectGoogleBusiness();
                           }}
                           disabled={connecting === platform.id}
@@ -372,7 +375,9 @@ export const SocialConnectionManager = () => {
                   ) : (
                     <Button
                       size="sm"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         if (platform.id === 'facebook') connectMeta(platform.id);
                         else if (platform.id === 'instagram') connectMeta(platform.id);
                         else if (platform.id === 'google_my_business') connectGoogleBusiness();
