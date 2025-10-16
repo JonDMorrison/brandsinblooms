@@ -21,15 +21,25 @@ Deno.serve(async (req) => {
   try {
     const { jobId } = await req.json();
 
-    const authHeader = req.headers.get('Authorization')!;
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('[mailchimp-import] No Authorization header');
+      throw new Error('No authorization header');
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('[mailchimp-import] Auth error:', userError);
+      throw new Error('Authentication failed');
+    }
+
+    console.log('[mailchimp-import] Authenticated user:', user.id);
 
     // Get existing job
     const { data: importJob, error: jobError } = await supabase
@@ -39,7 +49,12 @@ Deno.serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
-    if (jobError || !importJob) throw new Error('Job not found');
+    if (jobError || !importJob) {
+      console.error('[mailchimp-import] Job query error:', jobError);
+      throw new Error('Job not found');
+    }
+
+    console.log('[mailchimp-import] Found job:', importJob.id, 'for tenant:', importJob.tenant_id);
 
     // Get tenant
     const { data: userRecord } = await supabase
@@ -360,7 +375,7 @@ Deno.serve(async (req) => {
     console.error('[mailchimp-import] Error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
