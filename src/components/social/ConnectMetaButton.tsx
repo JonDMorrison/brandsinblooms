@@ -144,8 +144,16 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       } else {
         const popup = window.open(oauthUrlStr, 'meta_oauth', 'noopener,noreferrer,width=600,height=700');
         if (!popup) {
-          console.warn('Popup blocked. Ask user to allow pop-ups for Facebook login.');
-          toast.error('Please allow pop-ups to connect Facebook/Instagram.');
+          console.warn('Popup blocked. Falling back to same-window redirect.');
+          try {
+            if (window.top) {
+              (window.top as Window).location.href = oauthUrlStr;
+            } else {
+              window.location.assign(oauthUrlStr);
+            }
+          } catch {
+            window.location.assign(oauthUrlStr);
+          }
         }
       }
       

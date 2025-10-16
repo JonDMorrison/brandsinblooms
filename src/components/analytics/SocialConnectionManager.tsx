@@ -125,7 +125,16 @@ export const SocialConnectionManager = () => {
       } else {
         const popup = window.open(oauthUrlStr, 'meta_oauth', 'noopener,noreferrer,width=600,height=700');
         if (!popup) {
-          console.warn('Popup blocked. Please enable pop-ups for Facebook login.');
+          console.warn('Popup blocked. Falling back to same-window redirect.');
+          try {
+            if (window.top) {
+              (window.top as Window).location.href = oauthUrlStr;
+            } else {
+              window.location.assign(oauthUrlStr);
+            }
+          } catch {
+            window.location.assign(oauthUrlStr);
+          }
         }
       }
     } catch (error) {
