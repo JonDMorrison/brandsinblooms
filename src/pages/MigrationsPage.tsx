@@ -69,6 +69,7 @@ const MigrationsPage = () => {
         .from('import_jobs')
         .insert({
           user_id: user.id,
+          tenant_id: userData.tenant_id, // Add tenant_id to fix RLS
           provider: connection.provider,
           status: 'pending',
           config: selection,

@@ -43,25 +43,40 @@ Deno.serve(async (req) => {
   try {
     const { jobId } = await req.json();
 
-    const authHeader = req.headers.get('Authorization')!;
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('[mailchimp-validate] No Authorization header');
+      throw new Error('No authorization header');
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('[mailchimp-validate] Auth error:', userError);
+      throw new Error('Authentication failed');
+    }
+
+    console.log('[mailchimp-validate] Authenticated user:', user.id);
 
     // Get job and tenant
-    const { data: job } = await supabase
+    const { data: job, error: jobError } = await supabase
       .from('import_jobs')
-      .select('config')
+      .select('config, provider, tenant_id')
       .eq('id', jobId)
       .eq('user_id', user.id)
       .single();
 
-    if (!job) throw new Error('Job not found');
+    if (jobError || !job) {
+      console.error('[mailchimp-validate] Job query error:', jobError);
+      throw new Error('Job not found');
+    }
+
+    console.log('[mailchimp-validate] Found job for tenant:', job.tenant_id);
 
     const { data: userData } = await supabase
       .from('users')
@@ -131,6 +146,8 @@ Deno.serve(async (req) => {
       limitedErrors.push(`... and ${validationErrors.length - 50} more validation errors`);
     }
 
+    console.log(`[mailchimp-validate] Validation complete. Errors: ${limitedErrors.length}`);
+
     return new Response(
       JSON.stringify({
         valid: limitedErrors.length === 0,
@@ -139,7 +156,7 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Validation error:', error);
+    console.error('[mailchimp-validate] Validation error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
