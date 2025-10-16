@@ -131,11 +131,12 @@ export const AuthCallbackPage = () => {
       try {
         setMessage('Exchanging authorization code...');
         
-        const exchangePayload = {
-          code,
-          state,
-          redirect_uri: `${window.location.origin}/auth/callback`
-        };
+          const exchangePayload = {
+            code,
+            state,
+            // Must match the URL authorized with Facebook
+            redirect_uri: `https://bloomsuite.app/oauth/callback`
+          };
         
         console.log('Calling exchange-oauth-code function');
         const { data, error: exchangeError } = await supabase.functions.invoke('exchange-oauth-code', {

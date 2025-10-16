@@ -50,30 +50,12 @@ export const OAuthCallbackHandler = () => {
         return;
       }
 
-      // Legacy flow: when provider redirected directly with code/state
-      if (code && state && provider) {
-        if (window.opener) {
-          try {
-            window.opener.postMessage({
-              type: 'oauth-callback',
-              provider,
-              code,
-              state
-            }, '*');
-          } catch (e) {
-            console.warn('[OAuthCallbackHandler] legacy postMessage failed', e);
-          }
-        }
-
-        // Try to close the window, show fallback if it fails
-        try {
-          window.close();
-          setTimeout(() => {
-            setShowFallback(true);
-          }, 600);
-        } catch (error) {
-          setShowFallback(true);
-        }
+      // Legacy or static-domain flow: provider may be absent.
+      // If we have code & state, forward to /auth/callback to perform the exchange
+      if (code && state) {
+        const params = new URLSearchParams({ code, state }).toString();
+        const target = `/auth/callback?${params}`;
+        window.location.replace(target);
         return;
       }
 
