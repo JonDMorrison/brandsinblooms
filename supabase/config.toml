@@ -131,3 +131,6 @@ verify_jwt = true
 
 [functions.klaviyo-validate]
 verify_jwt = true
+
+[functions.exchange-oauth-code]
+verify_jwt = true
