@@ -23,30 +23,26 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Missing Authorization header');
 
-    // Create authenticated client using the user's JWT
+    // Create admin client with service role key
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-    
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: authHeader }
-      }
-    });
+    const supabase = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    // Get the authenticated user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Extract JWT token from Authorization header
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Verify user authentication using the token
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
       console.error('[migration-ai-embed] User auth error:', userError);
       throw new Error('Unauthorized');
     }
 
-    // Get user's tenant using service role
-    const supabaseAdmin = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    console.log('[migration-ai-embed] Authenticated user:', user.id);
 
-    const { data: userData, error: tenantError } = await supabaseAdmin
+    const { data: userData, error: tenantError } = await supabase
       .from('users')
       .select('tenant_id')
       .eq('id', user.id)
@@ -58,7 +54,7 @@ Deno.serve(async (req) => {
     }
 
     // Get job to fetch artifacts from provider
-    const { data: job } = await supabaseAdmin
+    const { data: job } = await supabase
       .from('import_jobs')
       .select('provider, config')
       .eq('id', jobId)
@@ -68,7 +64,7 @@ Deno.serve(async (req) => {
     if (!job) throw new Error('Job not found');
 
     // Get provider connection
-    const { data: connection } = await supabaseAdmin
+    const { data: connection } = await supabase
       .from('provider_connections')
       .select('*')
       .eq('tenant_id', userData.tenant_id)
@@ -141,7 +137,7 @@ Deno.serve(async (req) => {
         const embedding = embeddingData.data[0].embedding;
 
         // Store artifact with embedding
-        const { data: stored, error } = await supabaseAdmin
+        const { data: stored, error } = await supabase
           .from('provider_artifacts')
           .insert({
             import_job_id: jobId,

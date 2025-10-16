@@ -23,18 +23,18 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Missing Authorization header');
 
-    // Create authenticated client using the user's JWT
+    // Create admin client with service role key
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-    
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: authHeader }
-      }
-    });
+    const supabase = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    // Get the authenticated user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Extract JWT token from Authorization header
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Verify user authentication using the token
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
       console.error('[migration-ai-suggest] User auth error:', userError);
       throw new Error('Unauthorized');
@@ -42,13 +42,7 @@ Deno.serve(async (req) => {
 
     console.log('[migration-ai-suggest] Authenticated user:', user.id);
 
-    // Get user's tenant using service role for this query
-    const supabaseAdmin = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const { data: userRecord, error: tenantError } = await supabaseAdmin
+    const { data: userRecord, error: tenantError } = await supabase
       .from('users')
       .select('tenant_id')
       .eq('id', user.id)
@@ -63,7 +57,7 @@ Deno.serve(async (req) => {
     console.log('[migration-ai-suggest] Tenant ID:', tenantId);
 
     // Get provider artifacts for this job
-    const { data: artifacts, error: artifactsError } = await supabaseAdmin
+    const { data: artifacts, error: artifactsError } = await supabase
       .from('provider_artifacts')
       .select('*')
       .eq('import_job_id', jobId)
@@ -82,12 +76,12 @@ Deno.serve(async (req) => {
     console.log(`[migration-ai-suggest] Found ${artifacts.length} artifacts to analyze`);
 
     // Get existing segments and personas
-    const { data: existingSegments } = await supabaseAdmin
+    const { data: existingSegments } = await supabase
       .from('segments')
       .select('id, name, description')
       .eq('tenant_id', tenantId);
 
-    const { data: existingPersonas } = await supabaseAdmin
+    const { data: existingPersonas } = await supabase
       .from('crm_personas')
       .select('id, name, description')
       .eq('tenant_id', tenantId);
@@ -194,7 +188,7 @@ Return JSON only.`;
         const suggestion = JSON.parse(toolCall.function.arguments);
 
         // Store suggestion
-        await supabaseAdmin.from('ai_mapping_suggestions').insert({
+        await supabase.from('ai_mapping_suggestions').insert({
           import_job_id: jobId,
           tenant_id: tenantId,
           artifact_id: artifact.id,
