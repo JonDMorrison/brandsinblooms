@@ -189,8 +189,7 @@ Deno.serve(async (req) => {
                 phone,
                 first_name: firstName,
                 last_name: lastName,
-                custom_fields: Object.keys(customFields).length > 0 ? customFields : null,
-                source: 'mailchimp_import'
+                custom_fields: Object.keys(customFields).length > 0 ? customFields : null
               }, { onConflict: 'tenant_id,email' })
               .select()
               .single();
@@ -210,7 +209,6 @@ Deno.serve(async (req) => {
               customer_id: contact.id,
               channel: 'email',
               status: consentStatus,
-              source: 'mailchimp_import',
               consent_timestamp: new Date().toISOString()
             }, { onConflict: 'customer_id,channel' });
 
@@ -219,8 +217,7 @@ Deno.serve(async (req) => {
               await supabase.from('suppression_list').upsert({
                 tenant_id: tenantId,
                 email,
-                reason: member.status === 'cleaned' ? 'cleaned' : 'unsubscribed',
-                source: 'mailchimp_import'
+                reason: member.status === 'cleaned' ? 'cleaned' : 'unsubscribed'
               }, { onConflict: 'tenant_id,email' });
             }
 
@@ -235,8 +232,7 @@ Deno.serve(async (req) => {
                   .from('tags')
                   .upsert({
                     tenant_id: tenantId,
-                    name: tagName,
-                    source: 'mailchimp_import'
+                    name: tagName
                   }, { onConflict: 'tenant_id,name' })
                   .select()
                   .single();
@@ -306,8 +302,7 @@ Deno.serve(async (req) => {
           .insert({
             tenant_id: tenantId,
             name: segment.name,
-            description: `Imported from Mailchimp: ${segment.name}`,
-            source: 'mailchimp_import'
+            description: `Imported from Mailchimp: ${segment.name}`
           })
           .select()
           .single();
@@ -345,8 +340,7 @@ Deno.serve(async (req) => {
             .from('tags')
             .upsert({
               tenant_id: tenantId,
-              name: `imported-${segment.name.toLowerCase().replace(/\s+/g, '-')}`,
-              source: 'mailchimp_import'
+              name: `imported-${segment.name.toLowerCase().replace(/\s+/g, '-')}`
             }, { onConflict: 'tenant_id,name' })
             .select()
             .single();
