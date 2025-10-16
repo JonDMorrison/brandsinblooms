@@ -81,8 +81,6 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   const initiateOAuthFlow = async () => {
     setLoading(true);
     setLoadingStep('preparing');
-    // Pre-open popup synchronously to avoid blockers
-    const prePopup = window.open('', 'meta_oauth', 'noopener,noreferrer,width=600,height=700');
     
     try {
       // Clear any previous OAuth state
@@ -123,9 +121,9 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       authUrl.searchParams.set('scope', scopes);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('state', combinedState);
-      authUrl.searchParams.set('auth_type', 'rerequest'); // Ensures consent screen is shown
+      authUrl.searchParams.set('auth_type', 'rerequest');
       
-      console.log('🔗 Redirecting to Meta OAuth:', {
+      console.log('🔗 Opening Meta OAuth in new tab:', {
         redirectUri,
         state: combinedState.substring(0, 12) + '...',
         clientId: clientId.substring(0, 8) + '...',
@@ -138,23 +136,14 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
       const oauthUrlStr = authUrl.toString();
 
-      // If we pre-opened a popup, navigate it. Otherwise try to open now.
-      if (prePopup && !prePopup.closed) {
-        prePopup.location.href = oauthUrlStr;
-      } else {
-        const popup = window.open(oauthUrlStr, 'meta_oauth', 'noopener,noreferrer,width=600,height=700');
-        if (!popup) {
-          console.warn('Popup blocked. Falling back to same-window redirect.');
-          try {
-            if (window.top) {
-              (window.top as Window).location.href = oauthUrlStr;
-            } else {
-              window.location.assign(oauthUrlStr);
-            }
-          } catch {
-            window.location.assign(oauthUrlStr);
-          }
-        }
+      // Open OAuth in new tab
+      const oauthTab = window.open(oauthUrlStr, '_blank', 'noopener,noreferrer');
+      
+      if (!oauthTab) {
+        console.warn('❌ New tab blocked. Please allow popups/tabs for Facebook login.');
+        toast.error('Please allow popups/new tabs to connect Facebook. Click the button again after allowing.');
+        setLoading(false);
+        return;
       }
       
     } catch (error) {
