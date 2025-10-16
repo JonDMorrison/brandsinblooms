@@ -108,7 +108,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       ].join(',');
       
       // Dynamic redirect URI based on current domain
-      const redirectUri = `${window.location.origin}/auth/callback`;
+      const redirectUri = `${window.location.origin}/oauth/callback`;
       
       // Fetch OAuth config
       const configData = await fetchOAuthConfig();
