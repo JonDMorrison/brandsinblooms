@@ -34,7 +34,13 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
       if (error) throw error;
       
-      setIsMetaConnected((data && data.length > 0) || false);
+      // Check if connections exist AND tokens are not expired
+      const hasValidConnection = data && data.length > 0 && data.every(connection => {
+        if (!connection.expires_at) return true; // No expiry means valid
+        return new Date(connection.expires_at) > new Date(); // Check if not expired
+      });
+      
+      setIsMetaConnected(hasValidConnection || false);
     } catch (error) {
       console.error('Error fetching Meta connection status:', error);
       setIsMetaConnected(false);
@@ -66,19 +72,13 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       return;
     }
 
-    // If already connected, just show a message
-    if (isMetaConnected) {
-      
-      return;
-    }
-
     // Check age and terms verification
     if (!isAgeAndTermsVerified) {
       
       return;
     }
 
-    // Proceed with OAuth flow
+    // Proceed with OAuth flow (allows reconnection for expired tokens)
     await initiateOAuthFlow();
   };
 
@@ -201,7 +201,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
               <Instagram className="h-4 w-4 text-white" />
             </div>
             <span className="font-semibold text-white ml-2 transition-all duration-300 group-hover:text-white/90">
-              {loading ? 'Connecting...' : !isAgeAndTermsVerified ? 'Verify Age & Terms' : 'Connect Meta'}
+              {loading ? 'Connecting...' : !isAgeAndTermsVerified ? 'Verify Age & Terms' : isMetaConnected ? 'Connected' : 'Connect Meta'}
             </span>
             
             {/* Connected Checkmark */}
