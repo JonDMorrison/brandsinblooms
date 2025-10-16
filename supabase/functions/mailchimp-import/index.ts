@@ -194,6 +194,17 @@ Deno.serve(async (req) => {
               .select()
               .single();
 
+            // Store source in dynamic fields table
+            if (contact) {
+              await supabase.from('customer_additional_fields').upsert({
+                customer_id: contact.id,
+                tenant_id: tenantId,
+                field_name: 'source',
+                field_value: 'mailchimp_import',
+                field_type: 'text'
+              }, { onConflict: 'customer_id,field_name' });
+            }
+
             if (contactError) {
               console.error('Contact upsert error:', contactError);
               totalErrors++;
