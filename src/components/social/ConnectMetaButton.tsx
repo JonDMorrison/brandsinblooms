@@ -34,13 +34,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
       if (error) throw error;
       
-      // Check if connections exist AND tokens are not expired
-      const hasValidConnection = data && data.length > 0 && data.every(connection => {
-        if (!connection.expires_at) return true; // No expiry means valid
-        return new Date(connection.expires_at) > new Date(); // Check if not expired
-      });
-      
-      setIsMetaConnected(hasValidConnection || false);
+      setIsMetaConnected((data && data.length > 0) || false);
     } catch (error) {
       console.error('Error fetching Meta connection status:', error);
       setIsMetaConnected(false);
