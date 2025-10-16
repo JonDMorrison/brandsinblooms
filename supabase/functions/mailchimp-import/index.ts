@@ -27,9 +27,16 @@ Deno.serve(async (req) => {
       throw new Error('No authorization header');
     }
 
+    // Use service role key to validate JWT
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
 
     // Extract JWT from Authorization header and validate
