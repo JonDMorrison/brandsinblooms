@@ -7,6 +7,7 @@ import { fetchOAuthConfig } from '@/lib/api/oauth';
 import { OAuthLoadingOverlay } from './OAuthLoadingOverlay';
 import { AgeAndTermsVerification } from './AgeAndTermsVerification';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ConnectMetaButtonProps {
   onSuccess: () => void;
@@ -62,16 +63,17 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
   const handleConnect = async () => {
     if (!user) {
-      
+      toast.error('Please log in to connect your account');
       return;
     }
 
     // Check age and terms verification
     if (!isAgeAndTermsVerified) {
-      
+      toast.error('Please verify your age and accept terms to continue');
       return;
     }
 
+    console.log('✅ Starting OAuth flow...');
     // Proceed with OAuth flow (allows reconnection for expired tokens)
     await initiateOAuthFlow();
   };
@@ -139,7 +141,9 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       window.location.href = authUrl.toString();
       
     } catch (error) {
-      console.error('OAuth initiation error:', error);
+      console.error('❌ OAuth initiation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to initiate OAuth';
+      toast.error(`Connection failed: ${errorMessage}`);
       
       setUnavailable(true);
       setLoading(false);
