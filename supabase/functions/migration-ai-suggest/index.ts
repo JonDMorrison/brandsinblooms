@@ -73,7 +73,15 @@ Deno.serve(async (req) => {
       throw new Error('No artifacts found for this job. Please run the embed step first.');
     }
 
-    console.log(`[migration-ai-suggest] Found ${artifacts.length} artifacts to analyze`);
+    // Transform artifacts to extract sample_data from data jsonb column
+    const processedArtifacts = artifacts.map(artifact => ({
+      ...artifact,
+      sample_data: artifact.data?.sample_data || [],
+      description: artifact.data?.description,
+      metadata: artifact.data
+    }));
+
+    console.log(`[migration-ai-suggest] Found ${processedArtifacts.length} artifacts to analyze`);
 
     // Get existing segments and personas
     const { data: existingSegments } = await supabase
@@ -103,7 +111,7 @@ Deno.serve(async (req) => {
 
     const suggestions = [];
 
-    for (const artifact of artifacts) {
+    for (const artifact of processedArtifacts) {
       try {
         // Build context for GPT
         const context = {

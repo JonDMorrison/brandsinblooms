@@ -85,7 +85,12 @@ Deno.serve(async (req) => {
           external_id: listId,
           name: `List ${listId}`,
           member_count: 0,
-          sample_data: []
+          sample_data: [],
+          description: `Mailchimp list imported from ${connection.provider_account_name || 'provider'}`,
+          provider_metadata: {
+            list_id: listId,
+            connection_id: connection.id
+          }
         });
       }
     }
@@ -98,7 +103,13 @@ Deno.serve(async (req) => {
           external_id: segmentId,
           name: `Segment ${segId}`,
           member_count: 0,
-          sample_data: []
+          sample_data: [],
+          description: `Mailchimp segment from list ${listId}`,
+          provider_metadata: {
+            segment_id: segId,
+            list_id: listId,
+            connection_id: connection.id
+          }
         });
       }
     }
@@ -109,10 +120,21 @@ Deno.serve(async (req) => {
       try {
         // Create embedding text from artifact data
         const embeddingText = [
-          artifact.name,
-          artifact.description || '',
-          artifact.sample_data?.slice(0, 5).map((s: any) => `${s.email} ${s.tags?.join(' ') || ''}`).join(' ')
-        ].filter(Boolean).join(' ');
+          `Type: ${artifact.artifact_type}`,
+          `Name: ${artifact.name}`,
+          artifact.description ? `Description: ${artifact.description}` : '',
+          artifact.member_count ? `Members: ${artifact.member_count}` : '',
+          artifact.sample_data?.length > 0 
+            ? `Sample contacts: ${artifact.sample_data.slice(0, 3).map((s: any) => 
+                `${s.email || ''} ${s.tags?.join(' ') || ''}`.trim()
+              ).join(', ')}`
+            : '',
+          artifact.provider_metadata 
+            ? `Source: ${artifact.provider_metadata.list_id || artifact.provider_metadata.segment_id}`
+            : ''
+        ].filter(Boolean).join(' | ');
+
+        console.log(`[migration-ai-embed] Embedding text for ${artifact.name}:`, embeddingText.substring(0, 100) + '...');
 
         // Get embedding from OpenAI
         const embeddingRes = await fetch('https://api.openai.com/v1/embeddings', {
@@ -142,27 +164,43 @@ Deno.serve(async (req) => {
           .insert({
             import_job_id: jobId,
             tenant_id: userData.tenant_id,
-            user_id: user.id,
             provider: job.provider,
             artifact_type: artifact.artifact_type,
             external_id: artifact.external_id,
             name: artifact.name,
             member_count: artifact.member_count,
-            sample_data: artifact.sample_data,
+            data: {
+              sample_data: artifact.sample_data || [],
+              user_id: user.id,
+              description: artifact.description,
+              provider_metadata: artifact.provider_metadata,
+              raw_metadata: artifact
+            },
             embedding: JSON.stringify(embedding)
           })
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error(`[migration-ai-embed] Database error for ${artifact.name}:`, {
+            error: error,
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+          throw new Error(`Failed to store artifact: ${error.message}`);
+        }
+
+        console.log(`[migration-ai-embed] ✓ Created embedding for ${artifact.name} (ID: ${stored.id})`);
 
         results.push({
           id: stored.id,
           name: artifact.name,
+          artifact_type: artifact.artifact_type,
+          member_count: artifact.member_count,
           success: true
         });
-
-        console.log(`[migration-ai-embed] Created embedding for ${artifact.name}`);
 
       } catch (error) {
         console.error(`[migration-ai-embed] Error processing ${artifact.name}:`, error);
@@ -175,7 +213,14 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ results }),
+      JSON.stringify({ 
+        results,
+        summary: {
+          total: artifacts.length,
+          successful: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length
+        }
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
