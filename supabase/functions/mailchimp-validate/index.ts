@@ -1,34 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from '../_shared/cors.ts';
+import { decryptToken } from '../_shared/crypto/tokens.ts';
 
-const ENCRYPTION_KEY = Deno.env.get('ENCRYPTION_KEY');
-
-async function decryptToken(encryptedToken: string): Promise<string> {
-  const parts = encryptedToken.split(':');
-  if (parts.length !== 3) throw new Error('Invalid encrypted token format');
-  
-  const [ivHex, authTagHex, encryptedHex] = parts;
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(ENCRYPTION_KEY),
-    { name: 'AES-GCM' },
-    false,
-    ['decrypt']
-  );
-  
-  const iv = new Uint8Array(ivHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-  const authTag = new Uint8Array(authTagHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-  const encrypted = new Uint8Array(encryptedHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-  
-  const combined = new Uint8Array([...encrypted, ...authTag]);
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    combined
-  );
-  
-  return new TextDecoder().decode(decrypted);
-}
 
 function validateEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
