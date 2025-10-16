@@ -97,7 +97,7 @@ export const SocialConnectionManager = () => {
       const configData = await fetchOAuthConfig();
       const clientId = configData.clientId;
       
-      const redirectUri = `${window.location.origin}/oauth/callback`;
+      const redirectUri = `${window.location.origin}/auth/callback`;
       const scope = 'pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights';
       
       // Build Facebook OAuth URL with enhanced parameters for App Review
