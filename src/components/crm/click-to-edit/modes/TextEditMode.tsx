@@ -21,6 +21,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
 }) => {
   // Local state for input fields to preserve cursor position
   const [headline, setHeadline] = useState(block.headline || block.title || '');
+  const [subheading, setSubheading] = useState(block.subtitle || '');
   const [altText, setAltText] = useState(block.altText || '');
   const [ctaText, setCtaText] = useState(block.ctaText || block.buttonText || '');
   const [ctaUrl, setCtaUrl] = useState(block.ctaUrl || block.buttonUrl || '');
@@ -28,6 +29,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   // Sync local state when block changes externally
   useEffect(() => {
     setHeadline(block.headline || block.title || '');
+    setSubheading(block.subtitle || '');
     setAltText(block.altText || '');
     setCtaText(block.ctaText || block.buttonText || '');
     setCtaUrl(block.ctaUrl || block.buttonUrl || '');
@@ -76,6 +78,29 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               }
             }}
             placeholder="Enter headline"
+            className="w-full"
+          />
+        </div>
+      )}
+
+      {/* Subheading (for blocks that support it) */}
+      {(block.type === 'header' || block.type === 'newsletter-header' || block.subtitle !== undefined) && (
+        <div className="space-y-2">
+          <Label htmlFor="subheading">Subheading</Label>
+          <Input
+            id="subheading"
+            value={subheading}
+            onChange={(e) => {
+              setSubheading(e.target.value);
+              onUpdate({ subtitle: e.target.value });
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === ' ') {
+                e.stopPropagation();
+              }
+            }}
+            placeholder="Enter subheading"
             className="w-full"
           />
         </div>
