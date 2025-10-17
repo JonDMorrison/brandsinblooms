@@ -94,6 +94,10 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
+            // Don't intercept keyboard events from input fields
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+              return;
+            }
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
               handleInlineEdit('image', e as any);
