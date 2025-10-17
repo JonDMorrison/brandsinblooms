@@ -238,7 +238,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 return sanitizeWeekNumbers(headlineText);
               })()}
               type="newsletter"
-              className="text-2xl font-bold"
+              className="text-2xl font-bold prose prose-headings:font-bold prose-strong:font-bold prose-em:italic prose-ul:list-disc prose-ol:list-decimal prose-li:ml-6"
             />
             
             {/* Body text */}
@@ -260,7 +260,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 return sanitizeWeekNumbers(bodyText);
               })()}
               type="newsletter"
-              className="text-muted-foreground"
+              className="text-muted-foreground prose max-w-none prose-p:my-2 prose-strong:font-bold prose-em:italic prose-u:underline prose-ul:list-disc prose-ol:list-decimal prose-li:ml-6 prose-ul:my-2 prose-ol:my-2 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-headings:font-bold prose-headings:my-2"
             />
             
             {/* CTA Button */}
