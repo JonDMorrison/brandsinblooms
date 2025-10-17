@@ -45,6 +45,16 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
         />
       )}
       
+      {/* Dark Overlay - for text contrast */}
+      {block.backgroundImageUrl && block.darkOverlayOpacity && block.darkOverlayOpacity > 0 && (
+        <div 
+          className="absolute inset-0 bg-black"
+          style={{ 
+            opacity: (block.darkOverlayOpacity || 0) / 100
+          }}
+        />
+      )}
+      
       {/* Color Overlay - middle layer */}
       {block.backgroundColor && (
         <div 
@@ -230,20 +240,39 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
           className="h-32"
         />
         {block.backgroundImageUrl && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="imageOpacity">Image Opacity</Label>
-              <span className="text-sm text-muted-foreground">{block.backgroundOpacity || 100}%</span>
+          <>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="imageOpacity">Image Opacity</Label>
+                <span className="text-sm text-muted-foreground">{block.backgroundOpacity || 100}%</span>
+              </div>
+              <Slider
+                value={[block.backgroundOpacity || 100]}
+                onValueChange={(value) => onUpdate({ backgroundOpacity: value[0] })}
+                max={100}
+                min={1}
+                step={1}
+                className="w-full"
+              />
             </div>
-            <Slider
-              value={[block.backgroundOpacity || 100]}
-              onValueChange={(value) => onUpdate({ backgroundOpacity: value[0] })}
-              max={100}
-              min={1}
-              step={1}
-              className="w-full"
-            />
-          </div>
+            
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="darkOverlay">Dark Overlay (for text contrast)</Label>
+                <span className="text-sm text-muted-foreground">{block.darkOverlayOpacity || 0}%</span>
+              </div>
+              <Slider
+                id="darkOverlay"
+                value={[block.darkOverlayOpacity || 0]}
+                onValueChange={(value) => onUpdate({ darkOverlayOpacity: value[0] })}
+                max={100}
+                min={0}
+                step={1}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">Adds a dark overlay to improve text readability</p>
+            </div>
+          </>
         )}
       </div>
 
