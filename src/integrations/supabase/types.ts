@@ -570,6 +570,7 @@ export type Database = {
           created_at: string
           cta_text: string | null
           cta_url: string | null
+          dark_overlay_opacity: number | null
           headline: string | null
           id: string
           image_url: string | null
@@ -586,6 +587,7 @@ export type Database = {
           created_at?: string
           cta_text?: string | null
           cta_url?: string | null
+          dark_overlay_opacity?: number | null
           headline?: string | null
           id?: string
           image_url?: string | null
@@ -602,6 +604,7 @@ export type Database = {
           created_at?: string
           cta_text?: string | null
           cta_url?: string | null
+          dark_overlay_opacity?: number | null
           headline?: string | null
           id?: string
           image_url?: string | null
