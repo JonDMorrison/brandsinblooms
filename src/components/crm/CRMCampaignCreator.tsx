@@ -2352,14 +2352,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       complianceText: 'You received this email because you subscribed to our newsletter. {{unsubscribe_url}}'
     };
     
-    const companyInfo = {
-      name: 'Homestead Nurseryland',
-      address: '123 Garden Center Dr, Green Valley, CA 90210',
-      phone: '(555) 123-GROW',
-      logoUrl: ''
-    };
-    
-    console.log('🔍 Generating footer in email preview');
+    // Use actual company info from the hook instead of hardcoded placeholder
+    console.log('🔍 Generating footer with company info:', companyInfo);
     const tokenData = getDefaultTokenData(companyInfo);
     const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData);
     console.log('✅ Footer HTML generated:', footerHTML.substring(0, 100) + '...');
