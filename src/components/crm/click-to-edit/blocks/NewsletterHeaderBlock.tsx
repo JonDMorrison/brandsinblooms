@@ -35,6 +35,13 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [tempDate, setTempDate] = useState(block.publishDate || '');
 
+  // Handle nested content structure from database
+  const content = (block.content || {}) as any;
+  const title = block.title || content.title || block.headline || content.headline || '';
+  const subtitle = block.subtitle || content.subtitle || block.body || content.body || '';
+  const issueNumber = block.issueNumber || content.issueNumber || '';
+  const publishDate = block.publishDate || content.publishDate || '';
+
   // Live preview component that can be reused
   const PreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group min-h-[400px]">
@@ -111,30 +118,27 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
         <div className="max-w-3xl w-full text-center space-y-6">
           {/* Newsletter Title */}
           <h1 className="text-5xl md:text-6xl font-bold mb-4 leading-tight">
-            {sanitizeWeekNumbers(block.headline || block.title || "Newsletter Title")}
+            {sanitizeWeekNumbers(title || "Newsletter Title")}
           </h1>
           
           {/* Subtitle */}
-          {(block.subtitle || block.body || block.content) && (
+          {subtitle && (
             <p className="text-xl md:text-2xl opacity-90 leading-relaxed">
               {sanitizeWeekNumbers(
-                block.subtitle || 
-                (block.body ? block.body.replace(/<[^>]*>/g, '') : '') || 
-                (block.content ? block.content.replace(/<[^>]*>/g, '') : '') || 
-                "Your newsletter subtitle"
+                typeof subtitle === 'string' ? subtitle.replace(/<[^>]*>/g, '') : subtitle
               )}
             </p>
           )}
 
           {/* Issue Info Row */}
           <div className="flex items-center justify-center gap-8 text-lg opacity-80 mt-8">
-            {block.issueNumber && (
+            {issueNumber && (
               <div className="flex items-center gap-2">
-                <span className="font-semibold">Issue #{block.issueNumber}</span>
+                <span className="font-semibold">Issue #{issueNumber}</span>
               </div>
             )}
             
-            {block.publishDate && (
+            {publishDate && (
               <div className="flex items-center gap-2">
                 {isPreview && isEditingDate ? (
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
@@ -220,8 +224,8 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
           <Label htmlFor="title">Newsletter Title</Label>
           <Input
             id="title"
-            value={block.title || ''}
-            onChange={(e) => onUpdate({ title: e.target.value })}
+            value={title}
+            onChange={(e) => onUpdate({ title: e.target.value, headline: e.target.value })}
             placeholder="Enter newsletter title"
           />
         </div>
@@ -243,7 +247,7 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
         <Label htmlFor="subtitle">Subtitle</Label>
         <Textarea
           id="subtitle"
-          value={block.subtitle || block.body || ''}
+          value={typeof subtitle === 'string' ? subtitle : ''}
           onChange={(e) => onUpdate({ subtitle: e.target.value, body: e.target.value })}
           placeholder="Enter newsletter subtitle"
           rows={2}
@@ -256,7 +260,7 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
           <Input
             id="issueNumber"
             type="number"
-            value={block.issueNumber || ''}
+            value={issueNumber}
             onChange={(e) => onUpdate({ issueNumber: e.target.value })}
             placeholder="e.g. 42"
           />
@@ -266,7 +270,7 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
           <Input
             id="publishDate"
             type="date"
-            value={block.publishDate || ''}
+            value={publishDate}
             onChange={(e) => onUpdate({ publishDate: e.target.value })}
           />
         </div>
