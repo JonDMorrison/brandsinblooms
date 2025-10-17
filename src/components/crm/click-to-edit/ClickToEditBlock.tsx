@@ -222,7 +222,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
       {/* Combined Block Edit Toolbar - only show for non-header blocks */}
       {block.type !== 'header' && (
-        <div className="absolute top-2 right-2 flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-md shadow-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
+        <div className="absolute top-2 right-2 flex items-center gap-1 bg-white backdrop-blur-sm border rounded-md shadow-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
           {/* Text Edit Button - hide for image-only blocks without text content */}
           {(block.type !== 'image' || block.content || block.title) && (
             <Button
