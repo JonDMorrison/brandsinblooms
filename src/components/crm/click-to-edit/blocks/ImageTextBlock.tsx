@@ -333,6 +333,17 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                       }}
                     />
                     
+                    {/* Image Overlay */}
+                    {block.overlayOpacity && block.overlayOpacity > 0 && (
+                      <div
+                        className="absolute inset-0 rounded-lg pointer-events-none"
+                        style={{
+                          backgroundColor: block.overlayColor || '#000000',
+                          opacity: block.overlayOpacity / 100
+                        }}
+                      />
+                    )}
+                    
                     {/* Loading indicator for when updating existing image */}
                     {isImageLoading && currentImageUrl && (
                       <div className="absolute top-2 right-2 z-10">

@@ -106,12 +106,24 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
           aria-label="Click to edit image"
         >
           {block.imageUrl ? (
-            <img
-              src={block.imageUrl}
-              alt={block.altText || 'Newsletter image'}
-              className="max-w-full h-auto rounded-lg"
-              loading="lazy"
-            />
+            <div className="relative">
+              <img
+                src={block.imageUrl}
+                alt={block.altText || 'Newsletter image'}
+                className="max-w-full h-auto rounded-lg"
+                loading="lazy"
+              />
+              {/* Image Overlay */}
+              {block.overlayOpacity && block.overlayOpacity > 0 && (
+                <div
+                  className="absolute inset-0 rounded-lg pointer-events-none"
+                  style={{
+                    backgroundColor: block.overlayColor || '#000000',
+                    opacity: block.overlayOpacity / 100
+                  }}
+                />
+              )}
+            </div>
           ) : (
             <div className="bg-muted rounded-lg aspect-video flex items-center justify-center text-muted-foreground hover:bg-muted/80">
               Click to add image
