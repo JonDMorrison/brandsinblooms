@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,20 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   onSave,
   onCancel
 }) => {
+  // Local state for input fields to preserve cursor position
+  const [headline, setHeadline] = useState(block.headline || block.title || '');
+  const [altText, setAltText] = useState(block.altText || '');
+  const [ctaText, setCtaText] = useState(block.ctaText || block.buttonText || '');
+  const [ctaUrl, setCtaUrl] = useState(block.ctaUrl || block.buttonUrl || '');
+
+  // Sync local state when block changes externally
+  useEffect(() => {
+    setHeadline(block.headline || block.title || '');
+    setAltText(block.altText || '');
+    setCtaText(block.ctaText || block.buttonText || '');
+    setCtaUrl(block.ctaUrl || block.buttonUrl || '');
+  }, [block.id]); // Only sync when block ID changes, not on every update
+
   const handleSave = () => {
     console.log('📝 TextEditMode: Save button clicked, current block data:', {
       id: block.id,
@@ -47,11 +61,14 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
           <Label htmlFor="headline">Headline</Label>
           <Input
             id="headline"
-            value={block.headline || block.title || ''}
-            onChange={(e) => onUpdate({ 
-              headline: e.target.value,
-              title: e.target.value 
-            })}
+            value={headline}
+            onChange={(e) => {
+              setHeadline(e.target.value);
+              onUpdate({ 
+                headline: e.target.value,
+                title: e.target.value 
+              });
+            }}
             onKeyDown={(e) => {
               e.stopPropagation();
               if (e.key === ' ') {
@@ -92,8 +109,11 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
           <Label htmlFor="altText">Image Alt Text</Label>
           <Input
             id="altText"
-            value={block.altText || ''}
-            onChange={(e) => onUpdate({ altText: e.target.value })}
+            value={altText}
+            onChange={(e) => {
+              setAltText(e.target.value);
+              onUpdate({ altText: e.target.value });
+            }}
             onKeyDown={(e) => {
               e.stopPropagation();
               if (e.key === ' ') {
@@ -112,11 +132,14 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             <Label htmlFor="ctaText">Button Text</Label>
             <Input
               id="ctaText"
-              value={block.ctaText || block.buttonText || ''}
-              onChange={(e) => onUpdate({ 
-                ctaText: e.target.value,
-                buttonText: e.target.value 
-              })}
+              value={ctaText}
+              onChange={(e) => {
+                setCtaText(e.target.value);
+                onUpdate({ 
+                  ctaText: e.target.value,
+                  buttonText: e.target.value 
+                });
+              }}
               onKeyDown={(e) => {
                 e.stopPropagation();
                 if (e.key === ' ') {
@@ -130,11 +153,14 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             <Label htmlFor="ctaUrl">Button URL</Label>
             <Input
               id="ctaUrl"
-              value={block.ctaUrl || block.buttonUrl || ''}
-              onChange={(e) => onUpdate({ 
-                ctaUrl: e.target.value,
-                buttonUrl: e.target.value 
-              })}
+              value={ctaUrl}
+              onChange={(e) => {
+                setCtaUrl(e.target.value);
+                onUpdate({ 
+                  ctaUrl: e.target.value,
+                  buttonUrl: e.target.value 
+                });
+              }}
               onKeyDown={(e) => {
                 e.stopPropagation();
                 if (e.key === ' ') {
