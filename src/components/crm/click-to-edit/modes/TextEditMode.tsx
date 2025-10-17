@@ -40,19 +40,33 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   }, [block.id]); // Only sync when block ID changes, not on every update
 
   const handleSave = () => {
-    console.log('📝 TextEditMode: Save button clicked, current block data:', {
-      id: block.id,
-      type: block.type,
-      title: block.title,
-      headline: block.headline,
-      content: block.content,
-      body: block.body,
-      ctaText: block.ctaText,
-      ctaUrl: block.ctaUrl,
-      buttonText: block.buttonText,
-      buttonUrl: block.buttonUrl
-    });
-    onSave?.();
+    // Ensure all local state is synced to parent before saving
+    const updates: Partial<ContentBlock> = {
+      headline,
+      title: headline,
+      subtitle: subheading,
+      altText,
+      ctaText,
+      buttonText: ctaText,
+      ctaUrl,
+      buttonUrl: ctaUrl
+    };
+
+    // Add newsletter-specific fields if applicable
+    if (block.type === 'newsletter-header') {
+      updates.issueNumber = issueNumber;
+      updates.publishDate = publishDate;
+    }
+
+    console.log('📝 TextEditMode: Save button clicked, syncing updates:', updates);
+    
+    // Sync all updates before calling onSave
+    onUpdate(updates);
+    
+    // Small delay to ensure state updates are processed
+    setTimeout(() => {
+      onSave?.();
+    }, 50);
   };
 
   return (
