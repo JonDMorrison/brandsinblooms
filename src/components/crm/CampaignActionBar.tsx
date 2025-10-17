@@ -68,7 +68,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
 
   return (
     <div className={`sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b ${className}`}>
-      <div className="max-w-full mx-auto px-6 py-4">
+      <div className="max-w-full mx-auto px-6 py-4 bg-white">
         <div className="flex items-center justify-between">
           {/* Left side - Status indicators */}
           <div className="flex items-center space-x-4">
