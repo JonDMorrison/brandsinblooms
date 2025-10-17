@@ -23,9 +23,15 @@ export const sanitizeHtml = (html: string): string => {
       }
     });
 
-    // Always remove inline styles
+    // Remove inline styles except text-align (safe for layout)
     if (element.hasAttribute('style')) {
-      element.removeAttribute('style');
+      const style = element.getAttribute('style') || '';
+      const textAlignMatch = style.match(/text-align:\s*(left|center|right|justify)/i);
+      if (textAlignMatch) {
+        element.setAttribute('style', `text-align: ${textAlignMatch[1]}`);
+      } else {
+        element.removeAttribute('style');
+      }
     }
 
     // Restrict anchor tags and media sources
@@ -91,6 +97,17 @@ export const sanitizeNewsletterContent = (content: string): string => {
     if (!allowedTags.includes(element.tagName.toLowerCase())) {
       // Replace with its content
       element.outerHTML = element.innerHTML;
+    } else {
+      // For allowed tags, preserve only safe style attributes (text-align)
+      if (element.hasAttribute('style')) {
+        const style = element.getAttribute('style') || '';
+        const textAlignMatch = style.match(/text-align:\s*(left|center|right|justify)/i);
+        if (textAlignMatch) {
+          element.setAttribute('style', `text-align: ${textAlignMatch[1]}`);
+        } else {
+          element.removeAttribute('style');
+        }
+      }
     }
   });
   
