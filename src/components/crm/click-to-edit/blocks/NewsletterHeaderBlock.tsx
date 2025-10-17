@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { ContextualToolbar } from '../contextual/ContextualToolbar';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
+import { Calendar } from 'lucide-react';
 
 interface NewsletterHeaderBlockProps {
   block: ContentBlock;
@@ -31,6 +32,9 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
   editMode,
   onModeChange 
 }) => {
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [tempDate, setTempDate] = useState(block.publishDate || '');
+
   // Live preview component that can be reused
   const PreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group min-h-[400px]">
@@ -132,12 +136,50 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
             
             {block.publishDate && (
               <div className="flex items-center gap-2">
-                <span>{new Date(block.publishDate).toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long', 
-                  day: 'numeric'
-                })}</span>
+                {isPreview && isEditingDate ? (
+                  <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
+                    <Input
+                      type="date"
+                      value={tempDate}
+                      onChange={(e) => setTempDate(e.target.value)}
+                      onBlur={() => {
+                        onUpdate({ publishDate: tempDate });
+                        setIsEditingDate(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          onUpdate({ publishDate: tempDate });
+                          setIsEditingDate(false);
+                        } else if (e.key === 'Escape') {
+                          setTempDate(block.publishDate || '');
+                          setIsEditingDate(false);
+                        }
+                      }}
+                      className="bg-white text-gray-900 border-none h-8 w-40"
+                      autoFocus
+                    />
+                  </div>
+                ) : (
+                  <span 
+                    className={cn(
+                      isPreview && "cursor-pointer hover:bg-white/10 px-3 py-1 rounded-lg transition-colors"
+                    )}
+                    onClick={() => {
+                      if (isPreview) {
+                        setTempDate(block.publishDate || '');
+                        setIsEditingDate(true);
+                      }
+                    }}
+                  >
+                    <Calendar className="inline-block w-4 h-4 mr-2" />
+                    {new Date(block.publishDate).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long', 
+                      day: 'numeric'
+                    })}
+                  </span>
+                )}
               </div>
             )}
           </div>
