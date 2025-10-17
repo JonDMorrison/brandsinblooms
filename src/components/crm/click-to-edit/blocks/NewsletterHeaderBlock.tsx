@@ -66,6 +66,17 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
         />
       )}
 
+      {/* Custom Image Overlay from overlay dialog */}
+      {block.overlayOpacity && block.overlayOpacity > 0 && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundColor: block.overlayColor || '#000000',
+            opacity: block.overlayOpacity / 100
+          }}
+        />
+      )}
+
       {/* Contextual Toolbar - only show when onModeChange is available */}
       {onModeChange && (
         <ContextualToolbar
