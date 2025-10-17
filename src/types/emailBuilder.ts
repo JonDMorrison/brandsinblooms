@@ -80,6 +80,8 @@ export interface ContentBlock {
   backgroundOpacity?: number;
   colorOverlayOpacity?: number;
   darkOverlayOpacity?: number;
+  overlayOpacity?: number;
+  overlayColor?: string;
   altText?: string;
   caption?: string;
   buttonText?: string;

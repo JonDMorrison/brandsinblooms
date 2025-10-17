@@ -3,7 +3,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GripVertical, Trash2, Edit, Image, Zap, CheckCircle, AlertTriangle } from 'lucide-react';
+import { GripVertical, Trash2, Edit, Image, Zap, CheckCircle, AlertTriangle, Layers } from 'lucide-react';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
@@ -11,6 +11,7 @@ import { BlockLoadingOverlay } from './BlockLoadingOverlay';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 import { RegenerateBlockButton } from '../RegenerateBlockButton';
 import { assessContentQuality, sanitizeAndImproveContent } from '@/utils/contentQuality';
+import { ImageOverlayDialog } from './ImageOverlayDialog';
 
 interface ClickToEditBlockProps {
   block: ContentBlock;
@@ -48,6 +49,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   const blockRef = useRef<HTMLDivElement>(null);
   const editingRef = useRef<HTMLDivElement>(null);
   const [isMediaSelectorOpen, setIsMediaSelectorOpen] = useState(false);
+  const [isOverlayDialogOpen, setIsOverlayDialogOpen] = useState(false);
   
   // Use the new edit mode hook
   const { editMode, setEditMode, toggleMode, exitEditMode, isTextEditing, isImageEditing } = useBlockEditMode();
@@ -252,6 +254,22 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
           >
             <Image className="w-3 h-3" />
           </Button>
+
+          {/* Image Overlay Button - only show if block has an image */}
+          {(block.imageUrl || block.backgroundImageUrl) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOverlayDialogOpen(true);
+              }}
+              className="h-7 w-7 p-0 hover:bg-muted"
+              title="Edit image overlay"
+            >
+              <Layers className="w-3 h-3" />
+            </Button>
+          )}
           
           {/* Content Quality Indicator & Strengthen Button */}
           {(() => {
@@ -465,6 +483,14 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
           contentContext={`${block.title || block.content || block.type}`}
         />
       )}
+
+      {/* Image Overlay Dialog */}
+      <ImageOverlayDialog
+        isOpen={isOverlayDialogOpen}
+        onClose={() => setIsOverlayDialogOpen(false)}
+        block={localBlock}
+        onUpdate={handleLocalUpdate}
+      />
     </div>
   );
 };

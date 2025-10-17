@@ -576,6 +576,8 @@ export type Database = {
           image_url: string | null
           layout_settings: Json | null
           order_index: number
+          overlay_color: string | null
+          overlay_opacity: number | null
           persona_tag: string | null
           source: string | null
           updated_at: string
@@ -593,6 +595,8 @@ export type Database = {
           image_url?: string | null
           layout_settings?: Json | null
           order_index?: number
+          overlay_color?: string | null
+          overlay_opacity?: number | null
           persona_tag?: string | null
           source?: string | null
           updated_at?: string
@@ -610,6 +614,8 @@ export type Database = {
           image_url?: string | null
           layout_settings?: Json | null
           order_index?: number
+          overlay_color?: string | null
+          overlay_opacity?: number | null
           persona_tag?: string | null
           source?: string | null
           updated_at?: string
