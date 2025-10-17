@@ -52,6 +52,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               headline: e.target.value,
               title: e.target.value 
             })}
+            onKeyDown={(e) => e.stopPropagation()}
             placeholder="Enter headline"
             className="w-full"
           />
@@ -88,6 +89,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             id="altText"
             value={block.altText || ''}
             onChange={(e) => onUpdate({ altText: e.target.value })}
+            onKeyDown={(e) => e.stopPropagation()}
             placeholder="Describe the image for accessibility"
           />
         </div>
@@ -105,6 +107,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
                 ctaText: e.target.value,
                 buttonText: e.target.value 
               })}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="Enter button text"
             />
           </div>
@@ -117,6 +120,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
                 ctaUrl: e.target.value,
                 buttonUrl: e.target.value 
               })}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="https://example.com"
             />
           </div>
