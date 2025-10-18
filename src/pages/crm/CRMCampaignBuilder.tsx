@@ -176,20 +176,22 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
       
       // Create a properly structured content object for EmailBlockRenderer
       // EmailBlockRenderer expects: block.content.content for text content
+      // IMPORTANT: Read from dedicated database columns first, then fall back to content object
       const processedContent = {
         title: contentObj?.title || contentObj?.headline || '',
         content: displayText, // This is what EmailBlockRenderer.renderText() uses
         body: contentObj?.body || displayText,
         headline: contentObj?.headline || contentObj?.title || '',
-        subtitle: contentObj?.subtitle || '',
+        // Read from dedicated database columns first, then fall back to content
+        subtitle: block.subtitle || contentObj?.subtitle || '',
         imageUrl: contentObj?.imageUrl || '',
         layout: contentObj?.layout || 'full-width',
         textAlign: contentObj?.textAlign || 'left',
-        // Newsletter header specific fields
-        issueNumber: contentObj?.issueNumber || '',
-        publishDate: contentObj?.publishDate || '',
-        backgroundImageUrl: contentObj?.backgroundImageUrl || '',
-        altText: contentObj?.altText || ''
+        // Newsletter header specific fields - read from dedicated columns
+        issueNumber: block.issue_number || contentObj?.issueNumber || '',
+        publishDate: block.publish_date || contentObj?.publishDate || '',
+        backgroundImageUrl: block.background_image_url || contentObj?.backgroundImageUrl || '',
+        altText: block.alt_text || contentObj?.altText || ''
       };
       
       console.log('✅ Block processed:', block.id, { 

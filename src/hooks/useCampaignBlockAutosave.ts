@@ -86,6 +86,14 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
         contentKeys: Object.keys(cleanContent).filter(key => cleanContent[key] !== undefined)
       });
 
+      console.log('[AUTO-SAVE] Database columns being saved:', {
+        subtitle: cleanContent.subtitle || null,
+        issue_number: cleanContent.issueNumber || null,
+        publish_date: cleanContent.publishDate || null,
+        background_image_url: cleanContent.backgroundImageUrl || null,
+        alt_text: cleanContent.altText || null
+      });
+
       // Use upsert to either insert or update the block
       const { error: upsertError } = await supabase
         .from('campaign_blocks')
