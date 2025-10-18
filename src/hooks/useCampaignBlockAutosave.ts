@@ -49,6 +49,11 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
         backgroundColor: block.content?.backgroundColor,
         backgroundImageUrl: block.content?.backgroundImageUrl,
         backgroundOpacity: block.content?.backgroundOpacity,
+        // Overlays
+        overlayColor: block.content?.overlayColor,
+        overlayOpacity: block.content?.overlayOpacity,
+        colorOverlayOpacity: block.content?.colorOverlayOpacity,
+        darkOverlayOpacity: block.content?.darkOverlayOpacity,
         // Special content
         quote: block.content?.quote,
         author: block.content?.author,

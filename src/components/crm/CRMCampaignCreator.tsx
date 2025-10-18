@@ -543,6 +543,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 backgroundColor: block.backgroundColor,
                 backgroundImageUrl: block.backgroundImageUrl,
                 backgroundOpacity: block.backgroundOpacity,
+                // Overlays
+                overlayColor: (block as any).overlayColor,
+                overlayOpacity: (block as any).overlayOpacity,
+                colorOverlayOpacity: (block as any).colorOverlayOpacity,
+                darkOverlayOpacity: (block as any).darkOverlayOpacity,
                 layout: block.layout,
                 caption: block.caption,
                 altText: block.altText,
@@ -1885,6 +1890,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           backgroundColor: contentObj?.backgroundColor,
           backgroundImageUrl: contentObj?.backgroundImageUrl,
           backgroundOpacity: contentObj?.backgroundOpacity,
+          // Overlays
+          overlayColor: contentObj?.overlayColor,
+          overlayOpacity: contentObj?.overlayOpacity,
+          colorOverlayOpacity: contentObj?.colorOverlayOpacity,
+          darkOverlayOpacity: contentObj?.darkOverlayOpacity,
           // Special content
           quote: contentObj?.quote,
           author: contentObj?.author,
