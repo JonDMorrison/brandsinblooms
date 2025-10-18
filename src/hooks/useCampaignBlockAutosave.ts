@@ -99,6 +99,12 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
           image_url: block.block_type === 'header' ? block.content?.backgroundImageUrl : (block.image_url || block.content?.imageUrl || null),
           cta_url: block.cta_url || block.content?.ctaUrl || block.content?.buttonUrl || null,
           cta_text: block.cta_text || block.content?.ctaText || block.content?.buttonText || null,
+          // Store newsletter header fields in dedicated columns
+          subtitle: cleanContent.subtitle || null,
+          issue_number: cleanContent.issueNumber || null,
+          publish_date: cleanContent.publishDate || null,
+          background_image_url: cleanContent.backgroundImageUrl || null,
+          alt_text: cleanContent.altText || null,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'id'
