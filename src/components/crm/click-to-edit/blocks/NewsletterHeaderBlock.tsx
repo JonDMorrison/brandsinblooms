@@ -42,6 +42,28 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
   const issueNumber = block.issueNumber || content.issueNumber || '';
   const publishDate = block.publishDate || content.publishDate || '';
 
+  console.log('📰 [NewsletterHeaderBlock] Field values:', {
+    blockId: block.id,
+    title,
+    subtitle,
+    issueNumber,
+    publishDate,
+    rawBlock: {
+      title: block.title,
+      subtitle: block.subtitle,
+      issueNumber: block.issueNumber,
+      publishDate: block.publishDate,
+      headline: block.headline
+    },
+    content: {
+      title: content.title,
+      subtitle: content.subtitle,
+      issueNumber: content.issueNumber,
+      publishDate: content.publishDate,
+      headline: content.headline
+    }
+  });
+
   // Live preview component that can be reused
   const PreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group min-h-[400px]">
