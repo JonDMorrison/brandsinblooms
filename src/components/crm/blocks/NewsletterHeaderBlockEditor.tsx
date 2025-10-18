@@ -21,7 +21,8 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
   // Get values from either top-level or content object
   // Content can be string or object, so we need to handle both
   const contentObj = typeof block.content === 'object' ? block.content : {};
-  const title = (block as any).title || (contentObj as any)?.title || '';
+  // Map both 'title' and 'headline' for backwards compatibility
+  const title = (block as any).title || (contentObj as any)?.title || (contentObj as any)?.headline || '';
   const subtitle = (block as any).subtitle || (contentObj as any)?.subtitle || '';
   const issueNumber = (block as any).issueNumber || (contentObj as any)?.issueNumber || '';
   const publishDate = (block as any).publishDate || (contentObj as any)?.publishDate || '';
@@ -91,7 +92,10 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
         <Input
           id="header-title"
           value={title}
-          onChange={(e) => onUpdate({ title: e.target.value })}
+          onChange={(e) => onUpdate({ 
+            title: e.target.value,
+            headline: e.target.value // Also update headline for backwards compatibility
+          })}
           placeholder="Enter newsletter title..."
         />
       </div>
