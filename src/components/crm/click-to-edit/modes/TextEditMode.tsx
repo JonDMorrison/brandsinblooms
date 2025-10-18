@@ -51,7 +51,10 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       ctaText,
       buttonText: ctaText,
       ctaUrl,
-      buttonUrl: ctaUrl
+      buttonUrl: ctaUrl,
+      // Always include these fields if they exist
+      issueNumber,
+      publishDate
     };
 
     // Add body/content field
@@ -61,13 +64,12 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       updates.content = bodyContent;
     }
 
-    // Add newsletter-specific fields if applicable
-    if (block.type === 'newsletter-header') {
-      updates.issueNumber = issueNumber;
-      updates.publishDate = publishDate;
-    }
-
-    console.log('📝 TextEditMode: Save button clicked, syncing all updates:', updates);
+    console.log('📝 TextEditMode: Save & Close clicked - saving all fields:', {
+      subtitle: subheading,
+      issueNumber,
+      publishDate,
+      allUpdates: updates
+    });
     
     // Sync all updates before calling onSave
     onUpdate(updates);
