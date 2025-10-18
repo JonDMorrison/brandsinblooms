@@ -262,7 +262,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
     <div className="max-w-4xl mx-auto space-y-2">
       
       {/* Add block button at top */}
-      <AddBlockButton />
+      <AddBlockButton afterIndex={-1} />
 
       {/* Render all blocks */}
       {blocks.map((block, index) => (
