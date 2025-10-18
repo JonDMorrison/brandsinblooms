@@ -86,13 +86,16 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
         contentKeys: Object.keys(cleanContent).filter(key => cleanContent[key] !== undefined)
       });
 
-      console.log('[AUTO-SAVE] Content JSON being saved:', {
-        subtitle: cleanContent.subtitle || null,
-        issueNumber: cleanContent.issueNumber || null,
-        publishDate: cleanContent.publishDate || null,
-        backgroundImageUrl: cleanContent.backgroundImageUrl || null,
-        altText: cleanContent.altText || null,
-        allFields: Object.keys(cleanContent).filter(key => cleanContent[key] !== undefined)
+      console.log('[AUTO-SAVE] 📤 Newsletter fields being saved to content JSON:', {
+        subtitle: cleanContent.subtitle || '(empty)',
+        issueNumber: cleanContent.issueNumber || '(empty)',
+        publishDate: cleanContent.publishDate || '(empty)',
+        backgroundImageUrl: cleanContent.backgroundImageUrl || '(empty)',
+        altText: cleanContent.altText || '(empty)',
+        sourceBlock: {
+          topLevel_subtitle: (block as any).subtitle,
+          content_subtitle: block.content?.subtitle
+        }
       });
 
       // Use upsert to either insert or update the block

@@ -294,26 +294,27 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
     setBlocks(prev => prev.map(block => {
       if (block.id !== blockId) return block;
       
-      // Store updates at BOTH top level (for dedicated database columns) 
-      // AND in content object (for immediate rendering)
+      // Store updates at BOTH top level AND in content object
       const currentContent = typeof block.content === 'object' ? block.content : {};
       
       const updatedBlock = { 
         ...block, 
         ...updates,
-        // Merge updates into content object as well for rendering
+        // Merge updates into content object for storage
         content: {
           ...currentContent,
           ...updates
         }
       };
       
-      console.log('📝 Block updated:', {
+      console.log('📝 [updateBlock] Newsletter fields:', {
         blockId,
         blockType: block.block_type,
-        updates,
-        topLevel: updates,
-        inContent: updatedBlock.content
+        subtitle: (updates as any).subtitle || (updatedBlock.content as any)?.subtitle,
+        issueNumber: (updates as any).issueNumber || (updatedBlock.content as any)?.issueNumber,
+        publishDate: (updates as any).publishDate || (updatedBlock.content as any)?.publishDate,
+        topLevelFields: Object.keys(updates),
+        contentFields: Object.keys(updatedBlock.content)
       });
       
       return updatedBlock;
