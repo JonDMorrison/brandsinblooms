@@ -76,13 +76,22 @@ export function sanitizeWeekNumbers(content: string): string {
 /**
  * Validates content to ensure it contains no week number references
  */
-export function validateNoWeekNumbers(content: string): {
+export function validateNoWeekNumbers(content: string | any): {
   isValid: boolean;
   issues: string[];
   foundPatterns: string[];
 } {
   const issues: string[] = [];
   const foundPatterns: string[] = [];
+
+  // Handle non-string content gracefully
+  if (!content || typeof content !== 'string') {
+    return {
+      isValid: true,
+      issues: [],
+      foundPatterns: []
+    };
+  }
 
   // Check each pattern
   WEEK_NUMBER_PATTERNS.forEach(pattern => {

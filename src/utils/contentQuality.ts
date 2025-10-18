@@ -8,13 +8,26 @@ export interface ContentQualityCheck {
   level: 'excellent' | 'good' | 'fair' | 'poor';
 }
 
-export const assessContentQuality = (content: string, type: 'subject' | 'preheader' | 'body' = 'body'): ContentQualityCheck => {
+export const assessContentQuality = (content: string | any, type: 'subject' | 'preheader' | 'body' = 'body'): ContentQualityCheck => {
   const issues: string[] = [];
   const suggestions: string[] = [];
   let score = 100;
 
+  // Handle non-string content (e.g., objects) gracefully
+  const contentStr = typeof content === 'string' ? content : '';
+  
+  if (!contentStr) {
+    return {
+      isValid: true,
+      score: 100,
+      issues: [],
+      suggestions: [],
+      level: 'excellent'
+    };
+  }
+
   // Check for week number violations
-  const weekValidation = validateNoWeekNumbers(content);
+  const weekValidation = validateNoWeekNumbers(contentStr);
   if (!weekValidation.isValid) {
     issues.push('Contains week number references');
     suggestions.push('Remove specific week references - use seasonal language instead');
@@ -23,11 +36,11 @@ export const assessContentQuality = (content: string, type: 'subject' | 'prehead
 
   // Content type specific checks
   if (type === 'subject') {
-    return assessSubjectLineQuality(content, issues, suggestions, score);
+    return assessSubjectLineQuality(contentStr, issues, suggestions, score);
   } else if (type === 'preheader') {
-    return assessPreheaderQuality(content, issues, suggestions, score);
+    return assessPreheaderQuality(contentStr, issues, suggestions, score);
   } else {
-    return assessBodyContentQuality(content, issues, suggestions, score);
+    return assessBodyContentQuality(contentStr, issues, suggestions, score);
   }
 };
 
