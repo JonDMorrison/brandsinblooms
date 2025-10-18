@@ -294,17 +294,10 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
     setBlocks(prev => prev.map(block => {
       if (block.id !== blockId) return block;
       
-      // Store updates at BOTH top level AND in content object
-      const currentContent = typeof block.content === 'object' ? block.content : {};
-      
+      // Simply merge updates at top level - autosave hook will handle database serialization
       const updatedBlock = { 
         ...block, 
-        ...updates,
-        // Merge updates into content object for storage
-        content: {
-          ...currentContent,
-          ...updates
-        }
+        ...updates
       };
       
       return updatedBlock;

@@ -357,43 +357,19 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   };
 
   const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
-    console.log('🔧 Updating block: {id} with updates: {updates}', id, 'with updates:', updates);
+    console.log('🔧 Updating block:', id, 'with updates:', updates);
     const newBlocks = internalBlocks.map(block => {
       if (block.id === id) {
-        // For newsletter-header blocks, store fields in BOTH places
-        let updatedBlock: ContentBlock;
-        
-        if (block.type === 'newsletter-header') {
-          const currentContent = typeof block.content === 'object' ? block.content : {};
-          const newsletterFields = ['subtitle', 'issueNumber', 'publishDate', 'backgroundImageUrl', 'altText'];
-          
-          const newsletterUpdates: any = {};
-          Object.keys(updates).forEach(key => {
-            if (newsletterFields.includes(key)) {
-              newsletterUpdates[key] = (updates as any)[key];
-            }
-          });
-          
-          updatedBlock = {
-            ...block,
-            ...updates,
-            content: {
-              ...currentContent,
-              ...newsletterUpdates
-            }
-          };
-        } else {
-          updatedBlock = { ...block, ...updates };
-        }
+        // Simply merge updates at top level
+        const updatedBlock: ContentBlock = { ...block, ...updates };
         
         console.log('🧱 Block after update:', {
           id: updatedBlock.id,
           type: updatedBlock.type,
           title: updatedBlock.title,
-          content: updatedBlock.content,
-          imageUrl: updatedBlock.imageUrl,
-          buttonText: updatedBlock.buttonText,
-          buttonUrl: updatedBlock.buttonUrl
+          subtitle: updatedBlock.subtitle,
+          issueNumber: updatedBlock.issueNumber,
+          publishDate: updatedBlock.publishDate
         });
         return updatedBlock;
       }
