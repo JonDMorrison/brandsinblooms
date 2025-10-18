@@ -164,9 +164,13 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
         content: displayText, // This is what EmailBlockRenderer.renderText() uses
         body: contentObj?.body || displayText,
         headline: contentObj?.headline || '',
+        subtitle: contentObj?.subtitle || '',
         imageUrl: contentObj?.imageUrl || '',
         layout: contentObj?.layout || 'full-width',
-        textAlign: contentObj?.textAlign || 'left'
+        textAlign: contentObj?.textAlign || 'left',
+        // Newsletter header specific fields
+        issueNumber: contentObj?.issueNumber || '',
+        publishDate: contentObj?.publishDate || ''
       };
       
       console.log('✅ Block processed:', block.id, { 
