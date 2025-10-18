@@ -217,13 +217,18 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       
       // Create deep copy to prevent reference issues
       const hydratedBlocks = blocks.map(block => {
-        const hydratedBlock = {
+      const hydratedBlock = {
           ...block,
           // Normalize field names for consistency across the app
           headline: block.headline || block.heading || block.title || '',
           body: block.body || block.content || '',
           title: block.title || block.headline || block.heading || 'Untitled',
           content: block.content || block.body || '',
+          // Preserve newsletter-specific fields
+          subtitle: block.subtitle || '',
+          issueNumber: block.issueNumber || '',
+          publishDate: block.publishDate || '',
+          backgroundImageUrl: block.backgroundImageUrl || '',
           // Lift nested imageUrl to top level if missing at top level
           imageUrl: block.imageUrl || 
                    (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) || 

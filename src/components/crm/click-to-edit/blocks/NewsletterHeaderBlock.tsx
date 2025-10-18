@@ -38,7 +38,7 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
   // Handle nested content structure from database
   const content = (block.content || {}) as any;
   const title = block.title || content.title || block.headline || content.headline || '';
-  const subtitle = block.subtitle || content.subtitle || block.body || content.body || '';
+  const subtitle = block.subtitle || content.subtitle || '';
   const issueNumber = block.issueNumber || content.issueNumber || '';
   const publishDate = block.publishDate || content.publishDate || '';
 
@@ -248,7 +248,7 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
         <Textarea
           id="subtitle"
           value={typeof subtitle === 'string' ? subtitle : ''}
-          onChange={(e) => onUpdate({ subtitle: e.target.value, body: e.target.value })}
+          onChange={(e) => onUpdate({ subtitle: e.target.value })}
           placeholder="Enter newsletter subtitle"
           rows={2}
         />
