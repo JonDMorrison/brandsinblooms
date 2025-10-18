@@ -118,18 +118,52 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
     const newBlocks = blocks.map(block => {
       if (block.id !== id) return block;
       
-      // For newsletter-header blocks, keep fields at top level (not in content object)
-      // For other blocks, merge into content only if content is already an object
-      const updatedBlock: ContentBlock = { 
-        ...block, 
-        ...updates
-      };
+      // For newsletter-header blocks, store fields in BOTH places:
+      // - At top level for immediate rendering
+      // - In content object for database persistence
+      let updatedBlock: ContentBlock;
       
-      console.log('📝 Click-to-edit block updated:', {
-        blockId: id,
-        blockType: block.type,
-        updates
-      });
+      if (block.type === 'newsletter-header') {
+        const currentContent = typeof block.content === 'object' ? block.content : {};
+        const newsletterFields = ['subtitle', 'issueNumber', 'publishDate', 'backgroundImageUrl', 'altText'];
+        
+        // Extract newsletter-specific fields from updates
+        const newsletterUpdates: any = {};
+        Object.keys(updates).forEach(key => {
+          if (newsletterFields.includes(key)) {
+            newsletterUpdates[key] = (updates as any)[key];
+          }
+        });
+        
+        updatedBlock = { 
+          ...block, 
+          ...updates,
+          // Merge newsletter fields into content object for database
+          content: {
+            ...currentContent,
+            ...newsletterUpdates
+          }
+        };
+        
+        console.log('📝 Newsletter block updated with content JSON:', {
+          blockId: id,
+          topLevel: Object.keys(updates),
+          inContent: Object.keys(newsletterUpdates),
+          contentValue: updatedBlock.content
+        });
+      } else {
+        // For other blocks, just spread updates at top level
+        updatedBlock = { 
+          ...block, 
+          ...updates
+        };
+        
+        console.log('📝 Click-to-edit block updated:', {
+          blockId: id,
+          blockType: block.type,
+          updates
+        });
+      }
       
       return updatedBlock;
     });

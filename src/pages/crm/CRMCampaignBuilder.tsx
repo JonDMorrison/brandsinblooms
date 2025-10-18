@@ -307,16 +307,6 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
         }
       };
       
-      console.log('📝 [updateBlock] Newsletter fields:', {
-        blockId,
-        blockType: block.block_type,
-        subtitle: (updates as any).subtitle || (updatedBlock.content as any)?.subtitle,
-        issueNumber: (updates as any).issueNumber || (updatedBlock.content as any)?.issueNumber,
-        publishDate: (updates as any).publishDate || (updatedBlock.content as any)?.publishDate,
-        topLevelFields: Object.keys(updates),
-        contentFields: Object.keys(updatedBlock.content)
-      });
-      
       return updatedBlock;
     }));
   };
