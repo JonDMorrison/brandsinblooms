@@ -291,16 +291,14 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         ...config
       };
       
-      if (index !== undefined) {
-        const newBlocks = [...internalBlocks];
-        newBlocks.splice(index + 1, 0, newBlock);
-        setInternalBlocks(newBlocks);
-        onBlocksChange(newBlocks);
-      } else {
-        const newBlocks = [...internalBlocks, newBlock];
-        setInternalBlocks(newBlocks);
-        onBlocksChange(newBlocks);
-      }
+      const newBlocks = [...internalBlocks];
+      // When index is -1, insert at start (position 0)
+      // When index is a number >= 0, insert after that index (position index + 1)
+      // When index is undefined, insert at end
+      const insertAt = index !== undefined ? (index === -1 ? 0 : index + 1) : newBlocks.length;
+      newBlocks.splice(insertAt, 0, newBlock);
+      setInternalBlocks(newBlocks);
+      onBlocksChange(newBlocks);
     } catch (error) {
       console.error('Error adding block with layout:', error);
       // Fallback to adding block without auto-image
@@ -335,16 +333,14 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         ...fallbackConfig.config
       };
       
-      if (index !== undefined) {
-        const newBlocks = [...internalBlocks];
-        newBlocks.splice(index + 1, 0, newBlock);
-        setInternalBlocks(newBlocks);
-        onBlocksChange(newBlocks);
-      } else {
-        const newBlocks = [...internalBlocks, newBlock];
-        setInternalBlocks(newBlocks);
-        onBlocksChange(newBlocks);
-      }
+      const newBlocks = [...internalBlocks];
+      // When index is -1, insert at start (position 0)
+      // When index is a number >= 0, insert after that index (position index + 1)
+      // When index is undefined, insert at end
+      const insertAt = index !== undefined ? (index === -1 ? 0 : index + 1) : newBlocks.length;
+      newBlocks.splice(insertAt, 0, newBlock);
+      setInternalBlocks(newBlocks);
+      onBlocksChange(newBlocks);
     }
   };
 
