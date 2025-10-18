@@ -22,6 +22,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   // Local state for input fields to preserve cursor position
   const [headline, setHeadline] = useState(block.headline || block.title || '');
   const [subheading, setSubheading] = useState(block.subtitle || '');
+  const [bodyContent, setBodyContent] = useState(block.body || block.content || '');
   const [altText, setAltText] = useState(block.altText || '');
   const [ctaText, setCtaText] = useState(block.ctaText || block.buttonText || '');
   const [ctaUrl, setCtaUrl] = useState(block.ctaUrl || block.buttonUrl || '');
@@ -32,6 +33,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   useEffect(() => {
     setHeadline(block.headline || block.title || '');
     setSubheading(block.subtitle || '');
+    setBodyContent(block.body || block.content || '');
     setAltText(block.altText || '');
     setCtaText(block.ctaText || block.buttonText || '');
     setCtaUrl(block.ctaUrl || block.buttonUrl || '');
@@ -52,13 +54,20 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       buttonUrl: ctaUrl
     };
 
+    // Add body/content field
+    if (block.body !== undefined) {
+      updates.body = bodyContent;
+    } else if (block.content !== undefined) {
+      updates.content = bodyContent;
+    }
+
     // Add newsletter-specific fields if applicable
     if (block.type === 'newsletter-header') {
       updates.issueNumber = issueNumber;
       updates.publishDate = publishDate;
     }
 
-    console.log('📝 TextEditMode: Save button clicked, syncing updates:', updates);
+    console.log('📝 TextEditMode: Save button clicked, syncing all updates:', updates);
     
     // Sync all updates before calling onSave
     onUpdate(updates);
@@ -172,8 +181,10 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             {block.body !== undefined ? 'Body Text' : 'Content'}
           </Label>
           <RichTextEditor
-            content={block.body || block.content || ''}
+            content={bodyContent}
             onChange={(html) => {
+              setBodyContent(html);
+              // Still update immediately for live preview
               if (block.body !== undefined) {
                 onUpdate({ body: html });
               } else {
