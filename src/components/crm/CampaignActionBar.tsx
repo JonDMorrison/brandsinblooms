@@ -91,8 +91,8 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
   return (
     <>
       <div ref={stickyRef} className="h-0" />
-      <div className={`${isSticky ? 'w-auto ml-auto' : 'w-full'} sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b ${className}`}>
-        <div className={`${isSticky ? 'w-auto px-4 py-2' : 'w-full -mx-8 px-6 py-4'}`} style={{ backgroundColor: '#fbf9f4' }}>
+      <div className={`sticky top-0 z-50 ${isSticky ? 'flex justify-end' : 'w-full'} ${className}`}>
+        <div className={`${isSticky ? 'inline-flex px-4 py-2 bg-background/95 backdrop-blur-sm border border-border rounded-md shadow-sm' : 'w-full -mx-8 px-6 py-4 bg-background/95 backdrop-blur-sm border-b'}`} style={!isSticky ? { backgroundColor: '#fbf9f4' } : {}}>
           <div className={`flex items-center ${isSticky ? '' : 'justify-between'}`}>
             {/* Left side - Status indicators */}
             {!isSticky && (
