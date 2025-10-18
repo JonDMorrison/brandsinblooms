@@ -107,11 +107,10 @@ const preserveContentDuringTypeChange = (block: ContentBlock, newType: BlockType
       
     case 'newsletter-header':
       preserved.title = block.title || block.content || 'Newsletter Title';
-      preserved.subtitle = block.subtitle || block.body || block.content || '';
-      preserved.body = block.subtitle || block.body || block.content || '';
-      preserved.backgroundImageUrl = block.backgroundImageUrl;
-      preserved.issueNumber = block.issueNumber;
-      preserved.publishDate = block.publishDate;
+      preserved.subtitle = block.subtitle || '';
+      preserved.issueNumber = block.issueNumber || '';
+      preserved.publishDate = block.publishDate || '';
+      preserved.backgroundImageUrl = block.backgroundImageUrl || '';
       preserved.textAlign = block.textAlign || 'center';
       preserved.padding = block.padding || 'large';
       break;
