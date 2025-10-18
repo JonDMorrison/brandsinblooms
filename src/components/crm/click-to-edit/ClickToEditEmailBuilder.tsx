@@ -167,8 +167,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'text':
         // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
-        const hasHeadline = block.headline || block.title;
-        if (block.imageUrl || hasImageLayout || hasHeadline) {
+        // Only render as image-text if there's an actual image OR an explicit image layout was chosen
+        if (block.imageUrl || hasImageLayout) {
           return <ImageTextBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
         }
         return <TextBlock {...props} isPreview={false} />;
@@ -208,8 +208,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'text':
         // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
-        const hasHeadline = block.headline || block.title;
-        if (block.imageUrl || hasImageLayout || hasHeadline) {
+        // Only render as image-text if there's an actual image OR an explicit image layout was chosen
+        if (block.imageUrl || hasImageLayout) {
           return <ImageTextBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
         }
         return <TextBlock {...props} isPreview={true} />;

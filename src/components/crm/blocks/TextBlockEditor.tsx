@@ -89,12 +89,16 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
     layout: block.layout
   });
 
-  // Auto-fetch image for image layouts that don't have an image
+  // Only auto-fetch image for explicit image layouts, not for text-only blocks
   useEffect(() => {
-    if (hasImageLayout && !block.imageUrl && (block.title || block.content)) {
+    // Only fetch if user explicitly chose an image layout AND no image exists yet
+    const explicitImageLayouts = ['two-column-right', 'two-column-left', 'image-left', 'image-right', 'image-60-40', 'image-70-30'];
+    const hasExplicitImageLayout = explicitImageLayouts.includes(block.layout || '');
+    
+    if (hasExplicitImageLayout && !block.imageUrl && (block.title || block.content)) {
       const contentForImage = `${block.title || ''} ${block.content || ''}`.trim();
       if (contentForImage) {
-        console.log('[TextBlockEditor] Auto-fetching image for content:', contentForImage);
+        console.log('[TextBlockEditor] Auto-fetching image for explicit image layout:', contentForImage);
         mediaSelector({ 
           prompt: contentForImage,
           fallback: '/images/newsletter-fallback.jpg' 
@@ -109,7 +113,7 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
         });
       }
     }
-  }, [hasImageLayout, block.imageUrl, block.title, block.content, onUpdate]);
+  }, [hasImageLayout, block.imageUrl, block.title, block.content, block.layout, onUpdate]);
 
   // Enhanced layout editor with tabs
   return (
