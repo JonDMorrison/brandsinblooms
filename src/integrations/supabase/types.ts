@@ -564,6 +564,8 @@ export type Database = {
       }
       campaign_blocks: {
         Row: {
+          alt_text: string | null
+          background_image_url: string | null
           block_type: string
           campaign_id: string
           content: Json
@@ -574,15 +576,20 @@ export type Database = {
           headline: string | null
           id: string
           image_url: string | null
+          issue_number: string | null
           layout_settings: Json | null
           order_index: number
           overlay_color: string | null
           overlay_opacity: number | null
           persona_tag: string | null
+          publish_date: string | null
           source: string | null
+          subtitle: string | null
           updated_at: string
         }
         Insert: {
+          alt_text?: string | null
+          background_image_url?: string | null
           block_type: string
           campaign_id: string
           content?: Json
@@ -593,15 +600,20 @@ export type Database = {
           headline?: string | null
           id?: string
           image_url?: string | null
+          issue_number?: string | null
           layout_settings?: Json | null
           order_index?: number
           overlay_color?: string | null
           overlay_opacity?: number | null
           persona_tag?: string | null
+          publish_date?: string | null
           source?: string | null
+          subtitle?: string | null
           updated_at?: string
         }
         Update: {
+          alt_text?: string | null
+          background_image_url?: string | null
           block_type?: string
           campaign_id?: string
           content?: Json
@@ -612,12 +624,15 @@ export type Database = {
           headline?: string | null
           id?: string
           image_url?: string | null
+          issue_number?: string | null
           layout_settings?: Json | null
           order_index?: number
           overlay_color?: string | null
           overlay_opacity?: number | null
           persona_tag?: string | null
+          publish_date?: string | null
           source?: string | null
+          subtitle?: string | null
           updated_at?: string
         }
         Relationships: []
