@@ -118,23 +118,17 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
     const newBlocks = blocks.map(block => {
       if (block.id !== id) return block;
       
-      // Merge updates into both top-level AND content object to maintain consistency
-      const contentObj = typeof block.content === 'object' ? block.content : {};
-      const mergedContent: any = typeof block.content === 'object' 
-        ? { ...contentObj, ...updates }
-        : updates;
-      
+      // For newsletter-header blocks, keep fields at top level (not in content object)
+      // For other blocks, merge into content only if content is already an object
       const updatedBlock: ContentBlock = { 
         ...block, 
-        ...updates,
-        content: mergedContent
+        ...updates
       };
       
       console.log('📝 Click-to-edit block updated:', {
         blockId: id,
         blockType: block.type,
-        updates,
-        resultingContent: updatedBlock.content
+        updates
       });
       
       return updatedBlock;

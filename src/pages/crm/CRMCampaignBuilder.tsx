@@ -293,20 +293,17 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
     setBlocks(prev => prev.map(block => {
       if (block.id !== blockId) return block;
       
-      // Merge updates into both top-level AND content object to maintain consistency
+      // Keep updates at top level - don't merge into content object
+      // This prevents breaking blocks that expect content to be a string
       const updatedBlock = { 
         ...block, 
-        ...updates,
-        content: typeof block.content === 'object' 
-          ? { ...block.content, ...updates }
-          : { ...updates }
+        ...updates
       };
       
       console.log('📝 Block updated:', {
         blockId,
         blockType: block.block_type,
-        updates,
-        resultingContent: updatedBlock.content
+        updates
       });
       
       return updatedBlock;
