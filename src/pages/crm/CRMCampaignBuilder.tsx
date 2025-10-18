@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card } from '@/components/ui/card';
@@ -98,16 +98,33 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
     }
   }, [campaignId]);
 
-  // Remove the old auto-save logic since we're using the new AutoSaveManager
+  const prevBlocksRef = useRef<EmailBlock[]>([]);
+  
+  // Auto-save when blocks change - track individual block changes
   useEffect(() => {
-    // Trigger auto-save when blocks change
-    if (blocks.length > 0 && selectedBlockId) {
-      const selectedBlock = blocks.find(b => b.id === selectedBlockId);
-      if (selectedBlock) {
-        autoSaveBlock(selectedBlock);
-      }
-    }
-  }, [blocks, selectedBlockId, autoSaveBlock]);
+    if (blocks.length === 0) return;
+    
+    // Find blocks that have changed
+    const changedBlocks = blocks.filter(block => {
+      const prevBlock = prevBlocksRef.current.find(b => b.id === block.id);
+      if (!prevBlock) return true; // New block
+      
+      // Compare relevant fields
+      return JSON.stringify(block.content) !== JSON.stringify(prevBlock.content) ||
+             block.image_url !== prevBlock.image_url ||
+             block.cta_url !== prevBlock.cta_url ||
+             block.cta_text !== prevBlock.cta_text;
+    });
+    
+    // Save changed blocks
+    changedBlocks.forEach(block => {
+      console.log('📝 Detected change in block:', block.id, block.block_type);
+      autoSaveBlock(block);
+    });
+    
+    // Update ref
+    prevBlocksRef.current = blocks;
+  }, [blocks, autoSaveBlock]);
 
   const loadCampaign = async () => {
     if (!campaignId) return;

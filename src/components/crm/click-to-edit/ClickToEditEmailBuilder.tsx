@@ -115,9 +115,30 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   };
 
   const updateBlock = useCallback((id: string, updates: Partial<ContentBlock>) => {
-    const newBlocks = blocks.map(block =>
-      block.id === id ? { ...block, ...updates } : block
-    );
+    const newBlocks = blocks.map(block => {
+      if (block.id !== id) return block;
+      
+      // Merge updates into both top-level AND content object to maintain consistency
+      const contentObj = typeof block.content === 'object' ? block.content : {};
+      const mergedContent: any = typeof block.content === 'object' 
+        ? { ...contentObj, ...updates }
+        : updates;
+      
+      const updatedBlock: ContentBlock = { 
+        ...block, 
+        ...updates,
+        content: mergedContent
+      };
+      
+      console.log('📝 Click-to-edit block updated:', {
+        blockId: id,
+        blockType: block.type,
+        updates,
+        resultingContent: updatedBlock.content
+      });
+      
+      return updatedBlock;
+    });
     onBlocksChange(newBlocks);
   }, [blocks, onBlocksChange]);
 
