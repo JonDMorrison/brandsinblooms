@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -53,6 +54,49 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Get authorization token from request
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Initialize Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Get the authenticated user
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      console.error("❌ Failed to get user:", userError);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Fetch user's company profile to get sender info
+    const { data: companyProfile } = await supabaseClient
+      .from('company_profiles')
+      .select('company_name, custom_sender_email, website_url')
+      .eq('user_id', user.id)
+      .single();
+
+    // Determine reply-to email and sender name
+    const replyToEmail = companyProfile?.custom_sender_email || user.email;
+    const senderName = companyProfile?.company_name || 'BloomSuite';
+    
+    // Use bulk domain for "from" address
+    const BULK_DOMAIN = 'notify.bloomsuite.app';
+    const fromAddress = `${senderName} <hello@${BULK_DOMAIN}>`;
+    
+    console.log("📤 Email config:", { fromAddress, replyToEmail, senderName });
+
     let emailResponse;
 
     if (payload.campaignId !== undefined) {
@@ -62,7 +106,8 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("📤 Sending campaign test email to:", email);
       
       emailResponse = await resend.emails.send({
-        from: "BloomSuite <noreply@brandsinblooms.com>",
+        from: fromAddress,
+        reply_to: replyToEmail,
         to: [email],
         subject: `[TEST] ${subject}`,
         html: content,
@@ -75,7 +120,8 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("📤 Sending sender test email to:", testEmail);
       
       emailResponse = await resend.emails.send({
-        from: "BloomSuite <noreply@brandsinblooms.com>",
+        from: fromAddress,
+        reply_to: replyToEmail,
         to: [testEmail],
         subject: "BloomSuite Sender Configuration Test",
         html: `
@@ -85,7 +131,8 @@ const handler = async (req: Request): Promise<Response> => {
             <p>If you receive this email, your sender settings are properly configured!</p>
             <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
             <p style="color: #666; font-size: 14px;">
-              Sent from BloomSuite - Email Marketing Platform
+              Sent from BloomSuite - Email Marketing Platform<br/>
+              Reply-to: ${replyToEmail}
             </p>
           </div>
         `,
@@ -98,7 +145,8 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("📤 Sending domain test email to:", testEmail, "for domain:", domain);
       
       emailResponse = await resend.emails.send({
-        from: `BloomSuite <test@${domain}>`,
+        from: fromAddress,
+        reply_to: replyToEmail,
         to: [testEmail],
         subject: "BloomSuite Domain Verification Test",
         html: `
@@ -108,7 +156,8 @@ const handler = async (req: Request): Promise<Response> => {
             <p>If you receive this email, your domain DNS settings are working correctly!</p>
             <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
             <p style="color: #666; font-size: 14px;">
-              Sent from ${domain} via BloomSuite
+              Sent from ${domain} via BloomSuite<br/>
+              Reply-to: ${replyToEmail}
             </p>
           </div>
         `,
