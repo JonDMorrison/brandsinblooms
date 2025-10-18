@@ -69,6 +69,20 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
         block_type: block.block_type
       };
 
+      console.log('[AUTO-SAVE] 📦 Block state before serialization:', {
+        blockId: block.id,
+        blockType: block.block_type,
+        topLevel_subtitle: (block as any).subtitle,
+        topLevel_issueNumber: (block as any).issueNumber,
+        topLevel_publishDate: (block as any).publishDate,
+        content_subtitle: block.content?.subtitle,
+        content_issueNumber: block.content?.issueNumber,
+        content_publishDate: block.content?.publishDate,
+        cleanContent_subtitle: cleanContent.subtitle,
+        cleanContent_issueNumber: cleanContent.issueNumber,
+        cleanContent_publishDate: cleanContent.publishDate
+      });
+
       console.log('[AUTO-SAVE] Saving block with clean content structure:', {
         blockId: block.id,
         blockType: block.block_type,
