@@ -193,8 +193,8 @@ export const TestEmailModal: React.FC<TestEmailModalProps> = ({
             <h4 className="font-medium text-sm mb-2">Test Email Details:</h4>
             <div className="space-y-1 text-sm text-muted-foreground">
               <p><strong>Subject:</strong> {campaignData.subject_line || 'Test Email'}</p>
-              <p><strong>From:</strong> BloomSuite Test &lt;noreply@bloomsuite.email&gt;</p>
-              <p><strong>Note:</strong> Test emails don't count toward campaign metrics</p>
+              <p><strong>From:</strong> Your Company &lt;hello@notify.bloomsuite.app&gt;</p>
+              <p><strong>Note:</strong> Test emails include [TEST] prefix and don't count toward metrics</p>
             </div>
           </div>
 

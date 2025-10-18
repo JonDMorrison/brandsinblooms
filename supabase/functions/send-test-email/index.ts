@@ -38,7 +38,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     const payload = await req.json();
     console.log("📧 Payload received:", { 
-      type: payload.campaignId ? 'campaign' : payload.senderId ? 'sender' : 'domain',
+      type: payload.email ? 'campaign' : payload.senderId ? 'sender' : 'domain',
       email: payload.email || payload.testEmail 
     });
 
@@ -57,6 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get authorization token from request
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
+      console.error("❌ Missing authorization header");
       return new Response(
         JSON.stringify({ error: "Missing authorization header" }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -81,11 +82,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Fetch user's company profile to get sender info
-    const { data: companyProfile } = await supabaseClient
+    const { data: companyProfile, error: profileError } = await supabaseClient
       .from('company_profiles')
       .select('company_name, custom_sender_email, website_url')
       .eq('user_id', user.id)
       .single();
+
+    if (profileError) {
+      console.error("❌ Failed to fetch company profile:", profileError);
+    }
 
     // Determine reply-to email and sender name
     const replyToEmail = companyProfile?.custom_sender_email || user.email;
@@ -99,7 +104,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     let emailResponse;
 
-    if (payload.campaignId !== undefined) {
+    // Check which type of test email based on payload structure
+    if (payload.email && payload.subject && payload.content) {
       // Campaign test email
       const { email, subject, content } = payload as CampaignTestPayload;
       
@@ -163,7 +169,8 @@ const handler = async (req: Request): Promise<Response> => {
         `,
       });
     } else {
-      throw new Error("Invalid payload format");
+      console.error("❌ Invalid payload format:", payload);
+      throw new Error("Invalid payload format - missing required fields");
     }
 
     console.log("✅ Email sent successfully:", emailResponse);
@@ -185,23 +192,28 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("❌ Error in send-test-email function:", error);
     
-    // Handle specific Resend errors
-    if (error.message?.includes('API key')) {
-      return new Response(
-        JSON.stringify({ error: "Email service configuration error" }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
+    // Handle specific Resend errors with better messages
+    let errorMessage = error.message || "Failed to send test email";
+    let statusCode = 500;
+    
+    if (error.message?.includes('API key') || error.message?.includes('authentication')) {
+      errorMessage = "Email service configuration error. Please check your Resend API key.";
+      statusCode = 500;
+    } else if (error.message?.includes('domain') || error.message?.includes('verify')) {
+      errorMessage = "Domain verification required. Please verify your sending domain.";
+      statusCode = 403;
+    } else if (error.message?.includes('rate limit')) {
+      errorMessage = "Rate limit exceeded. Please try again in a few moments.";
+      statusCode = 429;
+    } else if (error.message?.includes('Invalid payload')) {
+      errorMessage = "Invalid request format. Please try again.";
+      statusCode = 400;
     }
     
     return new Response(
-      JSON.stringify({ 
-        error: error.message || "Failed to send test email" 
-      }),
+      JSON.stringify({ error: errorMessage }),
       {
-        status: 500,
+        status: statusCode,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
