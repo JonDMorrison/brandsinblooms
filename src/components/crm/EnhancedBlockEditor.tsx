@@ -61,6 +61,7 @@ export const EnhancedBlockEditor: React.FC<EnhancedBlockEditorProps> = ({
   const getBlockIcon = () => {
     switch (block.type) {
       case 'header': return '📄';
+      case 'newsletter-header': return '📰';
       case 'text': return '📝';
       case 'image': return '🖼️';
       case 'button': return '🔘';
@@ -79,6 +80,14 @@ export const EnhancedBlockEditor: React.FC<EnhancedBlockEditorProps> = ({
       case 'header':
         return (
           <HeaderBlockEditor 
+            block={block} 
+            onUpdate={handleUpdate} 
+            isExpanded={isExpanded}
+          />
+        );
+      case 'newsletter-header':
+        return (
+          <NewsletterHeaderBlockEditor 
             block={block} 
             onUpdate={handleUpdate} 
             isExpanded={isExpanded}

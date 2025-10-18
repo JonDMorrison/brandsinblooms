@@ -18,6 +18,15 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
   onUpdate,
   isExpanded
 }) => {
+  // Get values from either top-level or content object
+  // Content can be string or object, so we need to handle both
+  const contentObj = typeof block.content === 'object' ? block.content : {};
+  const title = (block as any).title || (contentObj as any)?.title || '';
+  const subtitle = (block as any).subtitle || (contentObj as any)?.subtitle || '';
+  const issueNumber = (block as any).issueNumber || (contentObj as any)?.issueNumber || '';
+  const publishDate = (block as any).publishDate || (contentObj as any)?.publishDate || '';
+  const backgroundImageUrl = (block as any).backgroundImageUrl || (contentObj as any)?.backgroundImageUrl || '';
+
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     onUpdate({ 
       backgroundImageUrl: imageUrl,
@@ -29,10 +38,10 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
     return (
       <div className="flex-1 min-w-0">
         <div className="text-sm text-muted-foreground truncate">
-          {block.title ? `Header: "${block.title}"` : 'Newsletter Header'}
-          {block.subtitle && (
+          {title ? `Header: "${title}"` : 'Newsletter Header'}
+          {subtitle && (
             <span className="ml-2 text-xs">
-              - {block.subtitle.substring(0, 30)}...
+              - {subtitle.substring(0, 30)}...
             </span>
           )}
         </div>
@@ -44,32 +53,32 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
     <div className="space-y-4">
       {/* Header Preview */}
       <Card className="p-6 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent relative overflow-hidden">
-        {block.backgroundImageUrl && (
+        {backgroundImageUrl && (
           <div 
             className="absolute inset-0 bg-cover bg-center opacity-20"
-            style={{ backgroundImage: `url(${block.backgroundImageUrl})` }}
+            style={{ backgroundImage: `url(${backgroundImageUrl})` }}
           />
         )}
         <div className="relative text-center space-y-2">
           <h1 className="text-2xl font-bold text-foreground">
-            {block.title || 'Newsletter Title'}
+            {title || 'Newsletter Title'}
           </h1>
-          {block.subtitle && (
+          {subtitle && (
             <p className="text-muted-foreground">
-              {block.subtitle}
+              {subtitle}
             </p>
           )}
           <div className="flex justify-center gap-4 text-xs text-muted-foreground">
-            {block.issueNumber && (
+            {issueNumber && (
               <div className="flex items-center gap-1">
                 <Hash className="h-3 w-3" />
-                Issue {block.issueNumber}
+                Issue {issueNumber}
               </div>
             )}
-            {block.publishDate && (
+            {publishDate && (
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                {block.publishDate}
+                {publishDate}
               </div>
             )}
           </div>
@@ -81,7 +90,7 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
         <Label htmlFor="header-title">Newsletter Title</Label>
         <Input
           id="header-title"
-          value={block.title || ''}
+          value={title}
           onChange={(e) => onUpdate({ title: e.target.value })}
           placeholder="Enter newsletter title..."
         />
@@ -91,7 +100,7 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
         <Label htmlFor="header-subtitle">Subtitle (Optional)</Label>
         <Textarea
           id="header-subtitle"
-          value={block.subtitle || ''}
+          value={subtitle}
           onChange={(e) => onUpdate({ subtitle: e.target.value })}
           placeholder="Enter subtitle or description..."
           className="min-h-[80px]"
@@ -104,7 +113,7 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
           <Label htmlFor="issue-number">Issue Number</Label>
           <Input
             id="issue-number"
-            value={block.issueNumber || ''}
+            value={issueNumber}
             onChange={(e) => onUpdate({ issueNumber: e.target.value })}
             placeholder="e.g., 47"
           />
@@ -114,7 +123,7 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
           <Input
             id="publish-date"
             type="date"
-            value={block.publishDate || ''}
+            value={publishDate}
             onChange={(e) => onUpdate({ publishDate: e.target.value })}
           />
         </div>
@@ -125,9 +134,9 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
         <Label>Background Image (Optional)</Label>
         <div className="mt-2">
           <MediaSelectorImage
-            src={block.backgroundImageUrl}
+            src={backgroundImageUrl}
             onChange={handleImageSelect}
-            contentContext={`${block.title || ''} newsletter header background`}
+            contentContext={`${title || ''} newsletter header background`}
             className="h-32"
           />
         </div>
