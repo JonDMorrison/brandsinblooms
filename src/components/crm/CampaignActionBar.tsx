@@ -96,7 +96,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
           <div className={`flex items-center ${isSticky ? '' : 'justify-between'}`}>
             {/* Left side - Status indicators */}
             {!isSticky && (
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-4 animate-fade-in">
                 <div className="flex items-center space-x-2">
                 <SaveIndicator
                     lastSaved={lastSaved}
@@ -126,7 +126,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
             <div className={`flex items-center ${isSticky ? 'space-x-0' : 'space-x-3'}`}>
               {/* Secondary actions - hidden when sticky */}
               {!isSticky && (
-                <>
+                <div className="flex items-center space-x-3 animate-fade-in">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -156,7 +156,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                     <Eye className="h-4 w-4" />
                     <span>Preview</span>
                   </Button>
-                </>
+                </div>
               )}
 
               {/* Save button - always visible */}
@@ -165,7 +165,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                 size="sm"
                 onClick={onSave}
                 disabled={loading || isAutoSaving}
-                className="flex items-center space-x-2"
+                className={`flex items-center space-x-2 transition-all duration-300 ${isSticky ? 'animate-scale-in' : ''}`}
               >
                 <Save className="h-4 w-4" />
                 <span>Save</span>
@@ -177,7 +177,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                   onClick={onSend}
                   disabled={!isReady || sending || loading || loadingSenderConfig}
                   size="sm"
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-2 animate-fade-in"
                 >
                   {sending ? (
                     <>
