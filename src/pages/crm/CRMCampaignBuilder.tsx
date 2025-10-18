@@ -176,9 +176,15 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
       };
       
       console.log('✅ Block processed:', block.id, { 
+        blockType: block.block_type,
         originalStructure: Object.keys(rawContent),
         extractedText: displayText.substring(0, 100) + '...',
-        finalContent: processedContent
+        finalContent: processedContent,
+        hasTitle: !!processedContent.title,
+        hasSubtitle: !!processedContent.subtitle,
+        hasIssueNumber: !!processedContent.issueNumber,
+        hasPublishDate: !!processedContent.publishDate,
+        hasBackgroundImageUrl: !!processedContent.backgroundImageUrl
       });
       
       return {
@@ -267,9 +273,27 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
   };
 
   const updateBlock = (blockId: string, updates: Partial<EmailBlock>) => {
-    setBlocks(prev => prev.map(block => 
-      block.id === blockId ? { ...block, ...updates } : block
-    ));
+    setBlocks(prev => prev.map(block => {
+      if (block.id !== blockId) return block;
+      
+      // Merge updates into both top-level AND content object to maintain consistency
+      const updatedBlock = { 
+        ...block, 
+        ...updates,
+        content: typeof block.content === 'object' 
+          ? { ...block.content, ...updates }
+          : { ...updates }
+      };
+      
+      console.log('📝 Block updated:', {
+        blockId,
+        blockType: block.block_type,
+        updates,
+        resultingContent: updatedBlock.content
+      });
+      
+      return updatedBlock;
+    }));
   };
 
   const duplicateBlock = (blockId: string) => {

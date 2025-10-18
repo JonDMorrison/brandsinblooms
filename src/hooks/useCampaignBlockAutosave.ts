@@ -75,7 +75,14 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
         hasContent: !!cleanContent.content,
         hasHeadline: !!cleanContent.headline,
         hasTitle: !!cleanContent.title,
-        hasBody: !!cleanContent.body,
+        hasSubtitle: !!cleanContent.subtitle,
+        hasIssueNumber: !!cleanContent.issueNumber,
+        hasPublishDate: !!cleanContent.publishDate,
+        hasBackgroundImageUrl: !!cleanContent.backgroundImageUrl,
+        title: cleanContent.title,
+        subtitle: cleanContent.subtitle,
+        issueNumber: cleanContent.issueNumber,
+        publishDate: cleanContent.publishDate,
         contentKeys: Object.keys(cleanContent).filter(key => cleanContent[key] !== undefined)
       });
 
