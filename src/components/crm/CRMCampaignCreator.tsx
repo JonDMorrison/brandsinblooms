@@ -1865,6 +1865,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           title: contentObj?.title,
           body: contentObj?.body || contentObj?.content,
           content: contentObj?.content || contentObj?.body,
+          subtitle: contentObj?.subtitle,
           // Image fields - CRITICAL FIX: Treat empty strings as null and fetch if missing
           imageUrl: await getOrFetchImage(contentObj, block),
           altText: contentObj?.altText,
@@ -1964,6 +1965,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           backgroundImageUrl: actualBlockType === 'header' ? (finalExtractedContent.backgroundImageUrl || block.image_url) : finalExtractedContent.backgroundImageUrl,
           backgroundOpacity: finalExtractedContent.backgroundOpacity,
           // Newsletter-specific
+          subtitle: finalExtractedContent.subtitle,
           quote: finalExtractedContent.quote,
           author: finalExtractedContent.author,
           authorTitle: finalExtractedContent.authorTitle,
