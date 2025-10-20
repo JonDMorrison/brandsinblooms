@@ -2274,13 +2274,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           break;
 
         case 'image':
-          const imgAlign = block.textAlign || 'center';
-          html += `
-            <div style="text-align: ${imgAlign}; margin: 20px 0;">
-              ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px;" />` : 
-                '<div style="background: #f1f5f9; padding: 60px 20px; text-align: center; color: #64748b; border-radius: 8px; font-family: \'Quicksand\', sans-serif;">No image selected</div>'}
-            </div>
-          `;
+          // Only render image block if it has an imageUrl
+          if (block.imageUrl) {
+            const imgAlign = block.textAlign || 'center';
+            html += `
+              <div style="text-align: ${imgAlign}; margin: 20px 0;">
+                <img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px;" />
+              </div>
+            `;
+          }
           break;
 
         case 'image-text':
@@ -2288,33 +2290,43 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           const itTextAlign = block.textAlign || 'left';
           const itTextColor = block.textColor || '#475569';
           const itHeadlineColor = block.textColor || '#1f2937'; // Use dark gray instead of green
-          html += `
-            <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;" class="mobile-stack">
-                <tr>
-                  ${isImageLeft ? `
-                    <td width="50%" style="padding-right: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
-                      ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />` :
-                        '<div style="background: #f1f5f9; padding: 40px 20px; text-align: center; color: #64748b; border-radius: 8px; font-family: \'Quicksand\', sans-serif;">No image</div>'}
-                    </td>
-                    <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: ${itTextAlign};" class="mobile-full-width mobile-stack">
-                      ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-                       ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
-                    </td>
-                  ` : `
-                    <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: ${itTextAlign};" class="mobile-full-width mobile-stack">
-                      ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-                      ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
-                    </td>
-                    <td width="50%" style="padding-left: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
-                      ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />` :
-                        '<div style="background: #f1f5f9; padding: 40px 20px; text-align: center; color: #64748b; border-radius: 8px; font-family: \'Quicksand\', sans-serif;">No image</div>'}
-                    </td>
-                  `}
-                </tr>
-              </table>
-            </div>
-          `;
+          
+          // If no image, render as text-only block
+          if (!block.imageUrl) {
+            html += `
+              <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px; text-align: ${itTextAlign};">
+                ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
+                ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+              </div>
+            `;
+          } else {
+            // Render with image
+            html += `
+              <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;" class="mobile-stack">
+                  <tr>
+                    ${isImageLeft ? `
+                      <td width="50%" style="padding-right: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                        <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />
+                      </td>
+                      <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: ${itTextAlign};" class="mobile-full-width mobile-stack">
+                        ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
+                        ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+                      </td>
+                    ` : `
+                      <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: ${itTextAlign};" class="mobile-full-width mobile-stack">
+                        ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
+                        ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+                      </td>
+                      <td width="50%" style="padding-left: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                        <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />
+                      </td>
+                    `}
+                  </tr>
+                </table>
+              </div>
+            `;
+          }
           break;
 
         case 'button':
