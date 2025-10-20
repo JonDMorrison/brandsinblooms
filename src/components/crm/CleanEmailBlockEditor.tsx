@@ -244,21 +244,6 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           visible: block.visible !== false,
           collapsed: block.collapsed || false
         };
-
-        console.log('🔄 [CleanEmailBlockEditor] Hydrating newsletter fields:', {
-          blockId: block.id,
-          type: block.type,
-          beforeHydration: {
-            subtitle: block.subtitle,
-            issueNumber: block.issueNumber,
-            publishDate: block.publishDate
-          },
-          afterHydration: {
-            subtitle: hydratedBlock.subtitle,
-            issueNumber: hydratedBlock.issueNumber,
-            publishDate: hydratedBlock.publishDate
-          }
-        });
         
         console.log('🧱 Hydrating block:', {
           id: block.id,

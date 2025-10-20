@@ -69,20 +69,6 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
         block_type: block.block_type
       };
 
-      console.log('[AUTO-SAVE] 📦 Block state before serialization:', {
-        blockId: block.id,
-        blockType: block.block_type,
-        topLevel_subtitle: (block as any).subtitle,
-        topLevel_issueNumber: (block as any).issueNumber,
-        topLevel_publishDate: (block as any).publishDate,
-        content_subtitle: block.content?.subtitle,
-        content_issueNumber: block.content?.issueNumber,
-        content_publishDate: block.content?.publishDate,
-        cleanContent_subtitle: cleanContent.subtitle,
-        cleanContent_issueNumber: cleanContent.issueNumber,
-        cleanContent_publishDate: cleanContent.publishDate
-      });
-
       console.log('[AUTO-SAVE] Saving block with clean content structure:', {
         blockId: block.id,
         blockType: block.block_type,
@@ -98,18 +84,6 @@ export const useCampaignBlockAutosave = (options: AutoSaveOptions = {}) => {
         issueNumber: cleanContent.issueNumber,
         publishDate: cleanContent.publishDate,
         contentKeys: Object.keys(cleanContent).filter(key => cleanContent[key] !== undefined)
-      });
-
-      console.log('[AUTO-SAVE] 📤 Newsletter fields being saved to content JSON:', {
-        subtitle: cleanContent.subtitle || '(empty)',
-        issueNumber: cleanContent.issueNumber || '(empty)',
-        publishDate: cleanContent.publishDate || '(empty)',
-        backgroundImageUrl: cleanContent.backgroundImageUrl || '(empty)',
-        altText: cleanContent.altText || '(empty)',
-        sourceBlock: {
-          topLevel_subtitle: (block as any).subtitle,
-          content_subtitle: block.content?.subtitle
-        }
       });
 
       // Use upsert to either insert or update the block

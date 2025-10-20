@@ -558,6 +558,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 quote: block.quote,
                 author: block.author,
                 authorTitle: block.authorTitle,
+                // Newsletter-specific fields
+                subtitle: block.subtitle,
+                issueNumber: block.issueNumber,
+                publishDate: block.publishDate,
                 visible: block.visible,
                 collapsed: block.collapsed
               },
