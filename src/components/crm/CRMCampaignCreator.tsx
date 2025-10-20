@@ -1317,27 +1317,19 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 const primaryQuery = selectedIdea.heroQuery || selectedIdea.title || selectedIdea.description || 'garden';
                 console.log(`🔍 Using primary query: "${primaryQuery}"`);
                 
-                // Find all blocks that need images (limit to first 3)
+                // Find all blocks that need images - only blocks explicitly marked for image fetching
                 const imageBlocks = crmBlocks
                   .map((block, index) => ({ block, index }))
                   .filter(({ block }) => {
-                    // Original logic for image and image-text blocks
-                    const hasImageType = (block.type === 'image' || block.type === 'image-text' || block.type === 'header');
+                    // Only fetch images for blocks that are explicitly marked to have images
+                    // This respects the shouldFetchImage flag from the block generator
+                    const shouldFetch = (block as any).shouldFetchImage === true;
                     
-                    // New logic for image-centric layouts
-                    const hasImageCentricLayout = block.layout && (
-                      block.layout === 'image-left' || 
-                      block.layout === 'image-right' || 
-                      block.layout === 'two-column-left' || 
-                      block.layout === 'two-column-right'
-                    );
-                    
-                    // Check if block has text content but no image
-                    const hasTextContent = (block.title || block.headline || block.content || block.body);
+                    // Additional check: block must not already have an image
                     const needsImage = !block.imageUrl && 
                                      !(typeof block.content === 'object' && block.content && (block.content as any).imageUrl);
                     
-                    return (hasImageType || (hasImageCentricLayout && hasTextContent)) && needsImage;
+                    return shouldFetch && needsImage;
                   })
                   .slice(0, 8); // Increased limit to handle more blocks
                 

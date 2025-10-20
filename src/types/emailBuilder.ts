@@ -102,6 +102,9 @@ export interface ContentBlock {
   issueNumber?: string;
   publishDate?: string;
   
+  // Image fetching control
+  shouldFetchImage?: boolean; // Flag to control automatic image fetching
+  
   // Button block specific
   buttonColor?: string;
   buttonSize?: string;

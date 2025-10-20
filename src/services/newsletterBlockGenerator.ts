@@ -48,6 +48,10 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
   }
 
   const blocks: ContentBlock[] = templateBlocks.map((block: any, index: number) => {
+    // Determine if this block should have an image based on template
+    // Only blocks explicitly marked with imageUrl in template should auto-fetch images
+    const shouldFetchImage = block.imageUrl && block.imageUrl !== '';
+    
     const baseBlock: ContentBlock = {
       id: `block_${Date.now()}_${index}`,
       type: mapBlockType(block.type),
@@ -55,7 +59,7 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
       content: block.content || '',
       headline: block.title || '',
       body: block.content || '',
-      imageUrl: '',
+      imageUrl: block.imageUrl || '',
       ctaText: block.buttonText || '',
       ctaUrl: block.buttonUrl || '#',
       source: 'newsletter',
@@ -65,7 +69,8 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
       textAlign: 'left',
       padding: 'medium',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage // Add flag to indicate if image should be auto-fetched
     };
     
     return baseBlock;
@@ -104,7 +109,8 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
           textAlign: 'left',
           padding: 'medium',
           visible: true,
-          collapsed: false
+          collapsed: false,
+          shouldFetchImage: false // Don't auto-fetch images for filler blocks
         };
         
         blocks.push(newBlock);
@@ -135,7 +141,8 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'center',
       padding: 'large',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: true // Header block should fetch image
     },
     {
       id: `content1_${Date.now()}`,
@@ -154,7 +161,8 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'left',
       padding: 'medium',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: false // Text-first blocks don't need images by default
     },
     {
       id: `content2_${Date.now()}`,
@@ -173,7 +181,8 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'left',
       padding: 'medium',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: false // Text-first blocks don't need images by default
     },
     {
       id: `content3_${Date.now()}`,
@@ -192,7 +201,8 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'left',
       padding: 'medium',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: false // Text-first blocks don't need images by default
     },
     {
       id: `content4_${Date.now()}`,
@@ -211,7 +221,8 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'left',
       padding: 'medium',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: false // Text-first blocks don't need images by default
     }
   ];
   
