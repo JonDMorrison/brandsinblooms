@@ -1969,6 +1969,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           backgroundColor: finalExtractedContent.backgroundColor,
           backgroundImageUrl: actualBlockType === 'header' ? (finalExtractedContent.backgroundImageUrl || block.image_url) : finalExtractedContent.backgroundImageUrl,
           backgroundOpacity: finalExtractedContent.backgroundOpacity,
+          // Overlay settings (per-image)
+          overlayColor: finalExtractedContent.overlayColor,
+          overlayOpacity: finalExtractedContent.overlayOpacity,
           // Newsletter-specific
           subtitle: finalExtractedContent.subtitle,
           quote: finalExtractedContent.quote,
