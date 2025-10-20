@@ -1149,33 +1149,43 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     const checkExistingCampaign = async () => {
       console.log('🔍 CRMCampaignCreator: Starting campaign check', { campaignSlug, finalContentTaskId });
       
-      // First try to restore from persisted state
-      const persistedState = restoreState();
-      if (persistedState && !existingCampaignId) {
-        console.log('📋 Restoring persisted state - but preserving URL personas');
-        setCampaignName(persistedState.campaignName);
-        setSubjectLine(persistedState.subjectLine);
-        setPreheaderText(persistedState.preheaderText);
-        setBlocks(persistedState.blocks);
-        setShowPreview(persistedState.showPreview);
-        
-        // Only restore personas if no URL persona parameter exists
-        if (persistedState.selectedPersonas && initialPersonas.length === 0) {
-          console.log('📋 Restoring persisted personas (no URL override):', persistedState.selectedPersonas);
-          setSelectedPersonas(persistedState.selectedPersonas);
-        } else if (initialPersonas.length > 0) {
-          console.log('🎯 Keeping URL personas, ignoring persisted personas. URL:', initialPersonas, 'Persisted:', persistedState.selectedPersonas);
-        } else {
-          console.log('📋 No personas in URL or persistence');
+      // Check if this is a truly fresh campaign start (no content loading params)
+      const hasTemplateId = searchParams.get('templateId');
+      const hasBundleId = searchParams.get('bundleId');
+      const hasPrefillData = searchParams.get('prefillData');
+      const isFreshStart = campaignSlug === 'new' && !hasTemplateId && !hasBundleId && !hasPrefillData && !finalContentTaskId;
+      
+      if (isFreshStart) {
+        console.log('🆕 Fresh campaign start detected - skipping persistence restoration to start blank');
+      } else {
+        // First try to restore from persisted state
+        const persistedState = restoreState();
+        if (persistedState && !existingCampaignId) {
+          console.log('📋 Restoring persisted state - but preserving URL personas');
+          setCampaignName(persistedState.campaignName);
+          setSubjectLine(persistedState.subjectLine);
+          setPreheaderText(persistedState.preheaderText);
+          setBlocks(persistedState.blocks);
+          setShowPreview(persistedState.showPreview);
+          
+          // Only restore personas if no URL persona parameter exists
+          if (persistedState.selectedPersonas && initialPersonas.length === 0) {
+            console.log('📋 Restoring persisted personas (no URL override):', persistedState.selectedPersonas);
+            setSelectedPersonas(persistedState.selectedPersonas);
+          } else if (initialPersonas.length > 0) {
+            console.log('🎯 Keeping URL personas, ignoring persisted personas. URL:', initialPersonas, 'Persisted:', persistedState.selectedPersonas);
+          } else {
+            console.log('📋 No personas in URL or persistence');
+          }
+          
+          if (persistedState.selectedSegments) {
+            setSelectedSegments(persistedState.selectedSegments);
+          }
+          console.log('📋 Restored audience selection:', { 
+            personas: persistedState.selectedPersonas?.length || 0,
+            segments: persistedState.selectedSegments?.length || 0
+          });
         }
-        
-        if (persistedState.selectedSegments) {
-          setSelectedSegments(persistedState.selectedSegments);
-        }
-        console.log('📋 Restored audience selection:', { 
-          personas: persistedState.selectedPersonas?.length || 0,
-          segments: persistedState.selectedSegments?.length || 0
-        });
       }
       
       // Handle newsletter template processing (from picker)
