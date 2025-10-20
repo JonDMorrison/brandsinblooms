@@ -48,18 +48,20 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
   }
 
   const blocks: ContentBlock[] = templateBlocks.map((block: any, index: number) => {
-    // Determine if this block should have an image based on template
-    // Only blocks explicitly marked with imageUrl in template should auto-fetch images
-    const shouldFetchImage = block.imageUrl && block.imageUrl !== '';
+    const mappedType = mapBlockType(block.type);
+    
+    // CRITICAL: Plain text blocks should NEVER have images
+    // Only allow images for image-text and header blocks that explicitly have imageUrl in template
+    const shouldFetchImage = mappedType !== 'text' && block.imageUrl && block.imageUrl !== '';
     
     const baseBlock: ContentBlock = {
       id: `block_${Date.now()}_${index}`,
-      type: mapBlockType(block.type),
+      type: mappedType,
       title: block.title || '',
       content: block.content || '',
       headline: block.title || '',
       body: block.content || '',
-      imageUrl: block.imageUrl || '',
+      imageUrl: mappedType === 'text' ? '' : (block.imageUrl || ''), // Force empty imageUrl for text blocks
       ctaText: block.buttonText || '',
       ctaUrl: block.buttonUrl || '#',
       source: 'newsletter',
@@ -268,7 +270,8 @@ const generateSimpleEmailBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'left',
       padding: 'medium',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: false // Text blocks should never fetch images
     },
     {
       id: `main_${Date.now()}`,
@@ -287,7 +290,8 @@ const generateSimpleEmailBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'left',
       padding: 'medium',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: false // Text blocks should never fetch images
     },
     {
       id: `closing_${Date.now()}`,
@@ -306,7 +310,8 @@ const generateSimpleEmailBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'left',
       padding: 'medium',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: false // Text blocks should never fetch images
     },
     {
       id: `cta_${Date.now()}`,
@@ -399,7 +404,8 @@ export const getFallbackBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'left',
       padding: 'medium',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: false // Text blocks should never fetch images
     },
     {
       id: `fallback_cta_${Date.now()}`,

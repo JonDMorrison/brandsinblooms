@@ -1318,9 +1318,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 console.log(`🔍 Using primary query: "${primaryQuery}"`);
                 
                 // Find all blocks that need images - only blocks explicitly marked for image fetching
+                // CRITICAL: NEVER fetch images for plain text blocks (type: 'text')
                 const imageBlocks = crmBlocks
                   .map((block, index) => ({ block, index }))
                   .filter(({ block }) => {
+                    // Exclude plain text blocks entirely
+                    if (block.type === 'text') {
+                      return false;
+                    }
+                    
                     // Only fetch images for blocks that are explicitly marked to have images
                     // This respects the shouldFetchImage flag from the block generator
                     const shouldFetch = (block as any).shouldFetchImage === true;
