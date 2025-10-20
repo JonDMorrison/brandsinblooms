@@ -66,12 +66,17 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
     </div>
   );
 
-  const renderImage = () => (
-    <div style={{ 
-      padding: '16px 24px', 
-      textAlign: block.content.alignment as any || 'center' 
-    }}>
-      {block.image_url ? (
+  const renderImage = () => {
+    // Don't render anything if there's no image
+    if (!block.image_url) {
+      return null;
+    }
+
+    return (
+      <div style={{ 
+        padding: '16px 24px', 
+        textAlign: block.content.alignment as any || 'center' 
+      }}>
         <img
           src={block.image_url}
           alt={block.content.alt || 'Email image'}
@@ -81,35 +86,19 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
             borderRadius: '8px',
           }}
         />
-      ) : (
-        <div
-          style={{
-            width: '100%',
-            height: '200px',
-            backgroundColor: '#F3F4F6',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+        {block.content.caption && (
+          <p style={{ 
+            margin: '8px 0 0 0', 
+            fontSize: '14px', 
             color: '#6B7280',
-            border: '2px dashed #D1D5DB',
-          }}
-        >
-          Image Placeholder
-        </div>
-      )}
-      {block.content.caption && (
-        <p style={{ 
-          margin: '8px 0 0 0', 
-          fontSize: '14px', 
-          color: '#6B7280',
-          textAlign: 'center' as const
-        }}>
-          {block.content.caption}
-        </p>
-      )}
-    </div>
-  );
+            textAlign: 'center' as const
+          }}>
+            {block.content.caption}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   const renderButton = () => (
     <div style={{ 
