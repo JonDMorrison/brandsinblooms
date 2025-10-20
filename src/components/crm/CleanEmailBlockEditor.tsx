@@ -229,8 +229,11 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           issueNumber: block.issueNumber || '',
           publishDate: block.publishDate || '',
           backgroundImageUrl: block.backgroundImageUrl || '',
+          // Preserve overlay settings (per-image)
+          overlayOpacity: block.overlayOpacity ?? (typeof block.content === 'object' && block.content ? (block.content as any).overlayOpacity : undefined),
+          overlayColor: block.overlayColor || (typeof block.content === 'object' && block.content ? (block.content as any).overlayColor : ''),
           // Lift nested imageUrl to top level if missing at top level
-          imageUrl: block.imageUrl || 
+          imageUrl: block.imageUrl ||
                    (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) || 
                    '',
           altText: block.altText || 

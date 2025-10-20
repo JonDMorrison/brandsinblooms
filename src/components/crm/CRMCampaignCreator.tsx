@@ -562,9 +562,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 subtitle: block.subtitle,
                 issueNumber: block.issueNumber,
                 publishDate: block.publishDate,
-                // Image overlay settings (per-image)
-                overlayOpacity: block.overlayOpacity,
-                overlayColor: block.overlayColor,
+                // Note: overlayColor and overlayOpacity already defined at line 548
                 visible: block.visible,
                 collapsed: block.collapsed
               },
