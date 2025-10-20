@@ -245,11 +245,13 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           collapsed: block.collapsed || false
         };
         
-        console.log('🧱 Hydrating block:', {
+        console.log('🧱 Hydrate block:', {
           id: block.id,
           type: block.type,
-          originalImageUrl: block.imageUrl,
-          hydratedImageUrl: hydratedBlock.imageUrl,
+          originalImage: block.imageUrl,
+          originalOverlay: { opacity: block.overlayOpacity, color: block.overlayColor },
+          hydratedOverlay: { opacity: hydratedBlock.overlayOpacity, color: hydratedBlock.overlayColor },
+          hasOverlayData: !!(block.overlayOpacity !== undefined || block.overlayColor),
           title: hydratedBlock.title,
           hasContent: !!(hydratedBlock.content || hydratedBlock.body)
         });
