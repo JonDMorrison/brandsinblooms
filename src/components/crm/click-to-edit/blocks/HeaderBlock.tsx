@@ -46,7 +46,8 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
         backgroundOpacity: 80
       });
     },
-    enabled: !isPreview // Only auto-fetch in edit mode
+    enabled: !isPreview,
+    shouldAutoFetch: false // Disable automatic fetching for existing blocks
   });
   // Live preview component that can be reused
   const PreviewContent = () => (

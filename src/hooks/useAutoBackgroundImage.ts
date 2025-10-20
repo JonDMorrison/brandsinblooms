@@ -7,6 +7,7 @@ interface UseAutoBackgroundImageProps {
   currentBackgroundUrl?: string;
   onImageSelected?: (imageUrl: string, metadata?: any) => void;
   enabled?: boolean;
+  shouldAutoFetch?: boolean;
 }
 
 interface UnsplashImage {
@@ -28,7 +29,8 @@ export const useAutoBackgroundImage = ({
   headline,
   currentBackgroundUrl,
   onImageSelected,
-  enabled = true
+  enabled = true,
+  shouldAutoFetch = true
 }: UseAutoBackgroundImageProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [autoImage, setAutoImage] = useState<UnsplashImage | null>(null);
@@ -107,7 +109,7 @@ export const useAutoBackgroundImage = ({
 
   // Debounced effect to fetch image when headline changes
   useEffect(() => {
-    if (!headline || !enabled) return;
+    if (!headline || !enabled || !shouldAutoFetch) return;
 
     // Only fetch if we don't already have a background image
     if (currentBackgroundUrl) return;
@@ -121,7 +123,7 @@ export const useAutoBackgroundImage = ({
     }, 1000); // Wait 1 second after user stops typing
 
     return () => clearTimeout(timeoutId);
-  }, [headline, currentBackgroundUrl, enabled, extractSearchKeywords, fetchBackgroundImage]);
+  }, [headline, currentBackgroundUrl, enabled, shouldAutoFetch, extractSearchKeywords, fetchBackgroundImage]);
 
   const refetchImage = useCallback(() => {
     if (headline) {
