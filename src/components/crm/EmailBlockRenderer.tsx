@@ -46,25 +46,29 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
     </div>
   );
 
-  const renderText = () => (
-    <div style={{ ...baseStyle, padding: '16px 24px' }}>
-      {block.content.title && (
-        <h2 style={{ 
-          margin: '0 0 12px 0', 
-          fontSize: '20px', 
-          fontWeight: 'bold' 
+  const renderText = () => {
+    // CRITICAL: Plain text blocks should NEVER render images, even if image_url exists
+    // This is a pure text block - no images allowed
+    return (
+      <div style={{ ...baseStyle, padding: '16px 24px' }}>
+        {block.content.title && (
+          <h2 style={{ 
+            margin: '0 0 12px 0', 
+            fontSize: '20px', 
+            fontWeight: 'bold' 
+          }}>
+            {block.content.title}
+          </h2>
+        )}
+        <div style={{ 
+          lineHeight: '1.6', 
+          color: '#374151' 
         }}>
-          {block.content.title}
-        </h2>
-      )}
-      <div style={{ 
-        lineHeight: '1.6', 
-        color: '#374151' 
-      }}>
-        {block.content.content || 'Add your text content here...'}
+          {block.content.content || 'Add your text content here...'}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderImage = () => {
     // Don't render anything if there's no image
@@ -205,13 +209,18 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
   );
 
   const renderBlock = () => {
+    // CRITICAL: Force text blocks to never render images
+    // Even if image_url is accidentally set on a text block, ignore it
+    const isTextBlock = block.block_type === 'text';
+    
     switch (block.block_type) {
       case 'header':
         return renderHeader();
       case 'text':
         return renderText();
       case 'image':
-        return renderImage();
+        // Don't render image blocks if they're actually text blocks
+        return isTextBlock ? renderText() : renderImage();
       case 'button':
         return renderButton();
       case 'divider':
