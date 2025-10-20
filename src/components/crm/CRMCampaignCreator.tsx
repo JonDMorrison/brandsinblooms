@@ -45,6 +45,18 @@ import {
 
 // Helper function to fetch image for blocks with missing images
 const getOrFetchImage = async (contentObj: any, block: any): Promise<string | null> => {
+  // CRITICAL: Never fetch images for plain text blocks
+  if (block.block_type === 'text' || block.type === 'text') {
+    console.log(`📝 Skipping image fetch for plain text block ${block.id}`);
+    return null;
+  }
+
+  // CRITICAL: Respect the shouldFetchImage flag
+  if (contentObj?.shouldFetchImage === false) {
+    console.log(`🚫 shouldFetchImage is false for block ${block.id}, skipping image fetch`);
+    return null;
+  }
+
   // Check if we already have a valid image URL
   const existingImageUrl = contentObj?.imageUrl;
   if (existingImageUrl && existingImageUrl.trim() !== '') {
