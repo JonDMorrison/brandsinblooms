@@ -118,6 +118,12 @@ const handler = async (req: Request): Promise<Response> => {
         subject: `[TEST] ${subject}`,
         html: content,
       });
+
+      // Check for Resend errors
+      if (emailResponse.error) {
+        console.error("❌ Resend returned an error:", emailResponse.error);
+        throw new Error(emailResponse.error.message || "Email service error");
+      }
       
     } else if (payload.senderId) {
       // Sender test email
@@ -143,6 +149,12 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         `,
       });
+
+      // Check for Resend errors
+      if (emailResponse.error) {
+        console.error("❌ Resend returned an error:", emailResponse.error);
+        throw new Error(emailResponse.error.message || "Email service error");
+      }
       
     } else if (payload.domain) {
       // Domain test email
@@ -168,12 +180,18 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         `,
       });
+
+      // Check for Resend errors
+      if (emailResponse.error) {
+        console.error("❌ Resend returned an error:", emailResponse.error);
+        throw new Error(emailResponse.error.message || "Email service error");
+      }
     } else {
       console.error("❌ Invalid payload format:", payload);
       throw new Error("Invalid payload format - missing required fields");
     }
 
-    console.log("✅ Email sent successfully:", emailResponse);
+    console.log("✅ Email sent successfully:", emailResponse.data);
 
     return new Response(
       JSON.stringify({ 
