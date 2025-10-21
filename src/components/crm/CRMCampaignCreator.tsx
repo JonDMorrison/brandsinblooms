@@ -485,6 +485,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Footer and company data
   const { footerSettings } = useFooterSettings();
   const { companyInfo } = useCompanyInfo();
+  
+  // Log company info changes for debugging footer issues
+  useEffect(() => {
+    console.log('🏢 Company info loaded/updated:', {
+      name: companyInfo?.name,
+      address: companyInfo?.address,
+      phone: companyInfo?.phone
+    });
+  }, [companyInfo]);
 
   // Auto-save functionality for CRM campaigns
   const [isAutoSaving, setIsAutoSaving] = useState(false);
@@ -2405,10 +2414,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     };
     
     // Use actual company info from the hook instead of hardcoded placeholder
-    console.log('🔍 Generating footer with company info:', companyInfo);
+    console.log('🔍 Generating footer with company info:', {
+      name: companyInfo?.name,
+      address: companyInfo?.address,
+      phone: companyInfo?.phone
+    });
     const tokenData = getDefaultTokenData(companyInfo);
     const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData);
-    console.log('✅ Footer HTML generated:', footerHTML.substring(0, 100) + '...');
+    console.log('✅ Footer HTML generated with company:', companyInfo?.name);
     
     html += `
           ${footerHTML}
