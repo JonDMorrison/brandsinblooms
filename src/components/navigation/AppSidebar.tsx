@@ -138,6 +138,11 @@ export function AppSidebar() {
       label: "Settings & Support",
       items: [
         {
+          title: "Settings",
+          url: "/settings",
+          icon: Settings,
+        },
+        {
           title: "Integrations",
           url: "/integrations",
           icon: Layers,
