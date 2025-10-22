@@ -14,8 +14,7 @@ import {
   AlertCircle,
   Settings,
   Globe,
-  Bug,
-  Palette
+  Bug
 } from 'lucide-react';
 
 // Import existing components
@@ -24,7 +23,6 @@ import { AccountBillingSettings } from './AccountBillingSettings';
 import { ComplianceSettings } from './ComplianceSettings';
 import { SupportSettings } from './SupportSettings';
 import { POSSetupWizard } from '@/components/crm/pos/POSSetupWizard';
-import { BrandColorsSettings } from './BrandColorsSettings';
 
 // Import hooks for status checking
 import { usePOSConnection } from '@/hooks/usePOSConnection';
@@ -41,7 +39,7 @@ export const SettingsHub = () => {
   // Sync activeTab with URL parameters
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    const validTabs = ['connections', 'brand', 'account', 'compliance', 'debug', 'support'];
+    const validTabs = ['connections', 'account', 'compliance', 'debug', 'support'];
     
     if (tabFromUrl && validTabs.includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
@@ -72,12 +70,6 @@ const settingsTabs = [
       icon: Link2,
       description: 'POS systems, social media, and third-party integrations',
       badge: getConnectionsStatusBadge()
-    },
-    {
-      id: 'brand',
-      label: 'Brand & Design',
-      icon: Palette,
-      description: 'Brand colors, logos, and visual identity',
     },
     {
       id: 'account',
@@ -263,7 +255,7 @@ const settingsTabs = [
 
         {/* Settings Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-6 h-auto p-2">
+          <TabsList className="grid w-full grid-cols-5 h-auto p-2">
             {settingsTabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
@@ -283,10 +275,6 @@ const settingsTabs = [
 
           <TabsContent value="connections" className="space-y-6">
             <ConnectionsSettings />
-          </TabsContent>
-
-          <TabsContent value="brand" className="space-y-6">
-            <BrandColorsSettings />
           </TabsContent>
 
           <TabsContent value="account" className="space-y-6">

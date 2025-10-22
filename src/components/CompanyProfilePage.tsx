@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { CompanyProfileForm } from './CompanyProfileForm';
+import { BrandColorsSettings } from './settings/BrandColorsSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -70,7 +71,7 @@ export const CompanyProfilePage = () => {
 
   return (
     <div className="p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto space-y-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Company Profile</h1>
           <p className="text-gray-600 mt-2">
@@ -83,6 +84,9 @@ export const CompanyProfilePage = () => {
           onToggleEdit={handleToggleEdit}
           onProfileUpdate={handleProfileUpdate}
         />
+        
+        {/* Brand Colors Settings */}
+        <BrandColorsSettings />
       </div>
     </div>
   );
