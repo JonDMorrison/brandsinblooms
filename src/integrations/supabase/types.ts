@@ -798,6 +798,9 @@ export type Database = {
       company_profiles: {
         Row: {
           beta_tour_enabled: boolean | null
+          brand_accent_color: string | null
+          brand_primary_color: string | null
+          brand_secondary_color: string | null
           brand_voice: string | null
           company_name: string | null
           company_overview: string | null
@@ -833,6 +836,9 @@ export type Database = {
         }
         Insert: {
           beta_tour_enabled?: boolean | null
+          brand_accent_color?: string | null
+          brand_primary_color?: string | null
+          brand_secondary_color?: string | null
           brand_voice?: string | null
           company_name?: string | null
           company_overview?: string | null
@@ -868,6 +874,9 @@ export type Database = {
         }
         Update: {
           beta_tour_enabled?: boolean | null
+          brand_accent_color?: string | null
+          brand_primary_color?: string | null
+          brand_secondary_color?: string | null
           brand_voice?: string | null
           company_name?: string | null
           company_overview?: string | null
@@ -2977,7 +2986,7 @@ export type Database = {
           event_data: Json | null
           event_type: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           user_agent: string | null
         }
         Insert: {
@@ -2987,7 +2996,7 @@ export type Database = {
           event_data?: Json | null
           event_type: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
         }
         Update: {
@@ -2997,7 +3006,7 @@ export type Database = {
           event_data?: Json | null
           event_type?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
         }
         Relationships: [
@@ -3282,7 +3291,7 @@ export type Database = {
         Row: {
           campaign_id: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           metadata: Json | null
           referrer: string | null
           session_id: string
@@ -3292,7 +3301,7 @@ export type Database = {
         Insert: {
           campaign_id: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           metadata?: Json | null
           referrer?: string | null
           session_id: string
@@ -3302,7 +3311,7 @@ export type Database = {
         Update: {
           campaign_id?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           metadata?: Json | null
           referrer?: string | null
           session_id?: string
@@ -5451,10 +5460,7 @@ export type Database = {
       }
     }
     Functions: {
-      admin_delete_user: {
-        Args: { target_user_id: string }
-        Returns: boolean
-      }
+      admin_delete_user: { Args: { target_user_id: string }; Returns: boolean }
       admin_extend_trial: {
         Args: { p_days: number; p_tenant_id: string }
         Returns: undefined
@@ -5464,7 +5470,7 @@ export type Database = {
         Returns: Json
       }
       admin_get_stats: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active_trials: number
           inactive_tenants: number
@@ -5507,34 +5513,12 @@ export type Database = {
         Args: { p_active: boolean; p_tenant_id: string }
         Returns: undefined
       }
-      binary_quantize: {
-        Args: { "": string } | { "": unknown }
-        Returns: unknown
-      }
-      bundle_approved_counts: {
-        Args: { j: Json }
-        Returns: Json
-      }
-      bundle_channels: {
-        Args: { j: Json }
-        Returns: string[]
-      }
-      bundle_first_media_url: {
-        Args: { j: Json }
-        Returns: string
-      }
-      check_email_exists: {
-        Args: { email_to_check: string }
-        Returns: boolean
-      }
-      check_trial_expiration_emails: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      cleanup_old_oauth_codes: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      bundle_approved_counts: { Args: { j: Json }; Returns: Json }
+      bundle_channels: { Args: { j: Json }; Returns: string[] }
+      bundle_first_media_url: { Args: { j: Json }; Returns: string }
+      check_email_exists: { Args: { email_to_check: string }; Returns: boolean }
+      check_trial_expiration_emails: { Args: never; Returns: number }
+      cleanup_old_oauth_codes: { Args: never; Returns: undefined }
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string }
         Returns: number
@@ -5547,20 +5531,14 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
-      feature_enabled: {
-        Args: { feature_name: string }
-        Returns: boolean
-      }
-      fn_get_newsletter_ideas: {
-        Args: { p_user_id?: string }
-        Returns: Json
-      }
+      feature_enabled: { Args: { feature_name: string }; Returns: boolean }
+      fn_get_newsletter_ideas: { Args: { p_user_id?: string }; Returns: Json }
       generate_campaign_slug: {
         Args: { campaign_id: string; campaign_title: string }
         Returns: string
       }
       get_admin_user_data: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           company_name: string
           company_overview: string
@@ -5576,7 +5554,7 @@ export type Database = {
         }[]
       }
       get_duplicate_merge_suggestions: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           accounts: Json
           email: string
@@ -5593,7 +5571,7 @@ export type Database = {
         }[]
       }
       get_user_image_analytics: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           avg_compression_ratio: number
           avg_usage_per_image: number
@@ -5605,42 +5583,6 @@ export type Database = {
           total_usage: number
         }[]
       }
-      gtrgm_compress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_decompress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_in: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_options: {
-        Args: { "": unknown }
-        Returns: undefined
-      }
-      gtrgm_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      halfvec_avg: {
-        Args: { "": number[] }
-        Returns: unknown
-      }
-      halfvec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      halfvec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      halfvec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -5648,54 +5590,12 @@ export type Database = {
         }
         Returns: boolean
       }
-      hnsw_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_sparsevec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnswhandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      increment_image_usage: {
-        Args: { asset_id: string }
-        Returns: undefined
-      }
+      increment_image_usage: { Args: { asset_id: string }; Returns: undefined }
       increment_template_usage: {
         Args: { template_id: string }
         Returns: undefined
       }
-      is_master_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      ivfflat_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflathandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      l2_norm: {
-        Args: { "": unknown } | { "": unknown }
-        Returns: number
-      }
-      l2_normalize: {
-        Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: unknown
-      }
+      is_master_admin: { Args: { _user_id: string }; Returns: boolean }
       log_admin_action: {
         Args: {
           p_action_details?: Json
@@ -5721,37 +5621,12 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
-      restore_user_data: {
-        Args: { target_user_id: string }
-        Returns: boolean
-      }
-      set_limit: {
-        Args: { "": number }
-        Returns: number
-      }
-      show_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      show_trgm: {
-        Args: { "": string }
-        Returns: string[]
-      }
+      restore_user_data: { Args: { target_user_id: string }; Returns: boolean }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       soft_delete_user_data: {
         Args: { target_user_id: string }
         Returns: boolean
-      }
-      sparsevec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      sparsevec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
       }
       spend_tokens: {
         Args: {
@@ -5770,30 +5645,6 @@ export type Database = {
           original_size_bytes: number
         }
         Returns: undefined
-      }
-      vector_avg: {
-        Args: { "": number[] }
-        Returns: string
-      }
-      vector_dims: {
-        Args: { "": string } | { "": unknown }
-        Returns: number
-      }
-      vector_norm: {
-        Args: { "": string }
-        Returns: number
-      }
-      vector_out: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      vector_send: {
-        Args: { "": string }
-        Returns: string
-      }
-      vector_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
       }
     }
     Enums: {

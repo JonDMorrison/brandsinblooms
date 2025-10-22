@@ -8,6 +8,9 @@ interface CompanyInfo {
   phone?: string;
   logoUrl?: string;
   emailDomain?: string;
+  brandPrimaryColor?: string;
+  brandSecondaryColor?: string;
+  brandAccentColor?: string;
 }
 
 export const useCompanyInfo = () => {
@@ -49,6 +52,9 @@ export const useCompanyInfo = () => {
           phone: featureFlags?.company_phone || '(555) 123-4567',
           logoUrl: featureFlags?.company_logo_url,
           emailDomain: profile.email_domain,
+          brandPrimaryColor: profile.brand_primary_color || '#22c55e',
+          brandSecondaryColor: profile.brand_secondary_color || '#1e40af',
+          brandAccentColor: profile.brand_accent_color || '#f59e0b',
         });
       }
     } catch (error) {
@@ -104,6 +110,9 @@ export const useCompanyInfo = () => {
                 phone: featureFlags?.company_phone || '(555) 123-4567',
                 logoUrl: featureFlags?.company_logo_url,
                 emailDomain: profile.email_domain,
+                brandPrimaryColor: profile.brand_primary_color || '#22c55e',
+                brandSecondaryColor: profile.brand_secondary_color || '#1e40af',
+                brandAccentColor: profile.brand_accent_color || '#f59e0b',
               });
             }
           }

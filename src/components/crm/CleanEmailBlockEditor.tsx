@@ -130,6 +130,7 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           body: 'Click the button below to get started.',
           buttonText: 'Get Started',
           buttonUrl: '',
+          buttonColor: '', // Will be populated from company profile in parent component
           alignment: 'center',
           padding: 'medium'
         }

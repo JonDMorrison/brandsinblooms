@@ -2364,7 +2364,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
              <div style="text-align: ${btnAlign}; margin: 30px 0;">
                ${block.headline ? `<h3 style="color: ${block.textColor || '#1f2937'}; margin: 0 0 10px 0; font-size: 20px; font-family: 'Quicksand', sans-serif; font-weight: 600;">${block.headline}</h3>` : ''}
                ${block.body ? `<div style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
-               <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
+               <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
                  ${block.buttonText || 'Learn More'}
                </a>
              </div>
