@@ -2350,9 +2350,47 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           // Only render image block if it has an imageUrl
           if (block.imageUrl) {
             const imgAlign = block.textAlign || 'center';
+            const imgTextColor = block.textColor || '#475569';
+            const imgHeadlineColor = block.textColor || '#1f2937';
+            const imgButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
+            const imgCtaText = block.ctaText || block.buttonText;
+            const imgCtaUrl = block.ctaUrl || block.buttonUrl;
+            
+            // Build image HTML with overlay support
+            let imageHtml = '';
+            if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
+              const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
+              imageHtml = `
+                <!--[if mso | IE]>
+                <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
+                <![endif]-->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; border-radius: 8px; overflow: hidden;">
+                  <tr>
+                    <td style="background-color: ${overlayRgba}; padding: 0;">
+                      <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; display: block; opacity: 0; border-radius: 8px;" />
+                    </td>
+                  </tr>
+                </table>
+                <!--[if mso | IE]>
+                </td></tr></table>
+                <![endif]-->
+              `;
+            } else {
+              imageHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px;" />`;
+            }
+            
             html += `
-              <div style="text-align: ${imgAlign}; margin: 20px 0;">
-                <img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px;" />
+              <div style="text-align: ${imgAlign}; margin: 20px 0; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
+                ${imageHtml}
+                ${block.headline || block.title ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: 'Quicksand', sans-serif; text-align: ${imgAlign};">${block.headline || block.title}</h2>` : ''}
+                ${block.body || block.content ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif; text-align: ${imgAlign};">${block.body || block.content}</div>` : ''}
+                ${imgCtaText && imgCtaUrl ? `
+                  <div style="margin-top: 20px;">
+                    <a href="${imgCtaUrl}" style="display: inline-block; padding: 12px 24px; background: ${imgButtonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
+                      ${imgCtaText}
+                    </a>
+                  </div>
+                ` : ''}
               </div>
             `;
           }
