@@ -2356,19 +2356,48 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               body: block.body,
               content: block.content,
               ctaText: block.ctaText,
-              buttonText: block.buttonText
+              buttonText: block.buttonText,
+              overlayOpacity: block.overlayOpacity,
+              overlayColor: block.overlayColor
             });
             
             const imgAlign = block.textAlign || 'center';
-            const imgTextColor = block.textColor || '#475569';
-            const imgHeadlineColor = block.textColor || '#1f2937';
+            const imgTextColor = block.textColor || '#ffffff';
+            const imgHeadlineColor = block.textColor || '#ffffff';
             const imgButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
             const imgCtaText = block.ctaText || block.buttonText;
             const imgCtaUrl = block.ctaUrl || block.buttonUrl;
             
+            // Build image with overlay if configured
+            let imageHtml = '';
+            if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
+              const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
+              // Use a table-based approach for better email client compatibility
+              imageHtml = `
+                <div style="position: relative; width: 100%; border-radius: 8px; overflow: hidden;">
+                  <!--[if mso | IE]>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
+                  <![endif]-->
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
+                    <tr>
+                      <td style="position: relative; padding: 0;">
+                        <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; max-width: 100%; height: auto; display: block; border-radius: 8px;" />
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: ${overlayRgba}; border-radius: 8px;"></div>
+                      </td>
+                    </tr>
+                  </table>
+                  <!--[if mso | IE]>
+                  </td></tr></table>
+                  <![endif]-->
+                </div>
+              `;
+            } else {
+              imageHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px; display: block;" />`;
+            }
+            
             html += `
               <div style="text-align: ${imgAlign}; margin: 20px 0; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
-                <img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px;" />
+                ${imageHtml}
                 ${block.headline || block.title ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: 'Quicksand', sans-serif; text-align: ${imgAlign};">${block.headline || block.title}</h2>` : ''}
                 ${block.body || block.content ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif; text-align: ${imgAlign};">${block.body || block.content}</div>` : ''}
                 ${imgCtaText && imgCtaUrl ? `
