@@ -2349,6 +2349,16 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         case 'image':
           // Only render image block if it has an imageUrl
           if (block.imageUrl) {
+            console.log('🔍 IMAGE BLOCK DEBUG:', {
+              id: block.id,
+              title: block.title,
+              headline: block.headline,
+              body: block.body,
+              content: block.content,
+              ctaText: block.ctaText,
+              buttonText: block.buttonText
+            });
+            
             const imgAlign = block.textAlign || 'center';
             const imgTextColor = block.textColor || '#475569';
             const imgHeadlineColor = block.textColor || '#1f2937';
