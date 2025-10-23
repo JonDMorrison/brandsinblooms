@@ -2394,6 +2394,52 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           `;
           break;
 
+        case 'newsletter-header':
+          const nhTextColor = block.textColor || '#ffffff';
+          const nhBackgroundColor = block.backgroundColor || '#1f2937';
+          const nhColorOverlayOpacity = block.colorOverlayOpacity !== undefined ? block.colorOverlayOpacity : 0.7;
+          const nhDarkOverlayOpacity = block.darkOverlayOpacity !== undefined ? block.darkOverlayOpacity : 0.3;
+          const nhTextAlign = block.textAlign || 'center';
+          
+          // Format publish date if exists
+          let formattedDate = '';
+          if (block.publishDate) {
+            try {
+              const date = new Date(block.publishDate);
+              formattedDate = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            } catch (e) {
+              formattedDate = block.publishDate;
+            }
+          }
+          
+          html += `
+            <div style="position: relative; text-align: ${nhTextAlign}; padding: 60px 20px; margin: 20px 0; border-radius: 8px; overflow: hidden; min-height: 300px;
+                        ${block.backgroundImageUrl ? `background-image: url(${block.backgroundImageUrl}); background-size: cover; background-position: center;` : `background-color: ${nhBackgroundColor};`}">
+              ${block.backgroundImageUrl ? `
+                <div style="position: absolute; inset: 0; background-color: ${nhBackgroundColor}; opacity: ${nhColorOverlayOpacity};"></div>
+                ${nhDarkOverlayOpacity > 0 ? `<div style="position: absolute; inset: 0; background-color: #000000; opacity: ${nhDarkOverlayOpacity};"></div>` : ''}
+              ` : ''}
+              <div style="position: relative; z-index: 10;">
+                ${block.title || block.headline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.2;">${block.title || block.headline}</h1>` : ''}
+                ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; opacity: 0.95; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
+                ${(block.issueNumber || formattedDate) ? `
+                  <div style="display: inline-block; margin: 16px 0;">
+                    ${block.issueNumber ? `<span style="color: ${nhTextColor}; opacity: 0.9; font-size: 16px; font-family: 'Quicksand', sans-serif; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
+                    ${formattedDate ? `<span style="color: ${nhTextColor}; opacity: 0.9; font-size: 16px; font-family: 'Quicksand', sans-serif;">${formattedDate}</span>` : ''}
+                  </div>
+                ` : ''}
+                ${(block.ctaText || block.buttonText) && (block.ctaUrl || block.buttonUrl) ? `
+                  <div style="margin-top: 32px;">
+                    <a href="${block.ctaUrl || block.buttonUrl}" style="display: inline-block; padding: 14px 32px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; font-family: 'Quicksand', sans-serif;">
+                      ${block.ctaText || block.buttonText}
+                    </a>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+          break;
+
         case 'footer':
           // Footer rendering is handled separately at the end of the function
           // This case is just for the switch statement - actual footer HTML is added below
