@@ -2373,12 +2373,27 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
               const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
               console.log('🎨 IMAGE BLOCK OVERLAY:', { overlayColor: block.overlayColor, overlayOpacity: block.overlayOpacity, overlayRgba });
-              // Use linear-gradient overlay on background image for email compatibility
+              // Use table with background and semi-transparent padding for overlay
               imageHtml = `
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border-radius: 8px; overflow: hidden;">
                   <tr>
-                    <td background="${block.imageUrl}" style="background-image: linear-gradient(${overlayRgba}, ${overlayRgba}), url('${block.imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 8px; padding: 150px 20px;">
-                      ${block.caption ? `<p style="margin: 0; color: #ffffff; text-align: center; font-family: 'Quicksand', sans-serif;">${block.caption}</p>` : '&nbsp;'}
+                    <td background="${block.imageUrl}" bgcolor="${block.overlayColor}" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 8px;">
+                      <!--[if gte mso 9]>
+                      <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;">
+                      <v:fill type="frame" src="${block.imageUrl}" color="${block.overlayColor}" opacity="${Math.round((block.overlayOpacity || 0) * 65535)}" />
+                      <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
+                      <![endif]-->
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td style="padding: 150px 20px; background-color: ${overlayRgba};">
+                            ${block.caption ? `<p style="margin: 0; color: #ffffff; text-align: center; font-family: 'Quicksand', sans-serif;">${block.caption}</p>` : ''}
+                          </td>
+                        </tr>
+                      </table>
+                      <!--[if gte mso 9]>
+                      </v:textbox>
+                      </v:rect>
+                      <![endif]-->
                     </td>
                   </tr>
                 </table>
@@ -2434,11 +2449,21 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
               const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
               console.log('🎨 IMAGE-TEXT BLOCK OVERLAY:', { overlayColor: block.overlayColor, overlayOpacity: block.overlayOpacity, overlayRgba });
-              // Use linear-gradient overlay on background image for email compatibility
+              // Use table with background and semi-transparent inner content for overlay
               imageCellHtml = `
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border-radius: 8px; overflow: hidden; height: 100%;">
                   <tr>
-                    <td background="${block.imageUrl}" style="background-image: linear-gradient(${overlayRgba}, ${overlayRgba}), url('${block.imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 8px; height: 250px; min-height: 250px;">
+                    <td background="${block.imageUrl}" bgcolor="${block.overlayColor}" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 8px; vertical-align: top;">
+                      <!--[if gte mso 9]>
+                      <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:100%;">
+                      <v:fill type="frame" src="${block.imageUrl}" color="${block.overlayColor}" opacity="${Math.round((block.overlayOpacity || 0) * 65535)}" />
+                      <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
+                      <![endif]-->
+                      <div style="min-height: 250px; background-color: ${overlayRgba};"></div>
+                      <!--[if gte mso 9]>
+                      </v:textbox>
+                      </v:rect>
+                      <![endif]-->
                     </td>
                   </tr>
                 </table>
