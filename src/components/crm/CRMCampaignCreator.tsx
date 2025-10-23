@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -2176,7 +2176,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   };
 
 
-  const generateEmailHTML = (): string => {
+  const generateEmailHTML = useCallback((): string => {
     const emailContent = generateEmailContentWithStyles();
     
     return `<!DOCTYPE html>
@@ -2264,9 +2264,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   ${emailContent}
 </body>
 </html>`;
-  };
+  }, [blocks, subjectLine, senderConfig, companyInfo, footerSettings]);
 
-  const generateEmailContentWithStyles = (): string => {
+  const generateEmailContentWithStyles = useCallback((): string => {
     let html = `
       <div class="email-container" style="max-width: 600px; margin: 0 auto; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <div class="content-block" style="padding: 30px 20px;">
@@ -2431,7 +2431,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     `;
     
     return html;
-  };
+  }, [blocks, senderConfig, companyInfo, footerSettings]);
 
   const handleSave = async () => {
     console.log('🚀 Save button clicked');
@@ -2670,6 +2670,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     }
   };
 
+  // Memoize email HTML to update when blocks or other dependencies change
+  const emailHTMLContent = useMemo(() => {
+    return generateEmailHTML();
+  }, [generateEmailHTML]);
+
   if (converting) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -2901,7 +2906,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         isOpen={showPreview}
         onClose={() => setShowPreview(false)}
         subject={subjectLine}
-        content={generateEmailHTML()}
+        content={emailHTMLContent}
       />
 
       {/* AI Writer Dialog */}
