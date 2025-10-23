@@ -2383,33 +2383,32 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               </div>
             `;
           } else {
-            // Render image cell with overlay support
-            const renderImageCell = () => {
-              if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
-                // Use table-based overlay for email compatibility
-                const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
-                return `
-                  <!--[if mso | IE]>
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
-                  <![endif]-->
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; border-radius: 8px; overflow: hidden;">
-                    <tr>
-                      <td style="background-color: ${overlayRgba}; padding: 0;">
-                        <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; display: block; opacity: 0; border-radius: 8px;" />
-                      </td>
-                    </tr>
-                  </table>
-                  <!--[if mso | IE]>
-                  </td></tr></table>
-                  <![endif]-->
-                `;
-              } else {
-                return `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
-              }
-            };
+            // Build image cell HTML with overlay support
+            let imageCellHtml = '';
+            if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
+              // Use table-based overlay for email compatibility
+              const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
+              imageCellHtml = `
+                <!--[if mso | IE]>
+                <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
+                <![endif]-->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; border-radius: 8px; overflow: hidden;">
+                  <tr>
+                    <td style="background-color: ${overlayRgba}; padding: 0;">
+                      <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; display: block; opacity: 0; border-radius: 8px;" />
+                    </td>
+                  </tr>
+                </table>
+                <!--[if mso | IE]>
+                </td></tr></table>
+                <![endif]-->
+              `;
+            } else {
+              imageCellHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
+            }
 
-            // Render text content with CTA
-            const renderTextContent = () => `
+            // Build text content HTML with CTA
+            const textContentHtml = `
               ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
               ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
               ${ctaText && ctaUrl ? `
@@ -2428,17 +2427,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   <tr>
                     ${isImageLeft ? `
                       <td width="50%" style="padding-right: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
-                        ${renderImageCell()}
+                        ${imageCellHtml}
                       </td>
                       <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: ${itTextAlign};" class="mobile-full-width mobile-stack">
-                        ${renderTextContent()}
+                        ${textContentHtml}
                       </td>
                     ` : `
                       <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: ${itTextAlign};" class="mobile-full-width mobile-stack">
-                        ${renderTextContent()}
+                        ${textContentHtml}
                       </td>
                       <td width="50%" style="padding-left: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
-                        ${renderImageCell()}
+                        ${imageCellHtml}
                       </td>
                     `}
                   </tr>
