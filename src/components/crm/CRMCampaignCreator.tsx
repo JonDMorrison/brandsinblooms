@@ -2372,11 +2372,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             let imageHtml = '';
             if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
               const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
+              // Use table with background image and overlay for email compatibility
               imageHtml = `
-                <div style="position: relative; width: 100%; border-radius: 8px; overflow: hidden; display: inline-block;">
-                  <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; max-width: 100%; height: auto; display: block; border-radius: 8px;" />
-                  <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: ${overlayRgba}; border-radius: 8px; pointer-events: none;"></div>
-                </div>
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border-radius: 8px; overflow: hidden;">
+                  <tr>
+                    <td style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; min-height: 300px; border-radius: 8px;">
+                      <div style="background-color: ${overlayRgba}; width: 100%; height: 100%; min-height: 300px; border-radius: 8px;"></div>
+                    </td>
+                  </tr>
+                </table>
               `;
             } else {
               imageHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px; display: block;" />`;
@@ -2427,13 +2431,16 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             // Build image cell HTML with overlay support
             let imageCellHtml = '';
             if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
-              // Use proper overlay technique that shows image with overlay on top
               const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
+              // Use table with background image and overlay for email compatibility
               imageCellHtml = `
-                <div style="position: relative; border-radius: 8px; overflow: hidden;">
-                  <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; display: block; border-radius: 8px;" />
-                  <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: ${overlayRgba}; border-radius: 8px; pointer-events: none;"></div>
-                </div>
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border-radius: 8px; overflow: hidden;">
+                  <tr>
+                    <td style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; min-height: 250px; border-radius: 8px;">
+                      <div style="background-color: ${overlayRgba}; width: 100%; height: 100%; min-height: 250px; border-radius: 8px;"></div>
+                    </td>
+                  </tr>
+                </table>
               `;
             } else {
               imageCellHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
