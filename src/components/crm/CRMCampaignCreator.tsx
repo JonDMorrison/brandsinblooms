@@ -2266,6 +2266,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 </html>`;
   }, [blocks, subjectLine, senderConfig, companyInfo, footerSettings]);
 
+  // Helper function to convert hex color + opacity to RGBA for email compatibility
+  const hexToRgba = (hex: string, opacity: number): string => {
+    const cleanHex = hex.replace('#', '');
+    const r = parseInt(cleanHex.substr(0, 2), 16);
+    const g = parseInt(cleanHex.substr(2, 2), 16);
+    const b = parseInt(cleanHex.substr(4, 2), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  };
+
   const generateEmailContentWithStyles = useCallback((): string => {
     let html = `
       <div class="email-container" style="max-width: 600px; margin: 0 auto; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -2279,17 +2288,51 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         case 'header':
           const headerAlign = block.textAlign || 'center';
           const headerOpacity = block.backgroundOpacity || 0.4;
-          html += `
-            <div style="position: relative; text-align: ${headerAlign}; padding: 40px 20px; margin: 20px 0; border-radius: 8px; overflow: hidden;
-                        ${block.backgroundImageUrl ? `background-image: url(${block.backgroundImageUrl}); background-size: cover; background-position: center;` : ''}
-                        ${!block.backgroundImageUrl ? `background-color: ${block.backgroundColor || '#1f2937'};` : ''}">
-              ${block.backgroundImageUrl ? `<div style="position: absolute; inset: 0; background-color: ${block.backgroundColor || '#000000'}; opacity: ${headerOpacity};"></div>` : ''}
-              <div style="position: relative; z-index: 10;">
-                <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline || block.title || 'Your Headline Here'}</h1>
-                ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
-              </div>
-            </div>
-          `;
+          const headerBgColor = block.backgroundColor || '#1f2937';
+          
+          if (block.backgroundImageUrl) {
+            // Table-based layout with background image and RGBA overlay for email compatibility
+            const overlayColor = hexToRgba(block.backgroundColor || '#000000', headerOpacity);
+            html += `
+              <!--[if mso | IE]>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
+              <![endif]-->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
+                <tr>
+                  <td style="background-image: url(${block.backgroundImageUrl}); background-size: cover; background-position: center; padding: 40px 20px; text-align: ${headerAlign}; background-color: ${overlayColor};">
+                    <!--[if gte mso 9]>
+                    <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;">
+                    <v:fill type="frame" src="${block.backgroundImageUrl}" color="${headerBgColor}" />
+                    <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
+                    <![endif]-->
+                    <div style="background-color: ${overlayColor}; padding: 0;">
+                      <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline || block.title || 'Your Headline Here'}</h1>
+                      ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
+                    </div>
+                    <!--[if gte mso 9]>
+                    </v:textbox>
+                    </v:rect>
+                    <![endif]-->
+                  </td>
+                </tr>
+              </table>
+              <!--[if mso | IE]>
+              </td></tr></table>
+              <![endif]-->
+            `;
+          } else {
+            // Simple solid background
+            html += `
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
+                <tr>
+                  <td style="background-color: ${headerBgColor}; padding: 40px 20px; text-align: ${headerAlign};">
+                    <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline || block.title || 'Your Headline Here'}</h1>
+                    ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
+                  </td>
+                </tr>
+              </table>
+            `;
+          }
           break;
 
         case 'text':
@@ -2412,32 +2455,90 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             }
           }
           
-          html += `
-            <div style="position: relative; text-align: ${nhTextAlign}; padding: 60px 20px; margin: 20px 0; border-radius: 8px; overflow: hidden; min-height: 300px;
-                        ${block.backgroundImageUrl ? `background-image: url(${block.backgroundImageUrl}); background-size: cover; background-position: center;` : `background-color: ${nhBackgroundColor};`}">
-              ${block.backgroundImageUrl ? `
-                <div style="position: absolute; inset: 0; background-color: ${nhBackgroundColor}; opacity: ${nhColorOverlayOpacity};"></div>
-                ${nhDarkOverlayOpacity > 0 ? `<div style="position: absolute; inset: 0; background-color: #000000; opacity: ${nhDarkOverlayOpacity};"></div>` : ''}
-              ` : ''}
-              <div style="position: relative; z-index: 10;">
-                ${block.title || block.headline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.2;">${block.title || block.headline}</h1>` : ''}
-                ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; opacity: 0.95; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
-                ${(block.issueNumber || formattedDate) ? `
-                  <div style="display: inline-block; margin: 16px 0;">
-                    ${block.issueNumber ? `<span style="color: ${nhTextColor}; opacity: 0.9; font-size: 16px; font-family: 'Quicksand', sans-serif; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
-                    ${formattedDate ? `<span style="color: ${nhTextColor}; opacity: 0.9; font-size: 16px; font-family: 'Quicksand', sans-serif;">${formattedDate}</span>` : ''}
-                  </div>
-                ` : ''}
-                ${(block.ctaText || block.buttonText) && (block.ctaUrl || block.buttonUrl) ? `
-                  <div style="margin-top: 32px;">
-                    <a href="${block.ctaUrl || block.buttonUrl}" style="display: inline-block; padding: 14px 32px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; font-family: 'Quicksand', sans-serif;">
-                      ${block.ctaText || block.buttonText}
-                    </a>
-                  </div>
-                ` : ''}
-              </div>
-            </div>
-          `;
+          if (block.backgroundImageUrl) {
+            // Table-based layout with nested tables for multiple overlays (color + dark) for email compatibility
+            const colorOverlay = hexToRgba(nhBackgroundColor, nhColorOverlayOpacity);
+            const darkOverlay = nhDarkOverlayOpacity > 0 ? hexToRgba('#000000', nhDarkOverlayOpacity) : '';
+            
+            // Combine overlays using linear-gradient for better email client support
+            const combinedOverlay = darkOverlay 
+              ? `linear-gradient(${darkOverlay}, ${darkOverlay}), linear-gradient(${colorOverlay}, ${colorOverlay})`
+              : `linear-gradient(${colorOverlay}, ${colorOverlay})`;
+            
+            html += `
+              <!--[if mso | IE]>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
+              <![endif]-->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden; min-height: 300px;">
+                <tr>
+                  <td style="background-image: ${combinedOverlay}, url(${block.backgroundImageUrl}); background-size: cover; background-position: center; padding: 60px 20px; text-align: ${nhTextAlign};">
+                    <!--[if gte mso 9]>
+                    <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px; height:300px;">
+                    <v:fill type="frame" src="${block.backgroundImageUrl}" color="${nhBackgroundColor}" opacity="${nhColorOverlayOpacity * 100}%" />
+                    <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
+                    <![endif]-->
+                    <div>
+                      ${block.title || block.headline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.2;">${block.title || block.headline}</h1>` : ''}
+                      ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
+                      ${(block.issueNumber || formattedDate) ? `
+                        <div style="margin: 16px 0;">
+                          ${block.issueNumber ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: 'Quicksand', sans-serif; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
+                          ${formattedDate ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: 'Quicksand', sans-serif;">${formattedDate}</span>` : ''}
+                        </div>
+                      ` : ''}
+                      ${(block.ctaText || block.buttonText) && (block.ctaUrl || block.buttonUrl) ? `
+                        <table cellpadding="0" cellspacing="0" border="0" ${nhTextAlign === 'center' ? 'align="center"' : ''} style="margin-top: 32px;">
+                          <tr>
+                            <td style="background-color: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; border-radius: 6px; padding: 14px 32px;">
+                              <a href="${block.ctaUrl || block.buttonUrl}" style="display: inline-block; color: white; text-decoration: none; font-weight: 600; font-size: 16px; font-family: 'Quicksand', sans-serif;">
+                                ${block.ctaText || block.buttonText}
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      ` : ''}
+                    </div>
+                    <!--[if gte mso 9]>
+                    </v:textbox>
+                    </v:rect>
+                    <![endif]-->
+                  </td>
+                </tr>
+              </table>
+              <!--[if mso | IE]>
+              </td></tr></table>
+              <![endif]-->
+            `;
+          } else {
+            // Simple solid background without image
+            html += `
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
+                <tr>
+                  <td style="background-color: ${nhBackgroundColor}; padding: 60px 20px; text-align: ${nhTextAlign}; min-height: 300px;">
+                    ${block.title || block.headline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.2;">${block.title || block.headline}</h1>` : ''}
+                    ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
+                    ${(block.issueNumber || formattedDate) ? `
+                      <div style="margin: 16px 0;">
+                        ${block.issueNumber ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: 'Quicksand', sans-serif; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
+                        ${formattedDate ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: 'Quicksand', sans-serif;">${formattedDate}</span>` : ''}
+                      </div>
+                    ` : ''}
+                    ${(block.ctaText || block.buttonText) && (block.ctaUrl || block.buttonUrl) ? `
+                      <table cellpadding="0" cellspacing="0" border="0" ${nhTextAlign === 'center' ? 'align="center"' : ''} style="margin-top: 32px;">
+                        <tr>
+                          <td style="background-color: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; border-radius: 6px; padding: 14px 32px;">
+                            <a href="${block.ctaUrl || block.buttonUrl}" style="display: inline-block; color: white; text-decoration: none; font-weight: 600; font-size: 16px; font-family: 'Quicksand', sans-serif;">
+                              ${block.ctaText || block.buttonText}
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    ` : ''}
+                  </td>
+                </tr>
+              </table>
+            `;
+          }
           break;
 
         case 'footer':
