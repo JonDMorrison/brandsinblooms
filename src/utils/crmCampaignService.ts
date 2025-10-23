@@ -109,8 +109,8 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
     if (campaignData.content_blocks && campaignData.content_blocks.length > 0) {
       const blocks = campaignData.content_blocks.map((block, index) => ({
         campaign_id: campaign.id,
-        block_type: block.type || 'text',
-        content: {
+        block_type: block.block_type || block.type || 'text',
+        content: block.content || {
           // Preserve ALL block content properties
           title: block.title || block.headline,
           content: block.content || block.body,
@@ -138,12 +138,12 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
           visible: block.visible,
           collapsed: block.collapsed
         },
-        image_url: block.imageUrl,
-        cta_url: block.ctaUrl || block.buttonUrl,
-        cta_text: block.ctaText || block.buttonText,
+        image_url: block.image_url || block.imageUrl || (block.content && block.content.imageUrl),
+        cta_url: block.cta_url || block.ctaUrl || block.buttonUrl,
+        cta_text: block.cta_text || block.ctaText || block.buttonText,
         source: block.source || 'newsletter',
-        persona_tag: block.personaTag,
-        order_index: index
+        persona_tag: block.personaTag || block.persona_tag,
+        order_index: block.order_index !== undefined ? block.order_index : index
       }));
 
       const { error: blocksError } = await supabase
