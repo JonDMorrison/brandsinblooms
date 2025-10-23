@@ -57,9 +57,10 @@ const getOrFetchImage = async (contentObj: any, block: any): Promise<string | nu
     return null;
   }
 
-  // Check if we already have a valid image URL
-  const existingImageUrl = contentObj?.imageUrl;
+  // Check if we already have a valid image URL (from content OR from database column)
+  const existingImageUrl = contentObj?.imageUrl || block.image_url;
   if (existingImageUrl && existingImageUrl.trim() !== '') {
+    console.log(`✅ Found existing image for block ${block.id}: ${existingImageUrl.substring(0, 50)}...`);
     return existingImageUrl;
   }
 
