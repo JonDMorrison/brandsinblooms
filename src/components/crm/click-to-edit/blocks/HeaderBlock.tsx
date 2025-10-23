@@ -12,6 +12,7 @@ import { ContextualToolbar } from '../contextual/ContextualToolbar';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { useAutoBackgroundImage } from '@/hooks/useAutoBackgroundImage';
+import { SafeHtml } from '@/components/ui/safe-html';
 
 interface HeaderBlockProps {
   block: ContentBlock;
@@ -122,12 +123,16 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
         block.textAlign === 'right' && "text-right"
       )}>
         <div className="max-w-2xl">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight drop-shadow-lg">
-            {sanitizeWeekNumbers(block.headline || block.title || "Your Headline Here")}
-          </h1>
-          <p className="text-lg md:text-xl opacity-90 leading-relaxed drop-shadow-md">
-            {sanitizeWeekNumbers(block.body || "Add your subtitle or description text here.")}
-          </p>
+          <SafeHtml 
+            content={sanitizeWeekNumbers(block.headline || block.title || "Your Headline Here")}
+            className="text-4xl md:text-5xl font-bold mb-4 leading-tight drop-shadow-lg [&>*]:m-0"
+            type="general"
+          />
+          <SafeHtml 
+            content={sanitizeWeekNumbers(block.body || "Add your subtitle or description text here.")}
+            className="text-lg md:text-xl opacity-90 leading-relaxed drop-shadow-md [&>*]:m-0"
+            type="general"
+          />
         </div>
       </div>
 
