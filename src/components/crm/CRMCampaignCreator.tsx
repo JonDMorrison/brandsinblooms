@@ -2372,16 +2372,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             let imageHtml = '';
             if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
               const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
-              // Use actual image with semi-transparent colored div on top for overlay effect
+              // Use background-image with overlay for email compatibility
               imageHtml = `
-                <div style="position: relative; border-radius: 8px; overflow: hidden; display: inline-block; width: 100%;">
-                  <img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px; display: block; width: 100%;" />
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-collapse: collapse;">
-                    <tr>
-                      <td style="background-color: ${overlayRgba};"></td>
-                    </tr>
-                  </table>
-                </div>
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border-radius: 8px; overflow: hidden;">
+                  <tr>
+                    <td background="${block.imageUrl}" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 8px;">
+                      <div style="background-color: ${overlayRgba}; padding: 150px 20px; border-radius: 8px;">
+                        ${block.caption ? `<p style="margin: 0; color: #ffffff; text-align: center; font-family: 'Quicksand', sans-serif;">${block.caption}</p>` : '&nbsp;'}
+                      </div>
+                    </td>
+                  </tr>
+                </table>
               `;
             } else {
               imageHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px; display: block;" />`;
@@ -2433,16 +2434,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             let imageCellHtml = '';
             if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
               const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
-              // Use actual image with semi-transparent colored div on top for overlay effect
+              // Use background-image with text content on overlay for email compatibility
               imageCellHtml = `
-                <div style="position: relative; border-radius: 8px; overflow: hidden;">
-                  <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-collapse: collapse;">
-                    <tr>
-                      <td style="background-color: ${overlayRgba};"></td>
-                    </tr>
-                  </table>
-                </div>
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border-radius: 8px; overflow: hidden; height: 100%;">
+                  <tr>
+                    <td background="${block.imageUrl}" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 8px; height: 250px; min-height: 250px;">
+                      <div style="background-color: ${overlayRgba}; width: 100%; height: 100%; min-height: 250px; border-radius: 8px;"></div>
+                    </td>
+                  </tr>
+                </table>
               `;
             } else {
               imageCellHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
