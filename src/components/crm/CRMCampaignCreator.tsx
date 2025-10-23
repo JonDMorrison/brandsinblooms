@@ -2372,23 +2372,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             let imageHtml = '';
             if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
               const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
-              // Use a table-based approach for better email client compatibility
               imageHtml = `
-                <div style="position: relative; width: 100%; border-radius: 8px; overflow: hidden;">
-                  <!--[if mso | IE]>
-                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
-                  <![endif]-->
-                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
-                    <tr>
-                      <td style="position: relative; padding: 0;">
-                        <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; max-width: 100%; height: auto; display: block; border-radius: 8px;" />
-                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: ${overlayRgba}; border-radius: 8px;"></div>
-                      </td>
-                    </tr>
-                  </table>
-                  <!--[if mso | IE]>
-                  </td></tr></table>
-                  <![endif]-->
+                <div style="position: relative; width: 100%; border-radius: 8px; overflow: hidden; display: inline-block;">
+                  <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; max-width: 100%; height: auto; display: block; border-radius: 8px;" />
+                  <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: ${overlayRgba}; border-radius: 8px; pointer-events: none;"></div>
                 </div>
               `;
             } else {
@@ -2440,22 +2427,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             // Build image cell HTML with overlay support
             let imageCellHtml = '';
             if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
-              // Use table-based overlay for email compatibility
+              // Use proper overlay technique that shows image with overlay on top
               const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
               imageCellHtml = `
-                <!--[if mso | IE]>
-                <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
-                <![endif]-->
-                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; border-radius: 8px; overflow: hidden;">
-                  <tr>
-                    <td style="background-color: ${overlayRgba}; padding: 0;">
-                      <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; display: block; opacity: 0; border-radius: 8px;" />
-                    </td>
-                  </tr>
-                </table>
-                <!--[if mso | IE]>
-                </td></tr></table>
-                <![endif]-->
+                <div style="position: relative; border-radius: 8px; overflow: hidden;">
+                  <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; display: block; border-radius: 8px;" />
+                  <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: ${overlayRgba}; border-radius: 8px; pointer-events: none;"></div>
+                </div>
               `;
             } else {
               imageCellHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
