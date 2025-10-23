@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Slider } from '@/components/ui/slider';
-import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { MediaSelectorImage, MediaSelectorImageHandle } from '@/components/crm/MediaSelectorImage';
 import { Edit, Copy, Trash2, RefreshCw, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContextualToolbar } from '../contextual/ContextualToolbar';
@@ -33,6 +33,8 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
   editMode,
   onModeChange 
 }) => {
+  const mediaSelectorRef = useRef<MediaSelectorImageHandle>(null);
+
   // Use auto background image hook
   const { isLoading: isLoadingBgImage, refetchImage } = useAutoBackgroundImage({
     headline: block.headline || block.title,
@@ -93,17 +95,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
           onModeChange={onModeChange}
           onImageEdit={() => {
             console.log('[HeaderBlock] Image edit triggered via ContextualToolbar');
-            // Find the MediaSelectorImage button in the editor section
-            setTimeout(() => {
-              const mediaSelector = document.querySelector('[data-media-selector-button]') as HTMLButtonElement;
-              console.log('[HeaderBlock] Found MediaSelectorImage button:', !!mediaSelector);
-              if (mediaSelector) {
-                console.log('[HeaderBlock] Clicking MediaSelectorImage button');
-                mediaSelector.click();
-              } else {
-                console.error('[HeaderBlock] MediaSelectorImage button not found');
-              }
-            }, 50);
+            mediaSelectorRef.current?.openDialog();
           }}
           showTextEdit={true}
           showImageEdit={true}
@@ -258,6 +250,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
         )}
         
         <MediaSelectorImage
+          ref={mediaSelectorRef}
           src={block.backgroundImageUrl}
           onChange={(imageUrl, metadata) => {
             console.log('[HeaderBlock] Image manually selected:', imageUrl, metadata);

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { MediaSelectorSidebar } from './MediaSelectorSidebar';
 import { AIPersonalizationDialog } from './AIPersonalizationDialog';
 import { Camera, Upload, Sparkles } from 'lucide-react';
@@ -16,6 +16,10 @@ interface MediaSelectorImageProps {
   weekNumber?: number;
   contentType?: 'facebook' | 'instagram' | 'blog';
   imageGenerationStatus?: string | null;
+}
+
+export interface MediaSelectorImageHandle {
+  openDialog: () => void;
 }
 
 // Helper function to get seasonal search query based on current date
@@ -67,7 +71,7 @@ const getSeasonalSearchQuery = (): string => {
   return 'beautiful garden flowers plants';
 };
 
-export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
+export const MediaSelectorImage = forwardRef<MediaSelectorImageHandle, MediaSelectorImageProps>(({
   src = '',
   onChange,
   contentContext = '',
@@ -76,7 +80,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   weekNumber,
   contentType,
   imageGenerationStatus
-}) => {
+}, ref) => {
   console.log('[MediaSelectorImage] Component props:', { 
     src, 
     hasOnChange: !!onChange, 
@@ -88,6 +92,14 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   const [isPersonalizing, setIsPersonalizing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+
+  // Expose openDialog method to parent components
+  useImperativeHandle(ref, () => ({
+    openDialog: () => {
+      console.log('[MediaSelectorImage] openDialog called via ref');
+      setIsSelecting(true);
+    }
+  }));
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     console.log('[MediaSelectorImage] Image selected:', imageUrl, metadata);
@@ -183,4 +195,4 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
       />
     </>
   );
-};
+});
