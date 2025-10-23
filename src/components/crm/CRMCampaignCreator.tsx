@@ -2359,10 +2359,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           break;
 
         case 'image-text':
-          const isImageLeft = block.layout === 'image-left' || !block.layout;
+          const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left' || !block.layout;
           const itTextAlign = block.textAlign || 'left';
           const itTextColor = block.textColor || '#475569';
-          const itHeadlineColor = block.textColor || '#1f2937'; // Use dark gray instead of green
+          const itHeadlineColor = block.textColor || '#1f2937';
+          const buttonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
+          const ctaText = block.ctaText || block.buttonText;
+          const ctaUrl = block.ctaUrl || block.buttonUrl;
           
           // If no image, render as text-only block
           if (!block.imageUrl) {
@@ -2370,29 +2373,72 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px; text-align: ${itTextAlign};">
                 ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
                 ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+                ${ctaText && ctaUrl ? `
+                  <div style="margin-top: 20px;">
+                    <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
+                      ${ctaText}
+                    </a>
+                  </div>
+                ` : ''}
               </div>
             `;
           } else {
-            // Render with image
+            // Render image cell with overlay support
+            const renderImageCell = () => {
+              if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
+                // Use table-based overlay for email compatibility
+                const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
+                return `
+                  <!--[if mso | IE]>
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
+                  <![endif]-->
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${overlayRgba}; padding: 0;">
+                        <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; display: block; opacity: 0; border-radius: 8px;" />
+                      </td>
+                    </tr>
+                  </table>
+                  <!--[if mso | IE]>
+                  </td></tr></table>
+                  <![endif]-->
+                `;
+              } else {
+                return `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
+              }
+            };
+
+            // Render text content with CTA
+            const renderTextContent = () => `
+              ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
+              ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+              ${ctaText && ctaUrl ? `
+                <div style="margin-top: 20px;">
+                  <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
+                    ${ctaText}
+                  </a>
+                </div>
+              ` : ''}
+            `;
+
+            // Render with image and text in two-column layout
             html += `
               <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px;">
                 <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;" class="mobile-stack">
                   <tr>
                     ${isImageLeft ? `
                       <td width="50%" style="padding-right: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
-                        <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />
+                        ${renderImageCell()}
                       </td>
                       <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: ${itTextAlign};" class="mobile-full-width mobile-stack">
-                        ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-                        ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+                        ${renderTextContent()}
                       </td>
                     ` : `
                       <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: ${itTextAlign};" class="mobile-full-width mobile-stack">
-                        ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-                        ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+                        ${renderTextContent()}
                       </td>
                       <td width="50%" style="padding-left: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
-                        <img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />
+                        ${renderImageCell()}
                       </td>
                     `}
                   </tr>
