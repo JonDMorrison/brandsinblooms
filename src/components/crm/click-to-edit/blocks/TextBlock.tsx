@@ -3,6 +3,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { ImageTextBlock } from './ImageTextBlock';
+import { CTAButton } from '@/components/ui/CTAButton';
 
 interface TextBlockProps {
   block: ContentBlock;
@@ -115,6 +116,9 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
           })()
         }}
       />
+      
+      {/* CTA Button */}
+      <CTAButton block={block} />
     </div>
   );
 };

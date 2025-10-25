@@ -49,6 +49,8 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
   const renderText = () => {
     // CRITICAL: Plain text blocks should NEVER render images, even if image_url exists
     // This is a pure text block - no images allowed
+    const hasButton = (block.cta_text || block.content.buttonText) && (block.cta_url || block.content.buttonUrl);
+    
     return (
       <div style={{ ...baseStyle, padding: '16px 24px' }}>
         {block.content.title && (
@@ -62,10 +64,33 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
         )}
         <div style={{ 
           lineHeight: '1.6', 
-          color: '#374151' 
+          color: '#374151',
+          marginBottom: hasButton ? '16px' : '0'
         }}>
           {block.content.content || 'Add your text content here...'}
         </div>
+        {hasButton && (
+          <div style={{ 
+            textAlign: block.content.alignment as any || 'left',
+            marginTop: '16px'
+          }}>
+            <a
+              href={block.cta_url || block.content.buttonUrl || '#'}
+              style={{
+                display: 'inline-block',
+                padding: '12px 24px',
+                backgroundColor: globalSettings.buttonStyle.backgroundColor,
+                color: globalSettings.buttonStyle.textColor,
+                borderRadius: globalSettings.buttonStyle.cornerRadius,
+                textDecoration: 'none',
+                fontWeight: 'bold',
+                fontSize: '16px',
+              }}
+            >
+              {block.cta_text || block.content.buttonText || 'Click Here'}
+            </a>
+          </div>
+        )}
       </div>
     );
   };
