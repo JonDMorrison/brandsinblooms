@@ -2406,8 +2406,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             });
             
             const imgAlign = block.textAlign || 'center';
-            const imgTextColor = block.textColor || '#ffffff';
-            const imgHeadlineColor = block.textColor || '#ffffff';
+            // Force dark text colors for visibility
+            const imgTextColor = '#475569'; // Always use dark gray for body text
+            const imgHeadlineColor = '#1f2937'; // Always use darker gray for headlines
             const imgButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
             const imgCtaText = block.ctaText || block.buttonText;
             const imgCtaUrl = block.ctaUrl || block.buttonUrl;
