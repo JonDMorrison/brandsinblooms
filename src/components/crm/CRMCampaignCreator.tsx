@@ -546,8 +546,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           }
           console.log('✅ Campaign metadata updated successfully');
 
-          // Step 2: Use UPSERT with proper conflict resolution
-          console.log('📦 Upserting', campaignData.blocks.length, 'blocks...');
+          // Step 2: Save blocks separately - update existing, insert new
+          console.log('📦 Saving', campaignData.blocks.length, 'blocks...');
           
           if (campaignData.blocks.length > 0) {
             // Fetch existing blocks to preserve their IDs
@@ -560,10 +560,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               (existingBlocks || []).map(b => [b.order_index, b.id])
             );
 
-            const blocksToSave = campaignData.blocks.map((block, index) => {
+            const blocksToUpdate: any[] = [];
+            const blocksToInsert: any[] = [];
+
+            campaignData.blocks.forEach((block, index) => {
               const existingId = existingBlockMap.get(index);
               
-              const blockData: any = {
+              const blockData = {
                 campaign_id: existingCampaignId,
                 block_type: block.type,
                 content: {
@@ -608,20 +611,21 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 order_index: index
               };
 
-              // Include ID if this block already exists
-              if (existingId) {
-                blockData.id = existingId;
-              }
-
               // Validate required fields
               if (!blockData.block_type) {
                 throw new Error(`Block ${index} is missing required block_type`);
               }
 
-              return blockData;
+              if (existingId) {
+                // Update existing block
+                blocksToUpdate.push({ ...blockData, id: existingId });
+              } else {
+                // Insert new block
+                blocksToInsert.push(blockData);
+              }
             });
 
-            // Delete blocks that are no longer needed (order_index >= blocks.length)
+            // Delete blocks that are no longer needed
             const { error: deleteError } = await supabase
               .from('campaign_blocks')
               .delete()
@@ -632,19 +636,34 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               console.warn('⚠️ Failed to delete extra blocks:', deleteError);
             }
 
-            // Upsert blocks with conflict resolution on (campaign_id, order_index)
-            const { error: blocksError } = await supabase
-              .from('campaign_blocks')
-              .upsert(blocksToSave, {
-                onConflict: 'id',
-                ignoreDuplicates: false
-              });
+            // Update existing blocks
+            if (blocksToUpdate.length > 0) {
+              for (const block of blocksToUpdate) {
+                const { error: updateError } = await supabase
+                  .from('campaign_blocks')
+                  .update(block)
+                  .eq('id', block.id);
 
-            if (blocksError) {
-              console.error('❌ Block upsert failed:', blocksError);
-              throw new Error(`Block upsert failed: ${blocksError.message}`);
+                if (updateError) {
+                  console.error('❌ Block update failed:', updateError);
+                  throw new Error(`Block update failed: ${updateError.message}`);
+                }
+              }
+              console.log('✅ Updated', blocksToUpdate.length, 'existing blocks');
             }
-            console.log('✅ Blocks upserted successfully');
+
+            // Insert new blocks
+            if (blocksToInsert.length > 0) {
+              const { error: insertError } = await supabase
+                .from('campaign_blocks')
+                .insert(blocksToInsert);
+
+              if (insertError) {
+                console.error('❌ Block insert failed:', insertError);
+                throw new Error(`Block insert failed: ${insertError.message}`);
+              }
+              console.log('✅ Inserted', blocksToInsert.length, 'new blocks');
+            }
           } else {
             // Delete all blocks if none provided
             await supabase
