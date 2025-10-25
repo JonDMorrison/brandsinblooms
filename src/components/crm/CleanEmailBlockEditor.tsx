@@ -54,7 +54,6 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'image',
         config: {
-          title: 'Background Image Section',
           content: 'Content with background image',
           altText: bgImage.alt || 'Garden background',
           layout: 'background',
@@ -82,7 +81,6 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'image',
         config: {
-          title: 'Full-Width Image',
           altText: fullWidthImage.alt || 'Garden center plants',
           caption: 'Optional caption text',
           alignment: 'center',
