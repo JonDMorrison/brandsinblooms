@@ -478,6 +478,42 @@ export type Database = {
           },
         ]
       }
+      available_fonts: {
+        Row: {
+          created_at: string | null
+          display_name: string
+          font_family_css: string
+          google_fonts_url: string
+          id: string
+          is_active: boolean | null
+          name: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_name: string
+          font_family_css: string
+          google_fonts_url: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_name?: string
+          font_family_css?: string
+          google_fonts_url?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       campaign_attribution: {
         Row: {
           attribution_window_days: number | null
@@ -823,6 +859,7 @@ export type Database = {
           location_info: string | null
           onboarding_completed_at: string | null
           seasonal_focus: string | null
+          selected_font_id: string | null
           specializations: string | null
           target_audience: string | null
           test_numbers: string[] | null
@@ -861,6 +898,7 @@ export type Database = {
           location_info?: string | null
           onboarding_completed_at?: string | null
           seasonal_focus?: string | null
+          selected_font_id?: string | null
           specializations?: string | null
           target_audience?: string | null
           test_numbers?: string[] | null
@@ -899,6 +937,7 @@ export type Database = {
           location_info?: string | null
           onboarding_completed_at?: string | null
           seasonal_focus?: string | null
+          selected_font_id?: string | null
           specializations?: string | null
           target_audience?: string | null
           test_numbers?: string[] | null
@@ -910,7 +949,15 @@ export type Database = {
           user_id?: string
           website_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_profiles_selected_font_id_fkey"
+            columns: ["selected_font_id"]
+            isOneToOne: false
+            referencedRelation: "available_fonts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       compliance_logs: {
         Row: {

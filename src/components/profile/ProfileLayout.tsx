@@ -8,6 +8,7 @@ export const ProfileLayout = () => {
   // Determine active tab from current path
   const getActiveTab = () => {
     if (location.pathname.includes('/brand-colors')) return 'brand-colors';
+    if (location.pathname.includes('/typography')) return 'typography';
     return 'company';
   };
 
@@ -33,6 +34,11 @@ export const ProfileLayout = () => {
             <Link to="/profile/brand-colors">
               <TabsTrigger value="brand-colors">
                 Brand Colors
+              </TabsTrigger>
+            </Link>
+            <Link to="/profile/typography">
+              <TabsTrigger value="typography">
+                Typography
               </TabsTrigger>
             </Link>
           </TabsList>

@@ -2221,6 +2221,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
 
   const generateEmailHTML = useCallback((): string => {
+    // Dynamic font configuration from user settings
+    const fontUrl = companyInfo?.selectedFont?.googleFontsUrl || 
+                    'https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap';
+    const fontFamily = companyInfo?.selectedFont?.fontFamilyCss || "'Quicksand', sans-serif";
+    
     const emailContent = generateEmailContentWithStyles();
     
     return `<!DOCTYPE html>
@@ -2239,9 +2244,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     </xml>
   </noscript>
   <![endif]-->
-  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="${fontUrl}" rel="stylesheet">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+    @import url('${fontUrl}');
     
     /* Reset and base styles */
     body, table, td, p, a, li, blockquote {
@@ -2304,7 +2309,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     }
   </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f8f9fa; font-family: 'Quicksand', 'Arial', sans-serif;">
+<body style="margin: 0; padding: 0; background-color: #f8f9fa; font-family: ${fontFamily}, Arial, sans-serif;">
   ${emailContent}
 </body>
 </html>`;
@@ -2320,6 +2325,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   };
 
   const generateEmailContentWithStyles = useCallback((): string => {
+    // Dynamic font configuration from user settings
+    const fontFamily = companyInfo?.selectedFont?.fontFamilyCss || "'Quicksand', sans-serif";
+    
     // Helper to check if headline is a default block type label that should not be displayed
     const isBlockTypeLabel = (text: string | undefined): boolean => {
       if (!text) return false;
@@ -2365,8 +2373,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
                     <div style="background-color: ${overlayColor}; padding: 0;">
-                      ${block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
-                      ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
+                      ${block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fontFamily}; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
+                      ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fontFamily}; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
                     </div>
                     <!--[if gte mso 9]>
                     </v:textbox>
@@ -2385,8 +2393,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
                   <td style="background-color: ${headerBgColor}; padding: 40px 20px; text-align: ${headerAlign};">
-                    ${block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
-                    ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
+                    ${block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fontFamily}; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
+                    ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fontFamily}; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
                   </td>
                 </tr>
               </table>
@@ -2402,12 +2410,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           const textButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
           
           html += `
-            <div style="margin: 20px 0; text-align: ${textAlign}; font-size: ${block.fontSize || '16px'}; font-family: 'Quicksand', sans-serif; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
-              ${block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
+            <div style="margin: 20px 0; text-align: ${textAlign}; font-size: ${block.fontSize || '16px'}; font-family: ${fontFamily}; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
+              ${block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor}; font-family: ${fontFamily};">${block.headline}</h2>` : ''}
               ${block.content || block.body ? `<div style="color: ${textColor}; line-height: 1.6;">${block.content || block.body}</div>` : ''}
               ${textCtaText && textCtaUrl ? `
                 <div style="margin-top: 20px;">
-                  <a href="${textCtaUrl}" style="display: inline-block; padding: 12px 24px; background: ${textButtonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
+                  <a href="${textCtaUrl}" style="display: inline-block; padding: 12px 24px; background: ${textButtonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fontFamily};">
                     ${textCtaText}
                   </a>
                 </div>
@@ -2457,7 +2465,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       <table width="100%" cellpadding="0" cellspacing="0" border="0">
                         <tr>
                           <td style="padding: 150px 20px; background-color: ${overlayRgba};">
-                            ${block.caption ? `<p style="margin: 0; color: #ffffff; text-align: center; font-family: 'Quicksand', sans-serif;">${block.caption}</p>` : '&nbsp;'}
+                            ${block.caption ? `<p style="margin: 0; color: #ffffff; text-align: center; font-family: ${fontFamily};">${block.caption}</p>` : '&nbsp;'}
                           </td>
                         </tr>
                       </table>
@@ -2476,11 +2484,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             html += `
               <div style="text-align: ${imgAlign}; margin: 20px 0; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
                 ${imageHtml}
-                ${block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: 'Quicksand', sans-serif; text-align: ${imgAlign};">${block.headline}</h2>` : ''}
-                ${block.body || block.content ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif; text-align: ${imgAlign};">${block.body || block.content}</div>` : ''}
+                ${block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: ${fontFamily}; text-align: ${imgAlign};">${block.headline}</h2>` : ''}
+                ${block.body || block.content ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: ${fontFamily}; text-align: ${imgAlign};">${block.body || block.content}</div>` : ''}
                 ${imgCtaText && imgCtaUrl ? `
                   <div style="margin-top: 20px;">
-                    <a href="${imgCtaUrl}" style="display: inline-block; padding: 12px 24px; background: ${imgButtonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
+                    <a href="${imgCtaUrl}" style="display: inline-block; padding: 12px 24px; background: ${imgButtonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fontFamily};">
                       ${imgCtaText}
                     </a>
                   </div>
@@ -2515,11 +2523,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           if (!block.imageUrl) {
             html += `
               <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px; text-align: ${itTextAlign};">
-                ${block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-                ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
+                ${block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: ${fontFamily};">${block.headline}</h2>` : ''}
+                ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: ${fontFamily};">${block.body}</div>` : ''}
                 ${ctaText && ctaUrl ? `
                   <div style="margin-top: 20px;">
-                    <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
+                    <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fontFamily};">
                       ${ctaText}
                     </a>
                   </div>
@@ -2571,12 +2579,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 <tr>
                   <td style="padding: 0; vertical-align: top;">
                     ${block.headline && !isBlockTypeLabel(block.headline) ? `
-                      <h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor} !important; font-family: 'Quicksand', Arial, sans-serif; line-height: 1.3; display: block;">
+                      <h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor} !important; font-family: ${fontFamily}, Arial, sans-serif; line-height: 1.3; display: block;">
                         ${block.headline}
                       </h2>
                     ` : ''}
                     ${cleanBody ? `
-                      <div style="color: ${itTextColor} !important; line-height: 1.6; margin: 0 0 16px 0; font-family: 'Quicksand', Arial, sans-serif; font-size: 16px; display: block;">
+                      <div style="color: ${itTextColor} !important; line-height: 1.6; margin: 0 0 16px 0; font-family: ${fontFamily}, Arial, sans-serif; font-size: 16px; display: block;">
                         ${cleanBody}
                       </div>
                     ` : ''}
@@ -2584,7 +2592,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-top: 20px;">
                         <tr>
                           <td style="border-radius: 6px; background: ${buttonColor};">
-                            <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', Arial, sans-serif; font-size: 16px;">
+                            <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fontFamily}, Arial, sans-serif; font-size: 16px;">
                               ${ctaText}
                             </a>
                           </td>
@@ -2627,9 +2635,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           const btnAlign = block.textAlign || 'center';
           html += `
              <div style="text-align: ${btnAlign}; margin: 30px 0;">
-               ${block.headline ? `<h3 style="color: ${block.textColor || '#1f2937'}; margin: 0 0 10px 0; font-size: 20px; font-family: 'Quicksand', sans-serif; font-weight: 600;">${block.headline}</h3>` : ''}
-               ${block.body ? `<div style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
-               <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
+               ${block.headline ? `<h3 style="color: ${block.textColor || '#1f2937'}; margin: 0 0 10px 0; font-size: 20px; font-family: ${fontFamily}; font-weight: 600;">${block.headline}</h3>` : ''}
+               ${block.body ? `<div style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6; font-family: ${fontFamily};">${block.body}</div>` : ''}
+               <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fontFamily};">
                  ${block.buttonText || 'Learn More'}
                </a>
              </div>
@@ -2699,19 +2707,19 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
                     <div>
-                      ${block.title || block.headline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.2;">${block.title || block.headline}</h1>` : ''}
-                      ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
+                      ${block.title || block.headline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fontFamily}; color: ${nhTextColor}; line-height: 1.2;">${block.title || block.headline}</h1>` : ''}
+                      ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; font-family: ${fontFamily}; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
                       ${(block.issueNumber || formattedDate) ? `
                         <div style="margin: 16px 0;">
-                          ${block.issueNumber ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: 'Quicksand', sans-serif; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
-                          ${formattedDate ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: 'Quicksand', sans-serif;">${formattedDate}</span>` : ''}
+                          ${block.issueNumber ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: ${fontFamily}; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
+                          ${formattedDate ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: ${fontFamily};">${formattedDate}</span>` : ''}
                         </div>
                       ` : ''}
                       ${(block.ctaText || block.buttonText) && (block.ctaUrl || block.buttonUrl) ? `
                         <table cellpadding="0" cellspacing="0" border="0" ${nhTextAlign === 'center' ? 'align="center"' : ''} style="margin-top: 32px;">
                           <tr>
                             <td style="background-color: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; border-radius: 6px; padding: 14px 32px;">
-                              <a href="${block.ctaUrl || block.buttonUrl}" style="display: inline-block; color: white; text-decoration: none; font-weight: 600; font-size: 16px; font-family: 'Quicksand', sans-serif;">
+                              <a href="${block.ctaUrl || block.buttonUrl}" style="display: inline-block; color: white; text-decoration: none; font-weight: 600; font-size: 16px; font-family: ${fontFamily};">
                                 ${block.ctaText || block.buttonText}
                               </a>
                             </td>
@@ -2736,19 +2744,19 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
                   <td style="background-color: ${nhBackgroundColor}; padding: 60px 20px; text-align: ${nhTextAlign}; min-height: 300px;">
-                    ${block.title || block.headline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.2;">${block.title || block.headline}</h1>` : ''}
-                    ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; font-family: 'Quicksand', sans-serif; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
+                    ${block.title || block.headline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fontFamily}; color: ${nhTextColor}; line-height: 1.2;">${block.title || block.headline}</h1>` : ''}
+                    ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; font-family: ${fontFamily}; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
                     ${(block.issueNumber || formattedDate) ? `
                       <div style="margin: 16px 0;">
-                        ${block.issueNumber ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: 'Quicksand', sans-serif; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
-                        ${formattedDate ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: 'Quicksand', sans-serif;">${formattedDate}</span>` : ''}
+                        ${block.issueNumber ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: ${fontFamily}; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
+                        ${formattedDate ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: ${fontFamily};">${formattedDate}</span>` : ''}
                       </div>
                     ` : ''}
                     ${(block.ctaText || block.buttonText) && (block.ctaUrl || block.buttonUrl) ? `
                       <table cellpadding="0" cellspacing="0" border="0" ${nhTextAlign === 'center' ? 'align="center"' : ''} style="margin-top: 32px;">
                         <tr>
                           <td style="background-color: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; border-radius: 6px; padding: 14px 32px;">
-                            <a href="${block.ctaUrl || block.buttonUrl}" style="display: inline-block; color: white; text-decoration: none; font-weight: 600; font-size: 16px; font-family: 'Quicksand', sans-serif;">
+                            <a href="${block.ctaUrl || block.buttonUrl}" style="display: inline-block; color: white; text-decoration: none; font-weight: 600; font-size: 16px; font-family: ${fontFamily};">
                               ${block.ctaText || block.buttonText}
                             </a>
                           </td>

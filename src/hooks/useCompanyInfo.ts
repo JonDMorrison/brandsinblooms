@@ -11,6 +11,13 @@ interface CompanyInfo {
   brandPrimaryColor?: string;
   brandSecondaryColor?: string;
   brandAccentColor?: string;
+  selectedFont?: {
+    id: string;
+    name: string;
+    displayName: string;
+    googleFontsUrl: string;
+    fontFamilyCss: string;
+  };
 }
 
 export const useCompanyInfo = () => {
@@ -35,7 +42,16 @@ export const useCompanyInfo = () => {
       
       const { data: profile, error } = await supabase
         .from('company_profiles')
-        .select('*')
+        .select(`
+          *,
+          selected_font:available_fonts(
+            id,
+            name,
+            display_name,
+            google_fonts_url,
+            font_family_css
+          )
+        `)
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -46,6 +62,8 @@ export const useCompanyInfo = () => {
 
       if (profile) {
         const featureFlags = profile.feature_flags as any;
+        const font = profile.selected_font as any;
+        
         setCompanyInfo({
           name: profile.company_name || 'Your Company',
           address: profile.location_info || '123 Business St, Suite 100, City, State 12345',
@@ -55,6 +73,13 @@ export const useCompanyInfo = () => {
           brandPrimaryColor: profile.brand_primary_color || '#22c55e',
           brandSecondaryColor: profile.brand_secondary_color || '#1e40af',
           brandAccentColor: profile.brand_accent_color || '#f59e0b',
+          selectedFont: font ? {
+            id: font.id,
+            name: font.name,
+            displayName: font.display_name,
+            googleFontsUrl: font.google_fonts_url,
+            fontFamilyCss: font.font_family_css
+          } : undefined
         });
       }
     } catch (error) {
@@ -100,21 +125,8 @@ export const useCompanyInfo = () => {
           },
           (payload) => {
             console.log('📄 Company profile updated:', payload);
-            // Properly map the updated profile to CompanyInfo structure
-            if (payload.new) {
-              const profile = payload.new as any;
-              const featureFlags = profile.feature_flags as any;
-              setCompanyInfo({
-                name: profile.company_name || 'Your Company',
-                address: profile.location_info || '123 Business St, Suite 100, City, State 12345',
-                phone: featureFlags?.company_phone || '(555) 123-4567',
-                logoUrl: featureFlags?.company_logo_url,
-                emailDomain: profile.email_domain,
-                brandPrimaryColor: profile.brand_primary_color || '#22c55e',
-                brandSecondaryColor: profile.brand_secondary_color || '#1e40af',
-                brandAccentColor: profile.brand_accent_color || '#f59e0b',
-              });
-            }
+            // Reload company info to get updated font data
+            loadCompanyInfo();
           }
         )
         .subscribe();
