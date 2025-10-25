@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
-import { Calendar, Hash, FileText } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 
 interface NewsletterHeaderBlockEditorProps {
   block: ContentBlock;
@@ -24,7 +24,6 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
   // Map both 'title' and 'headline' for backwards compatibility
   const title = (block as any).title || (contentObj as any)?.title || (contentObj as any)?.headline || '';
   const subtitle = (block as any).subtitle || (contentObj as any)?.subtitle || '';
-  const issueNumber = (block as any).issueNumber || (contentObj as any)?.issueNumber || '';
   const publishDate = (block as any).publishDate || (contentObj as any)?.publishDate || '';
   const backgroundImageUrl = (block as any).backgroundImageUrl || (contentObj as any)?.backgroundImageUrl || '';
 
@@ -69,20 +68,14 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
               {subtitle}
             </p>
           )}
-          <div className="flex justify-center gap-4 text-xs text-muted-foreground">
-            {issueNumber && (
-              <div className="flex items-center gap-1">
-                <Hash className="h-3 w-3" />
-                Issue {issueNumber}
-              </div>
-            )}
-            {publishDate && (
+          {publishDate && (
+            <div className="flex justify-center text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 {publishDate}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -112,25 +105,14 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
       </div>
 
       {/* Newsletter Meta Information */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="issue-number">Issue Number</Label>
-          <Input
-            id="issue-number"
-            value={issueNumber}
-            onChange={(e) => onUpdate({ issueNumber: e.target.value })}
-            placeholder="e.g., 47"
-          />
-        </div>
-        <div>
-          <Label htmlFor="publish-date">Publish Date</Label>
-          <Input
-            id="publish-date"
-            type="date"
-            value={publishDate}
-            onChange={(e) => onUpdate({ publishDate: e.target.value })}
-          />
-        </div>
+      <div>
+        <Label htmlFor="publish-date">Publish Date</Label>
+        <Input
+          id="publish-date"
+          type="date"
+          value={publishDate}
+          onChange={(e) => onUpdate({ publishDate: e.target.value })}
+        />
       </div>
 
       {/* Background Image */}

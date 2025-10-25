@@ -39,7 +39,6 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
   const content = (block.content || {}) as any;
   const title = block.title || content.title || block.headline || content.headline || '';
   const subtitle = block.subtitle || content.subtitle || '';
-  const issueNumber = block.issueNumber || content.issueNumber || '';
   const publishDate = block.publishDate || content.publishDate || '';
 
   // Live preview component that can be reused
@@ -130,15 +129,9 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
             </p>
           )}
 
-          {/* Issue Info Row */}
-          <div className="flex items-center justify-center gap-8 text-lg opacity-80 mt-8">
-            {issueNumber && (
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">Issue #{issueNumber}</span>
-              </div>
-            )}
-            
-            {publishDate && (
+          {/* Publish Date */}
+          {publishDate && (
+            <div className="flex items-center justify-center text-lg opacity-80 mt-8">
               <div className="flex items-center gap-2">
                 {isPreview && isEditingDate ? (
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
@@ -185,8 +178,8 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
                   </span>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* CTA Button */}
           {(block.ctaText || block.buttonText || block.ctaUrl || block.buttonUrl) && (
@@ -254,26 +247,14 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="issueNumber">Issue Number</Label>
-          <Input
-            id="issueNumber"
-            type="number"
-            value={issueNumber}
-            onChange={(e) => onUpdate({ issueNumber: e.target.value })}
-            placeholder="e.g. 42"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="publishDate">Publish Date</Label>
-          <Input
-            id="publishDate"
-            type="date"
-            value={publishDate}
-            onChange={(e) => onUpdate({ publishDate: e.target.value })}
-          />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="publishDate">Publish Date</Label>
+        <Input
+          id="publishDate"
+          type="date"
+          value={publishDate}
+          onChange={(e) => onUpdate({ publishDate: e.target.value })}
+        />
       </div>
 
       <div className="space-y-4">
