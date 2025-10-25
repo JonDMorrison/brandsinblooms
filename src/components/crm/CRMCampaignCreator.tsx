@@ -2386,7 +2386,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       <table width="100%" cellpadding="0" cellspacing="0" border="0">
                         <tr>
                           <td style="padding: 150px 20px; background-color: ${overlayRgba};">
-                            ${block.caption ? `<p style="margin: 0; color: #ffffff; text-align: center; font-family: 'Quicksand', sans-serif;">${block.caption}</p>` : ''}
+                            ${block.caption ? `<p style="margin: 0; color: #ffffff; text-align: center; font-family: 'Quicksand', sans-serif;">${block.caption}</p>` : '&nbsp;'}
                           </td>
                         </tr>
                       </table>
@@ -2459,7 +2459,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       <v:fill type="frame" src="${block.imageUrl}" color="${block.overlayColor}" opacity="${Math.round((block.overlayOpacity || 0) * 65535)}" />
                       <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                       <![endif]-->
-                      <div style="min-height: 250px; background-color: ${overlayRgba};"></div>
+                      <div style="min-height: 250px; background-color: ${overlayRgba};">&nbsp;</div>
                       <!--[if gte mso 9]>
                       </v:textbox>
                       </v:rect>
