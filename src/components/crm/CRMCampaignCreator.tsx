@@ -2350,7 +2350,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
                     <div style="background-color: ${overlayColor}; padding: 0;">
-                      <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline || block.title || 'Your Headline Here'}</h1>
+                      ${block.headline ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
                       ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
                     </div>
                     <!--[if gte mso 9]>
@@ -2370,7 +2370,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
                   <td style="background-color: ${headerBgColor}; padding: 40px 20px; text-align: ${headerAlign};">
-                    <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline || block.title || 'Your Headline Here'}</h1>
+                    ${block.headline ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
                     ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: 'Quicksand', sans-serif; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
                   </td>
                 </tr>
@@ -2384,7 +2384,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           const textColor = block.textColor || '#475569';
           html += `
             <div style="margin: 20px 0; text-align: ${textAlign}; font-size: ${block.fontSize || '16px'}; font-family: 'Quicksand', sans-serif; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
-              ${block.headline || block.title ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor}; font-family: 'Quicksand', sans-serif;">${block.headline || block.title}</h2>` : ''}
+              ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
               ${block.content || block.body ? `<div style="color: ${textColor}; line-height: 1.6;">${block.content || block.body}</div>` : ''}
             </div>
           `;
@@ -2450,7 +2450,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             html += `
               <div style="text-align: ${imgAlign}; margin: 20px 0; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
                 ${imageHtml}
-                ${block.headline || block.title ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: 'Quicksand', sans-serif; text-align: ${imgAlign};">${block.headline || block.title}</h2>` : ''}
+                ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: 'Quicksand', sans-serif; text-align: ${imgAlign};">${block.headline}</h2>` : ''}
                 ${block.body || block.content ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: 'Quicksand', sans-serif; text-align: ${imgAlign};">${block.body || block.content}</div>` : ''}
                 ${imgCtaText && imgCtaUrl ? `
                   <div style="margin-top: 20px;">
