@@ -2428,6 +2428,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           const ctaText = block.ctaText || block.buttonText;
           const ctaUrl = block.ctaUrl || block.buttonUrl;
           
+          console.log('📝 IMAGE-TEXT BLOCK DATA:', {
+            layout: block.layout,
+            isImageLeft,
+            headline: block.headline,
+            body: block.body,
+            hasHeadline: !!block.headline,
+            hasBody: !!block.body,
+            ctaText,
+            ctaUrl
+          });
+          
           // If no image, render as text-only block
           if (!block.imageUrl) {
             html += `
@@ -2472,19 +2483,21 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               imageCellHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
             }
 
-            // Build text content HTML with CTA - ensure it's always visible
+            // Build text content HTML with CTA - use table structure for email compatibility
             const textContentHtml = `
-              <div style="display: block; width: 100%;">
-                ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif;">${block.headline}</h2>` : ''}
-                ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif;">${block.body}</div>` : ''}
-                ${ctaText && ctaUrl ? `
-                  <div style="margin-top: 20px;">
-                    <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
-                      ${ctaText}
-                    </a>
-                  </div>
-                ` : ''}
-              </div>
+              ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif; display: block;">${block.headline}</h2>` : ''}
+              ${block.body ? `<p style="color: ${itTextColor}; line-height: 1.6; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; display: block; font-size: 16px;">${block.body}</p>` : ''}
+              ${ctaText && ctaUrl ? `
+                <table cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px;">
+                  <tr>
+                    <td>
+                      <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
+                        ${ctaText}
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              ` : ''}
             `;
 
             // Render with image and text in two-column layout
