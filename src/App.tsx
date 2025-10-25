@@ -356,7 +356,7 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
-          <Route path="/profile" element={
+          <Route path="/profile/*" element={
             <ProtectedRoute>
               <SidebarLayout>
                 <ProfilePage />

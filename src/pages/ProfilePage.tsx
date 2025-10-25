@@ -1,9 +1,17 @@
-
 import React from 'react';
-import { CompanyProfilePage } from '@/components/CompanyProfilePage';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { ProfileLayout } from '@/components/profile/ProfileLayout';
+import { CompanyInformationTab } from './profile/CompanyInformationTab';
+import { BrandColorsTab } from './profile/BrandColorsTab';
 
 export default function ProfilePage() {
   return (
-    <CompanyProfilePage />
+    <Routes>
+      <Route element={<ProfileLayout />}>
+        <Route index element={<Navigate to="company" replace />} />
+        <Route path="company" element={<CompanyInformationTab />} />
+        <Route path="brand-colors" element={<BrandColorsTab />} />
+      </Route>
+    </Routes>
   );
 }
