@@ -2527,50 +2527,60 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               imageCellHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
             }
 
-            // Build text content HTML with CTA - use table structure for email compatibility
+            // Build text content HTML with proper table structure for email compatibility
             const textContentHtml = `
-              ${block.headline ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', sans-serif; display: block;">${block.headline}</h2>` : ''}
-              ${block.body ? `<p style="color: ${itTextColor}; line-height: 1.6; margin: 0 0 16px 0; font-family: 'Quicksand', sans-serif; display: block; font-size: 16px;">${block.body}</p>` : ''}
-              ${ctaText && ctaUrl ? `
-                <table cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px;">
-                  <tr>
-                    <td>
-                      <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', sans-serif;">
-                        ${ctaText}
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-              ` : ''}
-            `;
-
-            // Render with image and text in two-column layout
-            html += `
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-collapse: collapse;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
                 <tr>
-                  <td style="padding: 20px;">
-                    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
-                      <tr>
-                        ${isImageLeft ? `
-                          <td width="50%" style="padding-right: 20px; vertical-align: top;">
-                            ${imageCellHtml}
+                  <td style="padding: 0; vertical-align: top;">
+                    ${block.headline ? `
+                      <h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', Arial, sans-serif; line-height: 1.3; display: block;">
+                        ${block.headline}
+                      </h2>
+                    ` : ''}
+                    ${block.body ? `
+                      <div style="color: ${itTextColor}; line-height: 1.6; margin: 0 0 16px 0; font-family: 'Quicksand', Arial, sans-serif; font-size: 16px; display: block;">
+                        ${block.body}
+                      </div>
+                    ` : ''}
+                    ${ctaText && ctaUrl ? `
+                      <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-top: 20px;">
+                        <tr>
+                          <td style="border-radius: 6px; background: ${buttonColor};">
+                            <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', Arial, sans-serif; font-size: 16px;">
+                              ${ctaText}
+                            </a>
                           </td>
-                          <td width="50%" style="padding-left: 20px; vertical-align: top;">
-                            ${textContentHtml}
-                          </td>
-                        ` : `
-                          <td width="50%" style="padding-right: 20px; vertical-align: top;">
-                            ${textContentHtml}
-                          </td>
-                          <td width="50%" style="padding-left: 20px; vertical-align: top;">
-                            ${imageCellHtml}
-                          </td>
-                        `}
-                      </tr>
-                    </table>
+                        </tr>
+                      </table>
+                    ` : ''}
                   </td>
                 </tr>
               </table>
+            `;
+
+            // Render with image and text in two-column layout using mobile-responsive table structure
+            html += `
+              <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse: collapse;" class="mobile-stack">
+                  <tr>
+                    ${isImageLeft ? `
+                      <td width="50%" style="padding-right: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                        ${imageCellHtml}
+                      </td>
+                      <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: left;" class="mobile-full-width mobile-stack">
+                        ${textContentHtml}
+                      </td>
+                    ` : `
+                      <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: left;" class="mobile-full-width mobile-stack">
+                        ${textContentHtml}
+                      </td>
+                      <td width="50%" style="padding-left: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                        ${imageCellHtml}
+                      </td>
+                    `}
+                  </tr>
+                </table>
+              </div>
             `;
           }
           break;
