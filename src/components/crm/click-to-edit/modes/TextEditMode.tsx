@@ -26,7 +26,6 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   const [altText, setAltText] = useState(block.altText || '');
   const [ctaText, setCtaText] = useState(block.ctaText || block.buttonText || '');
   const [ctaUrl, setCtaUrl] = useState(block.ctaUrl || block.buttonUrl || '');
-  const [issueNumber, setIssueNumber] = useState(block.issueNumber || '');
   const [publishDate, setPublishDate] = useState(block.publishDate || '');
 
   // Sync local state when block changes externally
@@ -37,7 +36,6 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
     setAltText(block.altText || '');
     setCtaText(block.ctaText || block.buttonText || '');
     setCtaUrl(block.ctaUrl || block.buttonUrl || '');
-    setIssueNumber(block.issueNumber || '');
     setPublishDate(block.publishDate || '');
   }, [block.id]); // Only sync when block ID changes, not on every update
 
@@ -52,8 +50,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       buttonText: ctaText,
       ctaUrl,
       buttonUrl: ctaUrl,
-      // Always include these fields if they exist
-      issueNumber,
+      // Always include this field if it exists
       publishDate
     };
 
@@ -66,7 +63,6 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
 
     console.log('📝 TextEditMode: Save & Close clicked - saving all fields:', {
       subtitle: subheading,
-      issueNumber,
       publishDate,
       allUpdates: updates
     });
@@ -137,42 +133,21 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
 
       {/* Newsletter Meta Information (for newsletter-header blocks) */}
       {block.type === 'newsletter-header' && (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="issueNumber">Issue Number</Label>
-            <Input
-              id="issueNumber"
-              value={issueNumber}
-              onChange={(e) => {
-                setIssueNumber(e.target.value);
-                onUpdate({ issueNumber: e.target.value });
-              }}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-                if (e.key === ' ') {
-                  e.stopPropagation();
-                }
-              }}
-              placeholder="e.g., 42"
-              className="w-full"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="publishDate">Publish Date</Label>
-            <Input
-              id="publishDate"
-              type="date"
-              value={publishDate}
-              onChange={(e) => {
-                setPublishDate(e.target.value);
-                onUpdate({ publishDate: e.target.value });
-              }}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-              }}
-              className="w-full"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="publishDate">Publish Date</Label>
+          <Input
+            id="publishDate"
+            type="date"
+            value={publishDate}
+            onChange={(e) => {
+              setPublishDate(e.target.value);
+              onUpdate({ publishDate: e.target.value });
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+            }}
+            className="w-full"
+          />
         </div>
       )}
 
