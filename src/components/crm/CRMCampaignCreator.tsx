@@ -2529,25 +2529,35 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             }
 
             // Build text content HTML with proper table structure for email compatibility
+            // Strip any inline color styles from body content and force dark colors
+            let cleanBody = block.body || '';
+            // Remove any color styles from the body content
+            cleanBody = cleanBody.replace(/color:\s*#[0-9a-fA-F]{3,6};?/gi, '');
+            cleanBody = cleanBody.replace(/color:\s*rgb\([^)]+\);?/gi, '');
+            cleanBody = cleanBody.replace(/color:\s*rgba\([^)]+\);?/gi, '');
+            cleanBody = cleanBody.replace(/color:\s*white;?/gi, '');
+            cleanBody = cleanBody.replace(/color:\s*#fff;?/gi, '');
+            cleanBody = cleanBody.replace(/color:\s*#ffffff;?/gi, '');
+            
             const textContentHtml = `
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
                 <tr>
                   <td style="padding: 0; vertical-align: top;">
                     ${block.headline ? `
-                      <h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: 'Quicksand', Arial, sans-serif; line-height: 1.3; display: block;">
+                      <h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor} !important; font-family: 'Quicksand', Arial, sans-serif; line-height: 1.3; display: block;">
                         ${block.headline}
                       </h2>
                     ` : ''}
-                    ${block.body ? `
-                      <div style="color: ${itTextColor}; line-height: 1.6; margin: 0 0 16px 0; font-family: 'Quicksand', Arial, sans-serif; font-size: 16px; display: block;">
-                        ${block.body}
+                    ${cleanBody ? `
+                      <div style="color: ${itTextColor} !important; line-height: 1.6; margin: 0 0 16px 0; font-family: 'Quicksand', Arial, sans-serif; font-size: 16px; display: block;">
+                        ${cleanBody}
                       </div>
                     ` : ''}
                     ${ctaText && ctaUrl ? `
                       <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-top: 20px;">
                         <tr>
                           <td style="border-radius: 6px; background: ${buttonColor};">
-                            <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', Arial, sans-serif; font-size: 16px;">
+                            <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: 'Quicksand', Arial, sans-serif; font-size: 16px;">
                               ${ctaText}
                             </a>
                           </td>
