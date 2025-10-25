@@ -2466,8 +2466,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         case 'image-text':
           const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left' || !block.layout;
           const itTextAlign = block.textAlign || 'left';
-          const itTextColor = block.textColor || '#475569';
-          const itHeadlineColor = block.textColor || '#1f2937';
+          // Force dark text colors for visibility - ignore block.textColor if it's too light
+          const itTextColor = '#475569'; // Always use dark gray for body text
+          const itHeadlineColor = '#1f2937'; // Always use darker gray for headlines
           const buttonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
           const ctaText = block.ctaText || block.buttonText;
           const ctaUrl = block.ctaUrl || block.buttonUrl;
