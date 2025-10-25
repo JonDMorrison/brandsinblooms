@@ -34,6 +34,7 @@ import { CampaignReadiness } from './CampaignReadiness';
 import { createBlockPrompt } from '@/utils/blockPromptBuilder';
 import { normalizeAIResponse, applyAIToBlock } from '@/lib/newsletter/aiMapping';
 import { usePagePersistence } from '@/hooks/usePagePersistence';
+import { useSaveQueue } from '@/hooks/useSaveQueue';
 import { 
   Breadcrumb,
   BreadcrumbItem,
@@ -496,9 +497,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     });
   }, [companyInfo]);
 
-  // Auto-save functionality for CRM campaigns
+  // Auto-save functionality with queue-based protection
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
+  const { enqueueSave, cancelPendingSaves } = useSaveQueue();
 
   const autoSaveCampaign = useCallback(async (campaignData: {
     blocks: ContentBlock[];
@@ -506,175 +508,195 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     subject_line: string;
     preheader: string;
   }) => {
-    if (!existingCampaignId || isAutoSaving) {
-      console.log('🚫 Auto-save skipped:', { existingCampaignId, isAutoSaving });
+    if (!existingCampaignId) {
+      console.log('🚫 Auto-save skipped: no campaign ID');
       return;
     }
     
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    const attemptSave = async (): Promise<void> => {
-      try {
-        setIsAutoSaving(true);
-        console.log('🔄 Auto-save attempt', retryCount + 1, 'for campaign:', existingCampaignId);
-        
-        // Validate required fields
-        if (!campaignData.campaign_name?.trim()) {
-          throw new Error('Campaign name is required');
-        }
+    // Enqueue the save operation to prevent race conditions
+    return enqueueSave(async () => {
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      const attemptSave = async (): Promise<void> => {
+        try {
+          setIsAutoSaving(true);
+          console.log('🔄 Auto-save attempt', retryCount + 1, 'for campaign:', existingCampaignId);
+          
+          // Validate required fields
+          if (!campaignData.campaign_name?.trim()) {
+            throw new Error('Campaign name is required');
+          }
 
-        // Step 1: Update campaign metadata
-        console.log('📝 Updating campaign metadata...');
-        const { error: campaignError } = await supabase
-          .from('crm_campaigns')
-          .update({
-            name: campaignData.campaign_name,
-            subject_line: campaignData.subject_line,
-            preheader: campaignData.preheader,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingCampaignId);
+          // Step 1: Update campaign metadata
+          console.log('📝 Updating campaign metadata...');
+          const { error: campaignError } = await supabase
+            .from('crm_campaigns')
+            .update({
+              name: campaignData.campaign_name,
+              subject_line: campaignData.subject_line,
+              preheader: campaignData.preheader,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingCampaignId);
 
-        if (campaignError) {
-          console.error('❌ Campaign update failed:', campaignError);
-          throw new Error(`Campaign update failed: ${campaignError.message}`);
-        }
-        console.log('✅ Campaign metadata updated successfully');
+          if (campaignError) {
+            console.error('❌ Campaign update failed:', campaignError);
+            throw new Error(`Campaign update failed: ${campaignError.message}`);
+          }
+          console.log('✅ Campaign metadata updated successfully');
 
-        // Step 2: Upsert blocks to avoid race conditions
-        console.log('📦 Upserting', campaignData.blocks.length, 'blocks...');
-        
-        if (campaignData.blocks.length > 0) {
-          // Validate blocks before upsert
-          const blocksToSave = campaignData.blocks.map((block, index) => {
-            const blockData = {
-              campaign_id: existingCampaignId,
-              block_type: block.type,
-              content: {
-                title: block.title || block.headline,
-                content: block.content || block.body,
-                headline: block.headline,
-                body: block.body,
-                alignment: block.alignment,
-                padding: block.padding,
-                margin: block.margin,
-                fontFamily: block.fontFamily,
-                fontSize: block.fontSize,
-                textColor: block.textColor,
-                backgroundColor: block.backgroundColor,
-                backgroundImageUrl: block.backgroundImageUrl,
-                backgroundOpacity: block.backgroundOpacity,
-                // Overlays
-                overlayColor: (block as any).overlayColor,
-                overlayOpacity: (block as any).overlayOpacity,
-                colorOverlayOpacity: (block as any).colorOverlayOpacity,
-                darkOverlayOpacity: (block as any).darkOverlayOpacity,
-                layout: block.layout,
-                caption: block.caption,
-                altText: block.altText,
-                buttonText: block.buttonText,
-                buttonUrl: block.buttonUrl,
-                ctaStyle: block.ctaStyle,
-                ctaSize: block.ctaSize,
-                quote: block.quote,
-                author: block.author,
-                authorTitle: block.authorTitle,
-                // Newsletter-specific fields
-                subtitle: block.subtitle,
-                issueNumber: block.issueNumber,
-                publishDate: block.publishDate,
-                // Note: overlayColor and overlayOpacity already defined at line 548
-                visible: block.visible,
-                collapsed: block.collapsed
-              },
-              image_url: block.imageUrl,
-              cta_url: block.ctaUrl || block.buttonUrl,
-              cta_text: block.ctaText || block.buttonText,
-              source: block.source || 'manual',
-              persona_tag: block.personaTag,
-              order_index: index
-            };
+          // Step 2: Use UPSERT with proper conflict resolution
+          console.log('📦 Upserting', campaignData.blocks.length, 'blocks...');
+          
+          if (campaignData.blocks.length > 0) {
+            // Fetch existing blocks to preserve their IDs
+            const { data: existingBlocks } = await supabase
+              .from('campaign_blocks')
+              .select('id, order_index')
+              .eq('campaign_id', existingCampaignId);
 
-            // Validate required fields
-            if (!blockData.block_type) {
-              throw new Error(`Block ${index} is missing required block_type`);
+            const existingBlockMap = new Map(
+              (existingBlocks || []).map(b => [b.order_index, b.id])
+            );
+
+            const blocksToSave = campaignData.blocks.map((block, index) => {
+              const existingId = existingBlockMap.get(index);
+              
+              const blockData: any = {
+                campaign_id: existingCampaignId,
+                block_type: block.type,
+                content: {
+                  title: block.title || block.headline,
+                  content: block.content || block.body,
+                  headline: block.headline,
+                  body: block.body,
+                  alignment: block.alignment,
+                  padding: block.padding,
+                  margin: block.margin,
+                  fontFamily: block.fontFamily,
+                  fontSize: block.fontSize,
+                  textColor: block.textColor,
+                  backgroundColor: block.backgroundColor,
+                  backgroundImageUrl: block.backgroundImageUrl,
+                  backgroundOpacity: block.backgroundOpacity,
+                  overlayColor: (block as any).overlayColor,
+                  overlayOpacity: (block as any).overlayOpacity,
+                  colorOverlayOpacity: (block as any).colorOverlayOpacity,
+                  darkOverlayOpacity: (block as any).darkOverlayOpacity,
+                  layout: block.layout,
+                  caption: block.caption,
+                  altText: block.altText,
+                  buttonText: block.buttonText,
+                  buttonUrl: block.buttonUrl,
+                  ctaStyle: block.ctaStyle,
+                  ctaSize: block.ctaSize,
+                  quote: block.quote,
+                  author: block.author,
+                  authorTitle: block.authorTitle,
+                  subtitle: block.subtitle,
+                  issueNumber: block.issueNumber,
+                  publishDate: block.publishDate,
+                  visible: block.visible,
+                  collapsed: block.collapsed
+                },
+                image_url: block.imageUrl,
+                cta_url: block.ctaUrl || block.buttonUrl,
+                cta_text: block.ctaText || block.buttonText,
+                source: block.source || 'manual',
+                persona_tag: block.personaTag,
+                order_index: index
+              };
+
+              // Include ID if this block already exists
+              if (existingId) {
+                blockData.id = existingId;
+              }
+
+              // Validate required fields
+              if (!blockData.block_type) {
+                throw new Error(`Block ${index} is missing required block_type`);
+              }
+
+              return blockData;
+            });
+
+            // Delete blocks that are no longer needed (order_index >= blocks.length)
+            const { error: deleteError } = await supabase
+              .from('campaign_blocks')
+              .delete()
+              .eq('campaign_id', existingCampaignId)
+              .gte('order_index', campaignData.blocks.length);
+
+            if (deleteError) {
+              console.warn('⚠️ Failed to delete extra blocks:', deleteError);
             }
 
-            return blockData;
+            // Upsert blocks with conflict resolution on (campaign_id, order_index)
+            const { error: blocksError } = await supabase
+              .from('campaign_blocks')
+              .upsert(blocksToSave, {
+                onConflict: 'id',
+                ignoreDuplicates: false
+              });
+
+            if (blocksError) {
+              console.error('❌ Block upsert failed:', blocksError);
+              throw new Error(`Block upsert failed: ${blocksError.message}`);
+            }
+            console.log('✅ Blocks upserted successfully');
+          } else {
+            // Delete all blocks if none provided
+            await supabase
+              .from('campaign_blocks')
+              .delete()
+              .eq('campaign_id', existingCampaignId);
+          }
+
+          setLastSaved(new Date());
+          setSaveError(false);
+          console.log('✅ Auto-save completed successfully');
+          
+        } catch (error: any) {
+          console.error('❌ Auto-save error (attempt', retryCount + 1, '):', error);
+          
+          const isRetryable = error?.message?.includes('network') || 
+                             error?.message?.includes('timeout') ||
+                             error?.message?.includes('temporary');
+          
+          if (retryCount < maxRetries && isRetryable) {
+            retryCount++;
+            console.log('🔄 Retrying auto-save in 2 seconds...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return attemptSave();
+          }
+          
+          setSaveError(true);
+          
+          let errorMessage = "Your changes may not be saved. Please try again.";
+          if (error?.message?.includes('Campaign name is required')) {
+            errorMessage = "Campaign name is required to save.";
+          } else if (error?.message?.includes('network')) {
+            errorMessage = "Network error. Check your connection and try again.";
+          } else if (error?.message?.includes('Block') && error?.message?.includes('missing')) {
+            errorMessage = "Some blocks have invalid data. Please check your content.";
+          }
+          
+          toast({
+            title: "Auto-save failed",
+            description: errorMessage,
+            variant: "destructive"
           });
-
-          // First, delete existing blocks for this campaign
-          const { error: deleteError } = await supabase
-            .from('campaign_blocks')
-            .delete()
-            .eq('campaign_id', existingCampaignId);
-
-          if (deleteError) {
-            console.error('❌ Block deletion failed:', deleteError);
-            throw new Error(`Block deletion failed: ${deleteError.message}`);
-          }
-
-          // Then insert new blocks in a single transaction
-          const { error: blocksError } = await supabase
-            .from('campaign_blocks')
-            .insert(blocksToSave);
-
-          if (blocksError) {
-            console.error('❌ Block insertion failed:', blocksError);
-            throw new Error(`Block insertion failed: ${blocksError.message}`);
-          }
-          console.log('✅ Blocks upserted successfully');
-        } else {
-          console.log('📦 No blocks to insert');
+          
+          throw error;
+        } finally {
+          setIsAutoSaving(false);
         }
+      };
 
-        setLastSaved(new Date());
-        setSaveError(false);
-        console.log('✅ Auto-save completed successfully');
-        
-      } catch (error: any) {
-        console.error('❌ Auto-save error (attempt', retryCount + 1, '):', error);
-        
-        // Check if this is a retryable error
-        const isRetryable = error?.message?.includes('network') || 
-                           error?.message?.includes('timeout') ||
-                           error?.message?.includes('temporary');
-        
-        if (retryCount < maxRetries && isRetryable) {
-          retryCount++;
-          console.log('🔄 Retrying auto-save in 2 seconds...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          return attemptSave();
-        }
-        
-        // Final failure
-        setSaveError(true);
-        
-        // Show user-friendly error message
-        let errorMessage = "Your changes may not be saved. Please try again.";
-        if (error?.message?.includes('Campaign name is required')) {
-          errorMessage = "Campaign name is required to save.";
-        } else if (error?.message?.includes('network')) {
-          errorMessage = "Network error. Check your connection and try again.";
-        } else if (error?.message?.includes('Block') && error?.message?.includes('missing')) {
-          errorMessage = "Some blocks have invalid data. Please check your content.";
-        }
-        
-        toast({
-          title: "Auto-save failed",
-          description: errorMessage,
-          variant: "destructive"
-        });
-        
-        throw error;
-      } finally {
-        setIsAutoSaving(false);
-      }
-    };
-
-    return attemptSave();
-  }, [existingCampaignId, isAutoSaving, toast]);
+      return attemptSave();
+    });
+  }, [existingCampaignId, enqueueSave, toast]);
 
   // Handler for AI-generated content
   const handleAIContentGenerated = async (aiData: {
@@ -708,23 +730,26 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     subject_line: string;
     preheader: string;
   }) => {
+    // Cancel any pending auto-save
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
+    // Increased debounce time from 2s to 5s to reduce rapid saves
     autoSaveTimeoutRef.current = setTimeout(() => {
       autoSaveCampaign(campaignData);
-    }, 2000);
+    }, 5000);
   }, [autoSaveCampaign]);
 
-  // Cleanup timeout on unmount
+  // Cleanup timeout and pending saves on unmount
   useEffect(() => {
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
+      cancelPendingSaves();
     };
-  }, []);
+  }, [cancelPendingSaves]);
 
   // Auto-enhance new newsletters without templates
   const [enhancing, setEnhancing] = useState(false);
