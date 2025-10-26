@@ -4401,7 +4401,7 @@ export type Database = {
       }
       scheduled_posts: {
         Row: {
-          content_id: string
+          content_id: string | null
           created_at: string | null
           error_message: string | null
           id: string
@@ -4418,7 +4418,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          content_id: string
+          content_id?: string | null
           created_at?: string | null
           error_message?: string | null
           id?: string
@@ -4435,7 +4435,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          content_id?: string
+          content_id?: string | null
           created_at?: string | null
           error_message?: string | null
           id?: string

@@ -151,8 +151,7 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
         const { error: scheduleError } = await supabase
           .from('scheduled_posts')
           .insert({
-            content_id: contentTask.id, // Required field (NOT NULL)
-            task_id: contentTask.id,    // New foreign key for content_tasks
+            task_id: contentTask.id,    // New schema: references content_tasks
             tenant_id: tenantId,
             platform: platformMap[item.type as keyof typeof platformMap],
             publish_at: item.date.toISOString(),
