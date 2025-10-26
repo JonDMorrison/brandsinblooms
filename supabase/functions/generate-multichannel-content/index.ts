@@ -403,7 +403,7 @@ EXTRACT the actual plant/topic from this content: "${topicTitle}" - Use those sp
   let imageQuery = result.imageQuery || 'garden center seasonal plants';
   
   // ========== ENHANCED IMAGE QUERY VALIDATION ==========
-  const { validateImageQuery, getChannelFallback } = await import('../_shared/enhanced-keyword-validator.ts');
+  const { validateImageQuery } = await import('../_shared/enhanced-keyword-validator.ts');
   
   const validation = validateImageQuery(imageQuery, channel);
   
@@ -414,16 +414,11 @@ EXTRACT the actual plant/topic from this content: "${topicTitle}" - Use those sp
     issues: validation.issues
   });
   
-  // If validation score is low, use fallback
+  // Log warnings for low-quality queries but still use them
   if (validation.score < 70) {
     console.warn(`⚠️ [${channel.toUpperCase()}] Low quality imageQuery (score: ${validation.score})`);
     console.warn(`Issues: ${validation.issues.join(', ')}`);
     console.warn(`Suggestions: ${validation.suggestions.join(', ')}`);
-    
-    // Use channel-specific fallback
-    const fallbackQuery = getChannelFallback(channel, topicTitle);
-    console.log(`🔄 Using fallback query: "${fallbackQuery}"`);
-    imageQuery = fallbackQuery;
   } else {
     console.log(`✅ [${channel.toUpperCase()}] High-quality image query: "${imageQuery}" (score: ${validation.score})`);
   }
