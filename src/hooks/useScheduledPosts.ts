@@ -44,6 +44,10 @@ export const useScheduledPosts = (): UseScheduledPostsReturn => {
           generated_content (
             caption,
             media_url
+          ),
+          content_tasks (
+            ai_output,
+            image_url
           )
         `)
         .in('status', ['QUEUED', 'PUBLISHED', 'ERROR'])
@@ -60,7 +64,16 @@ export const useScheduledPosts = (): UseScheduledPostsReturn => {
 
       if (error) throw error;
       
-      setScheduledPosts(data || []);
+      // Normalize data: use content_tasks if available, otherwise generated_content
+      const normalizedData = (data || []).map((post: any) => ({
+        ...post,
+        content: post.content_tasks ? {
+          caption: post.content_tasks.ai_output,
+          media_url: post.content_tasks.image_url
+        } : post.generated_content
+      }));
+      
+      setScheduledPosts(normalizedData);
     } catch (error) {
       console.error('Error fetching scheduled posts:', error);
       toast.error('Failed to load scheduled posts');
