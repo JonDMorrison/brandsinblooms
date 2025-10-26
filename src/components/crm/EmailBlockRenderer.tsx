@@ -30,7 +30,8 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
       <h1 style={{ 
         margin: '0 0 8px 0', 
         fontSize: '28px', 
-        fontWeight: 'bold' 
+        fontWeight: 'bold',
+        fontFamily: globalSettings.headlineFont || globalSettings.fontFamily
       }}>
         {block.content.title || 'Header Title'}
       </h1>
@@ -38,7 +39,8 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
         <p style={{ 
           margin: '0', 
           fontSize: '16px', 
-          opacity: 0.8 
+          opacity: 0.8,
+          fontFamily: globalSettings.subheadingFont || globalSettings.fontFamily
         }}>
           {block.content.subtitle}
         </p>
@@ -57,7 +59,8 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
           <h2 style={{ 
             margin: '0 0 12px 0', 
             fontSize: '20px', 
-            fontWeight: 'bold' 
+            fontWeight: 'bold',
+            fontFamily: globalSettings.subheadingFont || globalSettings.fontFamily
           }}>
             {block.content.title}
           </h2>
@@ -65,7 +68,8 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
         <div style={{ 
           lineHeight: '1.6', 
           color: '#374151',
-          marginBottom: hasButton ? '16px' : '0'
+          marginBottom: hasButton ? '16px' : '0',
+          fontFamily: globalSettings.bodyFont || globalSettings.fontFamily
         }}>
           {block.content.content || 'Add your text content here...'}
         </div>
@@ -85,6 +89,7 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
                 textDecoration: 'none',
                 fontWeight: 'bold',
                 fontSize: '16px',
+                fontFamily: globalSettings.buttonFont || globalSettings.fontFamily
               }}
             >
               {block.cta_text || block.content.buttonText || 'Click Here'}
@@ -120,7 +125,8 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
             margin: '8px 0 0 0', 
             fontSize: '14px', 
             color: '#6B7280',
-            textAlign: 'center' as const
+            textAlign: 'center' as const,
+            fontFamily: globalSettings.bodyFont || globalSettings.fontFamily
           }}>
             {block.content.caption}
           </p>
@@ -145,6 +151,7 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
           textDecoration: 'none',
           fontWeight: 'bold',
           fontSize: '16px',
+          fontFamily: globalSettings.buttonFont || globalSettings.fontFamily
         }}
       >
         {block.cta_text || block.content.text || 'Click Here'}
@@ -190,14 +197,16 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
           <h3 style={{ 
             margin: '0 0 4px 0', 
             fontSize: '18px', 
-            fontWeight: 'bold' 
+            fontWeight: 'bold',
+            fontFamily: globalSettings.subheadingFont || globalSettings.fontFamily
           }}>
             {block.content.name || 'Product Name'}
           </h3>
           <p style={{ 
             margin: '0 0 8px 0', 
             color: '#6B7280',
-            fontSize: '14px' 
+            fontSize: '14px',
+            fontFamily: globalSettings.bodyFont || globalSettings.fontFamily
           }}>
             {block.content.description || 'Product description'}
           </p>
@@ -223,6 +232,7 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
                 textDecoration: 'none',
                 fontSize: '14px',
                 fontWeight: 'bold',
+                fontFamily: globalSettings.buttonFont || globalSettings.fontFamily
               }}
             >
               {block.content.buttonText || 'Shop Now'}

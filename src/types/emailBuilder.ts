@@ -25,6 +25,13 @@ export interface EmailBlock {
 export interface GlobalSettings {
   fontFamily: string;
   fontSize: string;
+  
+  // Granular typography fonts
+  headlineFont?: string;
+  subheadingFont?: string;
+  bodyFont?: string;
+  buttonFont?: string;
+  
   buttonStyle: {
     cornerRadius: string;
     backgroundColor: string;

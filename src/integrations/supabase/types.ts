@@ -834,10 +834,12 @@ export type Database = {
       company_profiles: {
         Row: {
           beta_tour_enabled: boolean | null
+          body_font_id: string | null
           brand_accent_color: string | null
           brand_primary_color: string | null
           brand_secondary_color: string | null
           brand_voice: string | null
+          button_font_id: string | null
           company_name: string | null
           company_overview: string | null
           company_values: string | null
@@ -854,6 +856,7 @@ export type Database = {
           feature_flags: Json | null
           first_content_generated: boolean | null
           first_welcome_dismissed: boolean | null
+          headline_font_id: string | null
           id: string
           ideal_customer: string | null
           location_info: string | null
@@ -861,6 +864,7 @@ export type Database = {
           seasonal_focus: string | null
           selected_font_id: string | null
           specializations: string | null
+          subheading_font_id: string | null
           target_audience: string | null
           test_numbers: string[] | null
           tokens_balance: number | null
@@ -873,10 +877,12 @@ export type Database = {
         }
         Insert: {
           beta_tour_enabled?: boolean | null
+          body_font_id?: string | null
           brand_accent_color?: string | null
           brand_primary_color?: string | null
           brand_secondary_color?: string | null
           brand_voice?: string | null
+          button_font_id?: string | null
           company_name?: string | null
           company_overview?: string | null
           company_values?: string | null
@@ -893,6 +899,7 @@ export type Database = {
           feature_flags?: Json | null
           first_content_generated?: boolean | null
           first_welcome_dismissed?: boolean | null
+          headline_font_id?: string | null
           id?: string
           ideal_customer?: string | null
           location_info?: string | null
@@ -900,6 +907,7 @@ export type Database = {
           seasonal_focus?: string | null
           selected_font_id?: string | null
           specializations?: string | null
+          subheading_font_id?: string | null
           target_audience?: string | null
           test_numbers?: string[] | null
           tokens_balance?: number | null
@@ -912,10 +920,12 @@ export type Database = {
         }
         Update: {
           beta_tour_enabled?: boolean | null
+          body_font_id?: string | null
           brand_accent_color?: string | null
           brand_primary_color?: string | null
           brand_secondary_color?: string | null
           brand_voice?: string | null
+          button_font_id?: string | null
           company_name?: string | null
           company_overview?: string | null
           company_values?: string | null
@@ -932,6 +942,7 @@ export type Database = {
           feature_flags?: Json | null
           first_content_generated?: boolean | null
           first_welcome_dismissed?: boolean | null
+          headline_font_id?: string | null
           id?: string
           ideal_customer?: string | null
           location_info?: string | null
@@ -939,6 +950,7 @@ export type Database = {
           seasonal_focus?: string | null
           selected_font_id?: string | null
           specializations?: string | null
+          subheading_font_id?: string | null
           target_audience?: string | null
           test_numbers?: string[] | null
           tokens_balance?: number | null
@@ -951,8 +963,36 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "company_profiles_body_font_id_fkey"
+            columns: ["body_font_id"]
+            isOneToOne: false
+            referencedRelation: "available_fonts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_profiles_button_font_id_fkey"
+            columns: ["button_font_id"]
+            isOneToOne: false
+            referencedRelation: "available_fonts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_profiles_headline_font_id_fkey"
+            columns: ["headline_font_id"]
+            isOneToOne: false
+            referencedRelation: "available_fonts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "company_profiles_selected_font_id_fkey"
             columns: ["selected_font_id"]
+            isOneToOne: false
+            referencedRelation: "available_fonts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_profiles_subheading_font_id_fkey"
+            columns: ["subheading_font_id"]
             isOneToOne: false
             referencedRelation: "available_fonts"
             referencedColumns: ["id"]

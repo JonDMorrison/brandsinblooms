@@ -18,6 +18,34 @@ interface CompanyInfo {
     googleFontsUrl: string;
     fontFamilyCss: string;
   };
+  headlineFont?: {
+    id: string;
+    name: string;
+    displayName: string;
+    googleFontsUrl: string;
+    fontFamilyCss: string;
+  };
+  subheadingFont?: {
+    id: string;
+    name: string;
+    displayName: string;
+    googleFontsUrl: string;
+    fontFamilyCss: string;
+  };
+  bodyFont?: {
+    id: string;
+    name: string;
+    displayName: string;
+    googleFontsUrl: string;
+    fontFamilyCss: string;
+  };
+  buttonFont?: {
+    id: string;
+    name: string;
+    displayName: string;
+    googleFontsUrl: string;
+    fontFamilyCss: string;
+  };
 }
 
 export const useCompanyInfo = () => {
@@ -44,7 +72,35 @@ export const useCompanyInfo = () => {
         .from('company_profiles')
         .select(`
           *,
-          selected_font:available_fonts(
+          selected_font:available_fonts!selected_font_id(
+            id,
+            name,
+            display_name,
+            google_fonts_url,
+            font_family_css
+          ),
+          headline_font:available_fonts!headline_font_id(
+            id,
+            name,
+            display_name,
+            google_fonts_url,
+            font_family_css
+          ),
+          subheading_font:available_fonts!subheading_font_id(
+            id,
+            name,
+            display_name,
+            google_fonts_url,
+            font_family_css
+          ),
+          body_font:available_fonts!body_font_id(
+            id,
+            name,
+            display_name,
+            google_fonts_url,
+            font_family_css
+          ),
+          button_font:available_fonts!button_font_id(
             id,
             name,
             display_name,
@@ -63,6 +119,10 @@ export const useCompanyInfo = () => {
       if (profile) {
         const featureFlags = profile.feature_flags as any;
         const font = profile.selected_font as any;
+        const headlineFont = profile.headline_font as any;
+        const subheadingFont = profile.subheading_font as any;
+        const bodyFont = profile.body_font as any;
+        const buttonFont = profile.button_font as any;
         
         setCompanyInfo({
           name: profile.company_name || 'Your Company',
@@ -79,6 +139,34 @@ export const useCompanyInfo = () => {
             displayName: font.display_name,
             googleFontsUrl: font.google_fonts_url,
             fontFamilyCss: font.font_family_css
+          } : undefined,
+          headlineFont: headlineFont ? {
+            id: headlineFont.id,
+            name: headlineFont.name,
+            displayName: headlineFont.display_name,
+            googleFontsUrl: headlineFont.google_fonts_url,
+            fontFamilyCss: headlineFont.font_family_css
+          } : undefined,
+          subheadingFont: subheadingFont ? {
+            id: subheadingFont.id,
+            name: subheadingFont.name,
+            displayName: subheadingFont.display_name,
+            googleFontsUrl: subheadingFont.google_fonts_url,
+            fontFamilyCss: subheadingFont.font_family_css
+          } : undefined,
+          bodyFont: bodyFont ? {
+            id: bodyFont.id,
+            name: bodyFont.name,
+            displayName: bodyFont.display_name,
+            googleFontsUrl: bodyFont.google_fonts_url,
+            fontFamilyCss: bodyFont.font_family_css
+          } : undefined,
+          buttonFont: buttonFont ? {
+            id: buttonFont.id,
+            name: buttonFont.name,
+            displayName: buttonFont.display_name,
+            googleFontsUrl: buttonFont.google_fonts_url,
+            fontFamilyCss: buttonFont.font_family_css
           } : undefined
         });
       }
