@@ -83,20 +83,13 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
     try {
       console.log('[PlanPersist] Processing item:', item.type, item.title);
 
-      // Skip unsupported post types
-      if (item.type === 'sms') {
-        results.skipped++;
-        results.details.push(`SMS "${item.title}": SMS posts not supported yet`);
-        console.log('[PlanPersist] Skipping SMS item:', item.title);
-        continue;
-      }
-
       // Map post types to database values
       const postTypeMap = {
         'email': 'newsletter',
         'facebook': 'facebook',
         'instagram': 'instagram',
-        'blog': 'blog'
+        'blog': 'blog',
+        'sms': 'sms'
       } as const;
 
       const mappedPostType = postTypeMap[item.type as keyof typeof postTypeMap];

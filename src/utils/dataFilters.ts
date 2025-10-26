@@ -36,7 +36,7 @@ export const createContentTasksFilter = (supabase: any, config: FilterConfig) =>
     .from('content_tasks')
     .select(`
       *,
-      campaigns!inner (
+      campaigns (
         title,
         tenant_id,
         user_id,
