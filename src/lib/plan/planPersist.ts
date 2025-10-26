@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { PlanWizardState } from '@/components/plan/constants';
-import { reportSoftFail } from '@/lib/softFail';
 
 export interface PlanPersistResult {
   success: boolean;
@@ -134,11 +133,6 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
 
       if (taskError) {
         console.error('[PlanPersist] Failed to create content_task:', taskError);
-        reportSoftFail('[plan] content_task_creation_failed', {
-          itemType: item.type,
-          itemTitle: item.title,
-          error: taskError.message
-        });
         results.skipped++;
         results.details.push(`${item.type} "${item.title}": ${taskError.message}`);
         continue;
@@ -168,11 +162,6 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
         if (scheduleError) {
           console.error('[PlanPersist] Failed to create scheduled_posts:', scheduleError);
           // Don't fail the whole item, just log the issue
-          reportSoftFail('[plan] scheduled_post_creation_failed', {
-            contentTaskId: contentTask.id,
-            platform: item.type,
-            error: scheduleError.message
-          });
         } else {
           console.log('[PlanPersist] Created scheduled_post for:', contentTask.id);
         }
@@ -182,11 +171,6 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
       
     } catch (error) {
       console.error('[PlanPersist] Unexpected error processing item:', error);
-      reportSoftFail('[plan] item_processing_error', {
-        itemType: item.type,
-        itemTitle: item.title,
-        error: error.message
-      });
       results.skipped++;
       results.details.push(`${item.type} "${item.title}": Unexpected error`);
     }
