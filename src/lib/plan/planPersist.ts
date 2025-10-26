@@ -151,13 +151,14 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
         const { error: scheduleError } = await supabase
           .from('scheduled_posts')
           .insert({
-            content_id: contentTask.id,
+            task_id: contentTask.id,
+            tenant_id: tenantId,
             platform: platformMap[item.type as keyof typeof platformMap],
             publish_at: item.date.toISOString(),
             status: 'QUEUED',
             mode: 'MANUAL', // User will need to review and publish
             user_id: user.id
-          });
+          } as any);
 
         if (scheduleError) {
           console.error('[PlanPersist] Failed to create scheduled_posts:', scheduleError);
