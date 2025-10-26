@@ -162,10 +162,21 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
           } as any);
 
         if (scheduleError) {
-          console.error('[PlanPersist] Failed to create scheduled_posts:', scheduleError);
-          // Don't fail the whole item, just log the issue
+          console.error('[PlanPersist] Failed to create scheduled_posts:', {
+            error: scheduleError,
+            message: scheduleError.message,
+            details: scheduleError.details,
+            hint: scheduleError.hint,
+            code: scheduleError.code,
+            contentTaskId: contentTask.id,
+            platform: platformMap[item.type as keyof typeof platformMap],
+            publishAt: item.date.toISOString(),
+            tenantId,
+            userId: user.id
+          });
+          // Continue anyway - at least content_task was created
         } else {
-          console.log('[PlanPersist] Created scheduled_post for:', contentTask.id);
+          console.log('[PlanPersist] ✓ Created scheduled_post for:', contentTask.id);
         }
       }
 

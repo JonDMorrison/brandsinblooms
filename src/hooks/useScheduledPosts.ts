@@ -37,7 +37,7 @@ export const useScheduledPosts = (): UseScheduledPostsReturn => {
     if (!user) return;
 
     try {
-      // Build query - use task_id for direct relationship with content_tasks
+      // Build query - dual-join both content_tasks AND generated_content to support old & new schemas
       let query = supabase
         .from('scheduled_posts')
         .select(`
@@ -45,6 +45,10 @@ export const useScheduledPosts = (): UseScheduledPostsReturn => {
           content_tasks!scheduled_posts_task_id_fkey (
             ai_output,
             image_url
+          ),
+          generated_content!scheduled_posts_content_id_fkey (
+            caption,
+            media_url
           )
         `)
         .in('status', ['QUEUED', 'PUBLISHED', 'ERROR'])
@@ -61,12 +65,15 @@ export const useScheduledPosts = (): UseScheduledPostsReturn => {
 
       if (error) throw error;
       
-      // Normalize data: extract content from linked content_tasks
+      // Normalize data: prioritize content_tasks, fallback to generated_content for legacy posts
       const normalizedData = (data || []).map((post: any) => ({
         ...post,
         content: post.content_tasks ? {
           caption: post.content_tasks.ai_output,
           media_url: post.content_tasks.image_url
+        } : post.generated_content ? {
+          caption: post.generated_content.caption,
+          media_url: post.generated_content.media_url
         } : null
       }));
       
