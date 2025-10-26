@@ -1,5 +1,5 @@
 import { stripHtmlAndFormat } from "@/components/homepage/ready-to-post/contentUtils";
-import { Instagram, Facebook, Mail, BookOpen, Video, FileText } from "lucide-react";
+import { Instagram, Facebook, Mail, BookOpen, Video, FileText, MessageSquare } from "lucide-react";
 
 export const getPostTypeIcon = (postType: string) => {
   switch (postType) {
@@ -8,6 +8,7 @@ export const getPostTypeIcon = (postType: string) => {
     case 'newsletter': return Mail;
     case 'blog': return BookOpen;
     case 'video': return Video;
+    case 'sms': return MessageSquare;
     default: return FileText;
   }
 };

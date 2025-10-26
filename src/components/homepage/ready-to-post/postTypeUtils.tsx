@@ -1,5 +1,5 @@
 
-import { Instagram, Facebook, Mail, BookOpen, Video, FileText } from "lucide-react";
+import { Instagram, Facebook, Mail, BookOpen, Video, FileText, MessageSquare } from "lucide-react";
 
 export const getPostTypeIcon = (postType: string) => {
   switch (postType) {
@@ -7,6 +7,7 @@ export const getPostTypeIcon = (postType: string) => {
     case 'facebook': return Facebook;
     case 'newsletter': return BookOpen;
     case 'video': return Video;
+    case 'sms': return MessageSquare;
     default: return FileText;
   }
 };
@@ -17,6 +18,7 @@ export const getPostTypeLabel = (postType: string) => {
     case 'facebook': return 'Facebook Post';
     case 'newsletter': return 'Newsletter';
     case 'video': return 'Video';
+    case 'sms': return 'SMS Message';
     default: return 'Content';
   }
 };
@@ -28,6 +30,7 @@ export const getPostTypeColor = (postType: string) => {
     case 'facebook': return 'bg-primary/15 text-primary border-primary/25';
     case 'newsletter': return 'bg-primary/12 text-primary border-primary/22';
     case 'video': return 'bg-primary/18 text-primary border-primary/28';
+    case 'sms': return 'bg-primary/14 text-primary border-primary/24';
     default: return 'bg-primary/8 text-primary border-primary/18';
   }
 };
