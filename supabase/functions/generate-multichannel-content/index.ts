@@ -438,8 +438,8 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Force redeployment - v2.0.0 with userId auth fix
-  const FUNCTION_VERSION = '2.0.0';
+  // Force redeployment - v2.0.1 with getChannelFallback removal
+  const FUNCTION_VERSION = '2.0.1';
   console.log(`🚀 Edge function started - v${FUNCTION_VERSION}`);
   console.log(`📋 Configuration check:`, {
     hasOpenAIApiKey: !!Deno.env.get('OPENAI_API_KEY'),
