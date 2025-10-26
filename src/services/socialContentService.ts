@@ -42,58 +42,46 @@ export async function batchGenerateSocialPosts(
     console.log('Could not fetch company profile, continuing without context');
   }
 
-  const processedSocialItems: PlanItem[] = [];
+  // Process all social posts in parallel for maximum speed
+  const generationPromises = socialItems.map(async (item) => {
+    try {
+      console.log(`Generating AI content for ${item.type}: ${item.title}`);
+      
+      // Find the theme for this item
+      const theme = themes.find(t => t.id === item.themeId) || themes[0];
+      
+      const socialContent = await generateSingleSocialPost({
+        platform: item.type as 'facebook' | 'instagram',
+        theme: theme.label,
+        themeDescription: theme.description,
+        month,
+        weekNumber: item.week || 1,
+        contentType: determineContentType(item),
+        companyProfile
+      });
 
-  // Process in batches to avoid overwhelming the API
-  const batchSize = 3;
-  for (let i = 0; i < socialItems.length; i += batchSize) {
-    const batch = socialItems.slice(i, i + batchSize);
-    
-    for (const item of batch) {
-      try {
-        console.log(`Generating AI content for ${item.type}: ${item.title}`);
-        
-        // Find the theme for this item
-        const theme = themes.find(t => t.id === item.themeId) || themes[0];
-        
-        const socialContent = await generateSingleSocialPost({
-          platform: item.type as 'facebook' | 'instagram',
-          theme: theme.label,
-          themeDescription: theme.description,
-          month,
-          weekNumber: item.week || 1,
-          contentType: determineContentType(item),
-          companyProfile
-        });
-
-        if (socialContent) {
-          // Update item with AI-generated content
-          const updatedItem: PlanItem = {
-            ...item,
-            caption: socialContent.content,
-            imageQuery: socialContent.imageQuery, // Critical for auto-image-fetch
-            hashtags: socialContent.hashtags || item.hashtags
-          };
-
-          processedSocialItems.push(updatedItem);
-          console.log(`✓ Generated ${item.type} with imageQuery: \"${socialContent.imageQuery}\"`);
-        } else {
-          // Fallback: keep original content
-          console.log(`⚠ Fallback: keeping original content for ${item.type}`);
-          processedSocialItems.push(item);
-        }
-      } catch (error) {
-        console.error(`Failed to generate content for ${item.type} ${item.id}:`, error);
+      if (socialContent) {
+        // Return updated item with AI-generated content
+        return {
+          ...item,
+          caption: socialContent.content,
+          imageQuery: socialContent.imageQuery,
+          hashtags: socialContent.hashtags || item.hashtags
+        };
+      } else {
         // Fallback: keep original content
-        processedSocialItems.push(item);
+        console.log(`⚠ Fallback: keeping original content for ${item.type}`);
+        return item;
       }
+    } catch (error) {
+      console.error(`Failed to generate content for ${item.type} ${item.id}:`, error);
+      // Fallback: keep original content
+      return item;
     }
-    
-    // Small delay between batches to be API-friendly
-    if (i + batchSize < socialItems.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-  }
+  });
+
+  // Wait for all social posts to complete in parallel
+  const processedSocialItems = await Promise.all(generationPromises);
 
   console.log(`Completed batch social generation: ${processedSocialItems.length} posts processed`);
   

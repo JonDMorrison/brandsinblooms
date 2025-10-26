@@ -61,86 +61,74 @@ export async function batchGenerateEmails(
     console.log('Could not fetch company profile, continuing without context');
   }
 
-  const processedEmailItems: PlanItem[] = [];
+  // Process all emails in parallel for maximum speed
+  const generationPromises = emailItems.map(async (item) => {
+    try {
+      console.log(`Generating content for email: ${item.title}`);
+      
+      const emailContent = await generateSingleEmailContent({
+        month,
+        themes,
+        companyProfile,
+        emailType: determineEmailType(item)
+      });
 
-  // Process emails in batches to avoid overwhelming the API
-  const batchSize = 3;
-  for (let i = 0; i < emailItems.length; i += batchSize) {
-    const batch = emailItems.slice(i, i + batchSize);
-    
-    for (const item of batch) {
-      try {
-        console.log(`Generating content for email: ${item.title}`);
-        
-        const emailContent = await generateSingleEmailContent({
-          month,
-          themes,
-          companyProfile,
-          emailType: determineEmailType(item)
-        });
+      if (emailContent) {
+        // Apply quality assessment
+        const subjectQuality = assessContentQuality(emailContent.subject, 'subject');
+        const preheaderQuality = assessContentQuality(emailContent.preheader, 'preheader');
 
-        if (emailContent) {
-          // Apply quality assessment
-          const subjectQuality = assessContentQuality(emailContent.subject, 'subject');
-          const preheaderQuality = assessContentQuality(emailContent.preheader, 'preheader');
-          const bodyQuality = assessContentQuality(emailContent.body, 'body');
-
-          // Retry once if quality is poor
-          let finalContent = emailContent;
-          if (subjectQuality.level === 'poor' || preheaderQuality.level === 'poor') {
-            console.log('Quality check failed, retrying with tighter constraints');
-            const retryContent = await generateSingleEmailContent({
-              month,
-              themes,
-              companyProfile,
-              emailType: determineEmailType(item),
-              constraints: {
-                subjectLength: 45,
-                preheaderLength: 80,
-                tone: 'direct and benefit-focused'
-              }
-            });
-            if (retryContent) {
-              finalContent = retryContent;
+        // Retry once if quality is poor
+        let finalContent = emailContent;
+        if (subjectQuality.level === 'poor' || preheaderQuality.level === 'poor') {
+          console.log('Quality check failed, retrying with tighter constraints');
+          const retryContent = await generateSingleEmailContent({
+            month,
+            themes,
+            companyProfile,
+            emailType: determineEmailType(item),
+            constraints: {
+              subjectLength: 45,
+              preheaderLength: 80,
+              tone: 'direct and benefit-focused'
             }
-          }
-
-          // Update item with generated content
-          const updatedItem: PlanItem = {
-            ...item,
-            emailSubject: finalContent.subject,
-            emailPreheader: finalContent.preheader,
-            title: finalContent.subject, // Keep backward compatibility
-            caption: formatEmailContent(finalContent.body),
-            notes: finalContent.notes,
-            imageQuery: finalContent.imageQuery // Preserve AI-generated image keyword
-          };
-
-          processedEmailItems.push(updatedItem);
-        } else {
-          // Fallback: use existing content but improve it
-          const improvedCaption = item.caption ? formatEmailContent(sanitizeAndImproveContent(item.caption)) : item.caption;
-          processedEmailItems.push({
-            ...item,
-            caption: improvedCaption
           });
+          if (retryContent) {
+            finalContent = retryContent;
+          }
         }
-      } catch (error) {
-        console.error(`Failed to generate content for email ${item.id}:`, error);
-        // Fallback: use existing content
+
+        // Return updated item with generated content
+        return {
+          ...item,
+          emailSubject: finalContent.subject,
+          emailPreheader: finalContent.preheader,
+          title: finalContent.subject,
+          caption: formatEmailContent(finalContent.body),
+          notes: finalContent.notes,
+          imageQuery: finalContent.imageQuery
+        };
+      } else {
+        // Fallback: use existing content but improve it
         const improvedCaption = item.caption ? formatEmailContent(sanitizeAndImproveContent(item.caption)) : item.caption;
-        processedEmailItems.push({
+        return {
           ...item,
           caption: improvedCaption
-        });
+        };
       }
+    } catch (error) {
+      console.error(`Failed to generate content for email ${item.id}:`, error);
+      // Fallback: use existing content
+      const improvedCaption = item.caption ? formatEmailContent(sanitizeAndImproveContent(item.caption)) : item.caption;
+      return {
+        ...item,
+        caption: improvedCaption
+      };
     }
-    
-    // Small delay between batches to be API-friendly
-    if (i + batchSize < emailItems.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-  }
+  });
+
+  // Wait for all emails to complete in parallel
+  const processedEmailItems = await Promise.all(generationPromises);
 
   console.log(`Completed batch email generation: ${processedEmailItems.length} emails processed`);
   

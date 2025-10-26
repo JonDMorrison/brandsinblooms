@@ -170,8 +170,8 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           );
           
           if (itemsNeedingImages.length > 0) {
-            console.log(`[PlanStepCalendar] Auto-fetching ${itemsNeedingImages.length} images with garden validation...`);
-            const toastId = toast.loading(`Generating ${itemsNeedingImages.length} garden images with AI...`);
+            console.log(`[PlanStepCalendar] Auto-fetching ${itemsNeedingImages.length} images with garden validation in parallel...`);
+            const toastId = toast.loading(`Generating ${itemsNeedingImages.length} garden images in parallel...`);
             
             try {
               // Note: Items don't have taskId yet (not persisted), so we'll fetch images
@@ -182,9 +182,8 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                 type: item.type
               }));
               
-              // Fetch images with new pipeline (garden_ prefix validation)
-              let successCount = 0;
-              for (const task of tasks) {
+              // Fetch all images in parallel for maximum speed
+              const imagePromises = tasks.map(async (task) => {
                 try {
                   console.log(`[PlanStepCalendar] Fetching garden-validated image for: ${task.imageQuery}`);
                   
@@ -198,8 +197,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                   
                   if (keywordError || keywordData?.error) {
                     console.error(`[PlanStepCalendar] Keyword generation failed:`, keywordError || keywordData?.details);
-                    // Skip this image but continue with others
-                    continue;
+                    return { taskId: task.itemId, success: false, error: 'keyword_generation_failed' };
                   }
                   
                   const enhancedQuery = keywordData.primaryQuery || keywordData.keywords?.join(' ') || task.imageQuery;
@@ -217,13 +215,14 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                   
                   if (imageError || !imageData?.images?.[0]) {
                     console.error(`[PlanStepCalendar] Image fetch failed:`, imageError);
-                    continue;
+                    return { taskId: task.itemId, success: false, error: 'image_fetch_failed' };
                   }
                   
                   const image = imageData.images[0];
                   
-                  // Step 3: Update item in state with fetched image
-                  updateItem(task.itemId, {
+                  return {
+                    taskId: task.itemId,
+                    success: true,
                     imageUrl: image.urls?.regular || image.download_url,
                     imageMetadata: {
                       alt: image.alt || enhancedQuery,
@@ -233,14 +232,29 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                       unsplash_id: image.id || image.unsplash_id,
                       enhanced_query: enhancedQuery
                     }
-                  });
-                  successCount++;
-                  console.log(`[PlanStepCalendar] ✅ Fetched garden-validated image ${successCount}/${tasks.length}`);
-                  
+                  };
                 } catch (err) {
                   console.warn(`[PlanStepCalendar] Failed to fetch image for ${task.itemId}:`, err);
+                  return { taskId: task.itemId, success: false, error: err.message };
                 }
-              }
+              });
+
+              // Wait for all images to complete in parallel
+              const imageResults = await Promise.all(imagePromises);
+
+              // Update items with fetched images
+              let successCount = 0;
+              imageResults.forEach(result => {
+                if (result.success) {
+                  updateItem(result.taskId, {
+                    imageUrl: result.imageUrl,
+                    imageMetadata: result.imageMetadata
+                  });
+                  successCount++;
+                }
+              });
+              
+              console.log(`[PlanStepCalendar] ✅ Fetched ${successCount}/${tasks.length} garden-validated images in parallel`);
               
               if (successCount > 0) {
                 toast.success(`✅ Generated ${successCount}/${tasks.length} garden-relevant images`, { id: toastId });
