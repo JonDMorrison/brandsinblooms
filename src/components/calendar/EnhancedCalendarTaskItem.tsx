@@ -44,6 +44,8 @@ export const EnhancedCalendarTaskItem = ({
       case 'email': return '📧';
       case 'newsletter': return '📰';
       case 'video': return '🎥';
+      case 'sms': return '💬';
+      case 'blog': return '📝';
       default: return '📝';
     }
   };
