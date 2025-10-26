@@ -27,7 +27,20 @@ export const createCampaignFilter = (supabase: any, config: FilterConfig) => {
  * Creates a standardized content tasks query filter
  */
 export const createContentTasksFilter = (supabase: any, config: FilterConfig) => {
-  const statusFilter = ['planned', 'review', 'approved', 'scheduled', 'published', 'generated'];
+  // Include all relevant statuses to ensure plan content is always visible
+  const statusFilter = [
+    'planned', 
+    'review', 
+    'approved', 
+    'scheduled', 
+    'published', 
+    'generated',
+    'pending',
+    'draft',
+    'needs_review',
+    'in_progress',
+    'failed' // Include failed to ensure SMS and other tasks remain visible
+  ];
   if (config.isDeveloper) {
     statusFilter.push('preview');
   }
