@@ -262,21 +262,14 @@ export const TypographyTab = () => {
           
           {currentButton && (
             <div style={{ marginTop: '24px' }}>
-              <button
+              <Button
                 style={{
                   fontFamily: currentButton.fontFamilyCss,
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  padding: '12px 24px',
-                  backgroundColor: 'hsl(var(--primary))',
-                  color: 'hsl(var(--primary-foreground))',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer'
                 }}
+                className="font-bold"
               >
                 Learn More
-              </button>
+              </Button>
             </div>
           )}
         </CardContent>
