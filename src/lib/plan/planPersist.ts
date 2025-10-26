@@ -81,7 +81,7 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
   // Process each enabled item
   for (const item of enabledItems) {
     try {
-      console.log('[PlanPersist] Processing item:', item.type, item.title);
+      console.log('[PlanPersist] Processing item:', item.type, item.title, 'enabled:', item.enabled);
 
       // Map post types to database values
       const postTypeMap = {
@@ -125,7 +125,14 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
         .single();
 
       if (taskError) {
-        console.error('[PlanPersist] Failed to create content_task:', taskError);
+        console.error('[PlanPersist] Failed to create content_task:', {
+          error: taskError,
+          itemType: item.type,
+          itemTitle: item.title,
+          mappedPostType,
+          userId: user.id,
+          tenantId
+        });
         results.skipped++;
         results.details.push(`${item.type} "${item.title}": ${taskError.message}`);
         continue;
