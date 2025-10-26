@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { usePlanWizard } from '../PlanWizardContext';
 import { useTwilioSetup } from '@/components/dashboard/TwilioSetupChecker';
 import { useDashboardData } from '@/hooks/useDashboardData';
+import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { useNavigate } from 'react-router-dom';
 import { AudienceTargetingSection } from '../AudienceTargetingSection';
 import { BlogContentViewer } from '../BlogContentViewer';
@@ -33,6 +34,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
 }) => {
   const { state } = usePlanWizard();
   const { data: twilioData } = useTwilioSetup();
+  const { senderConfig } = useSenderConfiguration();
   const { data: dashboardData } = useDashboardData();
   const navigate = useNavigate();
   
@@ -49,7 +51,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
 
   // Check guardrails
   const isTwilioConnected = twilioData?.isSetup || false;
-  const isDomainVerified = dashboardData?.socialConnections?.some(conn => conn.platform === 'email') || false;
+  const isDomainVerified = senderConfig.isVerified;
   
   const emailItems = itemsByType.email || [];
   const smsItems = itemsByType.sms || [];
