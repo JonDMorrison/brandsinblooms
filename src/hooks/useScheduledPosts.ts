@@ -37,15 +37,12 @@ export const useScheduledPosts = (): UseScheduledPostsReturn => {
     if (!user) return;
 
     try {
-      const query = supabase
+      // Build query - use task_id for direct relationship with content_tasks
+      let query = supabase
         .from('scheduled_posts')
         .select(`
           *,
-          generated_content (
-            caption,
-            media_url
-          ),
-          content_tasks (
+          content_tasks!scheduled_posts_task_id_fkey (
             ai_output,
             image_url
           )
@@ -53,24 +50,24 @@ export const useScheduledPosts = (): UseScheduledPostsReturn => {
         .in('status', ['QUEUED', 'PUBLISHED', 'ERROR'])
         .order('publish_at', { ascending: true });
 
+      // Filter by tenant or user
       if (tenant?.id) {
-        // For tenant-based filtering, we'd need to join through user relationships
-        // This is simplified for now
+        query = query.eq('tenant_id', tenant.id);
       } else {
-        query.eq('user_id', user.id);
+        query = query.eq('user_id', user.id);
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
       
-      // Normalize data: use content_tasks if available, otherwise generated_content
+      // Normalize data: extract content from linked content_tasks
       const normalizedData = (data || []).map((post: any) => ({
         ...post,
         content: post.content_tasks ? {
           caption: post.content_tasks.ai_output,
           media_url: post.content_tasks.image_url
-        } : post.generated_content
+        } : null
       }));
       
       setScheduledPosts(normalizedData);
