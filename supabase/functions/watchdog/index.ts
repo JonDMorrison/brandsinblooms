@@ -23,7 +23,8 @@ async function handler(req: Request): Promise<Response> {
     
     let issuesFound = 0;
     
-    // 1. Find content_tasks created >5 min ago with empty ai_output or image_url
+    // 1. Find content_tasks created >5 min ago with empty ai_output
+    // Note: We only check ai_output, not image_url, because some post types (SMS, newsletter) don't need images
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     
     const { data: stuckTasks, error: tasksError } = await supabaseAdmin
@@ -32,7 +33,8 @@ async function handler(req: Request): Promise<Response> {
       .lt('created_at', fiveMinutesAgo)
       .neq('status', 'failed')
       .neq('status', 'cancelled')
-      .or('ai_output.is.null,ai_output.eq.,image_url.is.null,image_url.eq.');
+      .neq('status', 'review') // Don't fail tasks in review status (from Plan Wizard)
+      .or('ai_output.is.null,ai_output.eq.');
 
     if (tasksError) {
       console.error('[WATCHDOG] Error fetching stuck tasks:', tasksError);

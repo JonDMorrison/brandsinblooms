@@ -138,7 +138,15 @@ export const persistPlan = async (planState: PlanWizardState): Promise<PlanPersi
         continue;
       }
 
-      console.log('[PlanPersist] Created content_task:', contentTask.id);
+      console.log('[PlanPersist] ✅ Created content_task:', {
+        id: contentTask.id,
+        type: mappedPostType,
+        status: contentTask.status,
+        scheduled_date: contentTask.scheduled_date,
+        has_ai_output: !!contentTask.ai_output,
+        has_image: !!contentTask.image_url,
+        plan_id: contentTask.plan_id
+      });
 
       // For social media items, also create scheduled_posts entry
       if (item.type === 'facebook' || item.type === 'instagram') {

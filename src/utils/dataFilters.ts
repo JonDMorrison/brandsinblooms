@@ -55,6 +55,14 @@ export const createContentTasksFilter = (supabase: any, config: FilterConfig) =>
         user_id,
         source
       ),
+      plans (
+        id,
+        name,
+        month,
+        themes,
+        tenant_id,
+        user_id
+      ),
       holidays (
         holiday_name,
         holiday_date
@@ -88,13 +96,18 @@ export const securityFilterCampaigns = (campaigns: any[], config: FilterConfig) 
 
 /**
  * Security filter to double-check ownership of content tasks
+ * Handles both campaign-based and plan-based tasks
  */
 export const securityFilterTasks = (tasks: any[], config: FilterConfig) => {
   return tasks.filter(task => {
     if (config.tenantId) {
-      return task.campaigns?.tenant_id === config.tenantId || task.tenant_id === config.tenantId;
+      return task.campaigns?.tenant_id === config.tenantId || 
+             task.plans?.tenant_id === config.tenantId || 
+             task.tenant_id === config.tenantId;
     } else {
-      return task.campaigns?.user_id === config.userId || task.user_id === config.userId;
+      return task.campaigns?.user_id === config.userId || 
+             task.plans?.user_id === config.userId || 
+             task.user_id === config.userId;
     }
   });
 };
@@ -156,6 +169,7 @@ export const getCustomCampaignTasks = (tasks: any[], campaigns: any[], config: F
 
 /**
  * Filters tasks to exclude those from custom campaigns (for system/weekly content)
+ * Includes plan-based tasks as they are considered system content
  */
 export const getSystemCampaignTasks = (tasks: any[], campaigns: any[], config: FilterConfig) => {
   const customCampaignIds = new Set(campaigns
@@ -167,11 +181,15 @@ export const getSystemCampaignTasks = (tasks: any[], campaigns: any[], config: F
     // Exclude custom campaign tasks
     if (customCampaignIds.has(task.campaign_id)) return false;
     
-    // Apply ownership security check
+    // Apply ownership security check (include plan-based tasks)
     if (config.tenantId) {
-      return task.campaigns?.tenant_id === config.tenantId || task.tenant_id === config.tenantId;
+      return task.campaigns?.tenant_id === config.tenantId || 
+             task.plans?.tenant_id === config.tenantId || 
+             task.tenant_id === config.tenantId;
     } else {
-      return task.campaigns?.user_id === config.userId || task.user_id === config.userId;
+      return task.campaigns?.user_id === config.userId || 
+             task.plans?.user_id === config.userId || 
+             task.user_id === config.userId;
     }
   });
   
