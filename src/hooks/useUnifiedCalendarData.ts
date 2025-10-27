@@ -67,7 +67,7 @@ export const useUnifiedCalendarData = () => {
           title: task.ai_output ? task.ai_output.substring(0, 50) + '...' : `Content task`,
           date: new Date(task.scheduled_date),
           status: task.status,
-          platform: undefined, // Tasks don't have a platform field
+          platform: (task as any).post_type, // Map post_type to platform for filtering
           campaign_id: task.campaign_id,
           meta: task
         });
