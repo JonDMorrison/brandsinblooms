@@ -50,6 +50,7 @@ import { OAuthCallbackHandler } from '@/components/migrations/OAuthCallbackHandl
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import CallbackPage from '@/pages/integrations/lightspeed/CallbackPage';
 import GuidePage from '@/pages/integrations/lightspeed/GuidePage';
+import DebugPage from '@/pages/integrations/lightspeed/DebugPage';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
 import FAQPage from '@/pages/FAQPage';
@@ -356,6 +357,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <GuidePage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations/lightspeed/debug" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <DebugPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />

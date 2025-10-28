@@ -167,3 +167,9 @@ verify_jwt = true
 
 [functions.lightspeed-webhook-handler]
 verify_jwt = false
+
+[functions.lightspeed-get-products]
+verify_jwt = true
+
+[functions.lightspeed-diagnostics]
+verify_jwt = true

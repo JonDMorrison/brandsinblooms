@@ -7,13 +7,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug, BookOpen } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plug, BookOpen, Clock, Package as PackageIcon, Bug } from 'lucide-react';
 import { LightspeedOAuthOverlay } from './LightspeedOAuthOverlay';
 import { LightspeedDashboard } from './LightspeedDashboard';
 import { useNavigate } from 'react-router-dom';
+import { formatDistanceToNow } from 'date-fns';
 
 export const LightspeedIntegration = () => {
   const [showConnectModal, setShowConnectModal] = useState(false);
+  const [showProductsModal, setShowProductsModal] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
   const [domainPrefix, setDomainPrefix] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting' | 'completing'>('preparing');
@@ -177,6 +180,22 @@ export const LightspeedIntegration = () => {
     },
   });
 
+  const loadProductsMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('lightspeed-get-products');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      setProducts(data.products || []);
+      setShowProductsModal(true);
+      toast({ title: 'Products loaded', description: `Fetched ${data.count} products` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to load products', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const disconnectMutation = useMutation({
     mutationFn: async () => {
       if (!connection) throw new Error('No connection found');
@@ -225,6 +244,28 @@ export const LightspeedIntegration = () => {
   }
 
   const isConnected = connection && connection.encrypted_access_token !== 'pending';
+  
+  // Calculate token expiry
+  const getTokenExpiryInfo = () => {
+    if (!connection?.expires_at) return null;
+    const expiresAt = new Date(connection.expires_at);
+    const now = new Date();
+    const minutesRemaining = Math.floor((expiresAt.getTime() - now.getTime()) / 60000);
+    const hoursRemaining = Math.floor(minutesRemaining / 60);
+    
+    let color = 'text-green-600';
+    if (minutesRemaining < 60) color = 'text-red-600';
+    else if (minutesRemaining < 1440) color = 'text-yellow-600'; // < 24 hours
+    
+    let text = '';
+    if (minutesRemaining < 0) text = 'Expired';
+    else if (hoursRemaining > 0) text = `${hoursRemaining}h ${minutesRemaining % 60}m`;
+    else text = `${minutesRemaining}m`;
+    
+    return { text, color, expired: minutesRemaining < 0 };
+  };
+  
+  const tokenExpiry = getTokenExpiryInfo();
 
   return (
     <>
@@ -247,27 +288,62 @@ export const LightspeedIntegration = () => {
 
         {isConnected ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Domain</p>
-                <p className="font-medium">{connection.domain_prefix}</p>
+                <p className="font-medium">{connection.domain_prefix}.retail.lightspeed.app</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Status</p>
-                <p className="font-medium text-green-600">Connected</p>
+                <p className="font-medium text-green-600">✓ Connected</p>
               </div>
+              {tokenExpiry && (
+                <div>
+                  <p className="text-muted-foreground">Token Expiry</p>
+                  <p className={`font-medium ${tokenExpiry.color}`}>
+                    <Clock className="h-3 w-3 inline mr-1" />
+                    {tokenExpiry.text}
+                  </p>
+                </div>
+              )}
+              {connection.last_synced_at && (
+                <div>
+                  <p className="text-muted-foreground">Last Synced</p>
+                  <p className="font-medium">
+                    {formatDistanceToNow(new Date(connection.last_synced_at), { addSuffix: true })}
+                  </p>
+                </div>
+              )}
             </div>
+            
+            {tokenExpiry?.expired && (
+              <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
+                <p className="text-sm text-red-600">
+                  <strong>Token expired.</strong> Please reconnect your account to continue syncing.
+                </p>
+              </div>
+            )}
+            
             <div className="flex gap-2 flex-wrap">
-              <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending || loading} size="sm" variant="default">
+              <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending || loading || tokenExpiry?.expired} size="sm" variant="default">
                 {syncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {syncMutation.isPending ? 'Syncing...' : 'Sync Now'}
               </Button>
+              <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending || loading} size="sm" variant="outline">
+                {testMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Test Connection
+              </Button>
+              <Button onClick={() => loadProductsMutation.mutate()} disabled={loadProductsMutation.isPending || loading} size="sm" variant="outline">
+                {loadProductsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PackageIcon className="h-4 w-4 mr-2" />}
+                Load Products
+              </Button>
               <Button onClick={() => navigate('/integrations/lightspeed/guide')} variant="outline" size="sm">
                 <BookOpen className="h-4 w-4 mr-2" />
-                View Guide
+                Guide
               </Button>
-              <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending || loading} size="sm" variant="outline">
-                {testMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Test Connection'}
+              <Button onClick={() => navigate('/integrations/lightspeed/debug')} variant="ghost" size="sm">
+                <Bug className="h-4 w-4 mr-2" />
+                Debug
               </Button>
               <Button onClick={() => setShowConnectModal(true)} variant="outline" size="sm" disabled={loading}>
                 Reconnect
@@ -328,6 +404,53 @@ export const LightspeedIntegration = () => {
                 'Continue to Authorization'
               )}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Products Modal */}
+      <Dialog open={showProductsModal} onOpenChange={setShowProductsModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Lightspeed Products</DialogTitle>
+            <DialogDescription>
+              Sample of {products.length} products from your Lightspeed catalog
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {products.length > 0 ? (
+              products.map((product) => (
+                <Card key={product.id} className="p-4">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1">
+                      <h4 className="font-semibold">{product.name}</h4>
+                      {product.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                          {product.description}
+                        </p>
+                      )}
+                      <div className="flex gap-4 mt-2 text-sm">
+                        <span className="text-muted-foreground">
+                          SKU: <span className="font-medium text-foreground">{product.sku}</span>
+                        </span>
+                        {product.inventory !== undefined && (
+                          <span className="text-muted-foreground">
+                            Stock: <span className="font-medium text-foreground">{product.inventory}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-primary">
+                        ${(product.price / 100).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No products found</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
