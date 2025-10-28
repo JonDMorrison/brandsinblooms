@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
 
     const clientId = Deno.env.get('LIGHTSPEED_CLIENT_ID');
     const clientSecret = Deno.env.get('LIGHTSPEED_CLIENT_SECRET');
-    const callbackUrl = `https://bloomsuite.app/integrations/lightspeed/callback`;
+    const callbackUrl = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/lightspeed-oauth-callback`;
 
     if (!clientId || !clientSecret) {
       console.error('[LS-CALLBACK] Missing credentials');

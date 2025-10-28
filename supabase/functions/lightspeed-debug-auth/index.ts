@@ -12,7 +12,7 @@ serve(async (req) => {
 
   try {
     const clientId = Deno.env.get('LIGHTSPEED_CLIENT_ID');
-    const callbackUrl = 'https://bloomsuite.app/integrations/lightspeed/callback';
+    const callbackUrl = 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/lightspeed-oauth-callback';
     const state = 'debug-test-state-' + Date.now();
 
     if (!clientId) {
