@@ -26,6 +26,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { GoogleAnalyticsConnection } from './GoogleAnalyticsConnection';
 import { LightspeedIntegration } from './LightspeedIntegration';
+import { LightspeedDebug } from './LightspeedDebug';
 
 const APP_ORIGIN = window.location.origin;
 
@@ -416,6 +417,9 @@ export const IntegrationHub = () => {
 
               {/* Lightspeed X-Series */}
               <LightspeedIntegration />
+
+              {/* Lightspeed Debug Tools */}
+              <LightspeedDebug />
             </div>
           </section>
 

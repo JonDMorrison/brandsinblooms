@@ -143,3 +143,12 @@ verify_jwt = false
 
 [functions.lightspeed-test-connection]
 verify_jwt = true
+
+[functions.lightspeed-debug-env]
+verify_jwt = false
+
+[functions.lightspeed-debug-auth]
+verify_jwt = false
+
+[functions.lightspeed-debug-token]
+verify_jwt = false

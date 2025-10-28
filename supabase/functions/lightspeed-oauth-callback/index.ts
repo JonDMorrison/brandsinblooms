@@ -20,11 +20,17 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('[LS-CALLBACK] ==========================================');
     console.log('[LS-CALLBACK] Request received');
+    console.log('[LS-CALLBACK] Full URL:', req.url);
+    console.log('[LS-CALLBACK] Referer:', req.headers.get('referer') || '(none)');
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
     const error = url.searchParams.get('error');
+    console.log('[LS-CALLBACK] Code present:', !!code);
+    console.log('[LS-CALLBACK] State present:', !!state);
+    console.log('[LS-CALLBACK] Error param:', error || '(none)');
 
     if (error) {
       console.error('[LS-CALLBACK] OAuth error:', error);
