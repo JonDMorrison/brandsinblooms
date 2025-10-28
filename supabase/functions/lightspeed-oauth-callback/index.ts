@@ -22,12 +22,10 @@ Deno.serve(async (req) => {
   try {
     console.log('[LS-CALLBACK] ==========================================');
     console.log('[LS-CALLBACK] Request received');
-    console.log('[LS-CALLBACK] Full URL:', req.url);
-    console.log('[LS-CALLBACK] Referer:', req.headers.get('referer') || '(none)');
-    const url = new URL(req.url);
-    const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state');
-    const error = url.searchParams.get('error');
+    
+    // Get code and state from request body (called from frontend)
+    const { code, state } = await req.json();
+    const error = null;
     console.log('[LS-CALLBACK] Code present:', !!code);
     console.log('[LS-CALLBACK] State present:', !!state);
     console.log('[LS-CALLBACK] Error param:', error || '(none)');
@@ -55,6 +53,11 @@ Deno.serve(async (req) => {
     }
 
     const { t: tenantId, d: domainPrefix, u: userId } = stateData;
+    
+    if (!tenantId || !domainPrefix || !userId) {
+      console.error('[LS-CALLBACK] Invalid state data:', stateData);
+      throw new Error('Invalid state data');
+    }
     console.log('[LS-CALLBACK] State valid. Tenant:', tenantId, 'Domain:', domainPrefix);
 
     const supabaseAdmin = createClient(
@@ -64,7 +67,7 @@ Deno.serve(async (req) => {
 
     const clientId = Deno.env.get('LIGHTSPEED_CLIENT_ID');
     const clientSecret = Deno.env.get('LIGHTSPEED_CLIENT_SECRET');
-    const callbackUrl = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/lightspeed-oauth-callback`;
+    const callbackUrl = `https://bloomsuite.app/integrations/lightspeed/callback`;
 
     if (!clientId || !clientSecret) {
       console.error('[LS-CALLBACK] Missing credentials');
@@ -140,14 +143,14 @@ Deno.serve(async (req) => {
     console.log('[LS-CALLBACK] Success! Connection stored');
 
     return new Response(
-      `<html><body><script>window.opener?.postMessage({type:'lightspeed-success'},'*');setTimeout(()=>window.close(),500);</script><p>Connected successfully! Closing...</p></body></html>`,
-      { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+      JSON.stringify({ success: true, message: 'Connected successfully' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('[LS-CALLBACK] Error:', error.message);
     return new Response(
-      `<html><body><script>window.opener?.postMessage({type:'lightspeed-error',error:'${encodeURIComponent(error.message)}'},'*');setTimeout(()=>window.close(),500);</script><p>Error: ${error.message}</p></body></html>`,
-      { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

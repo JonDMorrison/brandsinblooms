@@ -26,7 +26,7 @@ serve(async (req) => {
       LIGHTSPEED_CLIENT_SECRET: show('LIGHTSPEED_CLIENT_SECRET') + ' (partial)',
       STATE_SIGNING_SECRET: show('STATE_SIGNING_SECRET') + ' (partial)',
       SUPABASE_URL: Deno.env.get('SUPABASE_URL') || '(missing)',
-      callback_url_note: 'Should be: https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/lightspeed-oauth-callback',
+      callback_url_note: 'Should be: https://bloomsuite.app/integrations/lightspeed/callback',
       timestamp: new Date().toISOString()
     };
 

@@ -65,54 +65,15 @@ export const LightspeedIntegration = () => {
         throw new Error('No authorization URL received');
       }
 
-      // Open OAuth window
-      const width = 600;
-      const height = 700;
-      const left = window.screen.width / 2 - width / 2;
-      const top = window.screen.height / 2 - height / 2;
+      // Redirect to Lightspeed authorization page
+      console.log('Redirecting to Lightspeed:', data.authUrl);
+      window.location.href = data.authUrl;
       
-      console.log('Opening OAuth window:', data.authUrl);
-      const authWindow = window.open(
-        data.authUrl,
-        'Lightspeed OAuth',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-
-      if (!authWindow) {
-        throw new Error('Popup blocked. Please allow popups for this site.');
-      }
-
-      return new Promise((resolve, reject) => {
-        const handleMessage = (event: MessageEvent) => {
-          console.log('Received message:', event.data);
-          if (event.data?.type === 'lightspeed-success') {
-            window.removeEventListener('message', handleMessage);
-            authWindow?.close();
-            resolve(true);
-          } else if (event.data?.type === 'lightspeed-error') {
-            window.removeEventListener('message', handleMessage);
-            authWindow?.close();
-            const errorMsg = decodeURIComponent(event.data.error || 'OAuth failed');
-            reject(new Error(errorMsg));
-          }
-        };
-
-        window.addEventListener('message', handleMessage);
-
-        const checkClosed = setInterval(() => {
-          if (authWindow?.closed) {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', handleMessage);
-            reject(new Error('Authorization window was closed'));
-          }
-        }, 500);
-      });
+      // Return a promise that never resolves - the page will redirect
+      return new Promise(() => {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lightspeed-connection'] });
-      setShowConnectModal(false);
-      setDomainPrefix('');
-      toast({ title: 'Lightspeed connected successfully' });
+      // Success will be handled after redirect back to /integrations
     },
     onError: (error: Error) => {
       toast({ title: 'Connection failed', description: error.message, variant: 'destructive' });

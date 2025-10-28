@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       throw new Error('State secret not configured');
     }
 
-    const callbackUrl = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/lightspeed-oauth-callback`;
+    const callbackUrl = `https://bloomsuite.app/integrations/lightspeed/callback`;
 
     // Create state
     const state = btoa(JSON.stringify({

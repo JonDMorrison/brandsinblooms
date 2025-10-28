@@ -48,6 +48,7 @@ import POSIntegrationsPage from '@/pages/POSIntegrationsPage';
 import MigrationsPage from '@/pages/MigrationsPage';
 import { OAuthCallbackHandler } from '@/components/migrations/OAuthCallbackHandler';
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
+import CallbackPage from '@/pages/integrations/lightspeed/CallbackPage';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
 import FAQPage from '@/pages/FAQPage';
@@ -349,6 +350,7 @@ function App() {
           } />
           <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/integrations/lightspeed/callback" element={<CallbackPage />} />
           <Route path="/crm/pos" element={
             <ProtectedRoute>
               <SidebarLayout>
