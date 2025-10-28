@@ -7,8 +7,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plug, BookOpen } from 'lucide-react';
 import { LightspeedOAuthOverlay } from './LightspeedOAuthOverlay';
+import { LightspeedDashboard } from './LightspeedDashboard';
+import { useNavigate } from 'react-router-dom';
 
 export const LightspeedIntegration = () => {
   const [showConnectModal, setShowConnectModal] = useState(false);
@@ -17,6 +19,7 @@ export const LightspeedIntegration = () => {
   const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting' | 'completing'>('preparing');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Check for OAuth callback success
   useEffect(() => {
@@ -68,6 +71,24 @@ export const LightspeedIntegration = () => {
     },
   });
 
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('lightspeed-full-sync');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['lightspeed-connection'] });
+      toast({ 
+        title: 'Sync completed', 
+        description: `Synced ${data?.results?.customers?.customersSynced || 0} customers and ${data?.results?.sales?.salesSynced || 0} sales`
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Sync failed', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const initiateOAuthFlow = async (prefix: string) => {
     setLoading(true);
     setLoadingStep('preparing');
@@ -86,6 +107,7 @@ export const LightspeedIntegration = () => {
 
       // Store state with redundancy (like Facebook pattern)
       sessionStorage.setItem('lightspeed_oauth_state', combinedState);
+      sessionStorage.setItem('lightspeed_domain_prefix', prefix);
       localStorage.setItem('lightspeed_oauth_state_backup', combinedState);
 
       console.log('[OAuth] Initiating Lightspeed OAuth:', {
@@ -231,12 +253,20 @@ export const LightspeedIntegration = () => {
                 <p className="font-medium">{connection.domain_prefix}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Retailer ID</p>
-                <p className="font-medium">{connection.retailer_id || 'N/A'}</p>
+                <p className="text-muted-foreground">Status</p>
+                <p className="font-medium text-green-600">Connected</p>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending || loading} size="sm">
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending || loading} size="sm" variant="default">
+                {syncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {syncMutation.isPending ? 'Syncing...' : 'Sync Now'}
+              </Button>
+              <Button onClick={() => navigate('/integrations/lightspeed/guide')} variant="outline" size="sm">
+                <BookOpen className="h-4 w-4 mr-2" />
+                View Guide
+              </Button>
+              <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending || loading} size="sm" variant="outline">
                 {testMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Test Connection'}
               </Button>
               <Button onClick={() => setShowConnectModal(true)} variant="outline" size="sm" disabled={loading}>
@@ -245,11 +275,17 @@ export const LightspeedIntegration = () => {
               <Button 
                 onClick={() => disconnectMutation.mutate()} 
                 disabled={disconnectMutation.isPending || loading}
-                variant="destructive" 
+                variant="ghost" 
                 size="sm"
               >
                 {disconnectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Disconnect'}
               </Button>
+            </div>
+
+            {/* Dashboard */}
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold mb-4">Lightspeed Data Overview</h4>
+              <LightspeedDashboard />
             </div>
           </div>
         ) : (

@@ -152,3 +152,18 @@ verify_jwt = false
 
 [functions.lightspeed-debug-token]
 verify_jwt = false
+
+[functions.lightspeed-sync-customers]
+verify_jwt = true
+
+[functions.lightspeed-sync-sales]
+verify_jwt = true
+
+[functions.lightspeed-sync-products]
+verify_jwt = true
+
+[functions.lightspeed-full-sync]
+verify_jwt = true
+
+[functions.lightspeed-webhook-handler]
+verify_jwt = false
