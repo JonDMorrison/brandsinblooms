@@ -37,12 +37,19 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const domainPrefix = body?.domainPrefix;
+    const state = body?.state; // Receive state from frontend
     
     console.log('[LS-INIT] Domain prefix:', domainPrefix);
+    console.log('[LS-INIT] State received:', state?.substring(0, 12) + '...');
 
     if (!domainPrefix || !isValidPrefix(domainPrefix)) {
       console.error('[LS-INIT] Invalid domain prefix:', domainPrefix);
       throw new Error('Invalid domain prefix. Use only letters, numbers, and dashes (3-50 chars)');
+    }
+
+    if (!state) {
+      console.error('[LS-INIT] Missing state parameter');
+      throw new Error('Missing state parameter');
     }
 
     // Get tenant_id
@@ -60,31 +67,17 @@ Deno.serve(async (req) => {
     console.log('[LS-INIT] Tenant found:', userData.tenant_id);
 
     const clientId = Deno.env.get('LIGHTSPEED_CLIENT_ID');
-    const stateSecret = Deno.env.get('STATE_SIGNING_SECRET');
 
     if (!clientId) {
       console.error('[LS-INIT] Missing LIGHTSPEED_CLIENT_ID');
       throw new Error('Lightspeed client ID not configured');
     }
-    if (!stateSecret) {
-      console.error('[LS-INIT] Missing STATE_SIGNING_SECRET');
-      throw new Error('State secret not configured');
-    }
 
     const callbackUrl = `https://bloomsuite.app/integrations/lightspeed/callback`;
 
-    // Create state
-    const state = btoa(JSON.stringify({
-      t: userData.tenant_id,
-      d: domainPrefix,
-      u: user.id,
-      n: crypto.randomUUID(),
-      exp: Date.now() + 600000
-    }));
+    console.log('[LS-INIT] Storing pending connection with metadata');
 
-    console.log('[LS-INIT] State created, storing pending connection');
-
-    // Store pending connection
+    // Store pending connection with state metadata for validation
     const { error: upsertError } = await supabaseClient
       .from('lightspeed_connections')
       .upsert({
@@ -94,6 +87,8 @@ Deno.serve(async (req) => {
         encrypted_access_token: 'pending',
         encrypted_refresh_token: 'pending',
         expires_at: new Date(Date.now() + 3600000).toISOString(),
+        // Store state for validation in callback (optional - frontend validates too)
+        retailer_id: state.substring(0, 50), // Temporarily store state prefix
       }, {
         onConflict: 'tenant_id,domain_prefix',
       });
@@ -103,16 +98,21 @@ Deno.serve(async (req) => {
       throw new Error('Failed to store connection: ' + upsertError.message);
     }
 
+    // Build Lightspeed OAuth URL
     const authUrl = new URL('https://secure.retail.lightspeed.app/connect');
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', callbackUrl);
     authUrl.searchParams.set('state', state);
 
-    console.log('[LS-INIT] Success, returning auth URL');
+    console.log('[LS-INIT] Success! Auth URL:', authUrl.toString());
 
     return new Response(
-      JSON.stringify({ authUrl: authUrl.toString(), success: true }),
+      JSON.stringify({ 
+        authUrl: authUrl.toString(), 
+        success: true,
+        state: state.substring(0, 12) + '...' // Echo back for logging
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

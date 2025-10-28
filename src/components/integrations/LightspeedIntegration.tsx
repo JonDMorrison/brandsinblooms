@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,12 +8,40 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, CheckCircle, XCircle, Plug } from 'lucide-react';
+import { LightspeedOAuthOverlay } from './LightspeedOAuthOverlay';
 
 export const LightspeedIntegration = () => {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [domainPrefix, setDomainPrefix] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting' | 'completing'>('preparing');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Check for OAuth callback success
+  useEffect(() => {
+    const checkCallback = () => {
+      const lightspeedSuccess = sessionStorage.getItem('lightspeed_oauth_success');
+      if (lightspeedSuccess) {
+        try {
+          const data = JSON.parse(lightspeedSuccess);
+          if (Date.now() - data.timestamp < 30000) {
+            setLoading(false);
+            queryClient.invalidateQueries({ queryKey: ['lightspeed-connection'] });
+            toast({ title: "Lightspeed connected successfully" });
+          }
+          sessionStorage.removeItem('lightspeed_oauth_success');
+        } catch (error) {
+          console.error('Error processing success data:', error);
+        }
+      }
+    };
+
+    checkCallback();
+    // Listen for storage events from callback page
+    window.addEventListener('storage', checkCallback);
+    return () => window.removeEventListener('storage', checkCallback);
+  }, [queryClient, toast]);
 
   const { data: connection, isLoading } = useQuery({
     queryKey: ['lightspeed-connection'],
@@ -40,45 +68,78 @@ export const LightspeedIntegration = () => {
     },
   });
 
-  const connectMutation = useMutation({
-    mutationFn: async (prefix: string) => {
-      // Validate prefix format
-      if (!/^[a-z0-9-]+$/i.test(prefix) || prefix.length < 3 || prefix.length > 50) {
-        throw new Error('Please enter a valid domain prefix (3-50 characters, letters/numbers/dashes only)');
-      }
+  const initiateOAuthFlow = async (prefix: string) => {
+    setLoading(true);
+    setLoadingStep('preparing');
+    setShowConnectModal(false);
 
-      console.log('Invoking lightspeed-oauth-initiate with prefix:', prefix);
+    try {
+      // Clear any previous OAuth state
+      sessionStorage.removeItem('lightspeed_oauth_state');
+      localStorage.removeItem('lightspeed_oauth_state_backup');
+      sessionStorage.removeItem('lightspeed_oauth_success');
 
-      const { data, error } = await supabase.functions.invoke('lightspeed-oauth-initiate', {
-        body: { domainPrefix: prefix },
+      // Generate secure state parameter (simple UUID + timestamp, no JWT signing)
+      const state = crypto.randomUUID();
+      const timestamp = Date.now().toString();
+      const combinedState = `${state}-${timestamp}`;
+
+      // Store state with redundancy (like Facebook pattern)
+      sessionStorage.setItem('lightspeed_oauth_state', combinedState);
+      localStorage.setItem('lightspeed_oauth_state_backup', combinedState);
+
+      console.log('[OAuth] Initiating Lightspeed OAuth:', {
+        domainPrefix: prefix,
+        state: combinedState.substring(0, 12) + '...',
+        timestamp: new Date().toISOString()
       });
 
-      console.log('Edge function response:', { data, error });
+      const { data, error } = await supabase.functions.invoke('lightspeed-oauth-initiate', {
+        body: { domainPrefix: prefix, state: combinedState },
+      });
 
       if (error) {
-        console.error('Edge function error:', error);
+        console.error('[OAuth] Edge function error:', error);
         throw new Error(error.message || 'Failed to initiate OAuth');
       }
-      
+
       if (!data?.authUrl) {
-        console.error('No auth URL in response:', data);
+        console.error('[OAuth] No auth URL in response:', data);
         throw new Error('No authorization URL received');
       }
 
-      // Redirect to Lightspeed authorization page
-      console.log('Redirecting to Lightspeed:', data.authUrl);
-      window.location.href = data.authUrl;
-      
-      // Return a promise that never resolves - the page will redirect
-      return new Promise(() => {});
-    },
-    onSuccess: () => {
-      // Success will be handled after redirect back to /integrations
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Connection failed', description: error.message, variant: 'destructive' });
-    },
-  });
+      // Show redirecting step
+      setLoadingStep('redirecting');
+
+      console.log('[OAuth] Opening Lightspeed authorization in new tab');
+
+      // Open OAuth in new tab (like Facebook pattern)
+      const oauthTab = window.open(data.authUrl, '_blank', 'noopener,noreferrer');
+
+      if (!oauthTab) {
+        console.warn('[OAuth] New tab blocked - please allow popups');
+        toast({ 
+          title: 'Popup blocked', 
+          description: 'Please allow popups to connect Lightspeed. Click the button again after allowing.',
+          variant: 'destructive' 
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Keep loading overlay visible until callback completes
+      console.log('[OAuth] Waiting for OAuth callback...');
+
+    } catch (error: any) {
+      console.error('[OAuth] Initiation error:', error);
+      toast({ 
+        title: 'Connection failed', 
+        description: error.message || 'Failed to start OAuth flow',
+        variant: 'destructive' 
+      });
+      setLoading(false);
+    }
+  };
 
   const testMutation = useMutation({
     mutationFn: async () => {
@@ -134,7 +195,7 @@ export const LightspeedIntegration = () => {
       });
       return;
     }
-    connectMutation.mutate(prefix);
+    initiateOAuthFlow(prefix);
   };
 
   if (isLoading) {
@@ -145,6 +206,7 @@ export const LightspeedIntegration = () => {
 
   return (
     <>
+      <LightspeedOAuthOverlay isVisible={loading} step={loadingStep} />
       <Card className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -174,15 +236,15 @@ export const LightspeedIntegration = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending} size="sm">
+              <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending || loading} size="sm">
                 {testMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Test Connection'}
               </Button>
-              <Button onClick={() => setShowConnectModal(true)} variant="outline" size="sm">
+              <Button onClick={() => setShowConnectModal(true)} variant="outline" size="sm" disabled={loading}>
                 Reconnect
               </Button>
               <Button 
                 onClick={() => disconnectMutation.mutate()} 
-                disabled={disconnectMutation.isPending}
+                disabled={disconnectMutation.isPending || loading}
                 variant="destructive" 
                 size="sm"
               >
@@ -213,7 +275,7 @@ export const LightspeedIntegration = () => {
                 placeholder="mystoreprefix"
                 value={domainPrefix}
                 onChange={(e) => setDomainPrefix(e.target.value)}
-                disabled={connectMutation.isPending}
+                disabled={loading}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Example: if your store URL is mystoreprefix.retail.lightspeed.app, enter "mystoreprefix"
@@ -221,10 +283,10 @@ export const LightspeedIntegration = () => {
             </div>
             <Button 
               onClick={handleConnect} 
-              disabled={connectMutation.isPending}
+              disabled={loading}
               className="w-full"
             >
-              {connectMutation.isPending ? (
+              {loading ? (
                 <><Loader2 className="h-4 w-4 animate-spin mr-2" />Connecting...</>
               ) : (
                 'Continue to Authorization'

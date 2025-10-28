@@ -14,25 +14,81 @@ const CallbackPage = () => {
       const code = searchParams.get("code");
       const state = searchParams.get("state");
       const error = searchParams.get("error");
+      const errorDescription = searchParams.get("error_description");
 
-      console.log("[Callback] Received params:", { code: !!code, state: !!state, error });
+      console.log("[Lightspeed Callback] Received params:", { 
+        code: !!code, 
+        state: state?.substring(0, 12) + '...', 
+        error,
+        errorDescription
+      });
 
+      // Handle OAuth errors from Lightspeed
       if (error) {
+        console.error("[Lightspeed Callback] OAuth error:", error, errorDescription);
         setStatus("error");
-        setErrorMessage(`OAuth error: ${error}`);
-        setTimeout(() => navigate("/integrations?error=" + encodeURIComponent(error)), 3000);
+        const message = errorDescription || error || "Authorization failed";
+        setErrorMessage(message);
+        
+        // Store error for main page
+        sessionStorage.setItem('lightspeed_oauth_error', JSON.stringify({
+          error: message,
+          timestamp: Date.now()
+        }));
+        
+        setTimeout(() => {
+          window.close(); // Try to close the tab
+          navigate("/integrations?error=" + encodeURIComponent(message));
+        }, 3000);
         return;
       }
 
+      // Validate required parameters
       if (!code || !state) {
+        console.error("[Lightspeed Callback] Missing required params");
         setStatus("error");
-        setErrorMessage("Missing authorization code or state");
-        setTimeout(() => navigate("/integrations?error=missing_params"), 3000);
+        setErrorMessage("Missing authorization code or state parameter");
+        setTimeout(() => {
+          window.close();
+          navigate("/integrations?error=missing_params");
+        }, 3000);
         return;
       }
+
+      // Validate state parameter (like Facebook pattern)
+      const storedState = sessionStorage.getItem('lightspeed_oauth_state') || 
+                          localStorage.getItem('lightspeed_oauth_state_backup');
+      
+      if (!storedState) {
+        console.error("[Lightspeed Callback] No stored state found");
+        setStatus("error");
+        setErrorMessage("Session expired - please try again");
+        setTimeout(() => {
+          window.close();
+          navigate("/integrations?error=session_expired");
+        }, 3000);
+        return;
+      }
+
+      if (state !== storedState) {
+        console.error("[Lightspeed Callback] State mismatch:", {
+          received: state.substring(0, 12) + '...',
+          expected: storedState.substring(0, 12) + '...'
+        });
+        setStatus("error");
+        setErrorMessage("Security validation failed - please try again");
+        setTimeout(() => {
+          window.close();
+          navigate("/integrations?error=invalid_state");
+        }, 3000);
+        return;
+      }
+
+      console.log("[Lightspeed Callback] State validated successfully");
 
       try {
-        // Call the callback edge function to complete OAuth
+        // Exchange code for tokens via edge function
+        console.log("[Lightspeed Callback] Exchanging code for tokens...");
         const { data, error: callbackError } = await supabase.functions.invoke(
           "lightspeed-oauth-callback",
           {
@@ -44,14 +100,42 @@ const CallbackPage = () => {
           throw new Error(callbackError.message || "Failed to complete OAuth");
         }
 
-        console.log("[Callback] Success:", data);
+        if (!data || data.error) {
+          throw new Error(data?.error || "Invalid response from server");
+        }
+
+        console.log("[Lightspeed Callback] Success! Connection established");
         setStatus("success");
-        setTimeout(() => navigate("/integrations?connected=lightspeed"), 1500);
+
+        // Store success flag (like Facebook pattern)
+        sessionStorage.setItem('lightspeed_oauth_success', JSON.stringify({
+          timestamp: Date.now()
+        }));
+
+        // Clear OAuth state
+        sessionStorage.removeItem('lightspeed_oauth_state');
+        localStorage.removeItem('lightspeed_oauth_state_backup');
+
+        // Close this tab and return to integrations page
+        setTimeout(() => {
+          window.close();
+          navigate("/integrations?connected=lightspeed");
+        }, 1500);
+
       } catch (err: any) {
-        console.error("[Callback] Error:", err);
+        console.error("[Lightspeed Callback] Error:", err);
         setStatus("error");
         setErrorMessage(err.message || "Failed to connect");
-        setTimeout(() => navigate("/integrations?error=" + encodeURIComponent(err.message)), 3000);
+        
+        sessionStorage.setItem('lightspeed_oauth_error', JSON.stringify({
+          error: err.message,
+          timestamp: Date.now()
+        }));
+
+        setTimeout(() => {
+          window.close();
+          navigate("/integrations?error=" + encodeURIComponent(err.message));
+        }, 3000);
       }
     };
 
