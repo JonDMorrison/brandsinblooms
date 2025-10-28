@@ -1,30 +1,48 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { corsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-// Simple base64 encoding - for production use proper encryption
-async function simpleEncrypt(token: string): Promise<string> {
-  return btoa(token);
-}
-
-async function simpleDecrypt(encrypted: string): Promise<string> {
-  return atob(encrypted);
-}
+console.log('[LS-CALLBACK] Edge function starting');
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('[LS-CALLBACK] ==========================================');
-    console.log('[LS-CALLBACK] OAuth callback request received');
-    
-    // Get code and state from request body (called from frontend)
-    const { code, state } = await req.json();
+    console.log('[LS-CALLBACK] Processing OAuth callback request');
+
+    // Get authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('[LS-CALLBACK] No authorization header');
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Authenticate user
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      console.error('[LS-CALLBACK] Auth error:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[LS-CALLBACK] User authenticated:', user.id);
+
+    // Parse request body
+    const { code, state, domainPrefix } = await req.json();
     
     console.log('[LS-CALLBACK] Params:', {
       code: code ? code.substring(0, 20) + '...' : 'missing',
