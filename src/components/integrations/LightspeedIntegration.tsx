@@ -42,12 +42,28 @@ export const LightspeedIntegration = () => {
 
   const connectMutation = useMutation({
     mutationFn: async (prefix: string) => {
+      // Validate prefix format
+      if (!/^[a-z0-9-]+$/i.test(prefix) || prefix.length < 3 || prefix.length > 50) {
+        throw new Error('Please enter a valid domain prefix (3-50 characters, letters/numbers/dashes only)');
+      }
+
+      console.log('Invoking lightspeed-oauth-initiate with prefix:', prefix);
+
       const { data, error } = await supabase.functions.invoke('lightspeed-oauth-initiate', {
         body: { domainPrefix: prefix },
       });
 
-      if (error) throw error;
-      if (!data?.authUrl) throw new Error('No auth URL returned');
+      console.log('Edge function response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to initiate OAuth');
+      }
+      
+      if (!data?.authUrl) {
+        console.error('No auth URL in response:', data);
+        throw new Error('No authorization URL received');
+      }
 
       // Open OAuth window
       const width = 600;
@@ -55,14 +71,20 @@ export const LightspeedIntegration = () => {
       const left = window.screen.width / 2 - width / 2;
       const top = window.screen.height / 2 - height / 2;
       
+      console.log('Opening OAuth window:', data.authUrl);
       const authWindow = window.open(
         data.authUrl,
         'Lightspeed OAuth',
         `width=${width},height=${height},left=${left},top=${top}`
       );
 
+      if (!authWindow) {
+        throw new Error('Popup blocked. Please allow popups for this site.');
+      }
+
       return new Promise((resolve, reject) => {
         const handleMessage = (event: MessageEvent) => {
+          console.log('Received message:', event.data);
           if (event.data?.type === 'lightspeed-success') {
             window.removeEventListener('message', handleMessage);
             authWindow?.close();
@@ -70,7 +92,8 @@ export const LightspeedIntegration = () => {
           } else if (event.data?.type === 'lightspeed-error') {
             window.removeEventListener('message', handleMessage);
             authWindow?.close();
-            reject(new Error(event.data.error || 'OAuth failed'));
+            const errorMsg = decodeURIComponent(event.data.error || 'OAuth failed');
+            reject(new Error(errorMsg));
           }
         };
 
@@ -80,7 +103,7 @@ export const LightspeedIntegration = () => {
           if (authWindow?.closed) {
             clearInterval(checkClosed);
             window.removeEventListener('message', handleMessage);
-            reject(new Error('OAuth window closed'));
+            reject(new Error('Authorization window was closed'));
           }
         }, 500);
       });
@@ -129,11 +152,28 @@ export const LightspeedIntegration = () => {
   });
 
   const handleConnect = () => {
-    if (!domainPrefix.trim()) {
+    const prefix = domainPrefix.trim();
+    if (!prefix) {
       toast({ title: 'Please enter a domain prefix', variant: 'destructive' });
       return;
     }
-    connectMutation.mutate(domainPrefix.trim());
+    if (!/^[a-z0-9-]+$/i.test(prefix)) {
+      toast({ 
+        title: 'Invalid format', 
+        description: 'Use only letters, numbers, and dashes',
+        variant: 'destructive' 
+      });
+      return;
+    }
+    if (prefix.length < 3 || prefix.length > 50) {
+      toast({ 
+        title: 'Invalid length', 
+        description: 'Domain prefix must be 3-50 characters',
+        variant: 'destructive' 
+      });
+      return;
+    }
+    connectMutation.mutate(prefix);
   };
 
   if (isLoading) {

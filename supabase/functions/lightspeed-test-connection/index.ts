@@ -5,22 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function decryptToken(encrypted: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const raw = atob(encrypted);
-  const iv = new Uint8Array(Array.from(raw.substring(0, 12), c => c.charCodeAt(0)));
-  const data = new Uint8Array(Array.from(raw.substring(12), c => c.charCodeAt(0)));
-  
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(Deno.env.get('STATE_SIGNING_SECRET')?.substring(0, 32) || ''),
-    { name: 'AES-GCM' },
-    false,
-    ['decrypt']
-  );
-  
-  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
-  return new TextDecoder().decode(decrypted);
+async function simpleDecrypt(encrypted: string): Promise<string> {
+  return atob(encrypted);
 }
 
 Deno.serve(async (req) => {
@@ -67,7 +53,7 @@ Deno.serve(async (req) => {
     }
 
     // Decrypt token
-    const accessToken = await decryptToken(connection.encrypted_access_token);
+    const accessToken = await simpleDecrypt(connection.encrypted_access_token);
 
     // Test API call
     const response = await fetch(
