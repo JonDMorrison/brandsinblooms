@@ -3693,47 +3693,312 @@ export type Database = {
       lightspeed_connections: {
         Row: {
           created_at: string | null
+          customers_synced: number | null
           domain_prefix: string
           encrypted_access_token: string
           encrypted_refresh_token: string
           expires_at: string
           id: string
           installed_by: string | null
+          last_customer_sync: string | null
+          last_product_sync: string | null
+          last_sales_sync: string | null
           last_synced_at: string | null
+          products_synced: number | null
           retailer_id: number | null
+          sales_synced: number | null
+          sync_errors: Json | null
           tenant_id: string
           updated_at: string | null
           user_id: string
+          webhook_registered: boolean | null
         }
         Insert: {
           created_at?: string | null
+          customers_synced?: number | null
           domain_prefix: string
           encrypted_access_token: string
           encrypted_refresh_token: string
           expires_at: string
           id?: string
           installed_by?: string | null
+          last_customer_sync?: string | null
+          last_product_sync?: string | null
+          last_sales_sync?: string | null
           last_synced_at?: string | null
+          products_synced?: number | null
           retailer_id?: number | null
+          sales_synced?: number | null
+          sync_errors?: Json | null
           tenant_id: string
           updated_at?: string | null
           user_id: string
+          webhook_registered?: boolean | null
         }
         Update: {
           created_at?: string | null
+          customers_synced?: number | null
           domain_prefix?: string
           encrypted_access_token?: string
           encrypted_refresh_token?: string
           expires_at?: string
           id?: string
           installed_by?: string | null
+          last_customer_sync?: string | null
+          last_product_sync?: string | null
+          last_sales_sync?: string | null
           last_synced_at?: string | null
+          products_synced?: number | null
           retailer_id?: number | null
+          sales_synced?: number | null
+          sync_errors?: Json | null
           tenant_id?: string
           updated_at?: string | null
           user_id?: string
+          webhook_registered?: boolean | null
         }
         Relationships: []
+      }
+      lightspeed_customers: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          customer_group_id: string | null
+          email: string | null
+          first_name: string | null
+          first_purchase_date: string | null
+          id: string
+          last_name: string | null
+          last_purchase_date: string | null
+          lightspeed_customer_id: string
+          loyalty_balance: number | null
+          phone: string | null
+          purchase_count: number | null
+          raw_data: Json | null
+          synced_at: string | null
+          tags: Json | null
+          tenant_id: string
+          total_spend: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          customer_group_id?: string | null
+          email?: string | null
+          first_name?: string | null
+          first_purchase_date?: string | null
+          id?: string
+          last_name?: string | null
+          last_purchase_date?: string | null
+          lightspeed_customer_id: string
+          loyalty_balance?: number | null
+          phone?: string | null
+          purchase_count?: number | null
+          raw_data?: Json | null
+          synced_at?: string | null
+          tags?: Json | null
+          tenant_id: string
+          total_spend?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          customer_group_id?: string | null
+          email?: string | null
+          first_name?: string | null
+          first_purchase_date?: string | null
+          id?: string
+          last_name?: string | null
+          last_purchase_date?: string | null
+          lightspeed_customer_id?: string
+          loyalty_balance?: number | null
+          phone?: string | null
+          purchase_count?: number | null
+          raw_data?: Json | null
+          synced_at?: string | null
+          tags?: Json | null
+          tenant_id?: string
+          total_spend?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lightspeed_customers_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lightspeed_customers_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lightspeed_customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "lightspeed_customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lightspeed_products: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          inventory_count: number | null
+          lightspeed_product_id: string
+          name: string
+          price: number | null
+          raw_data: Json | null
+          sku: string | null
+          synced_at: string | null
+          tags: Json | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          inventory_count?: number | null
+          lightspeed_product_id: string
+          name: string
+          price?: number | null
+          raw_data?: Json | null
+          sku?: string | null
+          synced_at?: string | null
+          tags?: Json | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          inventory_count?: number | null
+          lightspeed_product_id?: string
+          name?: string
+          price?: number | null
+          raw_data?: Json | null
+          sku?: string | null
+          synced_at?: string | null
+          tags?: Json | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lightspeed_products_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "lightspeed_products_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lightspeed_sales: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          id: string
+          lightspeed_customer_id: string | null
+          lightspeed_sale_id: string
+          line_items: Json | null
+          note: string | null
+          payment_method: string | null
+          raw_data: Json | null
+          sale_date: string
+          status: string
+          synced_at: string | null
+          tenant_id: string
+          total_amount: number
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          lightspeed_customer_id?: string | null
+          lightspeed_sale_id: string
+          line_items?: Json | null
+          note?: string | null
+          payment_method?: string | null
+          raw_data?: Json | null
+          sale_date: string
+          status: string
+          synced_at?: string | null
+          tenant_id: string
+          total_amount?: number
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          lightspeed_customer_id?: string | null
+          lightspeed_sale_id?: string
+          line_items?: Json | null
+          note?: string | null
+          payment_method?: string | null
+          raw_data?: Json | null
+          sale_date?: string
+          status?: string
+          synced_at?: string | null
+          tenant_id?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lightspeed_sales_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lightspeed_sales_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lightspeed_sales_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "lightspeed_sales_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       master_campaign_templates: {
         Row: {
