@@ -75,9 +75,9 @@ Deno.serve(async (req) => {
 
     const callbackUrl = `https://bloomsuite.app/integrations/lightspeed/callback`;
 
-    console.log('[LS-INIT] Storing pending connection with metadata');
+    console.log('[LS-INIT] Storing pending connection');
 
-    // Store pending connection with state metadata for validation
+    // Store pending connection (state validation happens on frontend)
     const { error: upsertError } = await supabaseClient
       .from('lightspeed_connections')
       .upsert({
@@ -87,8 +87,6 @@ Deno.serve(async (req) => {
         encrypted_access_token: 'pending',
         encrypted_refresh_token: 'pending',
         expires_at: new Date(Date.now() + 3600000).toISOString(),
-        // Store state for validation in callback (optional - frontend validates too)
-        retailer_id: state.substring(0, 50), // Temporarily store state prefix
       }, {
         onConflict: 'tenant_id,domain_prefix',
       });
