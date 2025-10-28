@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { GoogleAnalyticsConnection } from './GoogleAnalyticsConnection';
+import { LightspeedIntegration } from './LightspeedIntegration';
 
 const APP_ORIGIN = window.location.origin;
 
@@ -412,6 +413,9 @@ export const IntegrationHub = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Lightspeed X-Series */}
+              <LightspeedIntegration />
             </div>
           </section>
 

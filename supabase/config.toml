@@ -134,3 +134,12 @@ verify_jwt = true
 
 [functions.exchange-oauth-code]
 verify_jwt = true
+
+[functions.lightspeed-oauth-initiate]
+verify_jwt = true
+
+[functions.lightspeed-oauth-callback]
+verify_jwt = false
+
+[functions.lightspeed-test-connection]
+verify_jwt = true
