@@ -3690,6 +3690,51 @@ export type Database = {
         }
         Relationships: []
       }
+      lightspeed_connections: {
+        Row: {
+          created_at: string | null
+          domain_prefix: string
+          encrypted_access_token: string
+          encrypted_refresh_token: string
+          expires_at: string
+          id: string
+          installed_by: string | null
+          last_synced_at: string | null
+          retailer_id: number | null
+          tenant_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          domain_prefix: string
+          encrypted_access_token: string
+          encrypted_refresh_token: string
+          expires_at: string
+          id?: string
+          installed_by?: string | null
+          last_synced_at?: string | null
+          retailer_id?: number | null
+          tenant_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          domain_prefix?: string
+          encrypted_access_token?: string
+          encrypted_refresh_token?: string
+          expires_at?: string
+          id?: string
+          installed_by?: string | null
+          last_synced_at?: string | null
+          retailer_id?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       master_campaign_templates: {
         Row: {
           content_ideas: string | null
