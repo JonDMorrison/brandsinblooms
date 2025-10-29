@@ -13,12 +13,14 @@ const CallbackPage = () => {
     const handleCallback = async () => {
       const code = searchParams.get("code");
       const state = searchParams.get("state");
+      const domainPrefix = searchParams.get("domain_prefix");
       const error = searchParams.get("error");
       const errorDescription = searchParams.get("error_description");
 
       console.log("[Lightspeed Callback] Received params:", { 
         code: !!code, 
         state: state?.substring(0, 12) + '...', 
+        domainPrefix,
         error,
         errorDescription
       });
@@ -44,10 +46,10 @@ const CallbackPage = () => {
       }
 
       // Validate required parameters
-      if (!code || !state) {
+      if (!code || !state || !domainPrefix) {
         console.error("[Lightspeed Callback] Missing required params");
         setStatus("error");
-        setErrorMessage("Missing authorization code or state parameter");
+        setErrorMessage("Missing authorization code, state, or domain parameter");
         setTimeout(() => {
           window.close();
           navigate("/integrations?error=missing_params");
@@ -55,14 +57,20 @@ const CallbackPage = () => {
         return;
       }
 
-      // Validate state parameter (like Facebook pattern)
-      const storedState = sessionStorage.getItem('lightspeed_oauth_state') || 
-                          localStorage.getItem('lightspeed_oauth_state_backup');
+      // Validate state parameter - use localStorage as primary since sessionStorage doesn't cross windows
+      const storedState = localStorage.getItem('lightspeed_oauth_state_backup') || 
+                          sessionStorage.getItem('lightspeed_oauth_state');
+      
+      console.log("[Lightspeed Callback] State validation:", {
+        hasStoredState: !!storedState,
+        receivedState: state?.substring(0, 12) + '...',
+        storedState: storedState?.substring(0, 12) + '...'
+      });
       
       if (!storedState) {
-        console.error("[Lightspeed Callback] No stored state found");
+        console.error("[Lightspeed Callback] No stored state found - likely popup was blocked or state expired");
         setStatus("error");
-        setErrorMessage("Session expired - please try again");
+        setErrorMessage("Session expired. Please try again. Redirecting back");
         setTimeout(() => {
           window.close();
           navigate("/integrations?error=session_expired");
@@ -92,7 +100,7 @@ const CallbackPage = () => {
         const { data, error: callbackError } = await supabase.functions.invoke(
           "lightspeed-oauth-callback",
           {
-            body: { code, state },
+            body: { code, state, domainPrefix },
           }
         );
 
