@@ -27,6 +27,31 @@ const CallbackPage = () => {
       }, 30000); // 30 second timeout
 
       try {
+        // Wait for Supabase session to be ready
+        console.log('[LS-Callback] Waiting for session...');
+        setStep('Initializing session...');
+        
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session) {
+          clearTimeout(timeoutId);
+          console.error('[LS-Callback] No active session:', sessionError);
+          setStatus('error');
+          setMessage('Authentication Required');
+          setStep('Please log in and try again');
+          
+          broadcastResult({
+            status: 'error',
+            message: 'No active session',
+            timestamp: Date.now()
+          });
+          
+          setTimeout(() => window.close(), 3000);
+          return;
+        }
+        
+        console.log('[LS-Callback] Session ready');
+        setStep('Validating OAuth response...');
         // Extract parameters from URL
         const code = searchParams.get('code');
         const state = searchParams.get('state');
