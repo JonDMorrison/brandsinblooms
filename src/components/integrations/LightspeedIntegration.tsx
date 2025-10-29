@@ -130,6 +130,27 @@ export const LightspeedIntegration = () => {
     },
   });
 
+  // While the OAuth flow is in progress, poll the server for connection status
+  useEffect(() => {
+    if (!loading) return;
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['lightspeed-connection'] });
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [loading, queryClient]);
+
+  // If we detect the DB shows a connected state, finish the flow even if the
+  // callback message was missed (robust fallback)
+  useEffect(() => {
+    if (loading && connection && connection.encrypted_access_token !== 'pending') {
+      setLoading(false);
+      setShowConnectModal(false);
+      toast({ title: '✓ Lightspeed connected successfully' });
+      // Ensure any dependent views refresh
+      queryClient.invalidateQueries({ queryKey: ['lightspeed-connection-status'] });
+    }
+  }, [loading, connection, toast, queryClient]);
+
   const syncMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke('lightspeed-full-sync');
