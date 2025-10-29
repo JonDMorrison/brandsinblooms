@@ -3692,6 +3692,7 @@ export type Database = {
       }
       lightspeed_connections: {
         Row: {
+          connected_at: string | null
           created_at: string | null
           customers_synced: number | null
           domain_prefix: string
@@ -3706,7 +3707,9 @@ export type Database = {
           last_synced_at: string | null
           products_synced: number | null
           retailer_id: number | null
+          retailer_name: string | null
           sales_synced: number | null
+          status: string | null
           sync_errors: Json | null
           tenant_id: string
           updated_at: string | null
@@ -3714,6 +3717,7 @@ export type Database = {
           webhook_registered: boolean | null
         }
         Insert: {
+          connected_at?: string | null
           created_at?: string | null
           customers_synced?: number | null
           domain_prefix: string
@@ -3728,7 +3732,9 @@ export type Database = {
           last_synced_at?: string | null
           products_synced?: number | null
           retailer_id?: number | null
+          retailer_name?: string | null
           sales_synced?: number | null
+          status?: string | null
           sync_errors?: Json | null
           tenant_id: string
           updated_at?: string | null
@@ -3736,6 +3742,7 @@ export type Database = {
           webhook_registered?: boolean | null
         }
         Update: {
+          connected_at?: string | null
           created_at?: string | null
           customers_synced?: number | null
           domain_prefix?: string
@@ -3750,7 +3757,9 @@ export type Database = {
           last_synced_at?: string | null
           products_synced?: number | null
           retailer_id?: number | null
+          retailer_name?: string | null
           sales_synced?: number | null
+          status?: string | null
           sync_errors?: Json | null
           tenant_id?: string
           updated_at?: string | null
