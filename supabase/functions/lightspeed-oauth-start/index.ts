@@ -88,7 +88,13 @@ Deno.serve(async (req) => {
     console.log('[LS-START] Generated state token');
 
     // Store state in database temporarily (expires in 30 minutes)
-    const { error: stateError } = await supabaseClient
+    // Use service role client for database operations
+    const serviceClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    const { error: stateError } = await serviceClient
       .from('oauth_states')
       .insert({
         state_token: state,
