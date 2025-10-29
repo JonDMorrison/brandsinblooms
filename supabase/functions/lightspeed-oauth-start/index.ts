@@ -1,7 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { corsHeaders } from '../_shared/cors.ts';
-import { setCookie, generateState, isValidPrefix, LS_STATE_COOKIE, LS_PREFIX_COOKIE } from '../_shared/cookies.ts';
+import { isValidPrefix } from '../_shared/cookies.ts';
 import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
+import { createSignedState } from '../_shared/state-token.ts';
 
 console.log('[LS-START] Edge function starting');
 
@@ -83,9 +84,14 @@ Deno.serve(async (req) => {
 
     console.log('[LS-START] Tenant found:', userData.tenant_id);
 
-    // Generate secure state token
-    const state = generateState();
-    console.log('[LS-START] Generated state:', state.substring(0, 12) + '...');
+    // Generate secure signed state token with user/tenant info
+    const state = await createSignedState({
+      userId: user.id,
+      tenantId: userData.tenant_id,
+      domainPrefix,
+      timestamp: Date.now()
+    });
+    console.log('[LS-START] Generated signed state token');
 
     // Get environment-specific credentials
     const { clientId, clientSecret } = getLightspeedCredentials(environment);
@@ -156,20 +162,12 @@ Deno.serve(async (req) => {
 
     console.log('[LS-START] Success! Auth URL created');
 
-    // Create response with cookies
-    const responseHeaders = new Headers(corsHeaders);
-    responseHeaders.set('Content-Type', 'application/json');
-    
-    // Set HttpOnly cookies for state and domain prefix
-    setCookie(responseHeaders, LS_STATE_COOKIE, state);
-    setCookie(responseHeaders, LS_PREFIX_COOKIE, domainPrefix);
-
     return new Response(
       JSON.stringify({ 
         authUrl: authUrl.toString(),
         success: true
       }),
-      { headers: responseHeaders }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {

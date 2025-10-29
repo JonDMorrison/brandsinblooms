@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { corsHeaders } from '../_shared/cors.ts';
-import { getCookie, clearCookie, LS_STATE_COOKIE, LS_PREFIX_COOKIE } from '../_shared/cookies.ts';
 import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
+import { verifySignedState } from '../_shared/state-token.ts';
 
 console.log('[LS-CALLBACK] Edge function starting');
 
@@ -14,84 +14,48 @@ Deno.serve(async (req) => {
   try {
     console.log('[LS-CALLBACK] Processing OAuth callback request');
 
-    // Get authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error('[LS-CALLBACK] No authorization header');
-      return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Create Supabase client
+    // Create Supabase client with service role (no auth required)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Authenticate user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      console.error('[LS-CALLBACK] Auth error:', userError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('[LS-CALLBACK] User authenticated:', user.id);
-
     // Parse request body
-    const { code, state, domainPrefix: bodyPrefix, redirectUri } = await req.json();
+    const { code, state, redirectUri } = await req.json();
 
     console.log('[LS-CALLBACK] Request data:', { 
       hasCode: !!code, 
-      hasState: !!state, 
-      bodyPrefix,
+      hasState: !!state,
       redirectUri
     });
 
-    if (!code || !redirectUri) {
+    if (!code || !state || !redirectUri) {
       console.error('[LS-CALLBACK] Missing required parameters');
       return new Response(
-        JSON.stringify({ error: 'Missing code or redirect URI' }),
+        JSON.stringify({ error: 'Missing code, state, or redirect URI' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Skip cookie-based state validation (doesn't work cross-domain: preview → production)
-    // Security is ensured by user authentication requirement instead
-    console.log('[LS-CALLBACK] State:', state?.substring(0, 12) + '...');
-
-    const domainPrefix = bodyPrefix || '';
-    if (!domainPrefix) {
-      console.error('[LS-CALLBACK] No domain prefix provided or in cookie');
+    // Verify and decode the signed state token
+    console.log('[LS-CALLBACK] Verifying state token...');
+    let stateData;
+    try {
+      stateData = await verifySignedState(state);
+      console.log('[LS-CALLBACK] State verified:', {
+        userId: stateData.userId.substring(0, 8) + '...',
+        tenantId: stateData.tenantId.substring(0, 8) + '...',
+        domainPrefix: stateData.domainPrefix
+      });
+    } catch (error) {
+      console.error('[LS-CALLBACK] State verification failed:', error.message);
       return new Response(
-        JSON.stringify({ error: 'Missing domain prefix' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    console.log('[LS-CALLBACK] Using domain prefix:', domainPrefix);
-
-    // Get tenant_id
-    const { data: userData, error: userDataError } = await supabaseClient
-      .from('users')
-      .select('tenant_id')
-      .eq('id', user.id)
-      .single();
-
-    if (userDataError || !userData?.tenant_id) {
-      console.error('[LS-CALLBACK] Failed to get tenant_id:', userDataError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to get tenant information' }),
+        JSON.stringify({ error: 'Invalid or expired state token' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const tenantId = userData.tenant_id;
-    console.log('[LS-CALLBACK] Tenant ID:', tenantId);
+    const { userId, tenantId, domainPrefix } = stateData;
 
     // Detect environment and get appropriate credentials
     const environment = detectEnvironment(req);
