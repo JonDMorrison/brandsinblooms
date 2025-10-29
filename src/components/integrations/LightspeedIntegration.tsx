@@ -362,7 +362,11 @@ export const LightspeedIntegration = () => {
 
   return (
     <>
-      <LightspeedOAuthOverlay isVisible={loading} step={loadingStep} />
+      <LightspeedOAuthOverlay 
+        isVisible={loading} 
+        step={loadingStep} 
+        onCancel={() => setLoading(false)}
+      />
       <Card className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
