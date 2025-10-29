@@ -39,8 +39,8 @@ const CallbackPage = () => {
       }
 
       // Validate required parameters
-      if (!code || !state) {
-        console.error("[Lightspeed Callback] Missing code or state");
+      if (!code || !state || !domainPrefix) {
+        console.error("[Lightspeed Callback] Missing required parameters:", { code: !!code, state: !!state, domainPrefix });
         setStatus("error");
         setErrorMessage("Missing authorization parameters");
         setTimeout(() => {
@@ -49,9 +49,18 @@ const CallbackPage = () => {
         return;
       }
 
+      console.log("[Lightspeed Callback] All params validated, proceeding with token exchange");
+
       try {
         // Exchange code for tokens via edge function
         const redirectUri = `${window.location.origin}/integrations/lightspeed/callback`;
+        console.log("[Lightspeed Callback] Calling edge function with:", { 
+          hasCode: !!code, 
+          hasState: !!state, 
+          domainPrefix,
+          redirectUri 
+        });
+        
         const { data, error: callbackError } = await supabase.functions.invoke(
           "lightspeed-oauth-callback",
           {
