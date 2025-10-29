@@ -203,11 +203,11 @@ export const LightspeedIntegration = () => {
       // Clear any old OAuth results
       localStorage.removeItem('lightspeed_oauth_result');
 
-      // Open OAuth in a new tab (iframe restrictions prevent direct redirect)
-      const authWindow = window.open(data.authUrl, '_blank', 'width=600,height=700');
+      // Open OAuth in a new tab
+      const authWindow = window.open(data.authUrl, '_blank');
       
       if (!authWindow) {
-        throw new Error('Popup blocked. Please allow popups and try again.');
+        throw new Error('Please allow popups/new tabs and try again.');
       }
 
       // Keep loading state active - user will return via callback
