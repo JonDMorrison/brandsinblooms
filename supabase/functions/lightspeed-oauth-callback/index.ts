@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { corsHeaders } from '../_shared/cors.ts';
+import { getCookie, clearCookie, LS_STATE_COOKIE, LS_PREFIX_COOKIE } from '../_shared/cookies.ts';
 
 console.log('[LS-CALLBACK] Edge function starting');
 
@@ -51,15 +52,32 @@ Deno.serve(async (req) => {
       redirectUri
     });
 
-    if (!code || !bodyPrefix || !redirectUri) {
+    if (!code || !redirectUri) {
       console.error('[LS-CALLBACK] Missing required parameters');
       return new Response(
-        JSON.stringify({ error: 'Missing code, domain prefix, or redirect URI' }),
+        JSON.stringify({ error: 'Missing code or redirect URI' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const domainPrefix = bodyPrefix;
+    // Validate state via HttpOnly cookie set at start
+    const cookieState = getCookie(req, LS_STATE_COOKIE);
+    if (!cookieState || cookieState !== state) {
+      console.error('[LS-CALLBACK] State validation failed', { hasCookie: !!cookieState });
+      return new Response(
+        JSON.stringify({ error: 'Security verification failed' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const domainPrefix = bodyPrefix || getCookie(req, LS_PREFIX_COOKIE) || '';
+    if (!domainPrefix) {
+      console.error('[LS-CALLBACK] No domain prefix provided or in cookie');
+      return new Response(
+        JSON.stringify({ error: 'Missing domain prefix' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     console.log('[LS-CALLBACK] Using domain prefix:', domainPrefix);
 
     // Get tenant_id
