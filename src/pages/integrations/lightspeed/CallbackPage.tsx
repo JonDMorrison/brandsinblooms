@@ -73,7 +73,8 @@ const CallbackPage = () => {
         }
 
         if (!data || data.error) {
-          throw new Error(data?.error || "Invalid response from server");
+          const message = (data && (data.details || data.error)) || "Invalid response from server";
+          throw new Error(message);
         }
 
         console.log("[Lightspeed Callback] Success! Connection established");
