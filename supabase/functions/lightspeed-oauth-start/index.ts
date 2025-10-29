@@ -12,7 +12,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('[LS-START] Processing OAuth start request');
+    // Log environment detection early
+    const origin = req.headers.get('origin') || '';
+    const referer = req.headers.get('referer') || '';
+    const environment = detectEnvironment(req);
+    
+    console.log('[LS-START] Request Details:', {
+      method: req.method,
+      origin,
+      referer,
+      detectedEnvironment: environment
+    });
 
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
@@ -77,22 +87,30 @@ Deno.serve(async (req) => {
     const state = generateState();
     console.log('[LS-START] Generated state:', state.substring(0, 12) + '...');
 
-    // Detect environment and get appropriate credentials
-    const environment = detectEnvironment(req);
-    console.log('[LS-START] Environment detected:', environment);
+    // Get environment-specific credentials
+    const { clientId, clientSecret } = getLightspeedCredentials(environment);
     
-    const { clientId } = getLightspeedCredentials(environment);
-    if (!clientId) {
-      console.error(`[LS-START] LIGHTSPEED_CLIENT_ID_${environment.toUpperCase()} not set`);
+    console.log('[LS-START] Credentials Check:', {
+      environment,
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      clientIdPrefix: clientId ? clientId.substring(0, 8) + '...' : 'missing'
+    });
+    
+    if (!clientId || !clientSecret) {
+      const missingSecrets = [];
+      if (!clientId) missingSecrets.push(`LIGHTSPEED_CLIENT_ID_${environment === 'development' ? 'DEV' : 'PROD'}`);
+      if (!clientSecret) missingSecrets.push(`LIGHTSPEED_CLIENT_SECRET_${environment === 'development' ? 'DEV' : 'PROD'}`);
+      
+      console.error('[LS-START] Missing secrets:', missingSecrets.join(', '));
       return new Response(
         JSON.stringify({ 
-          error: 'Lightspeed integration not configured for this environment',
+          error: `Lightspeed integration not configured for ${environment} environment. Missing: ${missingSecrets.join(', ')}`,
           environment 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    console.log('[LS-START] Using client ID for:', environment);
 
     // Create pending connection in database
     console.log('[LS-START] Creating pending connection');
@@ -118,10 +136,18 @@ Deno.serve(async (req) => {
     }
 
     // Build Lightspeed OAuth URL using the origin that initiated the flow
-    const origin = (typeof redirectOrigin === 'string' && redirectOrigin.startsWith('http'))
+    const callbackOrigin = (typeof redirectOrigin === 'string' && redirectOrigin.startsWith('http'))
       ? redirectOrigin
       : 'https://bloomsuite.app';
-    const callbackUrl = `${origin}/integrations/lightspeed/callback`;
+    const callbackUrl = `${callbackOrigin}/integrations/lightspeed/callback`;
+    
+    console.log('[LS-START] OAuth Configuration:', {
+      environment,
+      callbackOrigin,
+      callbackUrl,
+      domainPrefix
+    });
+    
     const authUrl = new URL('https://secure.retail.lightspeed.app/connect');
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);

@@ -176,11 +176,8 @@ export const LightspeedIntegration = () => {
         }
       }
 
-      // Determine redirect origin (force production domain when running from preview)
-      const redirectOrigin =
-        window.location.origin.includes('lovableproject.com')
-          ? 'https://bloomsuite.app'
-          : window.location.origin;
+      // Use the actual origin - edge function will handle environment detection
+      const redirectOrigin = window.location.origin;
 
       // Call the new OAuth start function (no client-side state management)
       const { data, error } = await supabase.functions.invoke('lightspeed-oauth-start', {
