@@ -93,20 +93,20 @@ Deno.serve(async (req) => {
 
     console.log('[LS-CALLBACK] Exchanging code for tokens...');
 
-    // Exchange code for access token
-    const tokenUrl = `https://${domainPrefix}.retail.lightspeed.app/oauth/access_token.php`;
+    // Exchange code for access token (X-Series)
+    const tokenUrl = `https://${domainPrefix}.retail.lightspeed.app/api/1.0/token`;
+    const redirectUri = 'https://bloomsuite.app/integrations/lightspeed/callback';
     const tokenParams = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: redirectUri,
       client_id: clientId,
       client_secret: clientSecret,
-      code: code,
-      grant_type: 'authorization_code',
     });
 
     const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: tokenParams.toString(),
     });
 
