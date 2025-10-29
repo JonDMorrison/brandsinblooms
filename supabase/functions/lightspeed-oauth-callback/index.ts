@@ -60,14 +60,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate state via HttpOnly cookie set at start
-    const cookieState = getCookie(req, LS_STATE_COOKIE);
-    if (!cookieState || cookieState !== state) {
-      console.warn('[LS-CALLBACK] State cookie missing or mismatch. Proceeding with authenticated user fallback.');
-      // Soft-fail: continue if the user is authenticated to avoid blocking due to cross-site cookie policies
-    }
+    // Skip cookie-based state validation (doesn't work cross-domain: preview → production)
+    // Security is ensured by user authentication requirement instead
+    console.log('[LS-CALLBACK] State:', state?.substring(0, 12) + '...');
 
-    const domainPrefix = bodyPrefix || getCookie(req, LS_PREFIX_COOKIE) || '';
+    const domainPrefix = bodyPrefix || '';
     if (!domainPrefix) {
       console.error('[LS-CALLBACK] No domain prefix provided or in cookie');
       return new Response(
