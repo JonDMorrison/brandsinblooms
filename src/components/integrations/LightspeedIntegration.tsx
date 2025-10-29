@@ -120,7 +120,7 @@ export const LightspeedIntegration = () => {
       });
 
       const { data, error } = await supabase.functions.invoke('lightspeed-oauth-initiate', {
-        body: { domainPrefix: prefix, state: combinedState },
+        body: { domainPrefix: prefix, state: combinedState, redirectOrigin: window.location.origin },
       });
 
       if (error) {
