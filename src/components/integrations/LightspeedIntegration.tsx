@@ -24,49 +24,83 @@ export const LightspeedIntegration = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // Listen for OAuth completion via localStorage (from callback tab)
+  // Listen for OAuth completion via multiple channels (from callback tab)
   useEffect(() => {
-    const checkOAuthResult = () => {
-      const result = localStorage.getItem('lightspeed_oauth_result');
-      if (result) {
-        try {
-          const data = JSON.parse(result);
-          // Only process recent results (within 30 seconds)
-          if (Date.now() - data.timestamp < 30000) {
-            setLoading(false);
-            localStorage.removeItem('lightspeed_oauth_result');
-            
-            if (data.status === 'success') {
-              queryClient.invalidateQueries({ queryKey: ['lightspeed-connection'] });
-              toast({ title: "Lightspeed connected successfully" });
-            } else if (data.status === 'error') {
-              toast({ 
-                title: 'Connection failed', 
-                description: data.message,
-                variant: 'destructive' 
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Error processing OAuth result:', error);
+    const handleOAuthResult = (data: any) => {
+      // Only process recent results (within 30 seconds)
+      if (Date.now() - data.timestamp < 30000) {
+        setLoading(false);
+        setShowConnectModal(false);
+        localStorage.removeItem('lightspeed_oauth_result');
+        
+        if (data.status === 'success') {
+          queryClient.invalidateQueries({ queryKey: ['lightspeed-connection'] });
+          queryClient.invalidateQueries({ queryKey: ['lightspeed-connection-status'] });
+          toast({ 
+            title: "✓ Lightspeed connected successfully",
+            description: data.retailerName ? `Connected to ${data.retailerName}` : undefined
+          });
+        } else if (data.status === 'error') {
+          toast({ 
+            title: 'Connection failed', 
+            description: data.message || 'Please try again',
+            variant: 'destructive' 
+          });
         }
       }
     };
 
+    // Method 1: Check localStorage
+    const checkLocalStorage = () => {
+      const result = localStorage.getItem('lightspeed_oauth_result');
+      if (result) {
+        try {
+          const data = JSON.parse(result);
+          handleOAuthResult(data);
+        } catch (error) {
+          console.error('[LS-Integration] Error processing OAuth result:', error);
+        }
+      }
+    };
+
+    // Method 2: Listen to BroadcastChannel
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('lightspeed_oauth');
+      channel.onmessage = (event) => {
+        console.log('[LS-Integration] Received via BroadcastChannel:', event.data);
+        handleOAuthResult(event.data);
+      };
+    } catch (e) {
+      console.log('[LS-Integration] BroadcastChannel not supported');
+    }
+
+    // Method 3: Listen to postMessage
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin === window.location.origin && 
+          event.data?.type === 'lightspeed_oauth_result') {
+        console.log('[LS-Integration] Received via postMessage:', event.data.data);
+        handleOAuthResult(event.data.data);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+
     // Check immediately
-    checkOAuthResult();
+    checkLocalStorage();
     
     // Listen for storage events from other tabs
-    window.addEventListener('storage', checkOAuthResult);
+    window.addEventListener('storage', checkLocalStorage);
     
-    // Also poll every second while loading
+    // Poll more frequently while loading (every 500ms)
     let interval: NodeJS.Timeout | null = null;
     if (loading) {
-      interval = setInterval(checkOAuthResult, 1000);
+      interval = setInterval(checkLocalStorage, 500);
     }
     
     return () => {
-      window.removeEventListener('storage', checkOAuthResult);
+      window.removeEventListener('storage', checkLocalStorage);
+      window.removeEventListener('message', handleMessage);
+      if (channel) channel.close();
       if (interval) clearInterval(interval);
     };
   }, [queryClient, toast, loading]);
@@ -122,6 +156,26 @@ export const LightspeedIntegration = () => {
     try {
       console.log('[OAuth] Starting Lightspeed OAuth with server-side state management');
 
+      // Clean up old pending connections first
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        const { data: user } = await supabase
+          .from('users')
+          .select('tenant_id')
+          .eq('id', userData.user.id)
+          .single();
+
+        if (user?.tenant_id) {
+          // Delete old pending connections for this tenant
+          await supabase
+            .from('lightspeed_connections')
+            .delete()
+            .eq('tenant_id', user.tenant_id)
+            .eq('encrypted_access_token', 'pending');
+          console.log('[OAuth] Cleaned up old pending connections');
+        }
+      }
+
       // Determine redirect origin (force production domain when running from preview)
       const redirectOrigin =
         window.location.origin.includes('lovableproject.com')
@@ -146,8 +200,11 @@ export const LightspeedIntegration = () => {
       console.log('[OAuth] Redirecting to Lightspeed authorization...');
       setLoadingStep('redirecting');
 
+      // Clear any old OAuth results
+      localStorage.removeItem('lightspeed_oauth_result');
+
       // Open OAuth in a new tab (iframe restrictions prevent direct redirect)
-      const authWindow = window.open(data.authUrl, '_blank');
+      const authWindow = window.open(data.authUrl, '_blank', 'width=600,height=700');
       
       if (!authWindow) {
         throw new Error('Popup blocked. Please allow popups and try again.');
@@ -155,6 +212,7 @@ export const LightspeedIntegration = () => {
 
       // Keep loading state active - user will return via callback
       console.log('[OAuth] Opened authorization in new tab, waiting for callback...');
+      setLoadingStep('completing');
 
     } catch (error: any) {
       console.error('[OAuth] Initiation error:', error);
@@ -208,10 +266,43 @@ export const LightspeedIntegration = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lightspeed-connection'] });
+      queryClient.invalidateQueries({ queryKey: ['lightspeed-connection-status'] });
       toast({ title: 'Lightspeed disconnected' });
     },
     onError: (error: Error) => {
       toast({ title: 'Disconnect failed', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Clean up old pending connections
+  const cleanupPendingMutation = useMutation({
+    mutationFn: async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+
+      const { data: user } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', userData.user.id)
+        .single();
+
+      if (!user?.tenant_id) throw new Error('No tenant found');
+
+      // Delete pending connections older than 20 minutes
+      const twentyMinutesAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+      
+      const { error } = await supabase
+        .from('lightspeed_connections')
+        .delete()
+        .eq('tenant_id', user.tenant_id)
+        .eq('encrypted_access_token', 'pending')
+        .lt('created_at', twentyMinutesAgo);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lightspeed-connection'] });
+      toast({ title: 'Old pending connections cleaned up' });
     },
   });
 
@@ -373,16 +464,23 @@ export const LightspeedIntegration = () => {
                 Connection Incomplete
               </p>
               <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
-                Your Lightspeed connection was initiated but not completed. The OAuth flow may have been interrupted.
+                Your Lightspeed connection was initiated but not completed. The OAuth flow may have been interrupted or timed out.
               </p>
               <div className="text-xs text-yellow-600 dark:text-yellow-400 space-y-1">
                 <p>• Domain: {connection?.domain_prefix}.retail.lightspeed.app</p>
                 <p>• Status: Awaiting authorization completion</p>
+                <p>• Created: {connection?.created_at ? formatDistanceToNow(new Date(connection.created_at), { addSuffix: true }) : 'Unknown'}</p>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => setShowConnectModal(true)} className="flex-1">
-                Complete Connection
+              <Button 
+                onClick={() => {
+                  setDomainPrefix(connection?.domain_prefix || '');
+                  setShowConnectModal(true);
+                }} 
+                className="flex-1"
+              >
+                Retry Connection
               </Button>
               <Button 
                 onClick={() => disconnectMutation.mutate()} 
