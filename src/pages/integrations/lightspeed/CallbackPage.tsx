@@ -163,14 +163,39 @@ const CallbackPage = () => {
       }, 30000); // 30 second timeout
 
       try {
-        // Wait for Supabase session to be ready with robust retry logic
+        // CRITICAL FIX: Manually trigger storage event to sync auth state
+        console.log('[LS-Callback] Triggering storage sync...');
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: `sb-${window.location.hostname.split('.')[0]}-auth-token`,
+          newValue: localStorage.getItem(`sb-${window.location.hostname.split('.')[0]}-auth-token`),
+          url: window.location.href,
+          storageArea: localStorage
+        }));
+        
+        // Small delay to let Supabase client process the storage event
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         console.log('[LS-Callback] Starting robust session initialization...');
         setStep('Initializing session...');
         
-        // Race between polling and listener approaches
+        // Try to get session with multiple approaches
         const session = await Promise.race([
           waitForSession(15),
-          waitForSessionWithListener()
+          waitForSessionWithListener(),
+          // Add a third approach: manual localStorage read
+          new Promise<Session | null>((resolve) => {
+            setTimeout(async () => {
+              console.log('[LS-Callback] Attempting manual session retrieval...');
+              const { data: { session: manualSession } } = await supabase.auth.getSession();
+              if (manualSession?.access_token) {
+                console.log('[LS-Callback] ✓ Manual retrieval successful');
+                resolve(manualSession);
+              } else {
+                console.log('[LS-Callback] Manual retrieval failed');
+                resolve(null);
+              }
+            }, 2000);
+          })
         ]);
         
         if (!session) {
