@@ -42,18 +42,19 @@ Deno.serve(async (req) => {
     console.log('[LS-CALLBACK] User authenticated:', user.id);
 
     // Parse request body
-    const { code, state, domainPrefix: bodyPrefix } = await req.json();
+    const { code, state, domainPrefix: bodyPrefix, redirectUri } = await req.json();
 
     console.log('[LS-CALLBACK] Request data:', { 
       hasCode: !!code, 
       hasState: !!state, 
-      bodyPrefix 
+      bodyPrefix,
+      redirectUri
     });
 
-    if (!code || !state || !bodyPrefix) {
+    if (!code || !bodyPrefix || !redirectUri) {
       console.error('[LS-CALLBACK] Missing required parameters');
       return new Response(
-        JSON.stringify({ error: 'Missing code, state, or domain prefix' }),
+        JSON.stringify({ error: 'Missing code, domain prefix, or redirect URI' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -95,7 +96,6 @@ Deno.serve(async (req) => {
 
     // Exchange code for access token (X-Series)
     const tokenUrl = `https://${domainPrefix}.retail.lightspeed.app/api/1.0/token`;
-    const redirectUri = 'https://bloomsuite.app/integrations/lightspeed/callback';
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       code: code,

@@ -51,11 +51,11 @@ const CallbackPage = () => {
 
       try {
         // Exchange code for tokens via edge function
-        console.log("[Lightspeed Callback] Exchanging code for tokens...");
+        const redirectUri = `${window.location.origin}/integrations/lightspeed/callback`;
         const { data, error: callbackError } = await supabase.functions.invoke(
           "lightspeed-oauth-callback",
           {
-            body: { code, state, domainPrefix },
+            body: { code, state, domainPrefix, redirectUri },
           }
         );
 
