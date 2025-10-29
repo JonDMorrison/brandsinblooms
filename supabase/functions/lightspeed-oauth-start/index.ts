@@ -2,7 +2,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { corsHeaders } from '../_shared/cors.ts';
 import { isValidPrefix } from '../_shared/cookies.ts';
 import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
-import { createSignedState } from '../_shared/state-token.ts';
 
 console.log('[LS-START] Edge function starting');
 
@@ -84,14 +83,28 @@ Deno.serve(async (req) => {
 
     console.log('[LS-START] Tenant found:', userData.tenant_id);
 
-    // Generate secure signed state token with user/tenant info
-    const state = await createSignedState({
-      userId: user.id,
-      tenantId: userData.tenant_id,
-      domainPrefix,
-      timestamp: Date.now()
-    });
-    console.log('[LS-START] Generated signed state token');
+    // Generate random state token
+    const state = crypto.randomUUID();
+    console.log('[LS-START] Generated state token');
+
+    // Store state in database temporarily (expires in 30 minutes)
+    const { error: stateError } = await supabaseClient
+      .from('oauth_states')
+      .insert({
+        state_token: state,
+        user_id: user.id,
+        tenant_id: userData.tenant_id,
+        domain_prefix: domainPrefix,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+      });
+
+    if (stateError) {
+      console.error('[LS-START] Failed to store state:', stateError.message);
+      return new Response(
+        JSON.stringify({ error: 'Failed to initialize OAuth flow' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get environment-specific credentials
     const { clientId, clientSecret } = getLightspeedCredentials(environment);

@@ -1,7 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { corsHeaders } from '../_shared/cors.ts';
 import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
-import { verifySignedState } from '../_shared/state-token.ts';
 
 console.log('[LS-CALLBACK] Edge function starting');
 
@@ -37,25 +36,37 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify and decode the signed state token
-    console.log('[LS-CALLBACK] Verifying state token...');
-    let stateData;
-    try {
-      stateData = await verifySignedState(state);
-      console.log('[LS-CALLBACK] State verified:', {
-        userId: stateData.userId.substring(0, 8) + '...',
-        tenantId: stateData.tenantId.substring(0, 8) + '...',
-        domainPrefix: stateData.domainPrefix
-      });
-    } catch (error) {
-      console.error('[LS-CALLBACK] State verification failed:', error.message);
+    // Look up state in database
+    console.log('[LS-CALLBACK] Looking up state token...');
+    const { data: stateData, error: stateError } = await supabaseClient
+      .from('oauth_states')
+      .select('user_id, tenant_id, domain_prefix, expires_at')
+      .eq('state_token', state)
+      .single();
+
+    if (stateError || !stateData) {
+      console.error('[LS-CALLBACK] State lookup failed:', stateError?.message);
       return new Response(
         JSON.stringify({ error: 'Invalid or expired state token' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { userId, tenantId, domainPrefix } = stateData;
+    // Check if state has expired
+    if (new Date(stateData.expires_at) < new Date()) {
+      console.error('[LS-CALLBACK] State token expired');
+      await supabaseClient.from('oauth_states').delete().eq('state_token', state);
+      return new Response(
+        JSON.stringify({ error: 'State token expired' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { user_id: userId, tenant_id: tenantId, domain_prefix: domainPrefix } = stateData;
+    console.log('[LS-CALLBACK] State verified for user');
+
+    // Delete used state token
+    await supabaseClient.from('oauth_states').delete().eq('state_token', state);
 
     // Detect environment and get appropriate credentials
     const environment = detectEnvironment(req);

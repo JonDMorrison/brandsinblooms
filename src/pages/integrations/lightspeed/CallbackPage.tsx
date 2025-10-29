@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const CallbackPage = () => {
   const [searchParams] = useSearchParams();
@@ -86,37 +87,30 @@ const CallbackPage = () => {
         // Get the current origin for redirect URI
         const redirectUri = `${window.location.origin}/integrations/lightspeed/callback`;
 
-        // Call the edge function to exchange code for tokens (no auth required)
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const response = await fetch(
-          `${supabaseUrl}/functions/v1/lightspeed-oauth-callback`,
+        // Call the edge function to exchange code for tokens (no auth required, uses state lookup)
+        const { data, error: fnError } = await supabase.functions.invoke(
+          'lightspeed-oauth-callback',
           {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+            body: {
               code,
               state,
               redirectUri,
-            }),
+            }
           }
         );
 
-        const data = await response.json();
-
         clearTimeout(timeoutId);
 
-        if (!response.ok || data.error) {
-          console.error('[LS-Callback] Edge function error:', data);
+        if (fnError || data?.error) {
+          console.error('[LS-Callback] Edge function error:', fnError || data);
           setStatus('error');
           setMessage('Connection Failed');
-          setStep(data.error || 'Failed to exchange authorization code');
+          setStep(data?.error || fnError?.message || 'Failed to exchange authorization code');
           
           broadcastResult({
             status: 'error',
-            message: data.error || 'Failed to complete connection',
-            details: data.details,
+            message: data?.error || fnError?.message || 'Failed to complete connection',
+            details: data?.details,
             timestamp: Date.now()
           });
           
