@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { corsHeaders } from '../_shared/cors.ts';
 import { setCookie, generateState, isValidPrefix, LS_STATE_COOKIE, LS_PREFIX_COOKIE } from '../_shared/cookies.ts';
+import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
 
 console.log('[LS-START] Edge function starting');
 
@@ -76,15 +77,22 @@ Deno.serve(async (req) => {
     const state = generateState();
     console.log('[LS-START] Generated state:', state.substring(0, 12) + '...');
 
-    // Get Lightspeed client ID
-    const clientId = Deno.env.get('LIGHTSPEED_CLIENT_ID');
+    // Detect environment and get appropriate credentials
+    const environment = detectEnvironment(req);
+    console.log('[LS-START] Environment detected:', environment);
+    
+    const { clientId } = getLightspeedCredentials(environment);
     if (!clientId) {
-      console.error('[LS-START] Missing LIGHTSPEED_CLIENT_ID');
+      console.error(`[LS-START] LIGHTSPEED_CLIENT_ID_${environment.toUpperCase()} not set`);
       return new Response(
-        JSON.stringify({ error: 'Lightspeed client ID not configured' }),
+        JSON.stringify({ 
+          error: 'Lightspeed integration not configured for this environment',
+          environment 
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    console.log('[LS-START] Using client ID for:', environment);
 
     // Create pending connection in database
     console.log('[LS-START] Creating pending connection');

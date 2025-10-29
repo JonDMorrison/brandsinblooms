@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { corsHeaders } from '../_shared/cors.ts';
 import { getCookie, clearCookie, LS_STATE_COOKIE, LS_PREFIX_COOKIE } from '../_shared/cookies.ts';
+import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
 
 console.log('[LS-CALLBACK] Edge function starting');
 
@@ -92,17 +93,22 @@ Deno.serve(async (req) => {
     const tenantId = userData.tenant_id;
     console.log('[LS-CALLBACK] Tenant ID:', tenantId);
 
-    // Get Lightspeed credentials
-    const clientId = Deno.env.get('LIGHTSPEED_CLIENT_ID');
-    const clientSecret = Deno.env.get('LIGHTSPEED_CLIENT_SECRET');
-
+    // Detect environment and get appropriate credentials
+    const environment = detectEnvironment(req);
+    console.log('[LS-CALLBACK] Environment detected:', environment);
+    
+    const { clientId, clientSecret } = getLightspeedCredentials(environment);
     if (!clientId || !clientSecret) {
-      console.error('[LS-CALLBACK] Missing Lightspeed credentials');
+      console.error(`[LS-CALLBACK] Missing Lightspeed credentials for ${environment}`);
       return new Response(
-        JSON.stringify({ error: 'Lightspeed credentials not configured' }),
+        JSON.stringify({ 
+          error: 'Lightspeed credentials not configured for this environment',
+          environment 
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    console.log('[LS-CALLBACK] Using credentials for:', environment);
 
     console.log('[LS-CALLBACK] Exchanging code for tokens...');
 
