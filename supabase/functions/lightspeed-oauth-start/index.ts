@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     console.log('[LS-START] User authenticated:', user.id);
 
     // Parse request body
-    const { domainPrefix } = await req.json();
+    const { domainPrefix, redirectOrigin } = await req.json();
 
     if (!domainPrefix || !isValidPrefix(domainPrefix)) {
       console.error('[LS-START] Invalid domain prefix:', domainPrefix);
@@ -109,8 +109,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build Lightspeed OAuth URL
-    const callbackUrl = 'https://bloomsuite.app/integrations/lightspeed/callback';
+    // Build Lightspeed OAuth URL using the origin that initiated the flow
+    const origin = (typeof redirectOrigin === 'string' && redirectOrigin.startsWith('http'))
+      ? redirectOrigin
+      : 'https://bloomsuite.app';
+    const callbackUrl = `${origin}/integrations/lightspeed/callback`;
     const authUrl = new URL('https://secure.retail.lightspeed.app/connect');
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);

@@ -124,7 +124,7 @@ export const LightspeedIntegration = () => {
 
       // Call the new OAuth start function (no client-side state management)
       const { data, error } = await supabase.functions.invoke('lightspeed-oauth-start', {
-        body: { domainPrefix: prefix },
+        body: { domainPrefix: prefix, redirectOrigin: window.location.origin },
       });
 
       if (error) {
