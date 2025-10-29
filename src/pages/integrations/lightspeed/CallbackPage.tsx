@@ -11,8 +11,8 @@ const CallbackPage = () => {
   const [step, setStep] = useState<string>('Validating OAuth response...');
 
   // Robust session waiting with exponential backoff
-  const waitForSession = async (maxRetries = 10): Promise<Session | null> => {
-    const delays = [100, 250, 500, 1000, 2000];
+  const waitForSession = async (maxRetries = 15): Promise<Session | null> => {
+    const delays = [100, 250, 500, 1000, 2000, 3000];
     let attempt = 0;
     
     console.log('[LS-Session] Starting session initialization with retry...');
@@ -89,10 +89,10 @@ const CallbackPage = () => {
       console.log('[LS-Session] Setting up auth state listener...');
       
       const timeout = setTimeout(() => {
-        console.warn('[LS-Session] Listener timeout after 10 seconds');
+        console.warn('[LS-Session] Listener timeout after 20 seconds');
         subscription.unsubscribe();
         resolve(null);
-      }, 10000);
+      }, 20000);
       
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
@@ -169,7 +169,7 @@ const CallbackPage = () => {
         
         // Race between polling and listener approaches
         const session = await Promise.race([
-          waitForSession(10),
+          waitForSession(15),
           waitForSessionWithListener()
         ]);
         
