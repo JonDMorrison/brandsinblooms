@@ -24,7 +24,10 @@ export const LightspeedIntegration = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // No need for OAuth callback success checking - handled by URL params on IntegrationsPage
+  // Clear loading state when component mounts (handles return from OAuth callback)
+  useEffect(() => {
+    setLoading(false);
+  }, []);
 
   const { data: connection, isLoading } = useQuery({
     queryKey: ['lightspeed-connection'],
@@ -95,13 +98,15 @@ export const LightspeedIntegration = () => {
       console.log('[OAuth] Redirecting to Lightspeed authorization...');
       setLoadingStep('redirecting');
 
-      // Break out of iframe and redirect top window (Lightspeed blocks iframe embedding)
-      // Use window.top to navigate the parent/top-level window
-      if (window.top) {
-        window.top.location.href = data.authUrl;
-      } else {
-        window.location.href = data.authUrl;
+      // Open OAuth in a new tab (iframe restrictions prevent direct redirect)
+      const authWindow = window.open(data.authUrl, '_blank');
+      
+      if (!authWindow) {
+        throw new Error('Popup blocked. Please allow popups and try again.');
       }
+
+      // Keep loading state active - user will return via callback
+      console.log('[OAuth] Opened authorization in new tab, waiting for callback...');
 
     } catch (error: any) {
       console.error('[OAuth] Initiation error:', error);
