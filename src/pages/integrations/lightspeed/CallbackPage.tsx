@@ -31,8 +31,16 @@ const CallbackPage = () => {
         setStatus("error");
         const message = errorDescription || error || "Authorization failed";
         setErrorMessage(message);
+        
+        // Signal error to opener window via localStorage
+        localStorage.setItem('lightspeed_oauth_result', JSON.stringify({
+          status: 'error',
+          message,
+          timestamp: Date.now()
+        }));
+        
         setTimeout(() => {
-          navigate("/integrations?error=" + encodeURIComponent(message));
+          window.close(); // Close this tab
         }, 2000);
         return;
       }
@@ -42,18 +50,21 @@ const CallbackPage = () => {
         console.error("[Lightspeed Callback] Missing code or state");
         setStatus("error");
         setErrorMessage("Missing authorization parameters");
+        
+        localStorage.setItem('lightspeed_oauth_result', JSON.stringify({
+          status: 'error',
+          message: 'Missing authorization parameters',
+          timestamp: Date.now()
+        }));
+        
         setTimeout(() => {
-          navigate("/integrations?error=missing_params");
+          window.close();
         }, 2000);
         return;
       }
 
-      // State validation happens server-side via cookies
-      // No client-side state checking needed
-
       try {
         // Exchange code for tokens via edge function
-        // Server will validate state from HttpOnly cookie
         console.log("[Lightspeed Callback] Exchanging code for tokens...");
         const { data, error: callbackError } = await supabase.functions.invoke(
           "lightspeed-oauth-callback",
@@ -73,9 +84,15 @@ const CallbackPage = () => {
         console.log("[Lightspeed Callback] Success! Connection established");
         setStatus("success");
 
-        // Redirect back to integrations page
+        // Signal success to opener window via localStorage
+        localStorage.setItem('lightspeed_oauth_result', JSON.stringify({
+          status: 'success',
+          timestamp: Date.now()
+        }));
+
+        // Close this tab after short delay
         setTimeout(() => {
-          navigate("/integrations?connected=lightspeed");
+          window.close();
         }, 1500);
 
       } catch (err: any) {
@@ -83,8 +100,14 @@ const CallbackPage = () => {
         setStatus("error");
         setErrorMessage(err.message || "Failed to connect");
 
+        localStorage.setItem('lightspeed_oauth_result', JSON.stringify({
+          status: 'error',
+          message: err.message || "Failed to connect",
+          timestamp: Date.now()
+        }));
+
         setTimeout(() => {
-          navigate("/integrations?error=" + encodeURIComponent(err.message));
+          window.close();
         }, 2000);
       }
     };

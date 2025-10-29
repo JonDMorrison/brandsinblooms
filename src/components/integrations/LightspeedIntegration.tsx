@@ -24,10 +24,52 @@ export const LightspeedIntegration = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // Clear loading state when component mounts (handles return from OAuth callback)
+  // Listen for OAuth completion via localStorage (from callback tab)
   useEffect(() => {
-    setLoading(false);
-  }, []);
+    const checkOAuthResult = () => {
+      const result = localStorage.getItem('lightspeed_oauth_result');
+      if (result) {
+        try {
+          const data = JSON.parse(result);
+          // Only process recent results (within 30 seconds)
+          if (Date.now() - data.timestamp < 30000) {
+            setLoading(false);
+            localStorage.removeItem('lightspeed_oauth_result');
+            
+            if (data.status === 'success') {
+              queryClient.invalidateQueries({ queryKey: ['lightspeed-connection'] });
+              toast({ title: "Lightspeed connected successfully" });
+            } else if (data.status === 'error') {
+              toast({ 
+                title: 'Connection failed', 
+                description: data.message,
+                variant: 'destructive' 
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error processing OAuth result:', error);
+        }
+      }
+    };
+
+    // Check immediately
+    checkOAuthResult();
+    
+    // Listen for storage events from other tabs
+    window.addEventListener('storage', checkOAuthResult);
+    
+    // Also poll every second while loading
+    let interval: NodeJS.Timeout | null = null;
+    if (loading) {
+      interval = setInterval(checkOAuthResult, 1000);
+    }
+    
+    return () => {
+      window.removeEventListener('storage', checkOAuthResult);
+      if (interval) clearInterval(interval);
+    };
+  }, [queryClient, toast, loading]);
 
   const { data: connection, isLoading } = useQuery({
     queryKey: ['lightspeed-connection'],
