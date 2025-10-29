@@ -200,12 +200,14 @@ export const LightspeedIntegration = () => {
       // Clear any old OAuth results
       localStorage.removeItem('lightspeed_oauth_result');
 
-      // Open OAuth in a new tab
-      const authWindow = window.open(data.authUrl, '_blank');
-      
-      if (!authWindow) {
-        throw new Error('Please allow popups/new tabs and try again.');
-      }
+      // Open OAuth in a new tab using anchor element (more reliable than window.open)
+      const link = document.createElement('a');
+      link.href = data.authUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
       // Keep loading state active - user will return via callback
       console.log('[OAuth] Opened authorization in new tab, waiting for callback...');
