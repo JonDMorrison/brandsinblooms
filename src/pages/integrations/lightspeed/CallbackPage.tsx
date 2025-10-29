@@ -31,10 +31,18 @@ const CallbackPage = () => {
         setStatus("error");
         const message = errorDescription || error || "Authorization failed";
         setErrorMessage(message);
-        // Redirect within this tab so user sees the result
+        
+        // Store result in localStorage for parent window
+        localStorage.setItem('lightspeed_oauth_result', JSON.stringify({
+          status: 'error',
+          message,
+          timestamp: Date.now()
+        }));
+        
+        // Close tab after showing error briefly
         setTimeout(() => {
-          window.location.href = "/integrations?error=" + encodeURIComponent(message);
-        }, 1200);
+          window.close();
+        }, 1500);
         return;
       }
 
@@ -43,9 +51,18 @@ const CallbackPage = () => {
         console.error("[Lightspeed Callback] Missing required parameters:", { code: !!code, state: !!state, domainPrefix });
         setStatus("error");
         setErrorMessage("Missing authorization parameters");
+        
+        // Store result in localStorage for parent window
+        localStorage.setItem('lightspeed_oauth_result', JSON.stringify({
+          status: 'error',
+          message: 'Missing authorization parameters',
+          timestamp: Date.now()
+        }));
+        
+        // Close tab after showing error briefly
         setTimeout(() => {
-          window.location.href = "/integrations?error=missing_params";
-        }, 1200);
+          window.close();
+        }, 1500);
         return;
       }
 
@@ -80,20 +97,33 @@ const CallbackPage = () => {
         console.log("[Lightspeed Callback] Success! Connection established");
         setStatus("success");
 
-        // Redirect to integrations page in this tab
+        // Store success result in localStorage for parent window
+        localStorage.setItem('lightspeed_oauth_result', JSON.stringify({
+          status: 'success',
+          timestamp: Date.now()
+        }));
+
+        // Close tab after showing success briefly
         setTimeout(() => {
-          window.location.href = "/integrations?connected=lightspeed";
-        }, 1200);
+          window.close();
+        }, 1500);
 
       } catch (err: any) {
         console.error("[Lightspeed Callback] Error:", err);
         setStatus("error");
         setErrorMessage(err.message || "Failed to connect");
 
-        // Redirect to integrations with error
+        // Store error result in localStorage for parent window
+        localStorage.setItem('lightspeed_oauth_result', JSON.stringify({
+          status: 'error',
+          message: err.message || 'Failed to connect',
+          timestamp: Date.now()
+        }));
+
+        // Close tab after showing error briefly
         setTimeout(() => {
-          window.location.href = "/integrations?error=" + encodeURIComponent(err.message || 'Failed to connect');
-        }, 1200);
+          window.close();
+        }, 1500);
       }
     };
 
@@ -112,14 +142,14 @@ const CallbackPage = () => {
         {status === "success" && (
           <>
             <div className="text-green-500 text-4xl">✓</div>
-            <p className="text-muted-foreground">Successfully connected! Redirecting...</p>
+            <p className="text-muted-foreground">Successfully connected! Closing...</p>
           </>
         )}
         {status === "error" && (
           <>
             <div className="text-destructive text-4xl">✗</div>
             <p className="text-destructive">{errorMessage}</p>
-            <p className="text-muted-foreground text-sm">Redirecting back...</p>
+            <p className="text-muted-foreground text-sm">Closing...</p>
           </>
         )}
       </div>
