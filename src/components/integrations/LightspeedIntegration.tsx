@@ -24,30 +24,7 @@ export const LightspeedIntegration = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // Check for OAuth callback success
-  useEffect(() => {
-    const checkCallback = () => {
-      const lightspeedSuccess = sessionStorage.getItem('lightspeed_oauth_success');
-      if (lightspeedSuccess) {
-        try {
-          const data = JSON.parse(lightspeedSuccess);
-          if (Date.now() - data.timestamp < 30000) {
-            setLoading(false);
-            queryClient.invalidateQueries({ queryKey: ['lightspeed-connection'] });
-            toast({ title: "Lightspeed connected successfully" });
-          }
-          sessionStorage.removeItem('lightspeed_oauth_success');
-        } catch (error) {
-          console.error('Error processing success data:', error);
-        }
-      }
-    };
-
-    checkCallback();
-    // Listen for storage events from callback page
-    window.addEventListener('storage', checkCallback);
-    return () => window.removeEventListener('storage', checkCallback);
-  }, [queryClient, toast]);
+  // No need for OAuth callback success checking - handled by URL params on IntegrationsPage
 
   const { data: connection, isLoading } = useQuery({
     queryKey: ['lightspeed-connection'],
@@ -98,29 +75,11 @@ export const LightspeedIntegration = () => {
     setShowConnectModal(false);
 
     try {
-      // Clear any previous OAuth state
-      sessionStorage.removeItem('lightspeed_oauth_state');
-      localStorage.removeItem('lightspeed_oauth_state_backup');
-      sessionStorage.removeItem('lightspeed_oauth_success');
+      console.log('[OAuth] Starting Lightspeed OAuth with server-side state management');
 
-      // Generate secure state parameter (simple UUID + timestamp, no JWT signing)
-      const state = crypto.randomUUID();
-      const timestamp = Date.now().toString();
-      const combinedState = `${state}-${timestamp}`;
-
-      // Store state with redundancy (like Facebook pattern)
-      sessionStorage.setItem('lightspeed_oauth_state', combinedState);
-      sessionStorage.setItem('lightspeed_domain_prefix', prefix);
-      localStorage.setItem('lightspeed_oauth_state_backup', combinedState);
-
-      console.log('[OAuth] Initiating Lightspeed OAuth:', {
-        domainPrefix: prefix,
-        state: combinedState.substring(0, 12) + '...',
-        timestamp: new Date().toISOString()
-      });
-
-      const { data, error } = await supabase.functions.invoke('lightspeed-oauth-initiate', {
-        body: { domainPrefix: prefix, state: combinedState, redirectOrigin: window.location.origin },
+      // Call the new OAuth start function (no client-side state management)
+      const { data, error } = await supabase.functions.invoke('lightspeed-oauth-start', {
+        body: { domainPrefix: prefix },
       });
 
       if (error) {
@@ -133,27 +92,12 @@ export const LightspeedIntegration = () => {
         throw new Error('No authorization URL received');
       }
 
-      // Show redirecting step
+      console.log('[OAuth] Redirecting to Lightspeed authorization...');
       setLoadingStep('redirecting');
 
-      console.log('[OAuth] Opening Lightspeed authorization in new tab');
-
-      // Open OAuth in new tab (like Facebook pattern)
-      const oauthTab = window.open(data.authUrl, '_blank', 'noopener,noreferrer');
-
-      if (!oauthTab) {
-        console.warn('[OAuth] New tab blocked - please allow popups');
-        toast({ 
-          title: 'Popup blocked', 
-          description: 'Please allow popups to connect Lightspeed. Click the button again after allowing.',
-          variant: 'destructive' 
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Keep loading overlay visible until callback completes
-      console.log('[OAuth] Waiting for OAuth callback...');
+      // Use full page redirect (not popup) - cookies work reliably this way
+      // The OAuth callback will redirect back to /integrations
+      window.location.href = data.authUrl;
 
     } catch (error: any) {
       console.error('[OAuth] Initiation error:', error);

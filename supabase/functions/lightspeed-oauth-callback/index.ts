@@ -1,5 +1,6 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { corsHeaders } from '../_shared/cors.ts';
+import { getCookie, clearCookie, LS_STATE_COOKIE, LS_PREFIX_COOKIE } from '../_shared/cookies.ts';
 
 console.log('[LS-CALLBACK] Edge function starting');
 
@@ -39,22 +40,56 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log('[LS-CALLBACK] User authenticated:', user.id);
+
     // Parse request body
-    const { code, state, domainPrefix } = await req.json();
+    const { code, state, domainPrefix: bodyPrefix } = await req.json();
 
     console.log('[LS-CALLBACK] Request data:', { 
       hasCode: !!code, 
       hasState: !!state, 
-      domainPrefix 
+      bodyPrefix 
     });
 
-    if (!code || !state || !domainPrefix) {
-      console.error('[LS-CALLBACK] Missing required parameters');
+    // Validate state from cookie (server-side validation)
+    const cookieState = getCookie(req, LS_STATE_COOKIE);
+    console.log('[LS-CALLBACK] State validation:', {
+      hasCookieState: !!cookieState,
+      receivedState: state?.substring(0, 12) + '...',
+      cookieState: cookieState?.substring(0, 12) + '...'
+    });
+
+    if (!cookieState) {
+      console.error('[LS-CALLBACK] No state cookie found - session expired');
       return new Response(
-        JSON.stringify({ error: 'Missing code, state, or domainPrefix' }),
+        JSON.stringify({ error: 'Session expired. Please try again.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    if (state !== cookieState) {
+      console.error('[LS-CALLBACK] State mismatch');
+      return new Response(
+        JSON.stringify({ error: 'Security validation failed' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[LS-CALLBACK] State validated successfully');
+
+    // Get domain prefix from body or cookie
+    const cookiePrefix = getCookie(req, LS_PREFIX_COOKIE);
+    const domainPrefix = bodyPrefix || cookiePrefix;
+
+    if (!code || !domainPrefix) {
+      console.error('[LS-CALLBACK] Missing required parameters');
+      return new Response(
+        JSON.stringify({ error: 'Missing code or domain prefix' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[LS-CALLBACK] Using domain prefix:', domainPrefix);
 
     // Get tenant_id
     const { data: userData, error: userDataError } = await supabaseClient
@@ -164,13 +199,19 @@ Deno.serve(async (req) => {
 
     console.log('[LS-CALLBACK] Connection saved successfully');
 
+    // Clear cookies after successful exchange
+    const responseHeaders = new Headers(corsHeaders);
+    responseHeaders.set('Content-Type', 'application/json');
+    clearCookie(responseHeaders, LS_STATE_COOKIE);
+    clearCookie(responseHeaders, LS_PREFIX_COOKIE);
+
     return new Response(
       JSON.stringify({ 
         success: true,
         retailerName,
         message: 'Lightspeed connected successfully'
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: responseHeaders }
     );
 
   } catch (error) {

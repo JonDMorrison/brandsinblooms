@@ -138,6 +138,9 @@ verify_jwt = true
 [functions.lightspeed-oauth-initiate]
 verify_jwt = true
 
+[functions.lightspeed-oauth-start]
+verify_jwt = true
+
 [functions.lightspeed-oauth-callback]
 verify_jwt = false
 
