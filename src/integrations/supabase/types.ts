@@ -4069,27 +4069,30 @@ export type Database = {
       oauth_states: {
         Row: {
           created_at: string
+          domain_prefix: string
           expires_at: string
           id: string
-          provider: string
-          state: string
+          state_token: string
           tenant_id: string
+          user_id: string
         }
         Insert: {
           created_at?: string
+          domain_prefix: string
           expires_at: string
           id?: string
-          provider: string
-          state: string
+          state_token: string
           tenant_id: string
+          user_id: string
         }
         Update: {
           created_at?: string
+          domain_prefix?: string
           expires_at?: string
           id?: string
-          provider?: string
-          state?: string
+          state_token?: string
           tenant_id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -5915,6 +5918,7 @@ export type Database = {
       bundle_first_media_url: { Args: { j: Json }; Returns: string }
       check_email_exists: { Args: { email_to_check: string }; Returns: boolean }
       check_trial_expiration_emails: { Args: never; Returns: number }
+      cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_oauth_codes: { Args: never; Returns: undefined }
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string }
