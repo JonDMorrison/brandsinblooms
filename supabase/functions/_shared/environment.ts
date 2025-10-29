@@ -18,8 +18,10 @@ export function detectEnvironment(req: Request): Environment {
   const isDev = 
     origin.includes('localhost') ||
     origin.includes('lovableproject.com') ||
+    origin.includes('lovable.app') || // Lovable preview URLs
     referer.includes('localhost') ||
-    referer.includes('lovableproject.com');
+    referer.includes('lovableproject.com') ||
+    referer.includes('lovable.app');
   
   return isDev ? 'development' : 'production';
 }
