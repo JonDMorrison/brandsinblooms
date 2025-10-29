@@ -11,12 +11,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('[LS-CALLBACK] Processing OAuth callback request');
+    console.log('[LS-CALLBACK] Processing OAuth callback request (no auth required)');
 
-    // Create Supabase client with service role (no auth required)
+    // Create Supabase client with service role (no user auth required)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        }
+      }
     );
 
     // Parse request body
