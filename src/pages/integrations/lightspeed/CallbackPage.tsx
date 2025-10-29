@@ -2,12 +2,148 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Session } from '@supabase/supabase-js';
 
 const CallbackPage = () => {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'timeout'>('loading');
   const [message, setMessage] = useState('Processing your Lightspeed connection...');
   const [step, setStep] = useState<string>('Validating OAuth response...');
+
+  // Robust session waiting with exponential backoff
+  const waitForSession = async (maxRetries = 10): Promise<Session | null> => {
+    const delays = [100, 250, 500, 1000, 2000];
+    let attempt = 0;
+    
+    console.log('[LS-Session] Starting session initialization with retry...');
+    
+    while (attempt < maxRetries) {
+      console.log(`[LS-Session] Attempt ${attempt + 1}/${maxRetries}`);
+      
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (session?.access_token) {
+        // Validate token structure
+        try {
+          const tokenParts = session.access_token.split('.');
+          if (tokenParts.length === 3) {
+            // Decode and verify JWT claims
+            const payload = JSON.parse(atob(tokenParts[1]));
+            const now = Math.floor(Date.now() / 1000);
+            
+            if (payload.sub && payload.exp && payload.exp > now) {
+              console.log('[LS-Session] ✅ Valid session found', {
+                userId: payload.sub,
+                expiresIn: payload.exp - now,
+                attempt: attempt + 1
+              });
+              return session;
+            } else {
+              console.warn('[LS-Session] Token validation failed', {
+                hasSub: !!payload.sub,
+                hasExp: !!payload.exp,
+                isExpired: payload.exp ? payload.exp <= now : 'unknown'
+              });
+            }
+          }
+        } catch (parseError) {
+          console.error('[LS-Session] Token parsing error:', parseError);
+        }
+      } else if (error) {
+        console.warn(`[LS-Session] Session error on attempt ${attempt + 1}:`, error);
+      }
+      
+      // Try force refresh at attempt 5 if we have a session but invalid token
+      if (attempt === 5 && session) {
+        console.log('[LS-Session] 🔄 Forcing session refresh...');
+        try {
+          const { data: { session: refreshedSession }, error: refreshError } = 
+            await supabase.auth.refreshSession();
+          
+          if (refreshedSession?.access_token) {
+            console.log('[LS-Session] ✅ Session refreshed successfully');
+            return refreshedSession;
+          }
+          if (refreshError) {
+            console.error('[LS-Session] Refresh error:', refreshError);
+          }
+        } catch (refreshError) {
+          console.error('[LS-Session] Refresh exception:', refreshError);
+        }
+      }
+      
+      // Exponential backoff
+      const delay = delays[Math.min(attempt, delays.length - 1)];
+      console.log(`[LS-Session] Waiting ${delay}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      attempt++;
+    }
+    
+    console.error('[LS-Session] ❌ Session initialization timeout after all retries');
+    return null;
+  };
+
+  // Session state listener for real-time detection
+  const waitForSessionWithListener = (): Promise<Session | null> => {
+    return new Promise((resolve) => {
+      console.log('[LS-Session] Setting up auth state listener...');
+      
+      const timeout = setTimeout(() => {
+        console.warn('[LS-Session] Listener timeout after 10 seconds');
+        subscription.unsubscribe();
+        resolve(null);
+      }, 10000);
+      
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          console.log('[LS-Session] Auth state change:', event, !!session);
+          
+          if (session?.access_token && event !== 'SIGNED_OUT') {
+            // Validate token
+            try {
+              const tokenParts = session.access_token.split('.');
+              if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                const now = Math.floor(Date.now() / 1000);
+                
+                if (payload.sub && payload.exp && payload.exp > now) {
+                  console.log('[LS-Session] ✅ Valid session from listener');
+                  clearTimeout(timeout);
+                  subscription.unsubscribe();
+                  resolve(session);
+                  return;
+                }
+              }
+            } catch (e) {
+              console.error('[LS-Session] Token validation error in listener:', e);
+            }
+          }
+        }
+      );
+      
+      // Also check current session immediately
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.access_token) {
+          try {
+            const tokenParts = session.access_token.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              const now = Math.floor(Date.now() / 1000);
+              
+              if (payload.sub && payload.exp && payload.exp > now) {
+                console.log('[LS-Session] ✅ Valid session found immediately');
+                clearTimeout(timeout);
+                subscription.unsubscribe();
+                resolve(session);
+              }
+            }
+          } catch (e) {
+            console.error('[LS-Session] Immediate check token error:', e);
+          }
+        }
+      });
+    });
+  };
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -27,22 +163,27 @@ const CallbackPage = () => {
       }, 30000); // 30 second timeout
 
       try {
-        // Wait for Supabase session to be ready
-        console.log('[LS-Callback] Waiting for session...');
+        // Wait for Supabase session to be ready with robust retry logic
+        console.log('[LS-Callback] Starting robust session initialization...');
         setStep('Initializing session...');
         
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // Race between polling and listener approaches
+        const session = await Promise.race([
+          waitForSession(10),
+          waitForSessionWithListener()
+        ]);
         
-        if (sessionError || !session) {
+        if (!session) {
           clearTimeout(timeoutId);
-          console.error('[LS-Callback] No active session:', sessionError);
+          console.error('[LS-Callback] ❌ Session initialization failed after all attempts');
           setStatus('error');
-          setMessage('Authentication Required');
-          setStep('Please log in and try again');
+          setMessage('Authentication Session Timeout');
+          setStep('Could not establish authenticated session. Please log in and try again.');
           
           broadcastResult({
             status: 'error',
-            message: 'No active session',
+            message: 'Session initialization timeout',
+            code: 'SESSION_TIMEOUT',
             timestamp: Date.now()
           });
           
@@ -50,8 +191,8 @@ const CallbackPage = () => {
           return;
         }
         
-        console.log('[LS-Callback] Session ready');
-        setStep('Validating OAuth response...');
+        console.log('[LS-Callback] ✅ Session ready and validated');
+        setStep('Processing OAuth callback...');
         // Extract parameters from URL
         const code = searchParams.get('code');
         const state = searchParams.get('state');
