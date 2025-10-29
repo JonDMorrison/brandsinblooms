@@ -95,9 +95,13 @@ export const LightspeedIntegration = () => {
       console.log('[OAuth] Redirecting to Lightspeed authorization...');
       setLoadingStep('redirecting');
 
-      // Use full page redirect (not popup) - cookies work reliably this way
-      // The OAuth callback will redirect back to /integrations
-      window.location.href = data.authUrl;
+      // Break out of iframe and redirect top window (Lightspeed blocks iframe embedding)
+      // Use window.top to navigate the parent/top-level window
+      if (window.top) {
+        window.top.location.href = data.authUrl;
+      } else {
+        window.location.href = data.authUrl;
+      }
 
     } catch (error: any) {
       console.error('[OAuth] Initiation error:', error);
