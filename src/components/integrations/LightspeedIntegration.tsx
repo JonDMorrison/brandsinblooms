@@ -244,6 +244,7 @@ export const LightspeedIntegration = () => {
     return <Card className="p-6"><Loader2 className="h-6 w-6 animate-spin" /></Card>;
   }
 
+  const hasPendingConnection = connection && connection.encrypted_access_token === 'pending';
   const isConnected = connection && connection.encrypted_access_token !== 'pending';
   
   // Calculate token expiry
@@ -363,6 +364,33 @@ export const LightspeedIntegration = () => {
             <div className="mt-6">
               <h4 className="text-sm font-semibold mb-4">Lightspeed Data Overview</h4>
               <LightspeedDashboard />
+            </div>
+          </div>
+        ) : hasPendingConnection ? (
+          <div className="space-y-4">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-lg">
+              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+                Connection Incomplete
+              </p>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
+                Your Lightspeed connection was initiated but not completed. The OAuth flow may have been interrupted.
+              </p>
+              <div className="text-xs text-yellow-600 dark:text-yellow-400 space-y-1">
+                <p>• Domain: {connection?.domain_prefix}.retail.lightspeed.app</p>
+                <p>• Status: Awaiting authorization completion</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowConnectModal(true)} className="flex-1">
+                Complete Connection
+              </Button>
+              <Button 
+                onClick={() => disconnectMutation.mutate()} 
+                disabled={disconnectMutation.isPending}
+                variant="outline"
+              >
+                {disconnectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Remove'}
+              </Button>
             </div>
           </div>
         ) : (

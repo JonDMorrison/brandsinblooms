@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { GoogleAnalyticsConnection } from './GoogleAnalyticsConnection';
 import { LightspeedIntegration } from './LightspeedIntegration';
 import { LightspeedDebug } from './LightspeedDebug';
+import { useQuery } from '@tanstack/react-query';
 
 const APP_ORIGIN = window.location.origin;
 
@@ -63,6 +64,35 @@ export const IntegrationHub = () => {
   const [activeTab, setActiveTab] = useState('marketplace');
   const [providerConnections, setProviderConnections] = useState<any[]>([]);
   const oauthPopupRef = useRef<Window | null>(null);
+
+  // Check for Lightspeed connection status
+  const { data: lightspeedConnection } = useQuery({
+    queryKey: ['lightspeed-connection-status'],
+    queryFn: async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return null;
+
+      const { data: userRecord } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', userData.user.id)
+        .single();
+
+      if (!userRecord?.tenant_id) return null;
+
+      const { data, error } = await supabase
+        .from('lightspeed_connections')
+        .select('*')
+        .eq('tenant_id', userRecord.tenant_id)
+        .maybeSingle();
+
+      if (error) return null;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const hasValidLightspeedConnection = lightspeedConnection && lightspeedConnection.encrypted_access_token !== 'pending';
 
   // Available integrations marketplace
   const availableIntegrations: Integration[] = [
@@ -418,8 +448,8 @@ export const IntegrationHub = () => {
               {/* Lightspeed X-Series */}
               <LightspeedIntegration />
 
-              {/* Lightspeed Debug Tools */}
-              <LightspeedDebug />
+              {/* Lightspeed Debug Tools - Only show when not connected */}
+              {!hasValidLightspeedConnection && <LightspeedDebug />}
             </div>
           </section>
 
