@@ -1540,11 +1540,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               setBlocks(prev => {
                 const latestBlocks = prev;
                 
-                // Clear loading placeholders and start async generation
-                const clearedBlocks = latestBlocks.map(b => ({
-                  ...b,
-                  imageUrl: b.imageUrl === 'loading' ? '' : b.imageUrl
-                }));
+                // DON'T clear loading state yet - keep skeleton visible until images arrive
                 
                 // Start async image generation (don't block state update)
                 (async () => {
@@ -1629,6 +1625,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       if (keywordError || !facetsData || facetsData.error) {
                         console.warn(`⚠️ AI keyword generation failed for block ${i + 1}:`, keywordError);
                         
+                        // Clear loading state on keyword generation failure
+                        setBlocks(prev => prev.map((b, idx) => 
+                          idx === blockInfo.index
+                            ? { 
+                                ...b, 
+                                imageUrl: '',
+                                isLoadingImage: false
+                              }
+                            : b
+                        ));
+                        
                         // Add delay before next request
                         if (i < imageBlocks.length - 1) {
                           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1654,7 +1661,18 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     });
                     
                     if (imageError || !imageData?.images || imageData.images.length === 0) {
-                      console.warn(`⚠️ No images found with AI keywords for block ${i}, skipping image`);
+                      console.warn(`⚠️ No images found with AI keywords for block ${i + 1}, clearing loading state`);
+                      
+                      // Clear loading state even if no image found
+                      setBlocks(prev => prev.map((b, idx) => 
+                        idx === blockInfo.index
+                          ? { 
+                              ...b, 
+                              imageUrl: '',
+                              isLoadingImage: false
+                            }
+                          : b
+                      ));
                       
                       // Add delay before next request
                       if (i < imageBlocks.length - 1) {
@@ -1672,7 +1690,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         ? { 
                             ...b, 
                             imageUrl: bestMatch.urls?.regular || bestMatch.download_url,
-                            altText: bestMatch.alt || `${weekContext.title} - ${blockContent.headline}` 
+                            altText: bestMatch.alt || `${weekContext.title} - ${blockContent.headline}`,
+                            isLoadingImage: false
                           }
                         : b
                     ));
@@ -1694,8 +1713,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               }
             })(); // Execute async IIFE
             
-            // Return cleared blocks immediately to update UI
-            return clearedBlocks;
+            // Return unchanged blocks (keep loading state until images arrive)
+            return latestBlocks;
           });
         }, 200); // Delay for state propagation
             
