@@ -78,7 +78,11 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
 
   // Auto-fetch image for blocks that don't have an image (debounced to prevent race conditions)
   useEffect(() => {
-    if (!block.imageUrl && onUpdate) {
+    // Skip auto-fetch if image is marked as "loading" or if block is from newsletter template
+    const isLoadingPlaceholder = block.imageUrl === 'loading';
+    const isNewsletterBlock = (block as any).source === 'newsletter' || (block as any).source === 'template';
+    
+    if (!block.imageUrl && onUpdate && !isLoadingPlaceholder && !isNewsletterBlock) {
       // Clear any existing debounce timer
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);

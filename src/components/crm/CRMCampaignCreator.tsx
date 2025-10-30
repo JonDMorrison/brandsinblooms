@@ -1500,22 +1500,27 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               crmBlocks = getFallbackBlocks(selectedIdea.title || 'Newsletter Campaign');
             }
             
-            setBlocks(normalizeBlocks(crmBlocks));
+            // Mark image blocks as "loading" to prevent ImageTextBlock auto-fetch
+            const blocksWithPlaceholders = normalizeBlocks(crmBlocks).map(b => ({
+              ...b,
+              imageUrl: (b.type === 'image' || (b as any).shouldFetchImage) ? 'loading' : b.imageUrl,
+              source: 'template' as const // Mark as template-generated to prevent auto-fetch
+            }));
             
-            // Always generate and auto-fill images for template-picked newsletters
-            // STEP 1: Clear any pre-filled images first
-            setTimeout(() => {
-              console.log('🖼️ Clearing pre-filled images to force AI generation...');
+            setBlocks(blocksWithPlaceholders);
+            
+            // Run AI generation immediately (minimal delay for state update)
+            setTimeout(async () => {
+              console.log('🖼️ Clearing loading placeholders and starting AI image generation...');
+              
+              // Clear loading placeholders
               setBlocks(prev => prev.map(b => ({
                 ...b,
-                imageUrl: b.type === 'image' ? '' : b.imageUrl,
-                altText: b.type === 'image' ? '' : b.altText
+                imageUrl: b.imageUrl === 'loading' ? '' : b.imageUrl
               })));
               
-              // STEP 2: Run AI-powered image generation after state updates
-              setTimeout(async () => {
-                try {
-                  console.log('🖼️ Fetching images for newsletter blocks with week context...');
+              try {
+                console.log('🖼️ Fetching images for newsletter blocks with week context...');
                 
                 // Extract rich context from the selected weekly idea
                 const weekContext = {
@@ -1647,11 +1652,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 
                 console.log(`📸 [Images] Successfully fetched ${imageBlocks.length} contextual images`);
                 
-                } catch (error) {
-                  console.error('Failed to fetch newsletter images:', error);
-                }
-              }, 100); // Small delay for state update
-            }, 1500); // Initial delay before starting image generation
+              } catch (error) {
+                console.error('Failed to fetch newsletter images:', error);
+              }
+            }, 50); // Minimal delay for state propagation
             
             toast({
               title: "Template Applied",
