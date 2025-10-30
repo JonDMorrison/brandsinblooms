@@ -462,10 +462,12 @@ export const LightspeedIntegration = () => {
                 <Bug className="h-4 w-4 mr-2" />
                 Debug
               </Button>
-              <Button onClick={() => setShowConnectModal(true)} variant="outline" size="sm" disabled={loading}>
-                Reconnect
-              </Button>
-              <Button 
+              {tokenExpiry?.expired && (
+                <Button onClick={() => setShowConnectModal(true)} variant="outline" size="sm" disabled={loading}>
+                  Reconnect
+                </Button>
+              )}
+              <Button
                 onClick={() => disconnectMutation.mutate()} 
                 disabled={disconnectMutation.isPending || loading}
                 variant="ghost" 
