@@ -179,6 +179,7 @@ const extractGardenKeywords = (text: string): string[] => {
 };
 
 // Create contextual image queries for weekly theme newsletters
+// Mimics the successful AIWriterDialog.createImageKeywords approach
 const createWeeklyThemeImageQuery = (
   weekContext: {
     title: string;
@@ -194,46 +195,83 @@ const createWeeklyThemeImageQuery = (
   blockIndex: number,
   totalBlocks: number
 ): string => {
-  // Extract key gardening terms from block content (similar to AIWriterDialog approach)
-  const contentText = `${blockContent.headline || ''} ${blockContent.body || ''}`.toLowerCase();
-  const gardenKeywords = extractGardenKeywords(contentText);
+  // Use the FULL week theme title as the primary topic (not just extracted keywords)
+  const topicKeywords = weekContext.title.toLowerCase();
   
-  // Determine block purpose in newsletter
-  const blockPurpose = blockIndex === 0 ? 'featured' : 
-                       blockIndex < totalBlocks - 1 ? 'content' : 'action';
+  console.log(`🎨 Creating image query for: "${weekContext.title}" (block ${blockIndex + 1}/${totalBlocks})`);
   
-  // If we have specific keywords from AI-generated content, use them
-  if (gardenKeywords.length > 0) {
-    const primaryKeyword = gardenKeywords[0];
-    const modifiers = {
-      'featured': 'beautiful garden display',
-      'content': 'care growing tips',
-      'action': 'healthy plants nursery'
+  // Check for special topics that need specific handling
+  // Holiday/seasonal themes
+  if (topicKeywords.includes('holiday') || topicKeywords.includes('christmas') || 
+      topicKeywords.includes('decorations') || topicKeywords.includes('celebrations')) {
+    const holidaySectionKeywords: { [key: number]: string } = {
+      0: `${weekContext.title} featured display garden center`,
+      1: `${weekContext.title} arrangements natural evergreen`,
+      2: `${weekContext.title} garden elements festive`,
+      3: `${weekContext.title} seasonal plants display`
     };
-    
-    console.log(`🌿 Using content keyword: "${primaryKeyword}" with modifier: "${modifiers[blockPurpose]}"`);
-    return `${primaryKeyword} ${modifiers[blockPurpose]}`;
+    const query = holidaySectionKeywords[blockIndex] || `${weekContext.title} garden`;
+    console.log(`🎄 Holiday theme query: "${query}"`);
+    return query;
   }
   
-  // Fallback to theme-based query from week context
-  const themeKeywords = extractGardenKeywords(weekContext.title + ' ' + weekContext.seasonalFocus + ' ' + weekContext.description);
-  if (themeKeywords.length > 0) {
-    const primaryThemeKeyword = themeKeywords[0];
-    console.log(`🌿 Using theme keyword: "${primaryThemeKeyword}"`);
-    return `${primaryThemeKeyword} ${weekContext.seasonalFocus} garden`;
+  // Winter/frost themes
+  if (topicKeywords.includes('winter') || topicKeywords.includes('frost') || 
+      topicKeywords.includes('cold') || topicKeywords.includes('protection')) {
+    const winterSectionKeywords: { [key: number]: string } = {
+      0: `${weekContext.title} featured winter garden`,
+      1: `${weekContext.title} protection mulching`,
+      2: `${weekContext.title} garden tools winter`,
+      3: `${weekContext.title} healthy plants cold weather`
+    };
+    const query = winterSectionKeywords[blockIndex] || `${weekContext.title} garden`;
+    console.log(`❄️ Winter theme query: "${query}"`);
+    return query;
   }
   
-  // Use heroQuery if available
-  if (weekContext.heroQuery) {
-    console.log(`🎯 Using hero query: "${weekContext.heroQuery}"`);
-    return weekContext.heroQuery;
+  // Hydrangea (known problematic case with specific handling)
+  if (topicKeywords.includes('hydrangea')) {
+    const hydrangeaSectionKeywords: { [key: number]: string } = {
+      0: 'hydrangea featured summer garden',
+      1: 'hydrangea care tips pruning',
+      2: 'hydrangea garden center display varieties',
+      3: 'hydrangea healthy plants blooming'
+    };
+    const query = hydrangeaSectionKeywords[blockIndex] || 'hydrangea summer garden';
+    console.log(`💐 Hydrangea theme query: "${query}"`);
+    return query;
   }
   
-  // Final fallback - use title with seasonal context
-  const blockModifiers = ['featured beautiful', 'care tips', 'garden display', 'healthy plants'];
-  const modifier = blockModifiers[blockIndex] || 'gardening';
-  console.log(`📝 Using title fallback: "${weekContext.title} ${modifier}"`);
-  return `${weekContext.title} ${modifier}`;
+  // Check if AI-generated block content has specific plant/topic mentions
+  const blockText = `${blockContent.headline || ''} ${blockContent.body || ''}`.toLowerCase();
+  const specificKeywords = extractGardenKeywords(blockText);
+  
+  if (specificKeywords.length > 0 && specificKeywords[0] !== topicKeywords.split(' ')[0]) {
+    // Block content mentions a different specific plant/topic
+    const specificTopic = specificKeywords[0];
+    console.log(`🌿 Found specific topic in block content: "${specificTopic}"`);
+    const sectionKeywords: { [key: number]: string } = {
+      0: `${specificTopic} ${weekContext.seasonalFocus} featured beautiful`,
+      1: `${specificTopic} care growing tips garden`,
+      2: `${specificTopic} garden center display nursery`,
+      3: `${specificTopic} healthy plants ${weekContext.seasonalFocus}`
+    };
+    const query = sectionKeywords[blockIndex] || `${specificTopic} ${weekContext.seasonalFocus} garden`;
+    console.log(`🔍 Specific topic query: "${query}"`);
+    return query;
+  }
+  
+  // Default: Use full week title with descriptive modifiers based on block position
+  const sectionKeywords: { [key: number]: string } = {
+    0: `${weekContext.title} featured beautiful garden`, // Hero/Featured
+    1: `${weekContext.title} ${weekContext.seasonalFocus} care tips`, // Main content
+    2: `${weekContext.title} garden center display`, // Secondary
+    3: `${weekContext.title} healthy plants nursery` // CTA
+  };
+  
+  const query = sectionKeywords[blockIndex] || `${weekContext.title} ${weekContext.seasonalFocus} garden`;
+  console.log(`🌱 Default query: "${query}"`);
+  return query;
 };
 
 // Normalize blocks to ensure consistency - convert text blocks to image-text blocks with proper structure
@@ -1473,13 +1511,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 const weekContext = {
                   title: selectedIdea.title || 'Garden Newsletter',
                   description: selectedIdea.description || '',
-                  seasonalFocus: selectedIdea.seasonal_focus || selectedIdea.description || '',
+                  seasonalFocus: selectedIdea.seasonal_focus || selectedIdea.description || 'seasonal',
                   contentIdeas: selectedIdea.content_ideas || '',
                   weekNumber: selectedIdea.weekNumber,
-                  heroQuery: selectedIdea.heroQuery
+                  heroQuery: selectedIdea.heroQuery,
+                  category: selectedIdea.category || 'newsletter'
                 };
-                
-                console.log('🌿 Week context:', weekContext);
                 
                 // Find all blocks that need images - only blocks explicitly marked for image fetching
                 // CRITICAL: NEVER fetch images for plain text blocks (type: 'text')
@@ -1501,6 +1538,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     return shouldFetch && needsImage;
                   })
                   .slice(0, 8);
+                
+                console.log('🖼️ Week Context for Image Generation:', {
+                  title: weekContext.title,
+                  seasonalFocus: weekContext.seasonalFocus,
+                  weekNumber: weekContext.weekNumber,
+                  category: weekContext.category,
+                  totalBlocks: crmBlocks.length,
+                  blocksNeedingImages: imageBlocks.length
+                });
                 
                 console.log(`📸 [Images] Found ${imageBlocks.length} blocks needing images`);
                 
@@ -1524,7 +1570,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       imageBlocks.length
                     );
                     
-                    console.log(`🔍 Block ${i + 1}/${imageBlocks.length} (index ${blockInfo.index}): "${searchQuery}"`);
+                    console.log(`📸 Block ${i + 1}/${imageBlocks.length} Query Details:`, {
+                      blockType: block.type,
+                      headline: blockContent.headline?.substring(0, 50) || 'none',
+                      bodyPreview: blockContent.body?.substring(0, 80) || 'none',
+                      generatedQuery: searchQuery
+                    });
                     
                     const imageData = await fetchSmartImage(searchQuery, weekContext.title, true);
                     
