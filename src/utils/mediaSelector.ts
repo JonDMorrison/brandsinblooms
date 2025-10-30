@@ -43,30 +43,7 @@ export const mediaSelector = async (options: MediaSelectorOptions): Promise<Medi
       };
     }
 
-    console.warn('[MEDIA SELECTOR] Content-specific image failed, trying curated collection');
-    
-    // Fallback to curated garden collection
-    const { data: curatedData, error: curatedError } = await supabase.functions.invoke('fetch-unsplash-images', {
-      body: { 
-        collection: 'cfl9BkhJD2o', // Garden center curated collection
-        maxImages: count,
-        page: 1
-      }
-    });
-
-    if (!curatedError && curatedData?.images && curatedData.images.length > 0) {
-      const selectedImage = curatedData.images[0];
-      console.log(`[MEDIA SELECTOR] Selected curated fallback image:`, selectedImage.id);
-      
-      return {
-        url: selectedImage.download_url,
-        thumb: selectedImage.thumb_url,
-        alt: selectedImage.alt || `Garden center image - ${prompt}`,
-        photographer: selectedImage.photographer
-      };
-    }
-
-    console.error('[MEDIA SELECTOR] Both content and curated image fetch failed');
+    console.warn('[MEDIA SELECTOR] Content-specific image failed, using placeholder (red roses collection disabled)');
     return createGardenFallbackResult(prompt);
     
   } catch (error) {
