@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 const CallbackPage = () => {
   const [searchParams] = useSearchParams();
@@ -87,17 +86,22 @@ const CallbackPage = () => {
         // Get the current origin for redirect URI
         const redirectUri = `${window.location.origin}/integrations/lightspeed/callback`;
 
-        // Call the edge function to exchange code for tokens (no auth required, uses state lookup)
-        const { data, error: fnError } = await supabase.functions.invoke(
-          'lightspeed-oauth-callback',
-          {
-            body: {
-              code,
-              state,
-              redirectUri,
-            }
-          }
-        );
+        // Call the edge function directly via fetch (no auth required, uses state lookup)
+        const supabaseUrl = 'https://udldmkqwnxhdeztyqcau.supabase.co';
+        const response = await fetch(`${supabaseUrl}/functions/v1/lightspeed-oauth-callback`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            code,
+            state,
+            redirectUri,
+          }),
+        });
+
+        const data = await response.json();
+        const fnError = response.ok ? null : { message: data.error || 'Request failed' };
 
         clearTimeout(timeoutId);
 
