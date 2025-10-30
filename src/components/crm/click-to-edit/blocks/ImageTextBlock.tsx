@@ -11,6 +11,7 @@ import { BlockGeneratingOverlay } from './BlockGeneratingOverlay';
 import { extractImageSummaryWithContext } from '@/utils/imageContentSummary';
 import { useUnsplash } from '@/hooks/useUnsplash';
 import { ImageSkeleton } from '@/components/ui/image-skeleton';
+import { TextContentSkeleton } from '@/components/ui/text-content-skeleton';
 import { Image as ImageIcon } from 'lucide-react';
 
 interface ImageTextBlockProps {
@@ -167,8 +168,14 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
     }
   };
 
+  // Check if content is loading
+  const isContentLoading = (block as any).isLoadingContent === true || 
+                           block.headline === '⏳ Generating content...' ||
+                           block.body === '⏳ Creating engaging content...';
+
   // Check if block is truly empty
-  const isEmpty = !block.imageUrl && 
+  const isEmpty = !isContentLoading &&
+                  !block.imageUrl && 
                   !block.headline && 
                   !block.title && 
                   (!block.body || block.body.trim() === '') &&
@@ -212,20 +219,30 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
             block.textAlign === 'right' && "text-right",
             "hover:bg-background/50 rounded-md transition-colors duration-200 p-2 -m-2"
           )}>
-            {/* Contextual Text Edit Button */}
-            {onModeChange && (
-              <ContextualEditButton
-                mode="text"
-                isActive={editMode === 'text'}
-                onClick={(e) => handleModeClick('text', e)}
-                variant="text"
-                position="top-right"
-                className="group-hover/text:opacity-100"
+            {isContentLoading ? (
+              // Show skeleton while content is generating
+              <TextContentSkeleton 
+                showHeadline={true}
+                showBody={true}
+                bodyLines={6}
+                className="py-2"
               />
-            )}
-            
-            {/* Headline */}
-            <SafeHtml 
+            ) : (
+              <>
+                {/* Contextual Text Edit Button */}
+                {onModeChange && (
+                  <ContextualEditButton
+                    mode="text"
+                    isActive={editMode === 'text'}
+                    onClick={(e) => handleModeClick('text', e)}
+                    variant="text"
+                    position="top-right"
+                    className="group-hover/text:opacity-100"
+                  />
+                )}
+                
+                {/* Headline */}
+                <SafeHtml
               content={(() => {
                 // Handle both object-style content and direct properties
                 let headline;
@@ -267,8 +284,10 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               className="text-muted-foreground prose max-w-none prose-p:my-2 prose-strong:font-bold prose-em:italic prose-u:underline prose-ul:list-disc prose-ol:list-decimal prose-li:ml-6 prose-ul:my-2 prose-ol:my-2 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-headings:font-bold prose-headings:my-2"
             />
             
-            {/* CTA Button */}
-            <CTAButton block={block} />
+                {/* CTA Button */}
+                <CTAButton block={block} />
+              </>
+            )}
           </div>
 
           {/* Image - only render for image-text layouts */}
@@ -299,6 +318,20 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               )}
               
               {(() => {
+                // Check if image is loading
+                const isImageLoadingState = block.imageUrl === 'loading' || (block as any).isLoadingImage === true;
+                
+                // Show image skeleton if loading
+                if (isImageLoadingState) {
+                  return (
+                    <ImageSkeleton 
+                      className="w-full h-64 rounded-lg"
+                      aspectRatio="video"
+                      showIcon={true}
+                    />
+                  );
+                }
+                
                 // Show current image (keep previous visible during loading)
                 const displayImageUrl = currentImageUrl || block.imageUrl;
                 
@@ -312,7 +345,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                     )}
                     
                     {/* Main image - keep previous visible during transitions */}
-                    <img 
+                    <img
                       src={displayImageUrl}
                       alt={block.altText || 'Content image'}
                       className={cn(

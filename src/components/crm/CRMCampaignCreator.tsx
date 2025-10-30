@@ -1427,7 +1427,27 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 crmBlocks = getFallbackBlocks(selectedIdea.title || 'Newsletter Campaign');
               }
               
-              // Enhance each block with AI content using direct block generation
+              // STEP 1: Set loading states for both text and images
+              console.log('🎨 Setting loading states for content and images...');
+              const blocksWithLoadingStates = normalizeBlocks(crmBlocks).map((b) => ({
+                ...b,
+                // Text loading states
+                headline: b.type === 'header' ? b.headline : '⏳ Generating content...',
+                body: b.type === 'header' ? b.body : '',
+                content: b.type === 'header' ? b.content : '',
+                
+                // Image loading states  
+                imageUrl: (b.type === 'image' || (b as any).shouldFetchImage) ? 'loading' : b.imageUrl,
+                source: 'template' as const,
+                
+                // Track loading state
+                isLoadingContent: b.type !== 'header',
+                isLoadingImage: (b.type === 'image' || (b as any).shouldFetchImage)
+              }));
+              
+              setBlocks(blocksWithLoadingStates);
+              
+              // STEP 2: Generate AI content for ALL blocks (await completion)
               console.log('🤖 Enhancing template blocks with AI content...');
               
               try {
@@ -1474,21 +1494,33 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                           content: aiResult.content,
                           body: aiResult.content,
                           ctaText: aiResult.cta_text || block.ctaText,
-                          ctaUrl: aiResult.cta_url || block.ctaUrl
+                          ctaUrl: aiResult.cta_url || block.ctaUrl,
+                          isLoadingContent: false // Mark content as loaded
                         };
                       } else {
                         console.warn(`⚠️ AI returned incomplete content for block ${index + 1}`);
-                        return block;
+                        return { ...block, isLoadingContent: false };
                       }
                     } catch (blockError) {
                       console.warn(`⚠️ Failed to enhance block ${index + 1}:`, blockError);
-                      return block; // Return original block if enhancement fails
+                      return { ...block, isLoadingContent: false }; // Return original block if enhancement fails
                     }
                   })
                 );
 
                 console.log(`✅ Enhanced ${enhancedBlocks.length} blocks with AI content`);
-                crmBlocks = normalizeBlocks(autoFillHeaderTitle(enhancedBlocks, selectedIdea.title || 'Newsletter Campaign'));
+                
+                // STEP 3: Update blocks with AI-generated content (images still loading)
+                const contentReadyBlocks = normalizeBlocks(
+                  autoFillHeaderTitle(enhancedBlocks, selectedIdea.title || 'Newsletter Campaign')
+                ).map(b => ({
+                  ...b,
+                  imageUrl: (b.type === 'image' || (b as any).shouldFetchImage) ? 'loading' : b.imageUrl,
+                  source: 'template' as const
+                }));
+                
+                setBlocks(contentReadyBlocks);
+                crmBlocks = contentReadyBlocks;
                 
               } catch (enhancementError) {
                 console.error('❌ Block enhancement failed, using template blocks:', enhancementError);
@@ -1500,18 +1532,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               crmBlocks = getFallbackBlocks(selectedIdea.title || 'Newsletter Campaign');
             }
             
-            // Mark image blocks as "loading" to prevent ImageTextBlock auto-fetch
-            const blocksWithPlaceholders = normalizeBlocks(crmBlocks).map(b => ({
-              ...b,
-              imageUrl: (b.type === 'image' || (b as any).shouldFetchImage) ? 'loading' : b.imageUrl,
-              source: 'template' as const // Mark as template-generated to prevent auto-fetch
-            }));
-            
-            setBlocks(blocksWithPlaceholders);
-            
-            // Run AI generation immediately (minimal delay for state update)
+            // STEP 4: Generate images from rich AI-generated content
             setTimeout(async () => {
-              console.log('🖼️ Clearing loading placeholders and starting AI image generation...');
+              console.log('🖼️ Starting image generation from AI-generated content...');
               
               // Clear loading placeholders
               setBlocks(prev => prev.map(b => ({
@@ -1520,8 +1543,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               })));
               
               try {
-                console.log('🖼️ Fetching images for newsletter blocks with week context...');
-                
                 // Extract rich context from the selected weekly idea
                 const weekContext = {
                   title: selectedIdea.title || 'Garden Newsletter',
