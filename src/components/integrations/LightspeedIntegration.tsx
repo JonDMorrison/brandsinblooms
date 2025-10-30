@@ -458,7 +458,7 @@ export const LightspeedIntegration = () => {
                 <BookOpen className="h-4 w-4 mr-2" />
                 Guide
               </Button>
-              <Button onClick={() => navigate('/integrations/lightspeed/debug')} variant="ghost" size="sm">
+              <Button onClick={() => navigate('/integrations/lightspeed/debug')} variant="default" size="sm">
                 <Bug className="h-4 w-4 mr-2" />
                 Debug
               </Button>
