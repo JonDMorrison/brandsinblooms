@@ -467,10 +467,10 @@ export const LightspeedIntegration = () => {
                   Reconnect
                 </Button>
               )}
-              <Button
+              <Button 
                 onClick={() => disconnectMutation.mutate()} 
                 disabled={disconnectMutation.isPending || loading}
-                variant="ghost" 
+                variant="destructive" 
                 size="sm"
               >
                 {disconnectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Disconnect'}
