@@ -156,6 +156,86 @@ const autoFillHeaderTitle = (blocks: ContentBlock[], campaignTitle: string): Con
   });
 };
 
+// Extract gardening-specific keywords from text content
+const extractGardenKeywords = (text: string): string[] => {
+  if (!text) return [];
+  
+  const lowerText = text.toLowerCase();
+  const PRIORITY_TERMS = [
+    // Flowers
+    'hydrangea', 'hydrangeas', 'rose', 'roses', 'tulip', 'tulips', 'daffodil', 'lavender',
+    'peony', 'peonies', 'dahlia', 'dahlias', 'sunflower', 'sunflowers', 'lily', 'lilies',
+    // Vegetables and herbs
+    'tomato', 'tomatoes', 'pepper', 'lettuce', 'basil', 'rosemary', 'carrot', 'cucumber',
+    // Activities
+    'pruning', 'planting', 'fertilizing', 'mulching', 'composting', 'watering', 'harvesting',
+    // Seasons
+    'winter', 'spring', 'summer', 'fall', 'autumn', 'frost', 'seasonal',
+    // Garden elements
+    'greenhouse', 'compost', 'tools', 'soil', 'seeds', 'seedling'
+  ];
+  
+  return PRIORITY_TERMS.filter(term => lowerText.includes(term));
+};
+
+// Create contextual image queries for weekly theme newsletters
+const createWeeklyThemeImageQuery = (
+  weekContext: {
+    title: string;
+    description: string;
+    seasonalFocus: string;
+    heroQuery?: string;
+    weekNumber?: number;
+  },
+  blockContent: {
+    headline?: string;
+    body?: string;
+  },
+  blockIndex: number,
+  totalBlocks: number
+): string => {
+  // Extract key gardening terms from block content (similar to AIWriterDialog approach)
+  const contentText = `${blockContent.headline || ''} ${blockContent.body || ''}`.toLowerCase();
+  const gardenKeywords = extractGardenKeywords(contentText);
+  
+  // Determine block purpose in newsletter
+  const blockPurpose = blockIndex === 0 ? 'featured' : 
+                       blockIndex < totalBlocks - 1 ? 'content' : 'action';
+  
+  // If we have specific keywords from AI-generated content, use them
+  if (gardenKeywords.length > 0) {
+    const primaryKeyword = gardenKeywords[0];
+    const modifiers = {
+      'featured': 'beautiful garden display',
+      'content': 'care growing tips',
+      'action': 'healthy plants nursery'
+    };
+    
+    console.log(`🌿 Using content keyword: "${primaryKeyword}" with modifier: "${modifiers[blockPurpose]}"`);
+    return `${primaryKeyword} ${modifiers[blockPurpose]}`;
+  }
+  
+  // Fallback to theme-based query from week context
+  const themeKeywords = extractGardenKeywords(weekContext.title + ' ' + weekContext.seasonalFocus + ' ' + weekContext.description);
+  if (themeKeywords.length > 0) {
+    const primaryThemeKeyword = themeKeywords[0];
+    console.log(`🌿 Using theme keyword: "${primaryThemeKeyword}"`);
+    return `${primaryThemeKeyword} ${weekContext.seasonalFocus} garden`;
+  }
+  
+  // Use heroQuery if available
+  if (weekContext.heroQuery) {
+    console.log(`🎯 Using hero query: "${weekContext.heroQuery}"`);
+    return weekContext.heroQuery;
+  }
+  
+  // Final fallback - use title with seasonal context
+  const blockModifiers = ['featured beautiful', 'care tips', 'garden display', 'healthy plants'];
+  const modifier = blockModifiers[blockIndex] || 'gardening';
+  console.log(`📝 Using title fallback: "${weekContext.title} ${modifier}"`);
+  return `${weekContext.title} ${modifier}`;
+};
+
 // Normalize blocks to ensure consistency - convert text blocks to image-text blocks with proper structure
 const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
   return blocks.map(block => {
@@ -1387,11 +1467,19 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             // Always generate and auto-fill images for template-picked newsletters
             setTimeout(async () => {
               try {
-                console.log('🖼️ Fetching images for newsletter blocks...');
+                console.log('🖼️ Fetching images for newsletter blocks with week context...');
                 
-                // Generate primary search query (prefer heroQuery, fallback to title/description)
-                const primaryQuery = selectedIdea.heroQuery || selectedIdea.title || selectedIdea.description || 'garden';
-                console.log(`🔍 Using primary query: "${primaryQuery}"`);
+                // Extract rich context from the selected weekly idea
+                const weekContext = {
+                  title: selectedIdea.title || 'Garden Newsletter',
+                  description: selectedIdea.description || '',
+                  seasonalFocus: selectedIdea.seasonal_focus || selectedIdea.description || '',
+                  contentIdeas: selectedIdea.content_ideas || '',
+                  weekNumber: selectedIdea.weekNumber,
+                  heroQuery: selectedIdea.heroQuery
+                };
+                
+                console.log('🌿 Week context:', weekContext);
                 
                 // Find all blocks that need images - only blocks explicitly marked for image fetching
                 // CRITICAL: NEVER fetch images for plain text blocks (type: 'text')
@@ -1404,7 +1492,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     }
                     
                     // Only fetch images for blocks that are explicitly marked to have images
-                    // This respects the shouldFetchImage flag from the block generator
                     const shouldFetch = (block as any).shouldFetchImage === true;
                     
                     // Additional check: block must not already have an image
@@ -1413,34 +1500,45 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     
                     return shouldFetch && needsImage;
                   })
-                  .slice(0, 8); // Increased limit to handle more blocks
+                  .slice(0, 8);
                 
                 console.log(`📸 [Images] Found ${imageBlocks.length} blocks needing images`);
                 
                 for (let i = 0; i < imageBlocks.length; i++) {
                   try {
                     const blockInfo = imageBlocks[i];
+                    const block = blockInfo.block;
                     
-                    // Use primary query for first block, variations for others
-                    let searchQuery = primaryQuery;
-                    if (i === 1) searchQuery = `${primaryQuery} gardening plants`;
-                    if (i === 2) searchQuery = `${primaryQuery} garden tools tips`;
+                    // Extract block content for contextual image queries
+                    const blockContent = {
+                      headline: block.headline || block.title || '',
+                      body: block.body || block.content || '',
+                      ctaText: block.ctaText || ''
+                    };
                     
-                    console.log(`🔍 Fetching image ${i + 1} for block ${blockInfo.index} with query: "${searchQuery}"`);
+                    // Generate contextual search query using theme + block content
+                    const searchQuery = createWeeklyThemeImageQuery(
+                      weekContext,
+                      blockContent,
+                      i,
+                      imageBlocks.length
+                    );
                     
-                    const imageData = await fetchSmartImage(searchQuery, '', true);
+                    console.log(`🔍 Block ${i + 1}/${imageBlocks.length} (index ${blockInfo.index}): "${searchQuery}"`);
+                    
+                    const imageData = await fetchSmartImage(searchQuery, weekContext.title, true);
                     
                     if (imageData?.url) {
-                      setBlocks(prev => prev.map((block, index) => 
-                        index === blockInfo.index
+                      setBlocks(prev => prev.map((b, idx) => 
+                        idx === blockInfo.index
                           ? { 
-                              ...block, 
+                              ...b, 
                               imageUrl: imageData.url, 
-                              altText: imageData.alt || `${selectedIdea.title} content` 
+                              altText: imageData.alt || `${weekContext.title} - ${blockContent.headline || 'Garden content'}` 
                             }
-                          : block
+                          : b
                       ));
-                      console.log(`✅ Applied image to block ${blockInfo.index}`);
+                      console.log(`✅ Applied image to block ${blockInfo.index}: ${imageData.url.substring(0, 50)}...`);
                     } else {
                       console.warn(`⚠️ No image data returned for block ${blockInfo.index}`);
                     }
@@ -1454,7 +1552,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   }
                 }
                 
-                console.log(`📸 [Images] Applied fallback images: ${imageBlocks.length} of ${crmBlocks.filter(b => b.type === 'image-text' || b.type === 'header').length} image blocks`);
+                console.log(`📸 [Images] Successfully fetched ${imageBlocks.length} contextual images`);
                 
               } catch (error) {
                 console.error('Failed to fetch newsletter images:', error);
