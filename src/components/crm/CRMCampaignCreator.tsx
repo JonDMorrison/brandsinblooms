@@ -1550,123 +1550,101 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             setTimeout(async () => {
               console.log('🖼️ Starting image generation from AI-generated content...');
               
-              // Use latest React state instead of stale variable
-              setBlocks(prev => {
-                const latestBlocks = prev;
+              // Execute image generation directly without wrapper
+              try {
+                // Get latest blocks from React state
+                let latestBlocks: ContentBlock[] = [];
+                setBlocks(prev => {
+                  latestBlocks = prev;
+                  return prev; // Don't modify, just read
+                });
                 
-                // DON'T clear loading state yet - keep skeleton visible until images arrive
+                // Extract rich context from the selected weekly idea
+                const weekContext = {
+                  title: selectedIdea.title || 'Garden Newsletter',
+                  description: selectedIdea.description || '',
+                  seasonalFocus: selectedIdea.seasonal_focus || selectedIdea.description || 'seasonal',
+                  contentIdeas: selectedIdea.content_ideas || '',
+                  weekNumber: selectedIdea.weekNumber,
+                  heroQuery: selectedIdea.heroQuery,
+                  category: selectedIdea.category || 'newsletter'
+                };
                 
-                // Start async image generation (don't block state update)
-                (async () => {
+                // Find all blocks that need images
+                const imageBlocks = latestBlocks
+                  .map((block, index) => ({ block, index }))
+                  .filter(({ block }) => {
+                    if (block.type === 'text') return false;
+                    return (block as any).shouldFetchImage === true;
+                  })
+                  .slice(0, 8);
+                
+                console.log('🖼️ Week Context for Image Generation:', {
+                  title: weekContext.title,
+                  blocksNeedingImages: imageBlocks.length
+                });
+                
+                console.log(`📸 [Images] Found ${imageBlocks.length} blocks needing images`);
+                
+                // Fetch images sequentially
+                for (let i = 0; i < imageBlocks.length; i++) {
                   try {
-                  // Extract rich context from the selected weekly idea
-                  const weekContext = {
-                    title: selectedIdea.title || 'Garden Newsletter',
-                    description: selectedIdea.description || '',
-                    seasonalFocus: selectedIdea.seasonal_focus || selectedIdea.description || 'seasonal',
-                    contentIdeas: selectedIdea.content_ideas || '',
-                    weekNumber: selectedIdea.weekNumber,
-                    heroQuery: selectedIdea.heroQuery,
-                    category: selectedIdea.category || 'newsletter'
-                  };
-                  
-                  // Find all blocks that need images - use latest React state
-                  // CRITICAL: NEVER fetch images for plain text blocks (type: 'text')
-                  const imageBlocks = latestBlocks
-                    .map((block, index) => ({ block, index }))
-                    .filter(({ block }) => {
-                      // Exclude plain text blocks entirely
-                      if (block.type === 'text') {
-                        return false;
+                    const blockInfo = imageBlocks[i];
+                    const block = blockInfo.block;
+                    
+                    // Extract block content for AI keyword generation
+                    const blockContent = {
+                      headline: block.headline || block.title || weekContext.title || 'Garden Newsletter',
+                      body: block.body || block.content || weekContext.description || 'Seasonal garden content',
+                      ctaText: block.ctaText || ''
+                    };
+                    
+                    console.log(`🤖 Block ${i + 1}: Generating AI image keywords...`);
+                    console.log(`   Headline: "${blockContent.headline}"`);
+                    console.log(`   Body: "${blockContent.body?.substring(0, 100)}..."`);
+                    
+                    // Validate content
+                    if (!block.headline && !block.body) {
+                      console.warn(`⚠️ Block ${i + 1} has no AI content, using week context fallback`);
+                    }
+                    
+                    // STEP 1: Generate AI-powered keywords
+                    const contentPrompt = `${weekContext.title}. ${blockContent.headline} ${blockContent.body}`.trim();
+                    console.log(`   📝 Content prompt: "${contentPrompt.substring(0, 150)}..."`);
+                    
+                    const { data: facetsData, error: keywordError } = await supabase.functions.invoke('generate-image-keywords', {
+                      body: {
+                        prompt: contentPrompt,
+                        channel: 'newsletter',
+                        useAI: true
                       }
+                    });
+                    
+                    if (keywordError || !facetsData || facetsData.error) {
+                      console.warn(`⚠️ AI keyword generation failed for block ${i + 1}:`, keywordError);
                       
-                      // Only fetch images for blocks that are explicitly marked to have images
-                      const shouldFetch = (block as any).shouldFetchImage === true;
+                      setBlocks(prev => prev.map((b, idx) => 
+                        idx === blockInfo.index
+                          ? { ...b, imageUrl: '', isLoadingImage: false }
+                          : b
+                      ));
                       
-                      // No need to check for existing images since we cleared them
-                      return shouldFetch;
-                    })
-                    .slice(0, 8);
-                  
-                  console.log('🖼️ Week Context for Image Generation:', {
-                    title: weekContext.title,
-                    seasonalFocus: weekContext.seasonalFocus,
-                    weekNumber: weekContext.weekNumber,
-                    category: weekContext.category,
-                    totalBlocks: latestBlocks.length,
-                    blocksNeedingImages: imageBlocks.length
-                  });
-                  
-                  console.log(`📸 [Images] Found ${imageBlocks.length} blocks needing images`);
-                  
-                  // Fetch images using AI-powered keyword generation
-                  for (let i = 0; i < imageBlocks.length; i++) {
-                    try {
-                      const blockInfo = imageBlocks[i];
-                      const block = blockInfo.block;
-                      
-                      // Extract block content for AI keyword generation with fallbacks
-                      const blockContent = {
-                        headline: block.headline || block.title || weekContext.title || 'Garden Newsletter',
-                        body: block.body || block.content || weekContext.description || 'Seasonal garden content',
-                        ctaText: block.ctaText || ''
-                      };
-                      
-                      console.log(`🤖 Block ${i + 1}: Generating AI image keywords...`);
-                      console.log(`   Headline: "${blockContent.headline}"`);
-                      console.log(`   Body: "${blockContent.body?.substring(0, 100)}..."`);
-                      
-                      // Validate content quality
-                      if (!block.headline && !block.body) {
-                        console.warn(`⚠️ Block ${i + 1} has no AI content, using week context fallback`);
+                      if (i < imageBlocks.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                       }
-                      
-                      // STEP 1: Generate AI-powered faceted keywords from rich content
-                      const contentPrompt = `${weekContext.title}. ${blockContent.headline} ${blockContent.body}`.trim();
-                      
-                      console.log(`   📝 Content prompt length: ${contentPrompt.length} chars`);
-                      console.log(`   📝 Prompt preview: "${contentPrompt.substring(0, 150)}..."`);
-
-                      
-                      const { data: facetsData, error: keywordError } = await supabase.functions.invoke('generate-image-keywords', {
-                        body: {
-                          prompt: contentPrompt,
-                          channel: 'newsletter',
-                          useAI: true
-                        }
-                      });
-                      
-                      if (keywordError || !facetsData || facetsData.error) {
-                        console.warn(`⚠️ AI keyword generation failed for block ${i + 1}:`, keywordError);
-                        
-                        // Clear loading state on keyword generation failure
-                        setBlocks(prev => prev.map((b, idx) => 
-                          idx === blockInfo.index
-                            ? { 
-                                ...b, 
-                                imageUrl: '',
-                                isLoadingImage: false
-                              }
-                            : b
-                        ));
-                        
-                        // Add delay before next request
-                        if (i < imageBlocks.length - 1) {
-                          await new Promise(resolve => setTimeout(resolve, 1000));
-                        }
-                        continue;
-                      }
+                      continue;
+                    }
                     
                     console.log(`✅ AI Generated Keywords:`, {
                       theme: facetsData.theme,
                       variants: facetsData.variants?.slice(0, 3)
                     });
                     
-                    // STEP 2: Fetch images using AI-generated variants
+                    // STEP 2: Fetch images using AI keywords
                     const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
                       body: {
-                        query: facetsData.variants[0], // Primary query
-                        variants: facetsData.variants,  // All variants to try
+                        query: facetsData.variants[0],
+                        variants: facetsData.variants,
                         maxImages: 8,
                         orientation: 'squarish',
                         orderBy: 'relevant',
@@ -1675,27 +1653,21 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     });
                     
                     if (imageError || !imageData?.images || imageData.images.length === 0) {
-                      console.warn(`⚠️ No images found with AI keywords for block ${i + 1}, clearing loading state`);
+                      console.warn(`⚠️ No images found for block ${i + 1}`);
                       
-                      // Clear loading state even if no image found
                       setBlocks(prev => prev.map((b, idx) => 
                         idx === blockInfo.index
-                          ? { 
-                              ...b, 
-                              imageUrl: '',
-                              isLoadingImage: false
-                            }
+                          ? { ...b, imageUrl: '', isLoadingImage: false }
                           : b
                       ));
                       
-                      // Add delay before next request
                       if (i < imageBlocks.length - 1) {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                       }
                       continue;
                     }
                     
-                    // STEP 3: Use first garden-validated result
+                    // STEP 3: Apply image to block
                     const bestMatch = imageData.images[0];
                     console.log(`✅ Selected image: ${bestMatch.id} (${bestMatch.alt?.substring(0, 50)})`);
                     
@@ -1710,27 +1682,22 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         : b
                     ));
                     
-                    // Add delay between requests to avoid rate limiting
+                    // Rate limiting delay
                     if (i < imageBlocks.length - 1) {
                       await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                     
                   } catch (error) {
-                    console.error(`❌ Failed to process image for block ${i}:`, error);
+                    console.error(`❌ Failed to process image for block ${i + 1}:`, error);
                   }
                 }
                 
                 console.log(`📸 [Images] Successfully fetched ${imageBlocks.length} contextual images`);
                 
               } catch (error) {
-                console.error('Failed to fetch newsletter images:', error);
+                console.error('❌ Image generation failed:', error);
               }
-            })(); // Execute async IIFE
-            
-            // Return unchanged blocks (keep loading state until images arrive)
-            return latestBlocks;
-          });
-        }, 200); // Delay for state propagation
+            }, 200); // Delay for state propagation
             
             toast({
               title: "Template Applied",
