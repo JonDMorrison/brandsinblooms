@@ -32,6 +32,7 @@ export interface ContentBlock {
   cta?: string;
   link?: string;
   image_prompt?: string;
+  imageId?: string; // Track Unsplash image ID
   alt_text?: string;
   order_index?: number;
   block_type?: 'text' | 'image' | 'cta' | 'divider' | 'header' | 'product' | 'video_scene' | 'event_item';

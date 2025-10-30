@@ -56,10 +56,13 @@ interface ImageGenerationContext {
 async function generateImagesForBlocks(
   blocks: ContentBlock[],
   context: ImageGenerationContext,
+  usedImageIds: Set<string>,
+  setUsedImageIds: React.Dispatch<React.SetStateAction<Set<string>>>,
   setBlocks: React.Dispatch<React.SetStateAction<ContentBlock[]>>
 ): Promise<void> {
   try {
-    console.log('🖼️ Starting image generation from AI-generated content...');
+    console.log('🖼️ Starting image generation with uniqueness tracking...');
+    console.log(`🚫 Currently tracking ${usedImageIds.size} used images`);
     
     // Find all blocks that need images
     const blocksNeedingImages = blocks
@@ -74,44 +77,62 @@ async function generateImagesForBlocks(
       return;
     }
     
-    console.log(`📸 Found ${blocksNeedingImages.length} blocks needing images`);
+    console.log(`📸 Generating ${blocksNeedingImages.length} unique images...`);
     
-    // Generate images one by one using the same service as social posts
+    // Process each block sequentially to track uniqueness
     for (const { block, index } of blocksNeedingImages) {
       try {
+        console.log(`\n🎨 Processing block ${index + 1}/${blocksNeedingImages.length}`);
+        
         const contentContext = block.body || block.content || context.description || 'Seasonal garden content';
         const contentTitle = block.headline || block.title || context.title || 'Garden Newsletter';
         
-        console.log(`🤖 Generating image for block ${index}: "${contentTitle.substring(0, 50)}..."`);
-        console.log(`   Content: "${contentContext.substring(0, 100)}..."`);
+        console.log(`   Content: "${contentContext.substring(0, 60)}..."`);
+        console.log(`   Excluded IDs: [${Array.from(usedImageIds).join(', ')}]`);
         
-        // Use the same image generation service as social posts
+        // Use the same image generation service as social posts with exclusion list
         const result = await imageGenerationService.fetchImageForChannel({
           channel: 'newsletter',
           contentContext: contentContext,
           contentTitle: contentTitle,
           useAIKeywords: true,
-          fallbackKeywords: ['garden plants flowers', 'garden center nursery', 'seasonal gardening']
+          fallbackKeywords: ['garden plants flowers', 'garden center nursery', 'seasonal gardening'],
+          excludeImageIds: Array.from(usedImageIds)
         });
         
-        console.log(`✅ Generated image for block ${index}: ${result.imageUrl.substring(0, 50)}...`);
-        
-        // Update this specific block with the image
-        setBlocks(prev => prev.map((b, i) => {
-          if (i === index) {
-            return {
-              ...b,
-              imageUrl: result.imageUrl,
-              altText: result.metadata?.usedQuery || contentTitle,
-              isLoadingImage: false
-            };
+        if (result && result.imageUrl) {
+          console.log(`✅ Block ${index}: Got unique image ${result.imageId}`);
+          
+          // Update this specific block with the image
+          setBlocks(prev => prev.map((b, i) => {
+            if (i === index) {
+              return {
+                ...b,
+                imageUrl: result.imageUrl,
+                imageId: result.imageId,
+                altText: result.metadata?.usedQuery || contentTitle,
+                isLoadingImage: false
+              };
+            }
+            return b;
+          }));
+          
+          // Add to used images tracker
+          if (result.imageId) {
+            setUsedImageIds(prev => new Set([...prev, result.imageId!]));
+            console.log(`🔒 Locked image ${result.imageId} (now ${usedImageIds.size + 1} used)`);
           }
-          return b;
-        }));
+          
+        } else {
+          console.warn(`⚠️ No image returned for block ${index}`);
+          setBlocks(prev => prev.map((b, i) => 
+            i === index ? { ...b, imageUrl: '', isLoadingImage: false } : b
+          ));
+        }
         
         // Small delay between requests to avoid rate limiting
         if (index < blocksNeedingImages.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
         
       } catch (blockError) {
@@ -127,7 +148,7 @@ async function generateImagesForBlocks(
       }
     }
     
-    console.log(`📸 Image generation complete for ${blocksNeedingImages.length} blocks`);
+    console.log(`\n✅ Image generation complete! Used ${usedImageIds.size} unique images`);
     
   } catch (error) {
     console.error('❌ Image generation failed:', error);
@@ -458,6 +479,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const { counts: segmentCounts } = useSegmentCounts();
   
   const [campaignName, setCampaignName] = useState('');
+  
+  // Track used images to prevent duplicates
+  const [usedImageIds, setUsedImageIds] = useState<Set<string>>(new Set());
+  
+  // Reset tracker when campaign changes
+  useEffect(() => {
+    setUsedImageIds(new Set());
+  }, [campaignSlug]);
   
   // Page persistence hook
   const { persistState, restoreState } = usePagePersistence<{
@@ -1642,8 +1671,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 };
                 
                 // Generate images asynchronously (don't await to avoid blocking UI)
-                generateImagesForBlocks(contentReadyBlocks, weekContext, setBlocks)
-                  .catch(err => console.error('❌ Image generation error:', err));
+                generateImagesForBlocks(
+                  contentReadyBlocks, 
+                  weekContext, 
+                  usedImageIds, 
+                  setUsedImageIds, 
+                  setBlocks
+                ).catch(err => console.error('❌ Image generation error:', err));
                 
               } catch (enhancementError) {
                 console.error('❌ Block enhancement failed, using template blocks:', enhancementError);

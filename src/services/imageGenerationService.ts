@@ -11,6 +11,7 @@ export interface ChannelImageRequest {
   contentTitle?: string;
   useAIKeywords?: boolean;
   fallbackKeywords?: string[];
+  excludeImageIds?: string[]; // Images to exclude from selection
 }
 
 export interface FacetedKeywords {
@@ -26,6 +27,7 @@ export interface FacetedKeywords {
 
 export interface ImageGenerationResult {
   imageUrl: string;
+  imageId?: string; // Unsplash image ID for tracking
   metadata?: {
     facets?: FacetedKeywords;
     usedQuery?: string;
@@ -43,6 +45,11 @@ export class ImageGenerationService {
    */
   async fetchImageForChannel(request: ChannelImageRequest): Promise<ImageGenerationResult> {
     console.log(`🎨 Fetching image for ${request.channel}:`, request.contentTitle || request.contentContext.substring(0, 50));
+    
+    // Log excluded images if any
+    if (request.excludeImageIds && request.excludeImageIds.length > 0) {
+      console.log(`🚫 Excluding ${request.excludeImageIds.length} already-used images:`, request.excludeImageIds);
+    }
     
     try {
       // Step 1: Generate faceted keywords using AI
@@ -64,7 +71,7 @@ export class ImageGenerationService {
         body: {
           query: facetsData.variants[0], // Primary query
           variants: facetsData.variants, // All variants to try
-          maxImages: 8,
+          maxImages: 12, // Increased from 8 for better selection pool
           orientation: 'squarish',
           orderBy: 'relevant',
           contentFilter: 'high'
@@ -89,7 +96,7 @@ export class ImageGenerationService {
               body: {
                 query: fallbackKeyword,
                 variants: [fallbackKeyword],
-                maxImages: 8,
+                maxImages: 12,
                 orientation: 'squarish',
                 orderBy: 'relevant',
                 contentFilter: 'high'
@@ -102,6 +109,7 @@ export class ImageGenerationService {
               
               return {
                 imageUrl: bestMatch.urls?.regular || bestMatch.download_url,
+                imageId: bestMatch.id,
                 metadata: {
                   facets: facetsData,
                   usedQuery: fallbackKeyword,
@@ -118,14 +126,50 @@ export class ImageGenerationService {
         throw new Error('No images found for the given keywords or fallback keywords');
       }
       
-      // Images are already filtered and sorted by the edge function
-      const bestMatch = imageData.images[0];
+      // Filter and select unique image
+      const candidateImages = imageData.images || [];
+      const excludedSet = new Set(request.excludeImageIds || []);
       
-      console.log(`✅ Image fetched using query: "${imageData.query || facetsData.variants[0]}"`);
+      console.log(`📸 Found ${candidateImages.length} candidate images`);
+      console.log(`🔍 Searching for unique image (${excludedSet.size} already used)...`);
+      
+      // Try to find an unused image (up to 10 attempts)
+      let selectedImage = null;
+      let attemptCount = 0;
+      const maxAttempts = Math.min(10, candidateImages.length);
+      
+      for (let i = 0; i < maxAttempts && i < candidateImages.length; i++) {
+        const candidate = candidateImages[i];
+        attemptCount++;
+        
+        if (!excludedSet.has(candidate.id)) {
+          selectedImage = candidate;
+          console.log(`✅ Found unique image on attempt ${attemptCount}: ${candidate.id}`);
+          break;
+        } else {
+          console.log(`⏭️  Attempt ${attemptCount}: Image ${candidate.id} already used, trying next...`);
+        }
+      }
+      
+      // Fallback: If all images are duplicates, use the last candidate
+      if (!selectedImage && candidateImages.length > 0) {
+        selectedImage = candidateImages[candidateImages.length - 1];
+        console.warn(`⚠️  All ${attemptCount} candidates were duplicates, using fallback image: ${selectedImage.id}`);
+      }
+      
+      if (!selectedImage) {
+        console.error('❌ No images available after filtering');
+        throw new Error('No unique images found');
+      }
+      
+      const bestMatch = selectedImage;
+      
+      console.log(`✅ Selected image: ${bestMatch.id}`);
       console.log(`   Alt: ${bestMatch.alt?.substring(0, 60)}`);
       
       return {
         imageUrl: bestMatch.urls?.regular || bestMatch.download_url,
+        imageId: bestMatch.id,
         metadata: {
           facets: facetsData,
           usedQuery: imageData.query,
