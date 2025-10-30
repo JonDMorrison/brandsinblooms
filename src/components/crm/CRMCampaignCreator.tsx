@@ -1429,21 +1429,29 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               
               // STEP 1: Set loading states for both text and images
               console.log('🎨 Setting loading states for content and images...');
-              const blocksWithLoadingStates = normalizeBlocks(crmBlocks).map((b) => ({
-                ...b,
-                // Text loading states
-                headline: b.type === 'header' ? b.headline : '⏳ Generating content...',
-                body: b.type === 'header' ? b.body : '',
-                content: b.type === 'header' ? b.content : '',
+              const blocksWithLoadingStates = normalizeBlocks(crmBlocks).map((b) => {
+                // Determine if this block should fetch images
+                const needsImage = b.type === 'image' || b.type === 'image-text';
                 
-                // Image loading states  
-                imageUrl: (b.type === 'image' || (b as any).shouldFetchImage) ? 'loading' : b.imageUrl,
-                source: 'template' as const,
-                
-                // Track loading state
-                isLoadingContent: b.type !== 'header',
-                isLoadingImage: (b.type === 'image' || (b as any).shouldFetchImage)
-              }));
+                return {
+                  ...b,
+                  // Text loading states
+                  headline: b.type === 'header' ? b.headline : '⏳ Generating content...',
+                  body: b.type === 'header' ? b.body : '',
+                  content: b.type === 'header' ? b.content : '',
+                  
+                  // Mark blocks that should fetch images
+                  shouldFetchImage: needsImage,
+                  
+                  // Image loading states  
+                  imageUrl: needsImage ? 'loading' : b.imageUrl,
+                  source: 'template' as const,
+                  
+                  // Track loading state
+                  isLoadingContent: b.type !== 'header',
+                  isLoadingImage: needsImage
+                };
+              });
               
               setBlocks(blocksWithLoadingStates);
               
@@ -1487,6 +1495,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                         console.log(`✅ AI content generated for block ${index + 1}`);
                         
                         // Apply AI content to block with proper field mapping
+                        const needsImage = block.type === 'image' || block.type === 'image-text';
                         return {
                           ...block,
                           title: aiResult.title,
@@ -1495,6 +1504,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                           body: aiResult.content,
                           ctaText: aiResult.cta_text || block.ctaText,
                           ctaUrl: aiResult.cta_url || block.ctaUrl,
+                          shouldFetchImage: needsImage, // Mark if needs image
                           isLoadingContent: false // Mark content as loaded
                         };
                       } else {
@@ -1513,11 +1523,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 // STEP 3: Update blocks with AI-generated content (images still loading)
                 const contentReadyBlocks = normalizeBlocks(
                   autoFillHeaderTitle(enhancedBlocks, selectedIdea.title || 'Newsletter Campaign')
-                ).map(b => ({
-                  ...b,
-                  imageUrl: (b.type === 'image' || (b as any).shouldFetchImage) ? 'loading' : b.imageUrl,
-                  source: 'template' as const
-                }));
+                ).map(b => {
+                  const needsImage = b.type === 'image' || b.type === 'image-text';
+                  return {
+                    ...b,
+                    shouldFetchImage: needsImage,
+                    imageUrl: needsImage ? 'loading' : b.imageUrl,
+                    source: 'template' as const
+                  };
+                });
                 
                 setBlocks(contentReadyBlocks);
                 crmBlocks = contentReadyBlocks;
