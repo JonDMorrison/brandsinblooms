@@ -1578,17 +1578,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     });
                     
                     if (keywordError || !facetsData || facetsData.error) {
-                      console.warn(`⚠️ AI keyword generation failed for block ${i}, using fallback`);
-                      
-                      // FALLBACK: Use createWeeklyThemeImageQuery as before
-                      const fallbackQuery = createWeeklyThemeImageQuery(weekContext, blockContent, i, imageBlocks.length);
-                      const imageData = await fetchSmartImage(fallbackQuery, weekContext.title, true);
-                      
-                      if (imageData?.url) {
-                        setBlocks(prev => prev.map((b, idx) => 
-                          idx === blockInfo.index ? { ...b, imageUrl: imageData.url, altText: imageData.alt } : b
-                        ));
-                      }
+                      console.warn(`⚠️ AI keyword generation failed for block ${i}, skipping image`);
                       
                       // Add delay before next request
                       if (i < imageBlocks.length - 1) {
@@ -1615,17 +1605,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     });
                     
                     if (imageError || !imageData?.images || imageData.images.length === 0) {
-                      console.warn(`⚠️ No images found with AI keywords for block ${i}`);
-                      
-                      // FALLBACK: Try with simple query
-                      const fallbackQuery = weekContext.title;
-                      const fallbackImageData = await fetchSmartImage(fallbackQuery, weekContext.title, true);
-                      
-                      if (fallbackImageData?.url) {
-                        setBlocks(prev => prev.map((b, idx) => 
-                          idx === blockInfo.index ? { ...b, imageUrl: fallbackImageData.url, altText: fallbackImageData.alt } : b
-                        ));
-                      }
+                      console.warn(`⚠️ No images found with AI keywords for block ${i}, skipping image`);
                       
                       // Add delay before next request
                       if (i < imageBlocks.length - 1) {
