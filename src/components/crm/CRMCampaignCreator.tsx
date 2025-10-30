@@ -18,6 +18,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { convertNewsletterToCRM } from '@/utils/newsletterToCrmSync';
 import { supabase } from '@/integrations/supabase/client';
 import { saveCampaignAsDraft, sendCampaign, CampaignData } from '@/utils/crmCampaignService';
+import { imageGenerationService } from '@/services/imageGenerationService';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
 import { generateFooterHTML } from '@/utils/emailFooterRenderer';
 import { getDefaultTokenData } from '@/utils/emailTokenProcessor';
@@ -75,70 +76,58 @@ async function generateImagesForBlocks(
     
     console.log(`📸 Found ${blocksNeedingImages.length} blocks needing images`);
     
-    // Prepare tasks for batch image generation
-    const tasks = blocksNeedingImages.map(({ block, index }) => ({
-      task_id: `block_${index}`,
-      post_type: 'newsletter',
-      content: block.body || block.content || context.description || 'Seasonal garden content',
-      title: block.headline || block.title || context.title || 'Garden Newsletter'
-    }));
-    
-    console.log(`🤖 Generating images for ${tasks.length} blocks...`);
-    
-    // Call the batch image generation edge function
-    const { data, error } = await supabase.functions.invoke('fetch-content-images', {
-      body: { tasks }
-    });
-    
-    if (error) {
-      console.error('❌ Batch image generation failed:', error);
-      // Clear loading states for all blocks
-      setBlocks(prev => prev.map(b => 
-        (b as any).shouldFetchImage 
-          ? { ...b, imageUrl: '', isLoadingImage: false }
-          : b
-      ));
-      return;
+    // Generate images one by one using the same service as social posts
+    for (const { block, index } of blocksNeedingImages) {
+      try {
+        const contentContext = block.body || block.content || context.description || 'Seasonal garden content';
+        const contentTitle = block.headline || block.title || context.title || 'Garden Newsletter';
+        
+        console.log(`🤖 Generating image for block ${index}: "${contentTitle.substring(0, 50)}..."`);
+        console.log(`   Content: "${contentContext.substring(0, 100)}..."`);
+        
+        // Use the same image generation service as social posts
+        const result = await imageGenerationService.fetchImageForChannel({
+          channel: 'newsletter',
+          contentContext: contentContext,
+          contentTitle: contentTitle,
+          useAIKeywords: true,
+          fallbackKeywords: ['garden plants flowers', 'garden center nursery', 'seasonal gardening']
+        });
+        
+        console.log(`✅ Generated image for block ${index}: ${result.imageUrl.substring(0, 50)}...`);
+        
+        // Update this specific block with the image
+        setBlocks(prev => prev.map((b, i) => {
+          if (i === index) {
+            return {
+              ...b,
+              imageUrl: result.imageUrl,
+              altText: result.metadata?.usedQuery || contentTitle,
+              isLoadingImage: false
+            };
+          }
+          return b;
+        }));
+        
+        // Small delay between requests to avoid rate limiting
+        if (index < blocksNeedingImages.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+      } catch (blockError) {
+        console.error(`❌ Failed to generate image for block ${index}:`, blockError);
+        
+        // Clear loading state for this block
+        setBlocks(prev => prev.map((b, i) => {
+          if (i === index) {
+            return { ...b, imageUrl: '', isLoadingImage: false };
+          }
+          return b;
+        }));
+      }
     }
     
-    if (!data?.results || data.results.length === 0) {
-      console.warn('⚠️ No images returned from batch generation');
-      return;
-    }
-    
-    console.log(`✅ Received ${data.results.length} image results`);
-    
-    // Apply images to blocks
-    const imageMap = new Map<string, any>(
-      data.results
-        .filter((r: any) => r.status === 'completed' && r.image_url)
-        .map((r: any) => [r.task_id, r])
-    );
-    
-    setBlocks(prev => prev.map((block, index) => {
-      const taskId = `block_${index}`;
-      const imageResult = imageMap.get(taskId) as any;
-      
-      if (imageResult) {
-        console.log(`✅ Applied image to block ${index}: ${imageResult.image_url.substring(0, 50)}...`);
-        return {
-          ...block,
-          imageUrl: imageResult.image_url,
-          altText: imageResult.metadata?.alt || `${context.title} - ${block.headline || ''}`,
-          isLoadingImage: false
-        };
-      }
-      
-      // If this block needed an image but didn't get one, clear loading state
-      if ((block as any).shouldFetchImage) {
-        console.warn(`⚠️ No image found for block ${index}`);
-        return { ...block, imageUrl: '', isLoadingImage: false };
-      }
-      
-      return block;
-    }));
-    
-    console.log(`📸 Successfully processed ${imageMap.size} images`);
+    console.log(`📸 Image generation complete for ${blocksNeedingImages.length} blocks`);
     
   } catch (error) {
     console.error('❌ Image generation failed:', error);
