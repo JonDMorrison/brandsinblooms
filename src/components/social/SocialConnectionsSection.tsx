@@ -6,6 +6,7 @@ import { SocialConnectionCard } from './SocialConnectionCard';
 import { ConnectMetaButton } from './ConnectMetaButton';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { FacebookAppSetupGuide } from './FacebookAppSetupGuide';
 import { AlertCircle, Wifi, Facebook, Instagram } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 // Removed sonner import - using global toast replacement
@@ -214,6 +215,11 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
               </div>
             </CardContent>
           </Card>
+
+          {/* Facebook App Setup Guide for troubleshooting */}
+          <div className="max-w-2xl mx-auto">
+            <FacebookAppSetupGuide isAdmin={true} />
+          </div>
         </div>
       </SubscriptionGate>
     );

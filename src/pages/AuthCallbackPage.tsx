@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, AlertCircle, Facebook, Instagram, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { FacebookAppSetupGuide } from '@/components/social/FacebookAppSetupGuide';
 
 
 export const AuthCallbackPage = () => {
@@ -24,6 +25,7 @@ export const AuthCallbackPage = () => {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Connecting to Meta platform...');
   const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
+  const [showAppSetupGuide, setShowAppSetupGuide] = useState(false);
 
   useEffect(() => {
     // Only handle OAuth callback logic if we're actually on the callback route
@@ -57,9 +59,18 @@ export const AuthCallbackPage = () => {
       if (error) {
         console.error('OAuth error:', error, errorDescription);
         setStatus('error');
-        setMessage(`Authorization failed: ${errorDescription || error}`);
         
-        setTimeout(() => navigate('/social-accounts'), 3000);
+        // Detect specific Facebook errors
+        if (error === 'access_denied' && errorDescription?.toLowerCase().includes('not active')) {
+          setMessage('The Facebook app is not active or you need to be added as a test user.');
+          setShowAppSetupGuide(true);
+        } else if (error === 'access_denied') {
+          setMessage('You declined to authorize the connection. Please try again if you want to connect your accounts.');
+        } else {
+          setMessage(`Authorization failed: ${errorDescription || error}`);
+        }
+        
+        setTimeout(() => navigate('/social-accounts'), 8000);
         return;
       }
 
@@ -340,8 +351,15 @@ export const AuthCallbackPage = () => {
               {/* Error Message */}
               <div className="space-y-3">
                 <h2 className="text-2xl font-bold text-red-700">Connection Failed</h2>
-                <p className="text-muted-foreground">{message}</p>
+                <p className="text-muted-foreground whitespace-pre-line">{message}</p>
               </div>
+
+              {/* Show Facebook App Setup Guide for specific errors */}
+              {showAppSetupGuide && (
+                <div className="mt-6 text-left">
+                  <FacebookAppSetupGuide isAdmin={true} />
+                </div>
+              )}
               
               {/* Action Buttons */}
               <div className="space-y-3">
