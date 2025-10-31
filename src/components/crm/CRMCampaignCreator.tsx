@@ -67,10 +67,15 @@ async function generateImagesForBlocks(
     // Find all blocks that need images
     const blocksNeedingImages = blocks
       .map((block, index) => ({ block, index }))
-      .filter(({ block }) => {
-        if (block.type === 'text' || block.type === 'header') return false;
-        return (block as any).shouldFetchImage === true;
+      .filter(({ block, index }) => {
+        const shouldFetch = block.type === 'image' || block.type === 'image-text';
+        if (shouldFetch) {
+          console.log(`✓ Block ${index} (${block.type}) needs image, shouldFetchImage=${block.shouldFetchImage}, imageUrl="${block.imageUrl}"`);
+        }
+        return shouldFetch && (!block.imageUrl || block.imageUrl === 'loading');
       });
+    
+    console.log(`📸 Found ${blocksNeedingImages.length} blocks needing images out of ${blocks.length} total blocks`);
     
     if (blocksNeedingImages.length === 0) {
       console.log('📸 No blocks need images, skipping image generation');
@@ -80,9 +85,10 @@ async function generateImagesForBlocks(
     console.log(`📸 Generating ${blocksNeedingImages.length} unique images...`);
     
     // Process each block sequentially to track uniqueness
-    for (const { block, index } of blocksNeedingImages) {
+    for (let iteration = 0; iteration < blocksNeedingImages.length; iteration++) {
+      const { block, index: blockIndex } = blocksNeedingImages[iteration];
       try {
-        console.log(`\n🎨 Processing block ${index + 1}/${blocksNeedingImages.length}`);
+        console.log(`\n🎨 Processing block ${iteration + 1}/${blocksNeedingImages.length} (block index: ${blockIndex})`);
         
         const contentContext = block.body || block.content || context.description || 'Seasonal garden content';
         const contentTitle = block.headline || block.title || context.title || 'Garden Newsletter';
@@ -101,11 +107,11 @@ async function generateImagesForBlocks(
         });
         
         if (result && result.imageUrl) {
-          console.log(`✅ Block ${index}: Got unique image ${result.imageId}`);
+          console.log(`✅ Block ${blockIndex}: Got unique image ${result.imageId}`);
           
           // Update this specific block with the image
           setBlocks(prev => prev.map((b, i) => {
-            if (i === index) {
+            if (i === blockIndex) {
               return {
                 ...b,
                 imageUrl: result.imageUrl,
@@ -124,23 +130,23 @@ async function generateImagesForBlocks(
           }
           
         } else {
-          console.warn(`⚠️ No image returned for block ${index}`);
+          console.warn(`⚠️ No image returned for block ${blockIndex}`);
           setBlocks(prev => prev.map((b, i) => 
-            i === index ? { ...b, imageUrl: '', isLoadingImage: false } : b
+            i === blockIndex ? { ...b, imageUrl: '', isLoadingImage: false } : b
           ));
         }
         
         // Small delay between requests to avoid rate limiting
-        if (index < blocksNeedingImages.length - 1) {
+        if (iteration < blocksNeedingImages.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 300));
         }
         
       } catch (blockError) {
-        console.error(`❌ Failed to generate image for block ${index}:`, blockError);
+        console.error(`❌ Failed to generate image for block ${blockIndex}:`, blockError);
         
         // Clear loading state for this block
         setBlocks(prev => prev.map((b, i) => {
-          if (i === index) {
+          if (i === blockIndex) {
             return { ...b, imageUrl: '', isLoadingImage: false };
           }
           return b;

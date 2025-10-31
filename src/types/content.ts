@@ -37,6 +37,10 @@ export interface ContentBlock {
   order_index?: number;
   block_type?: 'text' | 'image' | 'cta' | 'divider' | 'header' | 'product' | 'video_scene' | 'event_item';
   metadata?: Record<string, any>;
+  // Image generation flags
+  shouldFetchImage?: boolean;
+  isLoadingImage?: boolean;
+  isLoadingContent?: boolean;
 }
 
 export interface ContentMetadata {
