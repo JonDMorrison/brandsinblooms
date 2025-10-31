@@ -1,9 +1,12 @@
 
 import { Badge } from "@/components/ui/badge";
-import { GripVertical, Check, Clock } from "lucide-react";
+import { GripVertical, Check, Clock, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/hooks/useLongPress";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Task {
   id: string;
@@ -24,6 +27,7 @@ interface EnhancedCalendarTaskItemProps {
   onLongPress: (task: Task) => void;
   onDragStart?: (task: Task) => void;
   onDragEnd?: () => void;
+  onDelete?: (taskId: string) => void;
 }
 
 export const EnhancedCalendarTaskItem = ({
@@ -33,9 +37,36 @@ export const EnhancedCalendarTaskItem = ({
   onTaskClick,
   onLongPress,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  onDelete
 }: EnhancedCalendarTaskItemProps) => {
   const [isDragReady, setIsDragReady] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (isDeleting) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .delete()
+        .eq('id', task.id);
+      
+      if (error) throw error;
+      
+      toast.success('Task deleted');
+      onDelete?.(task.id);
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const getPostTypeIcon = (type: string) => {
     switch (type) {
@@ -160,6 +191,24 @@ export const EnhancedCalendarTaskItem = ({
         <div className="absolute -top-1 -right-1 bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-sm z-10">
           <Check className="w-3 h-3" />
         </div>
+      )}
+
+      {/* Delete button - shows on hover */}
+      {!isSelected && !isDragReady && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDelete}
+          disabled={isDeleting}
+          className="absolute -top-1 -right-1 h-5 w-5 p-0 rounded-full bg-red-100 hover:bg-red-200 text-red-600 opacity-0 group-hover/task:opacity-100 transition-opacity z-10"
+          title="Delete this task"
+        >
+          {isDeleting ? (
+            <div className="animate-spin rounded-full h-3 w-3 border-2 border-red-500 border-t-transparent"></div>
+          ) : (
+            <Trash2 className="w-3 h-3" />
+          )}
+        </Button>
       )}
 
       <div className="flex items-start gap-2">

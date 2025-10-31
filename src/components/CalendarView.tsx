@@ -579,6 +579,7 @@ export const CalendarView = React.memo(({
         date={selectedDateForEvents}
         events={events}
         onEventClick={handleEventClick}
+        onDataUpdate={refetch}
       />
 
       {/* Weekly Themes Reference Modal */}

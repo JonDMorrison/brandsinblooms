@@ -171,6 +171,10 @@ export const CalendarDayContent = ({
               onLongPress={onTaskLongPress || (() => {})}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
+              onDelete={() => {
+                // Refresh the parent component after deletion
+                window.location.reload(); // Simple solution to refresh calendar
+              }}
             />
           ))}
           

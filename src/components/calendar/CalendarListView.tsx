@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 import { UnifiedCalendarEvent } from '@/hooks/useUnifiedCalendarData';
 import { 
   Calendar, 
@@ -19,6 +20,8 @@ import { format, isToday, isTomorrow, isYesterday } from 'date-fns';
 interface CalendarListViewProps {
   events: UnifiedCalendarEvent[];
   onEventClick: (event: UnifiedCalendarEvent) => void;
+  selectedEvents?: string[];
+  onToggleSelect?: (eventId: string) => void;
 }
 
 const getEventIcon = (type: string) => {
@@ -67,7 +70,7 @@ const getDateLabel = (date: Date) => {
   }
 };
 
-export const CalendarListView = ({ events, onEventClick }: CalendarListViewProps) => {
+export const CalendarListView = ({ events, onEventClick, selectedEvents, onToggleSelect }: CalendarListViewProps) => {
   // Group events by date
   const eventsByDate = events.reduce((acc, event) => {
     const dateKey = format(event.date, 'yyyy-MM-dd');
@@ -120,11 +123,25 @@ export const CalendarListView = ({ events, onEventClick }: CalendarListViewProps
                   return (
                     <Card 
                       key={event.id}
-                      className="cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-primary/20"
+                      className={`cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-primary/20 ${
+                        selectedEvents?.includes(event.id) ? 'border-blue-500 bg-blue-50/50' : ''
+                      }`}
                       onClick={() => onEventClick(event)}
                     >
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
+                          {/* Checkbox for selection (only for tasks) */}
+                          {onToggleSelect && event.type === 'task' && (
+                            <Checkbox
+                              checked={selectedEvents?.includes(event.id) || false}
+                              onCheckedChange={(checked) => {
+                                onToggleSelect(event.id);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-1"
+                            />
+                          )}
+                          
                           <div className={`p-2 bg-gradient-to-br ${colorClass} rounded-lg shadow-sm`}>
                             <IconComponent className="w-5 h-5 text-white" />
                           </div>
