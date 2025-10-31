@@ -1,6 +1,6 @@
 import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2 } from 'lucide-react';
+import { ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ImageSkeletonProps {
@@ -28,9 +28,8 @@ export const ImageSkeleton: React.FC<ImageSkeletonProps> = ({
     )}>
       <Skeleton className="w-full h-full" animation="wave" />
       {showIcon && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-          <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
-          <p className="text-sm text-muted-foreground">Generating image</p>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <ImageIcon className="w-12 h-12 text-gray-400 opacity-50" />
         </div>
       )}
     </div>
