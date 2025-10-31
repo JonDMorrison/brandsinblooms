@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, AlertCircle, Settings, Globe, Mail, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DataSource {
   id: string;
@@ -26,6 +27,70 @@ export const DataSourceManager = ({
   onSyncComplete,
   syncing = false
 }: DataSourceManagerProps) => {
+  const { user } = useAuth();
+  const [socialConnected, setSocialConnected] = useState(false);
+  const [emailCrmConnected, setEmailCrmConnected] = useState(false);
+  const [socialLastSync, setSocialLastSync] = useState<string | undefined>(undefined);
+  const [emailLastSync, setEmailLastSync] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+
+  // Check actual connection status from database
+  useEffect(() => {
+    const checkConnections = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Check Social Media connections (Facebook/Instagram)
+        const { data: socialData, error: socialError } = await supabase
+          .from('social_connections')
+          .select('platform, updated_at')
+          .eq('user_id', user.id)
+          .eq('is_active', true);
+
+        if (!socialError && socialData && socialData.length > 0) {
+          setSocialConnected(true);
+          // Get the most recent update time
+          const mostRecent = socialData.reduce((latest, conn) => {
+            return new Date(conn.updated_at) > new Date(latest.updated_at) ? conn : latest;
+          });
+          const minutesAgo = Math.floor((Date.now() - new Date(mostRecent.updated_at).getTime()) / 60000);
+          setSocialLastSync(minutesAgo < 1 ? 'just now' : `${minutesAgo} minute${minutesAgo > 1 ? 's' : ''} ago`);
+        } else {
+          setSocialConnected(false);
+          setSocialLastSync(undefined);
+        }
+
+        // Check Email/CRM connections (Mailchimp, Klaviyo, etc.)
+        const { data: providerData, error: providerError } = await supabase
+          .from('provider_connections')
+          .select('provider, updated_at')
+          .eq('status', 'connected')
+          .in('provider', ['mailchimp', 'klaviyo']);
+
+        if (!providerError && providerData && providerData.length > 0) {
+          setEmailCrmConnected(true);
+          const mostRecent = providerData.reduce((latest, conn) => {
+            return new Date(conn.updated_at) > new Date(latest.updated_at) ? conn : latest;
+          });
+          const minutesAgo = Math.floor((Date.now() - new Date(mostRecent.updated_at).getTime()) / 60000);
+          setEmailLastSync(minutesAgo < 1 ? 'just now' : `${minutesAgo} minute${minutesAgo > 1 ? 's' : ''} ago`);
+        } else {
+          setEmailCrmConnected(false);
+          setEmailLastSync(undefined);
+        }
+      } catch (error) {
+        console.error('Error checking connections:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkConnections();
+  }, [user]);
+
   const dataSources: DataSource[] = [
     {
       id: 'google-analytics',
@@ -39,16 +104,16 @@ export const DataSourceManager = ({
       id: 'social-media',
       name: 'Social Media',
       icon: Share2,
-      status: 'connected',
-      lastSync: '5 minutes ago',
+      status: socialConnected ? 'connected' : 'disconnected',
+      lastSync: socialLastSync,
       description: 'Facebook, Instagram, and other platforms'
     },
     {
       id: 'email-crm',
       name: 'Email & CRM',
       icon: Mail,
-      status: 'connected',
-      lastSync: '1 minute ago',
+      status: emailCrmConnected ? 'connected' : 'disconnected',
+      lastSync: emailLastSync,
       description: 'Customer data and email campaigns'
     }
   ];
@@ -104,6 +169,19 @@ export const DataSourceManager = ({
       default: return 'border-l-yellow-500';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-32 bg-muted/20 animate-pulse rounded-lg"></div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="h-40 bg-muted/20 animate-pulse rounded-lg"></div>
+          <div className="h-40 bg-muted/20 animate-pulse rounded-lg"></div>
+          <div className="h-40 bg-muted/20 animate-pulse rounded-lg"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
