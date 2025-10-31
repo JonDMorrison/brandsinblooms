@@ -66,6 +66,8 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
 
       // Step 2: Enhance content with AI for each block using edge function
       const enhancedBlocks: ContentBlock[] = [];
+      // Track used images locally (synchronous) to avoid async state timing issues
+      const localUsedImageIds = new Set<string>(usedImageIds);
       
       for (let i = 0; i < baseBlocks.length; i++) {
         const block = baseBlocks[i];
@@ -108,7 +110,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
           if (block.type === 'image-text') {
             try {
               console.log(`🖼️ Fetching unique image for block ${i + 1}/${baseBlocks.length}`);
-              console.log(`🚫 Already used ${usedImageIds.size} images:`, Array.from(usedImageIds));
+              console.log(`🚫 Already used ${localUsedImageIds.size} images:`, Array.from(localUsedImageIds));
               
               const contentForImage = (
                 enhancedBlock.body || 
@@ -122,14 +124,14 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
                 topic
               ).trim();
               
-              // Use the enhanced service with exclusion tracking
+              // Use the enhanced service with LOCAL exclusion tracking (synchronous)
               const result = await imageGenerationService.fetchImageForChannel({
                 channel: 'newsletter',
                 contentContext: contentForImage,
                 contentTitle: titleForImage,
                 useAIKeywords: true,
                 fallbackKeywords: ['garden plants flowers', 'garden center', topic.toLowerCase()],
-                excludeImageIds: Array.from(usedImageIds)
+                excludeImageIds: Array.from(localUsedImageIds)
               });
               
               if (result?.imageUrl) {
@@ -137,10 +139,10 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
                 enhancedBlock.imageId = result.imageId;
                 enhancedBlock.altText = result.metadata?.usedQuery || titleForImage;
                 
-                // Add to used images set
+                // Add to BOTH local set (immediate) and state (for persistence)
                 if (result.imageId) {
-                  setUsedImageIds(prev => new Set([...prev, result.imageId!]));
-                  console.log(`🔒 Locked image ${result.imageId} (now ${usedImageIds.size + 1} used)`);
+                  localUsedImageIds.add(result.imageId);
+                  console.log(`🔒 Locked image ${result.imageId} (now ${localUsedImageIds.size} used)`);
                 }
               }
             } catch (error) {
@@ -154,6 +156,9 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
           enhancedBlocks.push(block);
         }
       }
+
+      // Sync local image tracking to state for next dialog open
+      setUsedImageIds(localUsedImageIds);
 
       // Step 4: Generate subject line and preheader
       const subjectLine = generateSubjectLine(topic, tone);
