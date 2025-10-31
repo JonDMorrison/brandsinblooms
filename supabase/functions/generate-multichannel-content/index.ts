@@ -688,6 +688,13 @@ serve(async (req) => {
       return processed.join('\n');
     };
     
+    // Track used images to ensure uniqueness across channels (synchronous tracking)
+    const usedImageIds = new Set<string>();
+    let imagePoolIndex = 0; // Track position in image pool for fallback
+    
+    console.log('🔒 Starting unique image assignment across channels');
+    console.log(`📊 Available images: ${formattedImages.length}, Channels: ${content.length}`);
+    
     // Transform content into GeneratedBundle format
     const bundleContent = {
       id: bundleId,
@@ -696,7 +703,7 @@ serve(async (req) => {
       sourceLabel: topicTitle || 'Untitled Content',  // ✅ Root level for view
       channels: channels || [],                 // ✅ Root level for view
       items: content.flatMap((channelContent: any) => 
-        channelContent.items.map((item: any) => {
+        channelContent.items.map((item: any, itemIndex: number) => {
           // CRITICAL: Different formatting rules per channel
           let bodyContent = item.content;
           const originalContent = bodyContent;
@@ -732,6 +739,45 @@ serve(async (req) => {
             }
           }
           
+          // 🖼️ UNIQUE IMAGE ASSIGNMENT with exclusion tracking
+          let assignedImageUrl: string | null = null;
+          let assignedImageId: string | null = null;
+          
+          if (item.imageQuery && formattedImages.length > 0) {
+            // Try to find an unused image (up to 10 attempts)
+            let attempts = 0;
+            const maxAttempts = Math.min(10, formattedImages.length);
+            
+            while (attempts < maxAttempts && !assignedImageUrl) {
+              const candidateImage = formattedImages[imagePoolIndex % formattedImages.length];
+              const candidateId = candidateImage.unsplashId || candidateImage.url;
+              
+              if (!usedImageIds.has(candidateId)) {
+                // Found unique image!
+                assignedImageUrl = candidateImage.url;
+                assignedImageId = candidateId;
+                usedImageIds.add(candidateId);
+                
+                console.log(`✅ [${channelContent.type.toUpperCase()}] Assigned unique image ${usedImageIds.size}/${formattedImages.length}: ${candidateId.substring(0, 20)}...`);
+                break;
+              } else {
+                console.log(`⏭️ [${channelContent.type.toUpperCase()}] Skipping duplicate image: ${candidateId.substring(0, 20)}...`);
+              }
+              
+              imagePoolIndex++;
+              attempts++;
+            }
+            
+            // Fallback: If all attempts failed, use next available image anyway
+            if (!assignedImageUrl && formattedImages.length > 0) {
+              const fallbackImage = formattedImages[imagePoolIndex % formattedImages.length];
+              assignedImageUrl = fallbackImage.url;
+              assignedImageId = fallbackImage.unsplashId || fallbackImage.url;
+              console.warn(`⚠️ [${channelContent.type.toUpperCase()}] Using fallback image after ${attempts} attempts`);
+              imagePoolIndex++;
+            }
+          }
+          
           return {
             channel: channelContent.type,
             title: item.title,
@@ -742,7 +788,8 @@ serve(async (req) => {
             ctaSuggestions: [item.cta],
             media: item.imageQuery ? { 
               alt: item.imageQuery,
-              url: null 
+              url: assignedImageUrl,
+              imageId: assignedImageId
             } : null,
             _approved: false
           };
@@ -750,6 +797,13 @@ serve(async (req) => {
       ),
       recommendedImages: formattedImages,  // ✅ Store fetched images
       thumbnail: formattedImages.length > 0 ? formattedImages[0].url : null,  // ✅ Add thumbnail
+      _imageTrackingSummary: {
+        totalImagesAvailable: formattedImages.length,
+        imagesAssigned: usedImageIds.size,
+        uniquenessRate: formattedImages.length > 0 
+          ? `${Math.round((usedImageIds.size / Math.min(usedImageIds.size, formattedImages.length)) * 100)}%`
+          : 'N/A'
+      },
       meta: {
         mode: mode as 'event' | 'seasonal' | 'custom',
         sourceId: sourceId,
