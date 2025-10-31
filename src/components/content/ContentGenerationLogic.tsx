@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { showToast } from "@/utils/toastUtils";
 import { generateContentInParallel } from "./ParallelContentGenerator";
+import { filterOutExistingTypes, createTaskIfNotExists } from "@/utils/duplicateContentPrevention";
 
 export const useContentGeneration = () => {
   const autoGenerateAllContent = async (campaignId: string, campaignTitle: string, existingTasks: any[], userId: string) => {
@@ -22,35 +23,49 @@ export const useContentGeneration = () => {
       console.log('🎯 Existing tasks needing content generation:', tasksNeedingContent.length, 'tasks');
       console.log('🔍 Tasks needing content:', tasksNeedingContent.map(t => `${t.post_type} (${t.id})`));
       
+      // Filter out types that already exist (double-check for duplicates)
+      const actuallyMissingTypes = await filterOutExistingTypes(campaignId, missingTypes, userId);
+      
       // Create missing tasks first
-      if (missingTypes.length > 0) {
-        console.log('📋 Creating missing task types:', missingTypes);
-        for (const type of missingTypes) {
+      if (actuallyMissingTypes.length > 0) {
+        console.log('📋 Creating missing task types:', actuallyMissingTypes);
+        
+        for (const type of actuallyMissingTypes) {
           try {
-            const { data: newTask, error: createError } = await supabase
-              .from('content_tasks')
-              .insert({
-                campaign_id: campaignId,
-                post_type: type,
-                status: 'planned',
-                scheduled_date: new Date().toISOString().split('T')[0],
-                user_id: userId
-              })
-              .select()
-              .single();
+            const result = await createTaskIfNotExists({
+              campaign_id: campaignId,
+              post_type: type,
+              status: 'planned',
+              scheduled_date: new Date().toISOString().split('T')[0],
+              user_id: userId
+            });
 
-            if (createError) {
-              console.error(`❌ Error creating ${type} task:`, createError);
-              showToast.error(`Failed to create ${type} task: ${createError.message}`);
+            if (!result.success) {
+              console.error(`❌ Error creating ${type} task`);
+              showToast.error(`Failed to create ${type} task`);
+            } else if (!result.existed) {
+              console.log(`✅ Created new ${type} task:`, result.taskId);
+              
+              // Fetch the newly created task to add to tasksNeedingContent
+              const { data: newTask } = await supabase
+                .from('content_tasks')
+                .select()
+                .eq('id', result.taskId)
+                .single();
+              
+              if (newTask) {
+                tasksNeedingContent.push(newTask);
+              }
             } else {
-              console.log(`✅ Created new ${type} task:`, newTask.id);
-              tasksNeedingContent.push(newTask);
+              console.log(`ℹ️ Task ${type} already exists, skipping creation`);
             }
           } catch (error) {
             console.error(`❌ Error creating ${type} task:`, error);
             showToast.error(`Failed to create ${type} task`);
           }
         }
+      } else if (missingTypes.length > 0) {
+        console.log('ℹ️ All "missing" types already exist after duplicate check');
       }
 
       if (tasksNeedingContent.length === 0) {
