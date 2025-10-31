@@ -125,14 +125,33 @@ serve(async (req) => {
   try {
     const { prompt, channel = 'instagram', useAI = true } = await req.json();
 
-    if (!prompt) {
+    // Validate prompt with detailed error messages
+    if (!prompt || typeof prompt !== 'string') {
+      console.error('❌ Invalid prompt:', { prompt, type: typeof prompt });
       return new Response(
-        JSON.stringify({ error: 'Prompt is required' }),
+        JSON.stringify({ 
+          error: 'Prompt is required',
+          details: 'Prompt must be a non-empty string',
+          received: { prompt: prompt || 'undefined', type: typeof prompt }
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`🎨 Generating keywords for ${channel}:`, prompt.substring(0, 100));
+    const trimmedPrompt = prompt.trim();
+    if (trimmedPrompt.length < 5) {
+      console.error('❌ Prompt too short:', { prompt: trimmedPrompt, length: trimmedPrompt.length });
+      return new Response(
+        JSON.stringify({ 
+          error: 'Prompt is too short',
+          details: 'Prompt must be at least 5 characters',
+          received: { prompt: trimmedPrompt, length: trimmedPrompt.length }
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`🎨 Generating keywords for ${channel}:`, trimmedPrompt.substring(0, 100));
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -149,7 +168,7 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: `CONTENT TO ANALYZE: ${prompt}
+            content: `CONTENT TO ANALYZE: ${trimmedPrompt}
 
 Generate faceted search queries for Unsplash. Focus on creating natural, visual queries that will return high-quality garden and plant images.`
           }

@@ -66,19 +66,24 @@ async function generateImagesForBlocks(
     
     // Find all blocks that need images
     const blocksNeedingImages = blocks
-      .map((block, index) => ({ block, index }))
+      .map((block, index) => {
+        console.log(`📋 Block ${index}: type="${block.type}", imageUrl="${block.imageUrl || 'undefined'}", hasBody=${!!block.body}, hasContent=${!!block.content}`);
+        return { block, index };
+      })
       .filter(({ block, index }) => {
         const shouldFetch = block.type === 'image' || block.type === 'image-text';
+        const needsImage = shouldFetch && (!block.imageUrl || block.imageUrl === 'loading');
         if (shouldFetch) {
-          console.log(`✓ Block ${index} (${block.type}) needs image, shouldFetchImage=${block.shouldFetchImage}, imageUrl="${block.imageUrl}"`);
+          console.log(`  ✓ Block ${index} is ${block.type}, needsImage=${needsImage} (imageUrl: "${block.imageUrl || 'undefined'}")`);
         }
-        return shouldFetch && (!block.imageUrl || block.imageUrl === 'loading');
+        return needsImage;
       });
     
     console.log(`📸 Found ${blocksNeedingImages.length} blocks needing images out of ${blocks.length} total blocks`);
     
     if (blocksNeedingImages.length === 0) {
       console.log('📸 No blocks need images, skipping image generation');
+      console.log('📸 Block types:', blocks.map((b, i) => `${i}: ${b.type} (img: "${b.imageUrl || 'none'}")`).join(', '));
       return;
     }
     
@@ -90,16 +95,43 @@ async function generateImagesForBlocks(
       try {
         console.log(`\n🎨 Processing block ${iteration + 1}/${blocksNeedingImages.length} (block index: ${blockIndex})`);
         
-        const contentContext = block.body || block.content || context.description || 'Seasonal garden content';
-        const contentTitle = block.headline || block.title || context.title || 'Garden Newsletter';
+        // Build content context with strong fallbacks to ensure we never pass empty string
+        const contentContext = (
+          block.body || 
+          block.content || 
+          block.headline ||
+          block.title ||
+          context.description || 
+          context.title ||
+          'Beautiful garden center plants and flowers for seasonal display'
+        ).trim();
         
-        console.log(`   Content: "${contentContext.substring(0, 60)}..."`);
+        const contentTitle = (
+          block.headline || 
+          block.title || 
+          context.title || 
+          'Garden Newsletter'
+        ).trim();
+        
+        // Final safety check - ensure we have valid content
+        if (!contentContext || contentContext.length < 5) {
+          console.warn(`⚠️ Block ${blockIndex} has insufficient content, using generic fallback`);
+          const genericContext = `${context.seasonalFocus || 'seasonal'} garden plants and flowers`;
+          console.log(`   Using fallback: "${genericContext}"`);
+        }
+        
+        const finalContentContext = contentContext.length >= 5 
+          ? contentContext 
+          : `${context.seasonalFocus || 'seasonal'} garden plants and flowers for display`;
+        
+        console.log(`   Content: "${finalContentContext.substring(0, 60)}..."`);
+        console.log(`   Title: "${contentTitle}"`);
         console.log(`   Excluded IDs: [${Array.from(usedImageIds).join(', ')}]`);
         
         // Use the same image generation service as social posts with exclusion list
         const result = await imageGenerationService.fetchImageForChannel({
           channel: 'newsletter',
-          contentContext: contentContext,
+          contentContext: finalContentContext,
           contentTitle: contentTitle,
           useAIKeywords: true,
           fallbackKeywords: ['garden plants flowers', 'garden center nursery', 'seasonal gardening'],
