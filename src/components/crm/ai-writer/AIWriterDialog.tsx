@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Sparkles } from 'lucide-react';
 import { usePersonaAwareGeneration } from '@/hooks/usePersonaAwareGeneration';
 import { generateNewsletterBlocks } from '@/services/newsletterBlockGenerator';
-import { fetchSmartImage } from '@/services/unsplashService';
+import { imageGenerationService } from '@/services/imageGenerationService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ContentBlock } from '@/types/emailBuilder';
@@ -34,6 +34,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
   const [tone, setTone] = useState('professional');
   const [customInstructions, setCustomInstructions] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [usedImageIds, setUsedImageIds] = useState<Set<string>>(new Set());
   
   const { selectedPersonas, generateEmailContent } = usePersonaAwareGeneration();
   const { toast } = useToast();
@@ -103,27 +104,47 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
           const normalizedAI = normalizeAIResponse(data);
           const enhancedBlock = applyAIToBlock(block, normalizedAI);
 
-          // Step 3: Fetch relevant image for each content block
+          // Step 3: Fetch UNIQUE image for each content block
           if (block.type === 'image-text') {
             try {
-              // Create topic-specific image search terms
-              const imageKeywords = createImageKeywords(topic, i);
-              console.log(`🖼️ Fetching image with keywords: ${imageKeywords}`);
+              console.log(`🖼️ Fetching unique image for block ${i + 1}/${baseBlocks.length}`);
+              console.log(`🚫 Already used ${usedImageIds.size} images:`, Array.from(usedImageIds));
               
-              const imageData = await fetchSmartImage(imageKeywords, topic, topic.toLowerCase().includes('hydrangea'));
-              if (imageData?.url) {
-                enhancedBlock.imageUrl = imageData.url;
-                enhancedBlock.altText = imageData.alt || `${topic} - ${enhancedBlock.title || enhancedBlock.headline}`;
-              } else {
-                // Fallback to topic-only search
-                const fallbackImage = await fetchSmartImage(topic, 'gardening');
-                if (fallbackImage?.url) {
-                  enhancedBlock.imageUrl = fallbackImage.url;
-                  enhancedBlock.altText = fallbackImage.alt || topic;
+              const contentForImage = (
+                enhancedBlock.body || 
+                enhancedBlock.content || 
+                topic
+              ).trim();
+              
+              const titleForImage = (
+                enhancedBlock.headline || 
+                enhancedBlock.title || 
+                topic
+              ).trim();
+              
+              // Use the enhanced service with exclusion tracking
+              const result = await imageGenerationService.fetchImageForChannel({
+                channel: 'newsletter',
+                contentContext: contentForImage,
+                contentTitle: titleForImage,
+                useAIKeywords: true,
+                fallbackKeywords: ['garden plants flowers', 'garden center', topic.toLowerCase()],
+                excludeImageIds: Array.from(usedImageIds)
+              });
+              
+              if (result?.imageUrl) {
+                enhancedBlock.imageUrl = result.imageUrl;
+                enhancedBlock.imageId = result.imageId;
+                enhancedBlock.altText = result.metadata?.usedQuery || titleForImage;
+                
+                // Add to used images set
+                if (result.imageId) {
+                  setUsedImageIds(prev => new Set([...prev, result.imageId!]));
+                  console.log(`🔒 Locked image ${result.imageId} (now ${usedImageIds.size + 1} used)`);
                 }
               }
             } catch (error) {
-              console.warn('Failed to fetch image for block:', error);
+              console.warn('Failed to fetch unique image for block:', error);
             }
           }
 
@@ -170,6 +191,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
     setLayout('block-builder');
     setTone('professional');
     setCustomInstructions('');
+    setUsedImageIds(new Set());
   };
 
   const handleClose = (open: boolean) => {
