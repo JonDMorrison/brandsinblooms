@@ -1,9 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { initUptrace, captureException, softFail, startSpan, endSpan } from "../_shared/uptrace.ts";
-
-// Initialize Uptrace
-initUptrace("watchdog");
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -11,8 +7,6 @@ const supabaseAdmin = createClient(
 )
 
 async function handler(req: Request): Promise<Response> {
-  const span = startSpan("watchdog-handler");
-  
   try {
     console.log('[WATCHDOG] Starting watchdog check...');
     
@@ -39,7 +33,7 @@ async function handler(req: Request): Promise<Response> {
       for (const task of stuckTasks) {
         const ageMinutes = Math.floor((Date.now() - new Date(task.created_at).getTime()) / (1000 * 60));
         
-        softFail("content_stuck_no_output", { 
+        console.warn('[WARNING] Content stuck without output:', { 
           taskId: task.id,
           ageMinutes,
           postType: task.post_type,
@@ -78,7 +72,7 @@ async function handler(req: Request): Promise<Response> {
       for (const post of overduePosts) {
         const delayMinutes = Math.floor((Date.now() - new Date(post.publish_at).getTime()) / (1000 * 60));
         
-        softFail("scheduled_post_overdue", { 
+        console.warn('[WARNING] Scheduled post overdue:', { 
           postId: post.id,
           contentId: post.content_id,
           platform: post.platform,
@@ -120,7 +114,6 @@ async function handler(req: Request): Promise<Response> {
 
   } catch (error) {
     console.error('[WATCHDOG] Watchdog error:', error);
-    captureException(error, { functionName: "watchdog" });
     return new Response(
       JSON.stringify({ error: 'Watchdog failed', details: error.message }),
       { 
@@ -128,8 +121,6 @@ async function handler(req: Request): Promise<Response> {
         headers: { 'Content-Type': 'application/json' } 
       }
     );
-  } finally {
-    endSpan(span);
   }
 }
 

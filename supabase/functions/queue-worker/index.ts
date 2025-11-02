@@ -1,9 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { initUptrace, captureException, softFail, startSpan, endSpan } from "../_shared/uptrace.ts";
-
-// Initialize Uptrace
-initUptrace("queue-worker");
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -96,7 +92,7 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
   const createResult = await createResponse.json()
   
   if (!createResponse.ok || !createResult.id) {
-    softFail("publish_no_media_container_created", { 
+    console.warn('[WARNING] Failed to create media container:', { 
       accountId,
       mediaUrl: mediaParams.image_url || mediaParams.video_url,
       isReel,
@@ -126,13 +122,6 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
 }
 
 async function handler(req: Request): Promise<Response> {
-  const span = startSpan("queue-worker-handler");
-  
-  // Test error endpoint for Uptrace verification  
-  const url = new URL(req.url);
-  if (url.searchParams.get('testError') === '1') {
-    throw new Error('Test error from queue-worker edge function - Uptrace should capture this!');
-  }
 
   try {
     console.log('Queue worker starting...')
@@ -245,7 +234,7 @@ async function handler(req: Request): Promise<Response> {
         const isMaxRetries = retryCount >= 3
         
         if (isMaxRetries) {
-          softFail("publish_retry_exhausted", { 
+          console.warn('[WARNING] Publish retry exhausted:', { 
             postId: post.id,
             platform: post.platform,
             lastError: error.message,
@@ -268,10 +257,7 @@ async function handler(req: Request): Promise<Response> {
 
   } catch (error) {
     console.error('Queue worker error:', error)
-    captureException(error, { functionName: "queue-worker" });
     return new Response('Worker error', { status: 500 })
-  } finally {
-    endSpan(span);
   }
 }
 
