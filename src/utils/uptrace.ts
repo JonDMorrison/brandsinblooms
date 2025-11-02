@@ -4,7 +4,8 @@
  */
 
 import Uptrace from '@uptrace/web';
-import { trace, SpanStatusCode } from '@opentelemetry/api';
+import { trace, SpanStatusCode, diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
+import { getWebAutoInstrumentations } from '@opentelemetry/auto-instrumentations-web';
 
 let sdk: ReturnType<typeof Uptrace.configureOpentelemetry> | null = null;
 
@@ -21,21 +22,49 @@ export function initUptrace() {
   }
 
   if (sdk) {
+    console.log('Uptrace already initialized');
     return; // Already initialized
   }
 
   try {
+    // Enable debug logging for OpenTelemetry (only in development)
+    if (import.meta.env.DEV) {
+      diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
+      console.log('[Uptrace] Debug logging enabled');
+    }
+
+    console.log('[Uptrace] Initializing with DSN:', uptraceDsn.split('@')[0] + '@***');
+    
     // Configure OpenTelemetry with Uptrace
     sdk = Uptrace.configureOpentelemetry({
       dsn: uptraceDsn,
       serviceName: 'bloomsuite-frontend',
       serviceVersion: '1.0.0',
       deploymentEnvironment: import.meta.env.MODE || 'production',
+      
+      // Add automatic instrumentations for browser
+      instrumentations: [
+        getWebAutoInstrumentations({
+          // Track fetch requests
+          '@opentelemetry/instrumentation-fetch': {
+            propagateTraceHeaderCorsUrls: /.+/g,
+            clearTimingResources: true,
+          },
+          // Track XHR requests
+          '@opentelemetry/instrumentation-xml-http-request': {
+            propagateTraceHeaderCorsUrls: /.+/g,
+          },
+          // Track document load events
+          '@opentelemetry/instrumentation-document-load': {},
+        }),
+      ],
     });
 
-    console.log('Uptrace frontend initialized');
+    console.log('[Uptrace] SDK configured, starting...');
+    sdk.start();
+    console.log('[Uptrace] ✅ Frontend telemetry initialized successfully');
   } catch (error) {
-    console.error('Failed to initialize Uptrace:', error);
+    console.error('[Uptrace] ❌ Failed to initialize:', error);
   }
 }
 
