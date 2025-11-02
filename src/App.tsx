@@ -12,9 +12,7 @@ import { SmartRootRoute } from '@/components/SmartRootRoute';
 import { DataProviderWrapper } from '@/components/DataProviderWrapper';
 import { RedirectWithQuery } from '@/components/RedirectWithQuery';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
-import { useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
-import { startTransaction, endTransaction } from '@/utils/uptrace';
+import { NavigationTracker } from '@/components/NavigationTracker';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import { CRMAutomationBuilderPage } from '@/pages/crm/CRMAutomationBuilderPage';
 import { CRMAutomationGuidePage } from '@/pages/crm/CRMAutomationGuidePage';
@@ -73,29 +71,10 @@ import { SavedBlocksPage } from '@/pages/crm/SavedBlocksPage';
 import ConfirmSubscription from '@/pages/ConfirmSubscription';
 
 function App() {
-  const location = useLocation();
-
-  // Track navigation for performance monitoring
-  useEffect(() => {
-    const transaction = startTransaction(`page.navigation.${location.pathname}`, 'navigation');
-    
-    const timer = setTimeout(() => {
-      if (transaction) {
-        endTransaction(transaction);
-      }
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-      if (transaction) {
-        endTransaction(transaction);
-      }
-    };
-  }, [location.pathname]);
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <ErrorBoundary>
+        <NavigationTracker />
         <Routes>
           {/* Public routes */}
           <Route path="/auth" element={
