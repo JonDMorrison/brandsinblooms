@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { withTrace, logError } from '../_shared/uptrace.ts'
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -8,130 +7,124 @@ const supabaseAdmin = createClient(
 )
 
 async function refreshTokenIfNeeded(connection: any) {
-  return await withTrace('refresh-token', async () => {
-    if (!connection.expires_at) return connection.access_token
-    
-    const expiresAt = new Date(connection.expires_at)
-    const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    
-    if (expiresAt > sevenDaysFromNow) {
-      return connection.access_token
-    }
+  if (!connection.expires_at) return connection.access_token
+  
+  const expiresAt = new Date(connection.expires_at)
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  
+  if (expiresAt > sevenDaysFromNow) {
+    return connection.access_token
+  }
 
-    console.log(`Refreshing token for connection ${connection.id}`)
+  console.log(`Refreshing token for connection ${connection.id}`)
+  
+  const refreshUrl = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${Deno.env.get('FB_CLIENT_ID')}&client_secret=${Deno.env.get('FB_CLIENT_SECRET')}&fb_exchange_token=${connection.access_token}`
+  
+  const response = await fetch(refreshUrl)
+  const data = await response.json()
+  
+  if (data.access_token) {
+    const newExpiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000)
     
-    const refreshUrl = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${Deno.env.get('FB_CLIENT_ID')}&client_secret=${Deno.env.get('FB_CLIENT_SECRET')}&fb_exchange_token=${connection.access_token}`
+    await supabaseAdmin
+      .from('social_connections')
+      .update({
+        access_token: data.access_token,
+        expires_at: newExpiresAt.toISOString()
+      })
+      .eq('id', connection.id)
     
-    const response = await fetch(refreshUrl)
-    const data = await response.json()
-    
-    if (data.access_token) {
-      const newExpiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000)
-      
-      await supabaseAdmin
-        .from('social_connections')
-        .update({
-          access_token: data.access_token,
-          expires_at: newExpiresAt.toISOString()
-        })
-        .eq('id', connection.id)
-      
-      return data.access_token
-    }
-    
-    throw new Error('Failed to refresh token')
-  }, { connection_id: connection.id })
+    return data.access_token
+  }
+  
+  throw new Error('Failed to refresh token')
 }
 
 async function publishToFacebook(pageId: string, accessToken: string, caption: string, mediaUrl?: string) {
-  return await withTrace('publish-facebook', async () => {
-    const url = `https://graph.facebook.com/v19.0/${pageId}/feed`
-    const formData = new FormData()
-    formData.append('message', caption)
-    formData.append('access_token', accessToken)
-    
-    if (mediaUrl) {
-      formData.append('link', mediaUrl)
-    }
+  const url = `https://graph.facebook.com/v19.0/${pageId}/feed`
+  const formData = new FormData()
+  formData.append('message', caption)
+  formData.append('access_token', accessToken)
+  
+  if (mediaUrl) {
+    formData.append('link', mediaUrl)
+  }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData
-    })
+  const response = await fetch(url, {
+    method: 'POST',
+    body: formData
+  })
 
-    const result = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(result.error?.message || 'Facebook API error')
-    }
-    
-    return result.id
-  }, { page_id: pageId, has_media: !!mediaUrl })
+  const result = await response.json()
+  
+  if (!response.ok) {
+    throw new Error(result.error?.message || 'Facebook API error')
+  }
+  
+  return result.id
 }
 
 async function publishToInstagram(accountId: string, accessToken: string, caption: string, mediaUrl?: string, isReel = false) {
-  return await withTrace('publish-instagram', async () => {
-    if (!mediaUrl) {
-      throw new Error('Instagram posts require media')
-    }
+  if (!mediaUrl) {
+    throw new Error('Instagram posts require media')
+  }
 
-    // Create media container
-    const createMediaUrl = `https://graph.facebook.com/v19.0/${accountId}/media`
-    const mediaParams: any = {
-      caption: caption,
+  // Create media container
+  const createMediaUrl = `https://graph.facebook.com/v19.0/${accountId}/media`
+  const mediaParams: any = {
+    caption: caption,
+    access_token: accessToken
+  }
+
+  if (isReel) {
+    mediaParams.media_type = 'REELS'
+    mediaParams.video_url = mediaUrl
+  } else {
+    mediaParams.image_url = mediaUrl
+  }
+
+  const createResponse = await fetch(createMediaUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(mediaParams)
+  })
+
+  const createResult = await createResponse.json()
+  
+  if (!createResponse.ok || !createResult.id) {
+    console.warn('[WARNING] Failed to create media container:', { 
+      accountId,
+      mediaUrl: mediaParams.image_url || mediaParams.video_url,
+      isReel,
+      error: createResult.error?.message || 'No container ID returned'
+    });
+    throw new Error(createResult.error?.message || 'Instagram media creation failed')
+  }
+
+  // Publish media
+  const publishUrl = `https://graph.facebook.com/v19.0/${accountId}/media_publish`
+  const publishResponse = await fetch(publishUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      creation_id: createResult.id,
       access_token: accessToken
-    }
-
-    if (isReel) {
-      mediaParams.media_type = 'REELS'
-      mediaParams.video_url = mediaUrl
-    } else {
-      mediaParams.image_url = mediaUrl
-    }
-
-    const createResponse = await fetch(createMediaUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(mediaParams)
     })
+  })
 
-    const createResult = await createResponse.json()
-    
-    if (!createResponse.ok || !createResult.id) {
-      console.warn('[WARNING] Failed to create media container:', { 
-        accountId,
-        mediaUrl: mediaParams.image_url || mediaParams.video_url,
-        isReel,
-        error: createResult.error?.message || 'No container ID returned'
-      });
-      throw new Error(createResult.error?.message || 'Instagram media creation failed')
-    }
-
-    // Publish media
-    const publishUrl = `https://graph.facebook.com/v19.0/${accountId}/media_publish`
-    const publishResponse = await fetch(publishUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        creation_id: createResult.id,
-        access_token: accessToken
-      })
-    })
-
-    const publishResult = await publishResponse.json()
-    
-    if (!publishResponse.ok) {
-      throw new Error(publishResult.error?.message || 'Instagram publish failed')
-    }
-    
-    return publishResult.id
-  }, { account_id: accountId, is_reel: isReel })
+  const publishResult = await publishResponse.json()
+  
+  if (!publishResponse.ok) {
+    throw new Error(publishResult.error?.message || 'Instagram publish failed')
+  }
+  
+  return publishResult.id
 }
 
 async function handler(req: Request): Promise<Response> {
-  return await withTrace('queue-worker', async () => {
-    try {
-      console.log('Queue worker starting...')
+
+  try {
+    console.log('Queue worker starting...')
       
       // Get posts that are ready to publish - ONLY AUTO mode posts
       const { data: scheduledPosts, error: fetchError } = await supabaseAdmin
@@ -237,11 +230,6 @@ async function handler(req: Request): Promise<Response> {
         } catch (error) {
           console.error(`Error processing AUTO mode post ${post.id}:`, error)
           
-          await logError('process-post', error, {
-            post_id: post.id,
-            platform: post.platform,
-          })
-          
           const retryCount = (post.retry_count || 0) + 1
           const isMaxRetries = retryCount >= 3
           
@@ -267,12 +255,10 @@ async function handler(req: Request): Promise<Response> {
 
       return new Response(`Processed ${scheduledPosts.length} AUTO mode posts`, { status: 200 })
 
-    } catch (error) {
-      console.error('Queue worker error:', error)
-      await logError('queue-worker', error)
-      return new Response('Worker error', { status: 500 })
-    }
-  })
+  } catch (error) {
+    console.error('Queue worker error:', error)
+    return new Response('Worker error', { status: 500 })
+  }
 }
 
 Deno.serve(handler);
