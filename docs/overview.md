@@ -11,7 +11,7 @@ A comprehensive social media management and marketing platform that enables busi
 - **Routing**: React Router DOM
 - **Testing**: Vitest + Testing Library + Playwright
 - **Analytics**: Vercel Analytics
-- **Error Tracking**: Sentry
+- **Error Tracking**: Uptrace (self-hosted at https://traces.feuzion.com)
 
 ## Core Architecture
 
@@ -121,7 +121,8 @@ src/
 - **Caching Layers**: Multiple levels of caching
 
 ## Monitoring & Observability
-- **Error Tracking**: Sentry integration
+- **Error Tracking**: Uptrace integration with OpenTelemetry
+- **Distributed Tracing**: Full request tracing from frontend to backend
 - **Performance Monitoring**: Vercel Analytics
 - **Database Monitoring**: Supabase dashboard
 - **User Analytics**: Custom event tracking

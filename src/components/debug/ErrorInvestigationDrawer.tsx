@@ -18,7 +18,9 @@ import {
   Zap
 } from 'lucide-react';
 
-interface SentryError {
+// Uptrace-compatible error interface
+// Works with Uptrace's error data structure which follows OpenTelemetry standards
+interface UptraceError {
   id: string;
   title: string;
   description: string;
@@ -37,7 +39,7 @@ interface SentryError {
 import { formatDistanceToNow } from 'date-fns';
 
 interface ErrorInvestigationDrawerProps {
-  error: SentryError | null;
+  error: UptraceError | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -113,7 +115,7 @@ export const ErrorInvestigationDrawer: React.FC<ErrorInvestigationDrawerProps> =
 }) => {
   if (!error) return null;
 
-  const getQuickFixes = (error: SentryError) => {
+  const getQuickFixes = (error: UptraceError) => {
     const fixes = [];
 
     if (error.errorType.includes('TypeError')) {
@@ -255,7 +257,7 @@ export const ErrorInvestigationDrawer: React.FC<ErrorInvestigationDrawerProps> =
               onClick={() => window.open(error.permalink, '_blank')}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
-              View in Sentry
+              View in Uptrace
             </Button>
           </div>
         </div>

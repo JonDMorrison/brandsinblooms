@@ -48,8 +48,8 @@ VITE_SUPABASE_ANON_KEY=your_anon_key
 NODE_ENV=development
 VITE_DEBUG_MODE=true
 
-# Optional: Sentry (for error tracking)
-VITE_SENTRY_DSN=your_sentry_dsn
+# Optional: Uptrace (for error tracking and distributed tracing)
+VITE_UPTRACE_DSN=https://PROJECT_KEY@traces.feuzion.com/PROJECT_ID
 
 # Optional: Vercel Analytics
 VITE_VERCEL_ANALYTICS_ID=your_analytics_id

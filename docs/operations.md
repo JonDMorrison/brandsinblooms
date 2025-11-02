@@ -50,7 +50,7 @@ NODE_ENV=production
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_VERCEL_ANALYTICS_ID=your-analytics-id
-VITE_SENTRY_DSN=your-sentry-dsn
+VITE_UPTRACE_DSN=https://PROJECT_KEY@traces.feuzion.com/PROJECT_ID
 VITE_APP_VERSION=1.0.0
 ```
 
@@ -69,7 +69,7 @@ export const features = {
 ## Monitoring & Observability
 
 ### Application Monitoring
-- **Error Tracking**: Sentry for error monitoring and alerting
+- **Error Tracking**: Uptrace for error monitoring, distributed tracing, and alerting (https://traces.feuzion.com)
 - **Performance Monitoring**: Vercel Analytics for Core Web Vitals
 - **User Analytics**: Custom event tracking for user behavior
 - **Uptime Monitoring**: Automated health checks

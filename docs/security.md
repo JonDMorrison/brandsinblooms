@@ -106,7 +106,8 @@ WITH CHECK (bucket_id = 'media-mms' AND auth.uid()::text = (storage.foldername(n
 - **Penetration Testing**: Regular security assessments
 
 ### Incident Response
-- **Error Monitoring**: Sentry for error tracking
+- **Error Monitoring**: Uptrace for error tracking, distributed tracing, and performance monitoring
+- **Self-Hosted**: No third-party data sharing - all monitoring data stays on our infrastructure
 - **Audit Logging**: Database triggers for sensitive operations
 - **Backup Strategy**: Regular automated backups
 
