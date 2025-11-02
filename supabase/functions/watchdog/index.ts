@@ -114,6 +114,15 @@ async function handler(req: Request): Promise<Response> {
 
   } catch (error) {
     console.error('[WATCHDOG] Watchdog error:', error);
+    
+    // Log to Uptrace
+    try {
+      const { logError } = await import('../_shared/uptrace.ts');
+      await logError(error, 'watchdog-critical');
+    } catch (e) {
+      console.error('[WATCHDOG] Failed to log to Uptrace:', e);
+    }
+    
     return new Response(
       JSON.stringify({ error: 'Watchdog failed', details: error.message }),
       { 

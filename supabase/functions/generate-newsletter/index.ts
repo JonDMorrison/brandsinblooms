@@ -61,6 +61,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in generate-newsletter function:', error);
+    
+    // Log to Uptrace
+    try {
+      const { logError } = await import('../_shared/uptrace.ts');
+      await logError(error, 'generate-newsletter-critical');
+    } catch (e) {
+      console.error('[Newsletter] Failed to log to Uptrace:', e);
+    }
+    
     return new Response(JSON.stringify({ 
       error: error.message,
       details: error.stack
