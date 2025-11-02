@@ -1,6 +1,7 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { captureException } from '@/utils/uptrace';
 
 interface Props {
   children: ReactNode;
@@ -22,6 +23,10 @@ export class DashboardErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Dashboard Error Boundary caught an error:', error, errorInfo);
+    captureException(error, { 
+      componentStack: errorInfo.componentStack,
+      context: 'DashboardErrorBoundary' 
+    });
   }
 
   public render() {

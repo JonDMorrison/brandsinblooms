@@ -1,16 +1,9 @@
-import * as Sentry from "https://esm.sh/@sentry/deno@8.55.0";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { initUptrace, captureException, softFail, startSpan, endSpan } from "../_shared/uptrace.ts";
 
-// Initialize Sentry
-Sentry.init({
-  dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
-  environment: Deno.env.get("ENV") ?? "production",
-});
-
-function softFail(code: string, context: Record<string, unknown> = {}) {
-  Sentry.captureMessage(`[soft-fail] ${code}`, { level: "warning", extra: context });
-}
+// Initialize Uptrace
+initUptrace("watchdog");
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -18,6 +11,8 @@ const supabaseAdmin = createClient(
 )
 
 async function handler(req: Request): Promise<Response> {
+  const span = startSpan("watchdog-handler");
+  
   try {
     console.log('[WATCHDOG] Starting watchdog check...');
     
@@ -125,7 +120,7 @@ async function handler(req: Request): Promise<Response> {
 
   } catch (error) {
     console.error('[WATCHDOG] Watchdog error:', error);
-    Sentry.captureException(error);
+    captureException(error, { functionName: "watchdog" });
     return new Response(
       JSON.stringify({ error: 'Watchdog failed', details: error.message }),
       { 
@@ -133,6 +128,8 @@ async function handler(req: Request): Promise<Response> {
         headers: { 'Content-Type': 'application/json' } 
       }
     );
+  } finally {
+    endSpan(span);
   }
 }
 

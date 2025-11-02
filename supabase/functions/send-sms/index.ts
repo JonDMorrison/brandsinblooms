@@ -1,13 +1,10 @@
-import * as Sentry from "https://esm.sh/@sentry/deno@8.55.0";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { initUptrace, captureException, startSpan, endSpan } from "../_shared/uptrace.ts";
 
-// Initialize Sentry
-Sentry.init({
-  dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
-  environment: Deno.env.get("ENV") ?? "production",
-});
+// Initialize Uptrace
+initUptrace("send-sms");
 
 /**
  * Format phone number to E.164 format for Twilio
@@ -44,15 +41,18 @@ const corsHeaders = {
 };
 
 async function handler(req: Request): Promise<Response> {
+  const span = startSpan("send-sms-handler");
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    endSpan(span);
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Test error endpoint for Sentry verification
+  // Test error endpoint for Uptrace verification
   const url = new URL(req.url);
   if (url.searchParams.get('testError') === '1') {
-    throw new Error('Test error from send-sms edge function - Sentry should capture this!');
+    throw new Error('Test error from send-sms edge function - Uptrace should capture this!');
   }
 
   try {
@@ -186,7 +186,7 @@ async function handler(req: Request): Promise<Response> {
 
   } catch (error) {
     console.error('Error in send-sms function:', error);
-    Sentry.captureException(error);
+    captureException(error, { functionName: "send-sms", requestUrl: req.url });
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
@@ -197,6 +197,8 @@ async function handler(req: Request): Promise<Response> {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
+  } finally {
+    endSpan(span);
   }
 }
 

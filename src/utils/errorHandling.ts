@@ -1,5 +1,5 @@
-
 // Removed sonner import - using global toast replacement
+import { captureException as uptraceException, captureMessage } from './uptrace'
 
 export interface AppError {
   message: string;
@@ -37,6 +37,14 @@ export const handleError = (error: any, context: string): AppError => {
       isNetworkError: appError.isNetworkError,
       originalError: error
     });
+  }
+
+  // Send critical errors to Uptrace
+  if (appError.code === 'UNAUTHORIZED' || 
+      appError.code === 'PAYMENT_REQUIRED' ||
+      appError.message.includes('OpenAI API key not configured') ||
+      (appError.message.includes('Content generation failed') && context.includes('critical'))) {
+    uptraceException(error, { context, errorCode: appError.code, isNetworkError: appError.isNetworkError });
   }
 
   // Only show toasts for critical errors that require user action

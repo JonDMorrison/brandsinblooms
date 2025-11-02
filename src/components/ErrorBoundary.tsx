@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { captureException } from '@/utils/uptrace';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -26,6 +26,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    captureException(error, { 
+      componentStack: errorInfo.componentStack,
+      context: 'ErrorBoundary' 
+    });
   }
 
   resetError = () => {

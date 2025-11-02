@@ -1,16 +1,9 @@
-import * as Sentry from "https://esm.sh/@sentry/deno@8.55.0";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { initUptrace, captureException, softFail, startSpan, endSpan } from "../_shared/uptrace.ts";
 
-function softFail(code: string, context: Record<string, unknown> = {}) {
-  Sentry.captureMessage(`[soft-fail] ${code}`, { level: "warning", extra: context });
-}
-
-// Initialize Sentry
-Sentry.init({
-  dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
-  environment: Deno.env.get("ENV") ?? "production",
-});
+// Initialize Uptrace
+initUptrace("publish-task");
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,17 +27,20 @@ function mapPlatformToEnum(platform: string): "FB" | "IG_FEED" | "IG_REEL" {
 }
 
 async function handler(req: Request): Promise<Response> {
+  const span = startSpan("publish-task-handler");
+  
   if (req.method === 'OPTIONS') {
+    endSpan(span);
     return new Response(null, { headers: corsHeaders });
   }
 
   console.log('[PUBLISH-TASK] Function invoked');
   
-  // Test error endpoint for Sentry verification
+  // Test error endpoint for Uptrace verification
   const url = new URL(req.url);
   if (url.searchParams.get('testError') === '1') {
-    console.log('[PUBLISH-TASK] Triggering test error for Sentry');
-    throw new Error('Test error from publish-task edge function - Sentry should capture this!');
+    console.log('[PUBLISH-TASK] Triggering test error for Uptrace');
+    throw new Error('Test error from publish-task edge function - Uptrace should capture this!');
   }
 
   try {
@@ -238,7 +234,7 @@ async function handler(req: Request): Promise<Response> {
 
   } catch (error) {
     console.error('[PUBLISH-TASK] Error processing task:', error);
-    Sentry.captureException(error);
+    captureException(error, { functionName: "publish-task", requestUrl: req.url });
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
@@ -249,6 +245,8 @@ async function handler(req: Request): Promise<Response> {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
+  } finally {
+    endSpan(span);
   }
 }
 

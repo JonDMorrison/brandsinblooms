@@ -1,17 +1,9 @@
-
-import * as Sentry from "https://esm.sh/@sentry/deno@8.55.0";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { initUptrace, captureException, softFail, startSpan, endSpan } from "../_shared/uptrace.ts";
 
-function softFail(code: string, context: Record<string, unknown> = {}) {
-  Sentry.captureMessage(`[soft-fail] ${code}`, { level: "warning", extra: context });
-}
-
-// Initialize Sentry
-Sentry.init({
-  dsn: Deno.env.get("SENTRY_DSN_BACKEND"),
-  environment: Deno.env.get("ENV") ?? "production",
-});
+// Initialize Uptrace
+initUptrace("queue-worker");
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -134,10 +126,12 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
 }
 
 async function handler(req: Request): Promise<Response> {
-  // Test error endpoint for Sentry verification  
+  const span = startSpan("queue-worker-handler");
+  
+  // Test error endpoint for Uptrace verification  
   const url = new URL(req.url);
   if (url.searchParams.get('testError') === '1') {
-    throw new Error('Test error from queue-worker edge function - Sentry should capture this!');
+    throw new Error('Test error from queue-worker edge function - Uptrace should capture this!');
   }
 
   try {
@@ -274,8 +268,10 @@ async function handler(req: Request): Promise<Response> {
 
   } catch (error) {
     console.error('Queue worker error:', error)
-    Sentry.captureException(error);
+    captureException(error, { functionName: "queue-worker" });
     return new Response('Worker error', { status: 500 })
+  } finally {
+    endSpan(span);
   }
 }
 
