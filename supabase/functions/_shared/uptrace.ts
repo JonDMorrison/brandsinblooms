@@ -30,9 +30,11 @@ export function initUptrace(serviceName: string) {
   try {
     // Parse DSN to extract endpoint
     // Format: https://PROJECT_KEY@traces.feuzion.com/PROJECT_ID
-    const [credentials, rest] = uptraceUrl.replace("https://", "").split("@");
-    const [host, projectPath] = rest.split("/");
-    const endpoint = `https://${host}/api/v1/traces`;
+    const protocol = uptraceUrl.startsWith("https://") ? "https" : "http";
+const uptraceUrlClean = uptraceUrl.replace(/^https?:\/\//, "");
+const [credentials, hostWithParams] = uptraceUrlClean.split("@");
+const host = hostWithParams.split("?")[0].split("/")[0];
+const endpoint = `${protocol}://${host}/api/v1/traces`;
 
     // Configure exporter with Uptrace endpoint
     const exporter = new OTLPTraceExporter({
