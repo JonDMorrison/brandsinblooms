@@ -11,8 +11,10 @@ import { AuthPage } from '@/components/auth/AuthPage';
 import { SmartRootRoute } from '@/components/SmartRootRoute';
 import { DataProviderWrapper } from '@/components/DataProviderWrapper';
 import { RedirectWithQuery } from '@/components/RedirectWithQuery';
-import { useNavigationTracking } from '@/hooks/useNavigationTracking';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
+import { useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { startTransaction, endTransaction } from '@/utils/uptrace';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import { CRMAutomationBuilderPage } from '@/pages/crm/CRMAutomationBuilderPage';
 import { CRMAutomationGuidePage } from '@/pages/crm/CRMAutomationGuidePage';
@@ -71,8 +73,25 @@ import { SavedBlocksPage } from '@/pages/crm/SavedBlocksPage';
 import ConfirmSubscription from '@/pages/ConfirmSubscription';
 
 function App() {
+  const location = useLocation();
+
   // Track navigation for performance monitoring
-  useNavigationTracking();
+  useEffect(() => {
+    const transaction = startTransaction(`page.navigation.${location.pathname}`, 'navigation');
+    
+    const timer = setTimeout(() => {
+      if (transaction) {
+        endTransaction(transaction);
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      if (transaction) {
+        endTransaction(transaction);
+      }
+    };
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
