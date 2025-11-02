@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
+import { withTrace, logError } from '../_shared/uptrace.ts'
 
 interface TwilioConfig {
   accountSid: string
@@ -39,53 +40,56 @@ function formatPhoneForTwilio(phone: string): string {
 }
 
 async function sendSMS(config: TwilioConfig, to: string, body: string, mediaUrl?: string, fromPhone?: string) {
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`
-  
-  const formData = new FormData()
-  
-  // Use Messaging Service SID for A2P 10DLC compliance (preferred)
-  if (config.messagingServiceSid) {
-    formData.append('MessagingServiceSid', config.messagingServiceSid)
-    console.log('Using Messaging Service SID for A2P 10DLC compliance')
-  } else {
-    // Fallback to From phone number (legacy mode)
-    const selectedFromPhone = fromPhone 
-      ? formatPhoneForTwilio(fromPhone) 
-      : formatPhoneForTwilio(config.phoneNumber);
-    formData.append('From', selectedFromPhone)
-    console.log('Using From phone number (legacy mode)')
-  }
-  
-  formData.append('To', to)
-  formData.append('Body', body)
-  
-  if (mediaUrl) {
-    formData.append('MediaUrl', mediaUrl)
-  }
-  
-  // Add status callback URL for delivery tracking
-  if (config.statusCallbackUrl) {
-    formData.append('StatusCallback', config.statusCallbackUrl)
-    console.log('Status callback configured for delivery tracking')
-  }
+  return await withTrace('send-sms-twilio', async () => {
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`
+    
+    const formData = new FormData()
+    
+    // Use Messaging Service SID for A2P 10DLC compliance (preferred)
+    if (config.messagingServiceSid) {
+      formData.append('MessagingServiceSid', config.messagingServiceSid)
+      console.log('Using Messaging Service SID for A2P 10DLC compliance')
+    } else {
+      // Fallback to From phone number (legacy mode)
+      const selectedFromPhone = fromPhone 
+        ? formatPhoneForTwilio(fromPhone) 
+        : formatPhoneForTwilio(config.phoneNumber);
+      formData.append('From', selectedFromPhone)
+      console.log('Using From phone number (legacy mode)')
+    }
+    
+    formData.append('To', to)
+    formData.append('Body', body)
+    
+    if (mediaUrl) {
+      formData.append('MediaUrl', mediaUrl)
+    }
+    
+    // Add status callback URL for delivery tracking
+    if (config.statusCallbackUrl) {
+      formData.append('StatusCallback', config.statusCallbackUrl)
+      console.log('Status callback configured for delivery tracking')
+    }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Basic ' + btoa(`${config.accountSid}:${config.authToken}`)
-    },
-    body: formData
-  })
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + btoa(`${config.accountSid}:${config.authToken}`)
+      },
+      body: formData
+    })
 
-  return response.json()
+    return response.json()
+  }, { to, has_media: !!mediaUrl })
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  const corsResponse = handleCorsPrelight(req);
-  if (corsResponse) return corsResponse;
+  return await withTrace('sms-queue-worker', async () => {
+    // Handle CORS preflight requests
+    const corsResponse = handleCorsPrelight(req);
+    if (corsResponse) return corsResponse;
 
-  try {
+    try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -172,6 +176,7 @@ Deno.serve(async (req) => {
         processed++
       } catch (error) {
         console.error(`Error processing SMS ${message.id}:`, error)
+        await logError('sms-send-failed', error, { message_id: message.id })
         
         // Mark as failed
         await supabase
@@ -198,12 +203,14 @@ Deno.serve(async (req) => {
       message: `Processed ${processed} SMS messages`
     })
 
-  } catch (error) {
-    console.error('SMS Queue Worker error:', error)
-    
-    return corsJsonResponse({
-      success: false,
-      error: error.message
-    }, { status: 500 })
-  }
+    } catch (error) {
+      console.error('SMS Queue Worker error:', error)
+      await logError('sms-queue-worker', error)
+      
+      return corsJsonResponse({
+        success: false,
+        error: error.message
+      }, { status: 500 })
+    }
+  })
 })

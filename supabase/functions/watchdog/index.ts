@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { withTrace, logError } from '../_shared/uptrace.ts'
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -7,8 +8,9 @@ const supabaseAdmin = createClient(
 )
 
 async function handler(req: Request): Promise<Response> {
-  try {
-    console.log('[WATCHDOG] Starting watchdog check...');
+  return await withTrace('watchdog-check', async () => {
+    try {
+      console.log('[WATCHDOG] Starting watchdog check...');
     
     let issuesFound = 0;
     
@@ -112,16 +114,18 @@ async function handler(req: Request): Promise<Response> {
       }
     );
 
-  } catch (error) {
-    console.error('[WATCHDOG] Watchdog error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Watchdog failed', details: error.message }),
-      { 
-        status: 500, 
-        headers: { 'Content-Type': 'application/json' } 
-      }
-    );
-  }
+    } catch (error) {
+      console.error('[WATCHDOG] Watchdog error:', error);
+      await logError('watchdog-check-failed', error)
+      return new Response(
+        JSON.stringify({ error: 'Watchdog failed', details: error.message }),
+        { 
+          status: 500, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+  })
 }
 
 Deno.serve(handler);

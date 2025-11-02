@@ -3,6 +3,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fetchCampaignContent } from './content-processor.ts';
+import { withTrace, logError } from '../_shared/uptrace.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,11 +11,12 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  return await withTrace('generate-newsletter', async () => {
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
 
-  try {
+    try {
     const { campaignId, userId } = await req.json();
     
     console.log('Newsletter generation request:', { campaignId, userId });
@@ -59,24 +61,27 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
-    console.error('Error in generate-newsletter function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      details: error.stack
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+    } catch (error) {
+      console.error('Error in generate-newsletter function:', error);
+      await logError('generate-newsletter', error)
+      return new Response(JSON.stringify({ 
+        error: error.message,
+        details: error.stack
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  })
 });
 
 // Cache for company profiles to avoid repeated DB calls
 let companyProfileCache = new Map();
 
 async function generateNewsletterFromTasks(tasks: any[], campaign: any) {
-  console.log('🚀 OPTIMIZED: Starting newsletter generation with cached profiles');
-  const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+  return await withTrace('openai-newsletter-generation', async () => {
+    console.log('🚀 OPTIMIZED: Starting newsletter generation with cached profiles');
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
   
   if (!openAIApiKey) {
     throw new Error('OpenAI API key not configured');
@@ -148,6 +153,7 @@ Format as a cohesive narrative newsletter with clear section transitions.  Ensur
     throw new Error(`OpenAI API error: ${response.statusText}`);
   }
 
-  const data = await response.json();
-  return data.choices[0]?.message?.content || 'Newsletter content could not be generated.';
+    const data = await response.json();
+    return data.choices[0]?.message?.content || 'Newsletter content could not be generated.';
+  }, { campaign_id: campaign?.id, task_count: tasks.length })
 }
