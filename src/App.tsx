@@ -11,6 +11,7 @@ import { AuthPage } from '@/components/auth/AuthPage';
 import { SmartRootRoute } from '@/components/SmartRootRoute';
 import { DataProviderWrapper } from '@/components/DataProviderWrapper';
 import { RedirectWithQuery } from '@/components/RedirectWithQuery';
+import { useNavigationTracking } from '@/hooks/useNavigationTracking';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import { CRMAutomationBuilderPage } from '@/pages/crm/CRMAutomationBuilderPage';
@@ -70,6 +71,9 @@ import { SavedBlocksPage } from '@/pages/crm/SavedBlocksPage';
 import ConfirmSubscription from '@/pages/ConfirmSubscription';
 
 function App() {
+  // Track navigation for performance monitoring
+  useNavigationTracking();
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <ErrorBoundary>

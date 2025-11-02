@@ -4,6 +4,7 @@
  */
 
 import Uptrace from '@uptrace/web';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 
 let sdk: ReturnType<typeof Uptrace.configureOpentelemetry> | null = null;
 
@@ -40,7 +41,7 @@ export function initUptrace() {
 
 /**
  * Capture an exception and send to Uptrace
- * Uses console.error for logging since Uptrace will pick it up automatically
+ * Uses OpenTelemetry tracer to properly record exceptions
  */
 export function captureException(error: Error, context?: Record<string, any>) {
   console.error('Exception captured:', error, context);
@@ -50,10 +51,23 @@ export function captureException(error: Error, context?: Record<string, any>) {
     return;
   }
 
-  // OpenTelemetry will automatically capture console.error calls
-  // Additional context can be added as structured data
-  if (context) {
-    console.error('Exception context:', JSON.stringify(context));
+  try {
+    // Get the global tracer from OpenTelemetry
+    const tracer = trace.getTracer('bloomsuite-frontend');
+    const span = tracer.startSpan('exception');
+    
+    span.recordException(error);
+    span.setAttributes({
+      'error.type': error.name || 'Error',
+      'error.message': error.message || String(error),
+      'error.stack': error.stack || '',
+      ...(context || {}),
+    });
+    
+    span.setStatus({ code: SpanStatusCode.ERROR });
+    span.end();
+  } catch (err) {
+    console.error('Failed to capture exception in Uptrace:', err);
   }
 }
 
@@ -76,7 +90,7 @@ export function captureMessage(
 
 /**
  * Set user context for error tracking
- * OpenTelemetry attributes will be added to spans
+ * Creates a span with user attributes for correlation
  */
 export function setUserContext(userId: string, email?: string, metadata?: Record<string, any>) {
   if (!sdk) {
@@ -84,15 +98,24 @@ export function setUserContext(userId: string, email?: string, metadata?: Record
   }
 
   try {
-    // Log user context for OpenTelemetry to capture
-    console.log('[User Context]', { userId, email, ...metadata });
+    const tracer = trace.getTracer('bloomsuite-frontend');
+    const span = tracer.startSpan('user.context');
+    
+    span.setAttributes({
+      'user.id': userId,
+      'user.email': email || '',
+      ...(metadata || {}),
+    });
+    
+    span.end();
+    console.log('[User Context Set]', { userId, email });
   } catch (err) {
     console.error('Failed to set user context:', err);
   }
 }
 
 /**
- * Start a performance transaction (simplified for OpenTelemetry)
+ * Start a performance transaction using OpenTelemetry spans
  */
 export function startTransaction(name: string, op?: string) {
   if (!sdk) {
@@ -100,8 +123,13 @@ export function startTransaction(name: string, op?: string) {
   }
 
   try {
+    const tracer = trace.getTracer('bloomsuite-frontend');
+    const span = tracer.startSpan(name, {
+      attributes: { 'transaction.op': op || 'navigation' }
+    });
+    
     console.log(`[Transaction Start] ${name}`, { op: op || 'navigation' });
-    return { name, startTime: Date.now() };
+    return { span, name, startTime: Date.now() };
   } catch (err) {
     console.error('Failed to start transaction:', err);
     return null;
@@ -109,7 +137,7 @@ export function startTransaction(name: string, op?: string) {
 }
 
 /**
- * Add breadcrumb for user actions
+ * Add breadcrumb for user actions using spans
  */
 export function addBreadcrumb(message: string, category?: string, data?: Record<string, any>) {
   if (!sdk) {
@@ -117,8 +145,35 @@ export function addBreadcrumb(message: string, category?: string, data?: Record<
   }
 
   try {
+    const tracer = trace.getTracer('bloomsuite-frontend');
+    const span = tracer.startSpan(`breadcrumb.${category || 'user-action'}`);
+    
+    span.setAttributes({
+      'breadcrumb.message': message,
+      'breadcrumb.category': category || 'user-action',
+      ...(data || {}),
+    });
+    
+    span.end();
     console.log(`[Breadcrumb] ${message}`, { category: category || 'user-action', ...data });
   } catch (err) {
     console.error('Failed to add breadcrumb:', err);
+  }
+}
+
+/**
+ * End a transaction span
+ */
+export function endTransaction(transaction: ReturnType<typeof startTransaction>) {
+  if (!transaction?.span) {
+    return;
+  }
+
+  try {
+    transaction.span.end();
+    const duration = Date.now() - transaction.startTime;
+    console.log(`[Transaction End] ${transaction.name} (${duration}ms)`);
+  } catch (err) {
+    console.error('Failed to end transaction:', err);
   }
 }
