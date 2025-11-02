@@ -8,6 +8,13 @@ const supabaseAdmin = createClient(
 
 async function handler(req: Request): Promise<Response> {
   try {
+    // Test endpoint for Uptrace logging
+    const url = new URL(req.url);
+    if (url.searchParams.get('test') === 'uptrace') {
+      console.log('[WATCHDOG] Testing Uptrace error logging...');
+      throw new Error('Test error for Uptrace logging verification');
+    }
+    
     console.log('[WATCHDOG] Starting watchdog check...');
     
     let issuesFound = 0;
