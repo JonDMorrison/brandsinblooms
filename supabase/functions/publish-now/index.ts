@@ -1,9 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { initUptrace, captureException, softFail, startSpan, endSpan } from "../_shared/uptrace.ts";
-
-// Initialize Uptrace
-initUptrace("publish-now");
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -61,7 +57,7 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
   const createResult = await createResponse.json()
   
   if (!createResponse.ok || !createResult.id) {
-    softFail("publish_no_media_container_created", { 
+    console.warn('Instagram media container creation failed', { 
       accountId,
       mediaUrl,
       error: createResult.error?.message || 'No container ID returned'
@@ -90,17 +86,8 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
 }
 
 async function handler(req: Request): Promise<Response> {
-  const span = startSpan("publish-now-handler");
-  
   if (req.method === 'OPTIONS') {
-    endSpan(span);
     return new Response('ok', { headers: corsHeaders })
-  }
-
-  // Test error endpoint for Uptrace verification
-  const url = new URL(req.url);
-  if (url.searchParams.get('testError') === '1') {
-    throw new Error('Test error from publish-now edge function - Uptrace should capture this!');
   }
 
   try {
@@ -233,13 +220,10 @@ async function handler(req: Request): Promise<Response> {
 
   } catch (error) {
     console.error('Error publishing now:', error)
-    captureException(error, { functionName: "publish-now", requestUrl: req.url });
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
-  } finally {
-    endSpan(span);
   }
 }
 
