@@ -92,6 +92,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({ isOpen, onCl
     // Navigate to newsletter builder with template data
     const params = new URLSearchParams({
       type: 'newsletter',
+      flow: 'template-picker',
       templateId: selectedIdea.id,
       layout: selectedLayout,
       source: 'picker',

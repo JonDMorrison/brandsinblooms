@@ -535,6 +535,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     showPreview: boolean;
     selectedPersonas: any[];
     selectedSegments: any[];
+    flow?: string;
   }>({
     key: `campaign_creator_${campaignSlug || 'new'}`,
     ttl: 2 * 60 * 60 * 1000, // 2 hours for campaign data
@@ -547,7 +548,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         blocks,
         showPreview,
         selectedPersonas,
-        selectedSegments
+        selectedSegments,
+        flow: searchParams.get('flow') || undefined
       });
     }
   });
@@ -1343,6 +1345,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   useEffect(() => {
     const type = searchParams.get('type');
     if (type !== 'newsletter') return;
+    
+    // Skip if template-picker flow is active
+    if (searchParams.get('flow') === 'template-picker') return;
+    
     if (!bundleIdParam) return;
     if (bundleQuery.isLoading || !bundleQuery.data) return;
 
@@ -1414,6 +1420,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   useEffect(() => {
     const type = searchParams.get('type');
     if (type !== 'newsletter') return;
+    
+    // Skip if template-picker flow is active
+    if (searchParams.get('flow') === 'template-picker') return;
+    
     if (bundleIdParam) return; // Skip if bundleId is available (higher priority)
     if (!finalContentTaskId) return;
 
@@ -1500,7 +1510,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       const hasTemplateId = searchParams.get('templateId');
       const hasBundleId = searchParams.get('bundleId');
       const hasPrefillData = searchParams.get('prefillData');
-      const isFreshStart = campaignSlug === 'new' && !hasTemplateId && !hasBundleId && !hasPrefillData && !finalContentTaskId;
+      const hasTemplatePickerFlow = searchParams.get('flow') === 'template-picker';
+      const isFreshStart = campaignSlug === 'new' && !hasTemplateId && !hasBundleId && !hasPrefillData && !finalContentTaskId && !hasTemplatePickerFlow;
       
       if (isFreshStart) {
         console.log('🆕 Fresh campaign start detected - skipping persistence restoration to start blank');
@@ -1514,6 +1525,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           setPreheaderText(persistedState.preheaderText);
           setBlocks(persistedState.blocks);
           setShowPreview(persistedState.showPreview);
+          
+          // Restore flow parameter if persisted
+          if (persistedState.flow && !searchParams.get('flow')) {
+            console.log('📋 Restoring flow parameter:', persistedState.flow);
+            const url = new URL(window.location.href);
+            url.searchParams.set('flow', persistedState.flow);
+            window.history.replaceState({}, '', url.toString());
+          }
           
           // Only restore personas if no URL persona parameter exists
           if (persistedState.selectedPersonas && initialPersonas.length === 0) {
@@ -1731,6 +1750,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               title: "Template Applied",
               description: `Newsletter template "${selectedIdea.title}" has been applied successfully with ${crmBlocks.length} blocks for ${layoutType} layout.`,
             });
+            
+            // Clean up flow parameter after successful processing
+            const url = new URL(window.location.href);
+            url.searchParams.delete('flow');
+            const cleanUrl = url.toString();
+            window.history.replaceState({}, '', cleanUrl);
             
             console.log(`✅ [NewsletterInit] Generated ${crmBlocks.length} blocks for "${selectedIdea.title}" (layout: ${layoutType})`);
           } else {
