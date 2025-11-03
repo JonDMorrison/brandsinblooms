@@ -42,6 +42,9 @@ verify_jwt = false
 [functions.generate-company-profile]
 verify_jwt = false
 
+[functions.generate-header-keywords]
+verify_jwt = false
+
 [functions.generate-weekly-themes]
 verify_jwt = false
 

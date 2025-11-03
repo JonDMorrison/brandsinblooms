@@ -6,17 +6,23 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { Calendar } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { HeaderImageLoadingOverlay } from './HeaderImageLoadingOverlay';
 
 interface NewsletterHeaderBlockEditorProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
   isExpanded: boolean;
+  isGeneratingHeaderImage?: boolean;
+  headerImageStage?: 'waiting' | 'aggregating' | 'fetching' | 'complete' | 'error';
 }
 
 export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorProps> = ({
   block,
   onUpdate,
-  isExpanded
+  isExpanded,
+  isGeneratingHeaderImage = false,
+  headerImageStage = 'waiting'
 }) => {
   // Get values from either top-level or content object
   // Content can be string or object, so we need to handle both
@@ -26,12 +32,13 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
   const subtitle = (block as any).subtitle || (contentObj as any)?.subtitle || '';
   const publishDate = (block as any).publishDate || (contentObj as any)?.publishDate || '';
   const backgroundImageUrl = (block as any).backgroundImageUrl || (contentObj as any)?.backgroundImageUrl || '';
+  const backgroundOpacity = (block as any).backgroundOpacity ?? (contentObj as any)?.backgroundOpacity ?? 0.25;
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     onUpdate({ 
       backgroundImageUrl: imageUrl,
       altText: metadata?.alt || 'Newsletter header background'
-    });
+    } as any);
   };
 
   if (!isExpanded) {
@@ -50,13 +57,21 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
+      {/* Loading Overlay for Header Image Generation */}
+      {isGeneratingHeaderImage && (
+        <HeaderImageLoadingOverlay stage={headerImageStage} />
+      )}
+
       {/* Header Preview */}
       <Card className="p-6 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent relative overflow-hidden">
         {backgroundImageUrl && (
           <div 
-            className="absolute inset-0 bg-cover bg-center opacity-20"
-            style={{ backgroundImage: `url(${backgroundImageUrl})` }}
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ 
+              backgroundImage: `url(${backgroundImageUrl})`,
+              opacity: backgroundOpacity 
+            }}
           />
         )}
         <div className="relative text-center space-y-2">
@@ -127,9 +142,35 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
           />
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          This image will appear behind the header text with reduced opacity
+          This image will appear behind the header text with adjustable opacity
         </p>
       </div>
+
+      {/* Background Opacity Slider */}
+      {backgroundImageUrl && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="bg-opacity">Background Opacity</Label>
+            <span className="text-sm text-muted-foreground font-medium">
+              {Math.round(backgroundOpacity * 100)}%
+            </span>
+          </div>
+          <Slider
+            id="bg-opacity"
+            value={[backgroundOpacity * 100]}
+            onValueChange={([value]) => onUpdate({ 
+              backgroundOpacity: value / 100 
+            })}
+            min={0}
+            max={100}
+            step={5}
+            className="w-full"
+          />
+          <p className="text-xs text-muted-foreground">
+            Adjust the transparency of the background image
+          </p>
+        </div>
+      )}
     </div>
   );
 };

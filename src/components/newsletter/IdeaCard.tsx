@@ -8,7 +8,7 @@ import { format, addDays } from 'date-fns';
 
 interface IdeaCardProps {
   idea: NewsletterIdea;
-  onSelect: (idea: NewsletterIdea) => void;
+  onSelect: (idea: NewsletterIdea, options?: { enableHeaderBackground?: boolean }) => void;
   className?: string;
   isActive?: boolean;
   slideIndex?: number;
@@ -82,7 +82,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
           
           {/* Action Button */}
           <Button 
-            onClick={() => onSelect(idea)}
+            onClick={() => onSelect(idea, { enableHeaderBackground: true })}
             className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-300"
             variant="outline"
           >
