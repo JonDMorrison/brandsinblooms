@@ -22,12 +22,16 @@ interface AIWriterDialogProps {
     preheaderText: string;
     blocks: ContentBlock[];
   }) => void;
+  onBlockImageGenerated?: (blockId: string, imageUrl: string) => void;
+  onBlockImageGenerationFailed?: (blockId: string, error: string) => void;
 }
 
 export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
   open,
   onOpenChange,
-  onContentGenerated
+  onContentGenerated,
+  onBlockImageGenerated,
+  onBlockImageGenerationFailed
 }) => {
   const [topic, setTopic] = useState('');
   const [layout, setLayout] = useState<'block-builder' | 'simple-email'>('block-builder');
@@ -106,48 +110,10 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
           const normalizedAI = normalizeAIResponse(data);
           const enhancedBlock = applyAIToBlock(block, normalizedAI);
 
-          // Step 3: Fetch UNIQUE image for each content block
+          // Step 3: Mark blocks that need AI image generation
           if (block.type === 'image-text') {
-            try {
-              console.log(`🖼️ Fetching unique image for block ${i + 1}/${baseBlocks.length}`);
-              console.log(`🚫 Already used ${localUsedImageIds.size} images:`, Array.from(localUsedImageIds));
-              
-              const contentForImage = (
-                enhancedBlock.body || 
-                enhancedBlock.content || 
-                topic
-              ).trim();
-              
-              const titleForImage = (
-                enhancedBlock.headline || 
-                enhancedBlock.title || 
-                topic
-              ).trim();
-              
-              // Use the enhanced service with LOCAL exclusion tracking (synchronous)
-              const result = await imageGenerationService.fetchImageForChannel({
-                channel: 'newsletter',
-                contentContext: contentForImage,
-                contentTitle: titleForImage,
-                useAIKeywords: true,
-                fallbackKeywords: ['garden plants flowers', 'garden center', topic.toLowerCase()],
-                excludeImageIds: Array.from(localUsedImageIds)
-              });
-              
-              if (result?.imageUrl) {
-                enhancedBlock.imageUrl = result.imageUrl;
-                enhancedBlock.imageId = result.imageId;
-                enhancedBlock.altText = result.metadata?.usedQuery || titleForImage;
-                
-                // Add to BOTH local set (immediate) and state (for persistence)
-                if (result.imageId) {
-                  localUsedImageIds.add(result.imageId);
-                  console.log(`🔒 Locked image ${result.imageId} (now ${localUsedImageIds.size} used)`);
-                }
-              }
-            } catch (error) {
-              console.warn('Failed to fetch unique image for block:', error);
-            }
+            enhancedBlock.isGeneratingImage = true; // Mark for background generation
+            enhancedBlock.imageUrl = undefined; // No image yet
           }
 
           enhancedBlocks.push(enhancedBlock);
@@ -164,7 +130,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
       const subjectLine = generateSubjectLine(topic, tone);
       const preheaderText = generatePreheaderText(topic, tone);
 
-      // Return the generated content
+      // Step 4: Return content immediately (no waiting for images)
       onContentGenerated({
         campaignName: topic,
         subjectLine: subjectLine,
@@ -176,8 +142,11 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
       
       toast({
         title: "Newsletter Generated!",
-        description: `Created ${enhancedBlocks.length} blocks with AI-powered content and images.`,
+        description: `Created ${enhancedBlocks.length} blocks. Generating images with AI...`,
       });
+
+      // Step 5: Generate images in parallel (background)
+      startParallelImageGeneration(enhancedBlocks);
 
     } catch (error: any) {
       console.error('Failed to generate newsletter:', error);
@@ -188,6 +157,74 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
       });
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const startParallelImageGeneration = async (blocks: ContentBlock[]) => {
+    const imageBlocks = blocks.filter(block => 
+      block.type === 'image-text' && block.isGeneratingImage
+    );
+
+    if (imageBlocks.length === 0) return;
+
+    console.log(`🎨 Starting parallel image generation for ${imageBlocks.length} blocks`);
+
+    // Generate all images in parallel
+    const imagePromises = imageBlocks.map(async (block, index) => {
+      try {
+        console.log(`📸 Generating image ${index + 1}/${imageBlocks.length} for block ${block.id}`);
+        
+        const contentContext = (block.body || block.content || topic).trim();
+        const contentTitle = (block.headline || block.title || topic).trim();
+
+        const { data, error } = await supabase.functions.invoke('generate-ai-image', {
+          body: {
+            contentContext,
+            contentTitle,
+            channel: 'newsletter',
+            uploadToStorage: true,
+          }
+        });
+
+        if (error) throw error;
+
+        console.log(`✅ Image generated for block ${block.id}:`, data.imageUrl.substring(0, 50));
+        
+        // Notify parent component of successful generation
+        if (onBlockImageGenerated) {
+          onBlockImageGenerated(block.id, data.imageUrl);
+        }
+
+      } catch (error: any) {
+        console.error(`❌ Failed to generate image for block ${block.id}:`, error);
+        
+        // Notify parent component of failure
+        if (onBlockImageGenerationFailed) {
+          onBlockImageGenerationFailed(block.id, error.message || 'Image generation failed');
+        }
+      }
+    });
+
+    // Wait for all to complete
+    const results = await Promise.allSettled(imagePromises);
+    
+    // Show summary toast
+    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+
+    if (succeeded > 0) {
+      toast({
+        title: "AI Images Generated",
+        description: `Successfully generated ${succeeded} of ${imageBlocks.length} unique images.`,
+      });
+    }
+
+    if (failed > 0) {
+      toast({
+        title: "Some Images Failed",
+        description: `${failed} images could not be generated. Click retry to try again.`,
+        variant: "destructive"
+      });
     }
   };
 

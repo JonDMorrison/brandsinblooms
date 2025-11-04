@@ -1007,7 +1007,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     preheaderText: string;
     blocks: ContentBlock[];
   }) => {
-    console.log('🤖 AI content generated:', aiData);
+    console.log('🤖 AI content generated, images will follow...', aiData);
     
     // Update campaign fields
     setCampaignName(aiData.campaignName);
@@ -1022,6 +1022,79 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         campaign_name: aiData.campaignName,
         subject_line: aiData.subjectLine,
         preheader: aiData.preheaderText
+      });
+    }
+  };
+
+  // Handle progressive image updates as they complete
+  const handleBlockImageGenerated = (blockId: string, imageUrl: string) => {
+    console.log(`✅ Block image generated for ${blockId}`);
+    setBlocks(prevBlocks =>
+      prevBlocks.map(block =>
+        block.id === blockId
+          ? { ...block, imageUrl, isGeneratingImage: false, imageGenerationError: undefined }
+          : block
+      )
+    );
+  };
+
+  // Handle image generation failures
+  const handleBlockImageFailed = (blockId: string, error: string) => {
+    console.log(`❌ Block image failed for ${blockId}:`, error);
+    setBlocks(prevBlocks =>
+      prevBlocks.map(block =>
+        block.id === blockId
+          ? { ...block, isGeneratingImage: false, imageGenerationError: error }
+          : block
+      )
+    );
+  };
+
+  // Retry image generation for a failed block
+  const retryImageGeneration = async (blockId: string) => {
+    const block = blocks.find(b => b.id === blockId);
+    if (!block) return;
+
+    console.log(`🔄 Retrying image generation for block ${blockId}`);
+
+    // Mark as generating
+    setBlocks(prevBlocks =>
+      prevBlocks.map(b =>
+        b.id === blockId
+          ? { ...b, isGeneratingImage: true, imageGenerationError: undefined }
+          : b
+      )
+    );
+
+    try {
+      const contentContext = (block.body || block.content || campaignName).trim();
+      const contentTitle = (block.headline || block.title || campaignName).trim();
+
+      const { data, error } = await supabase.functions.invoke('generate-ai-image', {
+        body: {
+          contentContext,
+          contentTitle,
+          channel: 'newsletter',
+          uploadToStorage: true,
+        }
+      });
+
+      if (error) throw error;
+
+      handleBlockImageGenerated(blockId, data.imageUrl);
+
+      toast({
+        title: "Image Generated",
+        description: "Successfully generated the image.",
+      });
+
+    } catch (error: any) {
+      handleBlockImageFailed(blockId, error.message);
+
+      toast({
+        title: "Generation Failed",
+        description: "Could not generate image. Please try again.",
+        variant: "destructive"
       });
     }
   };
@@ -3624,11 +3697,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       />
 
       {/* AI Writer Dialog */}
-      <AIWriterDialog
-        open={showAIWriter}
-        onOpenChange={setShowAIWriter}
-        onContentGenerated={handleAIContentGenerated}
-      />
+        <AIWriterDialog
+          open={showAIWriter}
+          onOpenChange={setShowAIWriter}
+          onContentGenerated={handleAIContentGenerated}
+          onBlockImageGenerated={handleBlockImageGenerated}
+          onBlockImageGenerationFailed={handleBlockImageFailed}
+        />
 
       {/* Sender Confirmation Modal */}
       <SharedSenderConfirmationModal
