@@ -112,6 +112,10 @@ export interface ContentBlock {
   // Image fetching control
   shouldFetchImage?: boolean; // Flag to control automatic image fetching
   
+  // AI Image generation state
+  isGeneratingImage?: boolean;
+  imageGenerationError?: string;
+  
   // Button block specific
   buttonColor?: string;
   buttonSize?: string;
