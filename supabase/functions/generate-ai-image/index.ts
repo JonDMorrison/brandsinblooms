@@ -237,31 +237,45 @@ function extractGardenTerms(text: string): string[] {
  */
 function extractBase64Image(aiData: any): string | null {
   try {
-    // The response format varies, try multiple paths
+    console.log('🔍 Extracting image from AI response structure:', JSON.stringify(aiData).substring(0, 500));
+    
+    // Primary path: choices[0].message.images[0].image_url.url
+    if (aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url) {
+      const imageUrl = aiData.choices[0].message.images[0].image_url.url;
+      console.log('✅ Found image at choices[0].message.images[0].image_url.url');
+      return imageUrl;
+    }
+    
+    // Alternative: Check if content is a base64 string
     if (aiData.choices?.[0]?.message?.content) {
       const content = aiData.choices[0].message.content;
       
-      // Check if content is a base64 string
       if (typeof content === 'string' && content.startsWith('data:image')) {
+        console.log('✅ Found image in message.content as base64');
         return content;
       }
       
       // Check if content has image data
       if (content.image_data) {
+        console.log('✅ Found image in content.image_data');
         return content.image_data;
       }
     }
     
     // Check direct image field
     if (aiData.image) {
+      console.log('✅ Found image in aiData.image');
       return aiData.image;
     }
     
     // Check data field
     if (aiData.data?.[0]) {
+      console.log('✅ Found image in aiData.data[0]');
       return aiData.data[0];
     }
     
+    console.error('❌ No image found in any expected location');
+    console.error('Available keys:', Object.keys(aiData));
     return null;
   } catch (error) {
     console.error('Error extracting base64 image:', error);
