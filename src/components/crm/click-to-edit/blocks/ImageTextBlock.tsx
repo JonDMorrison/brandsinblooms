@@ -117,22 +117,49 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
     }
   };
 
-  // Calculate if content exists - check if block has real content (not placeholders)
+  // PHASE 3: Improved content detection - trust persistent flag first
   const hasRealContent = !!(
-    (block.headline && block.headline !== '⏳ Generating content...' && block.headline !== 'Add headline') || 
-    (block.body && block.body !== '⏳ Creating engaging content...' && block.body !== 'Add body text') || 
+    (block as any).hasGeneratedContent || // TRUST THE PERSISTENT FLAG FIRST!
+    (block.headline && 
+     block.headline !== '⏳ Generating content...' && 
+     block.headline !== 'Add headline' &&
+     block.headline !== 'Content Headline') || 
+    (block.body && 
+     block.body !== '⏳ Creating engaging content...' && 
+     block.body !== 'Add body text' &&
+     block.body !== 'Add your content here') || 
     (block.title && block.title !== 'Add headline') ||
     (typeof block.content === 'object' && block.content && (
-      ((block.content as any).headline && (block.content as any).headline !== '⏳ Generating content...') || 
-      ((block.content as any).body && (block.content as any).body !== '⏳ Creating engaging content...')
+      ((block.content as any).headline && 
+       (block.content as any).headline !== '⏳ Generating content...') || 
+      ((block.content as any).body && 
+       (block.content as any).body !== '⏳ Creating engaging content...')
     ))
   );
+  
+  // PHASE 3: Add content stability guard - once shown, content never disappears
+  const contentShownRef = useRef(false);
+  
+  useEffect(() => {
+    if (hasRealContent) {
+      contentShownRef.current = true;
+      
+      // Mark content as generated in parent if not already marked
+      if (!(block as any).hasGeneratedContent && onUpdate) {
+        console.log('[ImageTextBlock] Marking content as permanently generated for block:', block.id);
+        onUpdate({
+          hasGeneratedContent: true,
+          contentGeneratedAt: Date.now()
+        } as any);
+      }
+    }
+  }, [hasRealContent, block.id, onUpdate, (block as any).hasGeneratedContent]);
   
   // Check if block is actively loading content
   const isActivelyLoading = (block as any).isLoadingContent === true || isGenerating;
   
-  // Content is considered loaded if we have real content
-  const hasContentLoaded = hasRealContent;
+  // Content is considered loaded if we have real content OR it was shown before
+  const hasContentLoaded = hasRealContent || contentShownRef.current;
   
   // Smooth content stabilization after generation
   useEffect(() => {
@@ -150,7 +177,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   // Check if block is truly empty - respect content loaded flag
   const isEmpty = !hasContentLoaded &&
                   !isContentLoading &&
-                  !block.imageUrl && 
+                  !block.imageUrl &&
                   !block.headline && 
                   !block.title && 
                   (!block.body || block.body.trim() === '') &&
@@ -159,23 +186,24 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                    !(block.content as any).headline && 
                    (!(block.content as any).body || (block.content as any).body.trim() === ''));
 
-  // Debug logging
+  // PHASE 5: Enhanced debug logging with content persistence tracking
   useEffect(() => {
-    console.log('[ImageTextBlock Debug]', {
+    console.log('[ImageTextBlock Lifecycle]', {
       blockId: block.id,
-      isGenerating,
-      isGeneratingImage,
-      isActivelyLoading,
       hasRealContent,
       hasContentLoaded,
+      contentShownBefore: contentShownRef.current,
+      persistentFlag: (block as any).hasGeneratedContent,
+      isActivelyLoading,
       isContentLoading,
       isEmpty,
       contentStable,
       headline: block.headline?.substring(0, 30),
       body: block.body?.substring(0, 30),
-      title: block.title
+      contentGeneratedAt: (block as any).contentGeneratedAt,
+      timestamp: Date.now()
     });
-  }, [isGenerating, isGeneratingImage, isActivelyLoading, hasRealContent, hasContentLoaded, isContentLoading, isEmpty, contentStable, block.id, block.headline, block.body, block.title]);
+  }, [hasRealContent, hasContentLoaded, isActivelyLoading, isContentLoading, isEmpty, contentStable, block.id, block.headline, block.body, (block as any).hasGeneratedContent]);
 
   return (
     <div 

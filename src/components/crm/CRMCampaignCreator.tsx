@@ -141,15 +141,19 @@ async function generateImagesForBlocks(
         if (result && result.imageUrl) {
           console.log(`✅ Block ${blockIndex}: Got unique image ${result.imageId}`);
           
-          // Update this specific block with the image
+          // PHASE 4: Update this specific block with the image while preserving content
           setBlocks(prev => prev.map((b, i) => {
             if (i === blockIndex) {
               return {
-                ...b,
+                ...b, // Preserve ALL existing properties including content
                 imageUrl: result.imageUrl,
                 imageId: result.imageId,
                 altText: result.metadata?.usedQuery || contentTitle,
-                isLoadingImage: false
+                isLoadingImage: false,
+                // CRITICAL: Preserve content flags
+                hasGeneratedContent: b.hasGeneratedContent || !!(b.headline || b.body),
+                contentGeneratedAt: b.contentGeneratedAt,
+                contentVersion: b.contentVersion
               };
             }
             return b;
@@ -430,6 +434,7 @@ const createWeeklyThemeImageQuery = (
 };
 
 // Normalize blocks to ensure consistency - convert text blocks to image-text blocks with proper structure
+// PHASE 1: Updated to preserve generated content and prevent overwriting
 const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
   return blocks.map(block => {
     // Convert ALL text blocks to image-text blocks for uniformity, not just template/newsletter ones
@@ -449,19 +454,25 @@ const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
         }
       }
       
-      // Set default headline if still empty
-      if (!headline) {
+      // CRITICAL FIX: Only set default if content was never generated
+      if (!headline && !block.hasGeneratedContent) {
         headline = 'Content Headline';
       }
       
-      console.log(`🔄 Normalizing text block ${block.id} to image-text with headline: "${headline}"`);
+      const body = block.body || block.content || '';
+      const finalBody = (!body && !block.hasGeneratedContent) 
+        ? 'Add your content here' 
+        : body;
+      
+      console.log(`🔄 Normalizing text block ${block.id}, hasGeneratedContent: ${!!block.hasGeneratedContent}`);
       
       return {
         ...block,
         type: 'image-text' as const,
         layout: block.layout || 'image-right',
-        headline: headline,
-        body: block.body || block.content || 'Add your content here'
+        headline: headline || block.headline, // Preserve existing if present
+        body: finalBody || block.body, // Preserve existing if present
+        hasGeneratedContent: block.hasGeneratedContent || !!(headline || body) // Track if content exists
       };
     }
     
@@ -1720,17 +1731,23 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               }
               
               // STEP 1: Set loading states for both text and images
+              // PHASE 6: Guard against accidental loading flag resets
               console.log('🎨 Setting loading states for content and images...');
               const blocksWithLoadingStates = normalizeBlocks(crmBlocks).map((b) => {
                 // Determine if this block should fetch images
                 const needsImage = b.type === 'image' || b.type === 'image-text';
                 
+                // CRITICAL: Don't mark as loading if content already exists
+                const hasExistingContent = !!(b.headline || b.body) && 
+                  b.headline !== '⏳ Generating content...' &&
+                  b.headline !== 'Content Headline';
+                
                 return {
                   ...b,
-                  // Text loading states
-                  headline: b.type === 'header' ? b.headline : '⏳ Generating content...',
-                  body: b.type === 'header' ? b.body : '',
-                  content: b.type === 'header' ? b.content : '',
+                  // Only set loading text if no real content exists
+                  headline: (b.type === 'header' || hasExistingContent) ? b.headline : '⏳ Generating content...',
+                  body: (b.type === 'header' || hasExistingContent) ? b.body : '',
+                  content: (b.type === 'header' || hasExistingContent) ? b.content : '',
                   
                   // Mark blocks that should fetch images
                   shouldFetchImage: needsImage,
@@ -1739,9 +1756,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   imageUrl: needsImage ? 'loading' : b.imageUrl,
                   source: 'template' as const,
                   
-                  // Track loading state
-                  isLoadingContent: b.type !== 'header',
-                  isLoadingImage: needsImage
+                  // CRITICAL: Don't reset loading flag if content already generated
+                  isLoadingContent: !hasExistingContent && b.type !== 'header',
+                  isLoadingImage: needsImage,
+                  
+                  // Preserve content generation flags
+                  hasGeneratedContent: b.hasGeneratedContent || hasExistingContent
                 };
               });
               
@@ -1786,7 +1806,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       if (aiResult && aiResult.title && aiResult.content) {
                         console.log(`✅ AI content generated for block ${index + 1}`);
                         
-                        // Apply AI content to block with proper field mapping
+                        // PHASE 2: Apply AI content to block and mark as permanently generated
                         const needsImage = block.type === 'image' || block.type === 'image-text';
                         return {
                           ...block,
@@ -1797,7 +1817,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                           ctaText: aiResult.cta_text || block.ctaText,
                           ctaUrl: aiResult.cta_url || block.ctaUrl,
                           shouldFetchImage: needsImage, // Mark if needs image
-                          isLoadingContent: false // Mark content as loaded
+                          isLoadingContent: false, // Mark content as loaded
+                          
+                          // NEW: Mark content as permanently generated
+                          hasGeneratedContent: true,
+                          contentGeneratedAt: Date.now(),
+                          contentVersion: (block.contentVersion || 0) + 1
                         };
                       } else {
                         console.warn(`⚠️ AI returned incomplete content for block ${index + 1}`);
@@ -1813,20 +1838,28 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 console.log(`✅ Enhanced ${enhancedBlocks.length} blocks with AI content`);
                 
                 // STEP 3: Update blocks with AI-generated content (images still loading)
-                const contentReadyBlocks = normalizeBlocks(
-                  autoFillHeaderTitle(enhancedBlocks, selectedIdea.title || 'Newsletter Campaign')
-                ).map(b => {
-                  const needsImage = b.type === 'image' || b.type === 'image-text';
-                  return {
-                    ...b,
-                    shouldFetchImage: needsImage,
-                    imageUrl: needsImage ? 'loading' : b.imageUrl,
-                    isLoadingImage: needsImage,
-                    source: 'template' as const
-                  };
+                // PHASE 2: Use functional update to preserve content flags
+                let contentReadyBlocks: ContentBlock[] = [];
+                setBlocks(prevBlocks => {
+                  contentReadyBlocks = normalizeBlocks(
+                    autoFillHeaderTitle(enhancedBlocks, selectedIdea.title || 'Newsletter Campaign')
+                  ).map(b => {
+                    const needsImage = b.type === 'image' || b.type === 'image-text';
+                    const prev = prevBlocks.find(p => p.id === b.id);
+                    return {
+                      ...b,
+                      shouldFetchImage: needsImage,
+                      imageUrl: needsImage ? 'loading' : b.imageUrl,
+                      isLoadingImage: needsImage,
+                      source: 'template' as const,
+                      // Preserve content generation flags from previous state
+                      hasGeneratedContent: prev?.hasGeneratedContent || b.hasGeneratedContent,
+                      contentGeneratedAt: prev?.contentGeneratedAt || b.contentGeneratedAt,
+                      contentVersion: prev?.contentVersion || b.contentVersion
+                    };
+                  });
+                  return contentReadyBlocks;
                 });
-                
-                setBlocks(contentReadyBlocks);
                 crmBlocks = contentReadyBlocks;
                 
                 // STEP 4: Generate images from AI-generated content
@@ -2174,8 +2207,19 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                       enhancedBlocks[i] = aiEnhancedBlock;
                     }
                     
-                    // Update blocks incrementally so user sees progress
-                    setBlocks(normalizeBlocks([...enhancedBlocks]));
+                    // PHASE 2: Update blocks incrementally with functional update
+                    setBlocks(prev => {
+                      const normalized = normalizeBlocks([...enhancedBlocks]);
+                      return normalized.map(block => {
+                        const prevBlock = prev.find(p => p.id === block.id);
+                        return {
+                          ...block,
+                          hasGeneratedContent: prevBlock?.hasGeneratedContent || block.hasGeneratedContent,
+                          contentGeneratedAt: prevBlock?.contentGeneratedAt || block.contentGeneratedAt,
+                          contentVersion: prevBlock?.contentVersion || block.contentVersion
+                        };
+                      });
+                    });
                     
                     // Remove this block from generating set
                     setGeneratingBlocks(prev => {

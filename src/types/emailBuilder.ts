@@ -140,6 +140,11 @@ export interface ContentBlock {
   // Text styling
   fontFamily?: string;
   fontSize?: string;
+  
+  // Content lifecycle tracking - PHASE 1: Add persistent tracking
+  contentGeneratedAt?: number; // Timestamp when content was first generated
+  hasGeneratedContent?: boolean; // Permanent flag: true once content is generated
+  contentVersion?: number; // Increment on each update to prevent stale data
 }
 
 // Specialized interfaces for type safety
