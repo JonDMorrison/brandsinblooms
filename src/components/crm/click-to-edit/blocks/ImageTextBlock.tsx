@@ -35,6 +35,10 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   const [hasImageLoaded, setHasImageLoaded] = useState(!!block.imageUrl);
   const [imageError, setImageError] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState(block.imageUrl);
+  const [contentStable, setContentStable] = useState(false);
+  
+  // Content persistence flag - once content loads, never show loading state again
+  const hasContentLoadedRef = useRef(false);
   
   // Extract content for image generation
   const contentForImage = (() => {
@@ -116,13 +120,44 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
     }
   };
 
-  // Check if content is loading
-  const isContentLoading = (block as any).isLoadingContent === true || 
-                           block.headline === '⏳ Generating content...' ||
-                           block.body === '⏳ Creating engaging content...';
+  // Track content loading - once content has loaded, never show loading state again
+  useEffect(() => {
+    const hasContent = !!(
+      block.headline || 
+      block.body || 
+      block.title ||
+      (typeof block.content === 'object' && block.content && (
+        (block.content as any).headline || 
+        (block.content as any).body
+      ))
+    );
+    
+    if (hasContent) {
+      hasContentLoadedRef.current = true;
+      console.log('[ImageTextBlock] Content loaded and locked for block:', block.id);
+    }
+  }, [block.headline, block.body, block.title, block.content, block.id]);
+  
+  // Smooth content stabilization after generation
+  useEffect(() => {
+    if (!isGenerating && hasContentLoadedRef.current) {
+      const timer = setTimeout(() => setContentStable(true), 100);
+      return () => clearTimeout(timer);
+    } else {
+      setContentStable(false);
+    }
+  }, [isGenerating]);
+  
+  // Check if content is loading - ONLY if content has never loaded before
+  const isContentLoading = !hasContentLoadedRef.current && (
+    (block as any).isLoadingContent === true || 
+    block.headline === '⏳ Generating content...' ||
+    block.body === '⏳ Creating engaging content...'
+  );
 
-  // Check if block is truly empty
-  const isEmpty = !isContentLoading &&
+  // Check if block is truly empty - respect content loaded flag
+  const isEmpty = !hasContentLoadedRef.current &&
+                  !isContentLoading &&
                   !block.imageUrl && 
                   !block.headline && 
                   !block.title && 
@@ -131,6 +166,20 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                   (typeof block.content === 'object' && block.content && 
                    !(block.content as any).headline && 
                    (!(block.content as any).body || (block.content as any).body.trim() === ''));
+
+  // Debug logging
+  useEffect(() => {
+    console.log('[ImageTextBlock Debug]', {
+      blockId: block.id,
+      isGenerating,
+      isGeneratingImage,
+      hasContentLoaded: hasContentLoadedRef.current,
+      isContentLoading,
+      contentStable,
+      headline: block.headline?.substring(0, 50),
+      body: block.body?.substring(0, 50)
+    });
+  }, [isGenerating, isGeneratingImage, isContentLoading, contentStable, block.id, block.headline, block.body]);
 
   return (
     <div 
@@ -167,15 +216,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
             block.textAlign === 'right' && "text-right",
             "hover:bg-background/50 rounded-md transition-colors duration-200 p-2 -m-2"
           )}>
-            {isContentLoading ? (
-              // Show skeleton while content is generating
-              <TextContentSkeleton 
-                showHeadline={true}
-                showBody={true}
-                bodyLines={6}
-                className="py-2"
-              />
-            ) : (
+            {/* ALWAYS show content if it has been loaded before, even during image generation */}
+            {(hasContentLoadedRef.current || !isContentLoading) ? (
               <>
                 {/* Contextual Text Edit Button */}
                 {onModeChange && (
@@ -235,6 +277,14 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 {/* CTA Button */}
                 <CTAButton block={block} />
               </>
+            ) : (
+              // Show skeleton only if content has NEVER loaded
+              <TextContentSkeleton 
+                showHeadline={true}
+                showBody={true}
+                bodyLines={6}
+                className="py-2"
+              />
             )}
           </div>
 
