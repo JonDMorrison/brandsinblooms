@@ -98,6 +98,15 @@ serve(async (req) => {
       throw new Error('Failed to create deletion request');
     }
 
+    // Immediately delete user from auth.users so email can be reused
+    // Data is soft-deleted and can be recovered if needed
+    const { error: authDeleteError } = await supabase.auth.admin.deleteUser(userId);
+
+    if (authDeleteError) {
+      console.error('Auth user deletion error:', authDeleteError);
+      // Don't fail the request - data is already soft deleted
+    }
+
     // Send deletion confirmation email
     if (resend && user.email) {
       try {
