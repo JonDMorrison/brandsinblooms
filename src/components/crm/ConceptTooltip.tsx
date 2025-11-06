@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 
 interface ConceptTooltipProps {
@@ -19,20 +19,18 @@ export function ConceptTooltip({ children, type, className = "" }: ConceptToolti
   };
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className={`inline-flex items-center gap-1 ${className}`}>
-            {children}
-            <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
-          </span>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-xs">
-          <p className="text-sm leading-relaxed">
-            {getTooltipContent()}
-          </p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={`inline-flex items-center gap-1 ${className}`}>
+          {children}
+          <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">
+        <p className="text-sm leading-relaxed">
+          {getTooltipContent()}
+        </p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
