@@ -343,7 +343,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                     
                     {/* Loading indicator for when updating existing image */}
                     {isImageLoading && currentImageUrl && (
-                      <div className="absolute top-2 right-2 z-10">
+                      <div className="absolute inset-0 flex items-center justify-center z-10">
                         <div className="bg-background/80 backdrop-blur-sm rounded-full p-2">
                           <div className="w-4 h-4 border-2 border-primary border-t-transparent animate-spin rounded-full"></div>
                         </div>
