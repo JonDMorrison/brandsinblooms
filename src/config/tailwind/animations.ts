@@ -62,5 +62,5 @@ export const animation: Config["theme"]["extend"]["animation"] = {
   'fade-in': 'fade-in 0.2s ease-out',
   'scale-in': 'scale-in 0.15s ease-out',
   shimmer: 'shimmer 2s infinite',
-  'gentle-pulse': 'gentle-pulse 2.5s ease-in-out infinite',
+  'gentle-pulse': 'gentle-pulse 4s ease-in-out infinite',
 };
