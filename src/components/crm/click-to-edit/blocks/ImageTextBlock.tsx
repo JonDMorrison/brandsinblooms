@@ -117,47 +117,35 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
     }
   };
 
-  // Calculate if content exists RIGHT NOW (inline, not in useEffect)
-  const hasContentNow = !!(
-    block.headline || 
-    block.body || 
-    block.title ||
+  // Calculate if content exists - check if block has real content (not placeholders)
+  const hasRealContent = !!(
+    (block.headline && block.headline !== '⏳ Generating content...' && block.headline !== 'Add headline') || 
+    (block.body && block.body !== '⏳ Creating engaging content...' && block.body !== 'Add body text') || 
+    (block.title && block.title !== 'Add headline') ||
     (typeof block.content === 'object' && block.content && (
-      (block.content as any).headline || 
-      (block.content as any).body
+      ((block.content as any).headline && (block.content as any).headline !== '⏳ Generating content...') || 
+      ((block.content as any).body && (block.content as any).body !== '⏳ Creating engaging content...')
     ))
   );
   
-  // Store content loaded state in the block itself so it persists across remounts
-  useEffect(() => {
-    if (hasContentNow && !(block as any).hasContentLoaded && onUpdate) {
-      console.log('[ImageTextBlock] Content detected, marking as loaded for block:', block.id);
-      // Use setTimeout to avoid state update during render
-      setTimeout(() => {
-        onUpdate({ hasContentLoaded: true } as any);
-      }, 0);
-    }
-  }, [hasContentNow, (block as any).hasContentLoaded, block.id]);
+  // Check if block is actively loading content
+  const isActivelyLoading = (block as any).isLoadingContent === true || isGenerating;
   
-  // Content is considered loaded if we have content now OR it was marked as loaded before
-  const hasContentLoaded = hasContentNow || !!(block as any).hasContentLoaded;
+  // Content is considered loaded if we have real content
+  const hasContentLoaded = hasRealContent;
   
   // Smooth content stabilization after generation
   useEffect(() => {
-    if (!isGenerating && hasContentLoaded) {
+    if (!isActivelyLoading && hasContentLoaded) {
       const timer = setTimeout(() => setContentStable(true), 100);
       return () => clearTimeout(timer);
     } else {
       setContentStable(false);
     }
-  }, [isGenerating, hasContentLoaded]);
+  }, [isActivelyLoading, hasContentLoaded]);
   
-  // Check if content is loading - ONLY if content has never loaded
-  const isContentLoading = !hasContentLoaded && (
-    (block as any).isLoadingContent === true || 
-    block.headline === '⏳ Generating content...' ||
-    block.body === '⏳ Creating engaging content...'
-  );
+  // Show loading skeleton ONLY if actively loading AND no real content exists yet
+  const isContentLoading = isActivelyLoading && !hasContentLoaded;
 
   // Check if block is truly empty - respect content loaded flag
   const isEmpty = !hasContentLoaded &&
@@ -177,17 +165,17 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       blockId: block.id,
       isGenerating,
       isGeneratingImage,
-      hasContentNow,
-      blockHasContentLoaded: (block as any).hasContentLoaded,
+      isActivelyLoading,
+      hasRealContent,
       hasContentLoaded,
       isContentLoading,
       isEmpty,
       contentStable,
-      headline: block.headline?.substring(0, 50),
-      body: block.body?.substring(0, 50),
+      headline: block.headline?.substring(0, 30),
+      body: block.body?.substring(0, 30),
       title: block.title
     });
-  }, [isGenerating, isGeneratingImage, hasContentNow, hasContentLoaded, isContentLoading, isEmpty, contentStable, block.id, block.headline, block.body, block.title]);
+  }, [isGenerating, isGeneratingImage, isActivelyLoading, hasRealContent, hasContentLoaded, isContentLoading, isEmpty, contentStable, block.id, block.headline, block.body, block.title]);
 
   return (
     <div 
