@@ -345,30 +345,33 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                     )}
                     
                     {/* Main image - keep previous visible during transitions */}
-                    <img
-                      src={displayImageUrl}
-                      alt={block.altText || 'Content image'}
-                      className={cn(
-                        "w-full h-auto rounded-lg cursor-pointer transition-opacity duration-300",
-                        isImageLoading && currentImageUrl ? "opacity-70" : "opacity-100"
-                      )}
-                      onLoad={() => {
-                        if (displayImageUrl === block.imageUrl) {
-                          setCurrentImageUrl(block.imageUrl);
-                          setIsImageLoading(false);
-                          setHasImageLoaded(true);
-                          setImageError(false);
-                        }
-                      }}
-                      onError={() => {
-                        if (displayImageUrl === block.imageUrl) {
-                          console.error('[ImageTextBlock] Image failed to load:', displayImageUrl);
-                          setIsImageLoading(false);
-                          setHasImageLoaded(false);
-                          setImageError(true);
-                        }
-                      }}
-                    />
+                    {/* Only render img if we have a valid URL (not empty, undefined, or 'loading') */}
+                    {displayImageUrl && displayImageUrl !== 'loading' && (
+                      <img
+                        src={displayImageUrl}
+                        alt={block.altText || 'Content image'}
+                        className={cn(
+                          "w-full h-auto rounded-lg cursor-pointer transition-opacity duration-300",
+                          isImageLoading && currentImageUrl ? "opacity-70" : "opacity-100"
+                        )}
+                        onLoad={() => {
+                          if (displayImageUrl === block.imageUrl) {
+                            setCurrentImageUrl(block.imageUrl);
+                            setIsImageLoading(false);
+                            setHasImageLoaded(true);
+                            setImageError(false);
+                          }
+                        }}
+                        onError={() => {
+                          if (displayImageUrl === block.imageUrl) {
+                            console.error('[ImageTextBlock] Image failed to load:', displayImageUrl);
+                            setIsImageLoading(false);
+                            setHasImageLoaded(false);
+                            setImageError(true);
+                          }
+                        }}
+                      />
+                    )}
                     
                     {/* Image Overlay */}
                     {block.overlayOpacity && block.overlayOpacity > 0 && (
