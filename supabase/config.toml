@@ -182,3 +182,21 @@ verify_jwt = true
 
 [functions.lightspeed-diagnostics]
 verify_jwt = true
+
+[functions.send-sms]
+verify_jwt = true
+
+[functions.send-sms-campaign]
+verify_jwt = true
+
+[functions.sms-automation-worker]
+verify_jwt = false
+
+[functions.sms-queue-worker]
+verify_jwt = false
+
+[functions.twilio-inbound-sms]
+verify_jwt = false
+
+[functions.twilio-status-callback]
+verify_jwt = false
