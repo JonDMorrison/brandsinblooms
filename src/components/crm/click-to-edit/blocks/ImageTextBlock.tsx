@@ -174,8 +174,10 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   // Show loading skeleton ONLY if actively loading AND no real content exists yet
   const isContentLoading = isActivelyLoading && !hasContentLoaded;
 
-  // Check if block is truly empty - respect content loaded flag
+  // PHASE 4: Check if block is truly empty - NEVER show empty state once content has loaded
   const isEmpty = !hasContentLoaded &&
+                  !(block as any).hasGeneratedContent &&
+                  !contentShownRef.current &&
                   !isContentLoading &&
                   !block.imageUrl &&
                   !block.headline && 
@@ -213,8 +215,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       )}
       style={{ backgroundColor: isEmpty ? 'transparent' : (block.backgroundColor || 'transparent') }}
     >
-      {/* Show generating overlay for empty blocks being enhanced with AI */}
-      {isGenerating && isEmpty && (
+      {/* PHASE 4: Show generating overlay ONLY if no content has ever been shown */}
+      {isGenerating && isEmpty && !(block as any).hasGeneratedContent && !contentShownRef.current && (
         <BlockGeneratingOverlay 
           message="Creating content for this section..." 
         />

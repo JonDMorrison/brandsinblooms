@@ -219,9 +219,11 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       const buttonText = block.buttonText || block.ctaText || '';
       const buttonUrl = block.buttonUrl || block.ctaUrl || '';
       const visible = block.visible !== false;
+      // NEW: Include content generation flag
+      const hasGenerated = (block as any).hasGeneratedContent ? '1' : '0';
       // Ensure content is a string before calling slice
       const contentStr = typeof content === 'string' ? content : JSON.stringify(content || '');
-      return `${block.id}:${block.type}:${title}:${contentStr.slice(0, 50)}:${imageUrl}:${buttonText}:${buttonUrl}:${visible}`;
+      return `${block.id}:${block.type}:${title}:${contentStr.slice(0, 50)}:${imageUrl}:${buttonText}:${buttonUrl}:${visible}:${hasGenerated}`;
     };
 
     const currentSignature = internalBlocks.map(createContentSignature).sort().join('|');
@@ -236,11 +238,22 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       
       // Create deep copy to prevent reference issues
       const hydratedBlocks = blocks.map(block => {
-      const hydratedBlock = {
+        // CRITICAL: Preserve content generation flags FIRST
+        const preservedFlags = {
+          hasGeneratedContent: (block as any).hasGeneratedContent,
+          contentGeneratedAt: (block as any).contentGeneratedAt,
+          contentVersion: (block as any).contentVersion
+        };
+        
+        const hydratedBlock = {
           ...block,
-          // Normalize field names for consistency across the app
-          headline: block.headline || block.heading || block.title || '',
-          body: block.body || block.content || '',
+          // Only normalize if content was never generated
+          headline: (block as any).hasGeneratedContent 
+            ? (block.headline ?? '') // Preserve even if undefined
+            : (block.headline || block.heading || block.title || ''),
+          body: (block as any).hasGeneratedContent 
+            ? (block.body ?? '')
+            : (block.body || block.content || ''),
           title: block.title || block.headline || block.heading || 'Untitled',
           content: block.content || block.body || '',
           // Preserve newsletter-specific fields
@@ -264,7 +277,9 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           buttonText: block.buttonText || block.ctaText || '',
           buttonUrl: block.buttonUrl || block.ctaUrl || '',
           visible: block.visible !== false,
-          collapsed: block.collapsed || false
+          collapsed: block.collapsed || false,
+          // RE-APPLY preserved flags to ensure they're not lost
+          ...preservedFlags
         };
         
         console.log('🧱 Hydrate block:', {
@@ -275,23 +290,32 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           hydratedOverlay: { opacity: hydratedBlock.overlayOpacity, color: hydratedBlock.overlayColor },
           hasOverlayData: !!(block.overlayOpacity !== undefined || block.overlayColor),
           title: hydratedBlock.title,
-          hasContent: !!(hydratedBlock.content || hydratedBlock.body)
+          hasContent: !!(hydratedBlock.content || hydratedBlock.body),
+          hasGeneratedContent: hydratedBlock.hasGeneratedContent
         });
         
         return hydratedBlock;
       });
       
+      // PHASE 5: Add content preservation logging
+      hydratedBlocks.forEach((block, index) => {
+        const original = blocks[index];
+        if ((original as any).hasGeneratedContent && !(block as any).hasGeneratedContent) {
+          console.error('🚨 CONTENT FLAG LOST during hydration:', {
+            blockId: block.id,
+            originalFlag: (original as any).hasGeneratedContent,
+            hydratedFlag: (block as any).hasGeneratedContent,
+            originalHeadline: original.headline,
+            hydratedHeadline: block.headline
+          });
+        }
+      });
+      
       setInternalBlocks(hydratedBlocks);
       setHydrationComplete(true);
       console.log("✅ Synced blocks into internal state:", hydratedBlocks.length, "blocks");
-      
-      // Force re-render after hydration to ensure components update
-      setTimeout(() => {
-        console.log('🔄 Forcing component re-render after hydration');
-        setInternalBlocks([...hydratedBlocks]);
-      }, 50);
     }
-  }, [blocks, internalBlocks, hydrationComplete]);
+  }, [blocks, hydrationComplete]);
 
   const addBlockWithLayout = async (layoutType: LayoutType, index?: number) => {
     console.log('🔧 Adding block with layout:', layoutType, 'at index:', index);
