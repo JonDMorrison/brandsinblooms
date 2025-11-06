@@ -1,3 +1,15 @@
+/**
+ * ⚠️ LEGACY FUNCTION - Primarily for individual image regeneration
+ * 
+ * Campaign content generation now handles images in parallel during content generation.
+ * This function is kept for:
+ * - Manual image regeneration for individual tasks
+ * - Batch regeneration of failed images
+ * - Backwards compatibility with older workflows
+ * 
+ * New campaigns should use the parallel generation in generate_campaign_content instead.
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsJsonResponse, handleCorsPrelight } from "../_shared/cors.ts";
 
@@ -21,6 +33,8 @@ serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
+    console.warn('⚠️ fetch-content-images called - consider using parallel generation in generate_campaign_content for better performance');
+    
     const { tasks } = await req.json() as { tasks: TaskImageRequest[] };
     
     if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {

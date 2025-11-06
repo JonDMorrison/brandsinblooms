@@ -336,10 +336,11 @@ serve(async (req) => {
       return cleanedContent;
     };
 
-    // Function to generate content for a single content type
-    const generateContentForType = async (contentType: string) => {
+    // Function to generate content AND image for a single content type (parallel execution)
+    const generateContentAndImage = async (contentType: string) => {
+      const startTime = Date.now();
       try {
-        console.log(`📝 [${contentType.toUpperCase()}] Starting generation...`);
+        console.log(`📝 [${contentType.toUpperCase()}] Starting content generation...`);
         
         // Enhanced prompts to prevent emojis and video formatting
         let systemPrompt = `You are a professional content creator for garden centers. Create engaging, helpful content. Business: ${businessName}. Focus: ${campaign_title}. ${description ? `Context: ${description}` : ''} 
@@ -393,7 +394,7 @@ serve(async (req) => {
         const data = await response.json();
         let content = data.choices[0].message.content;
         
-        // Validate topic alignment first
+        // Validate topic alignment
         const topicValidation = validateTopicAlignment(content, campaign_title);
         
         if (!topicValidation.isAligned) {
@@ -409,23 +410,157 @@ serve(async (req) => {
         
         // Validate and clean the content
         content = validateAndCleanContent(content, contentType);
+        const contentGenerationTime = Date.now() - startTime;
         
-        console.log(`✅ Generated ${contentType} content (${content.length} chars, ${Math.round(topicValidation.score * 100)}% topic alignment${topicValidation.hasForbiddenContent ? ', ⚠️ contains defaults' : ''})`);
+        console.log(`✅ [${contentType.toUpperCase()}] Content generated in ${contentGenerationTime}ms (${content.length} chars, ${Math.round(topicValidation.score * 100)}% topic alignment)`);
 
-        // Generate image query based on content type and campaign
-        const imageQuery = `${campaign_title} ${contentType} garden`;
+        // Step 2: Insert task into database IMMEDIATELY
+        console.log(`💾 [${contentType.toUpperCase()}] Inserting task into database...`);
+        const { data: task, error: insertError } = await supabase
+          .from('content_tasks')
+          .insert({
+            campaign_id,
+            post_type: contentType,
+            ai_output: content,
+            image_idea: `${campaign_title} ${contentType} garden`,
+            image_generation_status: 'generating',
+            status: 'review',
+            scheduled_date: new Date().toISOString().split('T')[0],
+            user_id,
+            tenant_id,
+            created_by_user_id: user_id,
+            notes: `Generated for ${campaign_title} campaign`
+          })
+          .select()
+          .single();
 
-        return {
-          contentType,
-          content,
-          imageQuery,
-          success: true,
-          topicAlignment: topicValidation.score,
-          issues: topicValidation.issues
-        };
+        if (insertError) {
+          console.error(`❌ [${contentType.toUpperCase()}] Task insertion failed:`, insertError);
+          throw new Error(`Task insertion failed: ${insertError.message}`);
+        }
+
+        console.log(`✅ [${contentType.toUpperCase()}] Task created with ID: ${task.id}`);
+
+        // Step 3: Generate image IMMEDIATELY after content (in parallel with other tasks)
+        console.log(`🎨 [${contentType.toUpperCase()}] Starting AI image generation...`);
+        const imageStartTime = Date.now();
         
+        try {
+          const imageResponse = await fetch(`${supabaseUrl}/functions/v1/generate-ai-image`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              contentContext: content,
+              contentTitle: campaign_title,
+              channel: contentType === 'newsletter' ? 'newsletter' : 
+                       contentType === 'blog' ? 'blog' :
+                       contentType === 'instagram' ? 'instagram' : 'facebook',
+              uploadToStorage: true,
+              storageBucket: 'campaign-images',
+              userId: user_id
+            })
+          });
+
+          const imageGenerationTime = Date.now() - imageStartTime;
+
+          if (!imageResponse.ok) {
+            const errorText = await imageResponse.text();
+            console.warn(`⚠️ [${contentType.toUpperCase()}] Image generation failed (${imageGenerationTime}ms): ${errorText}`);
+            
+            // Update task with error status
+            await supabase
+              .from('content_tasks')
+              .update({
+                image_generation_status: 'failed',
+                image_metadata: { error: errorText, generation_time: imageGenerationTime }
+              })
+              .eq('id', task.id);
+            
+            return {
+              contentType,
+              taskId: task.id,
+              content,
+              imageUrl: null,
+              imageError: errorText,
+              success: true, // Content succeeded even if image failed
+              timings: {
+                contentGeneration: contentGenerationTime,
+                imageGeneration: imageGenerationTime,
+                total: Date.now() - startTime
+              }
+            };
+          }
+
+          const imageData = await imageResponse.json();
+          console.log(`✅ [${contentType.toUpperCase()}] Image generated in ${imageGenerationTime}ms`);
+
+          // Step 4: Update task with image URL
+          await supabase
+            .from('content_tasks')
+            .update({
+              image_url: imageData.imageUrl,
+              image_generation_status: 'completed',
+              image_generated_at: new Date().toISOString(),
+              image_metadata: {
+                source: 'ai_generated',
+                model: 'google/gemini-2.5-flash-image-preview',
+                prompt: campaign_title,
+                generation_time: imageGenerationTime,
+                storage_path: imageData.metadata?.storagePath
+              },
+              image_source: 'ai_generated'
+            })
+            .eq('id', task.id);
+
+          const totalTime = Date.now() - startTime;
+          console.log(`🎉 [${contentType.toUpperCase()}] Complete! Total time: ${totalTime}ms (Content: ${contentGenerationTime}ms, Image: ${imageGenerationTime}ms)`);
+
+          return {
+            contentType,
+            taskId: task.id,
+            content,
+            imageUrl: imageData.imageUrl,
+            imageMetadata: imageData.metadata,
+            success: true,
+            timings: {
+              contentGeneration: contentGenerationTime,
+              imageGeneration: imageGenerationTime,
+              total: totalTime
+            }
+          };
+
+        } catch (imageError) {
+          console.error(`❌ [${contentType.toUpperCase()}] Image generation exception:`, imageError);
+          
+          // Update task with error
+          await supabase
+            .from('content_tasks')
+            .update({
+              image_generation_status: 'failed',
+              image_metadata: { error: imageError.message }
+            })
+            .eq('id', task.id);
+
+          return {
+            contentType,
+            taskId: task.id,
+            content,
+            imageUrl: null,
+            imageError: imageError.message,
+            success: true, // Content succeeded
+            timings: {
+              contentGeneration: contentGenerationTime,
+              imageGeneration: Date.now() - imageStartTime,
+              total: Date.now() - startTime
+            }
+          };
+        }
+
       } catch (error) {
-        console.error(`❌ [${contentType.toUpperCase()}] Generation failed:`, {
+        console.error(`❌ [${contentType.toUpperCase()}] Complete generation failed:`, {
           message: error.message,
           stack: error.stack,
           name: error.name
@@ -433,42 +568,49 @@ serve(async (req) => {
         return {
           contentType,
           error: error.message,
-          success: false
+          success: false,
+          timings: {
+            total: Date.now() - startTime
+          }
         };
       }
     };
 
-    // Generate only missing content types in parallel
+    // Execute all content+image generations in parallel
+    console.log(`🚀 Starting parallel content+image generation for ${typesToGenerate.length} types...`);
     const startTime = Date.now();
-    const contentResults = await Promise.allSettled(
-      typesToGenerate.map(contentType => generateContentForType(contentType))
+
+    const results = await Promise.allSettled(
+      typesToGenerate.map(contentType => generateContentAndImage(contentType))
     );
-    const generationTime = Date.now() - startTime;
-    console.log(`🚀 Content generation completed for ${typesToGenerate.length} types in ${generationTime}ms`);
 
-    // Process results and prepare database inserts
-    const tasksToInsert = [];
-    const failedTasks = [];
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ All parallel generations completed in ${totalTime}ms (avg: ${Math.round(totalTime / typesToGenerate.length)}ms per task)`);
 
-    for (const result of contentResults) {
+    // Process results
+    const successfulTasks = [];
+    const finalFailedTasks = [];
+
+    for (const result of results) {
       if (result.status === 'fulfilled' && result.value.success) {
-        const { contentType, content, imageQuery } = result.value;
-        tasksToInsert.push({
-          campaign_id,
-          post_type: contentType,
-          ai_output: content,
-          image_idea: imageQuery || `${campaign_title} ${contentType} garden`,
-          image_generation_status: 'pending',
+        const taskResult = result.value;
+        successfulTasks.push({
+          id: taskResult.taskId,
+          post_type: taskResult.contentType,
+          ai_output: taskResult.content,
+          image_url: taskResult.imageUrl,
+          image_generation_status: taskResult.imageUrl ? 'completed' : 'failed',
+          image_error: taskResult.imageError || null,
           status: 'review',
-          scheduled_date: new Date().toISOString().split('T')[0],
-          user_id,
-          tenant_id,
-          created_by_user_id: user_id,
-          notes: `Generated for ${campaign_title} campaign`
+          timings: taskResult.timings
         });
+        
+        if (taskResult.imageError) {
+          console.warn(`⚠️ [${taskResult.contentType.toUpperCase()}] Content succeeded but image failed: ${taskResult.imageError}`);
+        }
       } else {
         const errorInfo = result.status === 'fulfilled' ? result.value : { contentType: 'unknown', error: result.reason };
-        failedTasks.push({
+        finalFailedTasks.push({
           post_type: errorInfo.contentType,
           error: errorInfo.error,
           status: 'failed'
@@ -476,90 +618,13 @@ serve(async (req) => {
       }
     }
 
-    // Batch insert all successful tasks
-    let generatedTasks = [...failedTasks];
-    if (tasksToInsert.length > 0) {
-      console.log(`💾 Batch inserting ${tasksToInsert.length} tasks...`);
-      const { data: tasks, error: batchError } = await supabase
-        .from('content_tasks')
-        .insert(tasksToInsert)
-        .select();
-
-      if (batchError) {
-        console.error('❌ Batch insert error:', batchError);
-        // Fallback to individual inserts
-        for (const taskData of tasksToInsert) {
-          try {
-            const { data: task, error: taskError } = await supabase
-              .from('content_tasks')
-              .insert(taskData)
-              .select()
-              .single();
-            
-            if (taskError) {
-              failedTasks.push({
-                post_type: taskData.post_type,
-                error: taskError.message,
-                status: 'failed'
-              });
-            } else {
-              generatedTasks.push(task);
-            }
-          } catch (error) {
-            failedTasks.push({
-              post_type: taskData.post_type,
-              error: error.message,
-              status: 'failed'
-            });
-          }
-        }
-      } else {
-        generatedTasks.push(...tasks);
-        console.log(`✅ Successfully created ${tasks.length} tasks`);
-      }
-    }
-
-    console.log('✅ Content generation completed for all types');
-
-    // Automatically fetch images for all successfully created tasks
-    const tasksWithContent = generatedTasks.filter(task => task.id && task.ai_output);
-    if (tasksWithContent.length > 0) {
-      console.log(`🎨 Starting automatic image fetching for ${tasksWithContent.length} tasks...`);
-      const imageFetchStart = Date.now();
-      
-      try {
-        const taskImageRequests = tasksWithContent.map(task => ({
-          task_id: task.id,
-          post_type: task.post_type,
-          content: task.ai_output,
-          title: campaign_title
-        }));
-        
-        const imageResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-content-images`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ tasks: taskImageRequests })
-        });
-        
-        if (imageResponse.ok) {
-          const imageResults = await imageResponse.json();
-          const successCount = imageResults.results?.filter(r => r.image_url).length || 0;
-          console.log(`🎨 Image fetching completed in ${Date.now() - imageFetchStart}ms`);
-          console.log(`✅ Successfully fetched ${successCount}/${tasksWithContent.length} images`);
-        } else {
-          console.warn('⚠️ Image fetching returned non-OK status:', imageResponse.status);
-        }
-      } catch (imageError) {
-        console.error('⚠️ Image fetching failed (non-blocking):', imageError.message);
-        // Don't throw - image fetching failure shouldn't block content generation
-      }
-    }
-
-    const successfulTasks = generatedTasks.filter(task => !task.error);
-    const finalFailedTasks = generatedTasks.filter(task => task.error);
+    // Log performance summary
+    const imageSuccessCount = successfulTasks.filter(t => t.image_url).length;
+    console.log(`📊 Performance Summary:`);
+    console.log(`   - Total time: ${totalTime}ms`);
+    console.log(`   - Content generated: ${successfulTasks.length}/${typesToGenerate.length}`);
+    console.log(`   - Images generated: ${imageSuccessCount}/${successfulTasks.length}`);
+    console.log(`   - Failed tasks: ${finalFailedTasks.length}`);
 
     return corsJsonResponse({
       success: finalFailedTasks.length < REQUIRED_CONTENT_TYPES.length, // Success if at least some content was generated
