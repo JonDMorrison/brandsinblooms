@@ -111,34 +111,70 @@ serve(async (req) => {
         let storagePath: string | undefined;
 
         if (uploadToStorage) {
-          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          try {
+            const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+            const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+            const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-          const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-          const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+            const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
-          const timestamp = Date.now();
-          const randomId = crypto.randomUUID().substring(0, 8);
-          const filename = `${timestamp}-${randomId}.png`;
-          storagePath = `${userId}/${filename}`;
+            const timestamp = Date.now();
+            const randomId = crypto.randomUUID().substring(0, 8);
+            const filename = `${timestamp}-${randomId}.png`;
+            storagePath = `${userId}/${filename}`;
 
-          console.log('📤 Uploading to storage:', storagePath);
+            console.log('📤 Uploading to storage:', storagePath);
 
-          const { error: uploadError } = await supabase.storage
-            .from(storageBucket)
-            .upload(storagePath, binaryData, {
-              contentType: 'image/png',
-              upsert: false
-            });
-
-          if (!uploadError) {
-            const { data: { publicUrl } } = supabase.storage
-              .from(storageBucket)
-              .getPublicUrl(storagePath);
+            // Retry upload with exponential backoff
+            let uploadSuccess = false;
+            let lastError: Error | null = null;
             
-            finalImageUrl = publicUrl;
-            console.log('✅ Uploaded to:', publicUrl);
+            for (let attempt = 0; attempt < 3; attempt++) {
+              try {
+                const { error: uploadError } = await supabase.storage
+                  .from(storageBucket)
+                  .upload(storagePath, binaryData, {
+                    contentType: 'image/png',
+                    upsert: false
+                  });
+
+                if (uploadError) {
+                  throw uploadError;
+                }
+
+                // Successfully uploaded, get public URL
+                const { data: { publicUrl } } = supabase.storage
+                  .from(storageBucket)
+                  .getPublicUrl(storagePath);
+                
+                finalImageUrl = publicUrl;
+                uploadSuccess = true;
+                console.log('✅ Uploaded to:', publicUrl);
+                break;
+              } catch (uploadErr: any) {
+                lastError = uploadErr;
+                console.warn(`⚠️ Upload attempt ${attempt + 1} failed:`, uploadErr.message);
+                
+                if (attempt < 2) {
+                  // Exponential backoff: 1s, 2s
+                  const delay = Math.pow(2, attempt) * 1000;
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                }
+              }
+            }
+
+            // If upload failed after retries, log but don't fail the request
+            if (!uploadSuccess) {
+              console.error('❌ Storage upload failed after 3 attempts:', lastError?.message);
+              console.log('⚠️ Returning base64 image as fallback');
+              // finalImageUrl remains as base64Image
+            }
+          } catch (storageError: any) {
+            // Catch any unexpected errors in storage setup
+            console.error('❌ Storage operation error:', storageError.message);
+            console.log('⚠️ Returning base64 image as fallback');
+            // finalImageUrl remains as base64Image
           }
         }
 
