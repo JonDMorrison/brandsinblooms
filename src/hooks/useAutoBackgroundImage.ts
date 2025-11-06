@@ -60,15 +60,21 @@ export const useAutoBackgroundImage = ({
     setError(null);
 
     try {
-      console.log('[useAutoBackgroundImage] Fetching image for:', searchText);
+      console.log('[useAutoBackgroundImage] Generating AI image for:', searchText);
       
-      const { data, error: functionError } = await supabase.functions.invoke('fetch-unsplash-images', {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user');
+      }
+
+      const { data, error: functionError } = await supabase.functions.invoke('generate-ai-image', {
         body: {
-          query: searchText,
-          maxImages: 1,
-          orientation: 'landscape', // Better for header backgrounds
-          orderBy: 'relevant',
-          contentFilter: 'high'
+          contentContext: searchText,
+          contentTitle: searchText,
+          channel: 'newsletter',
+          uploadToStorage: true,
+          userId: user.id
         }
       });
 
@@ -76,24 +82,32 @@ export const useAutoBackgroundImage = ({
         throw new Error(functionError.message);
       }
 
-      if (data?.images && data.images.length > 0) {
-        const selectedImage = data.images[0];
-        setAutoImage(selectedImage);
-        
-        // Automatically apply the image if callback is provided
-        if (onImageSelected) {
-          onImageSelected(selectedImage.urls.regular, {
-            alt: selectedImage.alt_description || selectedImage.description,
-            photographer: selectedImage.user.name,
-            unsplashId: selectedImage.id
-          });
+      const selectedImage = {
+        id: data.imageId,
+        urls: {
+          regular: data.imageUrl,
+          small: data.imageUrl,
+          thumb: data.imageUrl
+        },
+        alt_description: data.metadata?.prompt || searchText,
+        description: data.metadata?.prompt || searchText,
+        user: {
+          name: 'AI Generated',
+          username: 'ai'
         }
-
-        console.log('[useAutoBackgroundImage] Image selected:', selectedImage.urls.regular);
-      } else {
-        console.log('[useAutoBackgroundImage] No suitable images found');
-        setAutoImage(null);
+      };
+      
+      setAutoImage(selectedImage);
+      
+      // Automatically apply the image if callback is provided
+      if (onImageSelected) {
+        onImageSelected(selectedImage.urls.regular, {
+          alt: selectedImage.alt_description,
+          photographer: 'AI Generated'
+        });
       }
+
+      console.log('[useAutoBackgroundImage] AI image applied:', selectedImage.urls.regular);
     } catch (err: any) {
       console.error('[useAutoBackgroundImage] Error fetching image:', err);
       setError(err.message);

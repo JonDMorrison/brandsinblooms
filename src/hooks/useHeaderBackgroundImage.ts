@@ -45,70 +45,65 @@ export const useHeaderBackgroundImage = ({
     setError(null);
 
     try {
-      console.log('[HEADER-BG] Starting header image generation for:', campaignTitle);
+      console.log('[HEADER-BG] Starting AI header image generation for:', campaignTitle);
 
-      // Step 1: Generate keywords from all block content
-      const { data: keywordData, error: keywordError } = await supabase.functions.invoke(
-        'generate-header-keywords',
-        {
-          body: {
-            blocks: blocks.map(b => ({
-              type: b.type,
-              content: b.content
-            })),
-            campaignTitle
-          }
-        }
-      );
-
-      if (keywordError) {
-        throw new Error(`Keyword generation failed: ${keywordError.message}`);
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user');
       }
 
-      const keywords = keywordData?.keywords || 'garden center plants';
-      console.log('[HEADER-BG] Generated keywords:', keywords);
+      // Aggregate content from all blocks
+      const aggregatedContent = blocks
+        .map(b => {
+          const content = b.content;
+          return [
+            content?.title,
+            content?.subtitle,
+            content?.content,
+            content?.text
+          ].filter(Boolean).join(' ');
+        })
+        .filter(Boolean)
+        .join(' ');
+
+      console.log('[HEADER-BG] Aggregated content length:', aggregatedContent.length);
 
       setStage('fetching');
 
-      // Step 2: Fetch Unsplash image using the generated keywords
+      // Generate AI image directly from content
       const { data: imageData, error: imageError } = await supabase.functions.invoke(
-        'fetch-unsplash-images',
+        'generate-ai-image',
         {
           body: {
-            query: keywords,
-            maxImages: 1,
-            orientation: 'landscape',
-            orderBy: 'relevant',
-            contentFilter: 'high'
+            contentContext: aggregatedContent,
+            contentTitle: campaignTitle,
+            channel: 'newsletter',
+            uploadToStorage: true,
+            userId: user.id
           }
         }
       );
 
       if (imageError) {
-        throw new Error(`Image fetch failed: ${imageError.message}`);
+        throw new Error(`Image generation failed: ${imageError.message}`);
       }
 
-      if (imageData?.images && imageData.images.length > 0) {
-        const image = imageData.images[0];
-        
-        console.log('[HEADER-BG] Image fetched successfully:', image.urls.regular);
+      console.log('[HEADER-BG] AI image generated successfully:', imageData.imageUrl);
 
-        const metadata: ImageMetadata = {
-          photographer: image.user.name,
-          unsplashId: image.id,
-          alt: keywordData?.summary || image.alt_description || keywords
-        };
+      const metadata: ImageMetadata = {
+        photographer: 'AI Generated',
+        unsplashId: imageData.imageId,
+        alt: imageData.metadata?.prompt || campaignTitle
+      };
 
-        setStage('complete');
-        onImageReady(image.urls.regular, metadata);
+      setStage('complete');
+      onImageReady(imageData.imageUrl, metadata);
 
-        toast({
-          title: "Header image generated",
-          description: "Background image applied successfully",
-        });
-      } else {
-        throw new Error('No suitable images found');
-      }
+      toast({
+        title: "Header image generated",
+        description: "AI-powered background applied successfully",
+      });
 
     } catch (err: any) {
       console.error('[HEADER-BG] Error:', err);

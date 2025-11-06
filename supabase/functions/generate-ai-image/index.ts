@@ -15,6 +15,15 @@ interface GenerateImageRequest {
   userId?: string;
 }
 
+// Active request deduplication cache
+const activeRequests = new Map<string, Promise<any>>();
+
+// Cache key generation for deduplication
+function getCacheKey(contentContext: string, channel: string): string {
+  const hash = contentContext.substring(0, 100) + channel;
+  return btoa(hash).substring(0, 32);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -49,126 +58,99 @@ serve(async (req) => {
       title: contentTitle?.substring(0, 50)
     });
 
-    // Step 1: Generate descriptive prompt based on content
+    // Check for duplicate request
+    const cacheKey = getCacheKey(contentContext, channel);
+    if (activeRequests.has(cacheKey)) {
+      console.log('🔄 Duplicate request detected, reusing in-progress generation');
+      try {
+        const result = await activeRequests.get(cacheKey);
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        activeRequests.delete(cacheKey);
+      }
+    }
+
+    // Generate enhanced prompt
     const imagePrompt = generateImagePrompt(contentContext, contentTitle, channel);
     console.log('📝 Generated prompt:', imagePrompt.substring(0, 200));
 
-    // Step 2: Call Lovable AI Gateway for image generation
-    const startTime = Date.now();
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image-preview',
-        messages: [
-          {
-            role: 'user',
-            content: imagePrompt
-          }
-        ],
-        modalities: ['image', 'text']
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('❌ Lovable AI error:', aiResponse.status, errorText);
-      
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Rate limit exceeded', 
-            message: 'Please try again in a moment.',
-            retryable: true 
-          }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Payment required', 
-            message: 'Please add credits to your Lovable AI workspace.',
-            retryable: false 
-          }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      throw new Error(`Lovable AI error: ${aiResponse.status} - ${errorText}`);
-    }
-
-    const aiData = await aiResponse.json();
-    const generationTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`⏱️ Image generated in ${generationTime}s`);
-
-    // Extract base64 image from response
-    const base64Image = extractBase64Image(aiData);
-    if (!base64Image) {
-      throw new Error('No image data in AI response');
-    }
-
-    console.log('✅ Received base64 image data:', base64Image.substring(0, 100));
-
-    // Step 3: Upload to Supabase Storage if requested
-    let finalImageUrl = base64Image;
-    let storagePath: string | undefined;
-
-    if (uploadToStorage) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-      // Convert base64 to binary
-      const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-      const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
-      // Generate unique filename
-      const timestamp = Date.now();
-      const randomId = crypto.randomUUID().substring(0, 8);
-      const filename = `${timestamp}-${randomId}.png`;
-      storagePath = `${userId}/${filename}`;
-
-      console.log('📤 Uploading to storage:', storagePath);
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(storageBucket)
-        .upload(storagePath, binaryData, {
-          contentType: 'image/png',
-          upsert: false
-        });
-
-      if (uploadError) {
-        console.error('❌ Storage upload error:', uploadError);
-        // Don't fail the request, just return base64
-        console.warn('⚠️ Falling back to base64 URL');
-      } else {
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from(storageBucket)
-          .getPublicUrl(storagePath);
+    // Create generation promise and cache it
+    const generationPromise = (async () => {
+      try {
+        const startTime = Date.now();
         
-        finalImageUrl = publicUrl;
-        console.log('✅ Uploaded to:', publicUrl);
-      }
-    }
+        // Call AI with retry logic
+        const aiData = await generateWithRetry(imagePrompt, LOVABLE_API_KEY);
+        
+        const generationTime = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`⏱️ Image generated in ${generationTime}s`);
 
-    // Step 4: Return result
-    return new Response(
-      JSON.stringify({
-        imageUrl: finalImageUrl,
-        imageId: crypto.randomUUID(),
-        metadata: {
-          generationTime: parseFloat(generationTime),
-          prompt: imagePrompt.substring(0, 200),
-          storagePath,
-          channel
+        // Extract base64 image
+        const base64Image = extractBase64Image(aiData);
+        if (!base64Image) {
+          throw new Error('No image data in AI response');
         }
-      }),
+
+        console.log('✅ Received base64 image data');
+
+        // Upload to storage if requested
+        let finalImageUrl = base64Image;
+        let storagePath: string | undefined;
+
+        if (uploadToStorage) {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+          const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+          const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+          const timestamp = Date.now();
+          const randomId = crypto.randomUUID().substring(0, 8);
+          const filename = `${timestamp}-${randomId}.png`;
+          storagePath = `${userId}/${filename}`;
+
+          console.log('📤 Uploading to storage:', storagePath);
+
+          const { error: uploadError } = await supabase.storage
+            .from(storageBucket)
+            .upload(storagePath, binaryData, {
+              contentType: 'image/png',
+              upsert: false
+            });
+
+          if (!uploadError) {
+            const { data: { publicUrl } } = supabase.storage
+              .from(storageBucket)
+              .getPublicUrl(storagePath);
+            
+            finalImageUrl = publicUrl;
+            console.log('✅ Uploaded to:', publicUrl);
+          }
+        }
+
+        return {
+          imageUrl: finalImageUrl,
+          imageId: crypto.randomUUID(),
+          metadata: {
+            generationTime: parseFloat(generationTime),
+            prompt: contentTitle || 'AI Generated',
+            storagePath,
+            channel
+          }
+        };
+      } finally {
+        setTimeout(() => activeRequests.delete(cacheKey), 60000);
+      }
+    })();
+
+    activeRequests.set(cacheKey, generationPromise);
+    const result = await generationPromise;
+
+    return new Response(
+      JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
@@ -184,101 +166,86 @@ serve(async (req) => {
   }
 });
 
-/**
- * Generate detailed prompt for garden center imagery
- */
+async function generateWithRetry(prompt: string, apiKey: string, maxRetries = 2): Promise<any> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash-image-preview',
+          messages: [{ role: 'user', content: prompt }],
+          modalities: ['image', 'text']
+        }),
+      });
+
+      if (response.status === 429 && attempt < maxRetries - 1) {
+        const retryAfter = parseInt(response.headers.get('retry-after') || '5');
+        console.log(`⏳ Rate limited, waiting ${retryAfter}s...`);
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        continue;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`AI Gateway error: ${response.status} - ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (attempt === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+}
+
 function generateImagePrompt(context: string, title: string, channel: string): string {
-  // Extract garden-related keywords
-  const gardenTerms = extractGardenTerms(context + ' ' + title);
-  
-  // Channel-specific style instructions
-  const styleInstructions = {
-    newsletter: 'Professional, clean garden center photography style. Well-lit, vibrant colors. Landscape format.',
-    instagram: 'Eye-catching, lifestyle-focused garden photography. Warm tones, shallow depth of field. Square format.',
-    facebook: 'Friendly, approachable garden imagery. Natural lighting, community feel. Landscape format.',
-    blog: 'Educational, detailed garden imagery. Clear focus on subject matter. Landscape format.'
+  const channelSpecs: Record<string, string> = {
+    newsletter: 'Professional, clean photography. Landscape 16:9.',
+    instagram: 'Vibrant, eye-catching square image. 1:1 aspect ratio.',
+    facebook: 'Engaging, shareable landscape format.',
+    blog: 'High-quality, informative landscape format.'
   };
-  
-  const style = styleInstructions[channel] || styleInstructions.newsletter;
-  
-  // Build comprehensive prompt
-  return `Create a high-quality ${channel} marketing image featuring: ${gardenTerms.join(', ')}.
 
-Style: ${style}
-Setting: Garden center, retail nursery, or home garden setting.
-Quality: Professional photography, sharp focus, vibrant natural colors.
-Mood: Inviting, fresh, seasonal, inspiring.
+  return `Create a high-quality, photorealistic image for a garden center marketing campaign.
 
-Important: Show real plants, realistic garden scenes, no artificial or cartoon elements.
-Focus on: ${title || gardenTerms[0] || 'beautiful garden plants'}
+Content Context: "${context}"
+Title: "${title}"
 
-Generate a photorealistic image that would work well for a garden center marketing campaign.`;
+Channel: ${channel}
+Specifications: ${channelSpecs[channel] || channelSpecs.newsletter}
+
+Visual Requirements:
+- Professional garden center or nursery setting
+- Vibrant, healthy plants and natural colors
+- Bright, natural lighting
+- Sharp focus on main subject
+- Welcoming, inspiring mood
+
+Style: Photorealistic, high-quality garden photography suitable for professional marketing materials.
+
+DO NOT include: Text overlays, logos, brand names, watermarks, or any written text.
+
+Generate an image that perfectly captures the essence of this content for a garden center's ${channel} campaign.`;
 }
 
-/**
- * Extract garden-related keywords from content
- */
-function extractGardenTerms(text: string): string[] {
-  const gardenKeywords = [
-    'hydrangea', 'rose', 'tomato', 'vegetable', 'flower', 'plant', 'garden',
-    'soil', 'compost', 'mulch', 'pruning', 'watering', 'planting', 'growing',
-    'spring', 'summer', 'fall', 'winter', 'seasonal', 'perennial', 'annual',
-    'shrub', 'tree', 'herb', 'succulent', 'fern', 'grass', 'vine'
-  ];
-  
-  const lowerText = text.toLowerCase();
-  const found = gardenKeywords.filter(keyword => lowerText.includes(keyword));
-  
-  return found.length > 0 ? found : ['garden', 'plants', 'flowers'];
-}
-
-/**
- * Extract base64 image from AI response
- */
 function extractBase64Image(aiData: any): string | null {
   try {
-    console.log('🔍 Extracting image from AI response structure:', JSON.stringify(aiData).substring(0, 500));
-    
-    // Primary path: choices[0].message.images[0].image_url.url
     if (aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url) {
-      const imageUrl = aiData.choices[0].message.images[0].image_url.url;
-      console.log('✅ Found image at choices[0].message.images[0].image_url.url');
-      return imageUrl;
+      return aiData.choices[0].message.images[0].image_url.url;
     }
-    
-    // Alternative: Check if content is a base64 string
     if (aiData.choices?.[0]?.message?.content) {
       const content = aiData.choices[0].message.content;
-      
       if (typeof content === 'string' && content.startsWith('data:image')) {
-        console.log('✅ Found image in message.content as base64');
         return content;
       }
-      
-      // Check if content has image data
-      if (content.image_data) {
-        console.log('✅ Found image in content.image_data');
-        return content.image_data;
-      }
     }
-    
-    // Check direct image field
-    if (aiData.image) {
-      console.log('✅ Found image in aiData.image');
-      return aiData.image;
-    }
-    
-    // Check data field
-    if (aiData.data?.[0]) {
-      console.log('✅ Found image in aiData.data[0]');
-      return aiData.data[0];
-    }
-    
-    console.error('❌ No image found in any expected location');
-    console.error('Available keys:', Object.keys(aiData));
     return null;
   } catch (error) {
-    console.error('Error extracting base64 image:', error);
+    console.error('Error extracting image:', error);
     return null;
   }
 }

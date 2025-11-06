@@ -132,68 +132,114 @@ export const useNewsletterImages = (
     
     const fetchImages = async () => {
       try {
-        const imagePromises: Promise<any>[] = [];
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error('[NEWSLETTER] No authenticated user');
+          return;
+        }
+
+        const imageRequests: any[] = [];
         
-        // Fetch featured image if we have a prompt
+        // Prepare featured image request
         if (featuredImagePrompt) {
-          imagePromises.push(
-            fetchSingleImage('featured', featuredImagePrompt, campaignTheme).then(result => ({
-              ...result,
-              isFeatured: true
-            }))
-          );
+          imageRequests.push({
+            key: 'featured',
+            contentContext: featuredImagePrompt,
+            contentTitle: 'Featured Image',
+            isFeatured: true
+          });
         }
         
-        // Process structured blocks
+        // Prepare structured block requests
         if (hasStructuredContent) {
           const blocksWithContent = blocks.filter(b => b.title || b.body);
           blocksWithContent.forEach((block, arrayIndex) => {
             const originalIndex = blocks.findIndex(b => b.title === block.title && b.body === block.body);
-            const smartQuery = generateSmartSearchQuery(block, campaignTheme);
-            
-            imagePromises.push(
-              fetchSingleImage(`block-${originalIndex}`, smartQuery, campaignTheme).then(result => ({
-                ...result,
-                index: originalIndex
-              }))
-            );
+            imageRequests.push({
+              key: `block-${originalIndex}`,
+              contentContext: `${block.title} ${block.body}`,
+              contentTitle: block.title,
+              index: originalIndex
+            });
           });
         }
         
-        // Process unstructured sections
+        // Prepare unstructured section requests
         if (hasUnstructuredContent) {
           unstructuredSections.forEach((section) => {
-            const smartQuery = generateSmartSearchQuery(section, campaignTheme);
-            
-            imagePromises.push(
-              fetchSingleImage(section.id, smartQuery, campaignTheme).then(result => ({
-                ...result,
-                sectionId: section.id
-              }))
-            );
+            imageRequests.push({
+              key: section.id,
+              contentContext: `${section.title} ${section.content}`,
+              contentTitle: section.title,
+              sectionId: section.id
+            });
           });
         }
 
-        const results = await Promise.all(imagePromises);
-        const imageMap: Record<string, ImageData> = {};
-        let newFeaturedImage: ImageData | null = null;
+        console.log(`🎨 Generating ${imageRequests.length} AI images in parallel`);
+
+        // Generate all images in parallel using Lovable AI
+        const imagePromises = imageRequests.map(async (request) => {
+          try {
+            const { data, error } = await supabase.functions.invoke('generate-ai-image', {
+              body: {
+                contentContext: request.contentContext,
+                contentTitle: request.contentTitle,
+                channel: 'newsletter',
+                uploadToStorage: true,
+                userId: user.id
+              }
+            });
+            
+            if (error) throw error;
+            
+            return {
+              ...request,
+              image: {
+                url: data.imageUrl,
+                alt: data.metadata?.prompt || request.contentTitle,
+                photographer: 'AI Generated'
+              }
+            };
+          } catch (error) {
+            console.error(`❌ Failed to generate image for ${request.key}:`, error);
+            return {
+              ...request,
+              error: error.message
+            };
+          }
+        });
+
+        // Wait for all images
+        const results = await Promise.allSettled(imagePromises);
         
-        results.forEach(result => {
-          if (result && result.image) {
-            if (result.isFeatured) {
-              newFeaturedImage = result.image;
-            } else if (result.index !== undefined) {
-              // Structured block image
-              imageMap[result.index] = result.image;
-            } else if (result.sectionId) {
-              // Unstructured section image
-              imageMap[result.sectionId] = result.image;
+        // Process results
+        const imageMap: Record<string, ImageData> = {};
+        const newErrors: Record<string, string> = {};
+        let newFeaturedImage: ImageData | null = null;
+
+        results.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            const data = result.value;
+            
+            if (data.image) {
+              if (data.isFeatured) {
+                newFeaturedImage = data.image;
+              } else if (data.index !== undefined) {
+                imageMap[data.index] = data.image;
+              } else if (data.sectionId) {
+                imageMap[data.sectionId] = data.image;
+              }
+            } else if (data.error) {
+              newErrors[data.key] = data.error;
             }
           }
         });
         
-        console.log('[NEWSLETTER] Final image map:', imageMap);
+        console.log('[NEWSLETTER] Final AI image map:', imageMap);
         setImages(imageMap);
+        setImageErrors(newErrors);
         
         if (newFeaturedImage) {
           setFeaturedImage(newFeaturedImage);
@@ -234,46 +280,6 @@ export const useNewsletterImages = (
     fetchImages();
   }, [contentKey, isPlaceholderContent, contentTaskId, campaignTheme, featuredImagePrompt]);
 
-  const fetchSingleImage = async (key: string, query: string, campaignTheme?: string) => {
-    try {
-      console.log('[NEWSLETTER] Fetching image for', key, 'with query:', query);
-      
-      const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
-        body: { 
-          query,
-          contentType: 'newsletter',
-          maxImages: 1,
-          orientation: 'landscape'
-        }
-      });
-      
-      if (error) {
-        console.error('[NEWSLETTER] Supabase function error for', key, ':', error);
-        setImageErrors(prev => ({ ...prev, [key]: error.message || 'Function call failed' }));
-        return null;
-      }
-      
-      if (data?.images?.[0]) {
-        console.log('[NEWSLETTER] Successfully fetched image for', key);
-        return {
-          key,
-          image: {
-            url: data.images[0].thumb_url,
-            alt: data.images[0].alt || query,
-            photographer: data.images[0].photographer
-          }
-        };
-      } else {
-        console.warn('[NEWSLETTER] No images in response for', key);
-        setImageErrors(prev => ({ ...prev, [key]: 'No images found for query' }));
-        return null;
-      }
-    } catch (error) {
-      console.error('[NEWSLETTER] Exception fetching image for', key, ':', error);
-      setImageErrors(prev => ({ ...prev, [key]: error.message || 'Network error' }));
-      return null;
-    }
-  };
 
   return {
     images,

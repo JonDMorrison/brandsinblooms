@@ -63,8 +63,8 @@ export const generateContentInParallel = async (
     showToast.info(`Generating ${tasksNeedingContent.length} pieces of content with ${overageAmount} token overage (+$${overageCost.toFixed(2)})`);
   }
 
-  // Create parallel generation promises
-  const generationPromises = tasksNeedingContent.map(async (task) => {
+  // Phase 1: Generate all content in parallel
+  const contentPromises = tasksNeedingContent.map(async (task) => {
     try {
       console.log(`🤖 Starting ${task.post_type} generation for task:`, task.id);
       
@@ -75,7 +75,6 @@ export const generateContentInParallel = async (
         .eq('id', task.id);
 
       let generatedContent = '';
-      let imageQuery = '';
       
       // Spend tokens for this specific generation
       const tokensToSpend = (task.post_type === 'newsletter' || task.post_type === 'video') ? 2 : 1;
@@ -91,53 +90,31 @@ export const generateContentInParallel = async (
         throw new Error(`Token spending failed: ${tokenError.message}`);
       }
       
-      // Generate content with AI-suggested image query
+      // Generate content
       if (task.post_type === 'newsletter') {
         const result = await generateNewsletterContent(campaignId, campaignTitle, 1, userId, weekDescription);
         generatedContent = typeof result === 'string' ? result : result?.content || '';
-        imageQuery = typeof result === 'object' && result ? result.imageQuery || '' : '';
       } else if (task.post_type === 'video') {
         const result = await generateVideoScript(campaignTitle, userId, weekDescription);
         generatedContent = typeof result === 'string' ? result : result?.content || '';
-        imageQuery = typeof result === 'object' && result ? result.imageQuery || '' : '';
       } else {
         const result = await generatePersonalizedContent(task.post_type, campaignTitle, userId, weekDescription);
         generatedContent = typeof result === 'string' ? result : result?.content || '';
-        imageQuery = typeof result === 'object' && result ? result.imageQuery || '' : '';
       }
       
       console.log(`✅ Generated ${task.post_type} content (${generatedContent.length} chars)`);
-      console.log(`🎨 AI-suggested image query: "${imageQuery}"`);
       
       // Validate content before updating
       if (!generatedContent || generatedContent.trim() === '') {
         throw new Error(`Generated content is empty for ${task.post_type}`);
       }
       
-      // Fetch image using AI-suggested query
-      let imageUrl = '';
-      if (imageQuery && (task.post_type === 'facebook' || task.post_type === 'instagram')) {
-        try {
-          const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
-            body: { query: imageQuery, maxImages: 1 }
-          });
-          
-          if (!imageError && imageData?.images && imageData.images.length > 0) {
-            imageUrl = imageData.images[0].download_url;
-            console.log(`✅ Fetched image using AI query: ${imageQuery}`);
-          }
-        } catch (imgErr) {
-          console.warn(`⚠️ Failed to fetch image for query "${imageQuery}":`, imgErr);
-        }
-      }
-      
-      // Update the task with generated content and image
+      // Update task with content immediately (no image yet)
       const { error: updateError } = await supabase
         .from('content_tasks')
         .update({ 
           ai_output: generatedContent,
-          status: 'review',
-          ...(imageUrl && { image_url: imageUrl })
+          status: 'review'
         })
         .eq('id', task.id);
       
@@ -145,14 +122,14 @@ export const generateContentInParallel = async (
         throw updateError;
       }
       
-      console.log(`✅ Successfully updated ${task.post_type} task ${task.id} with generated content${imageUrl ? ' and image' : ''}`);
+      console.log(`✅ Successfully updated ${task.post_type} task ${task.id} with content`);
       
       return { 
         taskId: task.id, 
         postType: task.post_type, 
         success: true, 
         content: generatedContent,
-        imageQuery
+        needsImage: ['facebook', 'instagram'].includes(task.post_type)
       };
       
     } catch (error) {
@@ -173,17 +150,60 @@ export const generateContentInParallel = async (
     }
   });
 
-  // Wait for all generations to complete in parallel
-  const results = await Promise.allSettled(generationPromises);
+  // Wait for all content generation to complete
+  const contentResults = await Promise.allSettled(contentPromises);
   
-  // Process results with proper type checking
-  const successfulResults = results
+  // Phase 2: Generate all images in parallel (only for tasks needing images)
+  const tasksNeedingImages = contentResults
+    .filter((result): result is PromiseFulfilledResult<any> => 
+      result.status === 'fulfilled' && result.value.success && result.value.needsImage
+    )
+    .map(result => result.value);
+
+  if (tasksNeedingImages.length > 0) {
+    console.log(`🎨 Starting parallel AI image generation for ${tasksNeedingImages.length} tasks`);
+    
+    const imagePromises = tasksNeedingImages.map(async (task) => {
+      try {
+        const { data, error } = await supabase.functions.invoke('generate-ai-image', {
+          body: {
+            contentContext: task.content,
+            contentTitle: campaignTitle,
+            channel: task.postType === 'instagram' ? 'instagram' : 'facebook',
+            uploadToStorage: true,
+            userId: userId
+          }
+        });
+        
+        if (error) throw error;
+        
+        // Update task with generated image
+        await supabase
+          .from('content_tasks')
+          .update({ image_url: data.imageUrl })
+          .eq('id', task.taskId);
+          
+        console.log(`✅ AI image generated for ${task.postType} task ${task.taskId}`);
+        
+        return { taskId: task.taskId, success: true };
+      } catch (error) {
+        console.error(`❌ Failed to generate image for task ${task.taskId}:`, error);
+        return { taskId: task.taskId, success: false };
+      }
+    });
+    
+    await Promise.allSettled(imagePromises);
+  }
+
+  // Process final results from content generation
+  
+  const successfulResults = contentResults
     .filter((result): result is PromiseFulfilledResult<any> => 
       result.status === 'fulfilled' && result.value.success
     )
     .map(result => result.value);
     
-  const failedResults = results
+  const failedResults = contentResults
     .map(result => {
       if (result.status === 'fulfilled' && !result.value.success) {
         return result.value.postType;
