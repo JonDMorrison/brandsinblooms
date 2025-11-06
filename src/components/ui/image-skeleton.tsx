@@ -26,10 +26,10 @@ export const ImageSkeleton: React.FC<ImageSkeletonProps> = ({
       aspectRatioClasses[aspectRatio],
       className
     )}>
-      <Skeleton className="w-full h-full" animation="wave" />
+      <Skeleton className="w-full h-full animate-pulse" animation="pulse" />
       {showIcon && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <ImageIcon className="w-12 h-12 text-gray-400 opacity-50" />
+          <ImageIcon className="w-12 h-12 text-gray-400 opacity-50 animate-pulse" />
         </div>
       )}
     </div>
