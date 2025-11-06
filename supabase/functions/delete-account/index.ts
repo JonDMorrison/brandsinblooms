@@ -71,31 +71,30 @@ serve(async (req) => {
       throw new Error('Please cancel your active subscription first');
     }
 
-    // Soft delete user data
-    const { error: softDeleteError } = await supabase.rpc('soft_delete_user_data', {
+    // Hard delete user data immediately using admin function
+    const { error: deleteError } = await supabase.rpc('admin_delete_user', {
       target_user_id: userId
     });
 
-    if (softDeleteError) {
-      console.error('Soft delete error:', softDeleteError);
-      throw new Error('Failed to delete user data');
+    if (deleteError) {
+      console.error('Delete error:', deleteError);
+      throw new Error('Failed to delete user account');
     }
 
-    // Create deletion request with 30-day grace period
-    const scheduledDeleteAt = new Date();
-    scheduledDeleteAt.setDate(scheduledDeleteAt.getDate() + 30);
-
+    // Log deletion request for audit trail (already completed)
+    const completedAt = new Date();
     const { error: requestError } = await supabase
       .from('deletion_requests')
       .insert({
         user_id: userId,
-        scheduled_hard_delete_at: scheduledDeleteAt.toISOString(),
-        status: 'pending'
+        scheduled_hard_delete_at: completedAt.toISOString(),
+        status: 'completed',
+        completed_at: completedAt.toISOString()
       });
 
     if (requestError) {
-      console.error('Deletion request error:', requestError);
-      throw new Error('Failed to create deletion request');
+      console.error('Deletion logging error:', requestError);
+      // Don't fail if audit log fails
     }
 
     // Send deletion confirmation email
@@ -104,33 +103,28 @@ serve(async (req) => {
         await resend.emails.send({
           from: 'BloomSuite <noreply@bloomsuite.com>',
           to: [user.email],
-          subject: 'Account Deletion Scheduled - BloomSuite',
+          subject: 'Account Deleted - BloomSuite',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #dc2626;">Account Deletion Scheduled</h1>
-              <p>We have received your request to delete your BloomSuite account.</p>
+              <h1 style="color: #dc2626;">Account Deleted</h1>
+              <p>Your BloomSuite account has been permanently deleted.</p>
               
               <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 16px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #dc2626; margin-top: 0;">Important Information:</h3>
+                <h3 style="color: #dc2626; margin-top: 0;">What was deleted:</h3>
                 <ul style="color: #dc2626;">
-                  <li>Your account is scheduled for permanent deletion on <strong>${scheduledDeleteAt.toLocaleDateString()}</strong></li>
-                  <li>All your data, content, and campaigns will be permanently removed</li>
-                  <li>Social media connections will be revoked</li>
-                  <li>This action cannot be undone after the deletion date</li>
+                  <li>Your account and login credentials</li>
+                  <li>All your data, content, and campaigns</li>
+                  <li>Social media connections</li>
+                  <li>Subscription information</li>
                 </ul>
               </div>
               
-              <h3>Grace Period</h3>
-              <p>You have 30 days to change your mind. If you want to reactivate your account:</p>
-              <ol>
-                <li>Log back into BloomSuite before ${scheduledDeleteAt.toLocaleDateString()}</li>
-                <li>Your account and data will be restored automatically</li>
-              </ol>
+              <p>You can create a new account at any time by visiting <a href="https://bloomsuite.com">bloomsuite.com</a></p>
               
               <p>If you have any questions, please contact us at <a href="mailto:support@bloomsuite.com">support@bloomsuite.com</a></p>
               
               <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                This email was sent because you requested account deletion from your BloomSuite account.
+                This email was sent to confirm your account deletion from BloomSuite.
               </p>
             </div>
           `,
@@ -141,7 +135,7 @@ serve(async (req) => {
           .from('deletion_requests')
           .update({ email_sent: true })
           .eq('user_id', userId)
-          .eq('status', 'pending');
+          .eq('status', 'completed');
 
       } catch (emailError) {
         console.error('Email sending error:', emailError);
@@ -150,7 +144,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, scheduledDeleteAt }),
+      JSON.stringify({ success: true, message: 'Account deleted successfully' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
