@@ -37,9 +37,6 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   const [currentImageUrl, setCurrentImageUrl] = useState(block.imageUrl);
   const [contentStable, setContentStable] = useState(false);
   
-  // Content persistence flag - once content loads, never show loading state again
-  const hasContentLoadedRef = useRef(false);
-  
   // Extract content for image generation
   const contentForImage = (() => {
     if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
@@ -131,14 +128,19 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
     ))
   );
   
-  // Once content has loaded, lock it in the ref so it persists even if block properties temporarily clear
-  if (hasContentNow && !hasContentLoadedRef.current) {
-    hasContentLoadedRef.current = true;
-    console.log('[ImageTextBlock] Content loaded and locked for block:', block.id);
-  }
+  // Store content loaded state in the block itself so it persists across remounts
+  useEffect(() => {
+    if (hasContentNow && !(block as any).hasContentLoaded && onUpdate) {
+      console.log('[ImageTextBlock] Content detected, marking as loaded for block:', block.id);
+      // Use setTimeout to avoid state update during render
+      setTimeout(() => {
+        onUpdate({ hasContentLoaded: true } as any);
+      }, 0);
+    }
+  }, [hasContentNow, (block as any).hasContentLoaded, block.id]);
   
-  // Content is considered loaded if EITHER we have content now OR we've had it before
-  const hasContentLoaded = hasContentNow || hasContentLoadedRef.current;
+  // Content is considered loaded if we have content now OR it was marked as loaded before
+  const hasContentLoaded = hasContentNow || !!(block as any).hasContentLoaded;
   
   // Smooth content stabilization after generation
   useEffect(() => {
@@ -176,15 +178,16 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       isGenerating,
       isGeneratingImage,
       hasContentNow,
-      hasContentLoadedRef: hasContentLoadedRef.current,
+      blockHasContentLoaded: (block as any).hasContentLoaded,
       hasContentLoaded,
       isContentLoading,
       isEmpty,
       contentStable,
       headline: block.headline?.substring(0, 50),
-      body: block.body?.substring(0, 50)
+      body: block.body?.substring(0, 50),
+      title: block.title
     });
-  }, [isGenerating, isGeneratingImage, hasContentNow, hasContentLoaded, isContentLoading, isEmpty, contentStable, block.id, block.headline, block.body]);
+  }, [isGenerating, isGeneratingImage, hasContentNow, hasContentLoaded, isContentLoading, isEmpty, contentStable, block.id, block.headline, block.body, block.title]);
 
   return (
     <div 
