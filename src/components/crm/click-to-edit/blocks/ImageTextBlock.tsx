@@ -370,7 +370,11 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                     ) : (
                       <>
                         <ImageIcon className="w-12 h-12 text-muted-foreground mb-3 animate-gentle-pulse" />
-                        <span className="text-muted-foreground mb-3">Click to add image</span>
+                        {isGeneratingImage ? (
+                          <span className="text-muted-foreground font-medium">Generating image with AI...</span>
+                        ) : (
+                          <span className="text-muted-foreground mb-3">Click to add image</span>
+                        )}
                         <div className="flex gap-2">
                           <button
                             onClick={(e) => {
