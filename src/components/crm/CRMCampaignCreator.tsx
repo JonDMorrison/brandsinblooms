@@ -1646,13 +1646,50 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         try {
           setLoading(true);
           
+          // Extract week number from templateId (e.g., "weekly-theme-45" → 45)
+          const weekMatch = templateId.match(/weekly-theme-(\d+)/);
+          const weekNumber = weekMatch ? parseInt(weekMatch[1]) : null;
+          console.log('📅 Extracted week number:', weekNumber);
+          
+          // Load weekly theme data from master_campaign_templates if week number found
+          let weeklyThemeData: any = null;
+          if (weekNumber) {
+            console.log('🔍 Loading weekly theme data for week', weekNumber);
+            const { data: themeData, error: themeError } = await supabase
+              .from('master_campaign_templates')
+              .select('*')
+              .eq('week_number', weekNumber)
+              .maybeSingle();
+            
+            if (!themeError && themeData) {
+              weeklyThemeData = themeData;
+              console.log('✅ Loaded weekly theme:', themeData.title);
+            } else {
+              console.warn('⚠️ No theme data found for week', weekNumber, themeError);
+            }
+          }
+          
           // Fetch the newsletter ideas to get the template
           const { data, error } = await supabase.rpc('fn_get_newsletter_ideas');
           
           if (error) throw error;
           
           const ideas = Array.isArray(data) ? data as any[] : [];
-          const selectedIdea = ideas.find(idea => idea.id === templateId);
+          let selectedIdea = ideas.find(idea => idea.id === templateId);
+          
+          // If template not found in ideas but we have weekly theme data, use that
+          if (!selectedIdea && weeklyThemeData) {
+            console.log('📦 Using weekly theme data as template source');
+            selectedIdea = {
+              id: templateId,
+              title: weeklyThemeData.title,
+              description: weeklyThemeData.content_ideas || weeklyThemeData.theme,
+              category: 'weekly',
+              seasonal_focus: weeklyThemeData.seasonal_focus || weeklyThemeData.theme,
+              weekNumber: weekNumber,
+              templateBlocks: []
+            };
+          }
           
           if (selectedIdea) {
             console.log('✅ Found template idea:', selectedIdea.title);
@@ -1832,29 +1869,165 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             
             console.log(`✅ [NewsletterInit] Generated ${crmBlocks.length} blocks for "${selectedIdea.title}" (layout: ${layoutType})`);
           } else {
-            console.warn('⚠️ Template not found, using URL parameters as fallback:', templateId);
+            console.warn('⚠️ Template not found in ideas, checking weekly theme data:', templateId);
             
-            // Extract title and description from URL parameters as fallback
+            // If we have weekly theme data, use that as a backup
+            if (weeklyThemeData) {
+              console.log('📦 Using weekly theme data from database');
+              const topic = weeklyThemeData.title;
+              const description = weeklyThemeData.content_ideas || weeklyThemeData.theme;
+              
+              setCampaignName(topic);
+              setSubjectLine(topic);
+              setPreheaderText(generatePreheaderText(description, topic));
+              
+              const layoutType = layout as 'block-builder' | 'simple-email' || 'block-builder';
+              console.log(`🎨 Generating ${layoutType} layout blocks for weekly theme: "${topic}"`);
+              
+              let crmBlocks = generateNewsletterBlocks({
+                topic: topic,
+                layout: layoutType,
+                templateBlocks: []
+              });
+              
+              if (crmBlocks.length === 0) {
+                console.warn('⚠️ Block generator returned empty array, using fallback');
+                crmBlocks = getFallbackBlocks(topic);
+              }
+              
+              // Set loading states for content and images
+              const blocksWithLoadingStates = normalizeBlocks(crmBlocks).map((b) => {
+                const needsImage = b.type === 'image' || b.type === 'image-text';
+                return {
+                  ...b,
+                  headline: b.type === 'header' ? b.headline : '⏳ Generating content...',
+                  body: b.type === 'header' ? b.body : '',
+                  shouldFetchImage: needsImage,
+                  imageUrl: needsImage ? 'loading' : b.imageUrl,
+                  source: 'template' as const,
+                  isLoadingContent: b.type !== 'header',
+                  isLoadingImage: needsImage
+                };
+              });
+              
+              setBlocks(blocksWithLoadingStates);
+              
+              // Generate AI content for blocks
+              const enhancedBlocks = await Promise.all(
+                crmBlocks.map(async (block, index) => {
+                  if (block.type === 'header') return block;
+                  
+                  try {
+                    const postType = POST_TYPE_ROTATION[index % POST_TYPE_ROTATION.length];
+                    const previousBlocks = crmBlocks.slice(0, index).filter(b => b.type !== 'header' && b.type !== 'divider');
+                    
+                    const response = await supabase.functions.invoke('generate-email-content', {
+                      body: { 
+                        prompt: `Create newsletter content for: ${topic}`,
+                        type: 'email_block',
+                        postType: postType,
+                        campaignTitle: topic,
+                        campaignContext: description,
+                        blockIndex: index,
+                        previousBlocks,
+                        totalBlocks: crmBlocks.length
+                      }
+                    });
+                    
+                    if (response.error || !response.data?.title || !response.data?.content) {
+                      console.warn(`⚠️ AI generation failed for block ${index + 1}`);
+                      return block;
+                    }
+                    
+                    const aiResult = response.data;
+                    const needsImage = block.type === 'image' || block.type === 'image-text';
+                    return {
+                      ...block,
+                      title: aiResult.title,
+                      headline: aiResult.title,
+                      content: aiResult.content,
+                      body: aiResult.content,
+                      ctaText: aiResult.cta_text || block.ctaText,
+                      ctaUrl: aiResult.cta_url || block.ctaUrl,
+                      shouldFetchImage: needsImage,
+                      isLoadingContent: false
+                    };
+                  } catch (blockError) {
+                    console.warn(`⚠️ Failed to enhance block ${index + 1}:`, blockError);
+                    return { ...block, isLoadingContent: false };
+                  }
+                })
+              );
+              
+              // Update blocks with AI content
+              const contentReadyBlocks = normalizeBlocks(
+                autoFillHeaderTitle(enhancedBlocks, topic)
+              ).map(b => {
+                const needsImage = b.type === 'image' || b.type === 'image-text';
+                return {
+                  ...b,
+                  shouldFetchImage: needsImage,
+                  imageUrl: needsImage ? 'loading' : b.imageUrl,
+                  isLoadingImage: needsImage,
+                  source: 'template' as const
+                };
+              });
+              
+              setBlocks(contentReadyBlocks);
+              
+              // Generate images from AI content
+              const weekContext = {
+                title: topic,
+                description: description,
+                seasonalFocus: weeklyThemeData.seasonal_focus || description,
+                weekNumber: weekNumber || undefined
+              };
+              
+              generateImagesForBlocks(
+                contentReadyBlocks,
+                weekContext,
+                usedImageIds,
+                setUsedImageIds,
+                setBlocks
+              ).catch(err => console.error('❌ Image generation error:', err));
+              
+              toast({
+                title: "Template Applied",
+                description: `Weekly theme "${topic}" has been applied successfully.`,
+              });
+              
+              // Clean up flow parameter
+              const url = new URL(window.location.href);
+              url.searchParams.delete('flow');
+              window.history.replaceState({}, '', url.toString());
+              
+              setLoading(false);
+              return;
+            }
+            
+            // Final fallback: use URL parameters
+            console.warn('⚠️ No weekly theme data found, using URL parameters as fallback:', templateId);
+            
             const safeDecodeURIComponent = (value: string) => {
               try {
                 return decodeURIComponent(value);
               } catch (error) {
                 console.warn('Failed to decode URI component:', value, error);
-                return value; // Return original value if decoding fails
+                return value;
               }
             };
             
             const urlTitle = safeDecodeURIComponent(searchParams.get('title') || '');
             const urlDescription = safeDecodeURIComponent(searchParams.get('description') || '');
             
-            const topic = urlTitle || 'Newsletter Campaign';
-            const description = urlDescription || topic;
+            const topic = urlTitle || weeklyThemeData?.title || 'Newsletter Campaign';
+            const description = urlDescription || weeklyThemeData?.content_ideas || topic;
             
             // Generate blocks based on layout and topic
             const layoutType = layout as 'block-builder' | 'simple-email' || 'block-builder';
             setCampaignName(topic);
             setSubjectLine(topic.replace(' Newsletter', ''));
-            setPreheaderText(generatePreheaderText(topic, description));
+            setPreheaderText(generatePreheaderText(description, topic));
             
             console.log(`🎨 Generating ${layoutType} layout blocks for topic: "${topic}"`);
             
@@ -1869,7 +2042,22 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               crmBlocks = getFallbackBlocks(topic);
             }
             
-            setBlocks(normalizeBlocks(crmBlocks));
+            // Set loading states for content and images (same as successful path)
+            const blocksWithLoadingStates = normalizeBlocks(crmBlocks).map((b) => {
+              const needsImage = b.type === 'image' || b.type === 'image-text';
+              return {
+                ...b,
+                headline: b.type === 'header' ? b.headline : '⏳ Generating content...',
+                body: b.type === 'header' ? b.body : '',
+                shouldFetchImage: needsImage,
+                imageUrl: needsImage ? 'loading' : b.imageUrl,
+                source: 'template' as const,
+                isLoadingContent: b.type !== 'header',
+                isLoadingImage: needsImage
+              };
+            });
+            
+            setBlocks(blocksWithLoadingStates);
             console.log(`✅ [FallbackInit] Generated ${crmBlocks.length} blocks for "${topic}" (layout: ${layoutType})`);
             
             // Check if we already have cached content for this template
@@ -2008,6 +2196,23 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 }
                 
                 console.log(`✅ [FallbackAI] AI enhancement complete for "${topic}"`);
+                
+                // Generate images for blocks with AI content
+                const weekContext = {
+                  title: topic,
+                  description: description,
+                  seasonalFocus: weeklyThemeData?.seasonal_focus || description,
+                  weekNumber: weekNumber || undefined
+                };
+                
+                console.log('🖼️ [FallbackAI] Starting image generation with context:', weekContext);
+                generateImagesForBlocks(
+                  enhancedBlocks,
+                  weekContext,
+                  usedImageIds,
+                  setUsedImageIds,
+                  setBlocks
+                ).catch(err => console.error('❌ [FallbackAI] Image generation error:', err));
                 
                 // Auto-save the generated content as a draft
                 try {
