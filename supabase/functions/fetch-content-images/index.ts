@@ -69,61 +69,66 @@ serve(async (req) => {
         
         console.log(`✅ [TASK ${task.task_id}] Generated keywords: ${keywords}`);
 
-        // Step 2: Fetch image from Unsplash using keywords
-        const imageResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-unsplash-images`, {
+        // Step 2: Generate AI image using Lovable AI
+        const imageResponse = await fetch(`${supabaseUrl}/functions/v1/generate-ai-image`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${supabaseKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            query: keywords,
-            maxImages: 1,
-            orientation: task.post_type === 'instagram' ? 'squarish' : 'landscape',
-            rawQuery: false // Let the function validate and enhance the query
+            contentContext: task.content,
+            contentTitle: task.title || keywords,
+            channel: task.post_type === 'newsletter' ? 'newsletter' : 
+                     task.post_type === 'blog' ? 'blog' :
+                     task.post_type === 'instagram' ? 'instagram' : 'facebook',
+            uploadToStorage: true,
+            storageBucket: 'campaign-images',
+            userId: 'campaign'
           })
         });
 
         if (!imageResponse.ok) {
           const errorText = await imageResponse.text();
           // Check for rate limiting
-          if (imageResponse.status === 403 || errorText.includes('Rate Limit')) {
-            console.warn(`⚠️ [TASK ${task.task_id}] Unsplash rate limit hit`);
+          if (imageResponse.status === 429 || errorText.includes('rate limit')) {
+            console.warn(`⚠️ [TASK ${task.task_id}] AI generation rate limit hit`);
             return {
               task_id: task.task_id,
               image_url: null,
               metadata: { error: 'rate_limited', keywords },
-              error: 'Unsplash rate limit exceeded',
+              error: 'AI image generation rate limit exceeded',
               status: 'rate_limited'
             };
           }
-          throw new Error(`Image fetch failed: ${errorText}`);
+          throw new Error(`AI image generation failed: ${errorText}`);
         }
 
         const imageData = await imageResponse.json();
-        const image = imageData.images?.[0];
 
-        if (!image || !image.url) {
-          console.warn(`⚠️ [TASK ${task.task_id}] No relevant image found`);
+        if (!imageData.imageUrl) {
+          console.warn(`⚠️ [TASK ${task.task_id}] No image generated`);
           return {
             task_id: task.task_id,
             image_url: null,
-            metadata: { error: 'no_images_found', keywords },
-            error: 'No relevant images found',
+            metadata: { error: 'no_image_generated', keywords },
+            error: 'No image generated',
             status: 'failed'
           };
         }
 
         const metadata = {
-          unsplash_id: image.id,
-          photographer: image.photographer,
-          photographer_url: image.photographer_url,
-          alt: image.alt,
+          source: 'ai_generated',
+          model: 'google/gemini-2.5-flash-image-preview',
+          prompt: task.title || keywords,
           keywords: keywords,
-          fetched_at: new Date().toISOString()
+          channel: task.post_type,
+          generation_time: imageData.metadata?.generationTime,
+          storage_path: imageData.metadata?.storagePath,
+          generated_at: new Date().toISOString()
         };
 
-        console.log(`✅ [TASK ${task.task_id}] Found image: ${image.url}`);
+        console.log(`✅ [TASK ${task.task_id}] AI image generated: ${imageData.imageUrl}`);
 
         // Step 3: Update the content_tasks table
         const updateResponse = await fetch(`${supabaseUrl}/rest/v1/content_tasks?id=eq.${task.task_id}`, {
@@ -135,9 +140,9 @@ serve(async (req) => {
             'Prefer': 'return=minimal'
           },
           body: JSON.stringify({
-            image_url: image.url,
+            image_url: imageData.imageUrl,
             image_metadata: metadata,
-            image_source: 'unsplash',
+            image_source: 'ai_generated',
             image_generation_status: 'completed',
             image_generated_at: new Date().toISOString()
           })
@@ -152,7 +157,7 @@ serve(async (req) => {
 
         return {
           task_id: task.task_id,
-          image_url: image.url,
+          image_url: imageData.imageUrl,
           metadata,
           error: null,
           status: 'completed'
