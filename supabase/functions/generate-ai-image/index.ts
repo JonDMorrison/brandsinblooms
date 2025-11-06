@@ -21,7 +21,12 @@ const activeRequests = new Map<string, Promise<any>>();
 // Cache key generation for deduplication
 function getCacheKey(contentContext: string, channel: string): string {
   const hash = contentContext.substring(0, 100) + channel;
-  return btoa(hash).substring(0, 32);
+  // Use TextEncoder to properly handle Unicode characters
+  const encoder = new TextEncoder();
+  const data = encoder.encode(hash);
+  // Convert bytes to base64-safe string
+  const base64 = btoa(String.fromCharCode(...data));
+  return base64.substring(0, 32);
 }
 
 serve(async (req) => {
