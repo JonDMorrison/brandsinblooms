@@ -12,6 +12,7 @@ import { ContextualToolbar } from '../contextual/ContextualToolbar';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { Calendar } from 'lucide-react';
+import { AIImageLoadingOverlay } from '../AIImageLoadingOverlay';
 
 interface NewsletterHeaderBlockProps {
   block: ContentBlock;
@@ -21,6 +22,7 @@ interface NewsletterHeaderBlockProps {
   isPreview: boolean;
   editMode?: EditMode;
   onModeChange?: (mode: EditMode) => void;
+  isGeneratingImage?: boolean;
 }
 
 export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({ 
@@ -30,7 +32,8 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
   onDelete, 
   isPreview,
   editMode,
-  onModeChange 
+  onModeChange,
+  isGeneratingImage = false
 }) => {
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [tempDate, setTempDate] = useState(block.publishDate || '');
@@ -44,6 +47,13 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
   // Live preview component that can be reused
   const PreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group min-h-[400px]">
+      {/* AI Image Generation Overlay */}
+      {isGeneratingImage && (
+        <AIImageLoadingOverlay 
+          message="Generating header image with AI..."
+          showIcon={true}
+        />
+      )}
       {/* Background Image - bottom layer */}
       {block.backgroundImageUrl && (
         <div 

@@ -13,6 +13,7 @@ import { EditMode } from '@/hooks/useBlockEditMode';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { useAutoBackgroundImage } from '@/hooks/useAutoBackgroundImage';
 import { SafeHtml } from '@/components/ui/safe-html';
+import { AIImageLoadingOverlay } from '../AIImageLoadingOverlay';
 
 interface HeaderBlockProps {
   block: ContentBlock;
@@ -22,6 +23,7 @@ interface HeaderBlockProps {
   isPreview: boolean;
   editMode?: EditMode;
   onModeChange?: (mode: EditMode) => void;
+  isGeneratingImage?: boolean;
 }
 
 export const HeaderBlock: React.FC<HeaderBlockProps> = ({ 
@@ -31,7 +33,8 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
   onDelete, 
   isPreview,
   editMode,
-  onModeChange 
+  onModeChange,
+  isGeneratingImage = false
 }) => {
   const mediaSelectorRef = useRef<MediaSelectorImageHandle>(null);
 
@@ -55,6 +58,13 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
   // Live preview component that can be reused
   const PreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group min-h-[300px]">
+      {/* AI Image Generation Overlay */}
+      {isGeneratingImage && (
+        <AIImageLoadingOverlay 
+          message="Generating header image with AI..."
+          showIcon={true}
+        />
+      )}
       {/* Background Image - bottom layer */}
       {block.backgroundImageUrl && (
         <div 

@@ -16,6 +16,7 @@ import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
+import { useHeaderBackgroundImage } from '@/hooks/useHeaderBackgroundImage';
 
 interface ClickToEditEmailBuilderProps {
   blocks: ContentBlock[];
@@ -38,6 +39,37 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   
   // Debug state for MediaSelector
   const [debugMediaSelectorOpen, setDebugMediaSelectorOpen] = useState(false);
+
+  // Find the first header block (header or newsletter-header)
+  const headerBlock = blocks.find(b => b.type === 'header' || b.type === 'newsletter-header');
+
+  // Use header background image generation hook
+  const { isGenerating: isGeneratingHeaderImage } = useHeaderBackgroundImage({
+    blocks: blocks.map(b => ({
+      type: b.type,
+      content: {
+        title: b.title || b.headline,
+        subtitle: b.subtitle || b.body,
+        content: b.content,
+        text: typeof b.content === 'string' ? b.content : undefined
+      },
+      isGenerating: generatingBlocks.has(b.id)
+    })),
+    campaignTitle: campaignName || 'Newsletter',
+    onImageReady: (imageUrl, metadata) => {
+      console.log('[ClickToEditEmailBuilder] Header image ready:', imageUrl);
+      if (headerBlock) {
+        updateBlock(headerBlock.id, {
+          backgroundImageUrl: imageUrl,
+          // Set a subtle dark overlay for better text readability
+          backgroundColor: '#000000',
+          colorOverlayOpacity: 30,
+          backgroundOpacity: 80
+        });
+      }
+    },
+    enabled: !!headerBlock && !headerBlock.backgroundImageUrl // Only generate if no image exists
+  });
   
   // Create a dummy footer block for display (not included in the actual blocks array)
   const footerBlock: ContentBlock = {
@@ -173,11 +205,13 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       onUpdate: (updates: Partial<ContentBlock>) => updateBlock(block.id, updates)
     };
 
+    const isHeaderGeneratingImage = (block.type === 'header' || block.type === 'newsletter-header') && isGeneratingHeaderImage;
+
     switch (block.type) {
       case 'header':
-        return <HeaderBlock {...props} isPreview={false} />;
+        return <HeaderBlock {...props} isPreview={false} isGeneratingImage={isHeaderGeneratingImage} />;
       case 'newsletter-header':
-        return <NewsletterHeaderBlock {...props} isPreview={false} />;
+        return <NewsletterHeaderBlock {...props} isPreview={false} isGeneratingImage={isHeaderGeneratingImage} />;
       case 'text':
         // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
@@ -214,11 +248,13 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       onUpdate: (updates: Partial<ContentBlock>) => updateBlock(block.id, updates)
     };
 
+    const isHeaderGeneratingImage = (block.type === 'header' || block.type === 'newsletter-header') && isGeneratingHeaderImage;
+
     switch (block.type) {
       case 'header':
-        return <HeaderBlock {...props} isPreview={true} />;
+        return <HeaderBlock {...props} isPreview={true} isGeneratingImage={isHeaderGeneratingImage} />;
       case 'newsletter-header':
-        return <NewsletterHeaderBlock {...props} isPreview={true} />;
+        return <NewsletterHeaderBlock {...props} isPreview={true} isGeneratingImage={isHeaderGeneratingImage} />;
       case 'text':
         // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
