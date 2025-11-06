@@ -363,13 +363,13 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                   </div>
                 ) : (
                   <div 
-                    className="w-full h-48 bg-muted rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors p-4 animate-pulse"
+                    className="w-full h-48 bg-muted rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors p-4 animate-gentle-pulse"
                   >
                     {isImageLoading ? (
                       <ImageSkeleton className="w-full h-full" />
                     ) : (
                       <>
-                        <ImageIcon className="w-12 h-12 text-muted-foreground mb-3 animate-pulse" />
+                        <ImageIcon className="w-12 h-12 text-muted-foreground mb-3 animate-gentle-pulse" />
                         <span className="text-muted-foreground mb-3">Click to add image</span>
                         <div className="flex gap-2">
                           <button

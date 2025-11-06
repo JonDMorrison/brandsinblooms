@@ -45,6 +45,14 @@ export const keyframes: Config["theme"]["extend"]["keyframes"] = {
     '100%': {
       transform: 'translateX(100%)'
     }
+  },
+  'gentle-pulse': {
+    '0%, 100%': {
+      opacity: '1'
+    },
+    '50%': {
+      opacity: '0.5'
+    }
   }
 };
 
@@ -54,4 +62,5 @@ export const animation: Config["theme"]["extend"]["animation"] = {
   'fade-in': 'fade-in 0.2s ease-out',
   'scale-in': 'scale-in 0.15s ease-out',
   shimmer: 'shimmer 2s infinite',
+  'gentle-pulse': 'gentle-pulse 2.5s ease-in-out infinite',
 };

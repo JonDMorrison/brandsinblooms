@@ -21,12 +21,10 @@ export const AIImageLoadingOverlay: React.FC<AIImageLoadingOverlayProps> = ({
       "rounded-lg",
       className
     )}>
-      <div className="text-center space-y-4">
-        <div className="relative">
-          <div className="w-16 h-16 mx-auto border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-        </div>
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
         
-        <div className="space-y-2">
+        <div className="text-center space-y-2">
           <p className="text-sm font-semibold text-black dark:text-white">
             {message}
           </p>
