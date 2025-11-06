@@ -18,15 +18,21 @@ interface GenerateImageRequest {
 // Active request deduplication cache
 const activeRequests = new Map<string, Promise<any>>();
 
+// Sanitize string to only contain Latin1 characters (code points 0-255)
+function sanitizeLatin1(input: string): string {
+  return input
+    .split('')
+    .filter(char => char.charCodeAt(0) <= 255)
+    .join('');
+}
+
 // Cache key generation for deduplication
 function getCacheKey(contentContext: string, channel: string): string {
   const hash = contentContext.substring(0, 100) + channel;
-  // Use TextEncoder to properly handle Unicode characters
-  const encoder = new TextEncoder();
-  const data = encoder.encode(hash);
-  // Convert bytes to base64-safe string
-  const base64 = btoa(String.fromCharCode(...data));
-  return base64.substring(0, 32);
+  // Sanitize to Latin1 before encoding
+  const sanitizedHash = sanitizeLatin1(hash);
+  // Now btoa() will work without errors
+  return btoa(sanitizedHash).substring(0, 32);
 }
 
 serve(async (req) => {
