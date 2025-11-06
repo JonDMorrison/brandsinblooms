@@ -4,16 +4,38 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/NativeSelect';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
+import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
 
 interface ImageBlockEditorProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
+  isGenerating?: boolean;
 }
 
 export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({ 
   block, 
-  onUpdate 
+  onUpdate,
+  isGenerating = false
 }) => {
+  // Use AI image generation for standalone image blocks
+  const contentForImage = block.caption || block.altText || 'Newsletter image';
+  
+  const { isGeneratingImage } = useBlockImageGeneration({
+    blockId: block.id,
+    blockType: block.type,
+    content: contentForImage,
+    currentImageUrl: block.imageUrl,
+    isContentGenerating: isGenerating,
+    onImageReady: (imageUrl, metadata) => {
+      onUpdate({
+        imageUrl,
+        altText: metadata?.alt || 'AI generated image'
+      });
+    },
+    enabled: !block.imageUrl
+  });
+
   const handleImageChange = useCallback((imageUrl: string) => {
     onUpdate({ imageUrl });
   }, [onUpdate]);
@@ -35,12 +57,19 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
       <div className="space-y-2 relative z-10">
         <Label>Image</Label>
         <div className="w-full relative">
-          <MediaSelectorImage
-            src={block.imageUrl}
-            onChange={handleImageChange}
-            contentContext="Email newsletter image"
-            className="w-full"
-          />
+          {isGeneratingImage && (
+            <div className="relative w-full h-64 rounded-lg bg-muted mb-4">
+              <AIImageLoadingOverlay message="Generating image with AI..." />
+            </div>
+          )}
+          {!isGeneratingImage && (
+            <MediaSelectorImage
+              src={block.imageUrl}
+              onChange={handleImageChange}
+              contentContext="Email newsletter image"
+              className="w-full"
+            />
+          )}
         </div>
       </div>
 

@@ -8,11 +8,11 @@ import { EditMode } from '@/hooks/useBlockEditMode';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { BlockGeneratingOverlay } from './BlockGeneratingOverlay';
 
-import { extractImageSummaryWithContext } from '@/utils/imageContentSummary';
-import { useUnsplash } from '@/hooks/useUnsplash';
 import { ImageSkeleton } from '@/components/ui/image-skeleton';
 import { TextContentSkeleton } from '@/components/ui/text-content-skeleton';
 import { Image as ImageIcon } from 'lucide-react';
+import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
+import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
 
 interface ImageTextBlockProps {
   block: ContentBlock;
@@ -31,92 +31,40 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   onModeChange,
   isGenerating = false
 }) => {
-  const { getCuratedCollectionImages } = useUnsplash();
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [hasImageLoaded, setHasImageLoaded] = useState(!!block.imageUrl);
   const [imageError, setImageError] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState(block.imageUrl);
   
-  // Ref to track current fetch operation and prevent race conditions
-  const fetchOperationRef = useRef<number>(0);
-  const debounceTimerRef = useRef<NodeJS.Timeout>();
-  
-  // Sequential image fetch using Unsplash only
-  const sequentialImageFetch = useCallback(async (contentForImage: string, operationId: number) => {
-    if (!contentForImage) return;
-    
-    console.log(`[ImageTextBlock] Fetching image for operation ${operationId}:`, contentForImage);
-    setIsImageLoading(true);
-    setImageError(false);
-    
-    const smartSummary = extractImageSummaryWithContext(contentForImage, true);
-    
-    try {
-      const curatedImages = await getCuratedCollectionImages(1);
-      
-      // Check if this operation is still current
-      if (fetchOperationRef.current !== operationId) {
-        console.log(`[ImageTextBlock] Operation ${operationId} cancelled`);
-        return;
-      }
-      
-      if (curatedImages.length > 0) {
-        console.log(`[ImageTextBlock] Operation ${operationId} using curated image`);
-        onUpdate?.({ 
-          imageUrl: curatedImages[0].download_url,
-          altText: curatedImages[0].alt || 'Garden center image'
-        });
-      } else {
-        setIsImageLoading(false);
-      }
-    } catch (error) {
-      if (fetchOperationRef.current === operationId) {
-        console.error(`[ImageTextBlock] Operation ${operationId} fetch failed:`, error);
-        setIsImageLoading(false);
-      }
+  // Extract content for image generation
+  const contentForImage = (() => {
+    if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
+      return (block.content as any).headline;
+    } else if (block.headline) {
+      return block.headline;
+    } else if (block.title) {
+      return block.title;
+    } else if (typeof block.content === 'string') {
+      return block.content;
     }
-  }, [onUpdate, getCuratedCollectionImages]);
+    return '';
+  })();
 
-  // Auto-fetch image for blocks that don't have an image (debounced to prevent race conditions)
-  useEffect(() => {
-    // Skip auto-fetch if image is marked as "loading" or if block is from newsletter template
-    const isLoadingPlaceholder = block.imageUrl === 'loading';
-    const isNewsletterBlock = (block as any).source === 'newsletter' || (block as any).source === 'template';
-    
-    if (!block.imageUrl && onUpdate && !isLoadingPlaceholder && !isNewsletterBlock) {
-      // Clear any existing debounce timer
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      
-      const contentForImage = (() => {
-        if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
-          return (block.content as any).headline;
-        } else if (block.headline) {
-          return block.headline;
-        } else if (block.title) {
-          return block.title;
-        } else if (typeof block.content === 'string') {
-          return block.content;
-        }
-        return null;
-      })();
-
-      if (contentForImage) {
-        // Debounce the image fetch to prevent rapid successive calls
-        debounceTimerRef.current = setTimeout(() => {
-          const operationId = ++fetchOperationRef.current;
-          sequentialImageFetch(contentForImage, operationId);
-        }, 500); // 500ms debounce for better stability
-      }
-    }
-    
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [block.imageUrl, block.headline, block.title, block.content, onUpdate, sequentialImageFetch]);
+  // Use AI image generation hook
+  const { isGeneratingImage } = useBlockImageGeneration({
+    blockId: block.id,
+    blockType: block.type,
+    content: contentForImage,
+    currentImageUrl: block.imageUrl,
+    isContentGenerating: isGenerating,
+    onImageReady: (imageUrl, metadata) => {
+      onUpdate?.({
+        imageUrl,
+        altText: metadata?.alt || 'AI generated garden image'
+      });
+    },
+    enabled: !block.imageUrl && !!onUpdate
+  });
 
   // Handle image URL changes and preloading
   useEffect(() => {
@@ -320,6 +268,15 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               {(() => {
                 // Check if image is loading
                 const isImageLoadingState = block.imageUrl === 'loading' || (block as any).isLoadingImage === true;
+                
+                // Show AI image loading overlay
+                if (isGeneratingImage) {
+                  return (
+                    <div className="relative w-full h-64 rounded-lg bg-muted">
+                      <AIImageLoadingOverlay message="Generating image with AI..." />
+                    </div>
+                  );
+                }
                 
                 // Show image skeleton if loading
                 if (isImageLoadingState) {

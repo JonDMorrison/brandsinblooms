@@ -226,7 +226,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         if (hasTwoColumnLayout) {
           return <ImageTextBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
         }
-        return <ImageBlock {...props} isPreview={false} />;
+        return <ImageBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
       case 'image-text':
         return <ImageTextBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
       case 'divider':
@@ -269,7 +269,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         if (hasTwoColumnLayoutPreview) {
           return <ImageTextBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
         }
-        return <ImageBlock {...props} isPreview={true} />;
+        return <ImageBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
       case 'image-text':
         return <ImageTextBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
       case 'divider':

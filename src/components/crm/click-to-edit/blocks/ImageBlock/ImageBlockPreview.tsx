@@ -6,19 +6,41 @@ import { InlineImageEditor } from '../../inline/InlineImageEditor';
 import { InlineStyleEditor } from '../../inline/InlineStyleEditor';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { cn } from '@/lib/utils';
+import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
+import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
 
 interface ImageBlockPreviewProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
+  isGenerating?: boolean;
 }
 
 type InlineEditMode = 'image' | 'style' | null;
 
 export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({ 
   block, 
-  onUpdate 
+  onUpdate,
+  isGenerating = false
 }) => {
   const [inlineEditMode, setInlineEditMode] = useState<InlineEditMode>(null);
+
+  // Use AI image generation
+  const contentForImage = block.caption || block.altText || 'Newsletter image';
+  
+  const { isGeneratingImage } = useBlockImageGeneration({
+    blockId: block.id,
+    blockType: block.type,
+    content: contentForImage,
+    currentImageUrl: block.imageUrl,
+    isContentGenerating: isGenerating,
+    onImageReady: (imageUrl, metadata) => {
+      onUpdate({
+        imageUrl,
+        altText: metadata?.alt || 'AI generated image'
+      });
+    },
+    enabled: !block.imageUrl
+  });
 
   const handleInlineEdit = useCallback((mode: InlineEditMode, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -71,8 +93,15 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
         <Settings className="h-4 w-4" />
       </Button>
 
+      {/* AI Image Loading Overlay */}
+      {isGeneratingImage && (
+        <div className="relative w-full h-64 rounded-lg bg-muted">
+          <AIImageLoadingOverlay message="Generating image with AI..." />
+        </div>
+      )}
+
       {/* Image with inline editing */}
-      {inlineEditMode === 'image' ? (
+      {!isGeneratingImage && inlineEditMode === 'image' ? (
         <div className="relative z-50">
           <InlineImageEditor
             imageUrl={block.imageUrl}
@@ -87,7 +116,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
             showLayoutControls={block.layout === 'two-column-left' || block.layout === 'two-column-right'}
           />
         </div>
-      ) : (
+      ) : !isGeneratingImage ? (
         <div 
           className="cursor-pointer hover:opacity-80 transition-opacity"
           onClick={(e) => handleInlineEdit('image', e)}
@@ -130,9 +159,9 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
             </div>
           )}
         </div>
-      )}
+      ) : null}
       
-      {block.caption && (
+      {!isGeneratingImage && block.caption && (
         <p className="mt-3 text-sm text-muted-foreground italic">
           {block.caption}
         </p>
