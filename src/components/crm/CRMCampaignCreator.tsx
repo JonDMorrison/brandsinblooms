@@ -433,11 +433,11 @@ const createWeeklyThemeImageQuery = (
   return query;
 };
 
-// Normalize blocks to ensure consistency - convert text blocks to image-text blocks with proper structure
+// Normalize blocks to ensure consistency - preserve text blocks as text, don't convert to image-text
 // PHASE 1: Updated to preserve generated content and prevent overwriting
 const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
   return blocks.map(block => {
-    // Convert ALL text blocks to image-text blocks for uniformity, not just template/newsletter ones
+    // CRITICAL: DO NOT convert text blocks to image-text - preserve original type to prevent unwanted image generation
     if (block.type === 'text') {
       // Extract headline from content if not already present
       let headline = block.headline || block.title || '';
@@ -464,12 +464,12 @@ const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
         ? 'Add your content here' 
         : body;
       
-      console.log(`🔄 Normalizing text block ${block.id}, hasGeneratedContent: ${!!block.hasGeneratedContent}`);
+      console.log(`🔄 Normalizing text block ${block.id}, hasGeneratedContent: ${!!block.hasGeneratedContent}, keeping type as 'text'`);
       
       return {
         ...block,
-        type: 'image-text' as const,
-        layout: block.layout || 'image-right',
+        type: 'text' as const, // KEEP as text, DO NOT convert to image-text
+        layout: block.layout || 'full-width',
         headline: headline || block.headline, // Preserve existing if present
         body: finalBody || block.body, // Preserve existing if present
         hasGeneratedContent: block.hasGeneratedContent || !!(headline || body) // Track if content exists
