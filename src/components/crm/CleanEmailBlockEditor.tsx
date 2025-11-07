@@ -229,6 +229,52 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     const currentSignature = internalBlocks.map(createContentSignature).sort().join('|');
     const newSignature = blocks.map(createContentSignature).sort().join('|');
     
+    // PHASE 1: Extract hydration logic to function
+    const hydrateBlock = (block: ContentBlock): ContentBlock => {
+      const preservedFlags = {
+        hasGeneratedContent: (block as any).hasGeneratedContent,
+        contentGeneratedAt: (block as any).contentGeneratedAt,
+        contentVersion: (block as any).contentVersion
+      };
+      
+      return {
+        ...block,
+        // CRITICAL: If hasGeneratedContent, preserve exact values (no normalization)
+        headline: (block as any).hasGeneratedContent 
+          ? block.headline  // Preserve exact value, even if undefined
+          : (block.headline || block.heading || block.title || ''),
+        body: (block as any).hasGeneratedContent 
+          ? block.body      // Preserve exact value, even if undefined
+          : (block.body || block.content || ''),
+        title: block.title || block.headline || block.heading || 'Untitled',
+        content: block.content || block.body || '',
+        // Preserve newsletter-specific fields
+        subtitle: block.subtitle || '',
+        issueNumber: block.issueNumber || '',
+        publishDate: block.publishDate || '',
+        backgroundImageUrl: block.backgroundImageUrl || '',
+        // Preserve overlay settings (per-image)
+        overlayOpacity: block.overlayOpacity ?? (typeof block.content === 'object' && block.content ? (block.content as any).overlayOpacity : undefined),
+        overlayColor: block.overlayColor || (typeof block.content === 'object' && block.content ? (block.content as any).overlayColor : ''),
+        // Lift nested imageUrl to top level if missing at top level
+        imageUrl: block.imageUrl ||
+                 (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) || 
+                 '',
+        altText: block.altText || 
+                (typeof block.content === 'object' && block.content && (block.content as any).altText) || 
+                '',
+        // CRITICAL: Normalize CTA fields bidirectionally to prevent rendering issues
+        ctaText: block.ctaText || block.buttonText || '',
+        ctaUrl: block.ctaUrl || block.buttonUrl || '',
+        buttonText: block.buttonText || block.ctaText || '',
+        buttonUrl: block.buttonUrl || block.ctaUrl || '',
+        visible: block.visible !== false,
+        collapsed: block.collapsed || false,
+        // RE-APPLY preserved flags to ensure they're not lost
+        ...preservedFlags
+      };
+    };
+
     if (currentSignature !== newSignature || !hydrationComplete) {
       console.log("🔄 Syncing blocks - content changed. Parent:", blocks.length, "Internal:", internalBlocks.length);
       console.log("📋 Content signatures differ:", {
@@ -236,77 +282,51 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         new: newSignature.slice(0, 100) + '...'
       });
       
-      // Create deep copy to prevent reference issues
-      const hydratedBlocks = blocks.map(block => {
-        // CRITICAL: Preserve content generation flags FIRST
-        const preservedFlags = {
-          hasGeneratedContent: (block as any).hasGeneratedContent,
-          contentGeneratedAt: (block as any).contentGeneratedAt,
-          contentVersion: (block as any).contentVersion
-        };
+      // PHASE 1: Selective hydration - only hydrate blocks that actually changed
+      const hydratedBlocks = blocks.map((newBlock, index) => {
+        const oldBlock = internalBlocks[index];
+        const oldSig = oldBlock ? createContentSignature(oldBlock) : '';
+        const newSig = createContentSignature(newBlock);
         
-        const hydratedBlock = {
-          ...block,
-          // Only normalize if content was never generated
-          headline: (block as any).hasGeneratedContent 
-            ? (block.headline ?? '') // Preserve even if undefined
-            : (block.headline || block.heading || block.title || ''),
-          body: (block as any).hasGeneratedContent 
-            ? (block.body ?? '')
-            : (block.body || block.content || ''),
-          title: block.title || block.headline || block.heading || 'Untitled',
-          content: block.content || block.body || '',
-          // Preserve newsletter-specific fields
-          subtitle: block.subtitle || '',
-          issueNumber: block.issueNumber || '',
-          publishDate: block.publishDate || '',
-          backgroundImageUrl: block.backgroundImageUrl || '',
-          // Preserve overlay settings (per-image)
-          overlayOpacity: block.overlayOpacity ?? (typeof block.content === 'object' && block.content ? (block.content as any).overlayOpacity : undefined),
-          overlayColor: block.overlayColor || (typeof block.content === 'object' && block.content ? (block.content as any).overlayColor : ''),
-          // Lift nested imageUrl to top level if missing at top level
-          imageUrl: block.imageUrl ||
-                   (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) || 
-                   '',
-          altText: block.altText || 
-                  (typeof block.content === 'object' && block.content && (block.content as any).altText) || 
-                  '',
-          // CRITICAL: Normalize CTA fields bidirectionally to prevent rendering issues
-          ctaText: block.ctaText || block.buttonText || '',
-          ctaUrl: block.ctaUrl || block.buttonUrl || '',
-          buttonText: block.buttonText || block.ctaText || '',
-          buttonUrl: block.buttonUrl || block.ctaUrl || '',
-          visible: block.visible !== false,
-          collapsed: block.collapsed || false,
-          // RE-APPLY preserved flags to ensure they're not lost
-          ...preservedFlags
-        };
+        // If signatures match, return the existing internal block unchanged
+        if (oldBlock && oldSig === newSig) {
+          console.log(`✅ Block ${newBlock.id} unchanged, skipping hydration`);
+          return oldBlock;
+        }
         
-        console.log('🧱 Hydrate block:', {
-          id: block.id,
-          type: block.type,
-          originalImage: block.imageUrl,
-          originalOverlay: { opacity: block.overlayOpacity, color: block.overlayColor },
-          hydratedOverlay: { opacity: hydratedBlock.overlayOpacity, color: hydratedBlock.overlayColor },
-          hasOverlayData: !!(block.overlayOpacity !== undefined || block.overlayColor),
-          title: hydratedBlock.title,
-          hasContent: !!(hydratedBlock.content || hydratedBlock.body),
-          hasGeneratedContent: hydratedBlock.hasGeneratedContent
+        console.log(`🔄 Block ${newBlock.id} changed, hydrating`, {
+          type: newBlock.type,
+          hasGeneratedContent: (newBlock as any).hasGeneratedContent,
+          headline: newBlock.headline?.substring(0, 30)
         });
         
-        return hydratedBlock;
+        // Only hydrate blocks that actually changed
+        return hydrateBlock(newBlock);
       });
       
-      // PHASE 5: Add content preservation logging
-      hydratedBlocks.forEach((block, index) => {
-        const original = blocks[index];
-        if ((original as any).hasGeneratedContent && !(block as any).hasGeneratedContent) {
+      // PHASE 5: Defensive checks - prevent empty strings from overwriting content
+      hydratedBlocks.forEach((hydratedBlock, index) => {
+        const originalBlock = blocks[index];
+        if ((originalBlock as any).hasGeneratedContent) {
+          // If original had content but hydrated is empty, restore original
+          if (originalBlock.headline && !hydratedBlock.headline) {
+            console.error('🚨 Prevented headline loss for block', originalBlock.id);
+            hydratedBlock.headline = originalBlock.headline;
+          }
+          if (originalBlock.body && !hydratedBlock.body) {
+            console.error('🚨 Prevented body loss for block', originalBlock.id);
+            hydratedBlock.body = originalBlock.body;
+          }
+        }
+        
+        // PHASE 5: Content preservation logging
+        if ((originalBlock as any).hasGeneratedContent && !(hydratedBlock as any).hasGeneratedContent) {
           console.error('🚨 CONTENT FLAG LOST during hydration:', {
-            blockId: block.id,
-            originalFlag: (original as any).hasGeneratedContent,
-            hydratedFlag: (block as any).hasGeneratedContent,
-            originalHeadline: original.headline,
-            hydratedHeadline: block.headline
+            blockId: hydratedBlock.id,
+            originalFlag: (originalBlock as any).hasGeneratedContent,
+            hydratedFlag: (hydratedBlock as any).hasGeneratedContent,
+            originalHeadline: originalBlock.headline,
+            hydratedHeadline: hydratedBlock.headline
           });
         }
       });

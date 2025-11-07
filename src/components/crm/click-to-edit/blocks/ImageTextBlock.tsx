@@ -37,6 +37,9 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   const [currentImageUrl, setCurrentImageUrl] = useState(block.imageUrl);
   const [contentStable, setContentStable] = useState(false);
   
+  // PHASE 6: Content persistence checkpoint - store last known good content
+  const lastKnownContentRef = useRef<{ headline?: string; body?: string }>({});
+  
   // Extract content for image generation
   const contentForImage = (() => {
     if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
@@ -139,6 +142,16 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   
   // PHASE 3: Add content stability guard - once shown, content never disappears
   const contentShownRef = useRef(false);
+  
+  // PHASE 6: Store last known good content whenever content exists
+  useEffect(() => {
+    if (block.headline || block.body) {
+      lastKnownContentRef.current = {
+        headline: block.headline,
+        body: block.body
+      };
+    }
+  }, [block.headline, block.body]);
   
   useEffect(() => {
     if (hasRealContent) {
@@ -257,7 +270,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                   />
                 )}
                 
-                {/* Headline */}
+                {/* Headline - PHASE 6: Fallback to last known content if current is empty but hasGeneratedContent */}
                 <SafeHtml
               content={(() => {
                 // Handle both object-style content and direct properties
@@ -268,6 +281,9 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                   headline = block.headline;
                 } else if (block.title) {
                   headline = block.title; // Fallback for newsletter conversion
+                } else if ((block as any).hasGeneratedContent && lastKnownContentRef.current.headline) {
+                  // PHASE 6: Use last known content if current is empty but content was generated
+                  headline = lastKnownContentRef.current.headline;
                 } else {
                   headline = 'Add headline';
                 }
@@ -278,7 +294,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               className="text-2xl font-bold prose prose-headings:font-bold prose-strong:font-bold prose-em:italic prose-ul:list-disc prose-ol:list-decimal prose-li:ml-6"
             />
             
-            {/* Body text */}
+            {/* Body text - PHASE 6: Fallback to last known content if current is empty but hasGeneratedContent */}
             <SafeHtml 
               content={(() => {
                 // Handle both object-style content and direct properties
@@ -291,6 +307,9 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                   body = block.body;
                 } else if (typeof block.content === 'string' && block.content.trim()) {
                   body = block.content;
+                } else if ((block as any).hasGeneratedContent && lastKnownContentRef.current.body) {
+                  // PHASE 6: Use last known content if current is empty but content was generated
+                  body = lastKnownContentRef.current.body;
                 }
                 
                 const bodyText = body || 'Add body text';

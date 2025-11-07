@@ -53,16 +53,20 @@ export const useHeaderBackgroundImage = ({
         throw new Error('No authenticated user');
       }
 
-      // Aggregate content from all blocks
+      // PHASE 3: Aggregate content from all possible locations
       const aggregatedContent = blocks
         .map(b => {
           const content = b.content;
-          return [
+          // Read from all possible locations
+          const parts = [
             content?.title,
             content?.subtitle,
             content?.content,
-            content?.text
-          ].filter(Boolean).join(' ');
+            content?.text,
+            // Also check direct properties in case content is a string
+            typeof content === 'string' ? content : ''
+          ];
+          return parts.filter(Boolean).join(' ').trim();
         })
         .filter(Boolean)
         .join(' ');

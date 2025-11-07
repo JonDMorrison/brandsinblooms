@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
 import { Plus, Bug } from 'lucide-react';
@@ -39,6 +39,14 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   
   // Debug state for MediaSelector
   const [debugMediaSelectorOpen, setDebugMediaSelectorOpen] = useState(false);
+  
+  // PHASE 2: Use ref to access latest blocks in updateBlock
+  const blocksRef = useRef(blocks);
+  
+  // Keep ref in sync with blocks
+  useEffect(() => {
+    blocksRef.current = blocks;
+  }, [blocks]);
 
   // Find the first header block (header or newsletter-header)
   const headerBlock = blocks.find(b => b.type === 'header' || b.type === 'newsletter-header');
@@ -146,26 +154,43 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
     onBlocksChange(newBlocks);
   };
 
+  // PHASE 2: Fix state update race condition - use ref to access latest blocks
   const updateBlock = useCallback((id: string, updates: Partial<ContentBlock>) => {
-    const newBlocks = blocks.map(block => {
+    console.log('📝 updateBlock called:', {
+      blockId: id,
+      updates: Object.keys(updates)
+    });
+    
+    // Use ref to get the latest blocks (avoiding stale closure)
+    const latestBlocks = blocksRef.current;
+    const newBlocks = latestBlocks.map(block => {
       if (block.id !== id) return block;
       
-      // Simply merge updates at top level - all fields are defined in ContentBlock interface
+      // Merge updates and preserve content generation flags
       const updatedBlock: ContentBlock = { 
         ...block, 
-        ...updates
+        ...updates,
+        // Preserve content generation flags from previous state
+        hasGeneratedContent: (block as any).hasGeneratedContent || (updates as any).hasGeneratedContent,
+        contentGeneratedAt: (block as any).contentGeneratedAt || (updates as any).contentGeneratedAt,
+        contentVersion: (block as any).contentVersion || (updates as any).contentVersion
       };
       
-      console.log('📝 Block updated:', {
+      console.log('📝 Block updated (from latest state via ref):', {
         blockId: id,
         blockType: block.type,
-        updates: Object.keys(updates)
+        updates: Object.keys(updates),
+        preservedFlags: {
+          hasGeneratedContent: updatedBlock.hasGeneratedContent,
+          contentGeneratedAt: updatedBlock.contentGeneratedAt
+        }
       });
       
       return updatedBlock;
     });
+    
     onBlocksChange(newBlocks);
-  }, [blocks, onBlocksChange]);
+  }, [onBlocksChange]);
 
   const removeBlock = (id: string) => {
     console.log('🗑️ removeBlock called with id:', id);
