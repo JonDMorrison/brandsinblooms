@@ -3032,7 +3032,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     <v:fill type="frame" src="${block.backgroundImageUrl}" color="${headerBgColor}" />
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
-                    <div style="background-color: ${overlayColor}; padding: 0;">
+                    <!-- Content container - transparent background (TD already has overlay) -->
+                    <div style="padding: 0;">
                       ${block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
                       ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
                     </div>
