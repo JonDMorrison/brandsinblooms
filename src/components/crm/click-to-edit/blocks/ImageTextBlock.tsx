@@ -54,7 +54,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
     return '';
   })();
 
-  // Use AI image generation hook
+  // Use AI image generation hook - disabled for text-only blocks to save costs
   const { isGeneratingImage } = useBlockImageGeneration({
     blockId: block.id,
     blockType: block.type,
@@ -67,7 +67,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
         altText: metadata?.alt || 'AI generated garden image'
       });
     },
-    enabled: !block.imageUrl && !!onUpdate
+    enabled: !block.imageUrl && !!onUpdate && block.type !== 'text'
   });
 
   // Handle image URL changes and preloading
