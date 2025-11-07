@@ -96,7 +96,7 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
         
         const newBlock: ContentBlock = {
           id: `block_${Date.now()}_${blocks.length + i}`,
-          type: 'image-text',
+          type: 'text', // Text-only blocks by default
           title: title,
           content: '',
           headline: title,
@@ -106,13 +106,13 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
           ctaUrl: '',
           source: 'newsletter',
           personaTag: 'general',
-          layout: 'image-left',
+          layout: 'full-width',
           alignment: 'left',
           textAlign: 'left',
           padding: 'medium',
           visible: true,
           collapsed: false,
-          shouldFetchImage: false // Don't auto-fetch images for filler blocks
+          shouldFetchImage: false // Don't auto-fetch images for text blocks
         };
         
         blocks.push(newBlock);
@@ -148,7 +148,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
     },
     {
       id: `content1_${Date.now()}`,
-      type: 'image-text',
+      type: 'text',
       title: 'Featured Story',
       content: '',
       headline: 'Featured Story',
@@ -158,7 +158,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       ctaUrl: '',
       source: 'template',
       personaTag: 'general',
-      layout: 'image-left',
+      layout: 'full-width',
       alignment: 'left',
       textAlign: 'left',
       padding: 'medium',
@@ -168,7 +168,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
     },
     {
       id: `content2_${Date.now()}`,
-      type: 'image-text',
+      type: 'text',
       title: 'Main Article',
       content: '',
       headline: 'Main Article',
@@ -178,7 +178,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       ctaUrl: '',
       source: 'template',
       personaTag: 'general',
-      layout: 'image-left',
+      layout: 'full-width',
       alignment: 'left',
       textAlign: 'left',
       padding: 'medium',
@@ -188,7 +188,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
     },
     {
       id: `content3_${Date.now()}`,
-      type: 'image-text',
+      type: 'text',
       title: 'Secondary Feature',
       content: '',
       headline: 'Secondary Feature',
@@ -198,7 +198,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       ctaUrl: '#',
       source: 'template',
       personaTag: 'general',
-      layout: 'image-left',
+      layout: 'full-width',
       alignment: 'left',
       textAlign: 'left',
       padding: 'medium',
@@ -208,7 +208,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
     },
     {
       id: `content4_${Date.now()}`,
-      type: 'image-text',
+      type: 'text',
       title: 'Call to Action',
       content: '',
       headline: 'Call to Action',
@@ -218,7 +218,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       ctaUrl: '#',
       source: 'template',
       personaTag: 'general',
-      layout: 'image-left',
+      layout: 'full-width',
       alignment: 'left',
       textAlign: 'left',
       padding: 'medium',
