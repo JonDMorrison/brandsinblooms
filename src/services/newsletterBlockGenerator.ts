@@ -48,7 +48,14 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
   }
 
   const blocks: ContentBlock[] = templateBlocks.map((block: any, index: number) => {
-    const mappedType = mapBlockType(block.type);
+    let mappedType = mapBlockType(block.type);
+    
+    // CRITICAL FIX: If template says 'image-text' but has NO imageUrl specified,
+    // treat it as a text-only block to prevent unwanted image generation
+    if (mappedType === 'image-text' && (!block.imageUrl || block.imageUrl === '')) {
+      console.log(`[NewsletterInit] Converting image-text block to text-only (no imageUrl): "${block.title}"`);
+      mappedType = 'text';
+    }
     
     // CRITICAL: Plain text blocks should NEVER have images
     // Only allow images for image-text and header blocks that explicitly have imageUrl in template
