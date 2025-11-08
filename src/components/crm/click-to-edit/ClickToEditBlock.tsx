@@ -452,7 +452,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
               React.cloneElement(children.preview as React.ReactElement, {
                 block: localBlock,
                 editMode: localEditMode,
-                onModeChange: block.type === 'header' ? handleModeChange : undefined
+                onModeChange: handleModeChange
               })
             ) : typeof children.preview === 'object' && children.preview !== null ? (
               <div className="p-4 text-center text-muted-foreground">
@@ -476,7 +476,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                   return React.cloneElement(children.preview as React.ReactElement, {
                     block: localBlock,
                     editMode: localEditMode,
-                    onModeChange: block.type === 'header' ? handleModeChange : undefined
+                    onModeChange: handleModeChange
                   });
                 } else if (typeof children.preview === 'object' && children.preview !== null) {
                   console.error('[ClickToEditBlock] Invalid preview object:', children.preview);
