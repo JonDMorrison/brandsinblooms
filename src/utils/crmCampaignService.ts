@@ -143,7 +143,11 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         cta_text: block.cta_text || block.ctaText || block.buttonText,
         source: block.source || 'newsletter',
         persona_tag: block.personaTag || block.persona_tag,
-        order_index: block.order_index !== undefined ? block.order_index : index
+        order_index: block.order_index !== undefined ? block.order_index : index,
+        // Save overlay properties to dedicated database columns
+        overlay_opacity: block.overlayOpacity ?? null,
+        overlay_color: block.overlayColor || null,
+        dark_overlay_opacity: block.darkOverlayOpacity ?? null
       }));
 
       const { error: blocksError } = await supabase

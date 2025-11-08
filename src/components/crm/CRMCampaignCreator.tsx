@@ -877,10 +877,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   backgroundColor: block.backgroundColor,
                   backgroundImageUrl: block.backgroundImageUrl,
                   backgroundOpacity: block.backgroundOpacity,
-                  overlayColor: (block as any).overlayColor,
-                  overlayOpacity: (block as any).overlayOpacity,
-                  colorOverlayOpacity: (block as any).colorOverlayOpacity,
-                  darkOverlayOpacity: (block as any).darkOverlayOpacity,
                   layout: block.layout,
                   caption: block.caption,
                   altText: block.altText,
@@ -902,7 +898,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 cta_text: block.ctaText || block.buttonText,
                 source: block.source || 'manual',
                 persona_tag: block.personaTag,
-                order_index: index
+                order_index: index,
+                // Save overlay properties to dedicated database columns
+                overlay_opacity: block.overlayOpacity ?? null,
+                overlay_color: block.overlayColor || null,
+                dark_overlay_opacity: (block as any).darkOverlayOpacity ?? null
               };
 
               // Validate required fields
@@ -2598,11 +2598,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           backgroundColor: contentObj?.backgroundColor,
           backgroundImageUrl: contentObj?.backgroundImageUrl,
           backgroundOpacity: contentObj?.backgroundOpacity,
-          // Overlays
-          overlayColor: contentObj?.overlayColor,
-          overlayOpacity: contentObj?.overlayOpacity,
+          // Overlays - prioritize top-level database columns
+          overlayColor: block.overlay_color || contentObj?.overlayColor,
+          overlayOpacity: block.overlay_opacity ?? contentObj?.overlayOpacity,
           colorOverlayOpacity: contentObj?.colorOverlayOpacity,
-          darkOverlayOpacity: contentObj?.darkOverlayOpacity,
+          darkOverlayOpacity: block.dark_overlay_opacity ?? contentObj?.darkOverlayOpacity,
           // Special content
           quote: contentObj?.quote,
           author: contentObj?.author,
