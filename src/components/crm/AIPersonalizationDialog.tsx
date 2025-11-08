@@ -59,87 +59,64 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   const handleGenerateImages = async () => {
     if (!prompt.trim()) return;
 
-    console.log('🎨 Starting image generation with prompt:', prompt);
+    console.log('🎨 Starting AI image generation with prompt:', prompt);
     setIsGenerating(true);
-    setLoadingPlaceholders(4);
+    setLoadingPlaceholders(3); // 3 parallel requests
     
     try {
-      console.log('📞 Calling generate-prompt-images edge function...');
+      console.log('📞 Calling Lovable AI to generate 3 images in parallel...');
       
-      // Single call to generate keywords and fetch images with fallback support
-      const { data, error } = await supabase.functions.invoke(
-        'generate-prompt-images',
-        { 
-          body: { 
-            prompt: prompt.trim(),
-            fallbackKeywords: overviewKeywords,
-            maxImages: 4,
-            orientation: 'squarish'
-          } 
-        }
+      // Get user ID for storage
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || 'anonymous';
+      
+      // Create 3 parallel requests to Lovable AI
+      const imagePromises = Array.from({ length: 3 }).map((_, index) => 
+        supabase.functions.invoke('generate-ai-image', {
+          body: {
+            contentContext: prompt.trim(),
+            contentTitle: `AI Generated Image ${index + 1}`,
+            channel: 'newsletter',
+            uploadToStorage: true,
+            userId
+          }
+        })
       );
-
-      console.log('📥 Response received:', { data, error });
-
-      if (error || data?.error) {
-        console.error('❌ Image generation failed:', error || data);
-        
-        // Detect rate limit errors from multiple sources
-        const isRateLimit = 
-          error?.message?.toLowerCase().includes('rate limit') ||
-          data?.error?.toLowerCase().includes('rate limit') ||
-          data?.details?.toLowerCase().includes('rate limit') ||
-          data?.details?.toLowerCase().includes('429');
-        
-        if (isRateLimit) {
-          toast({
-            title: '⏳ Image Service Temporarily Unavailable',
-            description: 'The image service has reached its hourly limit. Please try again in 10-15 minutes, or use the existing images in the gallery.',
-            variant: 'destructive',
-            duration: 8000,
-          });
-        } else {
-          toast({
-            title: 'Failed to Generate Images',
-            description: data?.details || error?.message || 'Please try a different prompt.',
-            variant: 'destructive',
-          });
-        }
-        
-        setIsGenerating(false);
-        setLoadingPlaceholders(0);
-        return;
-      }
-
-      const validImages = data.images
-        .map((img: any) => img.urls?.regular || img.urls?.small)
-        .filter(Boolean) as string[];
-
-      console.log('✅ Valid images extracted:', validImages.length);
-
-      if (validImages.length === 0) {
-        throw new Error('No images found for your search');
-      }
-
-      console.log(`✅ Generated ${validImages.length} images using: "${data.usedQuery}"`);
       
-      // Prepend new images to the grid
+      // Wait for all 3 images to generate in parallel
+      const results = await Promise.all(imagePromises);
+      
+      console.log('📥 All responses received:', results);
+
+      // Extract successful image URLs
+      const validImages: string[] = [];
+      const errors: string[] = [];
+      
+      results.forEach((result, index) => {
+        if (result.error || result.data?.error) {
+          console.error(`❌ Image ${index + 1} generation failed:`, result.error || result.data);
+          errors.push(result.error?.message || result.data?.error || 'Unknown error');
+        } else if (result.data?.imageUrl) {
+          validImages.push(result.data.imageUrl);
+          console.log(`✅ Image ${index + 1} generated successfully`);
+        }
+      });
+
+      console.log(`✅ Generated ${validImages.length} out of 3 images`);
+      
+      if (validImages.length === 0) {
+        throw new Error('Failed to generate any images. ' + (errors[0] || 'Please try again.'));
+      }
+
+      // Prepend new AI-generated images to the grid
       setGeneratedImages(prev => [...validImages, ...prev]);
       setLoadingPlaceholders(0);
       
-      // Show different message if fallback was used
-      if (data.usedFallback) {
-        toast({
-          title: 'Overview Images Found!',
-          description: `Found ${validImages.length} images using overview keywords: "${data.usedQuery}"`,
-          duration: 5000,
-        });
-      } else {
-        toast({
-          title: 'Images Generated!',
-          description: `Found ${validImages.length} images using: ${data.keywords.slice(0, 2).join(', ')}`,
-        });
-      }
+      toast({
+        title: 'AI Images Generated!',
+        description: `Successfully created ${validImages.length} personalized image${validImages.length > 1 ? 's' : ''} based on your prompt.`,
+        duration: 5000,
+      });
 
       setPrompt('');
     } catch (error) {
@@ -152,7 +129,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       setLoadingPlaceholders(0);
     } finally {
       setIsGenerating(false);
-      console.log('🏁 Image generation complete');
+      console.log('🏁 AI image generation complete');
     }
   };
 
@@ -186,11 +163,11 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>AI Personalization</DialogTitle>
+          <DialogTitle>AI Image Generation</DialogTitle>
         </DialogHeader>
         <div className="py-4">
           <p className="text-sm text-foreground mb-4">
-            Select a style to personalize your image with AI
+            Describe the image you want to generate with AI, or select from previously generated images
           </p>
           
           <ScrollArea className="h-[320px] w-full pr-4" ref={scrollAreaRef}>
@@ -242,7 +219,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
                 id="ai-prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Tell something about the image you are looking for, how it should look?"
+                placeholder="Describe the image you want to generate (e.g., 'a beautiful garden with colorful flowers and butterflies')"
                 rows={4}
                 className="resize-none flex-1"
               />
