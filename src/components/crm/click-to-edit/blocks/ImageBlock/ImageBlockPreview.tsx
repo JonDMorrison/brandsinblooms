@@ -135,11 +135,11 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
           aria-label="Click to edit image"
         >
           {block.imageUrl ? (
-            <div className="relative">
+            <div className="relative inline-block w-full">
               <img
                 src={block.imageUrl}
                 alt={block.altText || 'Newsletter image'}
-                className="max-w-full h-auto rounded-lg"
+                className="max-w-full h-auto rounded-lg block"
                 loading="lazy"
               />
               {/* Image Overlay */}
