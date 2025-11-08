@@ -3019,6 +3019,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       return blockTypeLabels.includes(text.trim());
     };
     
+    // Helper to check if block should hide all text content (headline and body)
+    const shouldHideContent = (block: ContentBlock): boolean => {
+      const hideContentTitles = [
+        'Background Image',
+        'Background Image Section',
+        'Full-Width Image'
+      ];
+      return hideContentTitles.includes(block.title?.trim() || '') || 
+             hideContentTitles.includes(block.headline?.trim() || '');
+    };
+    
     let html = `
       <div class="email-container" style="max-width: 600px; margin: 0 auto; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <div class="content-block" style="padding: 30px 20px;">
@@ -3050,8 +3061,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     <![endif]-->
                     <!-- Content container - transparent background (TD already has overlay) -->
                     <div style="padding: 0;">
-                      ${block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
-                      ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
+                      ${!shouldHideContent(block) && block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
+                      ${!shouldHideContent(block) && (block.body || block.content) ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
                     </div>
                     <!--[if gte mso 9]>
                     </v:textbox>
@@ -3070,8 +3081,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
                   <td style="background-color: ${headerBgColor}; padding: 40px 20px; text-align: ${headerAlign};">
-                    ${block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
-                    ${block.body || block.content ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
+                    ${!shouldHideContent(block) && block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
+                    ${!shouldHideContent(block) && (block.body || block.content) ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
                   </td>
                 </tr>
               </table>
@@ -3161,8 +3172,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             html += `
               <div style="text-align: ${imgAlign}; margin: 20px 0; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
                 ${imageHtml}
-                ${block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: ${fonts.subheadingFont}; text-align: ${imgAlign};">${block.headline}</h2>` : ''}
-                ${block.body || block.content ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: ${fonts.bodyFont}; text-align: ${imgAlign};">${block.body || block.content}</div>` : ''}
+                ${!shouldHideContent(block) && block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: ${fonts.subheadingFont}; text-align: ${imgAlign};">${block.headline}</h2>` : ''}
+                ${!shouldHideContent(block) && (block.body || block.content) ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: ${fonts.bodyFont}; text-align: ${imgAlign};">${block.body || block.content}</div>` : ''}
                 ${imgCtaText && imgCtaUrl ? `
                   <div style="margin-top: 20px;">
                     <a href="${imgCtaUrl}" style="display: inline-block; padding: 12px 24px; background: ${imgButtonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont};">
