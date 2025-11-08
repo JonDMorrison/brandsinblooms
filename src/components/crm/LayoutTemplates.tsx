@@ -54,23 +54,11 @@ export const Layout1: React.FC<LayoutProps> = ({ block, className, editable, onU
       <div className="md:w-1/2">
         {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
         {isValidImageUrl(block.imageUrl) ? (
-          <div className="relative w-full overflow-hidden rounded-lg">
-            <img
-              src={block.imageUrl as string}
-              alt={block.altText || block.title || 'Image'}
-              className="w-full h-48 object-cover"
-            />
-            {/* Image Overlay */}
-            {block.overlayOpacity && block.overlayOpacity > 0 && (
-              <div
-                className="absolute inset-0 pointer-events-none z-10"
-                style={{
-                  backgroundColor: block.overlayColor || '#000000',
-                  opacity: block.overlayOpacity / 100
-                }}
-              />
-            )}
-          </div>
+          <img
+            src={block.imageUrl as string}
+            alt={block.altText || block.title || 'Image'}
+            className="w-full h-48 object-cover rounded-lg"
+          />
         ) : (
           <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
             <span className="text-muted-foreground">Select an image</span>
@@ -106,23 +94,11 @@ export const Layout2: React.FC<LayoutProps> = ({ block, className, editable, onU
       <div className="md:w-1/2">
         {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
         {isValidImageUrl(block.imageUrl) ? (
-          <div className="relative w-full overflow-hidden rounded-lg">
-            <img
-              src={block.imageUrl as string}
-              alt={block.altText || block.title || 'Image'}
-              className="w-full h-48 object-cover"
-            />
-            {/* Image Overlay */}
-            {block.overlayOpacity && block.overlayOpacity > 0 && (
-              <div
-                className="absolute inset-0 pointer-events-none z-10"
-                style={{
-                  backgroundColor: block.overlayColor || '#000000',
-                  opacity: block.overlayOpacity / 100
-                }}
-              />
-            )}
-          </div>
+          <img
+            src={block.imageUrl as string}
+            alt={block.altText || block.title || 'Image'}
+            className="w-full h-48 object-cover rounded-lg"
+          />
         ) : (
           <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
             <span className="text-muted-foreground">Select an image</span>
@@ -158,23 +134,11 @@ export const Layout3: React.FC<LayoutProps> = ({ block, className, editable, onU
       <div className="md:w-1/3">
         {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
         {isValidImageUrl(block.imageUrl) ? (
-          <div className="relative w-full overflow-hidden rounded-lg">
-            <img
-              src={block.imageUrl as string}
-              alt={block.altText || block.title || 'Image'}
-              className="w-full h-64 object-cover"
-            />
-            {/* Image Overlay */}
-            {block.overlayOpacity && block.overlayOpacity > 0 && (
-              <div
-                className="absolute inset-0 pointer-events-none z-10"
-                style={{
-                  backgroundColor: block.overlayColor || '#000000',
-                  opacity: block.overlayOpacity / 100
-                }}
-              />
-            )}
-          </div>
+          <img
+            src={block.imageUrl as string}
+            alt={block.altText || block.title || 'Image'}
+            className="w-full h-64 object-cover rounded-lg"
+          />
         ) : (
           <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
             <span className="text-muted-foreground">Select an image</span>
@@ -210,23 +174,11 @@ export const Layout4: React.FC<LayoutProps> = ({ block, className, editable, onU
       <div className="md:w-1/3">
         {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
         {isValidImageUrl(block.imageUrl) ? (
-          <div className="relative w-full overflow-hidden rounded-lg">
-            <img
-              src={block.imageUrl as string}
-              alt={block.altText || block.title || 'Image'}
-              className="w-full h-64 object-cover"
-            />
-            {/* Image Overlay */}
-            {block.overlayOpacity && block.overlayOpacity > 0 && (
-              <div
-                className="absolute inset-0 pointer-events-none z-10"
-                style={{
-                  backgroundColor: block.overlayColor || '#000000',
-                  opacity: block.overlayOpacity / 100
-                }}
-              />
-            )}
-          </div>
+          <img
+            src={block.imageUrl as string}
+            alt={block.altText || block.title || 'Image'}
+            className="w-full h-64 object-cover rounded-lg"
+          />
         ) : (
           <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
             <span className="text-muted-foreground">Select an image</span>
@@ -260,7 +212,7 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
   const paddingClass = getPaddingClass(block.padding);
   
   // Header Block Layout
-  if (block.type === 'header') {
+  if (block.type === 'header' || block.type === 'newsletter-header') {
     return (
       <div 
         className={cn('relative min-h-[120px] flex items-center justify-center', className)}
@@ -274,6 +226,16 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
           <div 
             className="absolute inset-0 bg-black rounded-lg"
             style={{ opacity: block.backgroundOpacity || 0.4 }}
+          />
+        )}
+        {/* Custom Image Overlay - Newsletter Header Only */}
+        {block.overlayOpacity && block.overlayOpacity > 0 && (
+          <div
+            className="absolute inset-0 rounded-lg pointer-events-none"
+            style={{
+              backgroundColor: block.overlayColor || '#000000',
+              opacity: block.overlayOpacity / 100
+            }}
           />
         )}
         <div 
@@ -309,23 +271,11 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
       <div className={cn('space-y-3', paddingClass, `text-${block.alignment || 'center'}`, className)}>
         {(() => { if (block.imageUrl && !isValidImageUrl(block.imageUrl)) { console.warn('[LayoutTemplates] Invalid imageUrl, using placeholder', { id: block.id, title: block.title, imageUrl: block.imageUrl }); } return null; })()}
         {isValidImageUrl(block.imageUrl) ? (
-          <div className="relative inline-block mx-auto overflow-hidden rounded-lg">
-            <img
-              src={block.imageUrl as string}
-              alt={block.altText || 'Image'}
-              className="max-w-full h-auto"
-            />
-            {/* Image Overlay */}
-            {block.overlayOpacity && block.overlayOpacity > 0 && (
-              <div
-                className="absolute inset-0 pointer-events-none z-10"
-                style={{
-                  backgroundColor: block.overlayColor || '#000000',
-                  opacity: block.overlayOpacity / 100
-                }}
-              />
-            )}
-          </div>
+          <img
+            src={block.imageUrl as string}
+            alt={block.altText || 'Image'}
+            className="max-w-full h-auto rounded-lg mx-auto"
+          />
         ) : (
           <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
             <span className="text-muted-foreground">Select an image</span>

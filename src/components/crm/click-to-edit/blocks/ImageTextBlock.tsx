@@ -520,17 +520,6 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                       />
                     )}
                     
-                    {/* Image Overlay - must be after image to render on top */}
-                    {displayImageUrl && displayImageUrl !== 'loading' && block.overlayOpacity && block.overlayOpacity > 0 && (
-                      <div
-                        className="absolute inset-0 rounded-lg pointer-events-none z-10"
-                        style={{
-                          backgroundColor: block.overlayColor || '#000000',
-                          opacity: block.overlayOpacity / 100
-                        }}
-                      />
-                    )}
-                    
                     {/* Loading indicator for when updating existing image */}
                     {isImageLoading && currentImageUrl && (
                       <div className="absolute inset-0 flex items-center justify-center z-10">

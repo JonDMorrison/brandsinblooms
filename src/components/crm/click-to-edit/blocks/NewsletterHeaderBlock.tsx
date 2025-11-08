@@ -353,6 +353,54 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
         </div>
       </div>
 
+      {/* Custom Image Overlay - Newsletter Header Only Feature */}
+      <div className="space-y-4 pt-2 border-t">
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Image Overlay (Optional)</Label>
+          <p className="text-xs text-muted-foreground">
+            Add a custom color overlay on top of your background image
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="overlayColor">Overlay Color</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="overlayColor"
+                type="color"
+                value={block.overlayColor || '#000000'}
+                onChange={(e) => onUpdate({ overlayColor: e.target.value })}
+                className="w-16 h-10 p-1 border rounded"
+              />
+              <Input
+                value={block.overlayColor || '#000000'}
+                onChange={(e) => onUpdate({ overlayColor: e.target.value })}
+                placeholder="#000000"
+                className="flex-1"
+              />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="overlayOpacity">Overlay Opacity</Label>
+              <span className="text-sm text-muted-foreground">{block.overlayOpacity || 0}%</span>
+            </div>
+            <Slider
+              id="overlayOpacity"
+              value={[block.overlayOpacity || 0]}
+              onValueChange={(value) => onUpdate({ overlayOpacity: value[0] })}
+              max={100}
+              min={0}
+              step={1}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              Set to 0 to disable overlay
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label>Padding</Label>
         <NativeSelect
