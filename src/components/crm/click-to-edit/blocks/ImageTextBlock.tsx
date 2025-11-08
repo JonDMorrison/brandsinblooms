@@ -416,14 +416,20 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 {/* CTA Button */}
                 <CTAButton block={block} />
               </>
-            ) : (
-              // Show skeleton only if content has NEVER loaded
+            ) : isContentLoading ? (
+              // Show skeleton ONLY when actively loading
               <TextContentSkeleton 
                 showHeadline={true}
                 showBody={true}
                 bodyLines={7}
                 className="py-2"
               />
+            ) : (
+              // Show empty state when not loading and no content
+              <div className="text-center py-8 space-y-2">
+                <p className="text-muted-foreground font-medium">Click to add content</p>
+                <p className="text-xs text-muted-foreground/70">Click here to add the heading and content of the block</p>
+              </div>
             )}
           </div>
 
