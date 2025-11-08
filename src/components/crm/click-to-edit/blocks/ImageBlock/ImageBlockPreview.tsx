@@ -76,6 +76,14 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
     onUpdate({ textAlign: align as any });
   }, [onUpdate]);
 
+  const handleOverlayColorChange = useCallback((color: string) => {
+    onUpdate({ overlayColor: color });
+  }, [onUpdate]);
+
+  const handleOverlayOpacityChange = useCallback((opacity: number) => {
+    onUpdate({ overlayOpacity: opacity });
+  }, [onUpdate]);
+
   return (
     <div className={cn(
       "relative p-6 group",
@@ -114,6 +122,10 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
             layout={block.layout as 'image-left' | 'two-column-left' | 'two-column-right'}
             onLayoutChange={handleLayoutChange}
             showLayoutControls={block.layout === 'two-column-left' || block.layout === 'two-column-right'}
+            overlayColor={block.overlayColor}
+            overlayOpacity={block.overlayOpacity}
+            onOverlayColorChange={handleOverlayColorChange}
+            onOverlayOpacityChange={handleOverlayOpacityChange}
           />
         </div>
       ) : !isGeneratingImage ? (

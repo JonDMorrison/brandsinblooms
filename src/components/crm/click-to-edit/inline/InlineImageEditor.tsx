@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 
 interface InlineImageEditorProps {
@@ -19,6 +20,11 @@ interface InlineImageEditorProps {
   layout?: 'image-left' | 'two-column-left' | 'two-column-right';
   onLayoutChange?: (layout: 'image-left' | 'two-column-left' | 'two-column-right') => void;
   showLayoutControls?: boolean;
+  // Overlay controls
+  overlayColor?: string;
+  overlayOpacity?: number;
+  onOverlayColorChange?: (color: string) => void;
+  onOverlayOpacityChange?: (opacity: number) => void;
 }
 
 export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
@@ -32,7 +38,11 @@ export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
   onBackgroundColorChange,
   layout,
   onLayoutChange,
-  showLayoutControls = false
+  showLayoutControls = false,
+  overlayColor,
+  overlayOpacity,
+  onOverlayColorChange,
+  onOverlayOpacityChange
 }) => {
   const handleImageChange = (newImageUrl: string) => {
     onChange(newImageUrl);
@@ -88,6 +98,50 @@ export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
                 onChange={(e) => onBackgroundColorChange(e.target.value)}
                 placeholder="#ffffff"
                 className="flex-1"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Image Overlay Controls */}
+        {imageUrl && onOverlayColorChange && onOverlayOpacityChange && (
+          <div className="space-y-4 pt-2 border-t">
+            <div className="text-sm font-medium">Image Overlay</div>
+            
+            {/* Overlay Color */}
+            <div className="space-y-2">
+              <Label htmlFor="overlayColor">Overlay Color</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="overlayColor"
+                  type="color"
+                  value={overlayColor || '#000000'}
+                  onChange={(e) => onOverlayColorChange(e.target.value)}
+                  className="w-16 h-10 p-1 border rounded"
+                />
+                <Input
+                  value={overlayColor || '#000000'}
+                  onChange={(e) => onOverlayColorChange(e.target.value)}
+                  placeholder="#000000"
+                  className="flex-1"
+                />
+              </div>
+            </div>
+
+            {/* Overlay Opacity */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="overlayOpacity">Overlay Opacity</Label>
+                <span className="text-sm text-muted-foreground">{overlayOpacity || 0}%</span>
+              </div>
+              <Slider
+                id="overlayOpacity"
+                value={[overlayOpacity || 0]}
+                onValueChange={(value) => onOverlayOpacityChange(value[0])}
+                max={100}
+                min={0}
+                step={1}
+                className="w-full"
               />
             </div>
           </div>
