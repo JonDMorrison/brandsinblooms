@@ -426,7 +426,10 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               />
             ) : (
               // Show empty state when not loading and no content
-              <div className="text-center py-8 space-y-2">
+              <div 
+                className="text-center py-8 space-y-2 cursor-pointer hover:bg-muted/30 rounded-md transition-colors"
+                onClick={(e) => handleModeClick('text', e)}
+              >
                 <p className="text-muted-foreground font-medium">Click to add content</p>
                 <p className="text-xs text-muted-foreground/70">Click here to add the heading and content of the block</p>
               </div>
