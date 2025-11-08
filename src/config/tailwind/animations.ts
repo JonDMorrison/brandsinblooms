@@ -47,11 +47,17 @@ export const keyframes: Config["theme"]["extend"]["keyframes"] = {
     }
   },
   'gentle-pulse': {
-    '0%, 100%': {
+    '0%': {
       opacity: '1'
     },
-    '50%': {
+    '15%': {
       opacity: '0.5'
+    },
+    '30%': {
+      opacity: '1'
+    },
+    '100%': {
+      opacity: '1'
     }
   }
 };
@@ -62,5 +68,5 @@ export const animation: Config["theme"]["extend"]["animation"] = {
   'fade-in': 'fade-in 0.2s ease-out',
   'scale-in': 'scale-in 0.15s ease-out',
   shimmer: 'shimmer 2s infinite',
-  'gentle-pulse': 'gentle-pulse 4s ease-in-out infinite',
+  'gentle-pulse': 'gentle-pulse 3s ease-in-out infinite',
 };
