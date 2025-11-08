@@ -498,7 +498,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                         src={displayImageUrl}
                         alt={block.altText || 'Content image'}
                         className={cn(
-                          "w-full h-auto rounded-lg cursor-pointer transition-opacity duration-300",
+                          "w-full h-auto rounded-lg cursor-pointer transition-opacity duration-300 relative z-0",
                           isImageLoading && currentImageUrl ? "opacity-70" : "opacity-100"
                         )}
                         onLoad={() => {
@@ -520,10 +520,10 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                       />
                     )}
                     
-                    {/* Image Overlay */}
-                    {block.overlayOpacity && block.overlayOpacity > 0 && (
+                    {/* Image Overlay - must be after image to render on top */}
+                    {displayImageUrl && displayImageUrl !== 'loading' && block.overlayOpacity && block.overlayOpacity > 0 && (
                       <div
-                        className="absolute inset-0 rounded-lg pointer-events-none"
+                        className="absolute inset-0 rounded-lg pointer-events-none z-10"
                         style={{
                           backgroundColor: block.overlayColor || '#000000',
                           opacity: block.overlayOpacity / 100

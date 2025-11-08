@@ -147,17 +147,17 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
           aria-label="Click to edit image"
         >
           {block.imageUrl ? (
-            <div className="relative inline-block w-full">
+            <div className="relative block w-full overflow-hidden rounded-lg">
               <img
                 src={block.imageUrl}
                 alt={block.altText || 'Newsletter image'}
-                className="max-w-full h-auto rounded-lg block"
+                className="w-full h-auto block"
                 loading="lazy"
               />
               {/* Image Overlay */}
               {block.overlayOpacity && block.overlayOpacity > 0 && (
                 <div
-                  className="absolute inset-0 rounded-lg pointer-events-none"
+                  className="absolute inset-0 pointer-events-none z-10"
                   style={{
                     backgroundColor: block.overlayColor || '#000000',
                     opacity: block.overlayOpacity / 100

@@ -63,6 +63,27 @@ export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
           contentContext={contentContext}
           className="w-full h-64"
         />
+        
+        {/* Live Overlay Preview */}
+        {imageUrl && (overlayOpacity ?? 0) > 0 && (
+          <div className="mt-4 space-y-2">
+            <Label className="text-xs text-muted-foreground">Overlay Preview:</Label>
+            <div className="relative w-full h-48 rounded-lg overflow-hidden border">
+              <img
+                src={imageUrl}
+                alt="Preview with overlay"
+                className="w-full h-full object-cover"
+              />
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backgroundColor: overlayColor || '#000000',
+                  opacity: (overlayOpacity || 0) / 100
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Image Layout Controls */}
         {showLayoutControls && imageUrl && onLayoutChange && (
