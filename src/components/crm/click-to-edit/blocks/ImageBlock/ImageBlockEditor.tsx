@@ -33,7 +33,7 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
         altText: metadata?.alt || 'AI generated image'
       });
     },
-    enabled: !block.imageUrl
+    enabled: false // Disabled - users add images manually based on their content
   });
 
   const handleImageChange = useCallback((imageUrl: string) => {

@@ -39,7 +39,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
         altText: metadata?.alt || 'AI generated image'
       });
     },
-    enabled: !block.imageUrl
+    enabled: false // Disabled - users add images manually based on their content
   });
 
   const handleInlineEdit = useCallback((mode: InlineEditMode, event: React.MouseEvent) => {
