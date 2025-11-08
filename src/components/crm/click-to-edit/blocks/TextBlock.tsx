@@ -30,8 +30,16 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
     (block.headline && block.headline !== '⏳ Generating content...') ||
     (block.title && block.title !== 'Add headline') ||
     (block.body && block.body !== '⏳ Creating engaging content...' && block.body.trim() !== '') ||
-    (block.content && block.content !== 'Add body text' && block.content.trim() !== '')
+    (block.content && block.content !== 'Add body text' && typeof block.content === 'string' && block.content.trim() !== '')
   );
+
+  console.log('[TextBlock] Rendering state:', {
+    blockId: block.id,
+    isLoadingContent,
+    hasRealContent,
+    headline: block.headline?.substring(0, 30),
+    body: typeof block.body === 'string' ? block.body.substring(0, 30) : block.body
+  });
 
   // Always render as preview - editing is handled by the new mode system
   const paddingClass = {

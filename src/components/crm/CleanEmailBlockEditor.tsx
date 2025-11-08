@@ -196,7 +196,9 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       hasContent: !!(b.content || b.body),
       imageUrl: b.imageUrl,
       visible: b.visible,
-      source: b.source
+      source: b.source,
+      isLoadingContent: (b as any).isLoadingContent,  // LOG loading state
+      isLoadingImage: (b as any).isLoadingImage        // LOG image loading state
     }))
   });
 
@@ -234,7 +236,9 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       const preservedFlags = {
         hasGeneratedContent: (block as any).hasGeneratedContent,
         contentGeneratedAt: (block as any).contentGeneratedAt,
-        contentVersion: (block as any).contentVersion
+        contentVersion: (block as any).contentVersion,
+        isLoadingContent: (block as any).isLoadingContent,  // PRESERVE loading flag
+        isLoadingImage: (block as any).isLoadingImage        // PRESERVE image loading flag
       };
       
       return {
