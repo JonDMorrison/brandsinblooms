@@ -24,6 +24,7 @@ interface ImageTextBlockProps {
   editMode?: EditMode;
   onModeChange?: (mode: EditMode) => void;
   isGenerating?: boolean;
+  onOpenAIImageDialog?: (blockId: string) => void;
 }
 
 export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ 
@@ -32,7 +33,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   isPreview = true, 
   editMode,
   onModeChange,
-  isGenerating = false
+  isGenerating = false,
+  onOpenAIImageDialog
 }) => {
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [hasImageLoaded, setHasImageLoaded] = useState(!!block.imageUrl);
@@ -132,6 +134,13 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   const handleAutoPick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // If AI Image Dialog is available, use it instead
+    if (onOpenAIImageDialog) {
+      onOpenAIImageDialog(block.id);
+      return;
+    }
+    
+    // Fallback to automatic generation if dialog not available
     setIsAutoPickGenerating(true);
     
     try {
