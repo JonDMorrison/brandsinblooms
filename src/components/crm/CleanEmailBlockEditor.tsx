@@ -74,50 +74,38 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
         }
       };
     case 'image-full':
-      const fullWidthImage = await mediaSelector({ 
-        prompt: 'garden center nursery plants',
-        count: 1 
-      });
       return {
         type: 'image',
         config: {
-          altText: fullWidthImage.alt || 'Garden center plants',
-          caption: 'Optional caption text',
+          altText: '',
+          caption: '',
           alignment: 'center',
           layout: 'full-width',
-          imageUrl: fullWidthImage.url
+          imageUrl: '' // Start with empty image - user adds manually
         }
       };
     case 'image-left':
-      const leftImage = await mediaSelector({ 
-        prompt: 'beautiful garden flowers plants',
-        count: 1 
-      });
       return {
         type: 'image',
         config: {
           title: 'Image & Text Section',
           content: 'Add your descriptive text here...',
-          altText: leftImage.alt || 'Garden flowers and plants',
+          altText: '',
           alignment: 'left',
           layout: 'two-column-left',
-          imageUrl: leftImage.url
+          imageUrl: '' // Start with empty image - user adds manually
         }
       };
     case 'image-right':
-      const rightImage = await mediaSelector({ 
-        prompt: 'gardening tools plants nursery',
-        count: 1 
-      });
       return {
         type: 'image',
         config: {
           title: 'Text & Image Section',
           content: 'Add your descriptive text here...',
-          altText: rightImage.alt || 'Gardening tools and plants',
+          altText: '',
           alignment: 'right',
           layout: 'two-column-right',
-          imageUrl: rightImage.url
+          imageUrl: '' // Start with empty image - user adds manually
         }
       };
     case 'button-centered':
