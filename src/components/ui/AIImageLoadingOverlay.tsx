@@ -1,6 +1,5 @@
 import React from 'react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AIImageLoadingOverlayProps {
@@ -11,7 +10,7 @@ interface AIImageLoadingOverlayProps {
 
 export const AIImageLoadingOverlay: React.FC<AIImageLoadingOverlayProps> = ({ 
   className, 
-  message = "AI is creating your garden image...",
+  message = "Generating image with AI...",
   showIcon = true
 }) => {
   return (
@@ -22,14 +21,14 @@ export const AIImageLoadingOverlay: React.FC<AIImageLoadingOverlayProps> = ({
       className
     )}>
       <div className="flex flex-col items-center gap-4">
-        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+        <LoadingSpinner size="lg" color="primary" />
         
         <div className="text-center space-y-2">
-          <p className="text-sm font-semibold text-black dark:text-white">
+          <p className="text-sm font-semibold text-foreground">
             {message}
           </p>
-          <p className="text-xs text-black/70 dark:text-white/70">
-            This will take about 8-10 seconds
+          <p className="text-xs text-muted-foreground">
+            May take 8-10 seconds
           </p>
         </div>
       </div>
