@@ -3013,7 +3013,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         'Image Left, Text Right',
         'Image Right, Text Left',
         'Two Column Layout',
-        'Newsletter Header'
+        'Newsletter Header',
+        'Untitled Block'
       ];
       return blockTypeLabels.includes(text.trim());
     };
