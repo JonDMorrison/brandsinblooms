@@ -341,14 +341,22 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
           (isImageLeft || isImageRight) && !isTextOnly ? "md:grid-cols-2" : "md:grid-cols-1"
         )}>
           {/* Content - shown first on mobile, positioned based on layout on desktop */}
-          <div className={cn(
-            "space-y-4 relative group/text",
-            isImageLeft && !isTextOnly && "md:order-2",
-            isImageRight && !isTextOnly && "md:order-1",
-            block.textAlign === 'center' && "text-center",
-            block.textAlign === 'right' && "text-right",
-            "hover:bg-background/50 rounded-md transition-colors duration-200 p-2 -m-2"
-          )}>
+          <div 
+            className={cn(
+              "space-y-4 relative group/text cursor-pointer",
+              isImageLeft && !isTextOnly && "md:order-2",
+              isImageRight && !isTextOnly && "md:order-1",
+              block.textAlign === 'center' && "text-center",
+              block.textAlign === 'right' && "text-right",
+              "hover:bg-background/50 rounded-md transition-colors duration-200 p-2 -m-2"
+            )}
+            onClick={(e) => {
+              if (onModeChange && editMode !== 'text') {
+                e.stopPropagation();
+                handleModeClick('text', e);
+              }
+            }}
+          >
             {/* ALWAYS show content if it exists or has existed before, even during image generation */}
             {hasContentLoaded ? (
               <>
