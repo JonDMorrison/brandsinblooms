@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { ImageTextBlock } from './ImageTextBlock';
 import { CTAButton } from '@/components/ui/CTAButton';
+import { TextContentSkeleton } from '@/components/ui/text-content-skeleton';
 
 interface TextBlockProps {
   block: ContentBlock;
@@ -22,6 +23,15 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
       />
     );
   }
+
+  // Check if content is being loaded
+  const isLoadingContent = (block as any).isLoadingContent === true;
+  const hasRealContent = !!(
+    (block.headline && block.headline !== '⏳ Generating content...') ||
+    (block.title && block.title !== 'Add headline') ||
+    (block.body && block.body !== '⏳ Creating engaging content...' && block.body.trim() !== '') ||
+    (block.content && block.content !== 'Add body text' && block.content.trim() !== '')
+  );
 
   // Always render as preview - editing is handled by the new mode system
   const paddingClass = {
@@ -47,8 +57,18 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
         block.textAlign === 'right' && "text-right"
       )}
     >
-      {/* Add Image Suggestion */}
-      {showAddImageSuggestion && (
+      {/* Show skeleton loader while content is being generated */}
+      {isLoadingContent && !hasRealContent ? (
+        <TextContentSkeleton 
+          showHeadline={true}
+          showBody={true}
+          bodyLines={7}
+          className="py-2"
+        />
+      ) : (
+        <>
+          {/* Add Image Suggestion */}
+          {showAddImageSuggestion && (
         <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -117,8 +137,10 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
         }}
       />
       
-      {/* CTA Button */}
-      <CTAButton block={block} />
+          {/* CTA Button */}
+          <CTAButton block={block} />
+        </>
+      )}
     </div>
   );
 };

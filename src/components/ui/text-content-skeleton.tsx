@@ -13,26 +13,27 @@ export const TextContentSkeleton: React.FC<TextContentSkeletonProps> = ({
   className,
   showHeadline = true,
   showBody = true,
-  bodyLines = 6
+  bodyLines = 7
 }) => {
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Headline skeleton */}
+      {/* Headline skeleton - 2 thick lines */}
       {showHeadline && (
         <div className="space-y-2">
-          <Skeleton className="h-8 w-3/4" animation="wave" />
+          <Skeleton className="h-7 w-[90%]" animation="wave" />
+          <Skeleton className="h-7 w-[75%]" animation="wave" />
         </div>
       )}
       
-      {/* Body text skeleton */}
+      {/* Body text skeleton - 7 thin lines */}
       {showBody && (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {Array.from({ length: bodyLines }).map((_, i) => (
             <Skeleton
               key={i}
               className={cn(
-                "h-4",
-                i === bodyLines - 1 ? "w-2/3" : "w-full"
+                "h-3.5",
+                i === bodyLines - 1 ? "w-[60%]" : "w-full"
               )}
               animation="wave"
             />

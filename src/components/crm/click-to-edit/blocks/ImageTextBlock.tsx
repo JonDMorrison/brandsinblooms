@@ -327,7 +327,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               <TextContentSkeleton 
                 showHeadline={true}
                 showBody={true}
-                bodyLines={6}
+                bodyLines={7}
                 className="py-2"
               />
             )}
