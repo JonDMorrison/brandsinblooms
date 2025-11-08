@@ -26,7 +26,23 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
 
   // Check if content is being loaded
   const isLoadingContent = (block as any).isLoadingContent === true;
-  const hasRealContent = !!(
+  
+  // Template placeholder titles that should NOT be considered real content
+  const templatePlaceholders = [
+    'Featured Story', 
+    'Main Article', 
+    'Secondary Feature', 
+    'Call to Action',
+    'Content Headline',
+    'Seasonal Spotlight',
+    'Tips & How-To',
+    'Add headline'
+  ];
+  
+  const isPlaceholderTitle = templatePlaceholders.includes(block.headline || '') || 
+                            templatePlaceholders.includes(block.title || '');
+  
+  const hasRealContent = !isPlaceholderTitle && !!(
     (block.headline && block.headline !== '⏳ Generating content...') ||
     (block.title && block.title !== 'Add headline') ||
     (block.body && block.body !== '⏳ Creating engaging content...' && block.body.trim() !== '') ||
@@ -37,6 +53,7 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
     blockId: block.id,
     isLoadingContent,
     hasRealContent,
+    isPlaceholderTitle,
     headline: block.headline?.substring(0, 30),
     body: typeof block.body === 'string' ? block.body.substring(0, 30) : block.body
   });

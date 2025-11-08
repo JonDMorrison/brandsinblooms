@@ -1737,14 +1737,29 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 // Determine if this block should fetch images
                 const needsImage = b.type === 'image' || b.type === 'image-text';
                 
-                // CRITICAL: Don't mark as loading if content already exists
-                const hasExistingContent = !!(b.headline || b.body) && 
+                // CRITICAL: Template placeholder titles that should be replaced
+                const templatePlaceholders = [
+                  'Featured Story', 
+                  'Main Article', 
+                  'Secondary Feature', 
+                  'Call to Action',
+                  'Content Headline',
+                  'Seasonal Spotlight',
+                  'Tips & How-To'
+                ];
+                
+                const isTemplatePlaceholder = templatePlaceholders.includes(b.headline || '') || 
+                                             templatePlaceholders.includes(b.title || '');
+                
+                // CRITICAL: Don't mark as loading if content already exists AND it's not a template placeholder
+                const hasExistingContent = !isTemplatePlaceholder && 
+                  !!(b.headline || b.body) && 
                   b.headline !== '⏳ Generating content...' &&
                   b.headline !== 'Content Headline';
                 
                 return {
                   ...b,
-                  // Only set loading text if no real content exists
+                  // Only set loading text if no real content exists (template placeholders don't count)
                   headline: (b.type === 'header' || hasExistingContent) ? b.headline : '⏳ Generating content...',
                   body: (b.type === 'header' || hasExistingContent) ? b.body : '',
                   content: (b.type === 'header' || hasExistingContent) ? b.content : '',

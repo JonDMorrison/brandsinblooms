@@ -121,7 +121,21 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   };
 
   // PHASE 3: Improved content detection - trust persistent flag first
-  const hasRealContent = !!(
+  // Template placeholder titles that should NOT be considered real content
+  const templatePlaceholders = [
+    'Featured Story', 
+    'Main Article', 
+    'Secondary Feature', 
+    'Call to Action',
+    'Content Headline',
+    'Seasonal Spotlight',
+    'Tips & How-To'
+  ];
+  
+  const isPlaceholderTitle = templatePlaceholders.includes(block.headline || '') || 
+                            templatePlaceholders.includes(block.title || '');
+  
+  const hasRealContent = !isPlaceholderTitle && !!(
     (block as any).hasGeneratedContent || // TRUST THE PERSISTENT FLAG FIRST!
     (block.headline && 
      block.headline !== '⏳ Generating content...' && 
