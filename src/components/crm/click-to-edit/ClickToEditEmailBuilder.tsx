@@ -158,7 +158,9 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   const updateBlock = useCallback((id: string, updates: Partial<ContentBlock>) => {
     console.log('📝 updateBlock called:', {
       blockId: id,
-      updates: Object.keys(updates)
+      updates: Object.keys(updates),
+      hasOverlayData: !!(updates.overlayOpacity !== undefined || updates.overlayColor),
+      overlayValues: { opacity: updates.overlayOpacity, color: updates.overlayColor }
     });
     
     // Use ref to get the latest blocks (avoiding stale closure)
@@ -180,6 +182,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         blockId: id,
         blockType: block.type,
         updates: Object.keys(updates),
+        overlayBefore: { opacity: block.overlayOpacity, color: block.overlayColor },
+        overlayAfter: { opacity: updatedBlock.overlayOpacity, color: updatedBlock.overlayColor },
         preservedFlags: {
           hasGeneratedContent: updatedBlock.hasGeneratedContent,
           contentGeneratedAt: updatedBlock.contentGeneratedAt
@@ -189,6 +193,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       return updatedBlock;
     });
     
+    console.log('📝 Calling onBlocksChange with', newBlocks.length, 'blocks');
     onBlocksChange(newBlocks);
   }, [onBlocksChange]);
 

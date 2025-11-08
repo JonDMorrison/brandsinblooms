@@ -23,6 +23,14 @@ export const ImageOverlayDialog: React.FC<ImageOverlayDialogProps> = ({
   const [overlayColor, setOverlayColor] = useState(block.overlayColor || '#000000');
 
   const handleSave = () => {
+    console.log('[ImageOverlayDialog] Applying overlay:', {
+      blockId: block.id,
+      blockType: block.type,
+      overlayOpacity,
+      overlayColor,
+      imageUrl: block.imageUrl,
+      backgroundImageUrl: block.backgroundImageUrl
+    });
     onUpdate({
       overlayOpacity,
       overlayColor

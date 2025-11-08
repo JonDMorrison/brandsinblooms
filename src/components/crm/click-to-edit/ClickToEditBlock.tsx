@@ -95,6 +95,13 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
   // Handle immediate local updates with content sanitization
   const handleLocalUpdate = useCallback((updates: Partial<ContentBlock>) => {
+    console.log('[ClickToEditBlock] handleLocalUpdate called:', {
+      blockId: block.id,
+      blockType: block.type,
+      updates,
+      hasOverlayData: !!(updates.overlayOpacity || updates.overlayColor)
+    });
+    
     // Sanitize text content automatically
     const sanitizedUpdates = { ...updates };
     if (updates.content && typeof updates.content === 'string') {
@@ -110,6 +117,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     const updatedBlock = { ...localBlock, ...sanitizedUpdates };
     setLocalBlock(updatedBlock);
     // Update parent immediately for all content changes
+    console.log('[ClickToEditBlock] Calling parent onUpdate with:', { blockId: block.id, sanitizedUpdates });
     onUpdate(block.id, sanitizedUpdates);
   }, [localBlock, block.id, onUpdate]);
 
