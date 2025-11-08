@@ -15,6 +15,7 @@ interface CleanEmailBlockEditorProps {
   onBlocksChange: (blocks: ContentBlock[]) => void;
   generatingBlocks?: Set<string>;
   campaignName?: string;
+  onOpenAIImageDialog?: (blockId: string) => void;
 }
 
 // Enhanced mapping function to convert layout types to block types and configurations
@@ -166,7 +167,8 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   blocks,
   onBlocksChange,
   generatingBlocks = new Set(),
-  campaignName
+  campaignName,
+  onOpenAIImageDialog
 }) => {
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -515,6 +517,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         onOpenAddModal={openAddModal}
         generatingBlocks={generatingBlocks}
         campaignName={campaignName}
+        onOpenAIImageDialog={onOpenAIImageDialog}
       />
 
 

@@ -24,6 +24,7 @@ interface ClickToEditEmailBuilderProps {
   onOpenAddModal?: (afterIndex?: number) => void;
   generatingBlocks?: Set<string>;
   campaignName?: string;
+  onOpenAIImageDialog?: (blockId: string) => void;
 }
 
 export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = ({
@@ -31,7 +32,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   onBlocksChange,
   onOpenAddModal,
   generatingBlocks = new Set(),
-  campaignName
+  campaignName,
+  onOpenAIImageDialog
 }) => {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
@@ -359,6 +361,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
             canMoveDown={index < blocks.length - 1}
             isGenerating={generatingBlocks.has(block.id)}
             allBlocks={blocks}
+            onOpenAIImageDialog={onOpenAIImageDialog}
           >
             {{
               preview: renderBlockPreview(block),

@@ -29,6 +29,7 @@ import { fetchSmartImage } from '@/services/unsplashService';
 import { useGeneratedBundle } from '@/hooks/useGeneratedBundle';
 import { CampaignSetupWizard } from './campaign-setup/CampaignSetupWizard';
 import { AIWriterDialog } from './ai-writer/AIWriterDialog';
+import { AIPersonalizationDialog } from './AIPersonalizationDialog';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
 import { CampaignActionBar } from './CampaignActionBar';
 import { CampaignReadiness } from './CampaignReadiness';
@@ -773,6 +774,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [showAIWriter, setShowAIWriter] = useState(false);
   const [sending, setSending] = useState(false);
   const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
+  const [showAIImageDialog, setShowAIImageDialog] = useState(false);
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   
 
   // Sender configuration for domain verification
@@ -3961,6 +3964,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               }
             }}
             generatingBlocks={generatingBlocks}
+            onOpenAIImageDialog={(blockId) => {
+              setEditingBlockId(blockId);
+              setShowAIImageDialog(true);
+            }}
           />
         </CardContent>
       </Card>
@@ -3981,6 +3988,30 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           onBlockImageGenerated={handleBlockImageGenerated}
           onBlockImageGenerationFailed={handleBlockImageFailed}
         />
+
+      {/* AI Image Personalization Dialog */}
+      <AIPersonalizationDialog
+        open={showAIImageDialog}
+        onOpenChange={setShowAIImageDialog}
+        onImageSelect={(imageUrl) => {
+          if (editingBlockId) {
+            const blockToUpdate = blocks.find(b => b.id === editingBlockId);
+            if (blockToUpdate) {
+              setBlocks(blocks.map(b => 
+                b.id === editingBlockId 
+                  ? { ...b, imageUrl, altText: 'AI Generated Image' }
+                  : b
+              ));
+              toast({
+                title: 'Image updated!',
+                description: 'AI-generated image has been applied to your block.',
+              });
+            }
+          }
+          setShowAIImageDialog(false);
+          setEditingBlockId(null);
+        }}
+      />
 
       {/* Sender Confirmation Modal */}
       <SharedSenderConfirmationModal

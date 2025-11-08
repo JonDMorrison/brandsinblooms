@@ -27,6 +27,7 @@ interface ClickToEditBlockProps {
   campaignName?: string;
   allBlocks?: ContentBlock[];
   retryImageGeneration?: (blockId: string) => void;
+  onOpenAIImageDialog?: (blockId: string) => void;
   children: {
     preview: React.ReactNode;
     editor: React.ReactNode;
@@ -46,6 +47,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   campaignName,
   allBlocks = [],
   retryImageGeneration,
+  onOpenAIImageDialog,
   children
 }) => {
   const [localBlock, setLocalBlock] = useState<ContentBlock>(block);
@@ -258,7 +260,11 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              handleModeChange('image');
+              if (onOpenAIImageDialog) {
+                onOpenAIImageDialog(block.id);
+              } else {
+                handleModeChange('image');
+              }
             }}
             className="h-7 w-7 p-0 hover:bg-muted"
             title="Edit image"
