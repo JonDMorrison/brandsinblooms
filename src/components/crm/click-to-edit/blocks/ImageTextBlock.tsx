@@ -378,23 +378,12 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 // Check if image is loading
                 const isImageLoadingState = block.imageUrl === 'loading' || (block as any).isLoadingImage === true;
                 
-                // Show AI image loading overlay
-                if (isGeneratingImage) {
+                // Show AI image loading overlay for both hook-based and flag-based loading
+                if (isGeneratingImage || isImageLoadingState) {
                   return (
                     <div className="relative w-full h-64 rounded-lg bg-muted">
                       <AIImageLoadingOverlay message="Generating image with AI..." />
                     </div>
-                  );
-                }
-                
-                // Show image skeleton if loading
-                if (isImageLoadingState) {
-                  return (
-                    <ImageSkeleton 
-                      className="w-full h-64 rounded-lg"
-                      aspectRatio="video"
-                      showIcon={true}
-                    />
                   );
                 }
                 
