@@ -266,8 +266,8 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             <Image className="w-3 h-3" />
           </Button>
 
-          {/* Image Overlay Button - only show if block has an image */}
-          {(block.imageUrl || block.backgroundImageUrl) && (
+          {/* Image Overlay Button - only show for Newsletter Header blocks */}
+          {block.type === 'newsletter-header' && (block.imageUrl || block.backgroundImageUrl) && (
             <Button
               variant="ghost"
               size="sm"
