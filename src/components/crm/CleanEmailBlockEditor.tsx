@@ -25,9 +25,9 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'newsletter-header',
         config: {
-          title: 'Newsletter Title',
-          subtitle: 'Weekly insights and updates',
-          issueNumber: '#001',
+          title: '',
+          subtitle: '',
+          issueNumber: '',
           publishDate: new Date().toLocaleDateString(),
           backgroundImageUrl: '',
           alignment: 'center',
@@ -38,9 +38,9 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'quote',
         config: {
-          quote: 'Add an inspiring quote here...',
-          author: 'Author Name',
-          authorTitle: 'Title or Company',
+          quote: '',
+          author: '',
+          authorTitle: '',
           alignment: 'center',
           padding: 'large'
         }
@@ -54,7 +54,7 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'image',
         config: {
-          content: 'Content with background image',
+          content: '',
           altText: bgImage.alt || 'Garden background',
           layout: 'background',
           backgroundImageUrl: bgImage.url,
@@ -67,8 +67,8 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'header',
         config: {
-          headline: 'Your Header Title',
-          body: 'Add your subtitle or description here...',
+          headline: '',
+          body: '',
           alignment: 'center',
           padding: 'medium'
         }
@@ -88,8 +88,8 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'image',
         config: {
-          title: 'Image & Text Section',
-          content: 'Add your descriptive text here...',
+          title: '',
+          content: '',
           altText: '',
           alignment: 'left',
           layout: 'two-column-left',
@@ -100,8 +100,8 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'image',
         config: {
-          title: 'Text & Image Section',
-          content: 'Add your descriptive text here...',
+          title: '',
+          content: '',
           altText: '',
           alignment: 'right',
           layout: 'two-column-right',
@@ -112,9 +112,9 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'button',
         config: {
-          heading: 'Ready to take action?',
-          body: 'Click the button below to get started.',
-          buttonText: 'Get Started',
+          heading: '',
+          body: '',
+          buttonText: '',
           buttonUrl: '',
           buttonColor: '', // Will be populated from company profile in parent component
           alignment: 'center',
@@ -125,8 +125,8 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'text',
         config: {
-          title: 'Two Column Text',
-          content: 'Column 1 content goes here...\n\nColumn 2 content goes here...',
+          title: '',
+          content: '',
           layout: 'two-column-left',
           alignment: 'left',
           // CRITICAL: Plain text blocks must never have images
@@ -139,8 +139,8 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'text',
         config: {
-          title: 'Plain Text Section',
-          content: 'Add your content here...',
+          title: '',
+          content: '',
           layout: 'full-width',
           alignment: 'left',
           // CRITICAL: Explicitly prevent image fetching for plain text blocks
@@ -152,8 +152,8 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       return {
         type: 'text',
         config: {
-          title: 'Text Section',
-          content: 'Add your content here...',
+          title: '',
+          content: '',
           // CRITICAL: Default text blocks should not fetch images
           imageUrl: '',
           shouldFetchImage: false

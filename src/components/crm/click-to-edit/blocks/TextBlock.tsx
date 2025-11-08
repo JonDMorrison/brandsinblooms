@@ -131,8 +131,8 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
         </div>
       )}
       
-      {/* Headline (if present) */}
-      {(block.headline || block.title) && (
+      {/* Headline (if present or show placeholder) */}
+      {(block.headline || block.title) ? (
         <div 
           className="text-2xl font-bold mb-4"
           style={{ 
@@ -144,6 +144,8 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
             __html: sanitizeWeekNumbers(block.headline || block.title || '')
           }}
         />
+      ) : (
+        <p className="text-sm text-muted-foreground italic mb-4">Click to add heading</p>
       )}
       
       {/* Text content */}
@@ -157,7 +159,7 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
           __html: (() => {
             // Prioritize non-empty content from either field
             const content = block.content || block.body || '';
-            return sanitizeWeekNumbers(content) || '<p>Add text content</p>';
+            return sanitizeWeekNumbers(content) || '<p class="text-sm text-muted-foreground italic">Click to add content</p>';
           })()
         }}
       />

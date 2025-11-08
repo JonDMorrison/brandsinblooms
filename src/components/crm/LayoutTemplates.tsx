@@ -66,16 +66,20 @@ export const Layout1: React.FC<LayoutProps> = ({ block, className, editable, onU
         )}
       </div>
       <div className="md:w-1/2 space-y-2">
-        {(block.title || block.headline) && (
+        {(block.title || block.headline) ? (
           <h3 className="text-lg font-semibold">{block.title || block.headline}</h3>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add heading</p>
         )}
-        {(block.content || block.body) && (
+        {(block.content || block.body) ? (
           <div 
             className="text-muted-foreground"
             dangerouslySetInnerHTML={{ 
               __html: parseSimpleMarkdown(block.content || block.body || '') 
             }}
           />
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add content</p>
         )}
         {(block.ctaText || block.buttonText) && (
           <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors">
@@ -106,16 +110,20 @@ export const Layout2: React.FC<LayoutProps> = ({ block, className, editable, onU
         )}
       </div>
       <div className="md:w-1/2 space-y-2">
-        {(block.title || block.headline) && (
+        {(block.title || block.headline) ? (
           <h3 className="text-lg font-semibold">{block.title || block.headline}</h3>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add heading</p>
         )}
-        {(block.content || block.body) && (
+        {(block.content || block.body) ? (
           <div 
             className="text-muted-foreground"
             dangerouslySetInnerHTML={{ 
               __html: parseSimpleMarkdown(block.content || block.body || '') 
             }}
           />
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add content</p>
         )}
         {(block.ctaText || block.buttonText) && (
           <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors">
@@ -146,16 +154,20 @@ export const Layout3: React.FC<LayoutProps> = ({ block, className, editable, onU
         )}
       </div>
       <div className="md:w-2/3 space-y-2">
-        {(block.title || block.headline) && (
+        {(block.title || block.headline) ? (
           <h3 className="text-xl font-semibold">{block.title || block.headline}</h3>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add heading</p>
         )}
-        {(block.content || block.body) && (
+        {(block.content || block.body) ? (
           <div 
             className="text-muted-foreground leading-relaxed"
             dangerouslySetInnerHTML={{ 
               __html: parseSimpleMarkdown(block.content || block.body || '') 
             }}
           />
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add content</p>
         )}
         {(block.ctaText || block.buttonText) && (
           <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors">
@@ -186,16 +198,20 @@ export const Layout4: React.FC<LayoutProps> = ({ block, className, editable, onU
         )}
       </div>
       <div className="md:w-2/3 space-y-2">
-        {(block.title || block.headline) && (
+        {(block.title || block.headline) ? (
           <h3 className="text-xl font-semibold">{block.title || block.headline}</h3>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add heading</p>
         )}
-        {(block.content || block.body) && (
+        {(block.content || block.body) ? (
           <div 
             className="text-muted-foreground leading-relaxed"
             dangerouslySetInnerHTML={{ 
               __html: parseSimpleMarkdown(block.content || block.body || '') 
             }}
           />
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add content</p>
         )}
         {(block.ctaText || block.buttonText) && (
           <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors">
@@ -294,14 +310,18 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
   if (block.type === 'button') {
     return (
       <div className={cn('space-y-4', paddingClass, `text-${block.alignment || 'center'}`, className)}>
-        {block.heading && (
+        {block.heading ? (
           <h3 className="text-lg font-semibold">{block.heading}</h3>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add heading</p>
         )}
-        {block.body && (
+        {block.body ? (
           <div 
             className="text-muted-foreground leading-relaxed"
             dangerouslySetInnerHTML={{ __html: parseSimpleMarkdown(block.body) }}
           />
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add description</p>
         )}
         {block.buttonText && (
           <div>
@@ -317,16 +337,20 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
   // Default layout for other block types
   return (
     <div className={cn('space-y-4', paddingClass, className)}>
-      {(block.title || block.headline) && (
+      {(block.title || block.headline) ? (
         <h3 className="text-xl font-semibold">{block.title || block.headline}</h3>
+      ) : (
+        <p className="text-sm text-muted-foreground italic">Click to add heading</p>
       )}
-      {(block.content || block.body) && (
+      {(block.content || block.body) ? (
         <div 
           className="text-muted-foreground leading-relaxed"
           dangerouslySetInnerHTML={{ 
             __html: parseSimpleMarkdown(block.content || block.body || '')
           }}
         />
+      ) : (
+        <p className="text-sm text-muted-foreground italic">Click to add content</p>
       )}
       {(block.ctaText || block.buttonText) && (
         <div>

@@ -2639,7 +2639,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
             : (actualBlockType === 'text' && finalExtractedContent.imageUrl && finalExtractedContent.imageUrl !== '/images/newsletter-fallback.jpg')
               ? 'image-text' as ContentBlock['type']
               : actualBlockType as ContentBlock['type'],
-          title: finalExtractedContent.title || finalExtractedContent.headline || 'Untitled Block',
+          title: finalExtractedContent.title || finalExtractedContent.headline || '',
           headline: finalExtractedContent.headline || finalExtractedContent.title,
           body: finalExtractedContent.body || finalExtractedContent.content,
           content: finalExtractedContent.body || finalExtractedContent.content || '',
