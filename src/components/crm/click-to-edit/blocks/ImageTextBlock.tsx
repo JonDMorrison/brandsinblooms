@@ -13,6 +13,9 @@ import { TextContentSkeleton } from '@/components/ui/text-content-skeleton';
 import { Image as ImageIcon } from 'lucide-react';
 import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
 import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
+import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
+import { Sparkles } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ImageTextBlockProps {
   block: ContentBlock;
@@ -36,9 +39,14 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   const [imageError, setImageError] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState(block.imageUrl);
   const [contentStable, setContentStable] = useState(false);
+  const [isAutoPickGenerating, setIsAutoPickGenerating] = useState(false);
+  const { toast } = useToast();
   
   // PHASE 6: Content persistence checkpoint - store last known good content
   const lastKnownContentRef = useRef<{ headline?: string; body?: string }>({});
+  
+  // AI image generation hook for Auto Pick
+  const { generateSingleImage } = useAIImageGeneration();
   
   // Extract content for image generation
   const contentForImage = (() => {
@@ -117,6 +125,78 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       onModeChange?.('image');
     } else {
       onModeChange?.(editMode === mode ? null : mode);
+    }
+  };
+
+  // Handle Auto Pick button click
+  const handleAutoPick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    setIsAutoPickGenerating(true);
+    
+    try {
+      // Check if there's content (headline or body)
+      const headline = block.headline || block.title || '';
+      const body = block.body || (typeof block.content === 'string' ? block.content : '');
+      const hasContent = headline.trim() || body.trim();
+      
+      // Determine content context and title
+      let contentContext: string;
+      let contentTitle: string | undefined;
+      
+      if (hasContent) {
+        // Use actual content for AI generation
+        contentContext = body.trim() || headline.trim();
+        contentTitle = headline.trim() || undefined;
+        
+        toast({
+          title: "Generating image",
+          description: "Creating an image based on your content...",
+        });
+      } else {
+        // Use generic garden marketing context
+        contentContext = "Professional garden center marketing image showcasing beautiful plants, flowers, and gardening products in an attractive display";
+        contentTitle = "Garden Center Marketing";
+        
+        toast({
+          title: "Generating image",
+          description: "Creating a garden center marketing image...",
+        });
+      }
+      
+      // Determine channel - default to newsletter
+      const channel = 'newsletter';
+      
+      // Generate the image
+      const imageUrl = await generateSingleImage({
+        contentContext,
+        contentTitle,
+        channel: channel as 'newsletter' | 'blog' | 'instagram' | 'facebook',
+        uploadToStorage: true
+      });
+      
+      if (imageUrl) {
+        onUpdate?.({
+          imageUrl,
+          altText: contentTitle || 'AI generated garden center image'
+        });
+        
+        toast({
+          title: "Image generated!",
+          description: "Your image has been added successfully.",
+        });
+      } else {
+        throw new Error('Failed to generate image');
+      }
+    } catch (error) {
+      console.error('Auto Pick failed:', error);
+      toast({
+        title: "Generation failed",
+        description: "Unable to generate image. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAutoPickGenerating(false);
     }
   };
 
@@ -379,7 +459,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 const isImageLoadingState = block.imageUrl === 'loading' || (block as any).isLoadingImage === true;
                 
                 // Show AI image loading overlay for both hook-based and flag-based loading
-                if (isGeneratingImage || isImageLoadingState) {
+                if (isGeneratingImage || isImageLoadingState || isAutoPickGenerating) {
                   return (
                     <div className="relative w-full h-64 rounded-lg bg-muted">
                       <AIImageLoadingOverlay message="Generating image with AI..." />
@@ -391,7 +471,19 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 const displayImageUrl = currentImageUrl || block.imageUrl;
                 
                 return displayImageUrl ? (
-                  <div className="relative">
+                  <div className="relative group/image-actions">
+                    {/* Auto Pick Button - shown on hover */}
+                    <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/image-actions:opacity-100 transition-opacity">
+                      <button
+                        onClick={handleAutoPick}
+                        disabled={isAutoPickGenerating}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-lg transition-colors disabled:opacity-50"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Auto Pick
+                      </button>
+                    </div>
+                    
                     {/* Show skeleton overlay only when loading and no current image */}
                     {isImageLoading && !currentImageUrl && (
                       <div className="absolute inset-0 z-10">
@@ -486,39 +578,12 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                             Browse
                           </button>
                           <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              setIsImageLoading(true);
-                              // Auto-pick image based on content
-                              const headline = (() => {
-                                if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
-                                  return (block.content as any).headline;
-                                } else if (block.headline) {
-                                  return block.headline;
-                                } else if (block.title) {
-                                  return block.title;
-                                }
-                                return 'garden plants';
-                              })();
-                              
-                              try {
-                                const { fetchSmartImage } = await import('@/services/unsplashService');
-                                const imageData = await fetchSmartImage(headline, '', true);
-                                
-                                if (imageData?.url && onUpdate) {
-                                  onUpdate({
-                                    imageUrl: imageData.url,
-                                    altText: imageData.alt
-                                  });
-                                }
-                              } catch (error) {
-                                console.error('[ImageTextBlock] Auto-pick failed:', error);
-                                setIsImageLoading(false);
-                              }
-                            }}
-                            className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                            onClick={handleAutoPick}
+                            disabled={isAutoPickGenerating}
+                            className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1"
                           >
-                            Auto-pick
+                            <Sparkles className="w-3 h-3" />
+                            Auto Pick
                           </button>
                         </div>
                       </>
