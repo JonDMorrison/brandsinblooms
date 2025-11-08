@@ -98,6 +98,17 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
         ) : null;
       })()}
 
+      {/* Custom Image Overlay from overlay dialog - supports overlayColor/overlayOpacity */}
+      {block.overlayOpacity && block.overlayOpacity > 0 && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundColor: block.overlayColor || '#000000',
+            opacity: block.overlayOpacity / 100
+          }}
+        />
+      )}
+
       {/* Contextual Toolbar - only show when onModeChange is available */}
       {onModeChange && (
         <ContextualToolbar
