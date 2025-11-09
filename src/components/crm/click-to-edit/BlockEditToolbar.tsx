@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Edit, Image, Copy, Trash2 } from 'lucide-react';
+import { Edit, Image, Copy, Trash2, Sparkles } from 'lucide-react';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { cn } from '@/lib/utils';
 
@@ -9,9 +9,9 @@ interface BlockEditToolbarProps {
   onModeChange: (mode: EditMode) => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onOpenAIImageDialog?: () => void;
   className?: string;
   showImageButton?: boolean;
-  
 }
 
 export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
@@ -19,9 +19,9 @@ export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
   onModeChange,
   onDuplicate,
   onDelete,
+  onOpenAIImageDialog,
   className,
   showImageButton = true,
-  
 }) => {
   const handleModeClick = (mode: EditMode, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -36,6 +36,22 @@ export const BlockEditToolbar: React.FC<BlockEditToolbarProps> = ({
       "opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50",
       className
     )}>
+      {/* AI Image Picker */}
+      {onOpenAIImageDialog && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenAIImageDialog();
+          }}
+          className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground"
+          title="AI Image Picker"
+        >
+          <Sparkles className="w-3 h-3" />
+        </Button>
+      )}
+      
       {/* Delete */}
       <Button
         variant="ghost"

@@ -3,7 +3,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GripVertical, Trash2, Edit, Image, Zap, CheckCircle, AlertTriangle, Layers } from 'lucide-react';
+import { GripVertical, Trash2, Edit, Image, Zap, CheckCircle, AlertTriangle, Layers, Sparkles } from 'lucide-react';
 import { AIImageLoadingOverlay } from './AIImageLoadingOverlay';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
@@ -254,17 +254,29 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             </Button>
           )}
           
+          {/* AI Image Picker Button */}
+          {onOpenAIImageDialog && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenAIImageDialog(block.id);
+              }}
+              className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground"
+              title="AI Image Picker"
+            >
+              <Sparkles className="w-3 h-3" />
+            </Button>
+          )}
+          
           {/* Image Edit Button */}
           <Button
             variant={editMode === 'image' ? 'default' : 'ghost'}
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              if (onOpenAIImageDialog) {
-                onOpenAIImageDialog(block.id);
-              } else {
-                handleModeChange('image');
-              }
+              handleModeChange('image');
             }}
             className="h-7 w-7 p-0 hover:bg-muted"
             title="Edit image"
