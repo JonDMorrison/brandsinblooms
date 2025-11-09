@@ -3997,11 +3997,17 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           if (editingBlockId) {
             const blockToUpdate = blocks.find(b => b.id === editingBlockId);
             if (blockToUpdate) {
+              // Update the appropriate image field based on block type
+              const imageUpdate = blockToUpdate.type === 'newsletter-header'
+                ? { backgroundImageUrl: imageUrl, altText: 'AI Generated Image' }
+                : { imageUrl, altText: 'AI Generated Image' };
+              
               setBlocks(blocks.map(b => 
                 b.id === editingBlockId 
-                  ? { ...b, imageUrl, altText: 'AI Generated Image' }
+                  ? { ...b, ...imageUpdate }
                   : b
               ));
+              
               toast({
                 title: 'Image updated!',
                 description: 'AI-generated image has been applied to your block.',
