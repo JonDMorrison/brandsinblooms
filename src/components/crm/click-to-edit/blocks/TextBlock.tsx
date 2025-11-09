@@ -5,21 +5,25 @@ import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { ImageTextBlock } from './ImageTextBlock';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { TextContentSkeleton } from '@/components/ui/text-content-skeleton';
+import { Button } from '@/components/ui/button';
+import { Sparkles } from 'lucide-react';
 
 interface TextBlockProps {
   block: ContentBlock;
   onUpdate?: (updates: Partial<ContentBlock>) => void;
   isPreview?: boolean;
+  onOpenAIImageDialog?: (blockId: string) => void;
 }
 
-export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview = true }) => {
+export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview = true, onOpenAIImageDialog }) => {
   // If this text block has an image, render as ImageTextBlock instead
   if (block.imageUrl) {
     return (
       <ImageTextBlock 
         block={block} 
         onUpdate={onUpdate} 
-        isPreview={isPreview} 
+        isPreview={isPreview}
+        onOpenAIImageDialog={onOpenAIImageDialog}
       />
     );
   }
@@ -99,34 +103,20 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">💡 This content would look great with an image</span>
             </div>
-            <button
-              onClick={async () => {
-                // Convert to image-text layout and auto-fetch image
-                const content = block.title || block.content || block.body || 'garden plants';
-                
-                try {
-                  const { fetchSmartImage } = await import('@/services/unsplashService');
-                  const imageData = await fetchSmartImage(content, '', true);
-                  
-                  onUpdate({ 
-                    layout: 'image-right',
-                    type: 'image-text',
-                    imageUrl: imageData?.url || '',
-                    altText: imageData?.alt || 'Content image'
-                  });
-                } catch (error) {
-                  console.error('Failed to fetch image:', error);
-                  // Fallback: convert without image
-                  onUpdate({ 
-                    layout: 'image-right',
-                    type: 'image-text'
-                  });
+            <Button
+              size="sm"
+              variant="default"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenAIImageDialog) {
+                  onOpenAIImageDialog(block.id);
                 }
               }}
-              className="text-xs px-3 py-1 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              className="gap-2"
             >
-              Add Image
-            </button>
+              <Sparkles className="h-3.5 w-3.5" />
+              Auto Pick
+            </Button>
           </div>
         </div>
       )}
