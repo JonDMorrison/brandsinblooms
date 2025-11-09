@@ -3994,19 +3994,39 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         open={showAIImageDialog}
         onOpenChange={setShowAIImageDialog}
         onImageSelect={(imageUrl) => {
+          console.log('🖼️ [AIPersonalizationDialog] Image selected:', imageUrl);
+          console.log('🖼️ [AIPersonalizationDialog] Editing block ID:', editingBlockId);
+          
           if (editingBlockId) {
             const blockToUpdate = blocks.find(b => b.id === editingBlockId);
+            console.log('🖼️ [AIPersonalizationDialog] Block to update:', blockToUpdate);
+            
             if (blockToUpdate) {
               // Update the appropriate image field based on block type
               const imageUpdate = blockToUpdate.type === 'newsletter-header'
                 ? { backgroundImageUrl: imageUrl, altText: 'AI Generated Image' }
                 : { imageUrl, altText: 'AI Generated Image' };
               
-              setBlocks(blocks.map(b => 
+              console.log('🖼️ [AIPersonalizationDialog] Image update:', imageUpdate);
+              
+              const updatedBlocks = blocks.map(b => 
                 b.id === editingBlockId 
                   ? { ...b, ...imageUpdate }
                   : b
-              ));
+              );
+              
+              setBlocks(updatedBlocks);
+              
+              // Trigger auto-save to persist the changes
+              if (existingCampaignId) {
+                console.log('💾 [AIPersonalizationDialog] Triggering auto-save for campaign:', existingCampaignId);
+                debouncedAutoSave({
+                  blocks: updatedBlocks,
+                  campaign_name: campaignName,
+                  subject_line: subjectLine,
+                  preheader: preheaderText
+                });
+              }
               
               toast({
                 title: 'Image updated!',
