@@ -18,6 +18,7 @@ interface AIPersonalizationDialogProps {
   onOpenChange: (open: boolean) => void;
   onImageSelect?: (imageUrl: string) => void;
   overviewKeywords?: string[];
+  contentContext?: string;
 }
 
 // Sample images for the grid (using Unsplash garden/plant images)
@@ -39,6 +40,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   onOpenChange,
   onImageSelect,
   overviewKeywords = [],
+  contentContext = '',
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -47,6 +49,13 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   const [loadingPlaceholders, setLoadingPlaceholders] = useState<number>(0);
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Auto-populate prompt with contentContext when dialog opens
+  useEffect(() => {
+    if (open && contentContext && contentContext.trim().length > 0) {
+      setPrompt(contentContext);
+    }
+  }, [open, contentContext]);
 
   // Auto-scroll to top when placeholders appear
   useEffect(() => {

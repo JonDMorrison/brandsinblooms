@@ -214,10 +214,10 @@ export const MediaSelectorImage = forwardRef<MediaSelectorImageHandle, MediaSele
         )}
 
         {!isGenerating && (
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2 items-center justify-center z-50">
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2 items-center justify-center z-50 pointer-events-none">
             <button
               onClick={handleSelectClick}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors pointer-events-auto"
             >
               <Upload className="w-4 h-4" />
               Select Image
@@ -225,7 +225,7 @@ export const MediaSelectorImage = forwardRef<MediaSelectorImageHandle, MediaSele
             <button
               onClick={handleAutoPick}
               disabled={isAutoPickGenerating}
-              className="bg-accent hover:bg-accent/90 text-accent-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed pointer-events-auto"
             >
               <Wand2 className="w-4 h-4" />
               {isAutoPickGenerating ? 'Generating...' : 'Auto Pick'}
@@ -237,7 +237,7 @@ export const MediaSelectorImage = forwardRef<MediaSelectorImageHandle, MediaSele
                 console.log('[MediaSelectorImage] Personalize with AI clicked');
                 setIsPersonalizing(true);
               }}
-              className="bg-secondary hover:bg-secondary/90 text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
+              className="bg-secondary hover:bg-secondary/90 text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors pointer-events-auto"
             >
               <Sparkles className="w-4 h-4" />
               Personalize with AI
@@ -259,6 +259,7 @@ export const MediaSelectorImage = forwardRef<MediaSelectorImageHandle, MediaSele
       <AIPersonalizationDialog
         open={isPersonalizing}
         onOpenChange={setIsPersonalizing}
+        contentContext={contentContext}
         onImageSelect={(imageUrl) => {
           handleImageSelect(imageUrl);
           setIsPersonalizing(false);
