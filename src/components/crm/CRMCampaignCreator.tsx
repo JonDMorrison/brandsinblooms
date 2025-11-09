@@ -3996,6 +3996,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         onImageSelect={(imageUrl) => {
           console.log('🖼️ [AIPersonalizationDialog] Image selected:', imageUrl);
           console.log('🖼️ [AIPersonalizationDialog] Editing block ID:', editingBlockId);
+          console.log('🖼️ [AIPersonalizationDialog] Current blocks:', blocks.length);
           
           if (editingBlockId) {
             const blockToUpdate = blocks.find(b => b.id === editingBlockId);
@@ -4009,11 +4010,15 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               
               console.log('🖼️ [AIPersonalizationDialog] Image update:', imageUpdate);
               
+              // Create a completely new array with new object references to force React re-render
               const updatedBlocks = blocks.map(b => 
                 b.id === editingBlockId 
-                  ? { ...b, ...imageUpdate }
+                  ? { ...b, ...imageUpdate, _updateTimestamp: Date.now() } // Add timestamp to force change detection
                   : b
               );
+              
+              console.log('🖼️ [AIPersonalizationDialog] Updated blocks:', updatedBlocks.length);
+              console.log('🖼️ [AIPersonalizationDialog] Updated block:', updatedBlocks.find(b => b.id === editingBlockId));
               
               setBlocks(updatedBlocks);
               
@@ -4032,7 +4037,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 title: 'Image updated!',
                 description: 'AI-generated image has been applied to your block.',
               });
+            } else {
+              console.error('🖼️ [AIPersonalizationDialog] Block not found!');
             }
+          } else {
+            console.error('🖼️ [AIPersonalizationDialog] No editing block ID!');
           }
           setShowAIImageDialog(false);
           setEditingBlockId(null);

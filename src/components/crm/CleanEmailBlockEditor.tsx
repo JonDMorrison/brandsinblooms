@@ -208,6 +208,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       const title = block.title || block.headline || '';
       const content = block.content || block.body || '';
       const imageUrl = block.imageUrl || '';
+      const backgroundImageUrl = block.backgroundImageUrl || ''; // Include background image for newsletter headers
       const buttonText = block.buttonText || block.ctaText || '';
       const buttonUrl = block.buttonUrl || block.ctaUrl || '';
       const visible = block.visible !== false;
@@ -215,7 +216,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       const hasGenerated = (block as any).hasGeneratedContent ? '1' : '0';
       // Ensure content is a string before calling slice
       const contentStr = typeof content === 'string' ? content : JSON.stringify(content || '');
-      return `${block.id}:${block.type}:${title}:${contentStr.slice(0, 50)}:${imageUrl}:${buttonText}:${buttonUrl}:${visible}:${hasGenerated}`;
+      return `${block.id}:${block.type}:${title}:${contentStr.slice(0, 50)}:${imageUrl}:${backgroundImageUrl}:${buttonText}:${buttonUrl}:${visible}:${hasGenerated}`;
     };
 
     const currentSignature = internalBlocks.map(createContentSignature).sort().join('|');
