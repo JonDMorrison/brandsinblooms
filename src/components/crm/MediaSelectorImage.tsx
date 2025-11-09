@@ -2,10 +2,12 @@
 import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { MediaSelectorSidebar } from './MediaSelectorSidebar';
 import { AIPersonalizationDialog } from './AIPersonalizationDialog';
-import { Camera, Upload, Sparkles } from 'lucide-react';
+import { Camera, Upload, Sparkles, Wand2 } from 'lucide-react';
 import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
+import { getCurrentSeason } from '@/utils/seasonalUtils';
 
 interface MediaSelectorImageProps {
   src?: string;
@@ -91,7 +93,9 @@ export const MediaSelectorImage = forwardRef<MediaSelectorImageHandle, MediaSele
   const [isSelecting, setIsSelecting] = useState(false);
   const [isPersonalizing, setIsPersonalizing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAutoPickGenerating, setIsAutoPickGenerating] = useState(false);
   const { toast } = useToast();
+  const { generateSingleImage } = useAIImageGeneration();
 
   // Expose openDialog method to parent components
   useImperativeHandle(ref, () => ({
@@ -123,6 +127,65 @@ export const MediaSelectorImage = forwardRef<MediaSelectorImageHandle, MediaSele
   const handleClose = () => {
     console.log('[MediaSelectorImage] Sidebar closing');
     setIsSelecting(false);
+  };
+
+  // Handle Auto Pick button click
+  const handleAutoPick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!onChange) return;
+    
+    setIsAutoPickGenerating(true);
+    setIsGenerating(true);
+    
+    try {
+      // Check if contentContext is available
+      const hasValidContent = contentContext && contentContext.trim().length > 0;
+      
+      let contentCtx = '';
+      let contentTitle = '';
+      
+      if (hasValidContent) {
+        // Generate image based on contentContext
+        contentCtx = contentContext;
+        contentTitle = contentContext.substring(0, 100);
+      } else {
+        // Generate image based on garden, flowers, and current season
+        const { season } = getCurrentSeason();
+        contentCtx = `A beautiful garden scene with flowers and plants in ${season}. Vibrant colors and blooming flowers appropriate for the ${season} season.`;
+        contentTitle = `${season.charAt(0).toUpperCase() + season.slice(1)} Garden Scene`;
+      }
+      
+      console.log('[MediaSelectorImage] Auto Pick - Generating image:', { contentCtx, contentTitle, hasValidContent });
+      
+      const imageUrl = await generateSingleImage({
+        contentContext: contentCtx,
+        contentTitle,
+        channel: contentType || 'newsletter',
+        uploadToStorage: true
+      });
+      
+      if (imageUrl) {
+        onChange(imageUrl);
+        toast({
+          title: "Image generated!",
+          description: "Your image has been added successfully.",
+        });
+      } else {
+        throw new Error('Failed to generate image');
+      }
+    } catch (error) {
+      console.error('[MediaSelectorImage] Auto Pick failed:', error);
+      toast({
+        title: "Generation failed",
+        description: "Unable to generate image. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAutoPickGenerating(false);
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -158,6 +221,14 @@ export const MediaSelectorImage = forwardRef<MediaSelectorImageHandle, MediaSele
             >
               <Upload className="w-4 h-4" />
               Select Image
+            </button>
+            <button
+              onClick={handleAutoPick}
+              disabled={isAutoPickGenerating}
+              className="bg-accent hover:bg-accent/90 text-accent-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Wand2 className="w-4 h-4" />
+              {isAutoPickGenerating ? 'Generating...' : 'Auto Pick'}
             </button>
             <button
               onClick={(e) => {
