@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
@@ -7,6 +7,9 @@ import { CTAButton } from '@/components/ui/CTAButton';
 import { TextContentSkeleton } from '@/components/ui/text-content-skeleton';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
+import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
+import { useToast } from '@/hooks/use-toast';
+import { getCurrentSeason } from '@/utils/seasonalUtils';
 
 interface TextBlockProps {
   block: ContentBlock;
@@ -16,6 +19,10 @@ interface TextBlockProps {
 }
 
 export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview = true, onOpenAIImageDialog }) => {
+  const [isAutoPickGenerating, setIsAutoPickGenerating] = useState(false);
+  const { generateSingleImage } = useAIImageGeneration();
+  const { toast } = useToast();
+  
   // If this text block has an image, render as ImageTextBlock instead
   if (block.imageUrl) {
     return (
@@ -70,6 +77,63 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
     large: 'p-8'
   }[block.padding || 'medium'];
 
+  // Handle Auto Pick button click
+  const handleAutoPick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!onUpdate) return;
+    
+    setIsAutoPickGenerating(true);
+    
+    try {
+      // Check if block has content
+      const blockContent = block.content || block.body || block.headline || block.title || '';
+      const hasValidContent = typeof blockContent === 'string' && blockContent.trim().length > 0;
+      
+      let contentContext = '';
+      let contentTitle = '';
+      
+      if (hasValidContent) {
+        // Generate image based on block content
+        contentContext = blockContent;
+        contentTitle = (block.headline || block.title || blockContent.substring(0, 100)).toString();
+      } else {
+        // Generate image based on garden, flowers, and current season
+        const { season } = getCurrentSeason();
+        contentContext = `A beautiful garden scene with flowers and plants in ${season}. Vibrant colors and blooming flowers appropriate for the ${season} season.`;
+        contentTitle = `${season.charAt(0).toUpperCase() + season.slice(1)} Garden Scene`;
+      }
+      
+      console.log('[TextBlock] Auto Pick - Generating image:', { contentContext, contentTitle, hasValidContent });
+      
+      const imageUrl = await generateSingleImage({
+        contentContext,
+        contentTitle,
+        channel: 'newsletter',
+        uploadToStorage: true
+      });
+      
+      if (imageUrl) {
+        onUpdate({ imageUrl });
+        toast({
+          title: "Image generated!",
+          description: "Your image has been added successfully.",
+        });
+      } else {
+        throw new Error('Failed to generate image');
+      }
+    } catch (error) {
+      console.error('[TextBlock] Auto Pick failed:', error);
+      toast({
+        title: "Generation failed",
+        description: "Unable to generate image. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAutoPickGenerating(false);
+    }
+  };
+
   // Check if this text block has content that could benefit from an image
   const hasContent = (block.title || block.content || block.body || block.headline);
   const hasRichContent = hasContent && (block.title || block.content || block.body || block.headline)!.length > 50;
@@ -106,16 +170,12 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
             <Button
               size="sm"
               variant="default"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenAIImageDialog) {
-                  onOpenAIImageDialog(block.id);
-                }
-              }}
+              onClick={handleAutoPick}
+              disabled={isAutoPickGenerating}
               className="gap-2"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              Auto Pick
+              {isAutoPickGenerating ? 'Generating...' : 'Auto Pick'}
             </Button>
           </div>
         </div>
