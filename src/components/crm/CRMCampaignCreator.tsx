@@ -1701,7 +1701,22 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
               category: 'weekly',
               seasonal_focus: weeklyThemeData.seasonal_focus || weeklyThemeData.theme,
               weekNumber: weekNumber,
-              templateBlocks: []
+              templateBlocks: [
+                { 
+                  type: 'header', 
+                  title: weeklyThemeData.title,
+                  body: weeklyThemeData.content_ideas || weeklyThemeData.seasonal_focus || 'Discover what\'s growing this week and get expert tips for your garden.'
+                },
+                { 
+                  type: 'text', 
+                  content: weeklyThemeData.content_ideas || 'Weekly themed content for your newsletter.' 
+                },
+                { 
+                  type: 'image-text', 
+                  title: 'Seasonal Focus', 
+                  content: weeklyThemeData.seasonal_focus || `Featured content and ideas for week ${weekNumber}.` 
+                }
+              ]
             };
           }
           
