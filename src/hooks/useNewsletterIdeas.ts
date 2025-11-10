@@ -66,7 +66,8 @@ export const useNewsletterIdeas = () => {
         templateBlocks: [
           { 
             type: 'header', 
-            title: sanitizeCampaignTitle(campaign.theme || campaign.title || `Week ${campaign.week_number}`) 
+            title: sanitizeCampaignTitle(campaign.theme || campaign.title || `Week ${campaign.week_number}`),
+            body: campaign.content_ideas || campaign.seasonal_focus || `Discover what's growing this week and get expert tips for your garden.`
           },
           { 
             type: 'text', 
