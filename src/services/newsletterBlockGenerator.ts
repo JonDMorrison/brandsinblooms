@@ -65,9 +65,9 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
       id: `block_${Date.now()}_${index}`,
       type: mappedType,
       title: block.title || '',
-      content: block.content || '',
-      headline: block.title || '',
-      body: block.content || '',
+      content: block.content || block.body || '',
+      headline: block.headline || block.title || '',
+      body: block.body || block.content || '',
       imageUrl: mappedType === 'text' ? '' : (block.imageUrl || ''), // Force empty imageUrl for text blocks
       ctaText: block.buttonText || '',
       ctaUrl: block.buttonUrl || '#',
