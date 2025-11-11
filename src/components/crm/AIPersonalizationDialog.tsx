@@ -128,18 +128,22 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       console.log('✅ Thinking text streaming complete');
     } catch (error) {
       console.error('❌ Streaming error:', error);
-      // Fallback text
+      
+      // Show error to user instead of fallback static text
       setMessages(prev =>
         prev.map(msg =>
           msg.id === thinkingMessageId
             ? { 
                 ...msg, 
-                content: 'Hmm, analyzing your request and considering the best visual composition for your garden image. I\'m thinking about the lighting, colors, and seasonal elements that would work perfectly...',
+                content: '⚠️ Unable to generate AI thinking text. Please check your connection and try again.',
                 isThinkingComplete: true 
               }
             : msg
         )
       );
+      
+      // Don't throw - let the process continue
+      throw error;
     }
   };
 
