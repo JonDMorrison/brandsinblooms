@@ -13,6 +13,8 @@ import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 import { RegenerateBlockButton } from '../RegenerateBlockButton';
 import { assessContentQuality, sanitizeAndImproveContent } from '@/utils/contentQuality';
 import { ImageOverlayDialog } from './ImageOverlayDialog';
+import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
+import { useToast } from '@/hooks/use-toast';
 
 interface ClickToEditBlockProps {
   block: ContentBlock;
@@ -58,6 +60,10 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   
   // Use the new edit mode hook
   const { editMode, setEditMode, toggleMode, exitEditMode, isTextEditing, isImageEditing } = useBlockEditMode();
+  
+  // AI Image Generation hook
+  const { generateSingleImage } = useAIImageGeneration();
+  const { toast } = useToast();
 
   // Debug logging for MediaSelector state changes
   useEffect(() => {
@@ -224,6 +230,84 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     }
   };
 
+  // Auto Pick Image Handler - generates image based on block content or seasonal fallback
+  const handleAutoPickImage = async () => {
+    try {
+      // Check if block has any content
+      const blockContent = block.title || block.headline || block.body || block.content;
+      
+      // Determine the content context for image generation
+      let contentContext: string;
+      let contentTitle: string | undefined;
+      
+      if (blockContent && blockContent.trim()) {
+        // Use existing block content as context
+        contentContext = blockContent;
+        contentTitle = block.title || block.headline || undefined;
+        console.log('🎨 Auto Pick: Using block content for image generation');
+      } else {
+        // Fallback to seasonal garden imagery
+        const currentMonth = new Date().getMonth();
+        let season = 'spring';
+        if (currentMonth >= 2 && currentMonth <= 4) season = 'spring';
+        else if (currentMonth >= 5 && currentMonth <= 7) season = 'summer';
+        else if (currentMonth >= 8 && currentMonth <= 10) season = 'fall';
+        else season = 'winter';
+        
+        contentContext = `Beautiful ${season} garden with flowers, plants, and lush greenery. Garden center atmosphere with vibrant blooms and foliage.`;
+        contentTitle = `${season.charAt(0).toUpperCase() + season.slice(1)} Garden`;
+        console.log(`🎨 Auto Pick: Using seasonal fallback (${season}) for image generation`);
+      }
+      
+      // Set loading state
+      handleLocalUpdate({ isGeneratingImage: true, imageGenerationError: undefined });
+      
+      // Generate the image
+      const imageUrl = await generateSingleImage({
+        contentContext,
+        contentTitle,
+        channel: 'newsletter',
+        uploadToStorage: true
+      });
+      
+      if (imageUrl) {
+        // Update the block with the generated image
+        if (block.type === 'newsletter-header') {
+          handleLocalUpdate({ 
+            backgroundImageUrl: imageUrl, 
+            isGeneratingImage: false,
+            imageGenerationError: undefined
+          });
+        } else {
+          handleLocalUpdate({ 
+            imageUrl, 
+            isGeneratingImage: false,
+            imageGenerationError: undefined
+          });
+        }
+        
+        toast({
+          title: 'Image generated!',
+          description: 'AI image has been added to your block.'
+        });
+      } else {
+        throw new Error('Failed to generate image');
+      }
+    } catch (error: any) {
+      console.error('❌ Auto Pick image generation failed:', error);
+      handleLocalUpdate({ 
+        isGeneratingImage: false, 
+        imageGenerationError: error.message || 'Failed to generate image'
+      });
+      
+      toast({
+        title: 'Image generation failed',
+        description: 'Please try again or select an image manually.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const isAnyEditMode = isTextEditing || isImageEditing;
 
   return (
@@ -254,21 +338,20 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             </Button>
           )}
           
-          {/* AI Image Picker Button */}
-          {onOpenAIImageDialog && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenAIImageDialog(block.id);
-              }}
-              className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground"
-              title="AI Image Picker"
-            >
-              <Sparkles className="w-3 h-3" />
-            </Button>
-          )}
+          {/* Auto Pick Image Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAutoPickImage();
+            }}
+            className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground"
+            title="Auto Pick - Generate AI image based on content"
+            disabled={block.isGeneratingImage}
+          >
+            <Sparkles className="w-3 h-3" />
+          </Button>
           
           {/* Image Edit Button */}
           <Button
