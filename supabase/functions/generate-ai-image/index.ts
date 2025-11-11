@@ -54,6 +54,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Set up abort signal with timeout
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    console.error('⏱️ Function timeout after 50 seconds');
+    controller.abort();
+  }, 50000); // 50 second timeout
+
   try {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -107,8 +114,13 @@ serve(async (req) => {
       try {
         const startTime = Date.now();
         
-        // Call AI with retry logic
-        const aiData = await generateWithRetry(imagePrompt, LOVABLE_API_KEY);
+        // Call AI with retry logic and timeout
+        const aiData = await Promise.race([
+          generateWithRetry(imagePrompt, LOVABLE_API_KEY),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('AI generation timeout after 20s')), 20000)
+          )
+        ]);
         
         const generationTime = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`⏱️ Image generated in ${generationTime}s`);
@@ -119,7 +131,9 @@ serve(async (req) => {
           throw new Error('No image data in AI response');
         }
 
-        console.log('✅ Received base64 image data');
+        console.log('✅ Received base64 image data', {
+          sizeKB: Math.round(base64Image.length / 1024)
+        });
 
         // Upload to CENTRAL storage ONLY
         let finalImageUrl = base64Image;
@@ -133,8 +147,20 @@ serve(async (req) => {
             const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
             const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+            // Convert base64 to binary with memory optimization
             const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-            const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            let binaryData: Uint8Array;
+            
+            try {
+              binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+              console.log('✅ Base64 converted to binary:', {
+                sizeKB: Math.round(binaryData.length / 1024),
+                sizeMB: (binaryData.length / (1024 * 1024)).toFixed(2)
+              });
+            } catch (conversionError) {
+              console.error('❌ Base64 conversion failed:', conversionError);
+              throw new Error('Failed to convert base64 image data');
+            }
 
             // Generate UUID-based filename for central storage
             const imageUuid = crypto.randomUUID();
@@ -169,23 +195,31 @@ serve(async (req) => {
               size_kb: Math.round(binaryData.length / 1024)
             });
 
-            // Generate tags using OpenAI
+            // Generate tags using OpenAI with timeout
             console.log('🏷️ [Tag Generation] Starting...');
-            const { data: tagsData, error: tagsError } = await supabase.functions.invoke(
-              'generate-image-tags',
-              {
-                body: {
-                  contentContext,
-                  contentTitle,
-                  channel
-                }
+            let tagsData: any = null;
+            let tagsError: any = null;
+            
+            try {
+              const tagResult = await Promise.race([
+                supabase.functions.invoke('generate-image-tags', {
+                  body: { contentContext, contentTitle, channel }
+                }),
+                new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('Tag generation timeout')), 15000)
+                )
+              ]);
+              tagsData = (tagResult as any).data;
+              tagsError = (tagResult as any).error;
+              
+              if (tagsError) {
+                console.error('❌ [Tag Generation] Failed:', tagsError);
+              } else {
+                console.log('✅ [Tag Generation] Completed successfully');
               }
-            );
-
-            if (tagsError) {
-              console.error('❌ [Tag Generation] Failed:', tagsError);
-            } else {
-              console.log('✅ [Tag Generation] Completed successfully');
+            } catch (tagTimeout) {
+              console.warn('⚠️ [Tag Generation] Timeout, continuing without tags');
+              tagsError = tagTimeout;
             }
 
             const tags = (tagsData?.tags || []) as any[];
@@ -295,20 +329,41 @@ serve(async (req) => {
 
     activeRequests.set(cacheKey, generationPromise);
     const result = await generationPromise;
+    
+    clearTimeout(timeout);
 
     return new Response(
       JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Connection': 'keep-alive'
+        } 
+      }
     );
 
   } catch (error) {
-    console.error('❌ Error in generate-ai-image:', error);
+    clearTimeout(timeout);
+    console.error('❌ Error in generate-ai-image:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack?.substring(0, 200)
+    });
+    
+    const isTimeout = error.message?.includes('timeout') || error.name === 'AbortError';
+    const statusCode = isTimeout ? 408 : 500;
+    
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Failed to generate image',
+        type: isTimeout ? 'timeout' : 'error',
         retryable: true 
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        status: statusCode, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
   }
 });
@@ -316,6 +371,11 @@ serve(async (req) => {
 async function generateWithRetry(prompt: string, apiKey: string, maxRetries = 2): Promise<any> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
+      console.log(`🔄 AI generation attempt ${attempt + 1}/${maxRetries}`);
+      
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), 18000); // 18s timeout per attempt
+      
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -327,7 +387,10 @@ async function generateWithRetry(prompt: string, apiKey: string, maxRetries = 2)
           messages: [{ role: 'user', content: prompt }],
           modalities: ['image', 'text']
         }),
+        signal: controller.signal
       });
+      
+      clearTimeout(fetchTimeout);
 
       if (response.status === 429 && attempt < maxRetries - 1) {
         const retryAfter = parseInt(response.headers.get('retry-after') || '5');
@@ -338,13 +401,18 @@ async function generateWithRetry(prompt: string, apiKey: string, maxRetries = 2)
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`AI Gateway error: ${response.status} - ${errorText}`);
+        throw new Error(`AI Gateway error: ${response.status} - ${errorText.substring(0, 200)}`);
       }
 
       return await response.json();
     } catch (error) {
+      console.error(`❌ Attempt ${attempt + 1} failed:`, error.message);
       if (attempt === maxRetries - 1) throw error;
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Exponential backoff
+      const backoffMs = 2000 * Math.pow(2, attempt);
+      console.log(`⏳ Retrying in ${backoffMs}ms...`);
+      await new Promise(resolve => setTimeout(resolve, backoffMs));
     }
   }
 }
