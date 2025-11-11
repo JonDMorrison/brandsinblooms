@@ -107,48 +107,56 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
 
     // Save campaign blocks if content blocks are provided
     if (campaignData.content_blocks && campaignData.content_blocks.length > 0) {
-      const blocks = campaignData.content_blocks.map((block, index) => ({
-        campaign_id: campaign.id,
-        block_type: block.block_type || block.type || 'text',
-        content: block.content || {
-          // Preserve ALL block content properties
-          title: block.title || block.headline,
-          content: block.content || block.body,
-          headline: block.headline,
-          body: block.body,
-          alignment: block.alignment,
-          padding: block.padding,
-          margin: block.margin,
-          fontFamily: block.fontFamily,
-          fontSize: block.fontSize,
-          textColor: block.textColor,
-          backgroundColor: block.backgroundColor,
-          backgroundImageUrl: block.backgroundImageUrl,
-          backgroundOpacity: block.backgroundOpacity,
-          layout: block.layout,
-          caption: block.caption,
-          altText: block.altText,
-          buttonText: block.buttonText,
-          buttonUrl: block.buttonUrl,
-          ctaStyle: block.ctaStyle,
-          ctaSize: block.ctaSize,
-          quote: block.quote,
-          author: block.author,
-          authorTitle: block.authorTitle,
-          visible: block.visible,
-          collapsed: block.collapsed
-        },
-        image_url: block.image_url || block.imageUrl || (block.content && block.content.imageUrl),
-        cta_url: block.cta_url || block.ctaUrl || block.buttonUrl,
-        cta_text: block.cta_text || block.ctaText || block.buttonText,
-        source: block.source || 'newsletter',
-        persona_tag: block.personaTag || block.persona_tag,
-        order_index: block.order_index !== undefined ? block.order_index : index,
-        // Save overlay properties to dedicated database columns
-        overlay_opacity: block.overlayOpacity ?? null,
-        overlay_color: block.overlayColor || null,
-        dark_overlay_opacity: block.darkOverlayOpacity ?? null
-      }));
+      const blocks = campaignData.content_blocks.map((block, index) => {
+        const blockType = block.block_type || block.type || 'text';
+        const isHeaderBlock = blockType === 'header' || blockType === 'newsletter-header';
+        
+        return {
+          campaign_id: campaign.id,
+          block_type: blockType,
+          content: block.content || {
+            // Preserve ALL block content properties
+            title: block.title || block.headline,
+            content: block.content || block.body,
+            headline: block.headline,
+            body: block.body,
+            alignment: block.alignment,
+            padding: block.padding,
+            margin: block.margin,
+            fontFamily: block.fontFamily,
+            fontSize: block.fontSize,
+            textColor: block.textColor,
+            backgroundColor: block.backgroundColor,
+            backgroundImageUrl: block.backgroundImageUrl,
+            backgroundOpacity: block.backgroundOpacity,
+            layout: block.layout,
+            caption: block.caption,
+            altText: block.altText,
+            buttonText: block.buttonText,
+            buttonUrl: block.buttonUrl,
+            ctaStyle: block.ctaStyle,
+            ctaSize: block.ctaSize,
+            quote: block.quote,
+            author: block.author,
+            authorTitle: block.authorTitle,
+            visible: block.visible,
+            collapsed: block.collapsed
+          },
+          // CRITICAL FIX: For header blocks, use backgroundImageUrl; for other blocks, use imageUrl
+          image_url: isHeaderBlock 
+            ? (block.backgroundImageUrl || block.image_url || (block.content && block.content.backgroundImageUrl))
+            : (block.image_url || block.imageUrl || (block.content && block.content.imageUrl)),
+          cta_url: block.cta_url || block.ctaUrl || block.buttonUrl,
+          cta_text: block.cta_text || block.ctaText || block.buttonText,
+          source: block.source || 'newsletter',
+          persona_tag: block.personaTag || block.persona_tag,
+          order_index: block.order_index !== undefined ? block.order_index : index,
+          // Save overlay properties to dedicated database columns
+          overlay_opacity: block.overlayOpacity ?? null,
+          overlay_color: block.overlayColor || null,
+          dark_overlay_opacity: block.darkOverlayOpacity ?? null
+        };
+      });
 
       const { error: blocksError } = await supabase
         .from('campaign_blocks')
