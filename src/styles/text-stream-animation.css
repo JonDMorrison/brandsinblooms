@@ -1,0 +1,31 @@
+/* Text streaming animation for thinking text */
+
+@keyframes reveal-text {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.animate-text-stream {
+  animation: reveal-text 0.2s ease-out;
+}
+
+/* Smooth character-by-character appearance */
+.animate-text-stream::after {
+  content: '';
+  animation: cursor-blink 1s step-end infinite;
+}
+
+@keyframes cursor-blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}

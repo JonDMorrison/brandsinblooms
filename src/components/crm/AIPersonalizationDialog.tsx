@@ -22,6 +22,7 @@ interface Message {
   content: string;
   images?: string[];
   timestamp: Date;
+  isThinkingComplete?: boolean;
 }
 
 export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = ({
@@ -115,6 +116,15 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         }
       }
       
+      // Mark thinking as complete
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === thinkingMessageId
+            ? { ...msg, isThinkingComplete: true }
+            : msg
+        )
+      );
+      
       console.log('✅ Thinking text streaming complete');
     } catch (error) {
       console.error('❌ Streaming error:', error);
@@ -122,7 +132,11 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       setMessages(prev =>
         prev.map(msg =>
           msg.id === thinkingMessageId
-            ? { ...msg, content: 'Hmm, analyzing your request and considering the best visual composition for your garden image. I\'m thinking about the lighting, colors, and seasonal elements that would work perfectly...' }
+            ? { 
+                ...msg, 
+                content: 'Hmm, analyzing your request and considering the best visual composition for your garden image. I\'m thinking about the lighting, colors, and seasonal elements that would work perfectly...',
+                isThinkingComplete: true 
+              }
             : msg
         )
       );
@@ -154,8 +168,8 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       
       await streamThinkingText(prompt, thinkingMessage.id);
       
-      // Wait a brief moment for user to read
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Brief pause before moving to next step
+      await new Promise(resolve => setTimeout(resolve, 400));
 
       // Step 3: Show "Enhancing prompt" message
       const enhancingMessage: Message = {
@@ -175,10 +189,8 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       const enhancedPrompt = enhanceData?.enhancedPrompt || prompt;
       console.log('✨ Enhanced prompt:', enhancedPrompt);
       
-      // Remove thinking and enhancing messages
-      setMessages(prev => prev.filter(msg => 
-        msg.id !== thinkingMessage.id && msg.id !== enhancingMessage.id
-      ));
+      // Remove only the enhancing message (keep thinking message for history)
+      setMessages(prev => prev.filter(msg => msg.id !== enhancingMessage.id));
 
       // Step 5: Show skeleton loaders for image generation
       const loadingMessage: Message = {
@@ -231,10 +243,8 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       console.error('❌ Error generating images:', error);
       toast.error('Failed to generate images. Please try again.');
       
-      // Remove thinking and loading messages if present
-      setMessages(prev => prev.filter(msg => 
-        msg.type !== 'thinking' && msg.type !== 'loading'
-      ));
+      // Remove only loading messages (keep thinking messages for history)
+      setMessages(prev => prev.filter(msg => msg.type !== 'loading'));
       
       // Add error message
       const errorMessage: Message = {

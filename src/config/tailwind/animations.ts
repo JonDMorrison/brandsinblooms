@@ -97,6 +97,16 @@ export const keyframes: Config["theme"]["extend"]["keyframes"] = {
     '100%': {
       backgroundPosition: '200% 0'
     }
+  },
+  'text-stream': {
+    '0%': {
+      opacity: '0',
+      transform: 'translateY(2px)'
+    },
+    '100%': {
+      opacity: '1',
+      transform: 'translateY(0)'
+    }
   }
 };
 
@@ -111,4 +121,5 @@ export const animation: Config["theme"]["extend"]["animation"] = {
   'slide-in-left': 'slide-in-left 0.3s ease-out',
   'slide-in-right': 'slide-in-right 0.3s ease-out',
   'shimmer-fast': 'shimmer-fast 2s ease-in-out infinite',
+  'text-stream': 'text-stream 0.3s ease-out',
 };

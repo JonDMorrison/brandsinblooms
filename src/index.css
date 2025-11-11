@@ -7,6 +7,7 @@
 @import './styles/click-to-edit.css';
 @import './styles/newsletter-layouts.css';
 @import './styles/themes/core-palette-home.css';
+@import './styles/text-stream-animation.css';
 
 /* Checkered background pattern for image transparency */
 .bg-checkered {

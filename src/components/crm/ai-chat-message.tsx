@@ -8,6 +8,7 @@ interface Message {
   content: string;
   images?: string[];
   timestamp: Date;
+  isThinkingComplete?: boolean;
 }
 
 interface AIChatMessageProps {
@@ -21,6 +22,7 @@ export const AIChatMessage: React.FC<AIChatMessageProps> = ({
   selectedImage,
   onImageSelect
 }) => {
+  const [isExpanded, setIsExpanded] = React.useState(true);
   if (message.type === 'user') {
     return (
       <div className="flex justify-end mb-4 animate-slide-in-right">
@@ -32,15 +34,43 @@ export const AIChatMessage: React.FC<AIChatMessageProps> = ({
   }
 
   if (message.type === 'thinking') {
+    const isComplete = message.isThinkingComplete;
+    
     return (
       <div className="flex justify-start mb-4 animate-fade-in">
-        <div className="max-w-[80%] bg-muted/40 rounded-2xl rounded-tl-md px-4 py-3 shadow-md border border-border/40">
+        <div className="max-w-[80%] bg-muted/40 rounded-2xl rounded-tl-md px-4 py-3 shadow-md border border-border/40 transition-all duration-300">
           <div className="flex items-start gap-3">
-            <ThinkingDots className="mt-1 flex-shrink-0" />
+            {!isComplete && <ThinkingDots className="mt-1 flex-shrink-0" />}
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                {message.content || 'Thinking...'}
-              </p>
+              {isComplete && (
+                <button
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 group"
+                >
+                  <span className="font-medium">Thinking Process</span>
+                  <svg
+                    className={cn(
+                      "w-4 h-4 transition-transform duration-300",
+                      isExpanded ? "rotate-180" : ""
+                    )}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
+              <div
+                className={cn(
+                  "overflow-hidden transition-all duration-500 ease-in-out",
+                  isComplete && !isExpanded ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
+                )}
+              >
+                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed animate-text-stream">
+                  {message.content || 'Thinking...'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
