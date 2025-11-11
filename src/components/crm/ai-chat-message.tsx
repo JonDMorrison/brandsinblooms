@@ -48,12 +48,12 @@ export const AIChatMessage: React.FC<AIChatMessageProps> = ({
                   onClick={() => setIsExpanded(!isExpanded)}
                   className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 group"
                 >
-                  <span className="font-medium">Thinking Process</span>
-                  {message.thinkingDuration && (
-                    <span className="text-xs text-muted-foreground/70">
-                      ({(message.thinkingDuration / 1000).toFixed(2)}s)
-                    </span>
-                  )}
+                  <span className="font-medium">
+                    {message.thinkingDuration 
+                      ? `Thought for ${(message.thinkingDuration / 1000).toFixed(2)} seconds`
+                      : 'Thinking Process'
+                    }
+                  </span>
                   <svg
                     className={cn(
                       "w-4 h-4 transition-transform duration-300",
