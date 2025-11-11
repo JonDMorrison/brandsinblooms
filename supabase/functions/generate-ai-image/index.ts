@@ -64,10 +64,11 @@ serve(async (req) => {
       );
     }
 
-    console.log('🎨 Generating AI image:', {
+    console.log('🎨 [AI Image Generator] Starting generation:', {
       channel,
       contextLength: contentContext.length,
-      title: contentTitle?.substring(0, 50)
+      title: contentTitle?.substring(0, 50),
+      uploadToStorage
     });
 
     // Check for duplicate request
