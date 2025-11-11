@@ -3,7 +3,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { cn } from '@/lib/utils';
 import { SafeHtml } from '@/components/ui/safe-html';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
-import { ContextualEditButton } from '../contextual/ContextualEditButton';
+
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { BlockGeneratingOverlay } from './BlockGeneratingOverlay';
@@ -369,17 +369,6 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
             {/* ALWAYS show content if it exists or has existed before, even during image generation */}
             {hasContentLoaded ? (
               <>
-                {/* Contextual Text Edit Button */}
-                {onModeChange && (
-                  <ContextualEditButton
-                    mode="text"
-                    isActive={editMode === 'text'}
-                    onClick={(e) => handleModeClick('text', e)}
-                    variant="text"
-                    position="top-right"
-                    className="group-hover/text:opacity-100"
-                  />
-                )}
                 
                 {/* Headline - PHASE 6: Fallback to last known content if current is empty but hasGeneratedContent */}
                 <SafeHtml
@@ -468,17 +457,6 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               }
             }}
             >
-              {/* Contextual Image Edit Button */}
-              {onModeChange && (
-                <ContextualEditButton
-                  mode="image"
-                  isActive={editMode === 'image'}
-                  onClick={(e) => handleModeClick('image', e)}
-                  variant="image"
-                  position="top-right"
-                  className="group-hover/image:opacity-100"
-                />
-              )}
               
               {(() => {
                 // Check if image is loading
