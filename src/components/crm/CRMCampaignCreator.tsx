@@ -896,7 +896,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   visible: block.visible,
                   collapsed: block.collapsed
                 },
-                image_url: block.imageUrl,
+                // CRITICAL FIX: Save backgroundImageUrl for header blocks, imageUrl for others
+                image_url: (block.type === 'header' || block.type === 'newsletter-header') 
+                  ? block.backgroundImageUrl 
+                  : block.imageUrl,
                 cta_url: block.ctaUrl || block.buttonUrl,
                 cta_text: block.ctaText || block.buttonText,
                 source: block.source || 'manual',
