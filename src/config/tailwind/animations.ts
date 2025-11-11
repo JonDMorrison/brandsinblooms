@@ -92,10 +92,10 @@ export const keyframes: Config["theme"]["extend"]["keyframes"] = {
   },
   'shimmer-fast': {
     '0%': {
-      transform: 'translateX(-100%)'
+      backgroundPosition: '-200% 0'
     },
     '100%': {
-      transform: 'translateX(200%)'
+      backgroundPosition: '200% 0'
     }
   }
 };
@@ -110,5 +110,5 @@ export const animation: Config["theme"]["extend"]["animation"] = {
   'thinking-dot': 'thinking-dot 1.4s ease-in-out infinite',
   'slide-in-left': 'slide-in-left 0.3s ease-out',
   'slide-in-right': 'slide-in-right 0.3s ease-out',
-  'shimmer-fast': 'shimmer-fast 1.5s infinite',
+  'shimmer-fast': 'shimmer-fast 2s ease-in-out infinite',
 };

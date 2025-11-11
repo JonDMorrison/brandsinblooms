@@ -18,12 +18,10 @@ interface AIPersonalizationDialogProps {
 
 interface Message {
   id: string;
-  type: 'user' | 'assistant' | 'thinking' | 'images';
+  type: 'user' | 'assistant' | 'thinking' | 'images' | 'loading';
   content: string;
   images?: string[];
   timestamp: Date;
-  thinkingSteps?: string[];
-  currentStep?: number;
 }
 
 export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = ({
@@ -55,6 +53,82 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     }
   }, [open]);
 
+  const streamThinkingText = async (prompt: string, thinkingMessageId: string): Promise<void> => {
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/stream-thinking-text`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+          },
+          body: JSON.stringify({ prompt })
+        }
+      );
+      
+      if (!response.ok || !response.body) {
+        throw new Error('Streaming failed');
+      }
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let textBuffer = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        textBuffer += decoder.decode(value, { stream: true });
+        
+        // Process line-by-line
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') continue;
+          
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const token = parsed.choices?.[0]?.delta?.content;
+            if (token) {
+              fullText += token;
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === thinkingMessageId
+                    ? { ...msg, content: fullText }
+                    : msg
+                )
+              );
+            }
+          } catch (e) {
+            console.error('Failed to parse SSE chunk:', e);
+          }
+        }
+      }
+      
+      console.log('✅ Thinking text streaming complete');
+    } catch (error) {
+      console.error('❌ Streaming error:', error);
+      // Fallback text
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === thinkingMessageId
+            ? { ...msg, content: 'Hmm, analyzing your request and considering the best visual composition for your garden image. I\'m thinking about the lighting, colors, and seasonal elements that would work perfectly...' }
+            : msg
+        )
+      );
+    }
+  };
+
   const generateImages = async (prompt: string) => {
     setIsProcessing(true);
     
@@ -69,54 +143,54 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       setMessages(prev => [...prev, userMessage]);
       setInputPrompt('');
 
-      // Step 2: Generate and display thinking text
-      console.log('Generating thinking text...');
-      const { data: thinkingData } = await supabase.functions.invoke('generate-thinking-text', {
-        body: { prompt }
-      });
-
-      const thinkingSteps = thinkingData?.thinkingSteps || [
-        'Analyzing your image request...',
-        'Considering visual composition and garden aesthetics...',
-        'Enhancing prompt for optimal image generation...'
-      ];
-
+      // Step 2: Create thinking message and stream text
       const thinkingMessage: Message = {
         id: crypto.randomUUID(),
         type: 'thinking',
-        content: 'thinking',
-        timestamp: new Date(),
-        thinkingSteps,
-        currentStep: 0
+        content: '',
+        timestamp: new Date()
       };
       setMessages(prev => [...prev, thinkingMessage]);
+      
+      await streamThinkingText(prompt, thinkingMessage.id);
+      
+      // Wait a brief moment for user to read
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-      // Animate through thinking steps
-      for (let i = 0; i < thinkingSteps.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === thinkingMessage.id 
-              ? { ...msg, currentStep: i }
-              : msg
-          )
-        );
-      }
+      // Step 3: Show "Enhancing prompt" message
+      const enhancingMessage: Message = {
+        id: crypto.randomUUID(),
+        type: 'assistant',
+        content: '✨ Enhancing your prompt for optimal image generation...',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, enhancingMessage]);
 
-      // Step 3: Enhance prompt
-      console.log('Enhancing prompt...');
+      // Step 4: Enhance prompt
+      console.log('🎨 Enhancing prompt...');
       const { data: enhanceData } = await supabase.functions.invoke('enhance-image-prompt', {
         body: { prompt }
       });
 
       const enhancedPrompt = enhanceData?.enhancedPrompt || prompt;
-      console.log('Enhanced prompt:', enhancedPrompt);
+      console.log('✨ Enhanced prompt:', enhancedPrompt);
+      
+      // Remove thinking and enhancing messages
+      setMessages(prev => prev.filter(msg => 
+        msg.id !== thinkingMessage.id && msg.id !== enhancingMessage.id
+      ));
 
-      // Remove thinking message
-      setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
+      // Step 5: Show skeleton loaders for image generation
+      const loadingMessage: Message = {
+        id: crypto.randomUUID(),
+        type: 'loading',
+        content: 'Generating 3 unique images for you...',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, loadingMessage]);
 
-      // Step 4: Generate 3 images in parallel
-      console.log('Generating 3 images...');
+      // Step 6: Generate 3 images in parallel
+      console.log('🎨 Generating 3 images...');
       const imagePromises = Array(3).fill(null).map(() =>
         supabase.functions.invoke('generate-ai-image', {
           body: {
@@ -138,7 +212,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         throw new Error('Failed to generate images');
       }
 
-      // Step 5: Display images
+      // Remove loading message
+      setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
+
+      // Step 7: Display images
       const imageMessage: Message = {
         id: crypto.randomUUID(),
         type: 'images',
@@ -151,11 +228,13 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       console.log('✅ Successfully generated', imageUrls.length, 'images');
 
     } catch (error) {
-      console.error('Error generating images:', error);
+      console.error('❌ Error generating images:', error);
       toast.error('Failed to generate images. Please try again.');
       
-      // Remove thinking message if present
-      setMessages(prev => prev.filter(msg => msg.type !== 'thinking'));
+      // Remove thinking and loading messages if present
+      setMessages(prev => prev.filter(msg => 
+        msg.type !== 'thinking' && msg.type !== 'loading'
+      ));
       
       // Add error message
       const errorMessage: Message = {

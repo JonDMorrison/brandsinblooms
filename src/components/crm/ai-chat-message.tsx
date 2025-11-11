@@ -4,12 +4,10 @@ import { ThinkingDots } from '@/components/ui/thinking-dots';
 
 interface Message {
   id: string;
-  type: 'user' | 'assistant' | 'thinking' | 'images';
+  type: 'user' | 'assistant' | 'thinking' | 'images' | 'loading';
   content: string;
   images?: string[];
   timestamp: Date;
-  thinkingSteps?: string[];
-  currentStep?: number;
 }
 
 interface AIChatMessageProps {
@@ -34,17 +32,46 @@ export const AIChatMessage: React.FC<AIChatMessageProps> = ({
   }
 
   if (message.type === 'thinking') {
-    const currentThinkingText = message.thinkingSteps?.[message.currentStep || 0] || 'Thinking...';
-    
     return (
       <div className="flex justify-start mb-4 animate-fade-in">
         <div className="max-w-[80%] bg-muted/40 rounded-2xl rounded-tl-md px-4 py-3 shadow-md border border-border/40">
-          <div className="flex items-center gap-3">
-            <ThinkingDots />
-            <p className="text-sm text-foreground animate-fade-in">
-              {currentThinkingText}
-            </p>
+          <div className="flex items-start gap-3">
+            <ThinkingDots className="mt-1 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                {message.content || 'Thinking...'}
+              </p>
+            </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (message.type === 'loading') {
+    return (
+      <div className="mb-6 animate-fade-in">
+        <div className="flex justify-start mb-3">
+          <div className="max-w-[80%] bg-muted/40 rounded-2xl rounded-tl-md px-4 py-2.5 shadow-sm border border-border/40">
+            <p className="text-sm text-foreground">{message.content}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {[1, 2, 3].map((idx) => (
+            <div
+              key={idx}
+              className="aspect-square rounded-lg overflow-hidden"
+              style={{ animationDelay: `${idx * 150}ms` }}
+            >
+              <div 
+                className="w-full h-full animate-shimmer-fast"
+                style={{
+                  background: 'linear-gradient(90deg, hsl(var(--muted)) 0%, hsl(var(--muted) / 0.7) 50%, hsl(var(--muted)) 100%)',
+                  backgroundSize: '200% 100%'
+                }}
+              />
+            </div>
+          ))}
         </div>
       </div>
     );

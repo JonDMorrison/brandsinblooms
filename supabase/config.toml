@@ -206,3 +206,6 @@ verify_jwt = false
 
 [functions.generate-thinking-text]
 verify_jwt = false
+
+[functions.stream-thinking-text]
+verify_jwt = false
