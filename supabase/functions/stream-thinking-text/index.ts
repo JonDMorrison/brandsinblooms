@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, handleCorsPrelight } from '../_shared/cors.ts';
 
-const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -18,20 +18,20 @@ serve(async (req) => {
       throw new Error('Prompt is required');
     }
 
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    if (!openAIApiKey) {
+      throw new Error('OPENAI_API_KEY is not configured');
     }
 
     console.log('🤔 Streaming thinking text for prompt:', prompt);
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -56,7 +56,7 @@ Start with phrases like "Hmm," or "Let me think about this..." to make it feel n
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Lovable AI Gateway error:', response.status, errorText);
+      console.error('❌ OpenAI API error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -78,7 +78,7 @@ Start with phrases like "Hmm," or "Let me think about this..." to make it feel n
         );
       }
       
-      throw new Error(`Lovable AI Gateway error: ${response.status}`);
+      throw new Error(`OpenAI API error: ${response.status}`);
     }
 
     console.log('✅ Streaming thinking text started');
