@@ -39,7 +39,7 @@ export const AIChatMessage: React.FC<AIChatMessageProps> = ({
     
     return (
       <div className="flex justify-start mb-4 animate-fade-in">
-        <div className="max-w-[80%] bg-muted/40 rounded-2xl rounded-tl-md px-4 py-3 shadow-md border border-border/40 transition-all duration-300">
+        <div className="max-w-[80%] bg-muted/40 rounded-2xl rounded-tl-md px-4 py-3 shadow-md border border-muted transition-all duration-300">
           <div className="flex items-start gap-3">
             {!isComplete && <ThinkingDots className="mt-1 flex-shrink-0" />}
             <div className="flex-1 min-w-0">
