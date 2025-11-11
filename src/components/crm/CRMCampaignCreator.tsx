@@ -1043,8 +1043,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   // Handle progressive image updates as they complete
   const handleBlockImageGenerated = (blockId: string, imageUrl: string) => {
     console.log(`✅ Block image generated for ${blockId}`);
-    setBlocks(prevBlocks =>
-      prevBlocks.map(block => {
+    setBlocks(prevBlocks => {
+      const updatedBlocks = prevBlocks.map(block => {
         if (block.id === blockId) {
           // CRITICAL FIX: For header blocks, update backgroundImageUrl; for others, update imageUrl
           const isHeaderBlock = block.type === 'header' || block.type === 'newsletter-header';
@@ -1059,8 +1059,21 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           };
         }
         return block;
-      })
-    );
+      });
+      
+      // CRITICAL FIX: Trigger auto-save after image generation to persist changes
+      if (existingCampaignId) {
+        console.log('💾 Auto-saving after image generation for block:', blockId);
+        debouncedAutoSave({
+          blocks: updatedBlocks,
+          campaign_name: campaignName,
+          subject_line: subjectLine,
+          preheader: preheaderText
+        });
+      }
+      
+      return updatedBlocks;
+    });
   };
 
   // Handle image generation failures
