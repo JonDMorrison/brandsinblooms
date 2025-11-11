@@ -16,6 +16,19 @@ interface GenerateImageRequest {
   userId?: string;
 }
 
+interface GenerateImageResponse {
+  imageUrl: string;
+  imageId: string;
+  globalImageId?: string;
+  metadata: {
+    generationTime: number;
+    prompt: string;
+    storagePath?: string;
+    channel: string;
+    tags?: any[];
+  };
+}
+
 // Active request deduplication cache
 const activeRequests = new Map<string, Promise<any>>();
 
@@ -108,9 +121,10 @@ serve(async (req) => {
 
         console.log('✅ Received base64 image data');
 
-        // Upload to storage if requested
+        // Upload to CENTRAL storage ONLY
         let finalImageUrl = base64Image;
         let storagePath: string | undefined;
+        let globalImageId: string | undefined;
 
         if (uploadToStorage) {
           try {
@@ -121,73 +135,114 @@ serve(async (req) => {
             const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
             const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
-            const timestamp = Date.now();
-            const randomId = crypto.randomUUID().substring(0, 8);
-            const filename = `${timestamp}-${randomId}.png`;
-            storagePath = `${userId}/${filename}`;
+            // Generate UUID-based filename for central storage
+            const imageUuid = crypto.randomUUID();
+            const filename = `${imageUuid}.png`;
+            storagePath = `global/${filename}`;
 
-            console.log('📤 Uploading to storage:', storagePath);
+            console.log('📤 Uploading to CENTRAL storage:', storagePath);
 
-            // Retry upload with exponential backoff
-            let uploadSuccess = false;
-            let lastError: Error | null = null;
+            // Upload to global-ai-images bucket
+            const { error: uploadError } = await supabase.storage
+              .from('global-ai-images')
+              .upload(storagePath, binaryData, {
+                contentType: 'image/png',
+                upsert: false
+              });
+
+            if (uploadError) {
+              throw uploadError;
+            }
+
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+              .from('global-ai-images')
+              .getPublicUrl(storagePath);
             
-            for (let attempt = 0; attempt < 3; attempt++) {
-              try {
-                const { error: uploadError } = await supabase.storage
-                  .from(storageBucket)
-                  .upload(storagePath, binaryData, {
-                    contentType: 'image/png',
-                    upsert: false
-                  });
+            finalImageUrl = publicUrl;
+            console.log('✅ Uploaded to central storage:', publicUrl);
 
-                if (uploadError) {
-                  throw uploadError;
+            // Generate tags using OpenAI
+            console.log('🏷️ Generating tags...');
+            const { data: tagsData, error: tagsError } = await supabase.functions.invoke(
+              'generate-image-tags',
+              {
+                body: {
+                  contentContext,
+                  contentTitle,
+                  channel
                 }
+              }
+            );
 
-                // Successfully uploaded, get public URL
-                const { data: { publicUrl } } = supabase.storage
-                  .from(storageBucket)
-                  .getPublicUrl(storagePath);
-                
-                finalImageUrl = publicUrl;
-                uploadSuccess = true;
-                console.log('✅ Uploaded to:', publicUrl);
-                break;
-              } catch (uploadErr: any) {
-                lastError = uploadErr;
-                console.warn(`⚠️ Upload attempt ${attempt + 1} failed:`, uploadErr.message);
-                
-                if (attempt < 2) {
-                  // Exponential backoff: 1s, 2s
-                  const delay = Math.pow(2, attempt) * 1000;
-                  await new Promise(resolve => setTimeout(resolve, delay));
+            if (tagsError) {
+              console.warn('⚠️ Tag generation failed:', tagsError);
+            }
+
+            const tags = tagsData?.tags || [];
+            console.log(`✅ Generated ${tags.length} tags`);
+
+            // Insert into global_image_gallery
+            const { data: imageRecord, error: insertError } = await supabase
+              .from('global_image_gallery')
+              .insert({
+                storage_path: storagePath,
+                storage_bucket: 'global-ai-images',
+                public_url: finalImageUrl,
+                generation_prompt: imagePrompt,
+                content_context: contentContext,
+                content_title: contentTitle,
+                channel: channel,
+                file_size_bytes: binaryData.length,
+                mime_type: 'image/png',
+                generation_model: 'google/gemini-2.5-flash-image-preview'
+              })
+              .select('id')
+              .single();
+
+            if (insertError) {
+              console.error('❌ Failed to insert image record:', insertError);
+            } else {
+              globalImageId = imageRecord.id;
+              console.log('✅ Image record created:', globalImageId);
+
+              // Insert tags if available
+              if (tags.length > 0 && globalImageId) {
+                const tagInserts = tags.map((tag: any) => ({
+                  image_id: globalImageId,
+                  tag_name: tag.name,
+                  tag_category: tag.category,
+                  confidence_score: tag.confidence,
+                  generated_by: 'openai'
+                }));
+
+                const { error: tagsInsertError } = await supabase
+                  .from('global_image_tags')
+                  .insert(tagInserts);
+
+                if (tagsInsertError) {
+                  console.error('❌ Failed to insert tags:', tagsInsertError);
+                } else {
+                  console.log(`✅ Inserted ${tags.length} tags`);
                 }
               }
             }
-
-            // If upload failed after retries, log but don't fail the request
-            if (!uploadSuccess) {
-              console.error('❌ Storage upload failed after 3 attempts:', lastError?.message);
-              console.log('⚠️ Returning base64 image as fallback');
-              // finalImageUrl remains as base64Image
-            }
           } catch (storageError: any) {
-            // Catch any unexpected errors in storage setup
-            console.error('❌ Storage operation error:', storageError.message);
+            console.error('❌ Central storage error:', storageError.message);
             console.log('⚠️ Returning base64 image as fallback');
-            // finalImageUrl remains as base64Image
           }
         }
 
         return {
           imageUrl: finalImageUrl,
           imageId: crypto.randomUUID(),
+          globalImageId: globalImageId,
           metadata: {
             generationTime: parseFloat(generationTime),
             prompt: contentTitle || 'AI Generated',
             storagePath,
-            channel
+            channel,
+            tags: tagsData?.tags || []
           }
         };
       } finally {

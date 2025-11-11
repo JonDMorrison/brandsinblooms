@@ -15,6 +15,7 @@ interface ImageMetadata {
   photographer?: string;
   unsplashId?: string;
   alt?: string;
+  globalImageId?: string;
 }
 
 interface UseHeaderBackgroundImageProps {
@@ -99,6 +100,7 @@ export const useHeaderBackgroundImage = ({
       const metadata: ImageMetadata = {
         photographer: 'AI Generated',
         unsplashId: imageData.imageId,
+        globalImageId: imageData.globalImageId,
         alt: imageData.metadata?.prompt || campaignTitle
       };
 

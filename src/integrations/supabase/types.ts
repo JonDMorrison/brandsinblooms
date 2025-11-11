@@ -3136,6 +3136,110 @@ export type Database = {
         }
         Relationships: []
       }
+      global_image_gallery: {
+        Row: {
+          channel: string | null
+          content_context: string | null
+          content_title: string | null
+          created_at: string
+          dimensions: Json | null
+          file_size_bytes: number | null
+          first_used_at: string | null
+          generation_model: string
+          generation_prompt: string
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          mime_type: string | null
+          public_url: string
+          storage_bucket: string
+          storage_path: string
+          total_usage_count: number | null
+          unique_tenant_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          channel?: string | null
+          content_context?: string | null
+          content_title?: string | null
+          created_at?: string
+          dimensions?: Json | null
+          file_size_bytes?: number | null
+          first_used_at?: string | null
+          generation_model?: string
+          generation_prompt: string
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          mime_type?: string | null
+          public_url: string
+          storage_bucket?: string
+          storage_path: string
+          total_usage_count?: number | null
+          unique_tenant_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          channel?: string | null
+          content_context?: string | null
+          content_title?: string | null
+          created_at?: string
+          dimensions?: Json | null
+          file_size_bytes?: number | null
+          first_used_at?: string | null
+          generation_model?: string
+          generation_prompt?: string
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          mime_type?: string | null
+          public_url?: string
+          storage_bucket?: string
+          storage_path?: string
+          total_usage_count?: number | null
+          unique_tenant_count?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      global_image_tags: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          generated_by: string | null
+          id: string
+          image_id: string
+          tag_category: string
+          tag_name: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          generated_by?: string | null
+          id?: string
+          image_id: string
+          tag_category: string
+          tag_name: string
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          generated_by?: string | null
+          id?: string
+          image_id?: string
+          tag_category?: string
+          tag_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_image_tags_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "global_image_gallery"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_analytics_settings: {
         Row: {
           connection_status: string
@@ -3545,6 +3649,87 @@ export type Database = {
             columns: ["content_task_id"]
             isOneToOne: false
             referencedRelation: "content_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      image_tenant_usage: {
+        Row: {
+          block_id: string | null
+          campaign_id: string | null
+          created_at: string
+          first_used_at: string | null
+          id: string
+          image_id: string
+          last_used_at: string | null
+          tenant_id: string
+          updated_at: string
+          usage_count: number | null
+          used_in_context: string | null
+          user_id: string
+        }
+        Insert: {
+          block_id?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          first_used_at?: string | null
+          id?: string
+          image_id: string
+          last_used_at?: string | null
+          tenant_id: string
+          updated_at?: string
+          usage_count?: number | null
+          used_in_context?: string | null
+          user_id: string
+        }
+        Update: {
+          block_id?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          first_used_at?: string | null
+          id?: string
+          image_id?: string
+          last_used_at?: string | null
+          tenant_id?: string
+          updated_at?: string
+          usage_count?: number | null
+          used_in_context?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "image_tenant_usage_block_id_fkey"
+            columns: ["block_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_blocks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "image_tenant_usage_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "image_tenant_usage_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "global_image_gallery"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "image_tenant_usage_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "image_tenant_usage_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -5942,6 +6127,22 @@ export type Database = {
         Returns: boolean
       }
       feature_enabled: { Args: { feature_name: string }; Returns: boolean }
+      find_images_by_tags: {
+        Args: {
+          p_channel?: string
+          p_limit?: number
+          p_min_confidence?: number
+          p_tags: string[]
+        }
+        Returns: {
+          image_id: string
+          match_count: number
+          matched_tags: string[]
+          public_url: string
+          storage_path: string
+          total_usage_count: number
+        }[]
+      }
       fn_get_newsletter_ideas: { Args: { p_user_id?: string }; Returns: Json }
       generate_campaign_slug: {
         Args: { campaign_id: string; campaign_title: string }
@@ -6047,6 +6248,17 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      track_global_image_usage: {
+        Args: {
+          p_block_id?: string
+          p_campaign_id?: string
+          p_context: string
+          p_image_id: string
+          p_tenant_id: string
+          p_user_id: string
+        }
+        Returns: undefined
       }
       track_image_optimization: {
         Args: {

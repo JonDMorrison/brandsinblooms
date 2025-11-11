@@ -27,13 +27,20 @@ export interface FacetedKeywords {
 
 export interface ImageGenerationResult {
   imageUrl: string;
-  imageId?: string; // Unsplash image ID for tracking
+  imageId?: string;
+  globalImageId?: string;  // Reference to global_image_gallery
+  tags?: Array<{
+    name: string;
+    category: string;
+    confidence: number;
+  }>;
   metadata?: {
     facets?: FacetedKeywords;
     usedQuery?: string;
     usedFallback?: boolean;
     photographer?: string;
     photographerUrl?: string;
+    tags?: any[];
   };
   validationWarnings?: string[];
 }
@@ -67,10 +74,13 @@ export class ImageGenerationService {
       return {
         imageUrl: data.imageUrl,
         imageId: data.imageId,
+        globalImageId: data.globalImageId,
+        tags: data.metadata?.tags || [],
         metadata: {
           usedQuery: data.metadata?.prompt,
           photographer: 'AI Generated',
-          photographerUrl: undefined
+          photographerUrl: undefined,
+          tags: data.metadata?.tags || []
         }
       };
     } catch (error) {

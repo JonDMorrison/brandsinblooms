@@ -17,6 +17,7 @@ import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
 import { useHeaderBackgroundImage } from '@/hooks/useHeaderBackgroundImage';
+import { trackImageUsage } from '@/lib/imageUsageTracking';
 
 interface ClickToEditEmailBuilderProps {
   blocks: ContentBlock[];
@@ -77,6 +78,15 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
           colorOverlayOpacity: 30,
           backgroundOpacity: 80
         });
+        
+        // Track image usage if globalImageId is available
+        if (metadata?.globalImageId) {
+          trackImageUsage({
+            globalImageId: metadata.globalImageId,
+            context: 'header_block',
+            blockId: headerBlock.id
+          });
+        }
       }
     },
     enabled: !!headerBlock && !headerBlock.backgroundImageUrl // Only generate if no image exists
