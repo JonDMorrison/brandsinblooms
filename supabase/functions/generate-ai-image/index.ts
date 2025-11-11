@@ -125,6 +125,7 @@ serve(async (req) => {
         let finalImageUrl = base64Image;
         let storagePath: string | undefined;
         let globalImageId: string | undefined;
+        let generatedTags: any[] = [];
 
         if (uploadToStorage) {
           try {
@@ -187,7 +188,8 @@ serve(async (req) => {
               console.log('✅ [Tag Generation] Completed successfully');
             }
 
-            const tags = tagsData?.tags || [];
+            const tags = (tagsData?.tags || []) as any[];
+            generatedTags = tags;  // Store for return metadata
             console.log(`🏷️ [Tag Generation] Result: ${tags.length} tags generated`, {
               tags: tags.slice(0, 3).map((t: any) => `${t.name}(${t.category})`),
               total: tags.length
@@ -253,6 +255,17 @@ serve(async (req) => {
                   });
                 }
               }
+              
+              // Final success summary
+              console.log('🎯 ═══════════════════════════════════════════════════');
+              console.log('🎯 CENTRALIZED STORAGE SUCCESS');
+              console.log('🎯 ═══════════════════════════════════════════════════');
+              console.log('🆔 Global Image ID:', globalImageId);
+              console.log('📦 Storage Path:', storagePath);
+              console.log('🔗 Public URL:', finalImageUrl);
+              console.log('📺 Channel:', channel);
+              console.log('⏱️ Timestamp:', new Date().toISOString());
+              console.log('🎯 ═══════════════════════════════════════════════════');
             }
           } catch (storageError: any) {
             console.error('❌ [CRITICAL] Central storage pipeline failed:', {
@@ -261,20 +274,6 @@ serve(async (req) => {
             });
             console.log('⚠️ Returning base64 image as fallback');
           }
-        }
-
-        // Final success summary
-        if (globalImageId) {
-          console.log('🎯 ═══════════════════════════════════════════════════');
-          console.log('🎯 CENTRALIZED STORAGE SUCCESS');
-          console.log('🎯 ═══════════════════════════════════════════════════');
-          console.log('🆔 Global Image ID:', globalImageId);
-          console.log('📦 Storage Path:', storagePath);
-          console.log('🔗 Public URL:', finalImageUrl);
-          console.log('🏷️ Tags Generated:', tagsData?.tags?.length || 0);
-          console.log('📺 Channel:', channel);
-          console.log('⏱️ Timestamp:', new Date().toISOString());
-          console.log('🎯 ═══════════════════════════════════════════════════');
         }
 
         return {
@@ -286,7 +285,7 @@ serve(async (req) => {
             prompt: contentTitle || 'AI Generated',
             storagePath,
             channel,
-            tags: tagsData?.tags || []
+            tags: generatedTags
           }
         };
       } finally {
