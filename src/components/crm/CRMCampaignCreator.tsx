@@ -2161,25 +2161,34 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                     : (existingCampaign.metadata as any)?.content_blocks || [];
                   
                   // Convert existing blocks back to our format
-                  const existingBlocks = blocksData.map((block: any, index: number) => ({
-                    id: block.id || `existing_${Date.now()}_${index}`,
-                    type: block.block_type || block.type || 'text',
-                    title: block.title || '',
-                    content: block.content || '',
-                    headline: block.headline || block.title || '',
-                    body: block.body || (typeof block.content === 'string' ? block.content : ''),
-                    imageUrl: block.image_url || '',
-                    ctaText: block.cta_text || '',
-                    ctaUrl: block.cta_url || '',
-                    source: block.source || 'cached',
-                    personaTag: block.persona_tag || 'general',
-                    layout: block.layout || 'full-width',
-                    alignment: 'left',
-                    textAlign: 'left',
-                    padding: 'medium',
-                    visible: true,
-                    collapsed: false
-                  }));
+                  const existingBlocks = blocksData.map((block: any, index: number) => {
+                    const blockType = block.block_type || block.type || 'text';
+                    const isHeaderBlock = blockType === 'header' || blockType === 'newsletter-header';
+                    
+                    return {
+                      id: block.id || `existing_${Date.now()}_${index}`,
+                      type: blockType,
+                      title: block.title || '',
+                      content: block.content || '',
+                      headline: block.headline || block.title || '',
+                      body: block.body || (typeof block.content === 'string' ? block.content : ''),
+                      // CRITICAL FIX: Map image_url to backgroundImageUrl for header blocks, imageUrl for others
+                      ...(isHeaderBlock 
+                        ? { backgroundImageUrl: block.image_url || '' }
+                        : { imageUrl: block.image_url || '' }
+                      ),
+                      ctaText: block.cta_text || '',
+                      ctaUrl: block.cta_url || '',
+                      source: block.source || 'cached',
+                      personaTag: block.persona_tag || 'general',
+                      layout: block.layout || 'full-width',
+                      alignment: 'left',
+                      textAlign: 'left',
+                      padding: 'medium',
+                      visible: true,
+                      collapsed: false
+                    };
+                  });
                   
                   setBlocks(normalizeBlocks(existingBlocks));
                   setExistingCampaignId(existingCampaign.id);

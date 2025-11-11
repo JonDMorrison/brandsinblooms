@@ -183,13 +183,15 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
         body: contentObj?.body || displayText,
         headline: contentObj?.headline || contentObj?.title || '',
         subtitle: contentObj?.subtitle || '',
-        imageUrl: contentObj?.imageUrl || '',
+        imageUrl: contentObj?.imageUrl || block.image_url || '',
         layout: contentObj?.layout || 'full-width',
         textAlign: contentObj?.textAlign || 'left',
         // Newsletter header specific fields - all from content JSON
         issueNumber: contentObj?.issueNumber || '',
         publishDate: contentObj?.publishDate || '',
-        backgroundImageUrl: contentObj?.backgroundImageUrl || '',
+        // CRITICAL FIX: For header blocks, use image_url as backgroundImageUrl
+        backgroundImageUrl: contentObj?.backgroundImageUrl || 
+          (block.block_type === 'header' || block.block_type === 'newsletter-header' ? block.image_url : '') || '',
         altText: contentObj?.altText || ''
       };
       
