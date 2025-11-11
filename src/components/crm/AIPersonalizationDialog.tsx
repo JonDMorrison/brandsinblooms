@@ -55,114 +55,64 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   }, [open]);
 
   const streamThinkingText = async (prompt: string, thinkingMessageId: string): Promise<void> => {
-    let retryCount = 0;
-    const maxRetries = 2;
-    
-    while (retryCount <= maxRetries) {
-      try {
-        console.log(`🔄 Attempt ${retryCount + 1}: Streaming thinking text...`);
-        
-        // Use direct fetch with explicit CORS mode
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stream-thinking-text`,
-          {
-            method: 'POST',
-            mode: 'cors',
-            credentials: 'omit',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-            },
-            body: JSON.stringify({ prompt })
-          }
-        );
-        
-        if (!response.ok || !response.body) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        console.log('✅ Stream connected, reading tokens...');
-        
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let fullText = '';
-        let textBuffer = '';
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          textBuffer += decoder.decode(value, { stream: true });
-          
-          // Process line-by-line
-          let newlineIndex: number;
-          while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-            let line = textBuffer.slice(0, newlineIndex);
-            textBuffer = textBuffer.slice(newlineIndex + 1);
-            
-            if (line.endsWith('\r')) line = line.slice(0, -1);
-            if (line.startsWith(':') || line.trim() === '') continue;
-            if (!line.startsWith('data: ')) continue;
-            
-            const jsonStr = line.slice(6).trim();
-            if (jsonStr === '[DONE]') continue;
-            
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const token = parsed.choices?.[0]?.delta?.content;
-              if (token) {
-                fullText += token;
-                setMessages(prev =>
-                  prev.map(msg =>
-                    msg.id === thinkingMessageId
-                      ? { ...msg, content: fullText, isThinkingComplete: false }
-                      : msg
-                  )
-                );
-              }
-            } catch (e) {
-              console.error('Parse error:', e);
-            }
-          }
-        }
-        
-        // Success - mark as complete
+    try {
+      console.log('🔄 Generating thinking text...');
+      
+      const { data, error } = await supabase.functions.invoke('generate-thinking-text', {
+        body: { prompt }
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (!data?.thinkingText) {
+        throw new Error('No thinking text received');
+      }
+      
+      console.log('✅ Thinking text received');
+      
+      // Animate the text appearing character by character
+      const fullText = data.thinkingText;
+      let displayedText = '';
+      
+      for (let i = 0; i < fullText.length; i++) {
+        displayedText += fullText[i];
         setMessages(prev =>
           prev.map(msg =>
             msg.id === thinkingMessageId
-              ? { ...msg, isThinkingComplete: true }
+              ? { ...msg, content: displayedText, isThinkingComplete: false }
               : msg
           )
         );
-        
-        console.log('✅ Thinking text complete');
-        return; // Exit on success
-        
-      } catch (error) {
-        console.error(`❌ Attempt ${retryCount + 1} error:`, error);
-        retryCount++;
-        
-        if (retryCount > maxRetries) {
-          // Final failure
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.id === thinkingMessageId
-                ? { 
-                    ...msg, 
-                    content: '⚠️ Unable to connect to AI. The edge function is working but the browser cannot connect. Please try refreshing the page.',
-                    isThinkingComplete: true 
-                  }
-                : msg
-            )
-          );
-          throw error;
-        }
-        
-        // Brief wait before retry
-        console.log(`⏳ Retrying in ${retryCount}s...`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        // Small delay for animation effect
+        await new Promise(resolve => setTimeout(resolve, 20));
       }
+      
+      // Mark as complete
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === thinkingMessageId
+            ? { ...msg, isThinkingComplete: true }
+            : msg
+        )
+      );
+      
+      console.log('✅ Thinking text animation complete');
+      
+    } catch (error) {
+      console.error('❌ Error generating thinking text:', error);
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === thinkingMessageId
+            ? { 
+                ...msg, 
+                content: '⚠️ Unable to generate thinking text. Continuing with image generation...',
+                isThinkingComplete: true 
+              }
+            : msg
+        )
+      );
     }
   };
 
