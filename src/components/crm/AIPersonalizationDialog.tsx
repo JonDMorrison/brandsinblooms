@@ -60,17 +60,19 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     
     while (retryCount <= maxRetries) {
       try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        
         console.log(`🔄 Attempt ${retryCount + 1}: Streaming thinking text...`);
         
+        // Use direct fetch with explicit CORS mode
         const response = await fetch(
-          `${supabaseUrl}/functions/v1/stream-thinking-text`,
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stream-thinking-text`,
           {
             method: 'POST',
+            mode: 'cors',
+            credentials: 'omit',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
             },
             body: JSON.stringify({ prompt })
           }
@@ -148,7 +150,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
               msg.id === thinkingMessageId
                 ? { 
                     ...msg, 
-                    content: '⚠️ Unable to connect to AI. Please disable any browser extensions blocking requests (ad blockers, privacy extensions) and try again.',
+                    content: '⚠️ Unable to connect to AI. The edge function is working but the browser cannot connect. Please try refreshing the page.',
                     isThinkingComplete: true 
                   }
                 : msg

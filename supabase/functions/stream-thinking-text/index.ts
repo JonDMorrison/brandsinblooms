@@ -85,33 +85,17 @@ Start with phrases like "Hmm," or "Let me think about this..." to make it feel n
 
     console.log('✅ Streaming thinking text started');
 
-    // Manually create a ReadableStream to ensure CORS headers are properly set
-    const stream = new ReadableStream({
-      async start(controller) {
-        const reader = response.body!.getReader();
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            controller.enqueue(value);
-          }
-        } catch (error) {
-          controller.error(error);
-        } finally {
-          controller.close();
-          reader.releaseLock();
-        }
-      }
-    });
-
-    // Return the stream with proper CORS headers
-    return new Response(stream, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
+    // For streaming SSE, we need to pipe the response through
+    // Clone the response headers and add CORS
+    const headers = new Headers(response.headers);
+    headers.set('Access-Control-Allow-Origin', '*');
+    headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+    
+    // Return the stream with CORS-enabled headers
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: headers,
     });
   } catch (error) {
     console.error('❌ Error in stream-thinking-text:', error);
