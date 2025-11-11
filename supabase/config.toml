@@ -200,3 +200,9 @@ verify_jwt = false
 
 [functions.twilio-status-callback]
 verify_jwt = false
+
+[functions.enhance-image-prompt]
+verify_jwt = false
+
+[functions.generate-thinking-text]
+verify_jwt = false

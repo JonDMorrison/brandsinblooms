@@ -59,6 +59,44 @@ export const keyframes: Config["theme"]["extend"]["keyframes"] = {
     '100%': {
       opacity: '1'
     }
+  },
+  'thinking-dot': {
+    '0%, 80%, 100%': {
+      transform: 'scale(0.8)',
+      opacity: '0.5'
+    },
+    '40%': {
+      transform: 'scale(1.2)',
+      opacity: '1'
+    }
+  },
+  'slide-in-left': {
+    '0%': {
+      opacity: '0',
+      transform: 'translateX(-20px)'
+    },
+    '100%': {
+      opacity: '1',
+      transform: 'translateX(0)'
+    }
+  },
+  'slide-in-right': {
+    '0%': {
+      opacity: '0',
+      transform: 'translateX(20px)'
+    },
+    '100%': {
+      opacity: '1',
+      transform: 'translateX(0)'
+    }
+  },
+  'shimmer-fast': {
+    '0%': {
+      transform: 'translateX(-100%)'
+    },
+    '100%': {
+      transform: 'translateX(200%)'
+    }
   }
 };
 
@@ -69,4 +107,8 @@ export const animation: Config["theme"]["extend"]["animation"] = {
   'scale-in': 'scale-in 0.15s ease-out',
   shimmer: 'shimmer 2s infinite',
   'gentle-pulse': 'gentle-pulse 3s ease-in-out infinite',
+  'thinking-dot': 'thinking-dot 1.4s ease-in-out infinite',
+  'slide-in-left': 'slide-in-left 0.3s ease-out',
+  'slide-in-right': 'slide-in-right 0.3s ease-out',
+  'shimmer-fast': 'shimmer-fast 1.5s infinite',
 };

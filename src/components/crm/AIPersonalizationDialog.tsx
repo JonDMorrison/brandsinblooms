@@ -1,260 +1,296 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import React, { useState, useEffect, useRef } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowUp, Loader2 } from 'lucide-react';
+import { Loader2, Send, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import { AIChatMessage } from './ai-chat-message';
 
 interface AIPersonalizationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImageSelect?: (imageUrl: string) => void;
-  overviewKeywords?: string[];
+  onImageSelect: (imageUrl: string) => void;
+  channel?: string;
   contentContext?: string;
 }
 
+interface Message {
+  id: string;
+  type: 'user' | 'assistant' | 'thinking' | 'images';
+  content: string;
+  images?: string[];
+  timestamp: Date;
+  thinkingSteps?: string[];
+  currentStep?: number;
+}
 
 export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = ({
   open,
   onOpenChange,
   onImageSelect,
-  overviewKeywords = [],
-  contentContext = '',
+  channel = 'newsletter',
+  contentContext = ''
 }) => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputPrompt, setInputPrompt] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
-  const [loadingPlaceholders, setLoadingPlaceholders] = useState<number>(0);
-  const { toast } = useToast();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Auto-populate prompt with contentContext when dialog opens
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (open && contentContext && contentContext.trim().length > 0) {
-      setPrompt(contentContext);
-    }
-  }, [open, contentContext]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  // Auto-scroll to top when placeholders appear
+  // Reset state when dialog closes
   useEffect(() => {
-    if (loadingPlaceholders > 0 && scrollAreaRef.current) {
-      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      viewport?.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!open) {
+      setMessages([]);
+      setInputPrompt('');
+      setSelectedImage(null);
+      setIsProcessing(false);
     }
-  }, [loadingPlaceholders]);
+  }, [open]);
 
-  const handleGenerateImages = async () => {
-    if (!prompt.trim()) return;
-
-    console.log('🎨 Starting AI image generation with prompt:', prompt);
-    setIsGenerating(true);
-    setLoadingPlaceholders(3); // 3 parallel requests
+  const generateImages = async (prompt: string) => {
+    setIsProcessing(true);
     
     try {
-      console.log('📞 Calling Lovable AI to generate 3 images in parallel...');
-      
-      // Get user ID for storage
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || 'anonymous';
-      
-      // Create 3 parallel requests to Lovable AI
-      const imagePromises = Array.from({ length: 3 }).map((_, index) => 
+      // Step 1: Add user message
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        type: 'user',
+        content: prompt,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessage]);
+      setInputPrompt('');
+
+      // Step 2: Generate and display thinking text
+      console.log('Generating thinking text...');
+      const { data: thinkingData } = await supabase.functions.invoke('generate-thinking-text', {
+        body: { prompt }
+      });
+
+      const thinkingSteps = thinkingData?.thinkingSteps || [
+        'Analyzing your image request...',
+        'Considering visual composition and garden aesthetics...',
+        'Enhancing prompt for optimal image generation...'
+      ];
+
+      const thinkingMessage: Message = {
+        id: crypto.randomUUID(),
+        type: 'thinking',
+        content: 'thinking',
+        timestamp: new Date(),
+        thinkingSteps,
+        currentStep: 0
+      };
+      setMessages(prev => [...prev, thinkingMessage]);
+
+      // Animate through thinking steps
+      for (let i = 0; i < thinkingSteps.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === thinkingMessage.id 
+              ? { ...msg, currentStep: i }
+              : msg
+          )
+        );
+      }
+
+      // Step 3: Enhance prompt
+      console.log('Enhancing prompt...');
+      const { data: enhanceData } = await supabase.functions.invoke('enhance-image-prompt', {
+        body: { prompt }
+      });
+
+      const enhancedPrompt = enhanceData?.enhancedPrompt || prompt;
+      console.log('Enhanced prompt:', enhancedPrompt);
+
+      // Remove thinking message
+      setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
+
+      // Step 4: Generate 3 images in parallel
+      console.log('Generating 3 images...');
+      const imagePromises = Array(3).fill(null).map(() =>
         supabase.functions.invoke('generate-ai-image', {
           body: {
-            contentContext: prompt.trim(),
-            contentTitle: `AI Generated Image ${index + 1}`,
-            channel: 'newsletter',
-            uploadToStorage: true,
-            userId
+            contentContext: enhancedPrompt,
+            contentTitle: prompt,
+            channel: channel,
+            uploadToStorage: true
           }
         })
       );
-      
-      // Wait for all 3 images to generate in parallel
+
       const results = await Promise.all(imagePromises);
       
-      console.log('📥 All responses received:', results);
+      const imageUrls = results
+        .filter(result => result.data?.imageUrl)
+        .map(result => result.data.imageUrl);
 
-      // Extract successful image URLs
-      const validImages: string[] = [];
-      const errors: string[] = [];
-      
-      results.forEach((result, index) => {
-        if (result.error || result.data?.error) {
-          console.error(`❌ Image ${index + 1} generation failed:`, result.error || result.data);
-          errors.push(result.error?.message || result.data?.error || 'Unknown error');
-        } else if (result.data?.imageUrl) {
-          validImages.push(result.data.imageUrl);
-          console.log(`✅ Image ${index + 1} generated successfully`);
-        }
-      });
-
-      console.log(`✅ Generated ${validImages.length} out of 3 images`);
-      
-      if (validImages.length === 0) {
-        throw new Error('Failed to generate any images. ' + (errors[0] || 'Please try again.'));
+      if (imageUrls.length === 0) {
+        throw new Error('Failed to generate images');
       }
 
-      // Prepend new AI-generated images to the grid
-      setGeneratedImages(prev => [...validImages, ...prev]);
-      setLoadingPlaceholders(0);
-      
-      toast({
-        title: 'AI Images Generated!',
-        description: `Successfully created ${validImages.length} personalized image${validImages.length > 1 ? 's' : ''} based on your prompt.`,
-        duration: 5000,
-      });
+      // Step 5: Display images
+      const imageMessage: Message = {
+        id: crypto.randomUUID(),
+        type: 'images',
+        content: 'Here are 3 images based on your prompt:',
+        images: imageUrls,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, imageMessage]);
 
-      setPrompt('');
+      console.log('✅ Successfully generated', imageUrls.length, 'images');
+
     } catch (error) {
-      console.error('💥 Caught error generating images:', error);
-      toast({
-        title: 'Failed to Generate Images',
-        description: error instanceof Error ? error.message : 'Please try again.',
-        variant: 'destructive',
-      });
-      setLoadingPlaceholders(0);
+      console.error('Error generating images:', error);
+      toast.error('Failed to generate images. Please try again.');
+      
+      // Remove thinking message if present
+      setMessages(prev => prev.filter(msg => msg.type !== 'thinking'));
+      
+      // Add error message
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        type: 'assistant',
+        content: 'Sorry, I encountered an error generating images. Please try again with a different prompt.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
-      setIsGenerating(false);
-      console.log('🏁 AI image generation complete');
+      setIsProcessing(false);
     }
   };
 
-  // Show only AI-generated images
-  const allImages = generatedImages;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputPrompt.trim() || isProcessing) return;
+    
+    await generateImages(inputPrompt.trim());
+  };
 
-  // Loading placeholder component
-  const LoadingPlaceholder = ({ index }: { index: number }) => (
-    <div 
-      key={`loading-${index}`}
-      className="relative aspect-square rounded-lg overflow-hidden bg-muted ring-1 ring-border animate-fade-in animate-scale-in"
-      style={{ 
-        minHeight: '120px', 
-        minWidth: '120px',
-        animationDelay: `${index * 50}ms`,
-        animationFillMode: 'backwards'
-      }}
-    >
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 animate-pulse">
-        <Loader2 className="w-6 h-6 text-primary animate-spin" />
-        <span className="text-xs text-muted-foreground font-medium">
-          Generating image
-        </span>
-      </div>
-    </div>
-  );
+  const handleImageSelect = (imageUrl: string) => {
+    setSelectedImage(imageUrl);
+  };
+
+  const handleUseImage = () => {
+    if (selectedImage) {
+      onImageSelect(selectedImage);
+      onOpenChange(false);
+      toast.success('Image applied successfully!');
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>AI Image Generation</DialogTitle>
-        </DialogHeader>
-        <div className="py-4">
-          <p className="text-sm text-foreground mb-4">
-            Describe the image you want to generate with AI
-          </p>
-          
-          <ScrollArea className="h-[320px] w-full pr-4" ref={scrollAreaRef}>
-            <div className="grid grid-cols-5 gap-4 w-full">
-              {/* Show loading placeholders first */}
-              {Array.from({ length: loadingPlaceholders }).map((_, index) => (
-                <LoadingPlaceholder key={`loading-${index}`} index={index} />
-              ))}
-              
-              {/* Then show actual images */}
-              {allImages.map((image, index) => (
-                <div
-                  key={index}
-                  onClick={() => setSelectedImage(image)}
-                  className={`
-                    relative aspect-square rounded-lg overflow-hidden cursor-pointer
-                    transition-all duration-200 hover:scale-105 hover:shadow-lg
-                    bg-muted
-                    ${selectedImage === image ? 'ring-4 ring-primary shadow-xl' : 'ring-1 ring-border'}
-                  `}
-                  style={{ minHeight: '120px', minWidth: '120px' }}
-                >
-                  <img
-                    src={image}
-                    alt={`Style ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    loading="eager"
-                    onError={(e) => {
-                      console.error('Failed to load image:', image);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                    onLoad={() => console.log('Image loaded:', index)}
-                  />
-                  {selectedImage === image && (
-                    <div className="absolute inset-0 bg-primary/20 flex items-center justify-center z-10">
-                      <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold">
-                        ✓
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+      <DialogContent className="max-w-3xl h-[80vh] flex flex-col p-0 overflow-hidden">
+        {/* Stunning backdrop */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-secondary/10 backdrop-blur-xl" />
+        
+        <div className="relative flex flex-col h-full">
+          {/* Header */}
+          <DialogHeader className="px-6 py-4 border-b bg-background/80 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary animate-gentle-pulse" />
+              <DialogTitle className="text-xl font-semibold">AI Image Assistant</DialogTitle>
             </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Describe your vision and I'll create beautiful garden images for you
+            </p>
+          </DialogHeader>
+
+          {/* Messages Area */}
+          <ScrollArea className="flex-1 px-6 py-4" ref={scrollAreaRef}>
+            {messages.length === 0 && (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-3 max-w-md animate-fade-in">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                    <Sparkles className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground">Ready to create something beautiful?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Tell me what kind of garden image you'd like, and I'll generate multiple options for you to choose from.
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center mt-4">
+                    {['spring flowers in bloom', 'sunset over garden', 'fresh vegetables'].map((suggestion) => (
+                      <Button
+                        key={suggestion}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setInputPrompt(suggestion)}
+                        className="text-xs"
+                      >
+                        {suggestion}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {messages.map((message) => (
+              <AIChatMessage
+                key={message.id}
+                message={message}
+                selectedImage={selectedImage}
+                onImageSelect={handleImageSelect}
+              />
+            ))}
+            <div ref={messagesEndRef} />
           </ScrollArea>
 
-          <div className="mt-8 w-1/2 mx-auto">
-            <div className="flex gap-2 items-end">
-              <Textarea
-                id="ai-prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe the image you want to generate (e.g., 'a beautiful garden with colorful flowers and butterflies')"
-                rows={4}
-                className="resize-none flex-1"
-              />
-              
-              {/* Conditionally render button based on state */}
-              {selectedImage && !prompt.trim() ? (
-                <Button
-                  key="select-button"
-                  className="flex-shrink-0 animate-fade-in animate-scale-in"
-                  variant="default"
-                  onClick={() => {
-                    if (selectedImage && onImageSelect) {
-                      onImageSelect(selectedImage);
-                      toast({
-                        title: 'Image selected!',
-                        description: 'Your personalized image has been applied.',
-                      });
-                      // Reset states
-                      setSelectedImage(null);
-                      setPrompt('');
-                      onOpenChange(false);
-                    }
-                  }}
-                >
-                  Select this image
+          {/* Selected Image Indicator */}
+          {selectedImage && (
+            <div className="px-6 py-3 border-t bg-primary/5 backdrop-blur-sm animate-fade-in">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-foreground font-medium">Image selected!</p>
+                <Button onClick={handleUseImage} size="sm" className="shadow-sm">
+                  Use This Image
                 </Button>
-              ) : (
-                <Button
-                  key="send-button"
-                  className="rounded-full w-8 h-8 p-0 flex-shrink-0 animate-fade-in animate-scale-in"
-                  disabled={!prompt.trim() || isGenerating}
-                  onClick={handleGenerateImages}
-                >
-                  {isGenerating ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <ArrowUp className="w-3 h-3" />
-                  )}
-                </Button>
-              )}
+              </div>
             </div>
+          )}
+
+          {/* Input Area */}
+          <div className="px-6 py-4 border-t bg-background/80 backdrop-blur-sm">
+            <form onSubmit={handleSubmit} className="flex gap-3">
+              <Textarea
+                value={inputPrompt}
+                onChange={(e) => setInputPrompt(e.target.value)}
+                placeholder="Describe the image you want to generate..."
+                className="min-h-[60px] max-h-[120px] resize-none bg-background/50 focus:bg-background transition-colors"
+                disabled={isProcessing}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+              />
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!inputPrompt.trim() || isProcessing}
+                className="h-[60px] w-[60px] rounded-full shadow-lg hover:shadow-xl transition-all"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
+              </Button>
+            </form>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Press Enter to send • Shift + Enter for new line
+            </p>
           </div>
         </div>
       </DialogContent>
