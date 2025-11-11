@@ -78,8 +78,17 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
         console.log(`🤖 Enhancing block ${i + 1}/${baseBlocks.length} (${block.type})`);
         
         if (block.type === 'header' || block.type === 'divider') {
-          // Keep header and divider blocks as-is
-          enhancedBlocks.push(block);
+          // CRITICAL FIX: Mark header blocks for image generation
+          if (block.type === 'header') {
+            enhancedBlocks.push({
+              ...block,
+              isGeneratingImage: true,
+              backgroundImageUrl: undefined
+            });
+          } else {
+            // Keep divider blocks as-is
+            enhancedBlocks.push(block);
+          }
           continue;
         }
 
@@ -161,8 +170,10 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
   };
 
   const startParallelImageGeneration = async (blocks: ContentBlock[]) => {
+    // CRITICAL FIX: Include header blocks in image generation
     const imageBlocks = blocks.filter(block => 
-      block.type === 'image-text' && block.isGeneratingImage
+      (block.type === 'image-text' || block.type === 'header' || block.type === 'newsletter-header') && 
+      block.isGeneratingImage
     );
 
     if (imageBlocks.length === 0) return;

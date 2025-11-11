@@ -1044,11 +1044,22 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const handleBlockImageGenerated = (blockId: string, imageUrl: string) => {
     console.log(`✅ Block image generated for ${blockId}`);
     setBlocks(prevBlocks =>
-      prevBlocks.map(block =>
-        block.id === blockId
-          ? { ...block, imageUrl, isGeneratingImage: false, imageGenerationError: undefined }
-          : block
-      )
+      prevBlocks.map(block => {
+        if (block.id === blockId) {
+          // CRITICAL FIX: For header blocks, update backgroundImageUrl; for others, update imageUrl
+          const isHeaderBlock = block.type === 'header' || block.type === 'newsletter-header';
+          return {
+            ...block,
+            ...(isHeaderBlock 
+              ? { backgroundImageUrl: imageUrl }
+              : { imageUrl }
+            ),
+            isGeneratingImage: false,
+            imageGenerationError: undefined
+          };
+        }
+        return block;
+      })
     );
   };
 
