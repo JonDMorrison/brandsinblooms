@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogPortal } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -191,19 +191,23 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
-      <DialogContent 
-        className="max-w-3xl h-[80vh] flex flex-col p-0 overflow-hidden"
-        onInteractOutside={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-        onEscapeKeyDown={(e) => {
-          e.preventDefault();
-        }}
-        onPointerDownOutside={(e) => {
-          e.preventDefault();
-        }}
-      >
+      <DialogPortal>
+        <DialogContent 
+          className="max-w-3xl h-[80vh] flex flex-col p-0 overflow-hidden z-[9999]"
+          onInteractOutside={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onEscapeKeyDown={(e) => {
+            e.preventDefault();
+          }}
+          onPointerDownOutside={(e) => {
+            e.preventDefault();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
         {/* Stunning backdrop */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-secondary/10 backdrop-blur-xl" />
         
@@ -306,6 +310,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
           </div>
         </div>
       </DialogContent>
+      </DialogPortal>
     </Dialog>
   );
 };
