@@ -160,10 +160,16 @@ serve(async (req) => {
               .getPublicUrl(storagePath);
             
             finalImageUrl = publicUrl;
-            console.log('✅ Uploaded to central storage:', publicUrl);
+            console.log('✅ Uploaded to CENTRAL storage successfully:', {
+              uuid: imageUuid,
+              bucket: 'global-ai-images',
+              path: storagePath,
+              url: publicUrl,
+              size_kb: Math.round(binaryData.length / 1024)
+            });
 
             // Generate tags using OpenAI
-            console.log('🏷️ Generating tags...');
+            console.log('🏷️ [Tag Generation] Starting...');
             const { data: tagsData, error: tagsError } = await supabase.functions.invoke(
               'generate-image-tags',
               {
@@ -176,11 +182,16 @@ serve(async (req) => {
             );
 
             if (tagsError) {
-              console.warn('⚠️ Tag generation failed:', tagsError);
+              console.error('❌ [Tag Generation] Failed:', tagsError);
+            } else {
+              console.log('✅ [Tag Generation] Completed successfully');
             }
 
             const tags = tagsData?.tags || [];
-            console.log(`✅ Generated ${tags.length} tags`);
+            console.log(`🏷️ [Tag Generation] Result: ${tags.length} tags generated`, {
+              tags: tags.slice(0, 3).map((t: any) => `${t.name}(${t.category})`),
+              total: tags.length
+            });
 
             // Insert into global_image_gallery
             const { data: imageRecord, error: insertError } = await supabase
@@ -201,10 +212,18 @@ serve(async (req) => {
               .single();
 
             if (insertError) {
-              console.error('❌ Failed to insert image record:', insertError);
+              console.error('❌ [Database] Failed to insert into global_image_gallery:', {
+                error: insertError.message,
+                code: insertError.code,
+                details: insertError.details
+              });
             } else {
               globalImageId = imageRecord.id;
-              console.log('✅ Image record created:', globalImageId);
+              console.log('✅ [Database] Image record created in global_image_gallery:', {
+                globalImageId,
+                storagePath,
+                channel
+              });
 
               // Insert tags if available
               if (tags.length > 0 && globalImageId) {
@@ -221,16 +240,41 @@ serve(async (req) => {
                   .insert(tagInserts);
 
                 if (tagsInsertError) {
-                  console.error('❌ Failed to insert tags:', tagsInsertError);
+                  console.error('❌ [Database] Failed to insert into global_image_tags:', {
+                    error: tagsInsertError.message,
+                    code: tagsInsertError.code,
+                    globalImageId,
+                    tagCount: tags.length
+                  });
                 } else {
-                  console.log(`✅ Inserted ${tags.length} tags`);
+                  console.log(`✅ [Database] Inserted ${tags.length} tags into global_image_tags:`, {
+                    globalImageId,
+                    categories: [...new Set(tags.map((t: any) => t.category))]
+                  });
                 }
               }
             }
           } catch (storageError: any) {
-            console.error('❌ Central storage error:', storageError.message);
+            console.error('❌ [CRITICAL] Central storage pipeline failed:', {
+              error: storageError.message,
+              stack: storageError.stack
+            });
             console.log('⚠️ Returning base64 image as fallback');
           }
+        }
+
+        // Final success summary
+        if (globalImageId) {
+          console.log('🎯 ═══════════════════════════════════════════════════');
+          console.log('🎯 CENTRALIZED STORAGE SUCCESS');
+          console.log('🎯 ═══════════════════════════════════════════════════');
+          console.log('🆔 Global Image ID:', globalImageId);
+          console.log('📦 Storage Path:', storagePath);
+          console.log('🔗 Public URL:', finalImageUrl);
+          console.log('🏷️ Tags Generated:', tagsData?.tags?.length || 0);
+          console.log('📺 Channel:', channel);
+          console.log('⏱️ Timestamp:', new Date().toISOString());
+          console.log('🎯 ═══════════════════════════════════════════════════');
         }
 
         return {
