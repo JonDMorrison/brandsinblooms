@@ -9,6 +9,7 @@ interface Message {
   images?: string[];
   timestamp: Date;
   isThinkingComplete?: boolean;
+  thinkingDuration?: number; // Duration in milliseconds
 }
 
 interface AIChatMessageProps {
@@ -48,6 +49,11 @@ export const AIChatMessage: React.FC<AIChatMessageProps> = ({
                   className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 group"
                 >
                   <span className="font-medium">Thinking Process</span>
+                  {message.thinkingDuration && (
+                    <span className="text-xs text-muted-foreground/70">
+                      ({(message.thinkingDuration / 1000).toFixed(2)}s)
+                    </span>
+                  )}
                   <svg
                     className={cn(
                       "w-4 h-4 transition-transform duration-300",

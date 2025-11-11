@@ -23,6 +23,7 @@ interface Message {
   images?: string[];
   timestamp: Date;
   isThinkingComplete?: boolean;
+  thinkingDuration?: number; // Duration in milliseconds
 }
 
 export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = ({
@@ -55,6 +56,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   }, [open]);
 
   const streamThinkingText = async (prompt: string, thinkingMessageId: string): Promise<void> => {
+    const startTime = Date.now();
     try {
       console.log('🔄 Generating thinking text...');
       
@@ -89,16 +91,17 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         await new Promise(resolve => setTimeout(resolve, 20));
       }
       
-      // Mark as complete
+      // Mark as complete with duration
+      const duration = Date.now() - startTime;
       setMessages(prev =>
         prev.map(msg =>
           msg.id === thinkingMessageId
-            ? { ...msg, isThinkingComplete: true }
+            ? { ...msg, isThinkingComplete: true, thinkingDuration: duration }
             : msg
         )
       );
       
-      console.log('✅ Thinking text animation complete');
+      console.log('✅ Thinking text animation complete. Duration:', duration, 'ms');
       
     } catch (error) {
       console.error('❌ Error generating thinking text:', error);
