@@ -3,7 +3,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GripVertical, Trash2, Edit, Image, Zap, CheckCircle, AlertTriangle, Layers, Sparkles } from 'lucide-react';
+import { GripVertical, Trash2, Edit, Image, Zap, CheckCircle, AlertTriangle, Layers, Wand2 } from 'lucide-react';
 import { AIImageLoadingOverlay } from './AIImageLoadingOverlay';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
@@ -350,7 +350,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             title="Auto Pick - Generate AI image based on content"
             disabled={block.isGeneratingImage}
           >
-            <Sparkles className="w-3 h-3" />
+            <Wand2 className="w-3 h-3" />
           </Button>
           
           {/* Image Edit Button */}
