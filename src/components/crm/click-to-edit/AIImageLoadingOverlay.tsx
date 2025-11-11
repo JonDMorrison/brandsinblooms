@@ -9,7 +9,7 @@ interface AIImageLoadingOverlayProps {
 }
 
 export const AIImageLoadingOverlay: React.FC<AIImageLoadingOverlayProps> = ({
-  message = 'Generating image with AI...',
+  message = 'Generating Images',
   showIcon = true,
   className
 }) => {

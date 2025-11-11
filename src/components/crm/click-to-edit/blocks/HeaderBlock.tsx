@@ -61,7 +61,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       {/* AI Image Generation Overlay */}
       {isGeneratingImage && (
         <AIImageLoadingOverlay 
-          message="Generating header image with AI..."
+          message="Generating Images"
           showIcon={true}
         />
       )}

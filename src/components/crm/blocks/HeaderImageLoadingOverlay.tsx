@@ -23,7 +23,7 @@ const stageConfig = {
   },
   fetching: {
     icon: Image,
-    message: 'Generating image with AI...',
+    message: 'Generating Images',
     description: 'Searching for the best visual match'
   },
   complete: {

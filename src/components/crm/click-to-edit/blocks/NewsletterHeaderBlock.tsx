@@ -50,7 +50,7 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
       {/* AI Image Generation Overlay */}
       {isGeneratingImage && (
         <AIImageLoadingOverlay 
-          message="Generating header image with AI..."
+          message="Generating Images"
           showIcon={true}
         />
       )}

@@ -466,7 +466,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 if (isGeneratingImage || isImageLoadingState || isAutoPickGenerating) {
                   return (
                     <div className="relative w-full h-64 rounded-lg bg-muted">
-                      <AIImageLoadingOverlay message="Generating image with AI..." />
+                      <AIImageLoadingOverlay message="Generating Images" />
                     </div>
                   );
                 }
@@ -554,7 +554,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                       <>
                         <ImageIcon className="w-12 h-12 text-muted-foreground mb-3 animate-gentle-pulse" />
                         {isGeneratingImage ? (
-                          <span className="text-muted-foreground font-medium">Generating image with AI...</span>
+                          <span className="text-muted-foreground font-medium">Generating Images</span>
                         ) : (
                           <span className="text-muted-foreground mb-3">Click to add image</span>
                         )}

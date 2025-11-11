@@ -96,7 +96,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
       {/* AI Image Loading Overlay */}
       {isGeneratingImage && (
         <div className="relative w-full h-64 rounded-lg bg-muted">
-          <AIImageLoadingOverlay message="Generating image with AI..." />
+          <AIImageLoadingOverlay message="Generating Images" />
         </div>
       )}
 

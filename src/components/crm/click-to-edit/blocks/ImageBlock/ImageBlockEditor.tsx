@@ -59,7 +59,7 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
         <div className="w-full relative">
           {isGeneratingImage && (
             <div className="relative w-full h-64 rounded-lg bg-muted mb-4">
-              <AIImageLoadingOverlay message="Generating image with AI..." />
+              <AIImageLoadingOverlay message="Generating Images" />
             </div>
           )}
           {!isGeneratingImage && (

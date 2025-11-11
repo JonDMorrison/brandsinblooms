@@ -475,7 +475,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         {/* AI Image generation loading overlay */}
         {block.isGeneratingImage && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-20 flex items-center justify-center">
-            <AIImageLoadingOverlay message="Generating unique image with AI..." />
+            <AIImageLoadingOverlay message="Generating Images" />
           </div>
         )}
         
