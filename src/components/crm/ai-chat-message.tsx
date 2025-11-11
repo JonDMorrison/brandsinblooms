@@ -38,10 +38,10 @@ export const AIChatMessage: React.FC<AIChatMessageProps> = ({
     
     return (
       <div className="flex justify-start mb-4 animate-fade-in">
-        <div className="max-w-[80%] bg-accent/50 backdrop-blur-sm rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-primary/10">
+        <div className="max-w-[80%] bg-muted/40 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border-2 border-border/60">
           <div className="flex items-center gap-3">
             <ThinkingDots />
-            <p className="text-sm text-muted-foreground animate-fade-in">
+            <p className="text-sm text-foreground animate-fade-in">
               {currentThinkingText}
             </p>
           </div>
