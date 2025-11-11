@@ -1,16 +1,14 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeaders, handleCorsPrelight } from '../_shared/cors.ts';
 
 const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS preflight
+  const preflightResponse = handleCorsPrelight(req);
+  if (preflightResponse) {
+    return preflightResponse;
   }
 
   try {
@@ -85,17 +83,18 @@ Start with phrases like "Hmm," or "Let me think about this..." to make it feel n
 
     console.log('✅ Streaming thinking text started');
 
-    // For streaming SSE, we need to pipe the response through
-    // Clone the response headers and add CORS
-    const headers = new Headers(response.headers);
-    headers.set('Access-Control-Allow-Origin', '*');
-    headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+    // Create proper headers with CORS for streaming
+    const responseHeaders = new Headers();
+    responseHeaders.set('Access-Control-Allow-Origin', '*');
+    responseHeaders.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+    responseHeaders.set('Content-Type', 'text/event-stream');
+    responseHeaders.set('Cache-Control', 'no-cache');
+    responseHeaders.set('Connection', 'keep-alive');
     
-    // Return the stream with CORS-enabled headers
+    // Return the stream with proper CORS headers
     return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: headers,
+      status: 200,
+      headers: responseHeaders,
     });
   } catch (error) {
     console.error('❌ Error in stream-thinking-text:', error);
