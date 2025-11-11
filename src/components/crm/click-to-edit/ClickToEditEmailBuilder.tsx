@@ -63,7 +63,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         content: b.content,
         text: typeof b.content === 'string' ? b.content : undefined
       },
-      isGenerating: generatingBlocks.has(b.id)
+      isGenerating: generatingBlocks.has(b.id),
+      backgroundImageUrl: b.backgroundImageUrl
     })),
     campaignTitle: campaignName || 'Newsletter',
     onImageReady: (imageUrl, metadata) => {

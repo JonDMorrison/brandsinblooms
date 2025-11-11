@@ -8,6 +8,7 @@ interface Block {
   type: string;
   content: any;
   isGenerating?: boolean;
+  backgroundImageUrl?: string;
 }
 
 interface ImageMetadata {
@@ -127,6 +128,14 @@ export const useHeaderBackgroundImage = ({
   // Monitor when all blocks are ready (have content and not generating)
   useEffect(() => {
     if (!enabled || isGenerating || stage === 'complete') {
+      return;
+    }
+
+    // CRITICAL: Check if header block already has an image - prevent regeneration
+    const headerBlock = blocks.find(b => b.type === 'header' || b.type === 'newsletter-header');
+    if (headerBlock?.backgroundImageUrl) {
+      console.log('[HEADER-BG] Header already has image, skipping generation:', headerBlock.backgroundImageUrl);
+      setStage('complete'); // Mark as complete to prevent future triggers
       return;
     }
 
