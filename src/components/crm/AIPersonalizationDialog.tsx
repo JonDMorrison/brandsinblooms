@@ -55,95 +55,112 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   }, [open]);
 
   const streamThinkingText = async (prompt: string, thinkingMessageId: string): Promise<void> => {
-    try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/stream-thinking-text`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-          },
-          body: JSON.stringify({ prompt })
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        
+        console.log(`🔄 Attempt ${retryCount + 1}: Streaming thinking text...`);
+        
+        const response = await fetch(
+          `${supabaseUrl}/functions/v1/stream-thinking-text`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+            },
+            body: JSON.stringify({ prompt })
+          }
+        );
+        
+        if (!response.ok || !response.body) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-      );
-      
-      if (!response.ok || !response.body) {
-        throw new Error('Streaming failed');
-      }
-      
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullText = '';
-      let textBuffer = '';
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
         
-        textBuffer += decoder.decode(value, { stream: true });
+        console.log('✅ Stream connected, reading tokens...');
         
-        // Process line-by-line
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+        let textBuffer = '';
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
           
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
+          textBuffer += decoder.decode(value, { stream: true });
           
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') continue;
-          
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const token = parsed.choices?.[0]?.delta?.content;
-            if (token) {
-              fullText += token;
-              setMessages(prev =>
-                prev.map(msg =>
-                  msg.id === thinkingMessageId
-                    ? { ...msg, content: fullText }
-                    : msg
-                )
-              );
+          // Process line-by-line
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
+            
+            if (line.endsWith('\r')) line = line.slice(0, -1);
+            if (line.startsWith(':') || line.trim() === '') continue;
+            if (!line.startsWith('data: ')) continue;
+            
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === '[DONE]') continue;
+            
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const token = parsed.choices?.[0]?.delta?.content;
+              if (token) {
+                fullText += token;
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === thinkingMessageId
+                      ? { ...msg, content: fullText, isThinkingComplete: false }
+                      : msg
+                  )
+                );
+              }
+            } catch (e) {
+              console.error('Parse error:', e);
             }
-          } catch (e) {
-            console.error('Failed to parse SSE chunk:', e);
           }
         }
+        
+        // Success - mark as complete
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === thinkingMessageId
+              ? { ...msg, isThinkingComplete: true }
+              : msg
+          )
+        );
+        
+        console.log('✅ Thinking text complete');
+        return; // Exit on success
+        
+      } catch (error) {
+        console.error(`❌ Attempt ${retryCount + 1} error:`, error);
+        retryCount++;
+        
+        if (retryCount > maxRetries) {
+          // Final failure
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === thinkingMessageId
+                ? { 
+                    ...msg, 
+                    content: '⚠️ Unable to connect to AI. Please disable any browser extensions blocking requests (ad blockers, privacy extensions) and try again.',
+                    isThinkingComplete: true 
+                  }
+                : msg
+            )
+          );
+          throw error;
+        }
+        
+        // Brief wait before retry
+        console.log(`⏳ Retrying in ${retryCount}s...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
       }
-      
-      // Mark thinking as complete
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === thinkingMessageId
-            ? { ...msg, isThinkingComplete: true }
-            : msg
-        )
-      );
-      
-      console.log('✅ Thinking text streaming complete');
-    } catch (error) {
-      console.error('❌ Streaming error:', error);
-      
-      // Show error to user instead of fallback static text
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === thinkingMessageId
-            ? { 
-                ...msg, 
-                content: '⚠️ Unable to generate AI thinking text. Please check your connection and try again.',
-                isThinkingComplete: true 
-              }
-            : msg
-        )
-      );
-      
-      // Don't throw - let the process continue
-      throw error;
     }
   };
 
