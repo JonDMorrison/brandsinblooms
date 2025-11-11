@@ -191,7 +191,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl h-[80vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent 
+        className="max-w-3xl h-[80vh] flex flex-col p-0 overflow-hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         {/* Stunning backdrop */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-secondary/10 backdrop-blur-xl" />
         
