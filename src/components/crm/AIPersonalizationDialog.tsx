@@ -21,19 +21,6 @@ interface AIPersonalizationDialogProps {
   contentContext?: string;
 }
 
-// Sample images for the grid (using Unsplash garden/plant images)
-const sampleImages = [
-  'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=400&h=400&fit=crop',
-  'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=400&fit=crop',
-  'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=400&h=400&fit=crop',
-  'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=400&h=400&fit=crop',
-  'https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?w=400&h=400&fit=crop',
-  'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop',
-  'https://images.unsplash.com/photo-1592150621744-aca64f48394a?w=400&h=400&fit=crop',
-  'https://images.unsplash.com/photo-1563691243940-4f4e3e5b9f3c?w=400&h=400&fit=crop',
-  'https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=400&h=400&fit=crop',
-  'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=400&h=400&fit=crop',
-];
 
 export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = ({
   open,
@@ -142,10 +129,8 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     }
   };
 
-  // Show all generated images first, then add sample images
-  const allImages = generatedImages.length > 0 
-    ? [...generatedImages, ...sampleImages]
-    : sampleImages;
+  // Show only AI-generated images
+  const allImages = generatedImages;
 
   // Loading placeholder component
   const LoadingPlaceholder = ({ index }: { index: number }) => (
@@ -176,7 +161,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         </DialogHeader>
         <div className="py-4">
           <p className="text-sm text-foreground mb-4">
-            Describe the image you want to generate with AI, or select from previously generated images
+            Describe the image you want to generate with AI
           </p>
           
           <ScrollArea className="h-[320px] w-full pr-4" ref={scrollAreaRef}>
