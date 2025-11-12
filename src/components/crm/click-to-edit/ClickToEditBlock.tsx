@@ -409,10 +409,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
           <RegenerateBlockButton
             block={localBlock}
-            campaignName={campaignName}
-            onUpdate={(updatedBlock) => handleLocalUpdate(updatedBlock)}
-            allBlocks={allBlocks}
-            blockIndex={index}
+            onOpenAIImageDialog={onOpenAIImageDialog}
           />
           
           <Button
