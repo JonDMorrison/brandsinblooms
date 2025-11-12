@@ -117,12 +117,14 @@ verify_jwt = true
 
 [functions.mailchimp-import]
 verify_jwt = true
+timeout = 180
 
 [functions.klaviyo-fetch-lists]
 verify_jwt = true
 
 [functions.klaviyo-import]
 verify_jwt = true
+timeout = 180
 
 [functions.migration-ai-embed]
 verify_jwt = true
