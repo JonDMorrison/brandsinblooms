@@ -58,40 +58,51 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Initialize session when dialog opens
+  // Initialize session when dialog opens or context changes
   useEffect(() => {
-    if (open) {
+    if (open && blockId) {
       initializeSession();
-    } else {
-      // Reset state when dialog closes
+    } else if (!open) {
+      // Reset state when dialog closes but keep session ID for potential reopen
       setInputPrompt('');
       setSelectedImage(null);
       setSelectedImageRecordId(null);
       setIsProcessing(false);
     }
-  }, [open]);
+  }, [open, blockId, contextType, channel]);
 
   const initializeSession = async () => {
     try {
+      console.log('🔄 Initializing session for:', { contextType, blockId, channel });
+      
       const sessionId = await AIChatPersistenceService.findOrCreateSession({
         contextType,
         contextId: blockId,
         channel
       });
       
+      console.log('✅ Session initialized:', sessionId);
       setCurrentSessionId(sessionId);
+      
+      // Reset pagination state
+      setHasMoreMessages(true);
+      setOldestLoadedSequence(null);
       
       // Load initial 15 messages
       await loadInitialMessages(sessionId);
     } catch (error) {
-      console.error('Failed to initialize session:', error);
+      console.error('❌ Failed to initialize session:', error);
       toast.error('Failed to load chat history');
     }
   };
 
   const loadInitialMessages = async (sessionId: string) => {
     try {
+      console.log('📥 Loading initial messages for session:', sessionId);
+      
       const dbMessages = await AIChatPersistenceService.loadMessages(sessionId, 15);
+      
+      console.log(`✅ Loaded ${dbMessages.length} messages from database`);
       
       // Convert database messages to UI message format
       const uiMessages = await convertDBMessagesToUI(dbMessages);
@@ -101,9 +112,15 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       
       if (dbMessages.length > 0) {
         setOldestLoadedSequence(dbMessages[0].sequenceNumber);
+        console.log('📊 Oldest loaded sequence:', dbMessages[0].sequenceNumber);
+      } else {
+        console.log('💬 No previous messages - starting fresh conversation');
       }
     } catch (error) {
-      console.error('Failed to load initial messages:', error);
+      console.error('❌ Failed to load initial messages:', error);
+      // Initialize empty conversation on error
+      setMessages([]);
+      setHasMoreMessages(false);
     }
   };
 
@@ -265,12 +282,14 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     
     try {
       // Step 1: Save and add user message
+      console.log('💾 Saving user prompt to session:', currentSessionId);
       const userMessageId = await AIChatPersistenceService.saveMessage({
         sessionId: currentSessionId,
         messageType: 'user_prompt',
         content: prompt,
         metadata: {}
       });
+      console.log('✅ User message saved:', userMessageId);
       
       const userMessage: Message = {
         id: userMessageId,
@@ -369,15 +388,18 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
 
       // Step 7: Save and display images
+      console.log('💾 Saving image message to session:', currentSessionId);
       const imageMessageId = await AIChatPersistenceService.saveMessage({
         sessionId: currentSessionId,
         messageType: 'images',
         content: 'Here are 3 images based on your prompt:',
         metadata: { image_count: imageUrls.length }
       });
+      console.log('✅ Image message saved:', imageMessageId);
       
       // Save image records with references to global gallery
       if (globalImageIds.length > 0) {
+        console.log('💾 Saving generated image records...');
         await AIChatPersistenceService.saveGeneratedImages({
           sessionId: currentSessionId,
           messageId: imageMessageId,
@@ -388,9 +410,11 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
             order: idx + 1
           }))
         });
+        console.log('✅ Generated image records saved');
         
         // Load the saved image records to get their IDs
         const savedImages = await AIChatPersistenceService.loadImagesForMessage(imageMessageId);
+        console.log('📸 Loaded saved image records:', savedImages.length);
         
         const imageMessage: Message = {
           id: imageMessageId,
@@ -403,6 +427,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         setMessages(prev => [...prev, imageMessage]);
       } else {
         // Fallback if no globalImageIds (shouldn't happen)
+        console.warn('⚠️ No globalImageIds found, saving without image records');
         const imageMessage: Message = {
           id: imageMessageId,
           type: 'images',
