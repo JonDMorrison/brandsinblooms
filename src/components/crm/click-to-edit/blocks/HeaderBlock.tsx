@@ -141,11 +141,13 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
             className="text-4xl md:text-5xl font-bold mb-4 leading-tight drop-shadow-lg [&>*]:m-0"
             type="general"
           />
-          <SafeHtml 
-            content={sanitizeWeekNumbers(block.body || "Add your subtitle or description text here.")}
-            className="text-lg md:text-xl opacity-90 leading-relaxed drop-shadow-md [&>*]:m-0"
-            type="general"
-          />
+          {(block.body || block.subtitle || block.content) && (
+            <SafeHtml 
+              content={sanitizeWeekNumbers(block.body || block.subtitle || block.content || "")}
+              className="text-lg md:text-xl opacity-90 leading-relaxed drop-shadow-md [&>*]:m-0"
+              type="general"
+            />
+          )}
         </div>
       </div>
 
