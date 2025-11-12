@@ -101,6 +101,171 @@ export type Database = {
           },
         ]
       }
+      ai_assistant_generated_images: {
+        Row: {
+          created_at: string | null
+          enhanced_prompt: string | null
+          generation_order: number
+          global_image_id: string
+          id: string
+          is_selected: boolean | null
+          message_id: string
+          selected_at: string | null
+          session_id: string
+          used_in_context: string | null
+          used_in_id: string | null
+          user_prompt: string
+        }
+        Insert: {
+          created_at?: string | null
+          enhanced_prompt?: string | null
+          generation_order: number
+          global_image_id: string
+          id?: string
+          is_selected?: boolean | null
+          message_id: string
+          selected_at?: string | null
+          session_id: string
+          used_in_context?: string | null
+          used_in_id?: string | null
+          user_prompt: string
+        }
+        Update: {
+          created_at?: string | null
+          enhanced_prompt?: string | null
+          generation_order?: number
+          global_image_id?: string
+          id?: string
+          is_selected?: boolean | null
+          message_id?: string
+          selected_at?: string | null
+          session_id?: string
+          used_in_context?: string | null
+          used_in_id?: string | null
+          user_prompt?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_assistant_generated_images_global_image_id_fkey"
+            columns: ["global_image_id"]
+            isOneToOne: false
+            referencedRelation: "global_image_gallery"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_assistant_generated_images_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "ai_assistant_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_assistant_generated_images_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ai_assistant_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_assistant_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          message_type: string
+          metadata: Json | null
+          sequence_number: number
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          message_type: string
+          metadata?: Json | null
+          sequence_number: number
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          sequence_number?: number
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_assistant_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ai_assistant_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_assistant_sessions: {
+        Row: {
+          channel: string | null
+          context_id: string | null
+          context_type: string | null
+          created_at: string | null
+          id: string
+          image_count: number | null
+          last_activity_at: string | null
+          message_count: number | null
+          tenant_id: string
+          title: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          channel?: string | null
+          context_id?: string | null
+          context_type?: string | null
+          created_at?: string | null
+          id?: string
+          image_count?: number | null
+          last_activity_at?: string | null
+          message_count?: number | null
+          tenant_id: string
+          title?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          channel?: string | null
+          context_id?: string | null
+          context_type?: string | null
+          created_at?: string | null
+          id?: string
+          image_count?: number | null
+          last_activity_at?: string | null
+          message_count?: number | null
+          tenant_id?: string
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_assistant_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "ai_assistant_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_generation_resources: {
         Row: {
           content: string

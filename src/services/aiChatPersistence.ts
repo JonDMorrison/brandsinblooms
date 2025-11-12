@@ -33,6 +33,9 @@ export interface GeneratedImageData {
   isSelected: boolean;
 }
 
+// Type-safe wrappers for new tables
+type AnyTable = any;
+
 export class AIChatPersistenceService {
   /**
    * Find or create a session for the given context
@@ -55,7 +58,7 @@ export class AIChatPersistenceService {
 
     // Try to find existing session for this context
     const { data: existingSession } = await supabase
-      .from('ai_assistant_sessions')
+      .from('ai_assistant_sessions' as AnyTable)
       .select('id')
       .eq('user_id', userData.user.id)
       .eq('context_type', params.contextType || 'general')
@@ -65,12 +68,12 @@ export class AIChatPersistenceService {
       .maybeSingle();
 
     if (existingSession) {
-      return existingSession.id;
+      return (existingSession as any).id;
     }
 
     // Create new session
     const { data: newSession, error } = await supabase
-      .from('ai_assistant_sessions')
+      .from('ai_assistant_sessions' as AnyTable)
       .insert({
         user_id: userData.user.id,
         tenant_id: userProfile.tenant_id,
@@ -82,7 +85,7 @@ export class AIChatPersistenceService {
       .single();
 
     if (error) throw error;
-    return newSession.id;
+    return (newSession as any).id;
   }
 
   /**
@@ -94,7 +97,7 @@ export class AIChatPersistenceService {
     beforeSequence?: number
   ): Promise<MessageData[]> {
     let query = supabase
-      .from('ai_assistant_messages')
+      .from('ai_assistant_messages' as AnyTable)
       .select('*')
       .eq('session_id', sessionId)
       .order('sequence_number', { ascending: false })
@@ -108,7 +111,7 @@ export class AIChatPersistenceService {
     if (error) throw error;
 
     // Reverse to get chronological order (oldest to newest)
-    return (data || []).reverse().map(msg => ({
+    return (data || []).reverse().map((msg: any) => ({
       id: msg.id,
       sessionId: msg.session_id,
       messageType: msg.message_type as any,
@@ -124,7 +127,7 @@ export class AIChatPersistenceService {
    */
   static async loadImagesForMessage(messageId: string): Promise<GeneratedImageData[]> {
     const { data, error } = await supabase
-      .from('ai_assistant_generated_images')
+      .from('ai_assistant_generated_images' as AnyTable)
       .select(`
         *,
         global_image_gallery!inner(public_url)
@@ -134,7 +137,7 @@ export class AIChatPersistenceService {
 
     if (error) throw error;
 
-    return (data || []).map(img => ({
+    return (data || []).map((img: any) => ({
       id: img.id,
       sessionId: img.session_id,
       messageId: img.message_id,
@@ -158,29 +161,29 @@ export class AIChatPersistenceService {
   }): Promise<string> {
     // Get the next sequence number
     const { data: lastMessage } = await supabase
-      .from('ai_assistant_messages')
+      .from('ai_assistant_messages' as AnyTable)
       .select('sequence_number')
       .eq('session_id', params.sessionId)
       .order('sequence_number', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    const nextSequence = (lastMessage?.sequence_number || 0) + 1;
+    const nextSequence = ((lastMessage as any)?.sequence_number || 0) + 1;
 
     const { data, error } = await supabase
-      .from('ai_assistant_messages')
+      .from('ai_assistant_messages' as AnyTable)
       .insert({
         session_id: params.sessionId,
         message_type: params.messageType,
         content: params.content,
         sequence_number: nextSequence,
         metadata: params.metadata || {}
-      })
+      } as AnyTable)
       .select('id')
       .single();
 
     if (error) throw error;
-    return data.id;
+    return (data as any).id;
   }
 
   /**
@@ -206,8 +209,8 @@ export class AIChatPersistenceService {
     }));
 
     const { error } = await supabase
-      .from('ai_assistant_generated_images')
-      .insert(inserts);
+      .from('ai_assistant_generated_images' as AnyTable)
+      .insert(inserts as AnyTable);
 
     if (error) throw error;
   }
@@ -221,13 +224,13 @@ export class AIChatPersistenceService {
     usedInId: string;
   }): Promise<void> {
     const { error } = await supabase
-      .from('ai_assistant_generated_images')
+      .from('ai_assistant_generated_images' as AnyTable)
       .update({
         is_selected: true,
         selected_at: new Date().toISOString(),
         used_in_context: params.usedInContext,
         used_in_id: params.usedInId
-      })
+      } as AnyTable)
       .eq('id', params.imageRecordId);
 
     if (error) throw error;
