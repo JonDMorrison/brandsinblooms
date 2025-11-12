@@ -201,12 +201,6 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       }
 
       // Convert message based on type
-      console.log('🔄 Converting message:', { 
-        id: dbMsg.id, 
-        type: dbMsg.messageType, 
-        hasContent: !!dbMsg.content 
-      });
-      
       if (dbMsg.messageType === 'user_prompt') {
         const uiMessage: Message = {
           id: dbMsg.id,
@@ -215,7 +209,6 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
           timestamp: new Date(dbMsg.createdAt)
         };
         uiMessages.push(uiMessage);
-        console.log('✅ Added user message');
       } else if (dbMsg.messageType === 'thinking_text') {
         const uiMessage: Message = {
           id: dbMsg.id,
@@ -226,11 +219,8 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
           thinkingDuration: dbMsg.metadata?.thinking_duration || dbMsg.metadata?.thinkingDuration
         };
         uiMessages.push(uiMessage);
-        console.log('✅ Added thinking message');
       } else if (dbMsg.messageType === 'images') {
-        console.log('📸 Loading images for message:', dbMsg.id);
         const imageData = await AIChatPersistenceService.loadImagesForMessage(dbMsg.id);
-        console.log('📸 Loaded images:', { count: imageData.length, urls: imageData.map(img => img.imageUrl) });
         
         const uiMessage: Message = {
           id: dbMsg.id,
@@ -241,7 +231,6 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
           timestamp: new Date(dbMsg.createdAt)
         };
         uiMessages.push(uiMessage);
-        console.log('✅ Added images message with', imageData.length, 'images');
       } else {
         const uiMessage: Message = {
           id: dbMsg.id,
@@ -250,11 +239,9 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
           timestamp: new Date(dbMsg.createdAt)
         };
         uiMessages.push(uiMessage);
-        console.log('✅ Added assistant message (fallback)');
       }
     }
 
-    console.log('✅ Converted', uiMessages.length, 'total UI messages');
     return uiMessages;
   };
 
@@ -478,8 +465,14 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         .map(result => result.data.imageUrl);
       
       const globalImageIds = results
-        .filter(result => result.data?.metadata?.globalImageId)
-        .map(result => result.data.metadata.globalImageId);
+        .filter(result => result.data?.globalImageId)
+        .map(result => result.data.globalImageId);
+
+      console.log('📸 Image generation results:', {
+        totalResults: results.length,
+        successfulImages: imageUrls.length,
+        globalImageIds: globalImageIds
+      });
 
       if (imageUrls.length === 0) {
         throw new Error('Failed to generate images');

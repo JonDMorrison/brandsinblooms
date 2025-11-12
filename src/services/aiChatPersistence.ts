@@ -190,6 +190,8 @@ export class AIChatPersistenceService {
    * Load images associated with a message
    */
   static async loadImagesForMessage(messageId: string): Promise<GeneratedImageData[]> {
+    console.log('📸 Loading images for message:', messageId);
+    
     const { data, error } = await supabase
       .from('ai_assistant_generated_images' as AnyTable)
       .select(`
@@ -199,7 +201,20 @@ export class AIChatPersistenceService {
       .eq('message_id', messageId)
       .order('generation_order', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error loading images:', error);
+      throw error;
+    }
+
+    console.log('✅ Loaded images from database:', {
+      count: data?.length || 0,
+      imageData: data?.map((img: any) => ({
+        id: img.id,
+        globalImageId: img.global_image_id,
+        hasGalleryData: !!img.global_image_gallery,
+        publicUrl: img.global_image_gallery?.public_url
+      }))
+    });
 
     return (data || []).map((img: any) => ({
       id: img.id,
