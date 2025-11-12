@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogPortal } from '
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Send, Sparkles } from 'lucide-react';
+import { Loader2, Send, Sparkles, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AIChatMessage } from './ai-chat-message';
@@ -278,7 +278,15 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         
         <div className="relative flex flex-col h-full">
           {/* Header */}
-          <DialogHeader className="px-6 py-4 border-b bg-background/80 backdrop-blur-sm">
+          <DialogHeader className="px-6 py-4 border-b bg-background/80 backdrop-blur-sm relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 h-8 w-8 rounded-full hover:bg-muted"
+              onClick={() => onOpenChange(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary animate-gentle-pulse" />
               <DialogTitle className="text-xl font-semibold">AI Image Assistant</DialogTitle>
