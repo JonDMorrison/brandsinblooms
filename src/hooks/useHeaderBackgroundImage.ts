@@ -78,15 +78,15 @@ export const useHeaderBackgroundImage = ({
 
       setStage('fetching');
 
-      // Generate subtitle text based on aggregated content
+      // Generate subtitle text based on aggregated content (5-9 words, one line)
       let generatedSubtitle = '';
       try {
         const { data: subtitleData, error: subtitleError } = await supabase.functions.invoke(
           'generate-thinking-text',
           {
             body: {
-              prompt: `Based on this newsletter content, generate a compelling 1-2 sentence subtitle that summarizes the key theme or value proposition. Content: ${aggregatedContent.substring(0, 500)}`,
-              maxLines: 2
+              prompt: `Based on this newsletter content, generate a compelling subheading of exactly 5-9 words that captures the key theme. Output ONLY the subheading text, nothing else. Content: ${aggregatedContent.substring(0, 500)}`,
+              maxLines: 1
             }
           }
         );
