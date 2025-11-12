@@ -69,15 +69,22 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
     })),
     campaignTitle: campaignName || 'Newsletter',
     onImageReady: (imageUrl, metadata) => {
-      console.log('[ClickToEditEmailBuilder] Header image ready:', imageUrl);
+      console.log('[ClickToEditEmailBuilder] Header image ready:', imageUrl, 'subtitle:', metadata?.generatedSubtitle);
       if (headerBlock) {
-        updateBlock(headerBlock.id, {
+        const updates: Partial<ContentBlock> = {
           backgroundImageUrl: imageUrl,
           // Set a subtle dark overlay for better text readability
           backgroundColor: '#000000',
           colorOverlayOpacity: 30,
           backgroundOpacity: 80
-        });
+        };
+
+        // Set the generated subtitle if available
+        if (metadata?.generatedSubtitle) {
+          updates.body = metadata.generatedSubtitle;
+        }
+
+        updateBlock(headerBlock.id, updates);
         
         // Track image usage if globalImageId is available
         if (metadata?.globalImageId) {

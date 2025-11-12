@@ -16,6 +16,7 @@ interface ImageMetadata {
   unsplashId?: string;
   alt?: string;
   globalImageId?: string;
+  generatedSubtitle?: string;
 }
 
 interface UseHeaderBackgroundImageProps {
@@ -77,6 +78,28 @@ export const useHeaderBackgroundImage = ({
 
       setStage('fetching');
 
+      // Generate subtitle text based on aggregated content
+      let generatedSubtitle = '';
+      try {
+        const { data: subtitleData, error: subtitleError } = await supabase.functions.invoke(
+          'generate-thinking-text',
+          {
+            body: {
+              prompt: `Based on this newsletter content, generate a compelling 1-2 sentence subtitle that summarizes the key theme or value proposition. Content: ${aggregatedContent.substring(0, 500)}`,
+              maxLines: 2
+            }
+          }
+        );
+
+        if (!subtitleError && subtitleData?.thinkingText) {
+          generatedSubtitle = subtitleData.thinkingText.trim();
+          console.log('[HEADER-BG] Generated subtitle:', generatedSubtitle);
+        }
+      } catch (err) {
+        console.warn('[HEADER-BG] Failed to generate subtitle:', err);
+        // Continue without subtitle if generation fails
+      }
+
       // Generate AI image directly from content
       const { data: imageData, error: imageError } = await supabase.functions.invoke(
         'generate-ai-image',
@@ -101,7 +124,8 @@ export const useHeaderBackgroundImage = ({
         photographer: 'AI Generated',
         unsplashId: imageData.imageId,
         globalImageId: imageData.globalImageId,
-        alt: imageData.metadata?.prompt || campaignTitle
+        alt: imageData.metadata?.prompt || campaignTitle,
+        generatedSubtitle
       };
 
       setStage('complete');
