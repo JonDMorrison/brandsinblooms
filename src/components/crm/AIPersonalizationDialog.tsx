@@ -7,6 +7,7 @@ import { Loader2, Send, Sparkles, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AIChatMessage } from './ai-chat-message';
+import { AIChatPersistenceService } from '@/services/aiChatPersistence';
 
 interface AIPersonalizationDialogProps {
   open: boolean;
@@ -14,6 +15,8 @@ interface AIPersonalizationDialogProps {
   onImageSelect: (imageUrl: string) => void;
   channel?: string;
   contentContext?: string;
+  blockId?: string;
+  contextType?: string;
 }
 
 interface Message {
@@ -21,9 +24,10 @@ interface Message {
   type: 'user' | 'assistant' | 'thinking' | 'images' | 'loading';
   content: string;
   images?: string[];
+  imageRecordIds?: string[]; // IDs from ai_assistant_generated_images table
   timestamp: Date;
   isThinkingComplete?: boolean;
-  thinkingDuration?: number; // Duration in milliseconds
+  thinkingDuration?: number;
 }
 
 export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = ({
@@ -31,29 +35,158 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   onOpenChange,
   onImageSelect,
   channel = 'newsletter',
-  contentContext = ''
+  contentContext = '',
+  blockId,
+  contextType = 'email_block'
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputPrompt, setInputPrompt] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImageRecordId, setSelectedImageRecordId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  // Chat persistence state
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [oldestLoadedSequence, setOldestLoadedSequence] = useState<number | null>(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Reset state when dialog closes
+  // Initialize session when dialog opens
   useEffect(() => {
-    if (!open) {
-      setMessages([]);
+    if (open) {
+      initializeSession();
+    } else {
+      // Reset state when dialog closes
       setInputPrompt('');
       setSelectedImage(null);
+      setSelectedImageRecordId(null);
       setIsProcessing(false);
     }
   }, [open]);
+
+  const initializeSession = async () => {
+    try {
+      const sessionId = await AIChatPersistenceService.findOrCreateSession({
+        contextType,
+        contextId: blockId,
+        channel
+      });
+      
+      setCurrentSessionId(sessionId);
+      
+      // Load initial 15 messages
+      await loadInitialMessages(sessionId);
+    } catch (error) {
+      console.error('Failed to initialize session:', error);
+      toast.error('Failed to load chat history');
+    }
+  };
+
+  const loadInitialMessages = async (sessionId: string) => {
+    try {
+      const dbMessages = await AIChatPersistenceService.loadMessages(sessionId, 15);
+      
+      // Convert database messages to UI message format
+      const uiMessages = await convertDBMessagesToUI(dbMessages);
+      
+      setMessages(uiMessages);
+      setHasMoreMessages(dbMessages.length === 15);
+      
+      if (dbMessages.length > 0) {
+        setOldestLoadedSequence(dbMessages[0].sequenceNumber);
+      }
+    } catch (error) {
+      console.error('Failed to load initial messages:', error);
+    }
+  };
+
+  const loadMoreMessages = async () => {
+    if (!currentSessionId || !oldestLoadedSequence || isLoadingHistory) return;
+    
+    setIsLoadingHistory(true);
+    
+    try {
+      const olderMessages = await AIChatPersistenceService.loadMessages(
+        currentSessionId,
+        5,
+        oldestLoadedSequence
+      );
+      
+      if (olderMessages.length > 0) {
+        const uiMessages = await convertDBMessagesToUI(olderMessages);
+        
+        // Prepend to existing messages
+        setMessages(prev => [...uiMessages, ...prev]);
+        
+        // Update oldest sequence tracker
+        setOldestLoadedSequence(olderMessages[0].sequenceNumber);
+        
+        // If we got fewer than 5, no more messages exist
+        setHasMoreMessages(olderMessages.length === 5);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      console.error('Failed to load more messages:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const convertDBMessagesToUI = async (dbMessages: any[]): Promise<Message[]> => {
+    const uiMessages: Message[] = [];
+    
+    for (const dbMsg of dbMessages) {
+      if (dbMsg.messageType === 'user_prompt') {
+        uiMessages.push({
+          id: dbMsg.id,
+          type: 'user',
+          content: dbMsg.content,
+          timestamp: new Date(dbMsg.createdAt)
+        });
+      } else if (dbMsg.messageType === 'thinking_text') {
+        uiMessages.push({
+          id: dbMsg.id,
+          type: 'thinking',
+          content: dbMsg.content,
+          timestamp: new Date(dbMsg.createdAt),
+          isThinkingComplete: true,
+          thinkingDuration: dbMsg.metadata?.thinking_duration
+        });
+      } else if (dbMsg.messageType === 'images') {
+        // Load images for this message
+        const images = await AIChatPersistenceService.loadImagesForMessage(dbMsg.id);
+        
+        uiMessages.push({
+          id: dbMsg.id,
+          type: 'images',
+          content: dbMsg.content,
+          images: images.map(img => img.imageUrl),
+          imageRecordIds: images.map(img => img.id),
+          timestamp: new Date(dbMsg.createdAt)
+        });
+      }
+    }
+    
+    return uiMessages;
+  };
+
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    const scrollTop = target.scrollTop;
+    
+    // If scrolled to within 100px of top and not already loading
+    if (scrollTop < 100 && !isLoadingHistory && hasMoreMessages && currentSessionId) {
+      loadMoreMessages();
+    }
+  };
 
   const streamThinkingText = async (prompt: string, thinkingMessageId: string): Promise<void> => {
     const startTime = Date.now();
@@ -120,12 +253,24 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   };
 
   const generateImages = async (prompt: string) => {
+    if (!currentSessionId) {
+      toast.error('Session not initialized');
+      return;
+    }
+    
     setIsProcessing(true);
     
     try {
-      // Step 1: Add user message
+      // Step 1: Save and add user message
+      const userMessageId = await AIChatPersistenceService.saveMessage({
+        sessionId: currentSessionId,
+        messageType: 'user_prompt',
+        content: prompt,
+        metadata: {}
+      });
+      
       const userMessage: Message = {
-        id: crypto.randomUUID(),
+        id: userMessageId,
         type: 'user',
         content: prompt,
         timestamp: new Date()
@@ -142,7 +287,20 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       };
       setMessages(prev => [...prev, thinkingMessage]);
       
+      const thinkingStartTime = Date.now();
       await streamThinkingText(prompt, thinkingMessage.id);
+      const thinkingDuration = Date.now() - thinkingStartTime;
+      
+      // Save thinking text to database
+      const thinkingContent = messages.find(m => m.id === thinkingMessage.id)?.content || '';
+      if (thinkingContent) {
+        await AIChatPersistenceService.saveMessage({
+          sessionId: currentSessionId,
+          messageType: 'thinking_text',
+          content: thinkingContent,
+          metadata: { thinking_duration: thinkingDuration }
+        });
+      }
       
       // Brief pause before moving to next step
       await new Promise(resolve => setTimeout(resolve, 400));
@@ -195,6 +353,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       const imageUrls = results
         .filter(result => result.data?.imageUrl)
         .map(result => result.data.imageUrl);
+      
+      const globalImageIds = results
+        .filter(result => result.data?.metadata?.globalImageId)
+        .map(result => result.data.metadata.globalImageId);
 
       if (imageUrls.length === 0) {
         throw new Error('Failed to generate images');
@@ -203,15 +365,50 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       // Remove loading message
       setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
 
-      // Step 7: Display images
-      const imageMessage: Message = {
-        id: crypto.randomUUID(),
-        type: 'images',
+      // Step 7: Save and display images
+      const imageMessageId = await AIChatPersistenceService.saveMessage({
+        sessionId: currentSessionId,
+        messageType: 'images',
         content: 'Here are 3 images based on your prompt:',
-        images: imageUrls,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, imageMessage]);
+        metadata: { image_count: imageUrls.length }
+      });
+      
+      // Save image records with references to global gallery
+      if (globalImageIds.length > 0) {
+        await AIChatPersistenceService.saveGeneratedImages({
+          sessionId: currentSessionId,
+          messageId: imageMessageId,
+          userPrompt: prompt,
+          enhancedPrompt: enhancedPrompt,
+          images: globalImageIds.map((id, idx) => ({
+            globalImageId: id,
+            order: idx + 1
+          }))
+        });
+        
+        // Load the saved image records to get their IDs
+        const savedImages = await AIChatPersistenceService.loadImagesForMessage(imageMessageId);
+        
+        const imageMessage: Message = {
+          id: imageMessageId,
+          type: 'images',
+          content: 'Here are 3 images based on your prompt:',
+          images: imageUrls,
+          imageRecordIds: savedImages.map(img => img.id),
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, imageMessage]);
+      } else {
+        // Fallback if no globalImageIds (shouldn't happen)
+        const imageMessage: Message = {
+          id: imageMessageId,
+          type: 'images',
+          content: 'Here are 3 images based on your prompt:',
+          images: imageUrls,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, imageMessage]);
+      }
 
       console.log('✅ Successfully generated', imageUrls.length, 'images');
 
@@ -242,12 +439,31 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     await generateImages(inputPrompt.trim());
   };
 
-  const handleImageSelect = (imageUrl: string) => {
+  const handleImageSelect = (imageUrl: string, imageRecordId?: string) => {
     setSelectedImage(imageUrl);
+    if (imageRecordId) {
+      setSelectedImageRecordId(imageRecordId);
+    }
   };
 
-  const handleUseImage = () => {
-    if (selectedImage) {
+  const handleUseImage = async () => {
+    if (selectedImage && selectedImageRecordId && blockId) {
+      // Mark image as selected in database
+      try {
+        await AIChatPersistenceService.markImageSelected({
+          imageRecordId: selectedImageRecordId,
+          usedInContext: contextType,
+          usedInId: blockId
+        });
+      } catch (error) {
+        console.error('Failed to mark image as selected:', error);
+      }
+      
+      onImageSelect(selectedImage);
+      onOpenChange(false);
+      toast.success('Image applied successfully!');
+    } else if (selectedImage) {
+      // Fallback if no record ID (shouldn't happen)
       onImageSelect(selectedImage);
       onOpenChange(false);
       toast.success('Image applied successfully!');
@@ -297,7 +513,20 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
           </DialogHeader>
 
           {/* Messages Area */}
-          <ScrollArea className="flex-1 px-6 py-4" ref={scrollAreaRef}>
+          <ScrollArea className="flex-1 px-6 py-4" ref={scrollAreaRef} onScroll={handleScroll}>
+            {/* Loading indicator at top when fetching older messages */}
+            {isLoadingHistory && (
+              <div className="flex justify-center py-4 animate-fade-in">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            
+            {/* Show "No more messages" indicator */}
+            {!hasMoreMessages && messages.length > 0 && (
+              <div className="text-center py-4 text-sm text-muted-foreground animate-fade-in">
+                Beginning of conversation
+              </div>
+            )}
             {messages.length === 0 && (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center space-y-3 max-w-md animate-fade-in">
@@ -330,7 +559,14 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
                 key={message.id}
                 message={message}
                 selectedImage={selectedImage}
-                onImageSelect={handleImageSelect}
+                onImageSelect={(imageUrl) => {
+                  // Find the imageRecordId for this image URL
+                  const imageIndex = message.images?.indexOf(imageUrl);
+                  const imageRecordId = imageIndex !== undefined && imageIndex >= 0 
+                    ? message.imageRecordIds?.[imageIndex] 
+                    : undefined;
+                  handleImageSelect(imageUrl, imageRecordId);
+                }}
               />
             ))}
             <div ref={messagesEndRef} />
