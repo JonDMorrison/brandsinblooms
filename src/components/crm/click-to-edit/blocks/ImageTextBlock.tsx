@@ -134,13 +134,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   const handleAutoPick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // If AI Image Dialog is available, use it instead
-    if (onOpenAIImageDialog) {
-      onOpenAIImageDialog(block.id);
-      return;
-    }
-    
-    // Fallback to automatic generation if dialog not available
+    // Always generate image directly based on content
     setIsAutoPickGenerating(true);
     
     try {
