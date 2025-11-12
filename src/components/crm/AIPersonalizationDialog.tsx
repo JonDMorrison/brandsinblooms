@@ -188,7 +188,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     }
   };
 
-  const streamThinkingText = async (prompt: string, thinkingMessageId: string): Promise<void> => {
+  const streamThinkingText = async (prompt: string, thinkingMessageId: string): Promise<string> => {
     const startTime = Date.now();
     try {
       console.log('🔄 Generating thinking text...');
@@ -235,20 +235,23 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       );
       
       console.log('✅ Thinking text animation complete. Duration:', duration, 'ms');
+      return fullText;
       
     } catch (error) {
       console.error('❌ Error generating thinking text:', error);
+      const errorText = '⚠️ Unable to generate thinking text. Continuing with image generation...';
       setMessages(prev =>
         prev.map(msg =>
           msg.id === thinkingMessageId
             ? { 
                 ...msg, 
-                content: '⚠️ Unable to generate thinking text. Continuing with image generation...',
+                content: errorText,
                 isThinkingComplete: true 
               }
             : msg
         )
       );
+      return errorText;
     }
   };
 
@@ -288,11 +291,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       setMessages(prev => [...prev, thinkingMessage]);
       
       const thinkingStartTime = Date.now();
-      await streamThinkingText(prompt, thinkingMessage.id);
+      const thinkingContent = await streamThinkingText(prompt, thinkingMessage.id);
       const thinkingDuration = Date.now() - thinkingStartTime;
       
       // Save thinking text to database
-      const thinkingContent = messages.find(m => m.id === thinkingMessage.id)?.content || '';
       if (thinkingContent) {
         await AIChatPersistenceService.saveMessage({
           sessionId: currentSessionId,
@@ -300,6 +302,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
           content: thinkingContent,
           metadata: { thinking_duration: thinkingDuration }
         });
+        console.log('💾 Thinking text saved to database');
       }
       
       // Brief pause before moving to next step
