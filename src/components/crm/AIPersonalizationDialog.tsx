@@ -8,6 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AIChatMessage } from './ai-chat-message';
 import { AIChatPersistenceService } from '@/services/aiChatPersistence';
+import type { MessageWithSession } from '@/services/aiChatPersistence';
+import { AISessionDivider } from './ai-session-divider';
 
 interface AIPersonalizationDialogProps {
   open: boolean;
@@ -21,13 +23,21 @@ interface AIPersonalizationDialogProps {
 
 interface Message {
   id: string;
-  type: 'user' | 'assistant' | 'thinking' | 'images' | 'loading';
+  type: 'user' | 'assistant' | 'thinking' | 'images' | 'loading' | 'session_divider';
   content: string;
   images?: string[];
   imageRecordIds?: string[]; // IDs from ai_assistant_generated_images table
   timestamp: Date;
   isThinkingComplete?: boolean;
   thinkingDuration?: number;
+  // For session dividers
+  sessionInfo?: {
+    sessionId: string;
+    title: string | null;
+    contextType: string | null;
+    channel: string | null;
+    createdAt: string;
+  };
 }
 
 export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = ({
@@ -50,8 +60,8 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   // Chat persistence state
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [hasMoreMessages, setHasMoreMessages] = useState(true);
-  const [oldestLoadedSequence, setOldestLoadedSequence] = useState<number | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [oldestLoadedTimestamp, setOldestLoadedTimestamp] = useState<string | null>(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -60,10 +70,15 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
 
   // Initialize session when dialog opens or context changes
   useEffect(() => {
-    if (open && blockId) {
-      initializeSession();
-    } else if (!open) {
-      // Reset state when dialog closes but keep session ID for potential reopen
+    if (open) {
+      // Initialize context session for saving new messages
+      if (blockId) {
+        initializeSession();
+      }
+      // Load global message history
+      loadInitialMessages();
+    } else {
+      // Reset state when dialog closes
       setInputPrompt('');
       setSelectedImage(null);
       setSelectedImageRecordId(null);
@@ -81,81 +96,152 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         channel
       });
       
-      console.log('✅ Session initialized:', sessionId);
+      console.log('✅ Session initialized for saving messages:', sessionId);
       setCurrentSessionId(sessionId);
-      
-      // Reset pagination state
-      setHasMoreMessages(true);
-      setOldestLoadedSequence(null);
-      
-      // Load initial 15 messages
-      await loadInitialMessages(sessionId);
     } catch (error) {
       console.error('❌ Failed to initialize session:', error);
-      toast.error('Failed to load chat history');
+      toast.error('Failed to initialize chat session');
     }
   };
 
-  const loadInitialMessages = async (sessionId: string) => {
+  const loadInitialMessages = async () => {
     try {
-      console.log('📥 Loading initial 15 messages for session:', sessionId);
+      console.log('📥 Loading initial 15 messages globally...');
       
-      // Load only the last 15 messages initially
-      const dbMessages = await AIChatPersistenceService.loadMessages(sessionId, 15);
+      // Load recent 15 messages from ALL sessions
+      const dbMessages = await AIChatPersistenceService.loadGlobalMessages(15);
       
-      console.log(`✅ Loaded ${dbMessages.length} messages from database`);
+      const sessionCount = new Set(dbMessages.map(m => m.sessionId)).size;
+      console.log(`✅ Loaded ${dbMessages.length} messages from ${sessionCount} sessions`);
       
-      // Convert database messages to UI message format
-      const uiMessages = await convertDBMessagesToUI(dbMessages);
+      // Convert to UI messages with session dividers
+      const uiMessages = await convertGlobalMessagesToUI(dbMessages);
       
       setMessages(uiMessages);
-      setHasMoreMessages(dbMessages.length === 15); // More messages if we got exactly 15
+      setHasMoreMessages(dbMessages.length === 15);
       
       if (dbMessages.length > 0) {
-        setOldestLoadedSequence(dbMessages[0].sequenceNumber);
-        console.log('📊 Oldest loaded sequence:', dbMessages[0].sequenceNumber);
+        setOldestLoadedTimestamp(dbMessages[0].createdAt);
+        console.log('📊 Oldest loaded timestamp:', dbMessages[0].createdAt);
       } else {
-        console.log('💬 No previous messages - starting fresh conversation');
+        console.log('💬 No previous messages - starting fresh');
       }
     } catch (error) {
-      console.error('❌ Failed to load initial messages:', error);
-      // Initialize empty conversation on error
+      console.error('❌ Failed to load messages:', error);
       setMessages([]);
       setHasMoreMessages(false);
     }
   };
 
   const loadMoreMessages = async () => {
-    if (!currentSessionId || !oldestLoadedSequence || isLoadingHistory) return;
+    if (!oldestLoadedTimestamp || isLoadingHistory) return;
     
     setIsLoadingHistory(true);
     
     try {
-      const olderMessages = await AIChatPersistenceService.loadMessages(
-        currentSessionId,
+      console.log('⬆️ Loading 5 older messages before:', oldestLoadedTimestamp);
+      
+      const olderMessages = await AIChatPersistenceService.loadGlobalMessages(
         5,
-        oldestLoadedSequence
+        oldestLoadedTimestamp
       );
       
+      console.log(`✅ Loaded ${olderMessages.length} older messages`);
+      
       if (olderMessages.length > 0) {
-        const uiMessages = await convertDBMessagesToUI(olderMessages);
+        const uiMessages = await convertGlobalMessagesToUI(olderMessages);
         
         // Prepend to existing messages
         setMessages(prev => [...uiMessages, ...prev]);
         
-        // Update oldest sequence tracker
-        setOldestLoadedSequence(olderMessages[0].sequenceNumber);
+        // Update oldest timestamp tracker
+        setOldestLoadedTimestamp(olderMessages[0].createdAt);
+        console.log('📊 New oldest timestamp:', olderMessages[0].createdAt);
         
-        // If we got fewer than 5, no more messages exist
+        // If we got less than 5, we've reached the beginning
         setHasMoreMessages(olderMessages.length === 5);
+        
+        if (olderMessages.length < 5) {
+          console.log('🏁 Reached beginning of conversation');
+        }
       } else {
+        console.log('🏁 No more messages to load');
         setHasMoreMessages(false);
       }
     } catch (error) {
-      console.error('Failed to load more messages:', error);
+      console.error('❌ Failed to load more messages:', error);
     } finally {
       setIsLoadingHistory(false);
     }
+  };
+
+  const convertGlobalMessagesToUI = async (
+    dbMessages: MessageWithSession[]
+  ): Promise<Message[]> => {
+    const uiMessages: Message[] = [];
+    let lastSessionId: string | null = null;
+
+    for (const dbMsg of dbMessages) {
+      // Insert session divider when session changes
+      if (dbMsg.sessionId !== lastSessionId) {
+        uiMessages.push({
+          id: `divider-${dbMsg.sessionId}`,
+          type: 'session_divider',
+          content: '',
+          timestamp: new Date(dbMsg.session.createdAt),
+          sessionInfo: {
+            sessionId: dbMsg.session.id,
+            title: dbMsg.session.title,
+            contextType: dbMsg.session.contextType,
+            channel: dbMsg.session.channel,
+            createdAt: dbMsg.session.createdAt
+          }
+        });
+        lastSessionId = dbMsg.sessionId;
+      }
+
+      // Convert message
+      let uiMessage: Message;
+      
+      if (dbMsg.messageType === 'user_prompt') {
+        uiMessage = {
+          id: dbMsg.id,
+          type: 'user',
+          content: dbMsg.content,
+          timestamp: new Date(dbMsg.createdAt)
+        };
+      } else if (dbMsg.messageType === 'thinking_text') {
+        uiMessage = {
+          id: dbMsg.id,
+          type: 'thinking',
+          content: dbMsg.content,
+          timestamp: new Date(dbMsg.createdAt),
+          isThinkingComplete: true,
+          thinkingDuration: dbMsg.metadata?.thinkingDuration
+        };
+      } else if (dbMsg.messageType === 'images') {
+        const imageData = await AIChatPersistenceService.loadImagesForMessage(dbMsg.id);
+        uiMessage = {
+          id: dbMsg.id,
+          type: 'images',
+          content: dbMsg.content,
+          images: imageData.map(img => img.imageUrl),
+          imageRecordIds: imageData.map(img => img.id),
+          timestamp: new Date(dbMsg.createdAt)
+        };
+      } else {
+        uiMessage = {
+          id: dbMsg.id,
+          type: 'assistant',
+          content: dbMsg.content,
+          timestamp: new Date(dbMsg.createdAt)
+        };
+      }
+      
+      uiMessages.push(uiMessage);
+    }
+
+    return uiMessages;
   };
 
   const convertDBMessagesToUI = async (dbMessages: any[]): Promise<Message[]> => {
@@ -201,7 +287,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
     const scrollTop = target.scrollTop;
     
     // If scrolled to within 100px of top and not already loading
-    if (scrollTop < 100 && !isLoadingHistory && hasMoreMessages && currentSessionId) {
+    if (scrollTop < 100 && !isLoadingHistory && hasMoreMessages) {
       loadMoreMessages();
     }
   };
@@ -583,21 +669,35 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
               </div>
             )}
 
-            {messages.map((message) => (
-              <AIChatMessage
-                key={message.id}
-                message={message}
-                selectedImage={selectedImage}
-                onImageSelect={(imageUrl) => {
-                  // Find the imageRecordId for this image URL
-                  const imageIndex = message.images?.indexOf(imageUrl);
-                  const imageRecordId = imageIndex !== undefined && imageIndex >= 0 
-                    ? message.imageRecordIds?.[imageIndex] 
-                    : undefined;
-                  handleImageSelect(imageUrl, imageRecordId);
-                }}
-              />
-            ))}
+            {messages.map((message) => {
+              if (message.type === 'session_divider' && message.sessionInfo) {
+                return (
+                  <AISessionDivider
+                    key={message.id}
+                    sessionTitle={message.sessionInfo.title}
+                    contextType={message.sessionInfo.contextType}
+                    channel={message.sessionInfo.channel}
+                    createdAt={message.sessionInfo.createdAt}
+                  />
+                );
+              }
+              
+              return (
+                <AIChatMessage
+                  key={message.id}
+                  message={message}
+                  selectedImage={selectedImage}
+                  onImageSelect={(imageUrl) => {
+                    // Find the imageRecordId for this image URL
+                    const imageIndex = message.images?.indexOf(imageUrl);
+                    const imageRecordId = imageIndex !== undefined && imageIndex >= 0 
+                      ? message.imageRecordIds?.[imageIndex] 
+                      : undefined;
+                    handleImageSelect(imageUrl, imageRecordId);
+                  }}
+                />
+              );
+            })}
             <div ref={messagesEndRef} />
           </ScrollArea>
 

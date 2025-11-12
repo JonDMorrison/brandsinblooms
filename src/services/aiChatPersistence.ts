@@ -33,6 +33,16 @@ export interface GeneratedImageData {
   isSelected: boolean;
 }
 
+export interface MessageWithSession extends MessageData {
+  session: {
+    id: string;
+    title: string | null;
+    contextType: string | null;
+    channel: string | null;
+    createdAt: string;
+  };
+}
+
 // Type-safe wrappers for new tables
 type AnyTable = any;
 
@@ -119,6 +129,60 @@ export class AIChatPersistenceService {
       sequenceNumber: msg.sequence_number,
       metadata: msg.metadata || {},
       createdAt: msg.created_at
+    }));
+  }
+
+  /**
+   * Load recent messages from ALL user sessions (for global chat history)
+   */
+  static async loadGlobalMessages(
+    limit: number = 15,
+    beforeTimestamp?: string
+  ): Promise<MessageWithSession[]> {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) throw new Error('User not authenticated');
+
+    // Query messages with session info joined
+    let query = supabase
+      .from('ai_assistant_messages' as AnyTable)
+      .select(`
+        *,
+        ai_assistant_sessions!inner(
+          id,
+          title,
+          context_type,
+          channel,
+          created_at,
+          user_id
+        )
+      `)
+      .eq('ai_assistant_sessions.user_id', userData.user.id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (beforeTimestamp) {
+      query = query.lt('created_at', beforeTimestamp);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Reverse to get chronological order and map to interface
+    return (data || []).reverse().map((msg: any) => ({
+      id: msg.id,
+      sessionId: msg.session_id,
+      messageType: msg.message_type as any,
+      content: msg.content,
+      sequenceNumber: msg.sequence_number,
+      metadata: msg.metadata || {},
+      createdAt: msg.created_at,
+      session: {
+        id: msg.ai_assistant_sessions.id,
+        title: msg.ai_assistant_sessions.title,
+        contextType: msg.ai_assistant_sessions.context_type,
+        channel: msg.ai_assistant_sessions.channel,
+        createdAt: msg.ai_assistant_sessions.created_at
+      }
     }));
   }
 

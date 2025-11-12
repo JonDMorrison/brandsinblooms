@@ -4,12 +4,19 @@ import { ThinkingDots } from '@/components/ui/thinking-dots';
 
 interface Message {
   id: string;
-  type: 'user' | 'assistant' | 'thinking' | 'images' | 'loading';
+  type: 'user' | 'assistant' | 'thinking' | 'images' | 'loading' | 'session_divider';
   content: string;
   images?: string[];
   timestamp: Date;
   isThinkingComplete?: boolean;
   thinkingDuration?: number; // Duration in milliseconds
+  sessionInfo?: {
+    sessionId: string;
+    title: string | null;
+    contextType: string | null;
+    channel: string | null;
+    createdAt: string;
+  };
 }
 
 interface AIChatMessageProps {
