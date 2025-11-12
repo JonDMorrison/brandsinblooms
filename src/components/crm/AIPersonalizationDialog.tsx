@@ -200,28 +200,39 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
         lastSessionId = dbMsg.sessionId;
       }
 
-      // Convert message
-      let uiMessage: Message;
+      // Convert message based on type
+      console.log('🔄 Converting message:', { 
+        id: dbMsg.id, 
+        type: dbMsg.messageType, 
+        hasContent: !!dbMsg.content 
+      });
       
       if (dbMsg.messageType === 'user_prompt') {
-        uiMessage = {
+        const uiMessage: Message = {
           id: dbMsg.id,
           type: 'user',
           content: dbMsg.content,
           timestamp: new Date(dbMsg.createdAt)
         };
+        uiMessages.push(uiMessage);
+        console.log('✅ Added user message');
       } else if (dbMsg.messageType === 'thinking_text') {
-        uiMessage = {
+        const uiMessage: Message = {
           id: dbMsg.id,
           type: 'thinking',
           content: dbMsg.content,
           timestamp: new Date(dbMsg.createdAt),
           isThinkingComplete: true,
-          thinkingDuration: dbMsg.metadata?.thinkingDuration
+          thinkingDuration: dbMsg.metadata?.thinking_duration || dbMsg.metadata?.thinkingDuration
         };
+        uiMessages.push(uiMessage);
+        console.log('✅ Added thinking message');
       } else if (dbMsg.messageType === 'images') {
+        console.log('📸 Loading images for message:', dbMsg.id);
         const imageData = await AIChatPersistenceService.loadImagesForMessage(dbMsg.id);
-        uiMessage = {
+        console.log('📸 Loaded images:', { count: imageData.length, urls: imageData.map(img => img.imageUrl) });
+        
+        const uiMessage: Message = {
           id: dbMsg.id,
           type: 'images',
           content: dbMsg.content,
@@ -229,18 +240,21 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
           imageRecordIds: imageData.map(img => img.id),
           timestamp: new Date(dbMsg.createdAt)
         };
+        uiMessages.push(uiMessage);
+        console.log('✅ Added images message with', imageData.length, 'images');
       } else {
-        uiMessage = {
+        const uiMessage: Message = {
           id: dbMsg.id,
           type: 'assistant',
           content: dbMsg.content,
           timestamp: new Date(dbMsg.createdAt)
         };
+        uiMessages.push(uiMessage);
+        console.log('✅ Added assistant message (fallback)');
       }
-      
-      uiMessages.push(uiMessage);
     }
 
+    console.log('✅ Converted', uiMessages.length, 'total UI messages');
     return uiMessages;
   };
 
