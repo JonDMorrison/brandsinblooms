@@ -6338,6 +6338,10 @@ export type Database = {
           suggestion_reason: string
         }[]
       }
+      get_next_message_sequence: {
+        Args: { p_session_id: string }
+        Returns: number
+      }
       get_token_balance: {
         Args: { p_user_id: string }
         Returns: {

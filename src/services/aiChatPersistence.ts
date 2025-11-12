@@ -238,6 +238,7 @@ export class AIChatPersistenceService {
 
   /**
    * Save a new message to the session
+   * Uses atomic database function to prevent race conditions
    */
   static async saveMessage(params: {
     sessionId: string;
@@ -245,16 +246,16 @@ export class AIChatPersistenceService {
     content: string;
     metadata?: Record<string, any>;
   }): Promise<string> {
-    // Get the next sequence number
-    const { data: lastMessage } = await supabase
-      .from('ai_assistant_messages' as AnyTable)
-      .select('sequence_number')
-      .eq('session_id', params.sessionId)
-      .order('sequence_number', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Use atomic database function to get next sequence number
+    const { data: sequenceData, error: sequenceError } = await supabase
+      .rpc('get_next_message_sequence', { p_session_id: params.sessionId });
 
-    const nextSequence = ((lastMessage as any)?.sequence_number || 0) + 1;
+    if (sequenceError) {
+      console.error('❌ Failed to get next sequence:', sequenceError);
+      throw sequenceError;
+    }
+
+    const nextSequence = sequenceData as number;
 
     const { data, error } = await supabase
       .from('ai_assistant_messages' as AnyTable)
