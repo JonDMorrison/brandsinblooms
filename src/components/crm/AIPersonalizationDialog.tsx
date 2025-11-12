@@ -60,6 +60,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   // Chat persistence state
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [oldestLoadedTimestamp, setOldestLoadedTimestamp] = useState<string | null>(null);
 
@@ -105,6 +106,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   };
 
   const loadInitialMessages = async () => {
+    setIsInitialLoad(true);
     try {
       console.log('📥 Loading initial 15 messages globally...');
       
@@ -130,6 +132,8 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       console.error('❌ Failed to load messages:', error);
       setMessages([]);
       setHasMoreMessages(false);
+    } finally {
+      setIsInitialLoad(false);
     }
   };
 
@@ -658,12 +662,24 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
             )}
             
             {/* Show "No more messages" indicator */}
-            {!hasMoreMessages && messages.length > 0 && (
+            {!hasMoreMessages && messages.length > 0 && !isInitialLoad && (
               <div className="text-center py-4 text-sm text-muted-foreground animate-fade-in">
                 Beginning of conversation
               </div>
             )}
-            {messages.length === 0 && (
+            
+            {/* Show spinner during initial load */}
+            {isInitialLoad && (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-4 animate-fade-in">
+                  <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+                  <p className="text-sm text-muted-foreground">Loading conversation history...</p>
+                </div>
+              </div>
+            )}
+            
+            {/* Show welcome message only when not loading and no messages */}
+            {!isInitialLoad && messages.length === 0 && (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center space-y-3 max-w-md animate-fade-in">
                   <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
