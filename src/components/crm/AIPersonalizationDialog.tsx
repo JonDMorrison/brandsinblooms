@@ -673,7 +673,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center space-y-4 animate-fade-in">
                   <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
-                  <p className="text-sm text-muted-foreground">Loading conversation history...</p>
+                  <p className="text-sm text-muted-foreground">Making assistant ready for use.</p>
                 </div>
               </div>
             )}
