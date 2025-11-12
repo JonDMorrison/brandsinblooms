@@ -67,15 +67,22 @@ export class AIChatPersistenceService {
     if (!userProfile) throw new Error('User profile not found');
 
     // Try to find existing session for this context
-    const { data: existingSession } = await supabase
+    let query = supabase
       .from('ai_assistant_sessions' as AnyTable)
       .select('id')
       .eq('user_id', userData.user.id)
       .eq('context_type', params.contextType || 'general')
-      .eq('context_id', params.contextId || '')
       .order('last_activity_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+    
+    // Handle context_id properly - use .is() for null, .eq() for values
+    if (params.contextId) {
+      query = query.eq('context_id', params.contextId);
+    } else {
+      query = query.is('context_id', null);
+    }
+    
+    const { data: existingSession } = await query.maybeSingle();
 
     if (existingSession) {
       return (existingSession as any).id;

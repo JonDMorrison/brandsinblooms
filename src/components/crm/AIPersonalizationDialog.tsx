@@ -368,7 +368,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       try {
         sessionId = await AIChatPersistenceService.findOrCreateSession({
           contextType,
-          contextId: blockId,
+          contextId: blockId || null,
           channel
         });
         setCurrentSessionId(sessionId);
