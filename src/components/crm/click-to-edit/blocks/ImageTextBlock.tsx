@@ -144,9 +144,10 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
     setIsAutoPickGenerating(true);
     
     try {
-      // Check if there's content (headline or body)
+      // Check if there's content (headline, title, body, or content text)
       const headline = block.headline || block.title || '';
-      const body = block.body || (typeof block.content === 'string' ? block.content : '');
+      const body = block.body || (typeof block.content === 'string' ? block.content : '') || 
+                   (typeof block.content === 'object' && block.content ? (block.content as any).body || '' : '');
       const hasContent = headline.trim() || body.trim();
       
       // Determine content context and title
@@ -154,7 +155,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       let contentTitle: string | undefined;
       
       if (hasContent) {
-        // Use actual content for AI generation
+        // Strategy 1: Use actual content for AI generation
         contentContext = body.trim() || headline.trim();
         contentTitle = headline.trim() || undefined;
         
@@ -163,13 +164,36 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
           description: "Creating an image based on your content...",
         });
       } else {
-        // Use generic garden marketing context
-        contentContext = "Professional garden center marketing image showcasing beautiful plants, flowers, and gardening products in an attractive display";
-        contentTitle = "Garden Center Marketing";
+        // Strategy 2: Generate garden/seasonal fallback image
+        // Detect current season
+        const month = new Date().getMonth(); // 0-11
+        let season = '';
+        let seasonalElements = '';
+        
+        if (month >= 2 && month <= 4) {
+          // March, April, May - Spring
+          season = 'spring';
+          seasonalElements = 'blooming flowers, fresh green leaves, tulips, daffodils, cherry blossoms, vibrant spring colors';
+        } else if (month >= 5 && month <= 7) {
+          // June, July, August - Summer
+          season = 'summer';
+          seasonalElements = 'lush gardens, colorful flowers in full bloom, roses, hydrangeas, bright sunlight, verdant leaves';
+        } else if (month >= 8 && month <= 10) {
+          // September, October, November - Fall/Autumn
+          season = 'autumn';
+          seasonalElements = 'fall foliage, colorful autumn leaves, chrysanthemums, harvest colors, golden tones';
+        } else {
+          // December, January, February - Winter
+          season = 'winter';
+          seasonalElements = 'winter garden, evergreen plants, frost-covered leaves, winter flowers, hellebores, winter gardening prep';
+        }
+        
+        contentContext = `Beautiful ${season} garden scene for marketing: ${seasonalElements}. Professional garden center photography showcasing seasonal plants and flowers perfect for ${season} gardening.`;
+        contentTitle = `${season.charAt(0).toUpperCase() + season.slice(1)} Garden Marketing`;
         
         toast({
           title: "Generating image",
-          description: "Creating a garden center marketing image...",
+          description: `Creating a ${season} garden image...`,
         });
       }
       
@@ -187,7 +211,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       if (imageUrl) {
         onUpdate?.({
           imageUrl,
-          altText: contentTitle || 'AI generated garden center image'
+          altText: contentTitle || 'AI generated garden image'
         });
         
         toast({
