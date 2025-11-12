@@ -31,9 +31,17 @@ serve(async (req) => {
     const body: TagGenerationRequest = await req.json();
     const { contentContext, contentTitle = '', channel } = body;
 
-    console.log('🏷️ Generating tags for image...', { channel, contextLength: contentContext.length });
+    console.log('🏷️ [Tag Generator] Starting tag generation...', {
+      channel,
+      contextLength: contentContext.length,
+      titleLength: contentTitle?.length || 0,
+      timestamp: new Date().toISOString()
+    });
 
     // Call OpenAI to generate comprehensive tags
+    console.log('🤖 [Tag Generator] Calling OpenAI API...');
+    const apiStartTime = Date.now();
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -88,16 +96,34 @@ Provide 10-15 tags that capture the visual elements this image would contain.`
       }),
     });
 
+    const apiDuration = ((Date.now() - apiStartTime) / 1000).toFixed(2);
+    
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`❌ [Tag Generator] OpenAI API error after ${apiDuration}s:`, {
+        status: response.status,
+        error: errorText.substring(0, 500)
+      });
       throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
+    console.log(`✅ [Tag Generator] OpenAI API responded in ${apiDuration}s`);
+
     const data = await response.json();
     const content = data.choices[0].message.content;
+    
+    console.log('📝 [Tag Generator] Parsing OpenAI response...', {
+      contentLength: content?.length,
+      hasContent: !!content
+    });
+    
     const parsedResponse = JSON.parse(content);
 
     // Validate and normalize tags
+    console.log('🔍 [Tag Generator] Validating and normalizing tags...', {
+      rawTagCount: parsedResponse.tags?.length || 0
+    });
+    
     const tags: GeneratedTag[] = (parsedResponse.tags || [])
       .filter((tag: any) => 
         tag.name && 
@@ -111,17 +137,29 @@ Provide 10-15 tags that capture the visual elements this image would contain.`
         confidence: parseFloat(tag.confidence.toFixed(2))
       }));
 
-    console.log(`✅ Generated ${tags.length} tags`);
+    console.log(`✅ [Tag Generator] Successfully generated ${tags.length} valid tags`, {
+      categories: [...new Set(tags.map(t => t.category))],
+      samples: tags.slice(0, 5).map(t => `${t.name}(${t.category})`),
+      avgConfidence: (tags.reduce((sum, t) => sum + t.confidence, 0) / tags.length).toFixed(2)
+    });
 
     return new Response(
       JSON.stringify({ tags }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('❌ Tag generation error:', error);
+  } catch (error: any) {
+    console.error('❌ [Tag Generator] Critical error:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack?.substring(0, 500),
+      timestamp: new Date().toISOString()
+    });
     return new Response(
-      JSON.stringify({ error: error.message, tags: [] }),
+      JSON.stringify({ 
+        error: error.message || 'Tag generation failed',
+        tags: [] 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

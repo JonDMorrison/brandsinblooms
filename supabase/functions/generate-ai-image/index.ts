@@ -195,8 +195,9 @@ serve(async (req) => {
               size_kb: Math.round(binaryData.length / 1024)
             });
 
-            // Generate tags using OpenAI with timeout
-            console.log('🏷️ [Tag Generation] Starting...');
+            // Generate tags using OpenAI with increased timeout
+            console.log('🏷️ [Tag Generation] Starting tag generation...');
+            const tagStartTime = Date.now();
             let tagsData: any = null;
             let tagsError: any = null;
             
@@ -206,28 +207,52 @@ serve(async (req) => {
                   body: { contentContext, contentTitle, channel }
                 }),
                 new Promise((_, reject) => 
-                  setTimeout(() => reject(new Error('Tag generation timeout')), 15000)
+                  setTimeout(() => reject(new Error('Tag generation timeout after 30s')), 30000)
                 )
-              ]);
-              tagsData = (tagResult as any).data;
-              tagsError = (tagResult as any).error;
+              ]) as any;
+              
+              const tagDuration = ((Date.now() - tagStartTime) / 1000).toFixed(2);
+              
+              tagsData = tagResult.data;
+              tagsError = tagResult.error;
               
               if (tagsError) {
-                console.error('❌ [Tag Generation] Failed:', tagsError);
+                console.error('❌ [Tag Generation] Failed after ${tagDuration}s:', {
+                  error: tagsError.message || tagsError,
+                  code: tagsError.code,
+                  details: tagsError.details
+                });
               } else {
-                console.log('✅ [Tag Generation] Completed successfully');
+                console.log(`✅ [Tag Generation] Completed successfully in ${tagDuration}s`, {
+                  tagCount: tagsData?.tags?.length || 0
+                });
               }
-            } catch (tagTimeout) {
-              console.warn('⚠️ [Tag Generation] Timeout, continuing without tags');
-              tagsError = tagTimeout;
+            } catch (tagError: any) {
+              const tagDuration = ((Date.now() - tagStartTime) / 1000).toFixed(2);
+              console.error(`⚠️ [Tag Generation] Exception after ${tagDuration}s:`, {
+                message: tagError.message,
+                name: tagError.name,
+                isTimeout: tagError.message?.includes('timeout')
+              });
+              console.warn('⚠️ [Tag Generation] Continuing without tags');
+              tagsError = tagError;
             }
 
             const tags = (tagsData?.tags || []) as any[];
             generatedTags = tags;  // Store for return metadata
-            console.log(`🏷️ [Tag Generation] Result: ${tags.length} tags generated`, {
-              tags: tags.slice(0, 3).map((t: any) => `${t.name}(${t.category})`),
-              total: tags.length
-            });
+            
+            if (tags.length > 0) {
+              console.log(`🏷️ [Tag Generation] Result: ${tags.length} tags received`, {
+                samples: tags.slice(0, 5).map((t: any) => `${t.name}(${t.category})`),
+                categories: [...new Set(tags.map((t: any) => t.category))],
+                avgConfidence: (tags.reduce((sum: number, t: any) => sum + t.confidence, 0) / tags.length).toFixed(2)
+              });
+            } else {
+              console.warn('⚠️ [Tag Generation] No tags were generated', {
+                hadError: !!tagsError,
+                errorMessage: tagsError?.message
+              });
+            }
 
             // Insert into global_image_gallery
             const { data: imageRecord, error: insertError } = await supabase
@@ -263,31 +288,57 @@ serve(async (req) => {
 
               // Insert tags if available
               if (tags.length > 0 && globalImageId) {
-                const tagInserts = tags.map((tag: any) => ({
-                  image_id: globalImageId,
-                  tag_name: tag.name,
-                  tag_category: tag.category,
-                  confidence_score: tag.confidence,
-                  generated_by: 'openai'
-                }));
+                console.log('📝 [Database] Preparing to insert tags:', {
+                  tagCount: tags.length,
+                  globalImageId,
+                  sampleTags: tags.slice(0, 3).map((t: any) => t.name)
+                });
+                
+                try {
+                  const tagInserts = tags.map((tag: any) => ({
+                    image_id: globalImageId,
+                    tag_name: tag.name,
+                    tag_category: tag.category,
+                    confidence_score: tag.confidence,
+                    generated_by: 'openai'
+                  }));
 
-                const { error: tagsInsertError } = await supabase
-                  .from('global_image_tags')
-                  .insert(tagInserts);
+                  const { data: insertedTags, error: tagsInsertError } = await supabase
+                    .from('global_image_tags')
+                    .insert(tagInserts)
+                    .select('id, tag_name, tag_category');
 
-                if (tagsInsertError) {
-                  console.error('❌ [Database] Failed to insert into global_image_tags:', {
-                    error: tagsInsertError.message,
-                    code: tagsInsertError.code,
-                    globalImageId,
-                    tagCount: tags.length
-                  });
-                } else {
-                  console.log(`✅ [Database] Inserted ${tags.length} tags into global_image_tags:`, {
-                    globalImageId,
-                    categories: [...new Set(tags.map((t: any) => t.category))]
+                  if (tagsInsertError) {
+                    console.error('❌ [Database] Failed to insert into global_image_tags:', {
+                      error: tagsInsertError.message,
+                      code: tagsInsertError.code,
+                      hint: tagsInsertError.hint,
+                      details: tagsInsertError.details,
+                      globalImageId,
+                      tagCount: tags.length,
+                      firstTag: tagInserts[0]
+                    });
+                  } else {
+                    console.log(`✅ [Database] Successfully inserted ${insertedTags?.length || tags.length} tags:`, {
+                      globalImageId,
+                      insertedCount: insertedTags?.length,
+                      categories: [...new Set(tags.map((t: any) => t.category))],
+                      insertedTags: insertedTags?.slice(0, 5).map((t: any) => `${t.tag_name}(${t.tag_category})`)
+                    });
+                  }
+                } catch (insertException: any) {
+                  console.error('❌ [Database] Exception during tag insertion:', {
+                    message: insertException.message,
+                    stack: insertException.stack?.substring(0, 300),
+                    globalImageId
                   });
                 }
+              } else {
+                console.warn('⚠️ [Database] Skipping tag insertion:', {
+                  hasGlobalImageId: !!globalImageId,
+                  tagCount: tags.length,
+                  reason: !globalImageId ? 'No global image ID' : 'No tags generated'
+                });
               }
               
               // Final success summary
@@ -298,6 +349,7 @@ serve(async (req) => {
               console.log('📦 Storage Path:', storagePath);
               console.log('🔗 Public URL:', finalImageUrl);
               console.log('📺 Channel:', channel);
+              console.log('🏷️ Tags Generated:', tags.length);
               console.log('⏱️ Timestamp:', new Date().toISOString());
               console.log('🎯 ═══════════════════════════════════════════════════');
             }
