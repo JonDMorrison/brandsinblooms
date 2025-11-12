@@ -361,18 +361,32 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
   };
 
   const generateImages = async (prompt: string) => {
-    if (!currentSessionId) {
-      toast.error('Session not initialized');
-      return;
+    // Auto-initialize session if not already initialized
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      console.log('🔄 Session not initialized, initializing now...');
+      try {
+        sessionId = await AIChatPersistenceService.findOrCreateSession({
+          contextType,
+          contextId: blockId,
+          channel
+        });
+        setCurrentSessionId(sessionId);
+        console.log('✅ Session auto-initialized:', sessionId);
+      } catch (error) {
+        console.error('❌ Failed to initialize session:', error);
+        toast.error('Failed to initialize chat session');
+        return;
+      }
     }
     
     setIsProcessing(true);
     
     try {
       // Step 1: Save and add user message
-      console.log('💾 Saving user prompt to session:', currentSessionId);
+      console.log('💾 Saving user prompt to session:', sessionId);
       const userMessageId = await AIChatPersistenceService.saveMessage({
-        sessionId: currentSessionId,
+        sessionId: sessionId,
         messageType: 'user_prompt',
         content: prompt,
         metadata: {}
@@ -404,7 +418,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       // Save thinking text to database
       if (thinkingContent) {
         await AIChatPersistenceService.saveMessage({
-          sessionId: currentSessionId,
+          sessionId: sessionId,
           messageType: 'thinking_text',
           content: thinkingContent,
           metadata: { thinking_duration: thinkingDuration }
@@ -482,9 +496,9 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
 
       // Step 7: Save and display images
-      console.log('💾 Saving image message to session:', currentSessionId);
+      console.log('💾 Saving image message to session:', sessionId);
       const imageMessageId = await AIChatPersistenceService.saveMessage({
-        sessionId: currentSessionId,
+        sessionId: sessionId,
         messageType: 'images',
         content: 'Here are 3 images based on your prompt:',
         metadata: { image_count: imageUrls.length }
@@ -495,7 +509,7 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       if (globalImageIds.length > 0) {
         console.log('💾 Saving generated image records...');
         await AIChatPersistenceService.saveGeneratedImages({
-          sessionId: currentSessionId,
+          sessionId: sessionId,
           messageId: imageMessageId,
           userPrompt: prompt,
           enhancedPrompt: enhancedPrompt,
