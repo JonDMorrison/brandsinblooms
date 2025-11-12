@@ -95,7 +95,7 @@ export const AIChatMessage: React.FC<AIChatMessageProps> = ({
     return (
       <div className="mb-6 animate-fade-in">
         <div className="flex justify-start mb-3">
-          <div className="max-w-[80%] bg-muted/40 rounded-2xl rounded-tl-md px-4 py-2.5 shadow-sm border border-border/40">
+          <div className="max-w-[80%] bg-muted/40 rounded-2xl rounded-tl-md px-4 py-2.5 shadow-sm border border-gray-200">
             <p className="text-sm text-foreground">{message.content}</p>
           </div>
         </div>
