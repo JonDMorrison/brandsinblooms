@@ -82,17 +82,17 @@ export const useHeaderBackgroundImage = ({
       let generatedSubtitle = '';
       try {
         const { data: subtitleData, error: subtitleError } = await supabase.functions.invoke(
-          'generate-thinking-text',
+          'generate-subtitle',
           {
             body: {
-              prompt: `Based on this newsletter content, generate a compelling subheading of exactly 5-9 words that captures the key theme. Output ONLY the subheading text, nothing else. Content: ${aggregatedContent.substring(0, 500)}`,
-              maxLines: 1
+              contentContext: aggregatedContent,
+              campaignTitle: campaignTitle
             }
           }
         );
 
-        if (!subtitleError && subtitleData?.thinkingText) {
-          generatedSubtitle = subtitleData.thinkingText.trim();
+        if (!subtitleError && subtitleData?.subtitle) {
+          generatedSubtitle = subtitleData.subtitle.trim();
           console.log('[HEADER-BG] Generated subtitle:', generatedSubtitle);
         }
       } catch (err) {
