@@ -3946,10 +3946,15 @@ export type Database = {
       }
       import_jobs: {
         Row: {
+          batch_stats: Json | null
           completed_at: string | null
           config: Json
           created_at: string
+          current_stage: string | null
+          error_details: Json | null
+          estimated_completion_at: string | null
           id: string
+          progress_percentage: number | null
           provider: string
           report: Json | null
           status: string
@@ -3958,10 +3963,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          batch_stats?: Json | null
           completed_at?: string | null
           config?: Json
           created_at?: string
+          current_stage?: string | null
+          error_details?: Json | null
+          estimated_completion_at?: string | null
           id?: string
+          progress_percentage?: number | null
           provider: string
           report?: Json | null
           status?: string
@@ -3970,10 +3980,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          batch_stats?: Json | null
           completed_at?: string | null
           config?: Json
           created_at?: string
+          current_stage?: string | null
+          error_details?: Json | null
+          estimated_completion_at?: string | null
           id?: string
+          progress_percentage?: number | null
           provider?: string
           report?: Json | null
           status?: string
@@ -6385,6 +6400,15 @@ export type Database = {
         }
         Returns: string
       }
+      log_import_batch_error: {
+        Args: {
+          p_batch_number: number
+          p_error_message: string
+          p_failed_items?: Json
+          p_job_id: string
+        }
+        Returns: undefined
+      }
       mark_onboarding_completed: {
         Args: { p_company?: string }
         Returns: undefined
@@ -6434,6 +6458,15 @@ export type Database = {
           asset_id: string
           compressed_size_bytes: number
           original_size_bytes: number
+        }
+        Returns: undefined
+      }
+      update_import_job_progress: {
+        Args: {
+          p_batch_stats?: Json
+          p_current_stage: string
+          p_job_id: string
+          p_progress_percentage: number
         }
         Returns: undefined
       }
