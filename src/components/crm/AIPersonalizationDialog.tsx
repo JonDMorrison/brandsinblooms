@@ -98,9 +98,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
 
   const loadInitialMessages = async (sessionId: string) => {
     try {
-      console.log('📥 Loading initial messages for session:', sessionId);
+      console.log('📥 Loading all messages for session:', sessionId);
       
-      const dbMessages = await AIChatPersistenceService.loadMessages(sessionId, 15);
+      // Load ALL messages from the session at once (no limit)
+      const dbMessages = await AIChatPersistenceService.loadMessages(sessionId, 1000);
       
       console.log(`✅ Loaded ${dbMessages.length} messages from database`);
       
@@ -108,11 +109,11 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       const uiMessages = await convertDBMessagesToUI(dbMessages);
       
       setMessages(uiMessages);
-      setHasMoreMessages(dbMessages.length === 15);
+      setHasMoreMessages(false); // All messages loaded
       
       if (dbMessages.length > 0) {
         setOldestLoadedSequence(dbMessages[0].sequenceNumber);
-        console.log('📊 Oldest loaded sequence:', dbMessages[0].sequenceNumber);
+        console.log('📊 Loaded messages from sequence:', dbMessages[0].sequenceNumber, 'to', dbMessages[dbMessages.length - 1].sequenceNumber);
       } else {
         console.log('💬 No previous messages - starting fresh conversation');
       }
