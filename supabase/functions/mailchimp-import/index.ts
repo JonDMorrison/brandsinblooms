@@ -142,16 +142,22 @@ async function batchUpsertConsents(
   if (consentBatch.length === 0) return;
 
   const { error: consentError } = await supabase
-    .from('customer_consent')
+    .from('customer_consents')
     .upsert(consentBatch, { 
       onConflict: 'customer_id,channel',
       ignoreDuplicates: false 
     });
 
   if (consentError) {
-    console.error('[mailchimp-import] Batch consent upsert error:', consentError);
+    console.error('[mailchimp-import] ❌ Batch consent upsert error:', {
+      batchSize: consentBatch.length,
+      error: consentError.message,
+      code: consentError.code,
+      hint: consentError.hint,
+      details: consentError.details
+    });
   } else {
-    console.log(`[mailchimp-import] Successfully upserted ${consentBatch.length} consents in batch`);
+    console.log(`[mailchimp-import] ✅ Successfully upserted ${consentBatch.length} consents in batch`);
   }
 }
 
@@ -185,9 +191,15 @@ async function batchUpsertSuppressions(
     });
 
   if (suppressionError) {
-    console.error('[mailchimp-import] Batch suppression upsert error:', suppressionError);
+    console.error('[mailchimp-import] ❌ Batch suppression upsert error:', {
+      batchSize: suppressionBatch.length,
+      error: suppressionError.message,
+      code: suppressionError.code,
+      hint: suppressionError.hint,
+      details: suppressionError.details
+    });
   } else {
-    console.log(`[mailchimp-import] Successfully upserted ${suppressionBatch.length} suppressions in batch`);
+    console.log(`[mailchimp-import] ✅ Successfully upserted ${suppressionBatch.length} suppressions in batch`);
   }
 }
 
@@ -233,7 +245,13 @@ async function batchUpsertTags(
     .select('id, name');
 
   if (tagError) {
-    console.error('[mailchimp-import] Batch tag upsert error:', tagError);
+    console.error('[mailchimp-import] ❌ Batch tag upsert error:', {
+      batchSize: tagBatch.length,
+      error: tagError.message,
+      code: tagError.code,
+      hint: tagError.hint,
+      details: tagError.details
+    });
     return;
   }
 
@@ -270,9 +288,15 @@ async function batchUpsertTags(
     });
 
   if (linkError) {
-    console.error('[mailchimp-import] Batch contact-tag link error:', linkError);
+    console.error('[mailchimp-import] ❌ Batch contact-tag link error:', {
+      batchSize: contactTagBatch.length,
+      error: linkError.message,
+      code: linkError.code,
+      hint: linkError.hint,
+      details: linkError.details
+    });
   } else {
-    console.log(`[mailchimp-import] Successfully linked ${contactTagBatch.length} contact-tag relationships in batch`);
+    console.log(`[mailchimp-import] ✅ Successfully linked ${contactTagBatch.length} contact-tag relationships in batch`);
   }
 }
 
@@ -310,9 +334,15 @@ async function batchInsertSources(
     });
 
   if (sourceError) {
-    console.error('[mailchimp-import] Batch source insert error:', sourceError);
+    console.error('[mailchimp-import] ❌ Batch source insert error:', {
+      batchSize: sourceBatch.length,
+      error: sourceError.message,
+      code: sourceError.code,
+      hint: sourceError.hint,
+      details: sourceError.details
+    });
   } else {
-    console.log(`[mailchimp-import] Successfully inserted ${sourceBatch.length} source records in batch`);
+    console.log(`[mailchimp-import] ✅ Successfully inserted ${sourceBatch.length} source records in batch`);
   }
 }
 
