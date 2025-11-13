@@ -28,6 +28,7 @@ import { GoogleAnalyticsConnection } from './GoogleAnalyticsConnection';
 import { LightspeedIntegration } from './LightspeedIntegration';
 import { LightspeedDebug } from './LightspeedDebug';
 import { useQuery } from '@tanstack/react-query';
+import { MigrationStatusIndicator } from '@/components/migrations/MigrationStatusIndicator';
 
 const APP_ORIGIN = window.location.origin;
 
@@ -336,6 +337,9 @@ export const IntegrationHub = () => {
 
   return (
     <div className="space-y-8">
+      {/* Global Migration Status Indicator */}
+      <MigrationStatusIndicator />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
