@@ -67,6 +67,9 @@ verify_jwt = false
 [functions.ga-report-data]
 verify_jwt = true
 
+[functions.admin-delete-customers]
+verify_jwt = false
+
 [functions.send-test-email]
 verify_jwt = true
 
