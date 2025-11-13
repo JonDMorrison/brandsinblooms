@@ -304,6 +304,221 @@ async function batchInsertSources(
   console.log(`[mailchimp-import] Successfully inserted ${sourceBatch.length} source records in batch`);
 }
 
+// ============================================================
+// BACKGROUND PROCESSING IMPLEMENTATION
+// ============================================================
+
+async function processMailchimpImport(jobId: string, userId: string) {
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
+  try {
+    const { data: importJob, error: jobError } = await supabase
+      .from('import_jobs')
+      .select('*')
+      .eq('id', jobId)
+      .eq('user_id', userId)
+      .single();
+
+    if (jobError || !importJob) {
+      console.error('[mailchimp-import] Job not found:', jobError);
+      throw new Error('Job not found');
+    }
+
+    // Get tenant and connection
+    const { data: userRecord } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', userId)
+      .single();
+
+    const tenantId = userRecord?.tenant_id;
+    if (!tenantId) throw new Error('Tenant not found');
+
+    const { data: connection } = await supabase
+      .from('provider_connections')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('provider', 'mailchimp')
+      .eq('status', 'connected')
+      .single();
+
+    if (!connection?.encrypted_access_token) {
+      throw new Error('Mailchimp not connected');
+    }
+
+    // Decrypt token
+    const accessToken = await decryptToken(connection.encrypted_access_token);
+    const dc = connection.metadata?.dc || connection.metadata?.api_endpoint?.match(/https:\/\/(.+?)\.api\.mailchimp\.com/)?.[1];
+    const baseUrl = `https://${dc}.api.mailchimp.com/3.0`;
+
+    const config = importJob.config as any || {};
+    const listIds = config.listIds || [];
+    const segmentIds = config.segmentIds || [];
+
+    let totalContacts = 0;
+    let totalErrors = 0;
+    const batchSize = 100;
+    let currentBatch = 0;
+
+    // Process lists with batch operations
+    for (const listId of listIds) {
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        currentBatch++;
+
+        // Check for pause/cancel signals
+        const { data: migJob } = await supabase
+          .from('migration_jobs' as any)
+          .select('status')
+          .eq('id', importJob.migration_job_id)
+          .maybeSingle();
+
+        if (migJob?.status === 'cancelled') {
+          console.log(`[mailchimp-import] Job cancelled by user`);
+          await supabase.from('import_jobs').update({ status: 'cancelled' }).eq('id', jobId);
+          return;
+        }
+
+        if (migJob?.status === 'paused') {
+          console.log(`[mailchimp-import] Job paused, stopping batch processing`);
+          await supabase.from('import_jobs').update({ status: 'paused' }).eq('id', jobId);
+          return;
+        }
+
+        // Fetch batch
+        const response = await fetch(
+          `${baseUrl}/lists/${listId}/members?offset=${offset}&count=${batchSize}`,
+          { headers: { 'Authorization': `Bearer ${accessToken}` } }
+        );
+
+        if (!response.ok) {
+          console.error('[mailchimp-import] API error:', await response.text());
+          break;
+        }
+
+        const data = await response.json();
+        const members = data.members || [];
+        
+        if (members.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        try {
+          // Batch operations
+          const emailToIdMap = await batchUpsertContacts(supabase, tenantId, members);
+          await batchUpsertConsents(supabase, members, emailToIdMap);
+          await batchUpsertSuppressions(supabase, tenantId, members, emailToIdMap);
+          await batchUpsertTags(supabase, tenantId, members, emailToIdMap);
+          await batchInsertSources(supabase, tenantId, members, emailToIdMap);
+
+          totalContacts += members.length;
+
+          // Update progress in both tables
+          const progressPercentage = Math.floor((offset / (data.total_items || 1)) * 100);
+          
+          await supabase.rpc('update_import_job_progress', {
+            p_job_id: importJob.id,
+            p_progress_percentage: progressPercentage,
+            p_current_stage: `Importing contacts (${totalContacts} processed)`,
+            p_batch_stats: {
+              current_batch: currentBatch,
+              total_batches: Math.ceil((data.total_items || 1) / batchSize),
+              failed_batches: 0,
+              contacts_per_batch: batchSize,
+              contacts_imported: totalContacts
+            }
+          });
+
+          // Update migration_job
+          await supabase
+            .from('migration_jobs' as any)
+            .update({
+              progress_current: totalContacts,
+              progress_percentage: progressPercentage,
+              metadata: {
+                current_batch: currentBatch,
+                list_id: listId,
+                last_offset: offset
+              }
+            })
+            .eq('id', importJob.migration_job_id);
+
+        } catch (error: any) {
+          console.error('[mailchimp-import] Batch processing error:', error);
+          totalErrors++;
+          
+          await supabase.rpc('log_import_batch_error', {
+            p_job_id: importJob.id,
+            p_batch_number: currentBatch,
+            p_error_message: error.message,
+            p_failed_items: members.map((m: any) => m.email_address)
+          });
+        }
+
+        offset += batchSize;
+        if (offset >= data.total_items) hasMore = false;
+      }
+    }
+
+    // Finalize both jobs
+    await supabase.from('import_jobs').update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      progress_percentage: 100,
+      current_stage: 'Import completed',
+      report: {
+        started_at: importJob.created_at,
+        completed_at: new Date().toISOString(),
+        contacts_imported: totalContacts,
+        segments_imported: segmentIds.length,
+        errors: totalErrors,
+        batches_processed: currentBatch
+      }
+    }).eq('id', jobId);
+
+    await supabase.from('migration_jobs' as any).update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      progress_percentage: 100
+    }).eq('id', importJob.migration_job_id);
+
+    console.log(`[mailchimp-import] ✅ Completed job ${jobId}: ${totalContacts} contacts imported`);
+
+  } catch (error: any) {
+    console.error('[mailchimp-import] Background processing error:', error);
+    
+    await supabase.from('import_jobs').update({
+      status: 'failed',
+      progress_percentage: 0,
+      current_stage: `Error: ${error.message}`
+    }).eq('id', jobId);
+
+    const { data: importJob } = await supabase
+      .from('import_jobs')
+      .select('migration_job_id')
+      .eq('id', jobId)
+      .maybeSingle();
+
+    if (importJob?.migration_job_id) {
+      await supabase.from('migration_jobs' as any).update({
+        status: 'failed',
+        error_message: error.message
+      }).eq('id', importJob.migration_job_id);
+    }
+  }
+}
+
+// ============================================================
+// HTTP HANDLER
+// ============================================================
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });

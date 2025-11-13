@@ -31,12 +31,12 @@ export const useMigrationJobs = () => {
     queryKey: ['migration-jobs'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('migration_jobs')
+        .from('migration_jobs' as any)
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as MigrationJob[];
+      return (data || []) as unknown as MigrationJob[];
     }
   });
 
@@ -49,7 +49,7 @@ export const useMigrationJobs = () => {
         {
           event: '*',
           schema: 'public',
-          table: 'migration_jobs'
+          table: 'migration_jobs' as any
         },
         (payload) => {
           console.log('📡 Migration job update:', payload);
