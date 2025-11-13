@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { useMigrationJobs } from '@/hooks/useMigrationJobs';
 
 const APP_ORIGIN = window.location.origin;
 
@@ -13,6 +15,7 @@ interface ConnectStepProps {
 
 export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
   const { toast } = useToast();
+  const { activeJobs } = useMigrationJobs();
   const [mailchimpStatus, setMailchimpStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [klaviyoStatus, setKlaviyoStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [mailchimpAccount, setMailchimpAccount] = useState<any>(null);
@@ -20,6 +23,14 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
   const popupRef = useRef<Window | null>(null);
   const popupCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentProviderRef = useRef<'mailchimp' | 'klaviyo' | null>(null);
+  
+  // Check if there are active imports from Mailchimp or Klaviyo
+  const hasActiveMailchimpImport = activeJobs.some(job => 
+    job.source_platform === 'mailchimp' && job.status === 'running'
+  );
+  const hasActiveKlaviyoImport = activeJobs.some(job => 
+    job.source_platform === 'klaviyo' && job.status === 'running'
+  );
 
   // Load existing connections on mount
   useEffect(() => {
@@ -269,12 +280,21 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
         {/* Mailchimp */}
         <Card className="p-6">
           <div className="flex items-start justify-between mb-4">
-            <div>
+            <div className="flex-1">
               <h3 className="font-semibold text-lg">Mailchimp</h3>
               <p className="text-sm text-muted-foreground">Import from Mailchimp lists</p>
+              {hasActiveMailchimpImport && (
+                <Badge variant="secondary" className="mt-2 gap-1.5">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  Importing in background
+                </Badge>
+              )}
             </div>
-            {mailchimpStatus === 'connected' && <CheckCircle className="w-5 h-5 text-green-600" />}
-            {mailchimpStatus === 'error' && <XCircle className="w-5 h-5 text-destructive" />}
+            <div className="flex items-center gap-2">
+              {hasActiveMailchimpImport && <RefreshCw className="w-5 h-5 text-primary animate-spin" />}
+              {mailchimpStatus === 'connected' && !hasActiveMailchimpImport && <CheckCircle className="w-5 h-5 text-green-600" />}
+              {mailchimpStatus === 'error' && <XCircle className="w-5 h-5 text-destructive" />}
+            </div>
           </div>
 
           {mailchimpAccount && (
@@ -307,12 +327,21 @@ export const ConnectStep = ({ onComplete }: ConnectStepProps) => {
         {/* Klaviyo */}
         <Card className="p-6">
           <div className="flex items-start justify-between mb-4">
-            <div>
+            <div className="flex-1">
               <h3 className="font-semibold text-lg">Klaviyo</h3>
               <p className="text-sm text-muted-foreground">Import from Klaviyo lists</p>
+              {hasActiveKlaviyoImport && (
+                <Badge variant="secondary" className="mt-2 gap-1.5">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  Importing in background
+                </Badge>
+              )}
             </div>
-            {klaviyoStatus === 'connected' && <CheckCircle className="w-5 h-5 text-green-600" />}
-            {klaviyoStatus === 'error' && <XCircle className="w-5 h-5 text-destructive" />}
+            <div className="flex items-center gap-2">
+              {hasActiveKlaviyoImport && <RefreshCw className="w-5 h-5 text-primary animate-spin" />}
+              {klaviyoStatus === 'connected' && !hasActiveKlaviyoImport && <CheckCircle className="w-5 h-5 text-green-600" />}
+              {klaviyoStatus === 'error' && <XCircle className="w-5 h-5 text-destructive" />}
+            </div>
           </div>
 
           {klaviyoAccount && (
