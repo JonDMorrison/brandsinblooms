@@ -14,11 +14,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedSegmentImportDialog';
-import { DeleteCustomersAction } from '@/components/crm/DeleteCustomersAction';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { useAllSegments } from '@/hooks/useAllSegments';
-import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { 
   Pagination,
@@ -32,7 +30,6 @@ import {
 
 export const CRMCustomersPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -216,9 +213,6 @@ export const CRMCustomersPage: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Customers</h1>
         <div className="flex gap-2">
-          {user?.email === 'furqanhameedjutt.311@gmail.com' && (
-            <DeleteCustomersAction keepEmail="furqanhameedjutt.311@gmail.com" />
-          )}
           <Button variant="outline" onClick={() => setShowImportDialog(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Import Customers
