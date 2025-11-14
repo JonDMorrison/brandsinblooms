@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
+import { detectEnvironment, getFacebookCredentials } from '../_shared/environment.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,11 +14,15 @@ serve(async (req) => {
   }
 
   try {
-    // Check if FB_CLIENT_ID is configured
-    const clientId = Deno.env.get('FB_CLIENT_ID')
+    // Detect environment and get appropriate credentials
+    const environment = detectEnvironment(req)
+    const { clientId, clientSecret } = getFacebookCredentials(environment)
     
-    if (!clientId) {
-      console.error('❌ FB_CLIENT_ID not configured in Supabase secrets')
+    // Fallback to legacy secrets for backward compatibility
+    const finalClientId = clientId || Deno.env.get('FB_CLIENT_ID')
+    
+    if (!finalClientId) {
+      console.error(`❌ FB_CLIENT_ID not configured for ${environment} environment`)
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -30,13 +35,14 @@ serve(async (req) => {
       )
     }
 
-    console.log('✅ Providing OAuth config - Client ID configured')
+    console.log(`✅ Providing OAuth config for ${environment} - Client ID configured`)
 
     return new Response(
       JSON.stringify({ 
         success: true,
         provider: 'facebook',
-        clientId: clientId
+        clientId: finalClientId,
+        environment
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
