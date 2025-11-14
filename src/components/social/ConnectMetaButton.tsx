@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Facebook, Instagram, CheckCircle } from 'lucide-react';
@@ -8,6 +7,7 @@ import { OAuthLoadingOverlay } from './OAuthLoadingOverlay';
 import { AgeAndTermsVerification } from './AgeAndTermsVerification';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getOAuthRedirectUri } from '@/utils/environmentUtils';
 
 interface ConnectMetaButtonProps {
   onSuccess: () => void;
@@ -108,7 +108,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       ].join(',');
       
       // Dynamic redirect URI based on current domain
-      const redirectUri = `https://bloomsuite.app/oauth/callback`;
+      const redirectUri = getOAuthRedirectUri();
       
       // Fetch OAuth config
       const configData = await fetchOAuthConfig();

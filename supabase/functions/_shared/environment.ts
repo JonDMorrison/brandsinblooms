@@ -47,3 +47,39 @@ export function getLightspeedCredentials(env: Environment): {
     clientSecret: getEnvSecret('LIGHTSPEED_CLIENT_SECRET', env),
   };
 }
+
+/**
+ * Get Facebook/Meta credentials for the current environment
+ */
+export function getFacebookCredentials(env: Environment): {
+  clientId: string | undefined;
+  clientSecret: string | undefined;
+} {
+  return {
+    clientId: getEnvSecret('FB_CLIENT_ID', env),
+    clientSecret: getEnvSecret('FB_CLIENT_SECRET', env),
+  };
+}
+
+/**
+ * Get Mailchimp credentials for the current environment
+ */
+export function getMailchimpCredentials(env: Environment): {
+  clientId: string | undefined;
+  clientSecret: string | undefined;
+} {
+  return {
+    clientId: getEnvSecret('MAILCHIMP_CLIENT_ID', env),
+    clientSecret: getEnvSecret('MAILCHIMP_CLIENT_SECRET', env),
+  };
+}
+
+/**
+ * Get environment-aware redirect URI for OAuth callbacks
+ */
+export function getOAuthRedirectUri(env: Environment, path: string = '/oauth/callback'): string {
+  const baseUrl = env === 'development' 
+    ? 'https://lovable.app'
+    : 'https://bloomsuite.app';
+  return `${baseUrl}${path}`;
+}

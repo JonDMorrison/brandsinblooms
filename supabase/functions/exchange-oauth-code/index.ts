@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
+import { detectEnvironment, getFacebookCredentials } from '../_shared/environment.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -103,27 +104,32 @@ serve(async (req) => {
       id: user.id.substring(0, 8) + '...'
     })
 
-    // Check environment variables with detailed logging
-    const clientId = Deno.env.get('FB_CLIENT_ID')
-    const clientSecret = Deno.env.get('FB_CLIENT_SECRET')
+    // Detect environment and get appropriate credentials
+    const environment = detectEnvironment(req)
+    const { clientId, clientSecret } = getFacebookCredentials(environment)
+    
+    // Fallback to legacy secrets for backward compatibility
+    const finalClientId = clientId || Deno.env.get('FB_CLIENT_ID')
+    const finalClientSecret = clientSecret || Deno.env.get('FB_CLIENT_SECRET')
 
     // Enhanced logging to debug the specific issue
     const allEnvKeys = Object.keys(Deno.env.toObject()).filter(key => key.includes('FB'))
     console.log('🔑 Facebook-related environment variables:', allEnvKeys)
     
     console.log('🔑 Environment check:', {
-      clientId: clientId ? `present (${clientId.substring(0, 8)}...)` : 'MISSING',
-      clientSecret: clientSecret ? 'present' : 'MISSING',
+      environment,
+      clientId: finalClientId ? `present (${finalClientId.substring(0, 8)}...)` : 'MISSING',
+      clientSecret: finalClientSecret ? 'present' : 'MISSING',
       supabaseUrl: Deno.env.get('SUPABASE_URL') ? 'present' : 'missing',
       serviceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ? 'present' : 'missing',
       allEnvVarCount: Object.keys(Deno.env.toObject()).length
     })
 
-    if (!clientId || !clientSecret) {
-      const errorMessage = `Facebook/Instagram app credentials not configured. Missing: ${!clientId ? 'FB_CLIENT_ID ' : ''}${!clientSecret ? 'FB_CLIENT_SECRET' : ''}. Please add these to your Supabase Edge Function secrets.`
-      console.error('❌ Missing Facebook credentials:', { 
-        clientId: clientId ? 'present' : 'MISSING', 
-        clientSecret: clientSecret ? 'present' : 'MISSING',
+    if (!finalClientId || !finalClientSecret) {
+      const errorMessage = `Facebook/Instagram app credentials not configured for ${environment}. Missing: ${!finalClientId ? 'FB_CLIENT_ID ' : ''}${!finalClientSecret ? 'FB_CLIENT_SECRET' : ''}. Please add these to your Supabase Edge Function secrets.`
+      console.error(`❌ Missing Facebook credentials for ${environment}:`, { 
+        clientId: finalClientId ? 'present' : 'MISSING', 
+        clientSecret: finalClientSecret ? 'present' : 'MISSING',
         availableEnvKeys: allEnvKeys,
         errorMessage
       })
@@ -133,9 +139,10 @@ serve(async (req) => {
           success: false, 
           error: errorMessage,
           debug: {
+            environment,
             availableEnvKeys: allEnvKeys,
-            clientIdPresent: !!clientId,
-            clientSecretPresent: !!clientSecret
+            clientIdPresent: !!finalClientId,
+            clientSecretPresent: !!finalClientSecret
           }
         }),
         { 
@@ -175,13 +182,13 @@ serve(async (req) => {
 
     // Exchange authorization code for access token
     const tokenParams = new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
+      client_id: finalClientId,
+      client_secret: finalClientSecret,
       redirect_uri: redirect_uri,
       code: code,
     })
 
-    console.log('📡 Sending token exchange request to Facebook...', {
+    console.log(`📡 Sending token exchange request to Facebook (${environment})...`, {
       url: 'https://graph.facebook.com/v19.0/oauth/access_token',
       method: 'POST',
       hasParams: true

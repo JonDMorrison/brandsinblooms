@@ -6,6 +6,7 @@ import { Loader2, CheckCircle, AlertCircle, Facebook, Instagram, ArrowLeft } fro
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { FacebookAppSetupGuide } from '@/components/social/FacebookAppSetupGuide';
+import { getOAuthRedirectUri } from '@/utils/environmentUtils';
 
 
 export const AuthCallbackPage = () => {
@@ -146,7 +147,7 @@ export const AuthCallbackPage = () => {
             code,
             state,
             // Must match the URL authorized with Facebook
-            redirect_uri: `https://bloomsuite.app/oauth/callback`
+            redirect_uri: getOAuthRedirectUri()
           };
         
         console.log('Calling exchange-oauth-code function');

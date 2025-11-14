@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { getFacebookCredentials } from '../_shared/environment.ts'
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -8,7 +9,12 @@ const supabaseAdmin = createClient(
 )
 
 async function refreshFacebookToken(connection: any) {
-  const refreshUrl = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${Deno.env.get('FB_CLIENT_ID')}&client_secret=${Deno.env.get('FB_CLIENT_SECRET')}&fb_exchange_token=${connection.access_token}`
+  // Use production credentials for token refresh (backend operation)
+  const { clientId, clientSecret } = getFacebookCredentials('production')
+  const finalClientId = clientId || Deno.env.get('FB_CLIENT_ID')
+  const finalClientSecret = clientSecret || Deno.env.get('FB_CLIENT_SECRET')
+  
+  const refreshUrl = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${finalClientId}&client_secret=${finalClientSecret}&fb_exchange_token=${connection.access_token}`
   
   const response = await fetch(refreshUrl)
   const data = await response.json()
