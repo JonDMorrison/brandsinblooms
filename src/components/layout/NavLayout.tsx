@@ -48,7 +48,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
-  Store
+  Store,
+  LifeBuoy
 } from 'lucide-react';
 
 interface NavItem {
@@ -106,6 +107,12 @@ const navigationItems: NavItem[] = [
     href: '/assets',
     icon: Image,
     description: 'Media library'
+  },
+  {
+    name: 'Help Desk',
+    href: '/helpdesk',
+    icon: LifeBuoy,
+    description: 'Support tickets'
   },
   {
     name: 'Settings',

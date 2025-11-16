@@ -69,6 +69,11 @@ import AdminDashboard from '@/pages/admin/AdminDashboard';
 import { CommunityPage } from '@/pages/CommunityPage';
 import { SavedBlocksPage } from '@/pages/crm/SavedBlocksPage';
 import ConfirmSubscription from '@/pages/ConfirmSubscription';
+import HelpDeskPage from '@/pages/HelpDeskPage';
+import TicketListPage from '@/pages/TicketListPage';
+import CreateTicketPage from '@/pages/CreateTicketPage';
+import TicketDetailPage from '@/pages/TicketDetailPage';
+
 
 function App() {
   return (
@@ -397,6 +402,37 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
+          
+          {/* Help Desk Routes */}
+          <Route path="/helpdesk" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <HelpDeskPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/helpdesk/tickets" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <TicketListPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/helpdesk/tickets/new" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CreateTicketPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/helpdesk/tickets/:ticketId" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <TicketDetailPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          
           <Route path="/publish" element={
             <ProtectedRoute>
               <SidebarLayout>
