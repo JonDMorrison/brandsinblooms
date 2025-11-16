@@ -4,6 +4,7 @@ import logoImage from "@/assets/bloomsuite-logo-correct.png";
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';
 import { 
   Home, 
   BarChart3, 
@@ -26,7 +27,9 @@ import {
   BookOpen,
   User,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Shield,
+  Bug
 } from 'lucide-react';
 import {
   Sidebar,
@@ -62,6 +65,9 @@ export function AppSidebar() {
   const location = useLocation();
   const { state, toggleSidebar, isMobile, setOpen, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } = useIsSuperAdmin();
+  
+  console.log('🎨 navigation/AppSidebar - Admin status:', { isSuperAdmin, isLoadingSuperAdmin });
 
   const sidebarGroups: SidebarGroup[] = [
     {
@@ -163,7 +169,17 @@ export function AppSidebar() {
           icon: LifeBuoy,
         }
       ]
-    }
+    },
+    ...(!isLoadingSuperAdmin && isSuperAdmin ? [{
+      label: "Admin",
+      items: [
+        {
+          title: "Reported Problems",
+          url: "/admin/reported-problems",
+          icon: Bug,
+        }
+      ]
+    }] : [])
   ];
 
   const isItemActive = (url: string) => {

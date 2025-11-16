@@ -30,8 +30,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       try {
-        console.log('🔍 AdminContext - Checking admin for:', user.email);
-        
         const { data, error } = await supabase
           .from('app_admin_emails')
           .select('email')
@@ -39,15 +37,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           .maybeSingle();
         
         if (error) {
-          console.error('❌ AdminContext - Error checking admin status:', error);
+          console.error('Error checking admin status:', error);
           setIsMasterAdmin(false);
         } else {
-          const isAdmin = !!data;
-          console.log('✅ AdminContext - Admin status:', isAdmin);
-          setIsMasterAdmin(isAdmin);
+          setIsMasterAdmin(!!data);
         }
       } catch (error) {
-        console.error('❌ AdminContext - Error checking admin status:', error);
+        console.error('Error checking admin status:', error);
         setIsMasterAdmin(false);
       } finally {
         setIsLoading(false);
