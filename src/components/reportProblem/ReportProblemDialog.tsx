@@ -143,7 +143,7 @@ export const ReportProblemDialog: React.FC<Props> = ({ open, onOpenChange }) => 
           <div className="space-y-2 p-4 bg-muted rounded-lg">
             <h4 className="text-sm font-medium">Auto-Captured Information</h4>
             <div className="space-y-1 text-sm text-muted-foreground">
-              <p><strong>URL:</strong> {capturedUrl}</p>
+              <p className="break-all"><strong>URL:</strong> {capturedUrl}</p>
               <p><strong>Email:</strong> {user?.email}</p>
               <p><strong>Viewport:</strong> {viewportSize}</p>
             </div>
