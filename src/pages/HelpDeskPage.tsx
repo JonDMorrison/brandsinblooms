@@ -108,7 +108,7 @@ const HelpDeskPage = () => {
                 {tickets.slice(0, 5).map((ticket) => (
                   <div
                     key={ticket.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-200 cursor-pointer"
                     onClick={() => navigate(`/helpdesk/tickets/${ticket.id}`)}
                   >
                     <div className="flex-1 min-w-0">
