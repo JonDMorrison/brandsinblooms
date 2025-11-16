@@ -23,23 +23,31 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Check if user is master admin
   useEffect(() => {
     async function checkAdminStatus() {
-      if (!user) {
+      if (!user?.email) {
         setIsMasterAdmin(false);
         setIsLoading(false);
         return;
       }
 
       try {
-        const { data, error } = await supabase.rpc('is_master_admin', { _user_id: user.id });
+        console.log('🔍 AdminContext - Checking admin for:', user.email);
+        
+        const { data, error } = await supabase
+          .from('app_admin_emails')
+          .select('email')
+          .eq('email', user.email)
+          .maybeSingle();
         
         if (error) {
-          console.error('Error checking admin status:', error);
+          console.error('❌ AdminContext - Error checking admin status:', error);
           setIsMasterAdmin(false);
         } else {
-          setIsMasterAdmin(data || false);
+          const isAdmin = !!data;
+          console.log('✅ AdminContext - Admin status:', isAdmin);
+          setIsMasterAdmin(isAdmin);
         }
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        console.error('❌ AdminContext - Error checking admin status:', error);
         setIsMasterAdmin(false);
       } finally {
         setIsLoading(false);
