@@ -58,9 +58,11 @@ interface SidebarItem {
 const AppSidebar: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { isPro } = useProFeatures();
-  const { data: isSuperAdmin } = useIsSuperAdmin();
+  const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } = useIsSuperAdmin();
   const location = useLocation();
   const { state } = useSidebar();
+  
+  console.log('🎨 AppSidebar - isSuperAdmin:', isSuperAdmin, 'isLoading:', isLoadingSuperAdmin);
   
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
