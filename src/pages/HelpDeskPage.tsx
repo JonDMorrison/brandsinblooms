@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Ticket, Plus, List, BarChart3 } from 'lucide-react';
 import { useTickets } from '@/hooks/helpdesk/useTickets';
-import { useHasSupportRole } from '@/hooks/helpdesk/useHasSupportRole';
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';
 import { useAuth } from '@/contexts/AuthContext';
 import { TicketStatusBadge } from '@/components/helpdesk/TicketStatusBadge';
 import { TicketPriorityBadge } from '@/components/helpdesk/TicketPriorityBadge';
@@ -12,8 +12,8 @@ import { TicketPriorityBadge } from '@/components/helpdesk/TicketPriorityBadge';
 const HelpDeskPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: hasSupportRole = false } = useHasSupportRole();
-  const isAdmin = hasSupportRole;
+  const { data: isSuperAdmin = false } = useIsSuperAdmin();
+  const isAdmin = isSuperAdmin;
 
   const { data: ticketsData, isLoading } = useTickets({ pageSize: 5 });
   const tickets = ticketsData?.tickets || [];
