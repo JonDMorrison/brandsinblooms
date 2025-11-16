@@ -20,6 +20,8 @@ import {
   Mail,
   BarChart3,
   AlertTriangle,
+  Shield,
+  Bug,
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { NavLink } from '@/components/ui/link';
@@ -45,7 +47,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useProFeatures } from "@/hooks/useProFeatures";
-import { useMasterAdmin } from "@/hooks/useMasterAdmin";
+import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 
 
 interface SidebarItem {
@@ -58,9 +60,11 @@ interface SidebarItem {
 const AppSidebar: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { isPro } = useProFeatures();
-  const { data: isMasterAdmin } = useMasterAdmin();
+  const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } = useIsSuperAdmin();
   const location = useLocation();
   const { state } = useSidebar();
+  
+  console.log('🎨 AppSidebar - Admin status:', { isSuperAdmin, isLoadingSuperAdmin });
   
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
@@ -177,15 +181,15 @@ const AppSidebar: React.FC = () => {
       url: "/settings",
       icon: Settings,
     },
-    ...(isMasterAdmin ? [{
+    ...(!isLoadingSuperAdmin && isSuperAdmin ? [{
       title: "Admin",
       url: "/admin",
-      icon: AlertTriangle,
+      icon: Shield,
       items: [
         {
           title: "Reported Problems",
           url: "/admin/reported-problems",
-          icon: AlertTriangle,
+          icon: Bug,
         },
       ],
     }] : []),

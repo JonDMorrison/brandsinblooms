@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useMasterAdmin } from '@/hooks/useMasterAdmin';
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 
 export default function AdminDashboard() {
   const [searchEmail, setSearchEmail] = useState('');
-  const { data: isMasterAdmin, isLoading: checkingAdmin } = useMasterAdmin();
+  const { data: isSuperAdmin, isLoading: checkingAdmin } = useIsSuperAdmin();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -28,7 +28,7 @@ export default function AdminDashboard() {
       if (error) throw error;
       return data;
     },
-    enabled: isMasterAdmin && searchEmail.length > 0,
+    enabled: isSuperAdmin && searchEmail.length > 0,
   });
 
   const switchContextMutation = useMutation({
@@ -71,7 +71,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!isMasterAdmin) {
+  if (!isSuperAdmin) {
     return (
       <div className="container mx-auto p-8">
         <Card>

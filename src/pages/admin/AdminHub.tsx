@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useMasterAdmin } from '@/hooks/useMasterAdmin';
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Navigate } from 'react-router-dom';
@@ -19,7 +19,7 @@ import {
 
 export default function AdminHub() {
   const navigate = useNavigate();
-  const { data: isMasterAdmin, isLoading } = useMasterAdmin();
+  const { data: isSuperAdmin, isLoading } = useIsSuperAdmin();
 
   if (isLoading) {
     return (
@@ -29,7 +29,7 @@ export default function AdminHub() {
     );
   }
 
-  if (!isMasterAdmin) {
+  if (!isSuperAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 
