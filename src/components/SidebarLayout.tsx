@@ -3,6 +3,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { TrialBanner } from "@/components/TrialBanner";
 import { UserMenu } from "@/components/UserMenu";
+import { ReportProblemButton } from "@/components/reportProblem/ReportProblemButton";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { Button } from "@/components/ui/button";
@@ -86,7 +87,10 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
               <div className="hidden md:block">
                 <HeaderToggleButton />
               </div>
-              <UserMenu />
+              <div className="flex items-center gap-3">
+                <ReportProblemButton />
+                <UserMenu />
+              </div>
             </div>
           </header>
           
