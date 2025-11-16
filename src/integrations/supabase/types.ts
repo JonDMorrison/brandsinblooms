@@ -5326,6 +5326,125 @@ export type Database = {
           },
         ]
       }
+      reported_problem_attachments: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          problem_id: string
+          storage_bucket: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          problem_id: string
+          storage_bucket?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          problem_id?: string
+          storage_bucket?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reported_problem_attachments_problem_id_fkey"
+            columns: ["problem_id"]
+            isOneToOne: false
+            referencedRelation: "reported_problems"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reported_problems: {
+        Row: {
+          admin_notes: string | null
+          assigned_to: string | null
+          browser_info: Json | null
+          captured_url: string
+          created_at: string | null
+          description: string
+          id: string
+          priority: string | null
+          resolved_at: string | null
+          status: string | null
+          tenant_id: string
+          title: string
+          updated_at: string | null
+          user_agent: string | null
+          user_email: string
+          user_id: string
+          viewport_size: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          assigned_to?: string | null
+          browser_info?: Json | null
+          captured_url: string
+          created_at?: string | null
+          description: string
+          id?: string
+          priority?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string | null
+          user_agent?: string | null
+          user_email: string
+          user_id: string
+          viewport_size?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          assigned_to?: string | null
+          browser_info?: Json | null
+          captured_url?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          priority?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string | null
+          user_agent?: string | null
+          user_email?: string
+          user_id?: string
+          viewport_size?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reported_problems_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "reported_problems_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_blocks: {
         Row: {
           block_type: string

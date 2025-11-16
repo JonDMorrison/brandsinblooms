@@ -19,6 +19,7 @@ import {
   Target,
   Mail,
   BarChart3,
+  AlertTriangle,
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { NavLink } from '@/components/ui/link';

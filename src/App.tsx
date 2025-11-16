@@ -478,6 +478,20 @@ function App() {
               </SidebarLayout>
             </ProtectedRoute>
           } />
+          <Route path="/admin/reported-problems" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <ReportedProblemsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/reported-problems/:problemId" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <ReportedProblemDetailPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
           <Route path="/community" element={
             <ProtectedRoute>
               <SidebarLayout>

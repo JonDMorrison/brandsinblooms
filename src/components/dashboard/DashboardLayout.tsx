@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import AppSidebar from "@/components/AppSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserMenu } from "@/components/UserMenu";
+import { ReportProblemButton } from "@/components/reportProblem/ReportProblemButton";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,8 @@ export const DashboardLayout = ({
         
         {/* Sticky Top Bar with UserMenu */}
         <header className="sticky top-0 z-[150] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-          <div className="flex justify-end items-center p-4">
+          <div className="flex justify-end items-center p-4 gap-3">
+            <ReportProblemButton />
             <UserMenu />
           </div>
         </header>
