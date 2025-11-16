@@ -2,6 +2,7 @@ import React from 'react';
 import { SupportComment } from '@/types/helpdesk';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Props {
@@ -22,7 +23,7 @@ export const CommentThread: React.FC<Props> = ({ comments, isAdmin }) => {
           }`}>
             <Avatar>
               <AvatarFallback>
-                {comment.user?.name?.charAt(0) || '?'}
+                {comment.user?.name?.charAt(0) || <User className="h-4 w-4" />}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
