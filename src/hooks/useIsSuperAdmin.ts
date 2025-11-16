@@ -34,6 +34,5 @@ export const useIsSuperAdmin = () => {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     retry: false, // Don't retry failed admin checks
     refetchOnWindowFocus: false, // Don't refetch on window focus
-    initialData: false, // Prevent undefined states
   });
 };
