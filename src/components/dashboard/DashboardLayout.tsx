@@ -61,7 +61,7 @@ export const DashboardLayout = ({
         
         {/* Sticky Top Bar with UserMenu */}
         <header className="sticky top-0 z-[150] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-          <div className="flex justify-end items-center p-4 gap-3">
+          <div className="flex justify-between items-center p-4 gap-3">
             <ReportProblemButton />
             <UserMenu />
           </div>
