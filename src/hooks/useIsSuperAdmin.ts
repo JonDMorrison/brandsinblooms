@@ -6,12 +6,7 @@ export const useIsSuperAdmin = () => {
     queryKey: ['is-super-admin'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('🔍 useIsSuperAdmin - User:', user?.email);
-      
-      if (!user?.email) {
-        console.log('❌ useIsSuperAdmin - No user email');
-        return false;
-      }
+      if (!user?.email) return false;
 
       const { data, error } = await supabase
         .from('app_admin_emails')
@@ -19,10 +14,9 @@ export const useIsSuperAdmin = () => {
         .eq('email', user.email)
         .maybeSingle();
 
-      console.log('🔍 useIsSuperAdmin - Query result:', { data, error, isSuperAdmin: !!data });
-      
       if (error) {
-        console.error('❌ useIsSuperAdmin - Error:', error);
+        console.error('Error checking admin status:', error);
+        return false;
       }
 
       return !!data;
