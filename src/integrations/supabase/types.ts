@@ -6607,6 +6607,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_support_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["support_role"]
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["support_role"]
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["support_role"]
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_support_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "user_support_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_theme_status: {
         Row: {
           created_at: string | null
@@ -7035,12 +7074,21 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_support_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["support_role"]
+          _tenant_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       increment_image_usage: { Args: { asset_id: string }; Returns: undefined }
       increment_template_usage: {
         Args: { template_id: string }
         Returns: undefined
       }
       is_master_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_super_admin: { Args: { user_id: string }; Returns: boolean }
       log_admin_action: {
         Args: {
           p_action_details?: Json
@@ -7131,6 +7179,7 @@ export type Database = {
       post_mode: "AUTO" | "MANUAL"
       post_status: "QUEUED" | "PUBLISHED" | "ERROR"
       subscription_plan: "free_trial" | "sprout" | "bloom" | "expired"
+      support_role: "support_agent" | "support_admin"
       ticket_priority: "low" | "medium" | "high" | "urgent"
       ticket_status: "open" | "pending" | "in_progress" | "resolved" | "closed"
     }
@@ -7269,6 +7318,7 @@ export const Constants = {
       post_mode: ["AUTO", "MANUAL"],
       post_status: ["QUEUED", "PUBLISHED", "ERROR"],
       subscription_plan: ["free_trial", "sprout", "bloom", "expired"],
+      support_role: ["support_agent", "support_admin"],
       ticket_priority: ["low", "medium", "high", "urgent"],
       ticket_status: ["open", "pending", "in_progress", "resolved", "closed"],
     },

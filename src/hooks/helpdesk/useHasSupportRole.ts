@@ -12,7 +12,8 @@ export const useHasSupportRole = () => {
     queryFn: async () => {
       if (!user || !tenant?.id) return false;
 
-      const { data } = await supabase
+      // Use type assertion for new table until types regenerate
+      const { data } = await (supabase as any)
         .from('user_support_roles')
         .select('role')
         .eq('user_id', user.id)
