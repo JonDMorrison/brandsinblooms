@@ -48,6 +48,8 @@ import IntegrationsPage from '@/pages/IntegrationsPage';
 import POSIntegrationsPage from '@/pages/POSIntegrationsPage';
 import MigrationsPage from '@/pages/MigrationsPage';
 import { OAuthCallbackHandler } from '@/components/migrations/OAuthCallbackHandler';
+import ReportedProblemsPage from '@/pages/admin/ReportedProblemsPage';
+import ReportedProblemDetailPage from '@/pages/admin/ReportedProblemDetailPage';
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import CallbackPage from '@/pages/integrations/lightspeed/CallbackPage';
 import GuidePage from '@/pages/integrations/lightspeed/GuidePage';
