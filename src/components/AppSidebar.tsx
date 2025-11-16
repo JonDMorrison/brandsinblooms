@@ -45,7 +45,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useProFeatures } from "@/hooks/useProFeatures";
-import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
+import { useMasterAdmin } from "@/hooks/useMasterAdmin";
 
 
 interface SidebarItem {
@@ -58,11 +58,9 @@ interface SidebarItem {
 const AppSidebar: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { isPro } = useProFeatures();
-  const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } = useIsSuperAdmin();
+  const { data: isMasterAdmin } = useMasterAdmin();
   const location = useLocation();
   const { state } = useSidebar();
-  
-  console.log('🎨 AppSidebar - isSuperAdmin:', isSuperAdmin, 'isLoading:', isLoadingSuperAdmin);
   
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
@@ -179,7 +177,7 @@ const AppSidebar: React.FC = () => {
       url: "/settings",
       icon: Settings,
     },
-    ...(isSuperAdmin ? [{
+    ...(isMasterAdmin ? [{
       title: "Admin",
       url: "/admin",
       icon: AlertTriangle,
