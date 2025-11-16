@@ -78,9 +78,24 @@ export const useCreateTicket = () => {
       });
     },
     onError: (error: any) => {
+      console.error('Create ticket error:', error);
+      
+      let errorMessage = 'Failed to create ticket';
+      
+      // Provide more specific error messages
+      if (error.message?.includes('relation "support_tickets" does not exist')) {
+        errorMessage = 'Help desk system is not set up. Please contact your administrator.';
+      } else if (error.message?.includes('generate_ticket_number')) {
+        errorMessage = 'Ticket numbering system is not configured. Please contact support.';
+      } else if (error.message?.includes('storage')) {
+        errorMessage = 'File storage is not configured. Please try without attachments.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Error',
-        description: error.message || 'Failed to create ticket',
+        description: errorMessage,
         variant: 'destructive',
       });
     },
