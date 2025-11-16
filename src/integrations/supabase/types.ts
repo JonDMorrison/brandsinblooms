@@ -2317,6 +2317,42 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_tags: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tags_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "crm_tags_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_segments: {
         Row: {
           created_at: string
@@ -2394,6 +2430,51 @@ export type Database = {
           },
           {
             foreignKeyName: "customer_additional_fields_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_consents: {
+        Row: {
+          channel: string
+          consent_timestamp: string
+          created_at: string | null
+          customer_id: string
+          id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          channel: string
+          consent_timestamp: string
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          status: string
+          updated_at?: string | null
+        }
+        Update: {
+          channel?: string
+          consent_timestamp?: string
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_consents_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_consents_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customer_360_enriched"
@@ -2481,6 +2562,105 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_sources: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          id: string
+          imported_at: string
+          source_id: string | null
+          source_type: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          imported_at: string
+          source_id?: string | null
+          source_type: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          imported_at?: string
+          source_id?: string | null
+          source_type?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_sources_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_sources_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_sources_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_sources_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_tags: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          tag_id: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          tag_id: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_tags_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_tags_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "crm_tags"
             referencedColumns: ["id"]
           },
         ]
@@ -3954,6 +4134,7 @@ export type Database = {
           error_details: Json | null
           estimated_completion_at: string | null
           id: string
+          migration_job_id: string | null
           progress_percentage: number | null
           provider: string
           report: Json | null
@@ -3971,6 +4152,7 @@ export type Database = {
           error_details?: Json | null
           estimated_completion_at?: string | null
           id?: string
+          migration_job_id?: string | null
           progress_percentage?: number | null
           provider: string
           report?: Json | null
@@ -3988,6 +4170,7 @@ export type Database = {
           error_details?: Json | null
           estimated_completion_at?: string | null
           id?: string
+          migration_job_id?: string | null
           progress_percentage?: number | null
           provider?: string
           report?: Json | null
@@ -3996,7 +4179,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "import_jobs_migration_job_id_fkey"
+            columns: ["migration_job_id"]
+            isOneToOne: false
+            referencedRelation: "migration_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       integration_logs: {
         Row: {
@@ -4413,6 +4604,148 @@ export type Database = {
           title?: string
           updated_at?: string
           week_number?: number
+        }
+        Relationships: []
+      }
+      migration_artifacts: {
+        Row: {
+          artifact_type: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          job_id: string
+          mapping_data: Json | null
+          source_id: string | null
+          status: string
+          target_id: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          artifact_type: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_id: string
+          mapping_data?: Json | null
+          source_id?: string | null
+          status?: string
+          target_id?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          artifact_type?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_id?: string
+          mapping_data?: Json | null
+          source_id?: string | null
+          status?: string
+          target_id?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "migration_artifacts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "migration_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      migration_job_logs: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          id: string
+          job_id: string
+          log_level: string
+          message: string
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          job_id: string
+          log_level?: string
+          message: string
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          job_id?: string
+          log_level?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "migration_job_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "migration_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      migration_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          job_type: string
+          metadata: Json | null
+          paused_at: string | null
+          progress_current: number | null
+          progress_percentage: number | null
+          progress_total: number | null
+          source_platform: string
+          started_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_type: string
+          metadata?: Json | null
+          paused_at?: string | null
+          progress_current?: number | null
+          progress_percentage?: number | null
+          progress_total?: number | null
+          source_platform: string
+          started_at?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_type?: string
+          metadata?: Json | null
+          paused_at?: string | null
+          progress_current?: number | null
+          progress_percentage?: number | null
+          progress_total?: number | null
+          source_platform?: string
+          started_at?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -6301,6 +6634,12 @@ export type Database = {
       create_automation_from_draft: {
         Args: { draft_id: string; template_key?: string }
         Returns: string
+      }
+      delete_customers_except: {
+        Args: { p_keep_email: string; p_tenant_id: string }
+        Returns: {
+          deleted_count: number
+        }[]
       }
       enable_crm_for_user: {
         Args: { target_user_id: string }
