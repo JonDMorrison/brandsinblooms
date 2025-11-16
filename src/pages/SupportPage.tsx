@@ -27,7 +27,10 @@ const SupportPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full">
+            <Button 
+              className="w-full"
+              onClick={() => navigate('/helpdesk')}
+            >
               Send Support Email
             </Button>
           </CardContent>
