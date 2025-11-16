@@ -31,7 +31,7 @@ const SupportPage = () => {
               className="w-full"
               onClick={() => navigate('/helpdesk')}
             >
-              Send Support Email
+              Create a ticket
             </Button>
           </CardContent>
         </Card>
