@@ -36,13 +36,18 @@ const CreateTicketPage = () => {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const ticket = await createTicket.mutateAsync({
-      subject: values.subject,
-      description: values.description,
-      priority: values.priority,
-      category_id: values.category_id || undefined,
-    });
-    navigate(`/helpdesk/tickets/${ticket.id}`);
+    try {
+      const ticket = await createTicket.mutateAsync({
+        subject: values.subject,
+        description: values.description,
+        priority: values.priority,
+        category_id: values.category_id || undefined,
+      });
+      navigate(`/helpdesk/tickets/${ticket.id}`);
+    } catch (error) {
+      // Error is already handled by the mutation's onError
+      console.error('Failed to create ticket:', error);
+    }
   };
 
   return (
@@ -150,10 +155,18 @@ const CreateTicketPage = () => {
               </div>
 
               <div className="flex gap-3 justify-end">
-                <Button type="button" variant="outline" onClick={() => navigate('/helpdesk')}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => navigate('/helpdesk')}
+                  disabled={createTicket.isPending}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createTicket.isPending}>
+                <Button 
+                  type="submit" 
+                  disabled={createTicket.isPending}
+                >
                   {createTicket.isPending ? 'Creating...' : 'Create Ticket'}
                 </Button>
               </div>
