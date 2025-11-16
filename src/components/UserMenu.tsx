@@ -38,7 +38,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signOutCompletely } from "@/integrations/supabase/client";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
-import { isSuperAdmin } from "@/utils/adminUtils";
+import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { useAdmin } from "@/contexts/AdminContext";
 
 
@@ -47,6 +47,7 @@ export const UserMenu = () => {
   const navigate = useNavigate();
   const { refreshStatus } = useOnboardingStatus();
   const { isMasterAdmin } = useAdmin();
+  const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } = useIsSuperAdmin();
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -68,7 +69,7 @@ export const UserMenu = () => {
   };
 
   const handleResetAccount = async () => {
-    if (!user || !isSuperAdmin(user.email)) return;
+    if (!user || !isSuperAdmin) return;
     
     setIsResetting(true);
     try {
@@ -108,8 +109,6 @@ export const UserMenu = () => {
     return user.email.charAt(0).toUpperCase();
   };
 
-  const isAdmin = user?.email && isSuperAdmin(user.email);
-
   const handleNavigation = (path: string) => {
     navigate(path);
   };
@@ -148,7 +147,7 @@ export const UserMenu = () => {
             <div className="flex items-center justify-start gap-2 p-2">
               <div className="flex flex-col space-y-1 leading-none">
                 <p className="font-medium text-sm truncate max-w-48">{user?.email}</p>
-                {isAdmin && (
+                {!isLoadingSuperAdmin && isSuperAdmin && (
                   <p className="text-xs text-gray-600">Master Admin</p>
                 )}
               </div>
@@ -211,7 +210,7 @@ export const UserMenu = () => {
                 Billing
               </button>
               
-              {isAdmin && (
+              {!isLoadingSuperAdmin && isSuperAdmin && (
                 <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/admin')}>
                   <Settings className="mr-2 h-4 w-4" />
                   Admin Dashboard
@@ -225,7 +224,7 @@ export const UserMenu = () => {
                 </button>
               )}
               
-              {isAdmin && (
+              {!isLoadingSuperAdmin && isSuperAdmin && (
                 <>
                   <hr className="my-1" />
                   <button 
