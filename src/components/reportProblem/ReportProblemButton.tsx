@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { Bug } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -19,10 +19,12 @@ export const ReportProblemButton: React.FC = () => {
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={() => setDialogOpen(true)}
+              className="gap-2"
             >
-              <AlertCircle className="h-5 w-5" />
+              <Bug className="h-5 w-5" />
+              <span className="hidden sm:inline">Have problem?</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
