@@ -61,7 +61,7 @@ const TicketListPage = () => {
               {tickets.map((ticket) => (
                 <div
                   key={ticket.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
                   onClick={() => navigate(`/helpdesk/tickets/${ticket.id}`)}
                 >
                   <div className="flex-1 min-w-0">
