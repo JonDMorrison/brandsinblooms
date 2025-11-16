@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { SupportTicket } from '@/types/helpdesk';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';
+import { useHasSupportRole } from '@/hooks/helpdesk/useHasSupportRole';
 
 interface UseTicketsOptions {
   status?: string[];
@@ -17,25 +19,35 @@ interface UseTicketsOptions {
 export const useTickets = (options: UseTicketsOptions = {}) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { data: isSuperAdmin } = useIsSuperAdmin();
+  const { data: hasSupportRole } = useHasSupportRole();
   const { page = 1, pageSize = 20 } = options;
 
   return useQuery({
-    queryKey: ['support-tickets', options, user?.id, tenant?.id],
+    queryKey: ['support-tickets', options, user?.id, tenant?.id, isSuperAdmin, hasSupportRole],
     queryFn: async () => {
-      if (!user || !tenant?.id) throw new Error('Not authenticated');
-
-      const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'support_agent';
+      if (!user) throw new Error('Not authenticated');
 
       // Build query
       let query = supabase
         .from('support_tickets')
-        .select('*, category:support_categories(name, color, icon)', { count: 'exact' })
-        .eq('tenant_id', tenant.id);
+        .select('*, category:support_categories(name, color, icon)', { count: 'exact' });
 
-      // Filter by user if not admin
-      if (!isAdmin) {
-        query = query.eq('user_id', user.id);
+      // Super admins see ALL tickets across ALL tenants
+      // Support agents see tickets in their tenant
+      // Regular users see only their own tickets
+      if (!isSuperAdmin && !hasSupportRole) {
+        // Regular user: only their tickets in their tenant
+        if (!tenant?.id) throw new Error('No tenant found');
+        query = query
+          .eq('tenant_id', tenant.id)
+          .eq('user_id', user.id);
+      } else if (!isSuperAdmin && hasSupportRole) {
+        // Support agent: all tickets in their tenant
+        if (!tenant?.id) throw new Error('No tenant found');
+        query = query.eq('tenant_id', tenant.id);
       }
+      // Super admins get no tenant filter - see everything across all tenants
 
       // Apply filters
       if (options.status?.length) {
@@ -67,6 +79,6 @@ export const useTickets = (options: UseTicketsOptions = {}) => {
         totalCount: count || 0,
       };
     },
-    enabled: !!user && !!tenant?.id,
+    enabled: !!user,
   });
 };
