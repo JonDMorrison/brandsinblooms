@@ -158,7 +158,7 @@ const ReportedProblemsPage: React.FC = () => {
                     <TableCell>
                       <ProblemPriorityBadge priority={problem.priority} />
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="text-sm whitespace-nowrap">
                       {formatDistanceToNow(new Date(problem.created_at), {
                         addSuffix: true,
                       })}
