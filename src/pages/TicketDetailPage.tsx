@@ -8,6 +8,7 @@ import { useTicketDetail } from '@/hooks/helpdesk/useTicketDetail';
 import { useComments } from '@/hooks/helpdesk/useComments';
 import { useCreateComment } from '@/hooks/helpdesk/useCreateComment';
 import { useUpdateTicketStatus } from '@/hooks/helpdesk/useUpdateTicketStatus';
+import { useHasSupportRole } from '@/hooks/helpdesk/useHasSupportRole';
 import { useAuth } from '@/contexts/AuthContext';
 import { TicketStatusBadge } from '@/components/helpdesk/TicketStatusBadge';
 import { TicketPriorityBadge } from '@/components/helpdesk/TicketPriorityBadge';
@@ -22,7 +23,8 @@ const TicketDetailPage = () => {
   const [newComment, setNewComment] = useState('');
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'support_agent';
+  const { data: hasSupportRole = false } = useHasSupportRole();
+  const isAdmin = hasSupportRole;
 
   const { data: ticket, isLoading: ticketLoading } = useTicketDetail(ticketId!);
   const { data: comments = [], isLoading: commentsLoading } = useComments(ticketId!);
