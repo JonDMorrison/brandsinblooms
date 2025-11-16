@@ -3,14 +3,16 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Edit } from 'lucide-react';
 import { useTicketDetail } from '@/hooks/helpdesk/useTicketDetail';
 import { useComments } from '@/hooks/helpdesk/useComments';
 import { useCreateComment } from '@/hooks/helpdesk/useCreateComment';
+import { useUpdateTicketStatus } from '@/hooks/helpdesk/useUpdateTicketStatus';
 import { useAuth } from '@/contexts/AuthContext';
 import { TicketStatusBadge } from '@/components/helpdesk/TicketStatusBadge';
 import { TicketPriorityBadge } from '@/components/helpdesk/TicketPriorityBadge';
 import { CommentThread } from '@/components/helpdesk/CommentThread';
+import { UpdateStatusDialog } from '@/components/helpdesk/UpdateStatusDialog';
 import { format } from 'date-fns';
 
 const TicketDetailPage = () => {
@@ -18,12 +20,14 @@ const TicketDetailPage = () => {
   const { ticketId } = useParams<{ ticketId: string }>();
   const { user } = useAuth();
   const [newComment, setNewComment] = useState('');
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'support_agent';
 
   const { data: ticket, isLoading: ticketLoading } = useTicketDetail(ticketId!);
   const { data: comments = [], isLoading: commentsLoading } = useComments(ticketId!);
   const createComment = useCreateComment();
+  const updateStatus = useUpdateTicketStatus();
 
   const handleSubmitComment = async () => {
     if (!newComment.trim() || !ticketId) return;
@@ -68,7 +72,24 @@ const TicketDetailPage = () => {
           </div>
           <h1 className="text-2xl font-bold">{ticket.subject}</h1>
         </div>
+        {isAdmin && (
+          <Button variant="outline" onClick={() => setStatusDialogOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Update Status
+          </Button>
+        )}
       </div>
+
+      <UpdateStatusDialog
+        open={statusDialogOpen}
+        onOpenChange={setStatusDialogOpen}
+        currentStatus={ticket.status}
+        onUpdateStatus={(status) => {
+          updateStatus.mutate({ ticketId: ticketId!, status });
+          setStatusDialogOpen(false);
+        }}
+        loading={updateStatus.isPending}
+      />
 
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 space-y-6">
