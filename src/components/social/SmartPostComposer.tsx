@@ -5,11 +5,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Facebook, Instagram, AlertCircle, Image, Hash, Eye, Sparkles, X } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Facebook, Instagram, AlertCircle, Image, Hash, Eye, Sparkles, X, Images } from 'lucide-react';
 // Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';
 import { ContentOptimizer } from './ContentOptimizer';
 import { ImageSelectButton } from '@/components/image';
+import { CarouselImageSelector } from './CarouselImageSelector';
 
 interface SmartPostComposerProps {
   isOpen: boolean;
@@ -38,6 +41,8 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
   const [isPosting, setIsPosting] = useState(false);
   const [activeTab, setActiveTab] = useState('compose');
   const [showImageSection, setShowImageSection] = useState(true);
+  const [isCarousel, setIsCarousel] = useState(false);
+  const [carouselImages, setCarouselImages] = useState<string[]>([]);
 
   const limits = PLATFORM_LIMITS[platform];
   const contentLength = content.length;
@@ -110,15 +115,24 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
       
       console.log('📤 Calling publish-task edge function...');
       
+      // Prepare payload with carousel support
+      const payload: any = {
+        taskId: task.id,
+        platforms: [platform]
+      };
+
+      // Add carousel data if enabled
+      if (isCarousel && carouselImages.length >= 2) {
+        payload.isCarousel = true;
+        payload.mediaUrls = carouselImages;
+      }
+      
       // Call edge function with proper headers
       const functionResponse = await supabase.functions.invoke('publish-task', {
         headers: {
           Authorization: `Bearer ${token}`
         },
-        body: {
-          taskId: task.id,
-          platforms: [platform]
-        }
+        body: payload
       });
         
       console.log('📥 Raw edge function response:', functionResponse);
@@ -215,18 +229,41 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
             </div>
 
             {/* Enhanced Image Section */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Image className="w-4 h-4" />
-                Images
-              </label>
-              <ImageSelectButton
-                onImageSelect={async (imageUrl, metadata) => {
-                  console.log('Image selected in composer:', imageUrl);
-                  // The component handles database updates internally
-                }}
-                contentContext={content || task?.ai_output}
-              />
+            <div className="space-y-4">
+              {/* Carousel Mode Toggle */}
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Images className="w-4 h-4" />
+                  {isCarousel ? 'Carousel Images' : 'Image'}
+                </label>
+                <div className="flex items-center gap-2">
+                  <Switch 
+                    checked={isCarousel} 
+                    onCheckedChange={setIsCarousel}
+                    id="carousel-mode"
+                  />
+                  <Label htmlFor="carousel-mode" className="text-sm cursor-pointer">
+                    Carousel Mode (2-10 images)
+                  </Label>
+                </div>
+              </div>
+
+              {/* Image Selector */}
+              {isCarousel ? (
+                <CarouselImageSelector
+                  images={carouselImages}
+                  onChange={setCarouselImages}
+                  platform={platform}
+                />
+              ) : (
+                <ImageSelectButton
+                  onImageSelect={async (imageUrl, metadata) => {
+                    console.log('Image selected in composer:', imageUrl);
+                    // The component handles database updates internally
+                  }}
+                  contentContext={content || task?.ai_output}
+                />
+              )}
             </div>
 
             {/* Hashtags */}
@@ -267,17 +304,43 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={onClose} disabled={isPosting}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handlePost} 
-                disabled={isPosting || contentLength === 0 || hashtagCount > limits.hashtags}
-                className={platform === 'facebook' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'}
-              >
-                {isPosting ? 'Posting...' : `Post to ${platformName}`}
-              </Button>
+            <div className="space-y-3 pt-4">
+              {/* Carousel Warnings */}
+              {isCarousel && carouselImages.length > 0 && carouselImages.length < 2 && (
+                <Badge variant="outline" className="w-full justify-center py-2 text-amber-600 border-amber-200">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  Add at least 2 images for carousel mode
+                </Badge>
+              )}
+              {isCarousel && carouselImages.length > 10 && (
+                <Badge variant="destructive" className="w-full justify-center py-2">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  Carousel cannot exceed 10 images
+                </Badge>
+              )}
+              {platform === 'instagram' && isCarousel && carouselImages.length >= 2 && (
+                <Badge variant="outline" className="w-full justify-center py-2 text-blue-600 border-blue-200">
+                  Instagram requires all carousel images to have the same aspect ratio
+                </Badge>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={onClose} disabled={isPosting}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handlePost} 
+                  disabled={
+                    isPosting || 
+                    contentLength === 0 || 
+                    hashtagCount > limits.hashtags ||
+                    (isCarousel && (carouselImages.length < 2 || carouselImages.length > 10))
+                  }
+                  className={platform === 'facebook' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'}
+                >
+                  {isPosting ? 'Posting...' : `Post to ${platformName}`}
+                </Button>
+              </div>
             </div>
           </TabsContent>
 

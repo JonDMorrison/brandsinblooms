@@ -31,9 +31,19 @@ async function handler(req: Request): Promise<Response> {
 
   try {
     const requestBody = await req.json();
-    const { taskId, contentId, platforms, accountId, caption, imageUrl, firstComment, publishAt } = requestBody;
+    const { taskId, contentId, platforms, accountId, caption, imageUrl, mediaUrls, isCarousel, firstComment, publishAt } = requestBody;
 
-    console.log('[PUBLISH-TASK] Request:', { taskId, contentId, platforms, accountId, hasCaption: !!caption, hasImage: !!imageUrl, publishAt });
+    console.log('[PUBLISH-TASK] Request:', { 
+      taskId, 
+      contentId, 
+      platforms, 
+      accountId, 
+      hasCaption: !!caption, 
+      hasImage: !!imageUrl,
+      isCarousel,
+      carouselImageCount: mediaUrls?.length || 0,
+      publishAt 
+    });
 
     if (!taskId) {
       return new Response(
@@ -85,8 +95,10 @@ async function handler(req: Request): Promise<Response> {
           case 'publish':
             console.log(`[PUBLISH-TASK] Publishing task ${taskId} (attempt ${attempt + 1})`);
             
-            // Validate required fields
-            if (!caption && !imageUrl) {
+            // Validate required fields - carousel or single image
+            const hasContent = caption || imageUrl || (isCarousel && mediaUrls && mediaUrls.length > 0);
+            
+            if (!hasContent) {
               console.warn('No content to publish', { 
                 taskId, 
                 platform: platforms?.[0] || "unknown", 
@@ -104,11 +116,39 @@ async function handler(req: Request): Promise<Response> {
                 );
               }
             }
+
+            // Validate carousel requirements
+            if (isCarousel) {
+              if (!mediaUrls || mediaUrls.length < 2) {
+                return new Response(
+                  JSON.stringify({ ok: false, code: "INVALID_CAROUSEL", message: "Carousel requires at least 2 images" }),
+                  { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+              if (mediaUrls.length > 10) {
+                return new Response(
+                  JSON.stringify({ ok: false, code: "INVALID_CAROUSEL", message: "Carousel cannot exceed 10 images" }),
+                  { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+            }
             
-            // Update task status to published
+            // Update task status to published with carousel metadata
+            const updateData: any = { status: 'published' };
+            if (isCarousel && mediaUrls) {
+              updateData.attachments = {
+                ...updateData.attachments,
+                carousel: {
+                  isCarousel: true,
+                  mediaUrls: mediaUrls,
+                  imageCount: mediaUrls.length
+                }
+              };
+            }
+            
             const { error: publishError } = await supabase
               .from('content_tasks')
-              .update({ status: 'published' })
+              .update(updateData)
               .eq('id', taskId);
 
             if (publishError) throw publishError;
