@@ -72,7 +72,7 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
     if (!open) {
       setStep(1); setSelectedPath(null); setSelectedSourceId(null);
       setTitle(""); setNotes(""); setTone(""); setGoal("traffic");
-      setChannels({ newsletter: true, instagram: true, facebook: true, video: true, blog: true });
+      setChannels({ newsletter: true, instagram: true, facebook: true, video: true, blog: true, instagram_carousel: false, facebook_carousel: false });
       return;
     }
   }, [open, setSelectedPath, setSelectedSourceId]);
@@ -162,6 +162,37 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
 
   const startGenerate = async () => {
     if (!selectedPath) return;
+    
+    // Check if ONLY carousel channels are selected
+    const selectedChannels = Object.keys(channels).filter((k) => (channels as any)[k]);
+    const hasOnlyCarousel = selectedChannels.every(ch => ch === 'instagram_carousel' || ch === 'facebook_carousel');
+    const hasCarousel = selectedChannels.some(ch => ch === 'instagram_carousel' || ch === 'facebook_carousel');
+    
+    // If only carousel channels are selected, navigate directly to carousel composer
+    if (hasOnlyCarousel && hasCarousel) {
+      const platform = channels.instagram_carousel ? 'instagram' : 'facebook';
+      onOpenChange(false);
+      navigate(`/carousel/composer?platform=${platform}`);
+      toast({ 
+        title: 'Opening Carousel Composer', 
+        description: `Create your ${platform === 'instagram' ? 'Instagram' : 'Facebook'} carousel with 2-10 images.` 
+      });
+      return;
+    }
+    
+    // If carousel + other channels, warn user (for now)
+    if (hasCarousel) {
+      toast({ 
+        title: 'Mixed Content Generation',
+        description: 'Carousel posts will be available in the carousel composer. Other content will be generated.',
+        variant: 'default'
+      });
+      // Remove carousel channels from generation
+      const nonCarouselChannels = selectedChannels.filter(ch => ch !== 'instagram_carousel' && ch !== 'facebook_carousel');
+      if (nonCarouselChannels.length === 0) {
+        return; // Only carousel was selected
+      }
+    }
     
     // Prepare job data - ALL content now redirects to /content/library
     let jobTitle = 'Untitled Content';
@@ -512,17 +543,17 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
               <div className="flex justify-between items-center">
                 <Label>Select the types of content to create:</Label>
                 <div className="flex gap-2">
-                  <Button 
+                <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setChannels({ newsletter: true, instagram: true, facebook: true, video: true, blog: true })}
+                    onClick={() => setChannels({ newsletter: true, instagram: true, facebook: true, video: true, blog: true, instagram_carousel: true, facebook_carousel: true })}
                   >
                     Select All
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setChannels({ newsletter: false, instagram: false, facebook: false, video: false, blog: false })}
+                    onClick={() => setChannels({ newsletter: false, instagram: false, facebook: false, video: false, blog: false, instagram_carousel: false, facebook_carousel: false })}
                   >
                     Deselect All
                   </Button>
@@ -530,11 +561,24 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Social Media Posts</div>
                   <ChannelCheckbox name="instagram" label="Instagram Post" />
                   <ChannelCheckbox name="facebook" label="Facebook Post" />
-                  <ChannelCheckbox name="newsletter" label="Newsletter Section" />
+                  
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <div className="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                      <span>📸</span> Carousel Posts (Multi-Image)
+                    </div>
+                    <ChannelCheckbox name="instagram_carousel" label="Instagram Carousel (2-10 photos)" />
+                    <ChannelCheckbox name="facebook_carousel" label="Facebook Carousel (2-10 photos)" />
+                    <p className="text-xs text-muted-foreground mt-2 italic">
+                      Opens dedicated carousel builder
+                    </p>
+                  </div>
                 </div>
                 <div className="space-y-3">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Other Channels</div>
+                  <ChannelCheckbox name="newsletter" label="Newsletter Section" />
                   <ChannelCheckbox name="video" label="Short Video Script" />
                   <ChannelCheckbox name="blog" label="Blog Article" />
                 </div>
@@ -570,7 +614,15 @@ export function CreateFlowDialog({ open, onOpenChange }: CreateFlowDialogProps) 
                   )}
                   <Button disabled={!canGenerate || loading} onClick={startGenerate}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Generate Content
+                    {(() => {
+                      const selectedChannels = Object.keys(channels).filter((k) => (channels as any)[k]);
+                      const hasOnlyCarousel = selectedChannels.every(ch => ch === 'instagram_carousel' || ch === 'facebook_carousel');
+                      const hasCarousel = selectedChannels.some(ch => ch === 'instagram_carousel' || ch === 'facebook_carousel');
+                      
+                      if (hasOnlyCarousel) return 'Open Carousel Builder';
+                      if (hasCarousel) return 'Generate & Open Carousel';
+                      return 'Generate Content';
+                    })()}
                   </Button>
                 </div>
               </>

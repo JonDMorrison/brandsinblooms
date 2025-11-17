@@ -71,6 +71,7 @@ import AdminDashboard from '@/pages/admin/AdminDashboard';
 import { CommunityPage } from '@/pages/CommunityPage';
 import { SavedBlocksPage } from '@/pages/crm/SavedBlocksPage';
 import ConfirmSubscription from '@/pages/ConfirmSubscription';
+import CarouselComposerPage from '@/pages/CarouselComposerPage';
 import HelpDeskPage from '@/pages/HelpDeskPage';
 import TicketListPage from '@/pages/TicketListPage';
 import CreateTicketPage from '@/pages/CreateTicketPage';
@@ -439,6 +440,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <PublishPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/carousel/composer" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CarouselComposerPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
