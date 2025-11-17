@@ -27,6 +27,7 @@ export const AuthCallbackPage = () => {
   const [message, setMessage] = useState('Connecting to Meta platform...');
   const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
   const [showAppSetupGuide, setShowAppSetupGuide] = useState(false);
+  const [isExchanging, setIsExchanging] = useState(false); // Prevent concurrent exchanges
 
   useEffect(() => {
     // Only handle OAuth callback logic if we're actually on the callback route
@@ -85,6 +86,12 @@ export const AuthCallbackPage = () => {
         return;
       }
 
+      // CRITICAL: Prevent duplicate exchanges with state flag
+      if (isExchanging) {
+        console.warn('⚠️ Exchange already in progress, ignoring duplicate call');
+        return;
+      }
+
       // Check if code already processed
       const processedCodes = sessionStorage.getItem('processed_oauth_codes');
       const processedCodesArray = processedCodes ? JSON.parse(processedCodes) : [];
@@ -97,6 +104,11 @@ export const AuthCallbackPage = () => {
         setTimeout(() => navigate('/social-accounts'), 2000);
         return;
       }
+      
+      // Mark code as being processed IMMEDIATELY (before API call)
+      processedCodesArray.push(code);
+      sessionStorage.setItem('processed_oauth_codes', JSON.stringify(processedCodesArray.slice(-10)));
+      console.log('🔒 Code marked as processing to prevent duplicates');
 
       // Verify state parameter
       const storedState = sessionStorage.getItem('oauth_state');
@@ -139,6 +151,9 @@ export const AuthCallbackPage = () => {
       }
 
       console.log('Starting OAuth exchange for authenticated user');
+      
+      // Set exchange flag to prevent concurrent calls
+      setIsExchanging(true);
 
       try {
         setMessage('Exchanging authorization code...');
@@ -186,12 +201,6 @@ export const AuthCallbackPage = () => {
           timestamp: Date.now()
         }));
         
-        // Mark code as processed ONLY after successful exchange
-        const processedCodes = sessionStorage.getItem('processed_oauth_codes');
-        const processedCodesArray = processedCodes ? JSON.parse(processedCodes) : [];
-        processedCodesArray.push(code);
-        sessionStorage.setItem('processed_oauth_codes', JSON.stringify(processedCodesArray.slice(-10)));
-        
         console.log('OAuth success, redirecting to social accounts');
         setTimeout(() => navigate(`/social-accounts${window.location.search}`), 3000);
         
@@ -201,16 +210,24 @@ export const AuthCallbackPage = () => {
         setStatus('error');
         let errorMessage = 'Connection failed';
         
-        if (error?.message?.includes('Exchange failed')) {
+        // Specific error handling for duplicate code usage
+        if (error?.message?.includes('already been used') || error?.message?.includes('duplicate')) {
+          errorMessage = 'This authorization link has expired. Please try connecting again from the Social Accounts page.';
+        } else if (error?.message?.includes('Exchange failed')) {
           errorMessage = 'Unable to connect to Meta platform. Please try again.';
         } else if (error?.message?.includes('No response data')) {
           errorMessage = 'Connection service temporarily unavailable. Please try again.';
+        } else if (error?.message?.includes('Internal Server Error')) {
+          errorMessage = 'A server error occurred. This may be due to an expired authorization. Please try connecting again.';
         } else {
           errorMessage = `Connection failed: ${error?.message || 'Unknown error'}`;
         }
         
         setMessage(errorMessage);
         setTimeout(() => navigate('/social-accounts'), 5000);
+      } finally {
+        // Always reset the exchanging flag
+        setIsExchanging(false);
       }
     };
 
@@ -239,18 +256,7 @@ export const AuthCallbackPage = () => {
       console.log('❌ No OAuth parameters found, redirecting to social accounts');
       setTimeout(() => navigate('/social-accounts'), 2000);
     }
-  }, [searchParams, navigate, user, authLoading]);
-
-  // Retry callback when auth loading completes
-  useEffect(() => {
-    if (!authLoading && searchParams.get('code')) {
-      // Trigger re-processing if auth just finished loading
-      const timer = setTimeout(() => {
-        window.location.reload();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [authLoading, searchParams]);
+  }, [searchParams, navigate, user, authLoading, isExchanging]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/20 p-4">
