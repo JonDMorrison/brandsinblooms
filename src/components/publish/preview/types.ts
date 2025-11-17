@@ -7,7 +7,9 @@ export type PreviewProps = {
   accountName: string;
   avatarUrl?: string;
   caption: string;
-  mediaUrl: string;
+  mediaUrl: string;           // single image (legacy)
+  mediaUrls?: string[];       // multiple images for carousel
+  isCarousel?: boolean;       // carousel mode
   scheduledFor?: string | null; // ISO; if present show "Scheduled"
   likeCount?: number;
   commentCount?: number;

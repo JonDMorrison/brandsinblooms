@@ -30,7 +30,9 @@ export type PublishItem = {
   accountName?: string | null;
   caption?: string | null;   // prefer ai_output text
   firstComment?: string | null; // IG only (optional)
-  mediaUrl?: string | null;  // current selected image
+  mediaUrl?: string | null;  // single image (legacy)
+  mediaUrls?: string[];      // multiple images for carousel
+  isCarousel?: boolean;      // indicates if post is a carousel
   scheduledFor?: string | null; // ISO timestamp (UTC) if scheduled
   status: PostStatus;
   // optional source data you already load:
@@ -41,7 +43,9 @@ export type PublishNowInput = {
   platform: Platform;
   accountId: string;
   caption?: string | null;
-  mediaUrl?: string | null;
+  mediaUrl?: string | null;   // single image (legacy)
+  mediaUrls?: string[];       // multiple images for carousel
+  isCarousel?: boolean;       // carousel mode flag
   firstComment?: string | null; // IG
   contentId?: string; // Optional: generated_content.id for foreign key
 };

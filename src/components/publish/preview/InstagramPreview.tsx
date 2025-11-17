@@ -13,10 +13,27 @@ export const InstagramPreview = ({
   accountName, 
   avatarUrl, 
   caption, 
-  mediaUrl, 
+  mediaUrl,
+  mediaUrls,
+  isCarousel,
   likeCount = 1248, 
   commentCount = 89 
 }: InstagramPreviewProps) => {
+  // If carousel, use carousel component
+  if (isCarousel && mediaUrls && mediaUrls.length > 1) {
+    const { InstagramCarouselPreview } = require('./InstagramCarouselPreview');
+    return <InstagramCarouselPreview 
+      accountName={accountName}
+      avatarUrl={avatarUrl}
+      caption={caption}
+      mediaUrls={mediaUrls}
+      isCarousel={true}
+      platform="instagram"
+      mediaUrl={mediaUrl}
+      likeCount={likeCount}
+      commentCount={commentCount}
+    />;
+  }
   // Strip markdown as Instagram doesn't render it
   const cleanCaption = stripMarkdownForSocial(caption);
   const truncatedCaption = truncateWithMore(cleanCaption, 140);
