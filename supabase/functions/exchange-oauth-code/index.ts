@@ -177,7 +177,16 @@ serve(async (req) => {
 
     if (markUsedError) {
       console.error('❌ Failed to mark code as used:', markUsedError)
-      // Continue anyway - this is just a safety check
+      
+      // CRITICAL: If we can't mark the code as used, it might be a duplicate request
+      // Check if it's a duplicate key violation (code 23505)
+      if (markUsedError.code === '23505') {
+        console.warn('⚠️ Duplicate code usage detected via constraint violation')
+        throw new Error('This authorization code has already been used. Please try connecting again.')
+      }
+      
+      // For other errors, we can't safely proceed
+      throw new Error('Failed to track authorization code usage. Please try again.')
     }
 
     // Exchange authorization code for access token
@@ -218,7 +227,19 @@ serve(async (req) => {
         statusText: tokenResponse.statusText,
         error: tokenData
       })
-      throw new Error(`Token exchange failed (${tokenResponse.status}): ${JSON.stringify(tokenData)}`)
+      
+      // Provide user-friendly error messages for common OAuth errors
+      let errorMessage = `Token exchange failed (${tokenResponse.status})`;
+      
+      if (tokenData.error?.message?.includes('This authorization code has been used')) {
+        errorMessage = 'This authorization code has already been used. Please try connecting again.';
+      } else if (tokenData.error?.message?.includes('authorization code')) {
+        errorMessage = 'Invalid or expired authorization code. Please try connecting again.';
+      } else if (tokenData.error?.message) {
+        errorMessage = tokenData.error.message;
+      }
+      
+      throw new Error(errorMessage)
     }
 
     const accessToken = tokenData.access_token
