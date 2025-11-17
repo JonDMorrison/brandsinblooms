@@ -18,6 +18,8 @@ interface SocialPostPreviewModalProps {
   avatarUrl?: string;
   caption: string;
   mediaUrl: string;
+  mediaUrls?: string[];      // For carousel support
+  isCarousel?: boolean;      // Carousel mode flag
   scheduledFor?: string | null;
   likeCount?: number;
   commentCount?: number;
@@ -32,6 +34,8 @@ export const SocialPostPreviewModal = ({
   avatarUrl,
   caption,
   mediaUrl,
+  mediaUrls,
+  isCarousel,
   scheduledFor,
   likeCount,
   commentCount
@@ -62,6 +66,8 @@ export const SocialPostPreviewModal = ({
     avatarUrl,
     caption,
     mediaUrl,
+    mediaUrls,
+    isCarousel,
     scheduledFor,
     likeCount,
     commentCount
