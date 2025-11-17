@@ -5,10 +5,15 @@ import { X } from "lucide-react";
 import { useState } from "react";
 
 export const TrialBanner = () => {
-  const { isTrialExpired, trialDaysLeft } = useSubscription();
+  const { subscription, isTrialExpired, trialDaysLeft } = useSubscription();
   const [isDismissed, setIsDismissed] = useState(false);
 
-  if (isDismissed || (!isTrialExpired && trialDaysLeft > 7)) {
+  if (
+    isDismissed ||
+    subscription?.plan === 'sprout' ||
+    subscription?.plan === 'bloom' ||
+    (!isTrialExpired && trialDaysLeft > 7)
+  ) {
     return null;
   }
 
