@@ -9,13 +9,15 @@ interface CarouselImageSelectorProps {
   onChange: (images: string[]) => void;
   platform: 'facebook' | 'instagram';
   maxImages?: number;
+  onImageClick?: (index: number) => void;
 }
 
 export const CarouselImageSelector: React.FC<CarouselImageSelectorProps> = ({
   images,
   onChange,
   platform,
-  maxImages = 10
+  maxImages = 10,
+  onImageClick
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -81,7 +83,8 @@ export const CarouselImageSelector: React.FC<CarouselImageSelectorProps> = ({
             onDragStart={() => handleDragStart(index)}
             onDragOver={(e) => handleDragOver(e, index)}
             onDragEnd={handleDragEnd}
-            className="relative group aspect-square rounded-lg overflow-hidden border-2 border-border bg-muted hover:border-primary transition-colors cursor-move"
+            onClick={() => onImageClick?.(index)}
+            className="relative group aspect-square rounded-lg overflow-hidden border-2 border-border bg-muted hover:border-primary transition-colors cursor-pointer"
           >
             <img
               src={url}
