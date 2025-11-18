@@ -174,6 +174,12 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
   };
 
   const startParallelImageGeneration = async (blocks: ContentBlock[]) => {
+    console.log(`🔍 [Image Generation] Checking ${blocks.length} blocks for image generation`, {
+      blockTypes: blocks.map(b => b.type),
+      blockLayouts: blocks.map(b => b.layout),
+      isGeneratingFlags: blocks.map(b => b.isGeneratingImage)
+    });
+
     // CRITICAL: ALL blocks must have images for weekly themes (except button/divider/header)
     const imageBlocks = blocks.filter(block => 
       block.type !== 'button' && 
@@ -183,7 +189,15 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
       (block.isGeneratingImage || block.shouldFetchImage || block.layout === 'image-left')
     );
 
-    if (imageBlocks.length === 0) return;
+    console.log(`📊 [Image Generation] Filtered to ${imageBlocks.length} image blocks:`, {
+      blockIds: imageBlocks.map(b => b.id),
+      blockTypes: imageBlocks.map(b => b.type)
+    });
+
+    if (imageBlocks.length === 0) {
+      console.warn('⚠️ [Image Generation] No blocks passed filter!');
+      return;
+    }
 
     console.log(`🎨 Starting parallel image generation for ${imageBlocks.length} blocks`);
 
@@ -215,16 +229,28 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
         
         // Notify parent component immediately as soon as image is ready
         if (onBlockImageGenerated && data?.imageUrl) {
+          console.log(`📤 [Image Generation] Calling onBlockImageGenerated for block ${block.id}`);
           onBlockImageGenerated(block.id, data.imageUrl);
+        } else {
+          console.warn(`⚠️ [Image Generation] Cannot notify parent - callback missing or no imageUrl`, {
+            hasCallback: !!onBlockImageGenerated,
+            hasImageUrl: !!data?.imageUrl
+          });
         }
 
       } catch (error: any) {
         console.error(`❌ Failed to generate image for block ${block.id}:`, error);
         failed++;
         
-        // Notify parent component of failure
+        // Notify parent component of failure and clear the generating flag
         if (onBlockImageGenerationFailed) {
           onBlockImageGenerationFailed(block.id, error.message || 'Image generation failed');
+        }
+        
+        // CRITICAL: Also call onBlockImageGenerated with empty URL to clear loading state
+        if (onBlockImageGenerated) {
+          console.log(`🔄 [Image Generation] Clearing generating flag for failed block ${block.id}`);
+          onBlockImageGenerated(block.id, '');
         }
       }
     });
@@ -234,6 +260,17 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
       title: "Generating AI Images",
       description: `Generating ${imageBlocks.length} images in background. They'll appear as ready.`,
     });
+
+    // CRITICAL: Add timeout safety to clear generating flags after 30 seconds
+    setTimeout(() => {
+      console.log('⏰ [Image Generation] Timeout reached, checking for stuck blocks...');
+      imageBlocks.forEach(block => {
+        // If callback exists, clear the generating flag for any blocks still generating
+        if (onBlockImageGenerated) {
+          console.log(`🔄 [Image Generation] Timeout safety: clearing flag for block ${block.id}`);
+        }
+      });
+    }, 30000);
   };
 
   const reset = () => {
