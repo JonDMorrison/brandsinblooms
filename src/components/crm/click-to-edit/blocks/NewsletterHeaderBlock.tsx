@@ -47,13 +47,6 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
   // Live preview component that can be reused
   const PreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group min-h-[400px]">
-      {/* AI Image Generation Overlay */}
-      {isGeneratingImage && (
-        <AIImageLoadingOverlay 
-          message="Generating Images"
-          showIcon={true}
-        />
-      )}
       {/* Background Image - bottom layer */}
       {block.backgroundImageUrl && (
         <div 
