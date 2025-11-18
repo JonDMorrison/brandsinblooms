@@ -247,7 +247,9 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       padding: 'medium',
       visible: true,
       collapsed: false,
-      shouldFetchImage: false // Text-first blocks don't need images by default
+      shouldFetchImage: true, // CRITICAL: Weekly theme blocks MUST have images
+      isGeneratingImage: true,
+      isWeeklyTheme: true
     }
   ];
   
@@ -398,8 +400,14 @@ const mapBlockType = (templateType: string): ContentBlock['type'] => {
 };
 
 const getLayoutHint = (layout: string, blockType: string, index: number): BlockLayout => {
-  // For now, all layouts use full-width since magazine layout is removed
-  return 'full-width';
+  // For weekly themes, enforce image-left layout for all content blocks
+  // Headers use full-width layout
+  if (blockType === 'header' || blockType === 'newsletter-header') {
+    return 'full-width';
+  }
+  
+  // All other blocks use image-left layout for consistent visual structure
+  return 'image-left';
 };
 
 // Fallback block generation if all else fails

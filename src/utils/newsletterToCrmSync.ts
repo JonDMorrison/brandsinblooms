@@ -61,7 +61,6 @@ export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlo
         
         // CRITICAL CHANGE: Force all content blocks to be image-text for weekly themes
         const blockType: BlockType = 'image-text';
-        const blockLayout = hasImage && hasText ? 'image-right' : 'two-column-right';
         
         parsedBlocks.push({
           id: `block-${i}`,
@@ -80,10 +79,9 @@ export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlo
           collapsed: false,
           visible: true,
           animation: 'fade-in',
-          layout: blockLayout
+          layout: 'image-left' as BlockLayout
         });
       });
-      
       console.log('[YAML PARSER] Converted to', parsedBlocks.length, 'ContentBlocks');
       return parsedBlocks;
     }

@@ -161,7 +161,7 @@ const convertToEmailBlocks = async (processed: any, originalImages?: Record<stri
       
       // CRITICAL CHANGE: Force all content blocks to be image-text for weekly themes
       const blockType = 'image-text';
-      const blockLayout = hasImage && hasText ? 'image-right' : 'full-width';
+      const blockLayout = 'image-left';
       
       const contentBlock: ContentBlock = {
         id: `block-${index}`,
