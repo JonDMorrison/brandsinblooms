@@ -255,7 +255,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       onUpdate: (updates: Partial<ContentBlock>) => updateBlock(block.id, updates)
     };
 
-    const isHeaderGeneratingImage = (block.type === 'header' || block.type === 'newsletter-header') && isGeneratingHeaderImage;
+    const isHeaderGeneratingImage = (block.type === 'header' || block.type === 'newsletter-header') && 
+      (isGeneratingHeaderImage || (block as any).isGeneratingImage === true);
 
     switch (block.type) {
       case 'header':
@@ -298,7 +299,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       onUpdate: (updates: Partial<ContentBlock>) => updateBlock(block.id, updates)
     };
 
-    const isHeaderGeneratingImage = (block.type === 'header' || block.type === 'newsletter-header') && isGeneratingHeaderImage;
+    const isHeaderGeneratingImage = (block.type === 'header' || block.type === 'newsletter-header') && 
+      (isGeneratingHeaderImage || (block as any).isGeneratingImage === true);
 
     switch (block.type) {
       case 'header':
