@@ -399,9 +399,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         responsiveBehavior: 'stack',
         visible: true,
         animation: 'fade-in',
-        ...fallbackConfig.config,
-        // CRITICAL: Force imageUrl to empty for text blocks in fallback
-        ...(fallbackConfig.type === 'text' ? { imageUrl: '', shouldFetchImage: false } : {})
+        ...fallbackConfig.config
       };
       
       const newBlocks = [...internalBlocks];
