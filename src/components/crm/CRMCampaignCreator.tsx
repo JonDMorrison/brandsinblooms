@@ -151,6 +151,7 @@ async function generateImagesForBlocks(
                 imageId: result.imageId,
                 altText: result.metadata?.usedQuery || contentTitle,
                 isLoadingImage: false,
+                isGeneratingImage: false, // ✅ Clear generating flag once image is ready
                 // CRITICAL: Preserve content flags
                 hasGeneratedContent: b.hasGeneratedContent || !!(b.headline || b.body),
                 contentGeneratedAt: b.contentGeneratedAt,
@@ -169,7 +170,9 @@ async function generateImagesForBlocks(
         } else {
           console.warn(`⚠️ No image returned for block ${blockIndex}`);
           setBlocks(prev => prev.map((b, i) => 
-            i === blockIndex ? { ...b, imageUrl: '', isLoadingImage: false } : b
+            i === blockIndex 
+              ? { ...b, imageUrl: '', isLoadingImage: false, isGeneratingImage: false }
+              : b
           ));
         }
         
@@ -184,7 +187,7 @@ async function generateImagesForBlocks(
         // Clear loading state for this block
         setBlocks(prev => prev.map((b, i) => {
           if (i === blockIndex) {
-            return { ...b, imageUrl: '', isLoadingImage: false };
+            return { ...b, imageUrl: '', isLoadingImage: false, isGeneratingImage: false };
           }
           return b;
         }));
@@ -198,7 +201,7 @@ async function generateImagesForBlocks(
     // Clear all loading states on error
     setBlocks(prev => prev.map(b => 
       (b as any).shouldFetchImage 
-        ? { ...b, imageUrl: '', isLoadingImage: false }
+        ? { ...b, imageUrl: '', isLoadingImage: false, isGeneratingImage: false }
         : b
     ));
   }
