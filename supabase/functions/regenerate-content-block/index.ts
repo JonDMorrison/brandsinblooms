@@ -27,6 +27,12 @@ Block Type: ${block_data.type}
 Regeneration Options: ${JSON.stringify(regeneration_options)}
 Campaign Context: ${campaign_context}
 
+CRITICAL REQUIREMENTS:
+- Target length: 50-80 words per block (keep it brief and scannable)
+- Eliminate filler words and get straight to the point
+- Focus on high-impact, conversion-focused messaging
+- No TLDR effect - readers want quick, actionable insights
+
 Focus on making this ${block_data.type} block more compelling while maintaining relevance to the overall campaign.`;
 
     const userPrompt = `Current ${block_data.type} block:
@@ -54,7 +60,7 @@ Format as JSON with keys: regenerated_block, variations, performance_prediction`
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.8,
-        max_tokens: 1000
+        max_tokens: 600
       }),
     });
 

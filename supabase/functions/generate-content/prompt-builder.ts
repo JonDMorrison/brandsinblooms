@@ -17,13 +17,13 @@ export function buildContentPrompt(
   const city = locationParts[0] || 'your city';
   const region = locationParts[1] || locationParts[0] || 'your region';
 
-  // Map content type to specific parameters - Updated for newsletter section cohesion
+  // Map content type to specific parameters - Reduced by 50% for brevity and scannability
   const contentFormatMap = {
-    instagram: { format: 'Instagram post', wordCount: '60-120', cta: 'visit our garden center' },
-    facebook: { format: 'Facebook post', wordCount: '100-200', cta: 'stop by for expert advice' },
-    blog: { format: 'blog article', wordCount: '400-600', cta: 'schedule a consultation' },
-    newsletter: { format: 'newsletter section', wordCount: '80-100', cta: 'visit for expert guidance' },
-    video: { format: 'natural teaching content', wordCount: '200-250 words', cta: 'come in for supplies' }
+    instagram: { format: 'Instagram post', wordCount: '50-80', cta: 'visit our garden center' },
+    facebook: { format: 'Facebook post', wordCount: '80-120', cta: 'stop by for expert advice' },
+    blog: { format: 'blog article', wordCount: '250-400', cta: 'schedule a consultation' },
+    newsletter: { format: 'newsletter section', wordCount: '50-80', cta: 'visit for expert guidance' },
+    video: { format: 'natural teaching content', wordCount: '150-200 words', cta: 'come in for supplies' }
   };
 
   const contentParams = contentFormatMap[postType.toLowerCase()] || contentFormatMap.instagram;
@@ -53,6 +53,7 @@ You are a certified StoryBrand Guide and seasoned garden center marketing expert
 10. Include sensory details (colors, scents, textures) that gardeners recognize
 11. Keep sentences under 20 words average, vary length for natural rhythm
 12. Professional business tone without social media fluff
+13. **CRITICAL: Keep content brief and scannable - eliminate filler words and get to the point quickly**
 
 # STORYBRAND FRAMEWORK INTEGRATION
 1. Character – Make the gardener the hero facing a specific plant/garden challenge

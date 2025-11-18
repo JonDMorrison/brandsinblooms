@@ -36,6 +36,7 @@ Regeneration Guidelines:
 - Focus: ${regeneration_options.focus}
 - Target Persona: ${regeneration_options.persona_tag || 'general gardener'}
 - Preserve Structure: ${regeneration_options.preserve_structure}
+- **Target Length: 250-400 words MAXIMUM - keep content brief, scannable, and high-impact**
 
 Seasonal Context:
 - Current Season: ${seasonal_context?.current_season}
@@ -47,7 +48,13 @@ Image Query Guidelines:
 - Focus on visual garden elements (plants, flowers, tools, landscapes)
 - Examples: "native wildflower meadow display", "heirloom tomato seedlings greenhouse", "autumn planting bulbs tulips"
 
-Please regenerate the content to be more engaging, season-appropriate, and conversion-focused while maintaining the core message.`;
+CRITICAL BREVITY REQUIREMENTS:
+- Eliminate all filler words and redundant phrases
+- Get to the point quickly - readers want actionable insights, not lengthy paragraphs
+- Keep paragraphs to 2-3 sentences maximum
+- Focus on high-value, conversion-focused messaging
+
+Please regenerate the content to be more engaging, season-appropriate, and conversion-focused while maintaining the core message. Remember: brevity and scannability are key to preventing TLDR (too long, didn't read) effect.`;
 
     const userPrompt = `Campaign Title: ${campaign_title}
 
@@ -82,7 +89,7 @@ Format your response as JSON with these keys:
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.7,
-        max_tokens: 2000
+        max_tokens: 1200
       }),
     });
 

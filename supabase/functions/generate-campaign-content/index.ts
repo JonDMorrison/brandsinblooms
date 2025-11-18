@@ -35,11 +35,13 @@ serve(async (req) => {
       - Seasonal and timely
       - Encouraging and inspiring
       - Practical with actionable tips
+      - **Brief and scannable - target 250-400 words total**
       
       CRITICAL RESTRICTIONS:
       - NEVER use "Week" followed by any number (Week 1, Week 28, etc.)
       - NEVER use "weekly" references or "This Week" language
       - Use seasonal timing instead: "this season", "currently", "right now"
+      - **ELIMINATE FILLER: Get to the point quickly, readers want actionable insights**
       
       Always include:
       - A warm, personal greeting
@@ -48,13 +50,13 @@ serve(async (req) => {
       - A friendly closing
       
       Format the email content as plain text with line breaks for readability.`;
-      maxTokens = 1000;
+      maxTokens = 700;
     } else if (type === "sms") {
       systemPrompt = `You are a marketing expert for garden centers and plant nurseries.
       Create short, compelling SMS marketing messages for gardening enthusiasts.
       Focus on promotions, new arrivals, seasonal tips, or events.
       Keep it concise, friendly, and action-oriented.
-      Maximum ${maxLength || 250} characters including spaces.
+      Maximum ${maxLength || 160} characters including spaces.
       Do NOT include "Reply STOP to unsubscribe" - this will be added automatically.
       Use garden/plant emojis sparingly but effectively.
       
@@ -62,19 +64,21 @@ serve(async (req) => {
       - NEVER use "Week" followed by any number (Week 1, Week 28, etc.)
       - NEVER use "weekly" references or "This Week" language
       - Use seasonal timing: "this season", "now", "currently"`;
-      maxTokens = 100;
+      maxTokens = 80;
     } else {
       systemPrompt = `You are a marketing expert for garden centers and plant nurseries.
       Create engaging social media content that speaks to gardening enthusiasts.
       Focus on seasonal gardening tips, plant care advice, new arrivals, and promotions.
       Keep the tone friendly, knowledgeable, and inspiring.
       Use relevant emojis and include hashtags.
+      **Target length: 80-120 words for scannability**
       
       CRITICAL RESTRICTIONS:
       - NEVER use "Week" followed by any number (Week 1, Week 28, etc.)
       - NEVER use "weekly" references or "This Week" language
-      - Use seasonal timing: "this season", "now", "currently"`;
-      maxTokens = 300;
+      - Use seasonal timing: "this season", "now", "currently"
+      - **Keep it brief and punchy - eliminate filler words**`;
+      maxTokens = 200;
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

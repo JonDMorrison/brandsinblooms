@@ -127,6 +127,8 @@ CRITICAL REQUIREMENTS:
 5. **CRITICAL: Uses exactly two spaces after every sentence ending (period, question mark, exclamation mark) throughout the entire newsletter**
 6. Write in flowing paragraphs only - no bullet points or numbered lists
 7. Position customer as hero, garden center as guide
+8. **TARGET LENGTH: 250-400 words total - keep content brief, scannable, and high-impact**
+9. **ELIMINATE FILLER: Get straight to the point, no lengthy introductions or unnecessary details**
 
 Format as a cohesive narrative newsletter with clear section transitions.  Ensure proper sentence spacing throughout.`;
 
@@ -141,14 +143,14 @@ Format as a cohesive narrative newsletter with clear section transitions.  Ensur
         messages: [
           {
             role: 'system',
-            content: 'You are a professional newsletter writer specializing in garden center and nursery content.  Create engaging, informative newsletters that help customers with their gardening needs.  CRITICAL: Always use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence.'
+            content: 'You are a professional newsletter writer specializing in garden center and nursery content.  Create engaging, informative newsletters that help customers with their gardening needs.  CRITICAL: Always use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence.  Keep content brief and scannable - target 250-400 words total.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        max_tokens: 1500, // OPTIMIZED: Reduced token usage
+        max_tokens: 1000, // OPTIMIZED: Reduced for brevity (was 1500)
         temperature: 0.7,
       }),
   });
