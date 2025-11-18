@@ -187,8 +187,12 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
 
     console.log(`🎨 Starting parallel image generation for ${imageBlocks.length} blocks`);
 
-    // Generate all images in parallel
-    const imagePromises = imageBlocks.map(async (block, index) => {
+    let succeeded = 0;
+    let failed = 0;
+
+    // Generate all images in parallel WITHOUT waiting for all to complete
+    // Each image will notify parent as soon as it's ready
+    imageBlocks.forEach(async (block, index) => {
       try {
         console.log(`📸 Generating image ${index + 1}/${imageBlocks.length} for block ${block.id}`);
         
@@ -206,15 +210,17 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
 
         if (error) throw error;
 
-        console.log(`✅ Image generated for block ${block.id}:`, data.imageUrl.substring(0, 50));
+        console.log(`✅ Image generated for block ${block.id}:`, data.imageUrl?.substring(0, 50));
+        succeeded++;
         
-        // Notify parent component of successful generation
-        if (onBlockImageGenerated) {
+        // Notify parent component immediately as soon as image is ready
+        if (onBlockImageGenerated && data?.imageUrl) {
           onBlockImageGenerated(block.id, data.imageUrl);
         }
 
       } catch (error: any) {
         console.error(`❌ Failed to generate image for block ${block.id}:`, error);
+        failed++;
         
         // Notify parent component of failure
         if (onBlockImageGenerationFailed) {
@@ -223,27 +229,11 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
       }
     });
 
-    // Wait for all to complete
-    const results = await Promise.allSettled(imagePromises);
-    
-    // Show summary toast
-    const succeeded = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
-
-    if (succeeded > 0) {
-      toast({
-        title: "AI Images Generated",
-        description: `Successfully generated ${succeeded} of ${imageBlocks.length} unique images.`,
-      });
-    }
-
-    if (failed > 0) {
-      toast({
-        title: "Some Images Failed",
-        description: `${failed} images could not be generated. Click retry to try again.`,
-        variant: "destructive"
-      });
-    }
+    // Show initial toast immediately
+    toast({
+      title: "Generating AI Images",
+      description: `Generating ${imageBlocks.length} images in background. They'll appear as ready.`,
+    });
   };
 
   const reset = () => {
