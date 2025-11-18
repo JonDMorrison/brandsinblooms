@@ -1049,12 +1049,26 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
   // Handle progressive image updates as they complete
   const handleBlockImageGenerated = (blockId: string, imageUrl: string) => {
-    console.log(`✅ Block image generated for ${blockId}`);
+    console.log(`✅ [CampaignCreator] Block image generated for ${blockId}, updating blocks...`);
     setBlocks(prevBlocks => {
+      console.log(`📊 [CampaignCreator] Current blocks before update:`, {
+        totalBlocks: prevBlocks.length,
+        blockWithMatchingId: prevBlocks.find(b => b.id === blockId)?.type,
+        allBlockIds: prevBlocks.map(b => b.id)
+      });
+
       const updatedBlocks = prevBlocks.map(block => {
         if (block.id === blockId) {
           // CRITICAL FIX: For header blocks, update backgroundImageUrl; for others, update imageUrl
           const isHeaderBlock = block.type === 'header' || block.type === 'newsletter-header';
+          
+          console.log(`🔧 [CampaignCreator] Updating block ${blockId}:`, {
+            isHeaderBlock,
+            currentImageUrl: block.imageUrl,
+            newImageUrl: imageUrl,
+            wasGenerating: block.isGeneratingImage
+          });
+
           return {
             ...block,
             ...(isHeaderBlock 
