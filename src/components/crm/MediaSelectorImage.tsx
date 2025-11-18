@@ -194,7 +194,6 @@ export const MediaSelectorImage = forwardRef<MediaSelectorImageHandle, MediaSele
         {isGenerating && (
           <AIImageLoadingOverlay 
             message="AI is creating your garden image..."
-            showIcon={true}
           />
         )}
         

@@ -57,7 +57,6 @@ export const BlogPreviewCard: React.FC<BlogPreviewCardProps> = ({
           {isGenerating ? (
             <AIImageLoadingOverlay 
               message="AI is creating your image..."
-              showIcon={true}
             />
           ) : item.imageUrl ? (
             <div className="relative w-full h-full group">
