@@ -59,8 +59,8 @@ export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlo
         const hasImage = (typeof b.image_url === 'string' && (/^https?:\/\//i.test(b.image_url) || /^data:image\//i.test(b.image_url)));
         const hasText = !!(b.title || b.body || b.content);
         
-        // Use image-text type for blocks with both text and images
-        const blockType = hasImage && hasText ? 'image-text' : 'text';
+        // CRITICAL CHANGE: Force all content blocks to be image-text for weekly themes
+        const blockType: BlockType = 'image-text';
         const blockLayout = hasImage && hasText ? 'image-right' : 'two-column-right';
         
         parsedBlocks.push({
@@ -117,11 +117,12 @@ export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlo
       if (current) parsedBlocks.push(current);
       current = {
         id: `block-${parsedBlocks.length + 1}`,
-        type: 'text', // Will be updated to image-text if images are found
+        type: 'image-text', // CHANGED: All content blocks must be image-text
         title: line.replace('## ', '').trim(),
-        headline: line.replace('## ', '').trim(), // For potential image-text blocks
+        headline: line.replace('## ', '').trim(),
         content: '',
-        body: '', // For potential image-text blocks
+        body: '',
+        imageUrl: '', // Will be generated
         alignment: 'left',
         padding: 'medium',
         source: 'newsletter',
@@ -302,8 +303,8 @@ export const convertNewsletterToCRM = (
       const hasImage = (typeof block.image_url === 'string' && (/^https?:\/\//i.test(block.image_url) || /^data:image\//i.test(block.image_url)));
       const hasText = !!(block.title || block.body);
       
-      // Use image-text type for blocks with both text and images
-      const blockType: BlockType = hasImage && hasText ? 'image-text' : 'text';
+      // CRITICAL CHANGE: Force all content blocks to be image-text for weekly themes
+      const blockType: BlockType = 'image-text';
       const blockLayout: BlockLayout = hasImage && hasText ? 'image-right' : 'two-column-right';
       
       const contentBlock: ContentBlock = {
@@ -343,7 +344,7 @@ export const convertNewsletterToCRM = (
       sections.forEach((section, index) => {
         contentBlocks.push({
           id: `section-${Date.now()}-${index}`,
-          type: 'text' as const,
+          type: 'image-text' as const,
           title: section.title,
           content: section.content,
           alignment: 'left' as const,
@@ -373,7 +374,7 @@ export const convertNewsletterToCRM = (
           if (content) {
             contentBlocks.push({
               id: `split-${Date.now()}-${index}`,
-              type: 'text' as const,
+              type: 'image-text' as const,
               title: title,
               content: content.substring(0, 1000), // Limit content length
               alignment: 'left' as const,
@@ -395,7 +396,7 @@ export const convertNewsletterToCRM = (
       console.log('[NEWSLETTER TO CRM] ⚠️ All fallbacks failed, creating single content block');
       contentBlocks.push({
         id: `fallback-${Date.now()}`,
-        type: 'text' as const,
+        type: 'image-text' as const,
         title: 'Newsletter Content',
         content: decodedContent.substring(0, 1000) + (decodedContent.length > 1000 ? '...' : ''),
         alignment: 'left' as const,

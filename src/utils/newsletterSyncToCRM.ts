@@ -253,8 +253,8 @@ export const convertNewsletterBlocksToCRM = (processedNewsletter: any): ContentB
         break;
 
       default:
-        // Handle unknown block types as text blocks
-        crmBlock.type = 'text';
+        // Handle unknown block types - convert to image-text
+        crmBlock.type = 'image-text';
         crmBlock.content = JSON.stringify({
           title: block.title || '',
           body: block.body || JSON.stringify(block),

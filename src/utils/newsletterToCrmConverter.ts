@@ -159,8 +159,8 @@ const convertToEmailBlocks = async (processed: any, originalImages?: Record<stri
       const hasImage = !!(block.image_prompt || block.image_url);
       const hasText = !!(block.title || block.body);
       
-      // Use image-text type for blocks with both text and images
-      const blockType = hasImage && hasText ? 'image-text' : 'text';
+      // CRITICAL CHANGE: Force all content blocks to be image-text for weekly themes
+      const blockType = 'image-text';
       const blockLayout = hasImage && hasText ? 'image-right' : 'full-width';
       
       const contentBlock: ContentBlock = {
@@ -230,8 +230,8 @@ const convertToEmailBlocks = async (processed: any, originalImages?: Record<stri
       const hasImage = !!(section.image_prompt || section.image_url);
       const hasText = !!(section.title || section.content);
       
-      // Use image-text type for sections with both text and images
-      const blockType = hasImage && hasText ? 'image-text' : 'text';
+      // CRITICAL CHANGE: Force all content blocks to be image-text for weekly themes
+      const blockType = 'image-text';
       const blockLayout = hasImage && hasText ? 'image-right' : 'full-width';
       
       const contentBlock: ContentBlock = {

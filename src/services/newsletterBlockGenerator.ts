@@ -50,16 +50,16 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
   const blocks: ContentBlock[] = templateBlocks.map((block: any, index: number) => {
     let mappedType = mapBlockType(block.type);
     
-    // CRITICAL FIX: If template says 'image-text' but has NO imageUrl specified,
-    // treat it as a text-only block to prevent unwanted image generation
-    if (mappedType === 'image-text' && (!block.imageUrl || block.imageUrl === '')) {
-      console.log(`[NewsletterInit] Converting image-text block to text-only (no imageUrl): "${block.title}"`);
-      mappedType = 'text';
+    // CRITICAL CHANGE: Force ALL content blocks to be image-text for weekly themes
+    // No more plain text blocks allowed
+    if (mappedType === 'text') {
+      console.log(`[NewsletterInit] Converting text block to image-text (weekly theme requirement): "${block.title}"`);
+      mappedType = 'image-text';
     }
     
-    // CRITICAL: Plain text blocks should NEVER have images
-    // Only allow images for image-text and header blocks that explicitly have imageUrl in template
-    const shouldFetchImage = mappedType !== 'text' && block.imageUrl && block.imageUrl !== '';
+    // CRITICAL: ALL blocks must have images for weekly themes
+    // Mark all blocks for image generation except button/divider
+    const shouldFetchImage = mappedType !== 'button' && mappedType !== 'divider';
     
     const baseBlock: ContentBlock = {
       id: `block_${Date.now()}_${index}`,
@@ -68,7 +68,8 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
       content: block.content || block.body || '',
       headline: block.headline || block.title || '',
       body: block.body || block.content || '',
-      imageUrl: mappedType === 'text' ? '' : (block.imageUrl || ''), // Force empty imageUrl for text blocks
+      imageUrl: block.imageUrl || '', // Will be generated if empty
+      imageQuery: block.image_prompt || block.imageQuery || '', // AI image search query
       ctaText: block.buttonText || '',
       ctaUrl: block.buttonUrl || '#',
       source: 'newsletter',
@@ -79,7 +80,9 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
       padding: 'medium',
       visible: true,
       collapsed: false,
-      shouldFetchImage // Add flag to indicate if image should be auto-fetched
+      shouldFetchImage, // Mark for automatic image generation
+      isGeneratingImage: shouldFetchImage, // Mark as needing image
+      isWeeklyTheme: true // Flag for weekly theme enforcement
     };
     
     return baseBlock;
@@ -141,6 +144,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       headline: topic,
       body: '',
       imageUrl: '',
+      imageQuery: '',
       ctaText: '',
       ctaUrl: '',
       source: 'template',
@@ -151,7 +155,9 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       padding: 'large',
       visible: true,
       collapsed: false,
-      shouldFetchImage: true // Header block should fetch image
+      shouldFetchImage: true, // Header must have image
+      isGeneratingImage: true,
+      isWeeklyTheme: true
     },
     {
       id: `content1_${Date.now()}`,
@@ -161,6 +167,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       headline: 'Featured Story',
       body: '',
       imageUrl: '',
+      imageQuery: '',
       ctaText: '',
       ctaUrl: '',
       source: 'template',
@@ -171,7 +178,9 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       padding: 'medium',
       visible: true,
       collapsed: false,
-      shouldFetchImage: false // Text-first blocks don't need images by default
+      shouldFetchImage: true, // CHANGED: Must have image
+      isGeneratingImage: true,
+      isWeeklyTheme: true
     },
     {
       id: `content2_${Date.now()}`,
@@ -181,6 +190,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       headline: 'Main Article',
       body: '',
       imageUrl: '',
+      imageQuery: '',
       ctaText: '',
       ctaUrl: '',
       source: 'template',
@@ -191,7 +201,9 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       padding: 'medium',
       visible: true,
       collapsed: false,
-      shouldFetchImage: false // Text-first blocks don't need images by default
+      shouldFetchImage: true, // CHANGED: Must have image
+      isGeneratingImage: true,
+      isWeeklyTheme: true
     },
     {
       id: `content3_${Date.now()}`,
@@ -201,6 +213,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       headline: 'Secondary Feature',
       body: '',
       imageUrl: '',
+      imageQuery: '',
       ctaText: 'Learn More',
       ctaUrl: '#',
       source: 'template',
@@ -211,7 +224,9 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       padding: 'medium',
       visible: true,
       collapsed: false,
-      shouldFetchImage: false // Text-first blocks don't need images by default
+      shouldFetchImage: true, // CHANGED: Must have image
+      isGeneratingImage: true,
+      isWeeklyTheme: true
     },
     {
       id: `content4_${Date.now()}`,
@@ -221,6 +236,7 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
       headline: 'Call to Action',
       body: '',
       imageUrl: '',
+      imageQuery: '',
       ctaText: 'Visit Our Garden Center',
       ctaUrl: '#',
       source: 'template',
@@ -249,6 +265,7 @@ const generateSimpleEmailBlocks = (topic: string): ContentBlock[] => {
       headline: topic,
       body: '',
       imageUrl: '',
+      imageQuery: '',
       ctaText: '',
       ctaUrl: '',
       source: 'template',
@@ -258,16 +275,20 @@ const generateSimpleEmailBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'center',
       padding: 'medium',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: true,
+      isGeneratingImage: true,
+      isWeeklyTheme: true
     },
     {
       id: `intro_${Date.now()}`,
-      type: 'text',
+      type: 'image-text',
       title: 'Introduction',
       content: '',
       headline: 'Introduction',
       body: '',
       imageUrl: '',
+      imageQuery: '',
       ctaText: '',
       ctaUrl: '',
       source: 'template',
@@ -278,16 +299,19 @@ const generateSimpleEmailBlocks = (topic: string): ContentBlock[] => {
       padding: 'medium',
       visible: true,
       collapsed: false,
-      shouldFetchImage: false // Text blocks should never fetch images
+      shouldFetchImage: true,
+      isGeneratingImage: true,
+      isWeeklyTheme: true
     },
     {
       id: `main_${Date.now()}`,
-      type: 'text',
+      type: 'image-text',
       title: 'Main Content',
       content: '',
       headline: 'Main Content',
       body: '',
       imageUrl: '',
+      imageQuery: '',
       ctaText: '',
       ctaUrl: '',
       source: 'template',
@@ -298,16 +322,19 @@ const generateSimpleEmailBlocks = (topic: string): ContentBlock[] => {
       padding: 'medium',
       visible: true,
       collapsed: false,
-      shouldFetchImage: false // Text blocks should never fetch images
+      shouldFetchImage: true,
+      isGeneratingImage: true,
+      isWeeklyTheme: true
     },
     {
       id: `closing_${Date.now()}`,
-      type: 'text',
+      type: 'image-text',
       title: 'Closing Thoughts',
       content: '',
       headline: 'Closing Thoughts',
       body: '',
       imageUrl: '',
+      imageQuery: '',
       ctaText: '',
       ctaUrl: '',
       source: 'template',
@@ -318,7 +345,9 @@ const generateSimpleEmailBlocks = (topic: string): ContentBlock[] => {
       padding: 'medium',
       visible: true,
       collapsed: false,
-      shouldFetchImage: false // Text blocks should never fetch images
+      shouldFetchImage: true,
+      isGeneratingImage: true,
+      isWeeklyTheme: true
     },
     {
       id: `cta_${Date.now()}`,
@@ -353,7 +382,9 @@ const mapBlockType = (templateType: string): ContentBlock['type'] => {
     case 'image-text':
       return 'image-text';
     case 'text':
-      return 'text';
+      // CRITICAL CHANGE: No more text blocks - convert to image-text
+      console.log('[NewsletterInit] Converting text block to image-text (weekly theme requirement)');
+      return 'image-text';
     case 'button':
       return 'button';
     case 'quote':
@@ -361,7 +392,8 @@ const mapBlockType = (templateType: string): ContentBlock['type'] => {
     case 'divider':
       return 'divider';
     default:
-      return 'text';
+      // Default to image-text instead of text
+      return 'image-text';
   }
 };
 
@@ -383,6 +415,7 @@ export const getFallbackBlocks = (topic: string): ContentBlock[] => {
       headline: topic || 'Weekly Newsletter',
       body: '',
       imageUrl: '',
+      imageQuery: '',
       ctaText: '',
       ctaUrl: '',
       source: 'manual',
@@ -392,11 +425,14 @@ export const getFallbackBlocks = (topic: string): ContentBlock[] => {
       textAlign: 'center',
       padding: 'large',
       visible: true,
-      collapsed: false
+      collapsed: false,
+      shouldFetchImage: true,
+      isGeneratingImage: true,
+      isWeeklyTheme: true
     },
     {
       id: `fallback_content_${Date.now()}`,
-      type: 'text',
+      type: 'image-text',
       title: 'Weekly Update',
       content: '',
       headline: 'Weekly Update',

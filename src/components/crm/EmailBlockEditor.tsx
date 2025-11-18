@@ -140,7 +140,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {[
                   { type: 'header' as const, label: 'Header', icon: '📄' },
-                  { type: 'text' as const, label: 'Text', icon: '📝' },
+                  { type: 'image-text' as const, label: 'Content', icon: '📝' },
                   { type: 'image' as const, label: 'Image', icon: '🖼️' },
                   { type: 'button' as const, label: 'Button', icon: '🔘' }
                 ].map(({ type, label, icon }) => (

@@ -23,10 +23,10 @@ export const AddBlockModal: React.FC<AddBlockModalProps> = ({
       description: 'Title and hero section'
     },
     { 
-      type: 'text' as const, 
-      label: 'Text', 
+      type: 'image-text' as const, 
+      label: 'Content with Image', 
       icon: '📝',
-      description: 'Paragraph content'
+      description: 'Text content with image'
     },
     { 
       type: 'image' as const, 

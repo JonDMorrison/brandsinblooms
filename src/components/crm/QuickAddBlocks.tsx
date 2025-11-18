@@ -19,8 +19,8 @@ export const QuickAddBlocks: React.FC<QuickAddBlocksProps> = ({
       description: 'Title and hero section'
     },
     { 
-      type: 'text' as const, 
-      label: 'Text', 
+      type: 'image-text' as const, 
+      label: 'Content with Image',
       icon: '📝',
       description: 'Paragraph content'
     },

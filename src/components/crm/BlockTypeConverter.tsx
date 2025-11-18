@@ -115,9 +115,9 @@ const preserveContentDuringTypeChange = (block: ContentBlock, newType: BlockType
       preserved.padding = block.padding || 'large';
       break;
       
-    case 'text':
+    case 'image-text':
       preserved.title = block.title || '';
-      preserved.content = block.content || block.title || 'Add your text content here...';
+      preserved.content = block.content || block.title || 'Add your content here...';
       break;
       
     case 'image':
