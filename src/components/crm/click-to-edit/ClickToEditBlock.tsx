@@ -4,7 +4,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { GripVertical, Trash2, Edit, Image, Zap, CheckCircle, AlertTriangle, Layers, Wand2 } from 'lucide-react';
-import { AIImageLoadingOverlay } from './AIImageLoadingOverlay';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
@@ -468,13 +467,6 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         })()}
         {/* Loading overlay when content is being generated */}
         {isGenerating && <BlockLoadingOverlay />}
-        
-        {/* AI Image generation loading overlay */}
-        {block.isGeneratingImage && (
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-20 flex items-center justify-center">
-            <AIImageLoadingOverlay message="Generating Images" />
-          </div>
-        )}
         
         {/* Image generation error state */}
         {block.imageGenerationError && retryImageGeneration && (
