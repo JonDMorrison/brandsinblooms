@@ -224,6 +224,7 @@ NARRATIVE ARC REQUIREMENT: Each block should serve a distinct purpose in the ove
          CRITICAL: Write in the ${postType} content style throughout. This affects tone, structure, and formatting.` : ''}
          
           CONTENT REQUIREMENTS:
+          - **TARGET LENGTH: 50-80 words per block - keep brief and scannable**
           - Focus ONLY on the specified subtopic - do NOT cover topics from previous blocks
           - Mention specific plant varieties, techniques, or products when relevant
           - Include actionable advice readers can implement immediately  
@@ -232,10 +233,11 @@ NARRATIVE ARC REQUIREMENT: Each block should serve a distinct purpose in the ove
           - Start with unique, engaging hooks that haven't been used in previous blocks
           - Each block must serve a distinct narrative purpose (introduction, development, or conclusion)
           - Maintain consistent voice while covering COMPLETELY DIFFERENT aspects of the theme
+          - **ELIMINATE FILLER: Get straight to actionable insights - no lengthy introductions**
          
          Return your response as JSON with these fields:
          - title: A compelling, specific headline (max 60 characters) that mentions the key topic
-         - content: Main body content (2-3 paragraphs, engaging and informative with specific details)
+         - content: Main body content (2-3 SHORT paragraphs, 50-80 words total, engaging and informative with specific details)
          - cta_text: Call-to-action button text (max 25 characters)
          - cta_url: Suggested URL path (can be placeholder like "/shop/hydrangeas" or "/care-guides")
          
@@ -255,7 +257,7 @@ NARRATIVE ARC REQUIREMENT: Each block should serve a distinct purpose in the ove
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
-        max_tokens: 800,
+        max_tokens: 500,
       }),
     });
 

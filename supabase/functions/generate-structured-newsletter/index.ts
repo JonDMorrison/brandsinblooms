@@ -117,7 +117,8 @@ ${existingContent}` : ''}
 • Goal: visit garden center for expert advice and supplies
 • Theme: ${theme}
 • Focus: ${contextualFocus}
-• Target length: 300-400 words total
+• Target length: **250-400 words total (keep content brief and scannable)**
+• Writing style: Concise, punchy, high-impact - eliminate filler words
 ${isRestructuring ? '• Task: Restructure existing content into proper YAML format' : ''}
 
 # NON-NEGOTIABLE RULES
@@ -162,6 +163,7 @@ Warm, conversational, confident.  Use contractions; avoid jargon and filler.
 Concrete plant names and sensory garden details.  Vary sentence length for natural rhythm.  
 Sound like a knowledgeable local garden expert talking to familiar customers.  
 **CRITICAL: Maintain exactly two spaces after every sentence ending throughout all content.**
+**BREVITY IS KEY: Keep it tight and scannable - readers want quick, actionable insights, not lengthy paragraphs.**
 
 # AUDIENCE INSIGHTS
 This campaign is targeted toward the following customer personas: ${formattedPersonas}. Write with empathy and clarity to resonate with these profiles. Ensure relevance, tone, and examples match their goals and challenges.
