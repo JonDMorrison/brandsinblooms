@@ -481,12 +481,16 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 const isImageLoadingState = block.imageUrl === 'loading' || (block as any).isLoadingImage === true;
                 const isBlockGeneratingImage = (block as any).isGeneratingImage === true;
                 
-                // Show subtle skeleton for image generation (not full overlay)
+                // Show subtle skeleton for image generation with overlay
                 // CRITICAL: Check both hook state AND block property for AI Writer parallel generation
                 if (isGeneratingImage || isBlockGeneratingImage || isImageLoadingState || isAutoPickGenerating) {
                   return (
                     <div className="relative w-full h-64 rounded-lg bg-muted flex items-center justify-center">
                       <ImageSkeleton className="w-full h-full" />
+                      <AIImageLoadingOverlay 
+                        message="Generating Images"
+                        className="rounded-lg"
+                      />
                     </div>
                   );
                 }
