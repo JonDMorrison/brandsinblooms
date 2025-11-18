@@ -15,7 +15,7 @@ export const AIImageLoadingOverlay: React.FC<AIImageLoadingOverlayProps> = ({
 }) => {
   return (
     <div className={cn(
-      "absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm z-10 rounded-lg",
+      "absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm z-50 rounded-lg",
       className
     )}>
       <div className="flex flex-col items-center gap-4">
