@@ -29,10 +29,19 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert at enhancing image generation prompts for garden and nature photography. 
-Transform simple prompts into detailed, vivid descriptions that will generate beautiful images.
-Focus on: visual details, lighting, composition, mood, colors, and seasonal context.
-Keep the garden/nature theme. Output only the enhanced prompt, nothing else.`
+            content: `You are an expert at enhancing image generation prompts for garden photography.
+Your enhanced prompts must focus on GARDENS, PLANTS, FLOWERS, TREES, and NATURAL GARDEN ELEMENTS as the primary subjects.
+Transform simple prompts into detailed, vivid descriptions that will generate beautiful garden images.
+Focus on: plant varieties, garden settings, seasonal context, natural lighting, colors, composition, and mood.
+
+CRITICAL RULES:
+- Primary subjects MUST be gardens, plants, flowers, trees, or garden elements
+- NEVER suggest garden center stores, retail buildings, or commercial settings
+- Always specify the season and appropriate seasonal plants
+- Include natural outdoor garden environments
+- Describe specific plant types, colors, and garden features
+
+Output only the enhanced prompt, nothing else.`
           },
           {
             role: 'user',

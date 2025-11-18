@@ -421,7 +421,121 @@ async function generateWithRetry(prompt: string, apiKey: string, maxRetries = 2)
   }
 }
 
+// Detect season from context or use current season
+function detectSeasonFromContext(context: string, title: string): { season: string; monthName: string } {
+  const combinedText = `${context} ${title}`.toLowerCase();
+  
+  // Check for explicit seasonal keywords
+  const springKeywords = ['spring', 'seed starting', 'renewal', 'awakening', 'planting season', 'april', 'may', 'march'];
+  const summerKeywords = ['summer', 'heat', 'watering', 'harvest', 'irrigation', 'june', 'july', 'august'];
+  const fallKeywords = ['fall', 'autumn', 'cleanup', 'winter prep', 'bulbs', 'thanksgiving', 'halloween', 'september', 'october', 'november'];
+  const winterKeywords = ['winter', 'holiday', 'christmas', 'indoor', 'houseplant', 'new year', 'gift', 'december', 'january', 'february'];
+  
+  if (springKeywords.some(keyword => combinedText.includes(keyword))) {
+    return { season: 'spring', monthName: 'Spring' };
+  }
+  if (summerKeywords.some(keyword => combinedText.includes(keyword))) {
+    return { season: 'summer', monthName: 'Summer' };
+  }
+  if (fallKeywords.some(keyword => combinedText.includes(keyword))) {
+    return { season: 'fall', monthName: 'Fall' };
+  }
+  if (winterKeywords.some(keyword => combinedText.includes(keyword))) {
+    return { season: 'winter', monthName: 'Winter' };
+  }
+  
+  // No seasonal keywords found - use current season
+  const now = new Date();
+  const month = now.getMonth();
+  
+  if (month >= 2 && month <= 4) {
+    return { season: 'spring', monthName: 'Spring' };
+  } else if (month >= 5 && month <= 7) {
+    return { season: 'summer', monthName: 'Summer' };
+  } else if (month >= 8 && month <= 10) {
+    return { season: 'fall', monthName: 'Fall' };
+  } else {
+    return { season: 'winter', monthName: 'Winter' };
+  }
+}
+
+// Extract specific garden-related elements mentioned in context
+function extractContextualElements(context: string, title: string): string[] {
+  const combinedText = `${context} ${title}`.toLowerCase();
+  const elements: string[] = [];
+  
+  // Tools
+  const toolKeywords = ['shovel', 'rake', 'pruner', 'pruners', 'hose', 'watering can', 'gloves', 'tool', 'trowel', 'spade'];
+  if (toolKeywords.some(keyword => combinedText.includes(keyword))) {
+    elements.push('tools');
+  }
+  
+  // Products
+  const productKeywords = ['fertilizer', 'soil', 'mulch', 'seed', 'pot', 'planter', 'container'];
+  if (productKeywords.some(keyword => combinedText.includes(keyword))) {
+    elements.push('products');
+  }
+  
+  // Gifts
+  const giftKeywords = ['gift', 'present', 'holiday gift', 'gardener gift'];
+  if (giftKeywords.some(keyword => combinedText.includes(keyword))) {
+    elements.push('gifts');
+  }
+  
+  // Holiday/festive
+  const holidayKeywords = ['christmas', 'holiday', 'festive', 'celebration'];
+  if (holidayKeywords.some(keyword => combinedText.includes(keyword))) {
+    elements.push('holiday');
+  }
+  
+  return elements;
+}
+
+// Build seasonal descriptor for prompt
+function buildSeasonalDescriptor(season: string): string {
+  const descriptors: Record<string, string> = {
+    spring: 'Early spring blooms, fresh green growth, seed starting, awakening garden. Show cherry blossoms, tulips, daffodils, or fresh spring foliage with vibrant new growth.',
+    summer: 'Peak summer growth, vibrant blooms, lush greenery, full garden. Show roses, sunflowers, hydrangeas, or abundant summer vegetation with rich, saturated colors.',
+    fall: 'Autumn colors, fall foliage, harvest season, warm tones. Show mums, pumpkins, colorful leaves, or fall garden transitions with golden and russet hues.',
+    winter: 'Winter garden, evergreens, holiday elements, indoor plants. Show poinsettias, evergreen branches, winter berries, or festive holiday arrangements with natural winter beauty.'
+  };
+  
+  return descriptors[season] || descriptors.winter;
+}
+
+// Build element-specific instructions
+function buildElementInstructions(elements: string[]): string {
+  const instructions: string[] = [];
+  
+  if (elements.includes('gifts') || elements.includes('holiday')) {
+    instructions.push('- Include gift-wrapped items or festive presentation among plants and garden elements');
+  }
+  
+  if (elements.includes('tools')) {
+    instructions.push('- Include garden tools (shovel, rake, pruners, trowel, etc.) placed naturally in the garden setting');
+  }
+  
+  if (elements.includes('products')) {
+    instructions.push('- Feature garden products (pots, soil bags, seed packets) integrated naturally with plants');
+  }
+  
+  return instructions.join('\n');
+}
+
 function generateImagePrompt(context: string, title: string, channel: string): string {
+  // Detect season from context or use current season
+  const seasonInfo = detectSeasonFromContext(context, title);
+  
+  // Extract specific contextual elements (tools, gifts, plants, etc.)
+  const contextualElements = extractContextualElements(context, title);
+  
+  // Build seasonal descriptor
+  const seasonalDescriptor = buildSeasonalDescriptor(seasonInfo.season);
+  
+  // Build element-specific instructions
+  const elementInstructions = buildElementInstructions(contextualElements);
+  
+  // Channel specifications
   const channelSpecs: Record<string, string> = {
     newsletter: 'Professional, clean photography. Landscape 16:9.',
     instagram: 'Vibrant, eye-catching square image. 1:1 aspect ratio.',
@@ -429,26 +543,35 @@ function generateImagePrompt(context: string, title: string, channel: string): s
     blog: 'High-quality, informative landscape format.'
   };
 
-  return `Create a high-quality, photorealistic image for a garden center marketing campaign.
+  return `Create a high-quality, photorealistic image for garden marketing.
 
-Content Context: "${context}"
-Title: "${title}"
+PRIMARY SUBJECTS (MUST INCLUDE):
+- Gardens, plants, flowers, trees, or garden elements as the main focus
+- Natural outdoor garden settings (NOT garden center stores or retail buildings)
+- Vibrant, healthy vegetation and natural beauty
 
-Channel: ${channel}
-Specifications: ${channelSpecs[channel] || channelSpecs.newsletter}
+CONTEXT: "${context}"
+TITLE: "${title}"
 
-Visual Requirements:
-- Professional garden center or nursery setting
-- Vibrant, healthy plants and natural colors
-- Bright, natural lighting
+SEASONAL CONTEXT:
+${seasonalDescriptor}
+
+${elementInstructions.length > 0 ? `SPECIFIC ELEMENTS TO INCLUDE:\n${elementInstructions}\n` : ''}
+VISUAL REQUIREMENTS:
+- Focus on nature: gardens, plants, flowers, trees, leaves, natural settings
+- ${seasonInfo.season} seasonal characteristics and appropriate plants for this season
+- Bright, natural lighting suitable for ${seasonInfo.season}
 - Sharp focus on main subject
-- Welcoming, inspiring mood
+- Welcoming, inspiring garden atmosphere
+- Professional photography quality
 
-Style: Photorealistic, high-quality garden photography suitable for professional marketing materials.
+STYLE: ${channelSpecs[channel] || channelSpecs.newsletter}
 
-DO NOT include: Text overlays, logos, brand names, watermarks, or any written text.
+CRITICAL RESTRICTIONS:
+- DO NOT include garden center buildings, store fronts, retail settings, or commercial premises
+- DO NOT include text overlays, logos, brand names, watermarks, or any written text
 
-Generate an image that perfectly captures the essence of this content for a garden center's ${channel} campaign.`;
+Generate an image that captures beautiful gardens and plants with ${seasonInfo.season} seasonal characteristics.`;
 }
 
 function extractBase64Image(aiData: any): string | null {
