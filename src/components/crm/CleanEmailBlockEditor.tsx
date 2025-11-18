@@ -124,40 +124,39 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
       };
     case 'text-double':
       return {
-        type: 'text',
+        type: 'image-text',
         config: {
           title: '',
           content: '',
           layout: 'two-column-left',
           alignment: 'left',
-          // CRITICAL: Plain text blocks must never have images
           imageUrl: '',
-          shouldFetchImage: false
+          shouldFetchImage: true,
+          isGeneratingImage: true
         }
       };
-    // CRITICAL: Plain text blocks must NEVER fetch images from Unsplash
     case 'text-plain':
       return {
-        type: 'text',
+        type: 'image-text',
         config: {
           title: '',
           content: '',
           layout: 'full-width',
           alignment: 'left',
-          // CRITICAL: Explicitly prevent image fetching for plain text blocks
           imageUrl: '',
-          shouldFetchImage: false
+          shouldFetchImage: true,
+          isGeneratingImage: true
         }
       };
     default:
       return {
-        type: 'text',
+        type: 'image-text',
         config: {
           title: '',
           content: '',
-          // CRITICAL: Default text blocks should not fetch images
           imageUrl: '',
-          shouldFetchImage: false
+          shouldFetchImage: true,
+          isGeneratingImage: true
         }
       };
   }
@@ -344,8 +343,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         layout: 'full-width',
         title: '',
         content: '',
-        // CRITICAL: Ensure imageUrl is empty for plain text blocks
-        imageUrl: type === 'text' ? '' : (config.imageUrl || ''),
+        imageUrl: config.imageUrl || '',
         ctaText: '',
         ctaUrl: '',
         source: 'manual',
@@ -356,10 +354,10 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         responsiveBehavior: 'stack',
         visible: true,
         animation: 'fade-in',
+        shouldFetchImage: type !== 'button' && type !== 'divider',
+        isGeneratingImage: type !== 'button' && type !== 'divider',
         // Apply layout-specific configuration
-        ...config,
-        // CRITICAL: Force imageUrl to empty for text blocks to prevent image fetching
-        ...(type === 'text' ? { imageUrl: '', shouldFetchImage: false } : {})
+        ...config
       };
       
       const newBlocks = [...internalBlocks];
@@ -382,7 +380,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           alignment: 'left' as const,
           layout: 'full-width' as const
         }
-      } : { type: 'text' as const, config: {} };
+      } : { type: 'image-text' as const, config: { shouldFetchImage: true, isGeneratingImage: true } };
       
       const newBlock: ContentBlock = {
         id: `block_${Date.now()}`,
@@ -390,8 +388,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         layout: 'full-width',
         title: '',
         content: '',
-        // CRITICAL: Ensure imageUrl is empty for text blocks in fallback
-        imageUrl: fallbackConfig.type === 'text' ? '' : '',
+        imageUrl: '',
         ctaText: '',
         ctaUrl: '',
         source: 'manual',

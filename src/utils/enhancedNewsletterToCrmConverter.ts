@@ -191,7 +191,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
       if (block.title && block.body) {
         blocks.push({
           id: `block_${Date.now()}_text_${index}`,
-          type: 'text',
+          type: 'image-text',
           title: block.title,
           content: block.body,
           source: 'newsletter',
@@ -249,7 +249,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
         if (title && content) {
           blocks.push({
             id: `block_${Date.now()}_text_header_${index}`,
-            type: 'text',
+            type: 'image-text',
             title: title,
             content: content,
             source: 'newsletter',
@@ -278,7 +278,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
         if (content && content.length > 10) { // Only add substantial content
           blocks.push({
             id: `block_${Date.now()}_text_section_${index}`,
-            type: 'text',
+            type: 'image-text',
             title: title,
             content: content,
             source: 'newsletter',

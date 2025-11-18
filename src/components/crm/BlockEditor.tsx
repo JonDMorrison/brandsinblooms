@@ -266,7 +266,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     switch (block.block_type) {
       case 'header':
         return renderHeaderEditor();
-      case 'text':
+      case 'image-text':
         return renderTextEditor();
       case 'image':
         return renderImageEditor();

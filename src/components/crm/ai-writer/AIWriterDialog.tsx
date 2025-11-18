@@ -170,10 +170,11 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
   };
 
   const startParallelImageGeneration = async (blocks: ContentBlock[]) => {
-    // CRITICAL FIX: Include header blocks in image generation
+    // CRITICAL: ALL blocks must have images for weekly themes (except button/divider)
     const imageBlocks = blocks.filter(block => 
-      (block.type === 'image-text' || block.type === 'header' || block.type === 'newsletter-header') && 
-      block.isGeneratingImage
+      block.type !== 'button' && 
+      block.type !== 'divider' && 
+      (block.isGeneratingImage || block.shouldFetchImage)
     );
 
     if (imageBlocks.length === 0) return;

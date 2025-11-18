@@ -230,7 +230,7 @@ export const ContentIntegrationSidebar: React.FC<ContentIntegrationSidebarProps>
 
       const aiBlock: EmailBlock = {
         id: crypto.randomUUID(),
-        block_type: 'text',
+        block_type: 'image-text',
         content: {
           title: response.data.title || 'AI Generated Content',
           content: response.data.content
@@ -258,7 +258,7 @@ export const ContentIntegrationSidebar: React.FC<ContentIntegrationSidebarProps>
   const addNewsletterBlock = (newsletter: NewsletterBlock) => {
     const block: EmailBlock = {
       id: crypto.randomUUID(),
-      block_type: 'text',
+      block_type: 'image-text',
       content: {
         title: newsletter.title,
         content: newsletter.content
@@ -278,7 +278,7 @@ export const ContentIntegrationSidebar: React.FC<ContentIntegrationSidebarProps>
   const addCustomContent = (content: any) => {
     const block: EmailBlock = {
       id: crypto.randomUUID(),
-      block_type: 'text',
+      block_type: 'image-text',
       content: {
         title: 'Approved Content',
         content: content.ai_output

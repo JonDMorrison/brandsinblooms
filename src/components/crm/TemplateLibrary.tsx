@@ -51,7 +51,7 @@ const SEASONAL_TEMPLATES: EmailTemplate[] = [
       },
       {
         id: '2',
-        block_type: 'text',
+        block_type: 'image-text',
         content: {
           title: 'Welcome to Spring Gardening Season!',
           content: 'As the frost melts away and longer days return, it\'s time to prepare your garden for the growing season ahead. Our spring planting guide will help you make the most of this exciting time.'

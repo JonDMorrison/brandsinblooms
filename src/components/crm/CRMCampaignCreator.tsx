@@ -434,12 +434,12 @@ const createWeeklyThemeImageQuery = (
   return query;
 };
 
-// Normalize blocks to ensure consistency - preserve text blocks as text, don't convert to image-text
-// PHASE 1: Updated to preserve generated content and prevent overwriting
+// Normalize blocks to ensure consistency - convert all to image-text for weekly themes
+// PHASE 1: Updated to ensure all blocks have images
 const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
   return blocks.map(block => {
-    // CRITICAL: DO NOT convert text blocks to image-text - preserve original type to prevent unwanted image generation
-    if (block.type === 'text') {
+    // CRITICAL CHANGE: Convert all content blocks to image-text for weekly themes
+    if (block.type === 'image-text' || block.type === 'image') {
       // Extract headline from content if not already present
       let headline = block.headline || block.title || '';
       if (!headline && (block.content || block.body)) {
@@ -469,11 +469,15 @@ const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
       
       return {
         ...block,
-        type: 'text' as const, // KEEP as text, DO NOT convert to image-text
+        type: 'image-text' as const, // Convert to image-text for weekly themes
         layout: block.layout || 'full-width',
-        headline: headline || block.headline, // Preserve existing if present
-        body: finalBody || block.body, // Preserve existing if present
-        hasGeneratedContent: block.hasGeneratedContent || !!(headline || body) // Track if content exists
+        headline: headline || block.headline,
+        body: finalBody || block.body,
+        imageUrl: block.imageUrl || '',
+        shouldFetchImage: true,
+        isGeneratingImage: !block.imageUrl,
+        isWeeklyTheme: true,
+        hasGeneratedContent: block.hasGeneratedContent || !!(headline || body)
       };
     }
     
@@ -1735,7 +1739,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                   body: weeklyThemeData.content_ideas || weeklyThemeData.seasonal_focus || 'Discover what\'s growing this week and get expert tips for your garden.'
                 },
                 { 
-                  type: 'text', 
+                  type: 'image-text', 
                   content: weeklyThemeData.content_ideas || 'Weekly themed content for your newsletter.' 
                 },
                 { 
@@ -2880,10 +2884,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Create fallback block so user isn't stuck
       const fallbackBlock: ContentBlock = {
         id: 'fallback-block',
-        type: 'text',
+        type: 'image-text',
         layout: 'full-width',
         title: 'Newsletter Content',
         content: 'Your newsletter content will appear here. You can edit this block or add new ones below.',
+        imageUrl: '',
+        shouldFetchImage: true,
+        isGeneratingImage: true,
         source: 'manual'
       };
       
@@ -3144,7 +3151,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           }
           break;
 
-        case 'text':
+        case 'image-text':
           const textAlign = block.textAlign || 'left';
           const textColor = block.textColor || '#475569';
           const textCtaText = block.ctaText || block.buttonText;
