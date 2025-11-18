@@ -123,17 +123,20 @@ export const validateWeeklyThemeContent = (
   const imageValidation = validateAllBlocksHaveImages(blocks);
   const textBlockValidation = hasNoTextOnlyBlocks(blocks);
   const queryValidation = validateImageQueries(blocks);
+  const layoutValidation = validateImageLeftLayout(blocks);
   
   return {
-    isValid: imageValidation.isValid && textBlockValidation.isValid,
+    isValid: imageValidation.isValid && textBlockValidation.isValid && layoutValidation.isValid,
     errors: [
       ...imageValidation.errors,
-      ...textBlockValidation.errors
+      ...textBlockValidation.errors,
+      ...layoutValidation.errors
     ],
     warnings: [
       ...imageValidation.warnings,
       ...textBlockValidation.warnings,
-      ...queryValidation.warnings
+      ...queryValidation.warnings,
+      ...layoutValidation.warnings
     ]
   };
 };
@@ -168,6 +171,34 @@ export const enforceSeasonalImageRelevance = (
   return {
     isValid: true,
     errors: [],
+    warnings
+  };
+};
+
+/**
+ * Validates that all non-header blocks use image-left layout
+ */
+export const validateImageLeftLayout = (blocks: ContentBlock[]): ValidationResult => {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  
+  const contentBlocks = blocks.filter(block => 
+    block.type !== 'header' && 
+    block.type !== 'button' && 
+    block.type !== 'divider'
+  );
+  
+  contentBlocks.forEach((block, index) => {
+    if (block.layout !== 'image-left') {
+      errors.push(
+        `Block ${index + 1} (${block.type}) has layout "${block.layout}" instead of required "image-left"`
+      );
+    }
+  });
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
     warnings
   };
 };

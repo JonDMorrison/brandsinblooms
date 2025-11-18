@@ -624,7 +624,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       const contentBlock: ContentBlock = {
         id: `prefill-content-${Date.now()}`,
         type: 'image-text' as const,
-        layout: 'image-right' as const,
+        layout: 'image-left' as const,
         headline: 'Newsletter Content',
         body: prefillData.content || 'Your newsletter content will appear here. This newsletter covers essential topics to help you succeed.',
         imageUrl: prefillData.featuredImage || '',

@@ -118,11 +118,15 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
           const { normalizeAIResponse, applyAIToBlock } = await import('@/lib/newsletter/aiMapping');
           const normalizedAI = normalizeAIResponse(data);
           const enhancedBlock = applyAIToBlock(block, normalizedAI);
-
-          // Step 3: Mark blocks that need AI image generation
-          if (block.type === 'image-text') {
-            enhancedBlock.isGeneratingImage = true; // Mark for background generation
-            enhancedBlock.imageUrl = undefined; // No image yet
+          
+          // CRITICAL: Enforce image-left layout for weekly theme content blocks
+          // Headers and dividers are already handled above
+          if (block.type !== 'newsletter-header' && block.type !== 'button') {
+            enhancedBlock.layout = 'image-left';
+            enhancedBlock.isGeneratingImage = true;
+            enhancedBlock.imageUrl = undefined;
+            enhancedBlock.shouldFetchImage = true;
+            enhancedBlock.isWeeklyTheme = true;
           }
 
           enhancedBlocks.push(enhancedBlock);
@@ -170,11 +174,13 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
   };
 
   const startParallelImageGeneration = async (blocks: ContentBlock[]) => {
-    // CRITICAL: ALL blocks must have images for weekly themes (except button/divider)
+    // CRITICAL: ALL blocks must have images for weekly themes (except button/divider/header)
     const imageBlocks = blocks.filter(block => 
       block.type !== 'button' && 
       block.type !== 'divider' && 
-      (block.isGeneratingImage || block.shouldFetchImage)
+      block.type !== 'header' && 
+      block.type !== 'newsletter-header' &&
+      (block.isGeneratingImage || block.shouldFetchImage || block.layout === 'image-left')
     );
 
     if (imageBlocks.length === 0) return;
