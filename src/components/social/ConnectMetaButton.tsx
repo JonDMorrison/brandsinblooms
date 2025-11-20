@@ -78,6 +78,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       // Clear all OAuth-related browser storage
       sessionStorage.removeItem('oauth_state');
       localStorage.removeItem('oauth_state_backup');
+      localStorage.removeItem('oauth_state_primary');
       sessionStorage.removeItem('processed_oauth_codes');
       console.log('🧹 Cleared all OAuth browser storage');
       
@@ -124,6 +125,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       // Clear any previous OAuth state
       sessionStorage.removeItem('oauth_state');
       localStorage.removeItem('oauth_state_backup');
+      localStorage.removeItem('oauth_state_primary');
       sessionStorage.removeItem('processed_oauth_codes');
       
       // Generate secure state parameter
@@ -131,9 +133,21 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       const timestamp = Date.now().toString();
       const combinedState = `${state}-${timestamp}`;
       
-      // Store state with redundancy
+      // Store state with triple redundancy for reliability
       sessionStorage.setItem('oauth_state', combinedState);
       localStorage.setItem('oauth_state_backup', combinedState);
+      localStorage.setItem('oauth_state_primary', combinedState);
+
+      // Verify localStorage write succeeded
+      const verifyState = localStorage.getItem('oauth_state_backup');
+      if (verifyState !== combinedState) {
+        console.error('❌ Failed to store OAuth state in localStorage');
+        toast.error('Browser storage issue. Please try again or use a different browser.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ OAuth state stored successfully in all locations');
       
       // Define scopes
       const scopes = [
@@ -174,15 +188,16 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
       const oauthUrlStr = authUrl.toString();
 
-      // Open OAuth in new tab
-      const oauthTab = window.open(oauthUrlStr, '_blank', 'noopener,noreferrer');
+      console.log('🔗 Redirecting to OAuth URL:', oauthUrlStr.substring(0, 100) + '...');
+
+      // Use same-window redirect to preserve sessionStorage and auth state
+      // This is more reliable than opening a new tab which loses sessionStorage
+      toast.success('Redirecting to Meta for authorization...');
       
-      if (!oauthTab) {
-        console.warn('❌ New tab blocked. Please allow popups/tabs for Facebook login.');
-        toast.error('Please allow popups/new tabs to connect Facebook. Click the button again after allowing.');
-        setLoading(false);
-        return;
-      }
+      // Small delay to show toast before redirect
+      setTimeout(() => {
+        window.location.href = oauthUrlStr;
+      }, 500);
       
     } catch (error) {
       console.error('❌ OAuth initiation error:', error);

@@ -108,46 +108,51 @@ export const AuthCallbackPage = () => {
       // Note: Duplicate exchanges are now guarded by the isExchanging flag
       // and backend idempotency / code-usage tracking in the exchange-oauth-code function.
 
-
-      // Verify state parameter
-      const storedState = sessionStorage.getItem('oauth_state');
-      const backupState = localStorage.getItem('oauth_state_backup');
-      const stateValid = state === storedState || state === backupState;
-      
-      console.log('State verification:', { 
-        received: state.substring(0, 12) + '...', 
-        stored: storedState?.substring(0, 12) + '...',
-        valid: stateValid
-      });
-
-      if (!stateValid && !user) {
-        console.error('State mismatch and no authenticated user');
-        setStatus('error');
-        setMessage('Security verification failed - please try connecting again');
-        
-        setTimeout(() => navigate('/social-accounts'), 3000);
-        return;
-      }
-
-      // Clear stored states
-      sessionStorage.removeItem('oauth_state');
-      localStorage.removeItem('oauth_state_backup');
-
-      // Wait for auth to load if needed
+      // CHECK 1: Wait for auth to load FIRST (before state validation)
       if (authLoading) {
+        console.log('⏳ Waiting for authentication to complete...');
         setMessage('Verifying authentication...');
         return;
       }
 
-      // Verify user is authenticated
+      // CHECK 2: Verify user is authenticated BEFORE state validation
       if (!user) {
-        console.error('No authenticated user');
+        console.error('❌ No authenticated user during OAuth callback');
         setStatus('error');
         setMessage('You must be logged in to connect social media accounts');
-        
         setTimeout(() => navigate('/auth'), 3000);
         return;
       }
+
+      // CHECK 3: ONLY NOW validate state (user is confirmed authenticated)
+      const storedState = sessionStorage.getItem('oauth_state');
+      const backupState = localStorage.getItem('oauth_state_backup');
+      const primaryBackup = localStorage.getItem('oauth_state_primary');
+      const stateValid = state === storedState || state === backupState || state === primaryBackup;
+      
+      console.log('🔐 State validation (detailed):', { 
+        receivedState: state?.substring(0, 20) + '...',
+        sessionStorageState: storedState?.substring(0, 20) + '...',
+        localStorageBackup: backupState?.substring(0, 20) + '...',
+        localStoragePrimary: primaryBackup?.substring(0, 20) + '...',
+        isValid: stateValid,
+        hasUser: !!user,
+        authLoading,
+        timestamp: new Date().toISOString()
+      });
+
+      if (!stateValid) {
+        console.error('❌ State mismatch - security verification failed');
+        setStatus('error');
+        setMessage('Security verification failed. Please try connecting again from Social Accounts.');
+        setTimeout(() => navigate('/social-accounts'), 3000);
+        return;
+      }
+
+      // Clear stored states after successful validation
+      sessionStorage.removeItem('oauth_state');
+      localStorage.removeItem('oauth_state_backup');
+      localStorage.removeItem('oauth_state_primary');
 
       console.log('Starting OAuth exchange for authenticated user');
       
