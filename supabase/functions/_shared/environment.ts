@@ -76,10 +76,21 @@ export function getMailchimpCredentials(env: Environment): {
 
 /**
  * Get environment-aware redirect URI for OAuth callbacks
+ * 
+ * ⚠️ DEPRECATED - DO NOT USE THIS FUNCTION
+ * This function is NOT used by the OAuth flow and has incorrect development URL.
+ * 
+ * The OAuth flow uses dynamic redirect URIs:
+ * - Frontend: window.location.origin + '/oauth/callback' (via src/utils/environmentUtils.ts)
+ * - Backend: Uses redirect_uri from frontend request body (no construction needed)
+ * 
+ * Development: https://{preview-id}.lovableproject.com/oauth/callback
+ * Production: https://bloomsuite.app/oauth/callback
  */
 export function getOAuthRedirectUri(env: Environment, path: string = '/oauth/callback'): string {
+  console.warn('⚠️ getOAuthRedirectUri() is deprecated and unused. Use frontend environment utils instead.');
   const baseUrl = env === 'development' 
-    ? 'https://lovable.app'
+    ? 'https://lovable.app'  // ❌ INCORRECT - should be dynamic preview URL
     : 'https://bloomsuite.app';
   return `${baseUrl}${path}`;
 }

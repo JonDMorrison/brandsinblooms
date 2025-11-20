@@ -122,6 +122,23 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     setLoadingStep('preparing');
     
     try {
+      // ═══════════════════════════════════════════════════════════
+      // 🔍 ENVIRONMENT & REDIRECT URI DETECTION
+      // ═══════════════════════════════════════════════════════════
+      const currentOrigin = window.location.origin;
+      const currentHostname = window.location.hostname;
+      const isDev = currentHostname.includes('localhost') || 
+                    currentHostname.includes('lovableproject.com') || 
+                    currentHostname.includes('lovable.app');
+      
+      console.log('🌍 Environment Detection:', {
+        origin: currentOrigin,
+        hostname: currentHostname,
+        isDevelopment: isDev,
+        fullUrl: window.location.href,
+        timestamp: new Date().toISOString()
+      });
+      
       // Clear any previous OAuth state
       sessionStorage.removeItem('oauth_state');
       localStorage.removeItem('oauth_state_backup');
@@ -162,6 +179,19 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       // Dynamic redirect URI based on current domain
       const redirectUri = getOAuthRedirectUri();
       
+      // ═══════════════════════════════════════════════════════════
+      // 🔗 REDIRECT URI LOGGING (CRITICAL FOR DEBUGGING)
+      // ═══════════════════════════════════════════════════════════
+      console.log('🔗 Redirect URI Configuration:', {
+        redirectUri,
+        origin: currentOrigin,
+        expectedPattern: isDev 
+          ? `${currentOrigin}/oauth/callback` 
+          : 'https://bloomsuite.app/oauth/callback',
+        matches: redirectUri === (isDev ? `${currentOrigin}/oauth/callback` : 'https://bloomsuite.app/oauth/callback'),
+        environment: isDev ? 'development' : 'production'
+      });
+      
       // Fetch OAuth config
       const configData = await fetchOAuthConfig();
       const clientId = configData.clientId;
@@ -174,6 +204,19 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('state', combinedState);
       authUrl.searchParams.set('auth_type', 'rerequest');
+      
+      // ═══════════════════════════════════════════════════════════
+      // 🌐 FINAL OAUTH URL LOGGING
+      // ═══════════════════════════════════════════════════════════
+      console.log('🌐 Final OAuth URL Details:', {
+        fullUrl: authUrl.toString(),
+        facebookVersion: 'v19.0',
+        clientIdUsed: clientId.substring(0, 10) + '...',
+        redirectUriInUrl: redirectUri,
+        stateInUrl: combinedState.substring(0, 20) + '...',
+        scope: scopes,
+        authType: 'rerequest'
+      });
       
       console.log('🔗 Opening Meta OAuth in new tab:', {
         redirectUri,
@@ -242,6 +285,38 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
           onCheckedChange={setIsAgeAndTermsVerified}
         />
         
+        {/* Development Diagnostics Panel */}
+        {(() => {
+          const isDevelopment = window.location.hostname.includes('localhost') || 
+                               window.location.hostname.includes('lovableproject.com') || 
+                               window.location.hostname.includes('lovable.app');
+          
+          const diagnosticsInfo = {
+            origin: window.location.origin,
+            expectedRedirect: `${window.location.origin}/oauth/callback`,
+            environment: isDevelopment ? 'development' : 'production',
+            hostname: window.location.hostname
+          };
+
+          return isDevelopment ? (
+            <div className="bg-muted/50 border border-border rounded-lg p-3 text-xs space-y-1">
+              <p className="font-semibold text-foreground mb-2">🔧 OAuth Diagnostics (Dev Mode)</p>
+              <p className="text-muted-foreground"><strong>Origin:</strong> {diagnosticsInfo.origin}</p>
+              <p className="text-muted-foreground"><strong>Expected Redirect URI:</strong> {diagnosticsInfo.expectedRedirect}</p>
+              <p className="text-muted-foreground"><strong>Environment:</strong> {diagnosticsInfo.environment}</p>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(diagnosticsInfo, null, 2));
+                  toast.success('Diagnostics copied to clipboard');
+                }}
+                className="mt-2 px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded text-xs"
+              >
+                Copy Diagnostics
+              </button>
+            </div>
+          ) : null;
+        })()}
+        
         {/* OAuth Error Alert with Retry */}
         {oauthError && canRetry && (
           <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
@@ -253,6 +328,17 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
                 <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-3">
                   {oauthError}
                 </p>
+                {(() => {
+                  const isDevelopment = window.location.hostname.includes('localhost') || 
+                                       window.location.hostname.includes('lovableproject.com') || 
+                                       window.location.hostname.includes('lovable.app');
+                  
+                  return isDevelopment ? (
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mb-3">
+                      Make sure your Meta Developer App has this redirect URI configured: <strong>{window.location.origin}/oauth/callback</strong>
+                    </p>
+                  ) : null;
+                })()}
                 <Button
                   onClick={cleanupStaleOAuth}
                   disabled={loading}
