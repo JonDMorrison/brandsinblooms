@@ -36,12 +36,13 @@ export const SocialConnectionManager = () => {
   // Check for successful connection and refresh
   useEffect(() => {
     const successData = sessionStorage.getItem('social_connection_success');
+    const failureData = sessionStorage.getItem('social_connection_failure');
+    
     if (successData) {
       try {
         const data = JSON.parse(successData);
         // Only refresh if it's recent (within 30 seconds)
         if (Date.now() - data.timestamp < 30000) {
-          
           fetchConnections(); // Refresh connections
           
           // Check if there's a returnTo URL parameter and set connected=true
@@ -57,6 +58,21 @@ export const SocialConnectionManager = () => {
         sessionStorage.removeItem('social_connection_success');
       } catch (error) {
         console.error('Error processing success data:', error);
+      }
+    }
+    
+    if (failureData) {
+      try {
+        const data = JSON.parse(failureData);
+        // Only show error if it's recent (within 30 seconds)
+        if (Date.now() - data.timestamp < 30000) {
+          if (data.stage === 'no_pages' || data.stage === 'fetch_pages') {
+            toast.error(data.message || 'Failed to connect. No Pages found.');
+          }
+        }
+        sessionStorage.removeItem('social_connection_failure');
+      } catch (error) {
+        console.error('Error processing failure data:', error);
       }
     }
   }, []);
@@ -286,6 +302,29 @@ export const SocialConnectionManager = () => {
       </CardHeader>
       
       <CardContent className="space-y-4">
+        {/* Diagnostic Banner for No Pages Found */}
+        {connections.length === 0 && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-amber-900">No accounts connected yet</p>
+                <p className="text-sm text-amber-700">
+                  If you tried connecting but no accounts appeared, Meta might not have returned any Pages. This usually means:
+                </p>
+                <ul className="text-xs text-amber-700 list-disc list-inside space-y-1 ml-2">
+                  <li>You don't have admin access to any Facebook Pages</li>
+                  <li>You didn't select Pages during the Meta authorization</li>
+                  <li>You're logged into the wrong Facebook account</li>
+                </ul>
+                <p className="text-xs text-amber-700 mt-2">
+                  <strong>To fix:</strong> Make sure you're logged into Facebook with the account that owns/manages your Page, then reconnect and select your Page(s) when prompted.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {platforms.map((platform) => {
           const connection = connections.find(c => c.platform === platform.id);
           const isConnected = !!connection;
