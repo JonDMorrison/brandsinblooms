@@ -191,6 +191,11 @@ const AppSidebar: React.FC = () => {
           url: "/admin/reported-problems",
           icon: Bug,
         },
+        {
+          title: "OAuth Debug",
+          url: "/admin/oauth-debug",
+          icon: Shield,
+        },
       ],
     }] : []),
   ];
