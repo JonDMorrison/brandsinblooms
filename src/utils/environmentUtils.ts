@@ -20,10 +20,14 @@ export function detectEnvironment(): Environment {
  * Get environment-aware OAuth redirect URI
  */
 export function getOAuthRedirectUri(path: string = '/oauth/callback'): string {
-  const env = detectEnvironment();
-  const baseUrl = env === 'development'
-    ? window.location.origin // Use current preview URL
-    : 'https://bloomsuite.app';
+  const origin = window.location.origin;
+  const hostname = window.location.hostname;
+
+  // Force preview/current origin for any non-production host
+  // Production is explicitly bloomsuite.app; everything else (including *.lovableproject.com)
+  // should use the exact current origin so Meta redirect matches this environment.
+  const isProdHost = hostname.includes('bloomsuite.app');
+  const baseUrl = isProdHost ? 'https://bloomsuite.app' : origin;
   
   return `${baseUrl}${path}`;
 }
