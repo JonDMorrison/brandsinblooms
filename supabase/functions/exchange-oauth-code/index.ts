@@ -126,18 +126,59 @@ serve(async (req) => {
     
     const { clientId, clientSecret } = getFacebookCredentials(environment)
     
+    // ═══════════════════════════════════════════════════════════
+    // 🔑 CREDENTIAL AVAILABILITY CHECK (DEV vs PROD)
+    // ═══════════════════════════════════════════════════════════
+    const expectedDevSecrets = {
+      clientId: Deno.env.get('FB_CLIENT_ID_DEV'),
+      clientSecret: Deno.env.get('FB_CLIENT_SECRET_DEV')
+    };
+    const expectedProdSecrets = {
+      clientId: Deno.env.get('FB_CLIENT_ID_PROD'),
+      clientSecret: Deno.env.get('FB_CLIENT_SECRET_PROD')
+    };
+    const legacySecrets = {
+      clientId: Deno.env.get('FB_CLIENT_ID'),
+      clientSecret: Deno.env.get('FB_CLIENT_SECRET')
+    };
+    
+    console.log('🔑 Secret Availability Check:', {
+      detectedEnvironment: environment,
+      devSecretsAvailable: {
+        clientId: !!expectedDevSecrets.clientId,
+        clientSecret: !!expectedDevSecrets.clientSecret
+      },
+      prodSecretsAvailable: {
+        clientId: !!expectedProdSecrets.clientId,
+        clientSecret: !!expectedProdSecrets.clientSecret
+      },
+      legacySecretsAvailable: {
+        clientId: !!legacySecrets.clientId,
+        clientSecret: !!legacySecrets.clientSecret
+      },
+      credentialsReturnedByHelper: {
+        clientId: !!clientId,
+        clientSecret: !!clientSecret,
+        clientIdPreview: clientId?.substring(0, 10) + '...'
+      },
+      expectedSuffix: environment === 'development' ? '_DEV' : '_PROD'
+    });
+    
     // Fallback to legacy secrets for backward compatibility
     const finalClientId = clientId || Deno.env.get('FB_CLIENT_ID')
     const finalClientSecret = clientSecret || Deno.env.get('FB_CLIENT_SECRET')
 
     // Enhanced logging to debug the specific issue
     const allEnvKeys = Object.keys(Deno.env.toObject()).filter(key => key.includes('FB'))
-    console.log('🔑 Facebook-related environment variables:', allEnvKeys)
+    console.log('🔑 All Facebook-related environment variables:', allEnvKeys)
     
-    console.log('🔑 Environment check:', {
+    console.log('🔑 Final Credentials Selection:', {
       environment,
-      clientId: finalClientId ? `present (${finalClientId.substring(0, 8)}...)` : 'MISSING',
-      clientSecret: finalClientSecret ? 'present' : 'MISSING',
+      clientIdSource: clientId ? `FB_CLIENT_ID_${environment.toUpperCase()}` : (legacySecrets.clientId ? 'FB_CLIENT_ID (legacy)' : 'NONE'),
+      clientSecretSource: clientSecret ? `FB_CLIENT_SECRET_${environment.toUpperCase()}` : (legacySecrets.clientSecret ? 'FB_CLIENT_SECRET (legacy)' : 'NONE'),
+      finalClientIdPresent: !!finalClientId,
+      finalClientSecretPresent: !!finalClientSecret,
+      finalClientIdPreview: finalClientId?.substring(0, 10) + '...',
       supabaseUrl: Deno.env.get('SUPABASE_URL') ? 'present' : 'missing',
       serviceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ? 'present' : 'missing',
       allEnvVarCount: Object.keys(Deno.env.toObject()).length
