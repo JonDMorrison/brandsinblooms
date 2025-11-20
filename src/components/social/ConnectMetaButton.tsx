@@ -19,6 +19,8 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   const [unavailable, setUnavailable] = useState(false);
   const [isAgeAndTermsVerified, setIsAgeAndTermsVerified] = useState(false);
   const [isMetaConnected, setIsMetaConnected] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState(false);
   const { user } = useAuth();
 
   // Check Meta connection status
@@ -61,6 +63,32 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     fetchMetaConnectionStatus();
   }, [onSuccess, user]);
 
+  // Clean up stale OAuth attempts
+  const cleanupStaleOAuth = async () => {
+    setLoading(true);
+    setLoadingStep('preparing');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('oauth-cleanup-stale');
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast.success(data.message);
+        setOauthError(null);
+        setCanRetry(true);
+        
+        // Refresh connection status
+        await fetchMetaConnectionStatus();
+      }
+    } catch (error) {
+      console.error('❌ Cleanup failed:', error);
+      toast.error('Failed to clean up. Please try again or contact support.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleConnect = async () => {
     if (!user) {
       toast.error('Please log in to connect your account');
@@ -74,6 +102,9 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     }
 
     console.log('✅ Starting OAuth flow...');
+    setOauthError(null);
+    setCanRetry(false);
+    
     // Proceed with OAuth flow (allows reconnection for expired tokens)
     await initiateOAuthFlow();
   };
@@ -149,10 +180,19 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     } catch (error) {
       console.error('❌ OAuth initiation error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to initiate OAuth';
-      toast.error(`Connection failed: ${errorMessage}`);
       
-      setUnavailable(true);
+      // Check if error indicates a retry is possible
+      if (errorMessage.includes('already been used') || errorMessage.includes('already processed')) {
+        setOauthError(errorMessage);
+        setCanRetry(true);
+        toast.error(`${errorMessage}. Click "Reset & Retry" below.`, { duration: 6000 });
+      } else {
+        toast.error(`Connection failed: ${errorMessage}`);
+        setUnavailable(true);
+      }
+      
       setLoading(false);
+      
       // Refresh connection status after OAuth attempt
       setTimeout(() => {
         fetchMetaConnectionStatus();
@@ -179,6 +219,31 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
           isChecked={isAgeAndTermsVerified}
           onCheckedChange={setIsAgeAndTermsVerified}
         />
+        
+        {/* OAuth Error Alert with Retry */}
+        {oauthError && canRetry && (
+          <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100 mb-2">
+                  Connection Issue Detected
+                </p>
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-3">
+                  {oauthError}
+                </p>
+                <Button
+                  onClick={cleanupStaleOAuth}
+                  disabled={loading}
+                  variant="outline"
+                  size="sm"
+                  className="border-yellow-300 dark:border-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900/40"
+                >
+                  Reset & Retry Connection
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         <Button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConnect(); }} 
           disabled={loading || !user || !isAgeAndTermsVerified}

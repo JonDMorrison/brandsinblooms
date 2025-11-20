@@ -154,40 +154,98 @@ serve(async (req) => {
 
     console.log('🔗 Starting OAuth token exchange for user:', user.id.substring(0, 8) + '...')
 
-    // Check if this authorization code has already been used
-    const { data: existingCodeCheck, error: codeCheckError } = await supabase
+    // ═══════════════════════════════════════════════════════════════
+    // FIX 1: IDEMPOTENCY CHECK - Check if connections already exist
+    // ═══════════════════════════════════════════════════════════════
+    const { data: existingConnections } = await supabase
+      .from('social_connections')
+      .select('id, platform, platform_account_name, is_active')
+      .eq('user_id', user.id)
+      .in('platform', ['facebook', 'instagram'])
+      .eq('is_active', true)
+
+    if (existingConnections && existingConnections.length > 0) {
+      console.log('✅ Active connections already exist for this user:', {
+        count: existingConnections.length,
+        platforms: existingConnections.map(c => c.platform)
+      })
+      
+      // Return success immediately - idempotent operation
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          connections: existingConnections,
+          message: `Already connected (${existingConnections.length} active connection${existingConnections.length !== 1 ? 's' : ''})`,
+          idempotent: true
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FIX 2: DEDUPLICATION - Check if code already used with better handling
+    // ═══════════════════════════════════════════════════════════════
+    const codeHash = btoa(code)
+    const { data: existingCodeCheck } = await supabase
       .from('oauth_code_usage')
-      .select('id')
-      .eq('code_hash', btoa(code))
+      .select('id, used_at, user_id')
+      .eq('code_hash', codeHash)
       .single()
 
     if (existingCodeCheck) {
-      console.warn('⚠️ Authorization code already used:', { codeHash: btoa(code).substring(0, 10) + '...' })
-      throw new Error('This authorization code has already been used. Please try connecting again.')
+      const usedAgo = Date.now() - new Date(existingCodeCheck.used_at).getTime()
+      const minutesAgo = Math.floor(usedAgo / 60000)
+      
+      console.warn('⚠️ Authorization code already used:', { 
+        codeHash: codeHash.substring(0, 10) + '...',
+        usedAt: existingCodeCheck.used_at,
+        minutesAgo,
+        sameUser: existingCodeCheck.user_id === user.id
+      })
+      
+      // If code was used more than 5 minutes ago and no connections exist, it's likely stale
+      if (minutesAgo > 5) {
+        console.log('🧹 Cleaning up stale OAuth attempt (>5 min old, no connections created)')
+        await supabase
+          .from('oauth_code_usage')
+          .delete()
+          .eq('id', existingCodeCheck.id)
+        
+        // Allow retry after cleanup
+        console.log('✅ Stale code cleaned up, allowing retry...')
+      } else {
+        throw new Error('This authorization code has already been used. Please try connecting again.')
+      }
     }
 
+    // ═══════════════════════════════════════════════════════════════
     // Mark this code as used immediately to prevent race conditions
-    const { error: markUsedError } = await supabase
+    // ═══════════════════════════════════════════════════════════════
+    let codeUsageId: string | null = null
+    const { data: codeUsageData, error: markUsedError } = await supabase
       .from('oauth_code_usage')
       .insert({
         user_id: user.id,
-        code_hash: btoa(code),
+        code_hash: codeHash,
         used_at: new Date().toISOString()
       })
+      .select('id')
+      .single()
 
     if (markUsedError) {
       console.error('❌ Failed to mark code as used:', markUsedError)
       
       // CRITICAL: If we can't mark the code as used, it might be a duplicate request
-      // Check if it's a duplicate key violation (code 23505)
       if (markUsedError.code === '23505') {
         console.warn('⚠️ Duplicate code usage detected via constraint violation')
         throw new Error('This authorization code has already been used. Please try connecting again.')
       }
       
-      // For other errors, we can't safely proceed
       throw new Error('Failed to track authorization code usage. Please try again.')
     }
+    
+    codeUsageId = codeUsageData?.id || null
+    console.log('✅ Code marked as used:', { codeUsageId })
 
     // Exchange authorization code for access token
     const tokenParams = new URLSearchParams({
@@ -372,10 +430,42 @@ serve(async (req) => {
       timestamp: new Date().toISOString()
     })
     
+    // ═══════════════════════════════════════════════════════════════
+    // FIX 3: AUTO-CLEANUP - If token exchange failed, clean up stale code
+    // ═══════════════════════════════════════════════════════════════
+    try {
+      const codeHash = btoa(requestBody?.code || '')
+      const { data: staleCode } = await supabase
+        .from('oauth_code_usage')
+        .select('id')
+        .eq('code_hash', codeHash)
+        .eq('user_id', user?.id || '')
+        .single()
+      
+      if (staleCode) {
+        console.log('🧹 Auto-cleaning stale OAuth code after error...')
+        const { error: cleanupError } = await supabase
+          .from('oauth_code_usage')
+          .delete()
+          .eq('id', staleCode.id)
+        
+        if (cleanupError) {
+          console.error('⚠️ Failed to clean up stale code:', cleanupError)
+        } else {
+          console.log('✅ Stale code cleaned up successfully')
+        }
+      }
+    } catch (cleanupErr) {
+      console.error('⚠️ Cleanup attempt failed:', cleanupErr)
+      // Don't throw - just log, we want to return the original error
+    }
+    
     const errorResponse = { 
       success: false, 
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      retry: true, // Signal that user can retry
+      action: 'Please try connecting again. The authorization has been reset.'
     }
     
     return new Response(
