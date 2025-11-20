@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ export const AuthCallbackPage = () => {
   const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
   const [showAppSetupGuide, setShowAppSetupGuide] = useState(false);
   const [isExchanging, setIsExchanging] = useState(false);
+  const exchangeStartedRef = useRef(false); // Prevent duplicate exchange attempts
 
   useEffect(() => {
     // Only handle OAuth callback logic if we're actually on the callback route
@@ -36,6 +37,12 @@ export const AuthCallbackPage = () => {
     }
 
     const handleCallback = async () => {
+      // CRITICAL: Check ref FIRST to prevent any duplicate processing
+      if (exchangeStartedRef.current) {
+        console.log('⚠️ Exchange already started (ref check), skipping duplicate call');
+        return;
+      }
+
       // Get parameters from URL
       const code = searchParams.get('code');
       const state = searchParams.get('state');
@@ -163,6 +170,9 @@ export const AuthCallbackPage = () => {
       localStorage.removeItem('oauth_state_primary');
 
       console.log('Starting OAuth exchange for authenticated user');
+      
+      // CRITICAL: Set ref IMMEDIATELY before any async work
+      exchangeStartedRef.current = true;
       
       // Set exchange flag to prevent concurrent calls
       setIsExchanging(true);
