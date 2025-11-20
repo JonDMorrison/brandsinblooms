@@ -29,6 +29,49 @@ export const AuthCallbackPage = () => {
   const [showAppSetupGuide, setShowAppSetupGuide] = useState(false);
   const [isExchanging, setIsExchanging] = useState(false);
   const exchangeStartedRef = useRef(false); // Prevent duplicate exchange attempts
+  const navigationTimerRef = useRef<NodeJS.Timeout | null>(null); // Track navigation timers for cleanup
+
+  // Cleanup navigation timers on unmount
+  useEffect(() => {
+    return () => {
+      if (navigationTimerRef.current) {
+        clearTimeout(navigationTimerRef.current);
+        console.log('🧹 Cleared pending navigation timer on unmount');
+      }
+    };
+  }, []);
+
+  // Safe navigation helper with error handling
+  const safeNavigate = (path: string, delay: number = 0) => {
+    try {
+      console.log(`🧭 Scheduling navigation to ${path} in ${delay}ms`);
+      
+      // Clear any existing timer
+      if (navigationTimerRef.current) {
+        clearTimeout(navigationTimerRef.current);
+      }
+      
+      if (delay === 0) {
+        navigate(path);
+        console.log('✅ Navigation executed immediately');
+      } else {
+        navigationTimerRef.current = setTimeout(() => {
+          try {
+            navigate(path);
+            console.log('✅ Delayed navigation executed successfully');
+          } catch (navError) {
+            console.error('❌ Navigation error:', navError);
+            // Fallback to direct window navigation if React Router fails
+            window.location.href = path;
+          }
+        }, delay);
+      }
+    } catch (error) {
+      console.error('❌ Safe navigation error:', error);
+      // Last resort: direct browser navigation
+      window.location.href = path;
+    }
+  };
 
   useEffect(() => {
     // Only handle OAuth callback logic if we're actually on the callback route
@@ -79,7 +122,7 @@ export const AuthCallbackPage = () => {
           setMessage(`Authorization failed: ${errorDescription || error}`);
         }
         
-        setTimeout(() => navigate('/social-accounts'), 8000);
+        safeNavigate('/social-accounts', 8000);
         return;
       }
 
@@ -89,7 +132,7 @@ export const AuthCallbackPage = () => {
         setStatus('error');
         setMessage('Missing authorization code or state parameter');
         
-        setTimeout(() => navigate('/social-accounts'), 3000);
+        safeNavigate('/social-accounts', 3000);
         return;
       }
 
@@ -114,7 +157,7 @@ export const AuthCallbackPage = () => {
         console.error('❌ No authenticated user during OAuth callback');
         setStatus('error');
         setMessage('You must be logged in to connect social media accounts');
-        setTimeout(() => navigate('/auth'), 3000);
+        safeNavigate('/auth', 3000);
         return;
       }
 
@@ -156,7 +199,7 @@ export const AuthCallbackPage = () => {
         console.error('❌ State mismatch - security verification failed (stored state exists but does not match)');
         setStatus('error');
         setMessage('Security verification failed. Please try connecting again from Social Accounts.');
-        setTimeout(() => navigate('/social-accounts'), 3000);
+        safeNavigate('/social-accounts', 3000);
         return;
       }
 
@@ -239,15 +282,17 @@ export const AuthCallbackPage = () => {
           timestamp: Date.now()
         }));
         
-        console.log('OAuth success, redirecting to social accounts');
-        setTimeout(() => navigate(`/social-accounts${window.location.search}`), 3000);
+        console.log('✅ OAuth exchange successful, preparing navigation to /social-accounts');
+        
+        // CRITICAL FIX: Use safeNavigate without window.location.search (already cleared)
+        safeNavigate('/social-accounts', 3000);
         
       } catch (error: any) {
         console.error('OAuth exchange error:', error);
         
         setStatus('error');
         setMessage(error.message || 'Failed to connect Meta account. Please try again.');
-        setTimeout(() => navigate('/social-accounts'), 5000);
+        safeNavigate('/social-accounts', 5000);
       } finally {
         // Always reset the exchanging flag
         setIsExchanging(false);
@@ -273,11 +318,11 @@ export const AuthCallbackPage = () => {
         setStatus('error');
         setMessage('An unexpected error occurred');
         
-        setTimeout(() => navigate('/social-accounts'), 3000);
+        safeNavigate('/social-accounts', 3000);
       });
     } else {
       console.log('❌ No OAuth parameters found, redirecting to social accounts');
-      setTimeout(() => navigate('/social-accounts'), 2000);
+      safeNavigate('/social-accounts', 2000);
     }
   }, [searchParams, navigate, user, authLoading, isExchanging]);
 
@@ -362,7 +407,7 @@ export const AuthCallbackPage = () => {
                 </div>
                 <Button 
                   variant="outline" 
-                  onClick={() => navigate('/social-accounts')}
+                  onClick={() => safeNavigate('/social-accounts', 0)}
                   className="w-full"
                 >
                   Continue to Accounts
@@ -394,14 +439,14 @@ export const AuthCallbackPage = () => {
               {/* Action Buttons */}
               <div className="space-y-3">
                 <Button 
-                  onClick={() => navigate('/social-accounts')}
+                  onClick={() => safeNavigate('/social-accounts', 0)}
                   className="w-full"
                 >
                   Try Again
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => navigate('/social-accounts')}
+                  onClick={() => safeNavigate('/social-accounts', 0)}
                   className="w-full"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
