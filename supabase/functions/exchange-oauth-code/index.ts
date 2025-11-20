@@ -397,16 +397,73 @@ serve(async (req) => {
 
     // Get pages (for Facebook) and Instagram accounts
     console.log('📄 Fetching Facebook pages and Instagram accounts...')
+    console.log('📡 Access token preview:', accessToken.substring(0, 15) + '...' + accessToken.substring(accessToken.length - 5))
+    
     const pagesResponse = await fetch(`https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${accessToken}`)
     const pagesData = await pagesResponse.json()
 
+    console.log('📬 Pages API Response:', {
+      status: pagesResponse.status,
+      ok: pagesResponse.ok,
+      hasData: !!pagesData.data,
+      dataLength: pagesData.data?.length || 0,
+      hasError: !!pagesData.error,
+      errorType: pagesData.error?.type,
+      errorCode: pagesData.error?.code,
+      errorMessage: pagesData.error?.message,
+      errorSubcode: pagesData.error?.error_subcode,
+      fullError: pagesData.error,
+      rawResponse: JSON.stringify(pagesData).substring(0, 500)
+    })
+
     if (!pagesResponse.ok) {
-      console.error('❌ Failed to get pages:', pagesData)
-      throw new Error(`Failed to get pages (${pagesResponse.status}): ${JSON.stringify(pagesData)}`)
+      console.error('❌ Failed to fetch pages from Meta:', {
+        status: pagesResponse.status,
+        statusText: pagesResponse.statusText,
+        error: pagesData.error,
+        fullResponse: pagesData
+      })
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          stage: 'fetch_pages',
+          error: 'Failed to fetch Facebook Pages from Meta.',
+          meta_error: pagesData.error?.message || 'Unknown error from Facebook API',
+          meta_error_code: pagesData.error?.code,
+          meta_error_type: pagesData.error?.type,
+          debug: {
+            status: pagesResponse.status,
+            errorDetails: pagesData.error
+          }
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     }
 
     const pageCount = pagesData.data?.length || 0
     console.log(`📊 Found ${pageCount} pages to process`)
+    
+    // If no pages found, return specific error
+    if (pageCount === 0) {
+      console.warn('⚠️ Meta returned 0 pages for this account')
+      return new Response(
+        JSON.stringify({
+          success: false,
+          stage: 'no_pages',
+          error: 'No Facebook Pages found for this account.',
+          message: 'Meta did not return any Pages. Please ensure you are an admin on at least one Facebook Page and selected it during the connection process.',
+          retry: true
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
 
     // Store connections for each page/account
     const connections = []
