@@ -69,21 +69,28 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     setLoadingStep('preparing');
     
     try {
+      console.log('🧹 Cleaning up stale OAuth attempts...');
+      
       const { data, error } = await supabase.functions.invoke('oauth-cleanup-stale');
       
       if (error) throw error;
       
-      if (data.success) {
-        toast.success(data.message);
-        setOauthError(null);
-        setCanRetry(true);
-        
-        // Refresh connection status
-        await fetchMetaConnectionStatus();
-      }
+      // Clear all OAuth-related browser storage
+      sessionStorage.removeItem('oauth_state');
+      localStorage.removeItem('oauth_state_backup');
+      sessionStorage.removeItem('processed_oauth_codes');
+      console.log('🧹 Cleared all OAuth browser storage');
+      
+      toast.success("We've reset your previous Meta authorization attempts. Please click Connect Meta again to start a fresh connection.");
+      
+      setOauthError(null);
+      setCanRetry(false);
+      
+      // Refresh connection status
+      await fetchMetaConnectionStatus();
     } catch (error) {
       console.error('❌ Cleanup failed:', error);
-      toast.error('Failed to clean up. Please try again or contact support.');
+      toast.error("Could not reset OAuth state. Please try again or contact support.");
     } finally {
       setLoading(false);
     }
