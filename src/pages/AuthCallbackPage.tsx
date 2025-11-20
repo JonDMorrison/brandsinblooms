@@ -92,23 +92,9 @@ export const AuthCallbackPage = () => {
         return;
       }
 
-      // Check if code already processed
-      const processedCodes = sessionStorage.getItem('processed_oauth_codes');
-      const processedCodesArray = processedCodes ? JSON.parse(processedCodes) : [];
-      
-      if (processedCodesArray.includes(code)) {
-        console.warn('OAuth code already processed');
-        setStatus('error');
-        setMessage('This authorization has already been processed');
-        
-        setTimeout(() => navigate('/social-accounts'), 2000);
-        return;
-      }
-      
-      // Mark code as being processed IMMEDIATELY (before API call)
-      processedCodesArray.push(code);
-      sessionStorage.setItem('processed_oauth_codes', JSON.stringify(processedCodesArray.slice(-10)));
-      console.log('🔒 Code marked as processing to prevent duplicates');
+      // Note: Duplicate exchanges are now guarded by the isExchanging flag
+      // and backend idempotency / code-usage tracking in the exchange-oauth-code function.
+
 
       // Verify state parameter
       const storedState = sessionStorage.getItem('oauth_state');
