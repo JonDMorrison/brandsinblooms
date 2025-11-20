@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { getOAuthRedirectUri } from '@/utils/environmentUtils';
 
 export const OAuthCallbackHandler = () => {
   const [searchParams] = useSearchParams();
@@ -50,12 +52,71 @@ export const OAuthCallbackHandler = () => {
         return;
       }
 
-      // Legacy or static-domain flow: provider may be absent.
-      // If we have code & state, forward to /auth/callback to perform the exchange
+      // Meta OAuth flow: handle exchange directly in the popup
       if (code && state) {
-        const params = new URLSearchParams({ code, state }).toString();
-        const target = `/auth/callback?${params}`;
-        window.location.replace(target);
+        console.log('[OAuthCallbackHandler] Meta OAuth - exchanging code in popup', {
+          code: code.substring(0, 10) + '...',
+          state: state.substring(0, 12) + '...',
+          hasOpener: !!window.opener
+        });
+
+        (async () => {
+          try {
+            // Call exchange-oauth-code edge function
+            const { data, error } = await supabase.functions.invoke('exchange-oauth-code', {
+              body: {
+                code,
+                state,
+                redirect_uri: getOAuthRedirectUri()
+              }
+            });
+
+            if (error) throw error;
+
+            console.log('[OAuthCallbackHandler] Exchange response:', data);
+
+            // Notify opener window of success
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage({
+                type: 'oauth-success',
+                provider: 'meta',
+                platforms: data?.connections || [],
+                message: data?.message || 'Connected successfully'
+              }, window.location.origin);
+              
+              console.log('[OAuthCallbackHandler] Posted success message to opener');
+            }
+
+            // Try to close the popup
+            try {
+              window.close();
+              // If close didn't work, show fallback after a short delay
+              setTimeout(() => {
+                setShowFallback(true);
+              }, 600);
+            } catch (e) {
+              setShowFallback(true);
+            }
+          } catch (error: any) {
+            console.error('[OAuthCallbackHandler] Exchange failed:', error);
+
+            // Notify opener of failure
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage({
+                type: 'oauth-error',
+                provider: 'meta',
+                stage: error.stage || 'exchange_failed',
+                error: error.message || 'Failed to connect Meta account'
+              }, window.location.origin);
+              
+              console.log('[OAuthCallbackHandler] Posted error message to opener');
+            }
+
+            // Show error in popup
+            setShowFallback(true);
+          }
+        })();
+
         return;
       }
 

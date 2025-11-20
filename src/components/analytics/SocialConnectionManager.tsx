@@ -33,6 +33,34 @@ export const SocialConnectionManager = () => {
     }
   }, [user]);
 
+  // Listen for OAuth success/error messages from popup
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Security: ensure message is from our own origin
+      if (event.origin !== window.location.origin) return;
+      
+      const data = event.data;
+      if (!data || typeof data !== 'object') return;
+
+      console.log('[SocialConnectionManager] Received message:', data);
+
+      if (data.type === 'oauth-success' && data.provider === 'meta') {
+        toast.success(data.message || 'Social account connected successfully');
+        fetchConnections(); // Refresh connections list
+        setConnecting(null);
+      }
+
+      if (data.type === 'oauth-error' && data.provider === 'meta') {
+        const errorMessage = data.error || 'Failed to connect Meta account';
+        toast.error(errorMessage);
+        setConnecting(null);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   // Check for successful connection and refresh
   useEffect(() => {
     const successData = sessionStorage.getItem('social_connection_success');
