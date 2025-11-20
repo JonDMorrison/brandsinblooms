@@ -323,7 +323,7 @@ export const SocialConnectionManager = () => {
               className="flex items-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
-              Sync Data
+              Refresh
             </Button>
           )}
         </div>
