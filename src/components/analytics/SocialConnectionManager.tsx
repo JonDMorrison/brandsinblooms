@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchOAuthConfig } from "@/lib/api/oauth";
 import { MetaConnectionSuccess } from "../social/MetaConnectionSuccess";
+import { getOAuthRedirectUri } from "@/utils/environmentUtils";
 
 interface SocialConnection {
   id: string;
@@ -98,7 +99,20 @@ export const SocialConnectionManager = () => {
       const configData = await fetchOAuthConfig();
       const clientId = configData.clientId;
       
-      const redirectUri = `https://bloomsuite.app/oauth/callback`;
+      const redirectUri = getOAuthRedirectUri();
+
+      console.log('🔗 [SocialConnectionManager] Redirect URI Configuration:', {
+        redirectUri,
+        origin: window.location.origin,
+        hostname: window.location.hostname,
+        environment: window.location.hostname.includes('localhost') ||
+                     window.location.hostname.includes('lovableproject.com') ||
+                     window.location.hostname.includes('lovable.app')
+                     ? 'development'
+                     : 'production',
+        timestamp: new Date().toISOString()
+      });
+      
       const scope = 'pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights';
       
       // Build Facebook OAuth URL with enhanced parameters for App Review

@@ -71,7 +71,13 @@ export const FacebookAppSetupGuide: React.FC<FacebookAppSetupGuideProps> = ({ is
                 <AlertDescription className="space-y-2">
                   <p>Ensure these are configured in your Facebook App:</p>
                   <ul className="list-disc list-inside space-y-1 mt-2">
-                    <li><strong>Valid OAuth Redirect URIs:</strong> https://bloomsuite.app/oauth/callback</li>
+                    <li>
+                      <strong>Valid OAuth Redirect URIs:</strong>
+                      <br />
+                      Development: https://be93ec50-2043-42c4-b91c-5d7c30f0ef2d.lovableproject.com/oauth/callback
+                      <br />
+                      Production: https://bloomsuite.app/oauth/callback
+                    </li>
                     <li><strong>App Domain:</strong> bloomsuite.app</li>
                     <li><strong>Required Permissions:</strong> pages_read_engagement, pages_show_list, pages_manage_posts, instagram_basic, instagram_content_publish, instagram_manage_insights</li>
                   </ul>
