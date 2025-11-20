@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,6 @@ export const AuthCallbackPage = () => {
   const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
   const [showAppSetupGuide, setShowAppSetupGuide] = useState(false);
   const [isExchanging, setIsExchanging] = useState(false);
-  const handledRef = useRef(false); // 🔒 Prevent double-handling
 
   useEffect(() => {
     // Only handle OAuth callback logic if we're actually on the callback route
@@ -37,12 +36,6 @@ export const AuthCallbackPage = () => {
     }
 
     const handleCallback = async () => {
-      // 🔒 CRITICAL: Prevent double-handling even if effect re-runs
-      if (handledRef.current) {
-        console.log('⚠️ OAuth callback already handled for this mount, skipping.');
-        return;
-      }
-
       // Get parameters from URL
       const code = searchParams.get('code');
       const state = searchParams.get('state');
@@ -57,12 +50,6 @@ export const AuthCallbackPage = () => {
         allParams: Object.fromEntries(searchParams.entries()),
         timestamp: new Date().toISOString()
       });
-
-      // Mark as handled BEFORE clearing params (ensures single execution)
-      if (code || error) {
-        handledRef.current = true;
-        console.log('🔒 Marked callback as handled');
-      }
 
       // Clear URL parameters to prevent reuse
       if (code || error) {
