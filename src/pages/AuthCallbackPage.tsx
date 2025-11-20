@@ -133,6 +133,18 @@ export const AuthCallbackPage = () => {
       const stateMatches = state === storedState || state === backupState || state === primaryBackup;
       const stateValid = !hasStoredState || stateMatches; // If we have no stored state, allow but log a warning
       
+      // ═══════════════════════════════════════════════════════════
+      // 🔍 CALLBACK PAGE - REDIRECT URI VERIFICATION
+      // ═══════════════════════════════════════════════════════════
+      console.log('🔗 Callback Page - Redirect URI Received:', {
+        fullUrl: window.location.href,
+        origin: window.location.origin,
+        pathname: window.location.pathname,
+        expectedPath: '/auth/callback',
+        matchesExpected: window.location.pathname === '/auth/callback',
+        timestamp: new Date().toISOString()
+      });
+      
       console.log('🔐 State validation (detailed):', { 
         receivedState: state?.substring(0, 20) + '...',
         sessionStorageState: storedState?.substring(0, 20) + '...',

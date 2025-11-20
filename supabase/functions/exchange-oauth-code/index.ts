@@ -104,8 +104,26 @@ serve(async (req) => {
       id: user.id.substring(0, 8) + '...'
     })
 
-    // Detect environment and get appropriate credentials
+    // ═══════════════════════════════════════════════════════════
+    // 🌍 ENVIRONMENT DETECTION & REDIRECT URI VALIDATION
+    // ═══════════════════════════════════════════════════════════
     const environment = detectEnvironment(req)
+    const origin = req.headers.get('origin') || '';
+    const referer = req.headers.get('referer') || '';
+    
+    console.log('🌍 Environment Detection (Backend):', {
+      environment,
+      origin,
+      referer,
+      redirectUriReceived: redirect_uri,
+      expectedPattern: environment === 'development' 
+        ? 'https://*.lovableproject.com/oauth/callback' 
+        : 'https://bloomsuite.app/oauth/callback',
+      matches: environment === 'development' 
+        ? redirect_uri.includes('lovableproject.com/oauth/callback')
+        : redirect_uri === 'https://bloomsuite.app/oauth/callback'
+    });
+    
     const { clientId, clientSecret } = getFacebookCredentials(environment)
     
     // Fallback to legacy secrets for backward compatibility
@@ -154,9 +172,23 @@ serve(async (req) => {
 
     console.log('🔗 Starting OAuth token exchange for user:', user.id.substring(0, 8) + '...')
 
-    // ═══════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════
+    // 🔗 TOKEN EXCHANGE WITH REDIRECT URI (MUST MATCH EXACTLY)
+    // ═══════════════════════════════════════════════════════════
+    console.log('🔄 Token Exchange Request Details:', {
+      tokenEndpoint: 'https://graph.facebook.com/v21.0/oauth/access_token',
+      clientId: finalClientId?.substring(0, 10) + '...',
+      redirectUriUsed: redirect_uri,
+      redirectUriSource: 'from frontend request body',
+      codePresent: !!code,
+      codeLength: code.length,
+      environment,
+      timestamp: new Date().toISOString()
+    });
+
+    // ═══════════════════════════════════════════════════════════
     // FIX 1: IDEMPOTENCY CHECK - Check if connections already exist
-    // ═══════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════
     const { data: existingConnections } = await supabase
       .from('social_connections')
       .select('id, platform, platform_account_name, is_active')
