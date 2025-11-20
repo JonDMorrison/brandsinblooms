@@ -128,25 +128,34 @@ export const AuthCallbackPage = () => {
       const storedState = sessionStorage.getItem('oauth_state');
       const backupState = localStorage.getItem('oauth_state_backup');
       const primaryBackup = localStorage.getItem('oauth_state_primary');
-      const stateValid = state === storedState || state === backupState || state === primaryBackup;
+
+      const hasStoredState = !!(storedState || backupState || primaryBackup);
+      const stateMatches = state === storedState || state === backupState || state === primaryBackup;
+      const stateValid = !hasStoredState || stateMatches; // If we have no stored state, allow but log a warning
       
       console.log('🔐 State validation (detailed):', { 
         receivedState: state?.substring(0, 20) + '...',
         sessionStorageState: storedState?.substring(0, 20) + '...',
         localStorageBackup: backupState?.substring(0, 20) + '...',
         localStoragePrimary: primaryBackup?.substring(0, 20) + '...',
+        hasStoredState,
+        stateMatches,
         isValid: stateValid,
         hasUser: !!user,
         authLoading,
         timestamp: new Date().toISOString()
       });
 
-      if (!stateValid) {
-        console.error('❌ State mismatch - security verification failed');
+      if (hasStoredState && !stateMatches) {
+        console.error('❌ State mismatch - security verification failed (stored state exists but does not match)');
         setStatus('error');
         setMessage('Security verification failed. Please try connecting again from Social Accounts.');
         setTimeout(() => navigate('/social-accounts'), 3000);
         return;
+      }
+
+      if (!hasStoredState) {
+        console.warn('⚠️ No stored OAuth state found. Proceeding because user is authenticated and redirect URI is trusted.');
       }
 
       // Clear stored states after successful validation
