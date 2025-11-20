@@ -174,13 +174,13 @@ export const SocialConnectionManager = () => {
         timestamp: new Date().toISOString()
       });
       
-      // Open OAuth in new tab
+      // Open OAuth in new tab (not popup)
       const oauthUrlStr = authUrl.toString();
-      const oauthTab = window.open(oauthUrlStr, '_blank', 'noopener,noreferrer');
+      const oauthTab = window.open(oauthUrlStr, '_blank');
       
       if (!oauthTab) {
-        console.warn('❌ New tab blocked. Please allow popups/tabs for Facebook login.');
-        toast.error('Please allow popups/new tabs to connect Facebook. Click the button again after allowing.');
+        console.warn('❌ New tab blocked. Please allow new tabs for Facebook login.');
+        toast.error('Please allow new tabs to connect Facebook. Click the button again after allowing.');
       }
     } catch (error) {
       console.error(`Failed to connect ${platformId}:`, error);
