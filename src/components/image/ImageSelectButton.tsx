@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils';
 import { MediaSelector } from './MediaSelector';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface ImageSelectButtonProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
@@ -42,75 +43,85 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showSelector, setShowSelector] = useState(false);
-  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiGeneratedImages, setAiGeneratedImages] = useState<any[]>([]);
+  const { toast } = useToast();
 
-  const handleAISuggestions = async () => {
+  /**
+   * Generate 3 AI images based on content context
+   * Stores all images in global_image_gallery with proper tagging
+   */
+  const handleAIGeneration = async () => {
     if (!contentContext?.trim()) {
+      toast({
+        title: "Content Required",
+        description: "Content context is needed to generate relevant images",
+        variant: "destructive"
+      });
       return;
     }
 
-    setIsGeneratingSuggestions(true);
+    setIsGeneratingAI(true);
+    setAiGeneratedImages([]);
+    
     try {
-      // Extract keywords from content context
-      const keywords = extractKeywords(contentContext);
-      const searchTerms = keywords.slice(0, 3); // Use top 3 keywords
+      console.log('[AI-Image] Generating 3 images for context:', contentContext.substring(0, 50));
       
-      // Search for images using the extracted keywords
-      const suggestions: any[] = [];
-      
-      for (const term of searchTerms) {
+      // Generate 3 images in parallel
+      const promises = [1, 2, 3].map(async (index) => {
         try {
-          const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
+          const { data, error } = await supabase.functions.invoke('generate-ai-image', {
             body: {
-              query: term,
-              maxImages: 4,
-              orientation: 'squarish',
-              orderBy: 'relevant',
-              contentFilter: 'high'
+              contentContext: contentContext.trim(),
+              contentTitle: '',
+              channel: 'instagram',
+              uploadToStorage: true
             }
           });
           
-          if (!error && data?.images && Array.isArray(data.images)) {
-            suggestions.push(...data.images.slice(0, 4));
-          }
-        } catch (error) {
-          console.error(`Failed to fetch suggestions for term: ${term}`, error);
+          if (error) throw error;
+          
+          return {
+            id: data.globalImageId || `ai-${index}-${Date.now()}`,
+            url: data.imageUrl,
+            thumb_url: data.imageUrl,
+            download_url: data.imageUrl,
+            alt: 'AI generated image',
+            photographer: 'AI Generated',
+            globalImageId: data.globalImageId,
+            tags: data.metadata?.tags || [],
+            source: 'ai_generated'
+          };
+        } catch (err) {
+          console.error(`[AI-Image] Failed to generate image ${index}:`, err);
+          return null;
         }
+      });
+      
+      const results = await Promise.all(promises);
+      const successfulImages = results.filter(Boolean);
+      
+      if (successfulImages.length === 0) {
+        throw new Error('Failed to generate any images');
       }
       
-      // Remove duplicates and limit results
-      const uniqueSuggestions = suggestions
-        .filter((img, index, self) => self.findIndex(s => s.id === img.id) === index)
-        .slice(0, 8);
-        
-      setAiSuggestions(uniqueSuggestions);
-    } catch (error) {
-      console.error('Error generating AI suggestions:', error);
+      setAiGeneratedImages(successfulImages);
+      
+      toast({
+        title: "Images Generated",
+        description: `Successfully generated ${successfulImages.length}/3 AI images`,
+      });
+      
+    } catch (error: any) {
+      console.error('[AI-Image] Generation failed:', error);
+      toast({
+        title: "Generation Failed",
+        description: error.message || 'Failed to generate AI images. Please try again.',
+        variant: "destructive"
+      });
     } finally {
-      setIsGeneratingSuggestions(false);
+      setIsGeneratingAI(false);
     }
-  };
-
-  const extractKeywords = (text: string): string[] => {
-    // Simple keyword extraction from content
-    const words = text.toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(word => word.length > 3)
-      .filter(word => !['this', 'that', 'with', 'have', 'will', 'been', 'from', 'they', 'know', 'want', 'been', 'good', 'much', 'some', 'time', 'very', 'when', 'come', 'here', 'just', 'like', 'long', 'make', 'many', 'over', 'such', 'take', 'than', 'them', 'well', 'were'].includes(word));
-    
-    // Count word frequency
-    const wordCount: { [key: string]: number } = {};
-    words.forEach(word => {
-      wordCount[word] = (wordCount[word] || 0) + 1;
-    });
-    
-    // Sort by frequency and return top keywords
-    return Object.entries(wordCount)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5)
-      .map(([word]) => word);
   };
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
@@ -239,7 +250,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
                 </TabsTrigger>
                 <TabsTrigger value="suggestions" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">
                   <Sparkles className="w-4 h-4" />
-                  AI Suggestions
+                  AI Generation
                 </TabsTrigger>
               </TabsList>
 
@@ -274,39 +285,39 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
                 </div>
               </TabsContent>
 
-              {/* AI Suggestions Tab */}
+              {/* AI Generation Tab */}
               <TabsContent value="suggestions" className="space-y-6 mt-0">
                 <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
-                  {aiSuggestions.length === 0 ? (
+                  {aiGeneratedImages.length === 0 ? (
                     <div className="text-center">
                       <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center mb-6 mx-auto">
                         <Wand2 className="h-10 w-10 text-purple-600" />
                       </div>
-                      <h3 className="text-2xl font-bold text-gray-800 mb-3">AI-Powered Suggestions</h3>
+                      <h3 className="text-2xl font-bold text-gray-800 mb-3">AI Image Generation</h3>
                       <p className="text-gray-600 mb-8 max-w-md mx-auto text-lg">
-                        Let our AI analyze your content and suggest the most relevant, high-quality images
+                        Generate 3 unique AI images based on your content. All images are stored in the central gallery with searchable tags.
                       </p>
                       <Button 
                         size="lg" 
                         className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700" 
-                        onClick={handleAISuggestions}
-                        disabled={isGeneratingSuggestions || !contentContext?.trim()}
+                        onClick={handleAIGeneration}
+                        disabled={isGeneratingAI || !contentContext?.trim()}
                       >
-                        {isGeneratingSuggestions ? (
+                        {isGeneratingAI ? (
                           <>
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                            Analyzing Content...
+                            Generating Images...
                           </>
                         ) : (
                           <>
                             <Sparkles className="w-5 h-5 mr-2" />
-                            Generate Smart Suggestions
+                            Generate 3 AI Images
                           </>
                         )}
                       </Button>
                       
                       {!contentContext?.trim() && (
-                        <p className="text-sm text-gray-400 mt-4">Content context needed for AI suggestions</p>
+                        <p className="text-sm text-gray-400 mt-4">Content context needed for AI image generation</p>
                       )}
                     </div>
                   ) : (
@@ -317,31 +328,31 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
                             <Heart className="w-5 h-5 text-purple-600" />
                           </div>
                           <div>
-                            <h3 className="text-xl font-bold text-gray-800">AI Recommendations</h3>
-                            <p className="text-gray-500">Curated based on your content</p>
+                            <h3 className="text-xl font-bold text-gray-800">AI Generated Images</h3>
+                            <p className="text-gray-500">Stored in central gallery with tags</p>
                           </div>
                         </div>
                         <Button
                           variant="outline"
-                          onClick={handleAISuggestions}
-                          disabled={isGeneratingSuggestions}
+                          onClick={handleAIGeneration}
+                          disabled={isGeneratingAI}
                           size="sm"
                         >
-                          {isGeneratingSuggestions ? 'Refreshing...' : 'Refresh'}
+                          {isGeneratingAI ? 'Generating...' : 'Generate New'}
                         </Button>
                       </div>
                       
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {aiSuggestions.map((image, index) => (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {aiGeneratedImages.map((image, index) => (
                           <div 
                             key={`ai-${image.id}-${index}`}
                             className="relative group cursor-pointer rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-400 hover:shadow-lg transition-all"
-                            onClick={() => handleImageSelect(image.download_url || image.urls?.regular, image)}
+                            onClick={() => handleImageSelect(image.url, image)}
                           >
                             <div className="aspect-square bg-gray-100">
                               <img
-                                src={image.urls?.small || image.thumb_url}
-                                alt={image.alt || 'AI suggested image'}
+                                src={image.thumb_url || image.url}
+                                alt={image.alt || 'AI generated image'}
                                 className="w-full h-full object-cover"
                                 loading="lazy"
                               />
@@ -351,7 +362,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
                             <div className="absolute top-2 left-2">
                               <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 text-xs">
                                 <Sparkles className="w-3 h-3 mr-1" />
-                                AI Pick
+                                AI Generated
                               </Badge>
                             </div>
 
@@ -361,7 +372,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
                             {/* Hover Info */}
                             <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               <div className="text-white text-xs">
-                                <p className="font-medium truncate">{image.photographer || 'Unknown'}</p>
+                                <p className="font-medium">Click to select</p>
                               </div>
                             </div>
                           </div>
@@ -371,7 +382,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
                   )}
 
                   {/* Feature highlights */}
-                  {aiSuggestions.length === 0 && (
+                  {aiGeneratedImages.length === 0 && (
                     <div className="grid grid-cols-3 gap-6 mt-12 pt-8 border-t border-gray-100">
                       <div className="text-center">
                         <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-3 mx-auto">
@@ -385,7 +396,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
                           <Download className="w-6 h-6 text-blue-600" />
                         </div>
                         <h4 className="font-semibold text-gray-800">High Quality</h4>
-                        <p className="text-sm text-gray-600">Professional images only</p>
+                        <p className="text-sm text-gray-600">Professional AI-generated images</p>
                       </div>
                       <div className="text-center">
                         <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-3 mx-auto">

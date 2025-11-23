@@ -39,6 +39,11 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
   const [customInstructions, setCustomInstructions] = useState('');
   const [generating, setGenerating] = useState(false);
   const [usedImageIds, setUsedImageIds] = useState<Set<string>>(new Set());
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  const [imageGenerationProgress, setImageGenerationProgress] = useState({
+    completed: 0,
+    total: 0
+  });
   
   const { selectedPersonas, generateEmailContent } = usePersonaAwareGeneration();
   const { toast } = useToast();
@@ -201,6 +206,10 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
 
     console.log(`🎨 Starting parallel image generation for ${imageBlocks.length} blocks`);
 
+    // Set loading state
+    setIsGeneratingImages(true);
+    setImageGenerationProgress({ completed: 0, total: imageBlocks.length });
+
     let succeeded = 0;
     let failed = 0;
 
@@ -227,6 +236,12 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
         console.log(`✅ Image generated for block ${block.id}:`, data.imageUrl?.substring(0, 50));
         succeeded++;
         
+        // Update progress
+        setImageGenerationProgress(prev => ({
+          ...prev,
+          completed: prev.completed + 1
+        }));
+        
         // Notify parent component immediately as soon as image is ready
         if (onBlockImageGenerated && data?.imageUrl) {
           console.log(`📤 [Image Generation] Calling onBlockImageGenerated for block ${block.id}`);
@@ -237,10 +252,25 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
             hasImageUrl: !!data?.imageUrl
           });
         }
+        
+        // Check if all images completed
+        if (succeeded + failed === imageBlocks.length) {
+          setIsGeneratingImages(false);
+          toast({
+            title: "Images Generated",
+            description: `Successfully generated ${succeeded}/${imageBlocks.length} AI images`,
+          });
+        }
 
       } catch (error: any) {
         console.error(`❌ Failed to generate image for block ${block.id}:`, error);
         failed++;
+        
+        // Update progress
+        setImageGenerationProgress(prev => ({
+          ...prev,
+          completed: prev.completed + 1
+        }));
         
         // Notify parent component of failure and clear the generating flag
         if (onBlockImageGenerationFailed) {
@@ -251,6 +281,16 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
         if (onBlockImageGenerated) {
           console.log(`🔄 [Image Generation] Clearing generating flag for failed block ${block.id}`);
           onBlockImageGenerated(block.id, '');
+        }
+        
+        // Check if all images completed
+        if (succeeded + failed === imageBlocks.length) {
+          setIsGeneratingImages(false);
+          toast({
+            title: "Image Generation Complete",
+            description: `Generated ${succeeded}/${imageBlocks.length} images. ${failed > 0 ? `${failed} failed.` : ''}`,
+            variant: failed > 0 ? "destructive" : "default"
+          });
         }
       }
     });
@@ -297,6 +337,51 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
             Write with AI
           </DialogTitle>
         </DialogHeader>
+        
+        {/* AI Image Generation Loading Overlay */}
+        {isGeneratingImages && (
+          <div className="absolute inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+            <div className="max-w-md w-full mx-4">
+              <div className="bg-card rounded-lg border p-6">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative">
+                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent" />
+                    <Sparkles className="absolute inset-0 m-auto h-8 w-8 text-primary animate-pulse" />
+                  </div>
+                  
+                  <div className="text-center space-y-2">
+                    <h3 className="text-lg font-semibold">Generating Images</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Creating AI-generated images for your content blocks
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      This may take 8-12 seconds per image
+                    </p>
+                  </div>
+                  
+                  {imageGenerationProgress.total > 0 && (
+                    <div className="w-full space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Progress</span>
+                        <span className="font-medium">
+                          {imageGenerationProgress.completed} / {imageGenerationProgress.total}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className="bg-primary h-full transition-all duration-500 ease-out"
+                          style={{ 
+                            width: `${(imageGenerationProgress.completed / imageGenerationProgress.total) * 100}%` 
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className="space-y-4">
           <div>
