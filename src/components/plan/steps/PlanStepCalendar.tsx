@@ -62,6 +62,11 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
   const [previewPlatform, setPreviewPlatform] = useState<'instagram' | 'facebook'>('instagram');
   const [expandedBlogs, setExpandedBlogs] = useState<Set<string>>(new Set());
   const [featuredImage, setFeaturedImage] = useState<{ url: string; metadata: any } | null>(null);
+  const [generatingImages, setGeneratingImages] = useState(false);
+  const [imageGenerationProgress, setImageGenerationProgress] = useState({ 
+    completed: 0, 
+    total: 0 
+  });
   const { setLoading, clearLoading } = useLoading();
   const { user } = useAuth();
 
@@ -91,54 +96,34 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
         priority: 'page'
       });
 
-      // Fetch featured image first with garden_ prefix validation
-      const featuredQuery = `${state.themes[0]?.label || 'garden'} ${format(parseMonthParam(state.month), 'MMMM')} professional`;
-      console.log('[PlanStepCalendar] Fetching featured image with garden validation:', featuredQuery);
+      // Generate AI featured image
+      const featuredPrompt = `${state.themes[0]?.label || 'garden'} ${format(parseMonthParam(state.month), 'MMMM')} professional showcase`;
+      console.log('[PlanStepCalendar] Generating AI featured image:', featuredPrompt);
       
-      // Use new image pipeline for featured image
-      supabase.functions.invoke('generate-image-keywords', {
+      supabase.functions.invoke('generate-ai-image', {
         body: {
+          contentContext: featuredPrompt,
+          contentTitle: `${format(parseMonthParam(state.month), 'MMMM')} Featured Garden`,
           channel: 'instagram',
-          content: featuredQuery,
-          title: featuredQuery
+          uploadToStorage: true,
+          storageBucket: 'global-ai-images'
         }
-      }).then(async ({ data: keywordData, error: keywordError }) => {
-        if (keywordError || keywordData?.error) {
-          console.warn('[PlanStepCalendar] Featured keyword generation failed:', keywordError || keywordData?.details);
-          // Continue without featured image - non-critical
-          return;
-        }
-        
-        const enhancedQuery = keywordData.primaryQuery || keywordData.keywords?.join(' ') || featuredQuery;
-        
-        const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
-          body: {
-            query: enhancedQuery,
-            maxImages: 1,
-            orientation: 'squarish',
-            rawQuery: true
-          }
-        });
-        
-        if (!imageError && imageData?.images?.[0]) {
-          const img = imageData.images[0];
-          const featured = {
-            url: img.url,
+      }).then(({ data, error }) => {
+        if (!error && data?.imageUrl) {
+          setFeaturedImage({
+            url: data.imageUrl,
             metadata: {
-              alt: img.alt_description || enhancedQuery,
-              photographer: img.photographer,
-              photographer_url: img.photographer_url,
-              source: 'unsplash_garden_validated',
-              unsplash_id: img.id,
-              enhanced_query: enhancedQuery
+              alt: featuredPrompt,
+              source: 'ai_generated_featured',
+              globalImageId: data.globalImageId,
+              tags: data.metadata?.tags || []
             }
-          };
-          setFeaturedImage(featured);
-          console.log('[PlanStepCalendar] Featured garden image loaded:', featured.url);
-          toast.success('Featured image loaded with garden validation');
+          });
+          console.log('[PlanStepCalendar] AI featured image generated:', data.globalImageId);
+          toast.success('Featured image generated with AI');
         }
       }).catch(err => {
-        console.warn('[PlanStepCalendar] Featured image fetch failed:', err);
+        console.warn('[PlanStepCalendar] Featured image generation failed:', err);
       });
 
       generateMultiThemeSeasonalPlanContent(state.themes, state.month)
@@ -146,124 +131,133 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
           setItems(generatedItems);
           console.log('[PlanStepCalendar] Generated', generatedItems.length, 'items');
           
-            // Ensure all Facebook, Instagram, Blog, and Email posts have imageQuery if missing
-          generatedItems.forEach(item => {
-            if (['facebook', 'instagram', 'blog', 'email'].includes(item.type) && !item.imageQuery) {
-              // Create more specific fallback imageQuery for garden relevance
-              const themeName = item.themeName || state.themes[0]?.label || 'seasonal gardening';
-              const typeKeywords = {
-                facebook: 'garden center customers social',
-                instagram: 'colorful garden display nursery',
-                blog: 'garden tips professional greenhouse',
-                email: 'seasonal garden newsletter plants'
-              };
-              item.imageQuery = `${themeName} ${typeKeywords[item.type as keyof typeof typeKeywords] || 'garden center'}`;
-              console.log(`[PlanStepCalendar] Added fallback imageQuery for ${item.type}: "${item.imageQuery}"`);
-            }
-          });
-          
-          // Auto-fetch images for Facebook, Instagram, Blog, and Email posts
+          // Auto-generate AI images for Facebook, Instagram, Blog, and Email posts
           const itemsNeedingImages = generatedItems.filter(item => 
-            ['facebook', 'instagram', 'blog', 'email'].includes(item.type) && 
-            item.imageQuery && 
-            !item.imageUrl
+            ['facebook', 'instagram', 'blog', 'email'].includes(item.type)
           );
           
           if (itemsNeedingImages.length > 0) {
-            console.log(`[PlanStepCalendar] Auto-fetching ${itemsNeedingImages.length} images with garden validation in parallel...`);
-            const toastId = toast.loading(`Generating ${itemsNeedingImages.length} garden images in parallel...`);
+            console.log(`[PlanStepCalendar] Generating ${itemsNeedingImages.length} AI images in parallel...`);
+            
+            setGeneratingImages(true);
+            setImageGenerationProgress({ completed: 0, total: itemsNeedingImages.length });
+            
+            const toastId = toast.loading(
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
+                  <span className="font-medium">Generating Images</span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  This may take 8-12 seconds per image
+                </span>
+              </div>
+            );
             
             try {
-              // Note: Items don't have taskId yet (not persisted), so we'll fetch images
-              // and update local state. Images will be properly saved when plan is launched.
-              const tasks = itemsNeedingImages.map(item => ({
-                itemId: item.id,
-                imageQuery: item.imageQuery!,
-                type: item.type
-              }));
+              // Generate images in parallel batches (6 at a time to avoid overwhelming the system)
+              const BATCH_SIZE = 6;
+              const batches: PlanItem[][] = [];
               
-              // Fetch all images in parallel for maximum speed
-              const imagePromises = tasks.map(async (task) => {
-                try {
-                  console.log(`[PlanStepCalendar] Fetching garden-validated image for: ${task.imageQuery}`);
-                  
-                  // Step 1: Generate improved keywords with garden_ prefix
-                  const { data: keywordData, error: keywordError } = await supabase.functions.invoke('generate-image-keywords', {
-                    body: {
-                      channel: task.type === 'instagram' ? 'instagram' : 'facebook',
-                      prompt: task.imageQuery
-                    }
-                  });
-                  
-                  if (keywordError || keywordData?.error) {
-                    console.error(`[PlanStepCalendar] Keyword generation failed:`, keywordError || keywordData?.details);
-                    return { taskId: task.itemId, success: false, error: 'keyword_generation_failed' };
-                  }
-                  
-                  const enhancedQuery = keywordData.primaryQuery || keywordData.keywords?.join(' ') || task.imageQuery;
-                  console.log(`[PlanStepCalendar] Enhanced query: "${enhancedQuery}"`);
-                  
-                  // Step 2: Fetch image using enhanced query with validation
-                  const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
-                    body: {
-                      query: enhancedQuery,
-                      maxImages: 1,
-                      orientation: 'squarish',
-                      rawQuery: true
-                    }
-                  });
-                  
-                  if (imageError || !imageData?.images?.[0]) {
-                    console.error(`[PlanStepCalendar] Image fetch failed:`, imageError);
-                    return { taskId: task.itemId, success: false, error: 'image_fetch_failed' };
-                  }
-                  
-                  const image = imageData.images[0];
-                  
-                  return {
-                    taskId: task.itemId,
-                    success: true,
-                    imageUrl: image.urls?.regular || image.download_url,
-                    imageMetadata: {
-                      alt: image.alt || enhancedQuery,
-                      photographer: image.photographer,
-                      photographer_url: image.photographer_url,
-                      source: 'unsplash_garden_validated',
-                      unsplash_id: image.id || image.unsplash_id,
-                      enhanced_query: enhancedQuery
-                    }
-                  };
-                } catch (err) {
-                  console.warn(`[PlanStepCalendar] Failed to fetch image for ${task.itemId}:`, err);
-                  return { taskId: task.itemId, success: false, error: err.message };
-                }
-              });
-
-              // Wait for all images to complete in parallel
-              const imageResults = await Promise.all(imagePromises);
-
-              // Update items with fetched images
-              let successCount = 0;
-              imageResults.forEach(result => {
-                if (result.success) {
-                  updateItem(result.taskId, {
-                    imageUrl: result.imageUrl,
-                    imageMetadata: result.imageMetadata
-                  });
-                  successCount++;
-                }
-              });
-              
-              console.log(`[PlanStepCalendar] ✅ Fetched ${successCount}/${tasks.length} garden-validated images in parallel`);
-              
-              if (successCount > 0) {
-                toast.success(`✅ Generated ${successCount}/${tasks.length} garden-relevant images`, { id: toastId });
-              } else {
-                toast.error(`Failed to generate images. Please try again.`, { id: toastId });
+              for (let i = 0; i < itemsNeedingImages.length; i += BATCH_SIZE) {
+                batches.push(itemsNeedingImages.slice(i, i + BATCH_SIZE));
               }
+              
+              let completedCount = 0;
+              
+              for (const batch of batches) {
+                const batchPromises = batch.map(async (item) => {
+                  try {
+                    const contentContext = item.caption || item.title || 'seasonal garden content';
+                    const contentTitle = item.title || '';
+                    
+                    // Map content type to channel
+                    const channelMap: Record<string, string> = {
+                      'facebook': 'facebook',
+                      'instagram': 'instagram',
+                      'blog': 'blog',
+                      'email': 'newsletter'
+                    };
+                    const channel = channelMap[item.type] || 'instagram';
+                    
+                    console.log(`[AI-Image] Generating for ${item.type}: "${contentTitle.substring(0, 50)}..."`);
+                    
+                    const { data, error } = await supabase.functions.invoke('generate-ai-image', {
+                      body: {
+                        contentContext,
+                        contentTitle,
+                        channel,
+                        uploadToStorage: true,
+                        storageBucket: 'global-ai-images'
+                      }
+                    });
+                    
+                    if (error || !data?.imageUrl) {
+                      console.error(`[AI-Image] Failed for ${item.id}:`, error);
+                      return { success: false, itemId: item.id };
+                    }
+                    
+                    console.log(`[AI-Image] ✅ Generated:`, {
+                      itemId: item.id,
+                      globalImageId: data.globalImageId,
+                      tags: data.metadata?.tags?.length || 0
+                    });
+                    
+                    return {
+                      success: true,
+                      itemId: item.id,
+                      imageUrl: data.imageUrl,
+                      imageMetadata: {
+                        alt: contentTitle,
+                        source: 'ai_generated',
+                        globalImageId: data.globalImageId,
+                        generationTime: data.metadata?.generationTime,
+                        tags: data.metadata?.tags || [],
+                        storagePath: data.metadata?.storagePath
+                      }
+                    };
+                    
+                  } catch (err) {
+                    console.error(`[AI-Image] Exception for ${item.id}:`, err);
+                    return { success: false, itemId: item.id };
+                  }
+                });
+                
+                const batchResults = await Promise.all(batchPromises);
+                
+                // Update items with generated images
+                batchResults.forEach(result => {
+                  if (result.success) {
+                    updateItem(result.itemId, {
+                      imageUrl: result.imageUrl,
+                      imageMetadata: result.imageMetadata
+                    });
+                    completedCount++;
+                    setImageGenerationProgress({ 
+                      completed: completedCount, 
+                      total: itemsNeedingImages.length 
+                    });
+                  }
+                });
+                
+                console.log(`[AI-Image] Batch complete: ${completedCount}/${itemsNeedingImages.length}`);
+              }
+              
+              if (completedCount > 0) {
+                toast.success(
+                  `✅ Generated ${completedCount}/${itemsNeedingImages.length} AI images`,
+                  { id: toastId }
+                );
+              } else {
+                toast.error('Failed to generate images. Please try again.', { id: toastId });
+              }
+              
             } catch (error) {
-              console.error('[PlanStepCalendar] Error fetching images:', error);
+              console.error('[PlanStepCalendar] Error generating AI images:', error);
               toast.error('Image generation failed. You can add them manually.', { id: toastId });
+            } finally {
+              setGeneratingImages(false);
+              setImageGenerationProgress({ completed: 0, total: 0 });
             }
           }
         })
@@ -435,6 +429,49 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
+      {/* AI Image Generation Progress Overlay */}
+      {generatingImages && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <Card className="max-w-md w-full mx-4">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent" />
+                  <Sparkles className="absolute inset-0 m-auto h-8 w-8 text-primary animate-pulse" />
+                </div>
+                
+                <div className="text-center space-y-2">
+                  <h3 className="text-lg font-semibold">Generating Images</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Creating AI-generated images for your content
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    This may take 8-12 seconds per image
+                  </p>
+                </div>
+                
+                <div className="w-full space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progress</span>
+                    <span className="font-medium">
+                      {imageGenerationProgress.completed} / {imageGenerationProgress.total}
+                    </span>
+                  </div>
+                  <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-primary h-full transition-all duration-500 ease-out"
+                      style={{ 
+                        width: `${(imageGenerationProgress.completed / imageGenerationProgress.total) * 100}%` 
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center gap-2">
           <Calendar className="h-8 w-8 text-primary" />

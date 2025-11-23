@@ -382,124 +382,93 @@ export const generateSeasonalPlanContent = async (
   return items;
 };
 
-// Auto-assign images to content items with time-aware queries and robust fallbacks
+/**
+ * Auto-assign AI-generated images to plan items during calendar generation
+ * Stores all images in global_image_gallery with proper tagging
+ */
 const autoAssignImages = async (items: PlanItem[], month: string) => {
-  console.log(`[AutoImageAssignment] SKIPPED - AI generation now handles images`);
-  // This function is disabled - AI generation now handles all image assignment
-  return;
+  console.log(`[AutoImageAssignment] Starting AI image generation for ${items.length} items`);
   
-  /* DISABLED - AI generation now handles images
-  console.log(`[AutoImageAssignment] Starting image assignment for ${items.length} items in ${month}`);
+  // Filter items that need images (facebook, instagram, blog, email)
+  const itemsNeedingImages = items.filter(item => 
+    ['facebook', 'instagram', 'blog', 'email'].includes(item.type)
+  );
   
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    
-    // Only assign images to facebook, instagram, and blog
-    if (!['facebook', 'instagram', 'blog'].includes(item.type)) {
-      continue;
-    }
-    
-    try {
-      const weekNumber = item.week || 1;
-      const themeContext = item.themeName || item.title;
-      
-      // Build time and content-type aware query
-      const { query, altText } = buildSeasonalImageQuery(
-        month,
-        weekNumber,
-        item.type as 'facebook' | 'instagram' | 'blog',
-        themeContext
-      );
-      
-      console.log(`[AutoImageAssignment] Trying ${item.type} week ${weekNumber} seasonal query: "${query}"`);
-      
-      // Fallback chain for robust image fetching
-      let result = null;
-      
-      // Try 1: Seasonal query
-      try {
-        result = await mediaSelector({ prompt: query, count: 3 });
-      } catch (err) {
-        console.warn(`[AutoImageAssignment] Seasonal query failed:`, err);
-      }
-      
-      // Try 2: Simplified query (just theme + month)
-      if (!result?.url) {
-        const monthName = new Date(month + '-01').toLocaleDateString('en-US', { month: 'long' });
-        const simpleQuery = `${themeContext.split(' ').slice(0, 2).join(' ')} ${monthName} garden`;
-        console.log(`[AutoImageAssignment] Trying simplified query: "${simpleQuery}"`);
-        
-        try {
-          result = await mediaSelector({ prompt: simpleQuery, count: 3 });
-        } catch (err) {
-          console.warn(`[AutoImageAssignment] Simplified query failed:`, err);
-        }
-      }
-      
-      // Try 3: Curated collection via Supabase function
-      if (!result?.url) {
-        console.log(`[AutoImageAssignment] Trying curated collection`);
-        try {
-          const { data: curatedData, error: curatedError } = await supabase.functions.invoke('fetch-unsplash-images', {
-            body: { 
-              collection: 'cfl9BkhJD2o',
-              page: Math.floor(Math.random() * 3) + 1,
-              maxImages: 12
-            }
-          });
-          
-          if (!curatedError && curatedData?.images && curatedData.images.length > 0) {
-            const randomIndex = Math.floor(Math.random() * curatedData.images.length);
-            const img = curatedData.images[randomIndex];
-            result = {
-              url: img.download_url,
-              photographer: img.photographer,
-              photographerUrl: img.photographer_url
-            };
-          }
-        } catch (err) {
-          console.warn(`[AutoImageAssignment] Curated collection failed:`, err);
-        }
-      }
-      
-      if (result?.url) {
-        item.imageUrl = result.url;
-        item.imageMetadata = {
-          alt: altText,
-          photographer: result.photographer,
-          source: 'unsplash_auto'
-        };
-        
-        // For blog posts, regenerate enhanced content with the image
-        if (item.type === 'blog' && item.enhancedContent) {
-          const theme = { label: item.title } as any;
-          item.enhancedContent = generateEnhancedBlogContent(
-            theme,
-            month,
-            themeContext,
-            undefined,
-            [],
-            result.url
-          );
-        }
-        
-        console.log(`[AutoImageAssignment] ✓ Image assigned for ${item.type} week ${weekNumber}: ${item.imageUrl}`);
-      } else {
-        console.warn(`[AutoImageAssignment] ⚠ All fallbacks failed for ${item.type} week ${weekNumber}`);
-      }
-      
-      // Add delay between requests to avoid rate limiting
-      if (i < items.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-    } catch (error) {
-      console.error(`[AutoImageAssignment] Failed to assign image for ${item.type}:`, error);
-      // Continue with other items even if one fails
-    }
+  if (itemsNeedingImages.length === 0) {
+    console.log('[AutoImageAssignment] No items require images');
+    return;
   }
   
-  console.log(`[AutoImageAssignment] Completed image assignment`);
-  */
+  console.log(`[AutoImageAssignment] Generating ${itemsNeedingImages.length} AI images in parallel`);
+  
+  // Generate images in parallel using generate-ai-image edge function
+  const imageGenerationPromises = itemsNeedingImages.map(async (item) => {
+    try {
+      const contentContext = item.caption || item.title || 'seasonal garden content';
+      const contentTitle = item.title || '';
+      
+      // Determine channel mapping
+      const channelMap: Record<string, string> = {
+        'facebook': 'facebook',
+        'instagram': 'instagram',
+        'blog': 'blog',
+        'email': 'newsletter'
+      };
+      const channel = channelMap[item.type] || 'instagram';
+      
+      console.log(`[AI-Image] Generating for ${item.type}: "${contentTitle}"`);
+      
+      const { data, error } = await supabase.functions.invoke('generate-ai-image', {
+        body: {
+          contentContext,
+          contentTitle,
+          channel,
+          uploadToStorage: true,
+          storageBucket: 'global-ai-images'
+        }
+      });
+      
+      if (error || !data?.imageUrl) {
+        console.error(`[AI-Image] Failed for ${item.id}:`, error);
+        return { success: false, itemId: item.id };
+      }
+      
+      console.log(`[AI-Image] ✅ Generated for ${item.id}:`, {
+        url: data.imageUrl,
+        globalImageId: data.globalImageId,
+        tags: data.metadata?.tags?.length || 0
+      });
+      
+      // Update item with generated image
+      item.imageUrl = data.imageUrl;
+      item.imageMetadata = {
+        alt: contentTitle,
+        source: 'ai_generated',
+        globalImageId: data.globalImageId,
+        generationTime: data.metadata?.generationTime,
+        tags: data.metadata?.tags || [],
+        storagePath: data.metadata?.storagePath
+      };
+      
+      return { 
+        success: true, 
+        itemId: item.id,
+        globalImageId: data.globalImageId
+      };
+      
+    } catch (err) {
+      console.error(`[AI-Image] Exception for ${item.id}:`, err);
+      return { success: false, itemId: item.id };
+    }
+  });
+  
+  // Wait for all images to complete
+  const results = await Promise.all(imageGenerationPromises);
+  
+  const successCount = results.filter(r => r.success).length;
+  console.log(`[AutoImageAssignment] ✅ Generated ${successCount}/${itemsNeedingImages.length} AI images`);
+  
+  return results;
 };
 
 // Get holidays for a specific month
