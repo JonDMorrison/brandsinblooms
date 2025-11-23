@@ -207,11 +207,11 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
   // Auto-generate AI images when modal opens with content
   useEffect(() => {
     if (open && draftItems.length > 0 && !isGeneratingImages) {
-      // Check if items already have images
-      const itemsWithoutImages = draftItems.filter(item =>
-        ['instagram', 'facebook', 'blog', 'email', 'newsletter'].includes(item.channel) &&
-        !item.media?.url
-      );
+    // Check if items need AI-generated images (regenerate Unsplash images too)
+    const itemsWithoutImages = draftItems.filter(item =>
+      ['instagram', 'facebook', 'blog', 'email', 'newsletter'].includes(item.channel) &&
+      item.media?.source !== 'ai_generated'  // ✅ Only skip if already AI-generated
+    );
       
       if (itemsWithoutImages.length > 0) {
         console.log(`[GeneratedContentModal] Auto-generating ${itemsWithoutImages.length} images on modal open`);
