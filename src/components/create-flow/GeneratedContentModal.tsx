@@ -8,14 +8,14 @@ import { useCreateFlow } from "@/state/useCreateFlow";
 import { useGeneratedBundle } from "@/hooks/useGeneratedBundle";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
-import { MediaSelector } from "@/components/image/MediaSelector";
+import { Loader2, ImageIcon, Camera } from "lucide-react";
 import { EmailPreview } from "@/components/crm/EmailPreview";
 import { EditableNewsletterPreview } from "./EditableNewsletterPreview";
 import { convertNewsletterToCRM_Direct } from "@/utils/newsletterToCrmSync";
 import { buildEmailHtmlFromNewsletter } from "@/utils/newsletterToCrmConverter";
 import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
-// Removed markdown import - blog content now generated as HTML
+import { supabase } from "@/integrations/supabase/client";
+import { AIImageLoadingCard } from "@/components/image/AIImageLoadingCard";
 
 interface GeneratedContentModalProps {
   open: boolean;
@@ -44,11 +44,184 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
   // Local draft state and dirty tracking
   const [draftItems, setDraftItems] = useState<any[]>([]);
   const [dirty, setDirty] = useState<Set<number>>(new Set());
+  
+  // AI Image Generation State
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  const [imageGenerationProgress, setImageGenerationProgress] = useState({
+    completed: 0,
+    total: 0
+  });
 
   useEffect(() => {
     setDraftItems(items);
     setDirty(new Set());
   }, [items]);
+
+  /**
+   * Generate AI images for all content items in the bundle
+   * Stores images in global_image_gallery with proper tagging
+   */
+  const handleGenerateImages = async () => {
+    const itemsNeedingImages = draftItems.filter(item => 
+      ['instagram', 'facebook', 'blog', 'email', 'newsletter'].includes(item.channel) &&
+      !item.media?.url
+    );
+    
+    if (itemsNeedingImages.length === 0) {
+      console.log('[GeneratedContentModal] No items require images');
+      return;
+    }
+    
+    setIsGeneratingImages(true);
+    setImageGenerationProgress({ completed: 0, total: itemsNeedingImages.length });
+    
+    console.log(`[GeneratedContentModal] Generating ${itemsNeedingImages.length} AI images...`);
+    
+    try {
+      // Generate images in batches (6 at a time)
+      const BATCH_SIZE = 6;
+      const batches: typeof itemsNeedingImages[] = [];
+      
+      for (let i = 0; i < itemsNeedingImages.length; i += BATCH_SIZE) {
+        batches.push(itemsNeedingImages.slice(i, i + BATCH_SIZE));
+      }
+      
+      let completedCount = 0;
+      
+      for (const batch of batches) {
+        const batchPromises = batch.map(async (item) => {
+          try {
+            const contentContext = item.body || item.caption || item.script || item.title || 'seasonal garden content';
+            const contentTitle = item.title || '';
+            
+            // Map channel types
+            const channelMap: Record<string, string> = {
+              'instagram': 'instagram',
+              'facebook': 'facebook',
+              'blog': 'blog',
+              'email': 'newsletter',
+              'newsletter': 'newsletter'
+            };
+            const channel = channelMap[item.channel] || 'instagram';
+            
+            console.log(`[AI-Image] Generating for ${item.channel}:`, contentTitle.substring(0, 50));
+            
+            const { data, error } = await supabase.functions.invoke('generate-ai-image', {
+              body: {
+                contentContext,
+                contentTitle,
+                channel,
+                uploadToStorage: true,
+                storageBucket: 'global-ai-images'
+              }
+            });
+            
+            if (error || !data?.imageUrl) {
+              console.error(`[AI-Image] Failed for ${item.channel}:`, error);
+              return { success: false, item };
+            }
+            
+            console.log(`[AI-Image] ✅ Generated:`, {
+              channel: item.channel,
+              globalImageId: data.globalImageId,
+              tags: data.metadata?.tags?.length || 0
+            });
+            
+            return {
+              success: true,
+              item,
+              imageUrl: data.imageUrl,
+              globalImageId: data.globalImageId,
+              tags: data.metadata?.tags || []
+            };
+            
+          } catch (err) {
+            console.error(`[AI-Image] Exception for ${item.channel}:`, err);
+            return { success: false, item };
+          }
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Update items with generated images
+        batchResults.forEach(result => {
+          if (result.success) {
+            const itemIndex = draftItems.findIndex(dItem => dItem === result.item);
+            
+            if (itemIndex !== -1) {
+              editItem(itemIndex, {
+                media: {
+                  url: result.imageUrl,
+                  alt: draftItems[itemIndex].title || 'AI-generated image',
+                  source: 'ai_generated',
+                  globalImageId: result.globalImageId,
+                  tags: result.tags
+                }
+              });
+            }
+            
+            completedCount++;
+            setImageGenerationProgress({
+              completed: completedCount,
+              total: itemsNeedingImages.length
+            });
+          }
+        });
+        
+        console.log(`[AI-Image] Batch complete: ${completedCount}/${itemsNeedingImages.length}`);
+      }
+      
+      if (completedCount > 0) {
+        toast({ 
+          title: "Images Generated", 
+          description: `Successfully generated ${completedCount}/${itemsNeedingImages.length} AI images` 
+        });
+        
+        // Auto-save after image generation
+        if (query.data && snapshotId) {
+          const next = { ...query.data.content } as any;
+          next.items = draftItems;
+          await update.mutateAsync({ snapshotId, content: next });
+        }
+      } else {
+        toast({ 
+          title: "Generation Failed", 
+          description: "Failed to generate images. Please try again.",
+          variant: "destructive"
+        });
+      }
+      
+    } catch (error) {
+      console.error('[GeneratedContentModal] Error generating AI images:', error);
+      toast({ 
+        title: "Error", 
+        description: "Image generation failed. You can regenerate them manually.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingImages(false);
+      setImageGenerationProgress({ completed: 0, total: 0 });
+    }
+  };
+
+  // Auto-generate AI images when modal opens with content
+  useEffect(() => {
+    if (open && draftItems.length > 0 && !isGeneratingImages) {
+      // Check if items already have images
+      const itemsWithoutImages = draftItems.filter(item =>
+        ['instagram', 'facebook', 'blog', 'email', 'newsletter'].includes(item.channel) &&
+        !item.media?.url
+      );
+      
+      if (itemsWithoutImages.length > 0) {
+        console.log(`[GeneratedContentModal] Auto-generating ${itemsWithoutImages.length} images on modal open`);
+        // Small delay to allow modal animation to complete
+        setTimeout(() => {
+          handleGenerateImages();
+        }, 300);
+      }
+    }
+  }, [open, draftItems.length]);
 
   // Local edit only
   const editItem = (index: number, patch: any) => {
@@ -264,7 +437,7 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col text-gray-900 bg-white">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-gray-900">Review & Approve Content</DialogTitle>
-          <DialogDescription className="text-gray-900">Edit copy, choose images with MediaSelector, then approve for publishing.</DialogDescription>
+          <DialogDescription className="text-gray-900">Edit copy, AI-generated images will be created automatically, then approve for publishing.</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pr-2">
@@ -439,17 +612,50 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
                       <div className="space-y-4">
                         <div>
                           <Label className="text-sm font-medium mb-2 block text-gray-900">Featured Image</Label>
-                          <MediaSelector
-                            compact
-                            selectedImageUrl={item.media?.url}
-                            contentContext={item.title || item.caption || item.script || item.body}
-                            onImageSelect={(url: string, metadata?: any) =>
-                              editItem(idx, { media: { url, alt: metadata?.alt_text || item.media?.alt } })
-                            }
-                            autoSelectFirst={item.requiresMediaSelector || item.autoSelectImage || true}
-                          />
+                          {item.media?.url ? (
+                            <div className="relative aspect-video rounded-lg border overflow-hidden">
+                              <img 
+                                src={item.media.url} 
+                                alt={item.media.alt || item.title}
+                                className="w-full h-full object-cover"
+                              />
+                              {item.media.source === 'ai_generated' && (
+                                <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded">
+                                  AI Generated
+                                </div>
+                              )}
+                            </div>
+                          ) : isGeneratingImages ? (
+                            <div className="aspect-video rounded-lg border bg-muted animate-pulse flex items-center justify-center">
+                              <div className="text-center">
+                                <Loader2 className="w-8 h-8 mx-auto mb-2 text-muted-foreground animate-spin" />
+                                <p className="text-sm font-medium text-muted-foreground">Generating Image</p>
+                                <p className="text-xs text-muted-foreground mt-1">This may take 8-12 seconds</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="aspect-video rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
+                              <div className="text-center">
+                                <ImageIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                                <p className="text-sm text-gray-600">Image will be generated</p>
+                              </div>
+                            </div>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full mt-2"
+                            onClick={() => handleGenerateImages()}
+                            disabled={isGeneratingImages}
+                          >
+                            {isGeneratingImages ? (
+                              <><Loader2 className="w-3 h-3 mr-2 animate-spin" /> Generating...</>
+                            ) : (
+                              <><Camera className="w-3 h-3 mr-2" /> Regenerate Image</>
+                            )}
+                          </Button>
                           <p className="text-xs text-gray-500 mt-2">
-                            MediaSelector automatically opens and finds relevant images based on your content
+                            AI-generated images are automatically created and stored in the central gallery
                           </p>
                         </div>
                       </div>
@@ -473,6 +679,17 @@ export function GeneratedContentModal({ open, onOpenChange }: GeneratedContentMo
             </Button>
           </div>
         </div>
+
+        {/* AI Image Generation Progress Overlay */}
+        {isGeneratingImages && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[70] flex items-center justify-center">
+            <AIImageLoadingCard
+              progress={imageGenerationProgress}
+              message="Generating Images"
+              subtitle="This may take 8-12 seconds per image"
+            />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
