@@ -457,7 +457,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                       {imageGenerationProgress.completed} / {imageGenerationProgress.total}
                     </span>
                   </div>
-                  <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
                     <div 
                       className="bg-primary h-full transition-all duration-500 ease-out"
                       style={{ 
