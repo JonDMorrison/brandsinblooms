@@ -60,6 +60,10 @@ export interface PlanItem {
     source?: string;
     unsplash_id?: string;
     enhanced_query?: string;
+    globalImageId?: string;
+    tags?: string[];
+    storagePath?: string;
+    generationTime?: number;
   };
   week: number;
   themeId?: string;
