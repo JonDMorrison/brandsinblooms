@@ -1,22 +1,45 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { detectEnvironment, getSquareCredentials } from '../_shared/environment.ts';
-import { encryptToken } from '../_shared/crypto/tokens.ts';
+import { encryptToken, assertEncryptionKeyConfigured } from '../_shared/crypto/tokens.ts';
+import { corsHeaders, corsJsonResponse } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+console.log('[SQUARE-CALLBACK] Edge function module loaded');
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log('[SQUARE-CALLBACK] Handler reached, method:', req.method);
+
   try {
+    // Validate encryption key is configured
+    try {
+      assertEncryptionKeyConfigured();
+      console.log('[SQUARE-CALLBACK] Encryption key validation passed');
+    } catch (keyError: any) {
+      console.error('[SQUARE-CALLBACK] Encryption key not configured:', keyError.message);
+      return corsJsonResponse({
+        success: false,
+        error: 'Server configuration error - encryption key missing',
+      }, { status: 500 });
+    }
+
     console.log('[SQUARE-CALLBACK] Processing callback');
     
-    const { code, state, redirectUri } = await req.json();
+    // Parse request body with error handling
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError: any) {
+      console.error('[SQUARE-CALLBACK] Failed to parse request body:', parseError.message);
+      return corsJsonResponse({
+        success: false,
+        error: 'Invalid request body',
+      }, { status: 400 });
+    }
+
+    const { code, state, redirectUri } = body;
     
     console.log('[SQUARE-CALLBACK] Code:', !!code, 'State:', state?.substring(0, 12) + '...');
 
@@ -135,22 +158,17 @@ Deno.serve(async (req) => {
 
     console.log('[SQUARE-CALLBACK] Connection successful!');
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Square connected successfully',
-        merchantName: merchant.business_name || 'Square Account',
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return corsJsonResponse({
+      success: true,
+      message: 'Square connected successfully',
+      merchantName: merchant.business_name || 'Square Account',
+    });
   } catch (error: any) {
     console.error('[SQUARE-CALLBACK] Error:', error.message);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to complete Square connection',
-      }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('[SQUARE-CALLBACK] Error stack:', error.stack);
+    return corsJsonResponse({
+      success: false,
+      error: error.message || 'Failed to complete Square connection',
+    }, { status: 400 });
   }
 });
