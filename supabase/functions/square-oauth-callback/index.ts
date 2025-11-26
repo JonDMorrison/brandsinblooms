@@ -44,9 +44,9 @@ Deno.serve(async (req) => {
     console.log('[SQUARE-CALLBACK] Found pending connection for tenant:', connectionData.tenant_id);
     console.log('[SQUARE-CALLBACK] Connection environment:', connectionData.environment);
 
-    // Detect environment and get credentials
-    const appEnv = detectEnvironment(req);
-    console.log('[SQUARE-CALLBACK] App environment detected:', appEnv);
+    // TEMPORARY: Force production mode for testing
+    const appEnv = 'production'; // detectEnvironment(req);
+    console.log('[SQUARE-CALLBACK] App environment detected (FORCED):', appEnv);
     
     const { clientId, clientSecret } = getSquareCredentials(appEnv);
 
