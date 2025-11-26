@@ -79,23 +79,28 @@ Deno.serve(async (req) => {
 
     console.log('[SQUARE-INIT] Storing pending connection');
 
-    // Store pending connection
-    const { error: upsertError } = await supabaseClient
+    // Delete any existing pending connections for this tenant to handle abandoned OAuth flows
+    await supabaseClient
       .from('square_connections')
-      .upsert({
+      .delete()
+      .eq('tenant_id', userData.tenant_id)
+      .eq('status', 'pending');
+
+    // Insert new pending connection
+    const { error: insertError } = await supabaseClient
+      .from('square_connections')
+      .insert({
         tenant_id: userData.tenant_id,
         user_id: user.id,
         environment,
         encrypted_access_token: 'pending',
         encrypted_refresh_token: 'pending',
         expires_at: new Date(Date.now() + 3600000).toISOString(),
-      }, {
-        onConflict: 'tenant_id',
       });
 
-    if (upsertError) {
-      console.error('[SQUARE-INIT] DB upsert error:', upsertError.message);
-      throw new Error('Failed to store connection: ' + upsertError.message);
+    if (insertError) {
+      console.error('[SQUARE-INIT] DB insert error:', insertError.message);
+      throw new Error('Failed to store connection: ' + insertError.message);
     }
 
     // Build Square OAuth URL
