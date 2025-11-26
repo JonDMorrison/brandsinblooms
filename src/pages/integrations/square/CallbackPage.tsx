@@ -20,8 +20,6 @@ const CallbackPage = () => {
           message: 'Connection timeout',
           timestamp: Date.now()
         });
-        
-        setTimeout(() => window.close(), 3000);
       }, 30000);
 
       try {
@@ -52,8 +50,6 @@ const CallbackPage = () => {
             message: errorMsg,
             timestamp: Date.now()
           });
-          
-          setTimeout(() => window.close(), 3000);
           return;
         }
 
@@ -70,8 +66,6 @@ const CallbackPage = () => {
             message: errorMsg,
             timestamp: Date.now()
           });
-          
-          setTimeout(() => window.close(), 3000);
           return;
         }
 
@@ -109,8 +103,6 @@ const CallbackPage = () => {
             message: data?.error || fnError?.message || 'Failed to complete connection',
             timestamp: Date.now()
           });
-          
-          setTimeout(() => window.close(), 3000);
           return;
         }
 
@@ -126,8 +118,6 @@ const CallbackPage = () => {
           timestamp: Date.now()
         });
         
-        setTimeout(() => window.close(), 2000);
-        
       } catch (error: any) {
         clearTimeout(timeoutId);
         console.error('[SQUARE-Callback] Unexpected error:', error);
@@ -140,8 +130,6 @@ const CallbackPage = () => {
           message: error.message || 'Unexpected error',
           timestamp: Date.now()
         });
-        
-        setTimeout(() => window.close(), 3000);
       }
     };
 
@@ -177,7 +165,7 @@ const CallbackPage = () => {
             <h2 className="text-xl font-semibold">{message}</h2>
             <p className="text-sm text-muted-foreground">{step}</p>
             <div className="text-xs text-muted-foreground mt-4">
-              This window will close automatically...
+              You can close this window once completed.
             </div>
           </>
         )}
@@ -188,7 +176,7 @@ const CallbackPage = () => {
             <h2 className="text-xl font-semibold text-green-600">{message}</h2>
             <p className="text-sm text-muted-foreground">{step}</p>
             <div className="text-xs text-muted-foreground mt-4">
-              Closing in 2 seconds...
+              You can close this window now.
             </div>
           </>
         )}
@@ -199,7 +187,7 @@ const CallbackPage = () => {
             <h2 className="text-xl font-semibold text-red-600">{message}</h2>
             <p className="text-sm text-muted-foreground">{step}</p>
             <div className="text-xs text-muted-foreground mt-4">
-              Closing in 3 seconds... You can try connecting again.
+              You can close this window and try connecting again.
             </div>
           </>
         )}
