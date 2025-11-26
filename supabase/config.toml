@@ -221,3 +221,24 @@ verify_jwt = false
 
 [functions.stream-thinking-text]
 verify_jwt = false
+
+[functions.square-oauth-start]
+verify_jwt = true
+
+[functions.square-oauth-callback]
+verify_jwt = false
+
+[functions.square-test-connection]
+verify_jwt = true
+
+[functions.square-full-sync]
+verify_jwt = true
+
+[functions.square-sync-customers]
+verify_jwt = true
+
+[functions.square-sync-sales]
+verify_jwt = true
+
+[functions.square-sync-products]
+verify_jwt = true
