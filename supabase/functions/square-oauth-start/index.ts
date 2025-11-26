@@ -75,7 +75,11 @@ Deno.serve(async (req) => {
       throw new Error('Square client ID not configured');
     }
 
-    const callbackUrl = `https://bloomsuite.app/integrations/square/callback`;
+    const callbackUrl = appEnv === 'development'
+      ? 'https://be93ec50-2043-42c4-b91c-5d7c30f0ef2d.lovableproject.com/integrations/square/callback'
+      : 'https://bloomsuite.app/integrations/square/callback';
+
+    console.log('[SQUARE-INIT] Using callback URL:', callbackUrl);
 
     console.log('[SQUARE-INIT] Storing pending connection');
 
