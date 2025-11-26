@@ -75,6 +75,19 @@ export function getMailchimpCredentials(env: Environment): {
 }
 
 /**
+ * Get Square credentials for the current environment
+ */
+export function getSquareCredentials(env: Environment): {
+  clientId: string | undefined;
+  clientSecret: string | undefined;
+} {
+  return {
+    clientId: getEnvSecret('SQUARE_CLIENT_ID', env),
+    clientSecret: getEnvSecret('SQUARE_CLIENT_SECRET', env),
+  };
+}
+
+/**
  * Get environment-aware redirect URI for OAuth callbacks
  * 
  * ⚠️ DEPRECATED - DO NOT USE THIS FUNCTION

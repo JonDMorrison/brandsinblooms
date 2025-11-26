@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { GoogleAnalyticsConnection } from './GoogleAnalyticsConnection';
 import { LightspeedIntegration } from './LightspeedIntegration';
 import { LightspeedDebug } from './LightspeedDebug';
+import { SquareIntegration } from './SquareIntegration';
 import { useQuery } from '@tanstack/react-query';
 import { MigrationStatusIndicator } from '@/components/migrations/MigrationStatusIndicator';
 
@@ -451,6 +452,9 @@ export const IntegrationHub = () => {
 
               {/* Lightspeed X-Series */}
               <LightspeedIntegration />
+
+              {/* Square POS */}
+              <SquareIntegration />
 
               {/* Lightspeed Debug Tools - Only show when not connected */}
               {!hasValidLightspeedConnection && <LightspeedDebug />}
