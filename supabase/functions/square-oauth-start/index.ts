@@ -59,9 +59,9 @@ Deno.serve(async (req) => {
 
     console.log('[SQUARE-INIT] Tenant found:', userData.tenant_id);
 
-    // Auto-detect environment from request
-    const appEnv = detectEnvironment(req);
-    const environment = appEnv === 'development' ? 'sandbox' : 'production';
+    // TEMPORARY: Force production mode for testing
+    const appEnv = 'production'; // detectEnvironment(req);
+    const environment = 'production'; // appEnv === 'development' ? 'sandbox' : 'production';
     
     console.log('[SQUARE-INIT] App environment detected:', appEnv);
     console.log('[SQUARE-INIT] Square environment:', environment);
