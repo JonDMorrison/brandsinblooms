@@ -1,18 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, CheckCircle, XCircle, Plug, Clock } from 'lucide-react';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { formatDistanceToNow } from 'date-fns';
+import { detectEnvironment } from '@/utils/environmentUtils';
 
 export const SquareIntegration = () => {
-  const [showConnectModal, setShowConnectModal] = useState(false);
-  const [environment, setEnvironment] = useState<'sandbox' | 'production'>('production');
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting' | 'completing'>('preparing');
   const { toast } = useToast();
@@ -23,7 +19,6 @@ export const SquareIntegration = () => {
     const handleOAuthResult = (data: any) => {
       if (Date.now() - data.timestamp < 30000) {
         setLoading(false);
-        setShowConnectModal(false);
         localStorage.removeItem('square_oauth_result');
         
         if (data.status === 'success') {
@@ -124,7 +119,6 @@ export const SquareIntegration = () => {
   useEffect(() => {
     if (loading && connection && connection.encrypted_access_token !== 'pending') {
       setLoading(false);
-      setShowConnectModal(false);
       toast({ title: '✓ Square connected successfully' });
       queryClient.invalidateQueries({ queryKey: ['square-connection-status'] });
     }
@@ -148,13 +142,16 @@ export const SquareIntegration = () => {
     },
   });
 
-  const initiateOAuthFlow = async (env: 'sandbox' | 'production') => {
+  const initiateOAuthFlow = async () => {
     setLoading(true);
     setLoadingStep('preparing');
-    setShowConnectModal(false);
 
     try {
-      console.log('[OAuth] Starting Square OAuth for', env);
+      // Auto-detect environment
+      const appEnv = detectEnvironment();
+      const squareEnv = appEnv === 'development' ? 'sandbox' : 'production';
+      
+      console.log('[OAuth] Auto-detected environment:', appEnv, '→ Square:', squareEnv);
 
       const { data: userData } = await supabase.auth.getUser();
       if (userData.user) {
@@ -175,7 +172,7 @@ export const SquareIntegration = () => {
 
       const state = crypto.randomUUID();
       const { data, error } = await supabase.functions.invoke('square-oauth-start', {
-        body: { environment: env, state },
+        body: { state },
       });
 
       if (error || !data?.authUrl) {
@@ -347,42 +344,12 @@ export const SquareIntegration = () => {
             </div>
           </div>
         ) : (
-          <Button onClick={() => setShowConnectModal(true)} className="w-full">
+          <Button onClick={initiateOAuthFlow} className="w-full">
             <Plug className="h-4 w-4 mr-2" />
             Connect Square
           </Button>
         )}
       </Card>
-
-      <Dialog open={showConnectModal} onOpenChange={setShowConnectModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Connect Square Account</DialogTitle>
-            <DialogDescription>
-              Choose your Square environment to connect
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <RadioGroup value={environment} onValueChange={(val) => setEnvironment(val as 'sandbox' | 'production')}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="production" id="production" />
-                <Label htmlFor="production" className="font-normal cursor-pointer">
-                  Production (Live Account)
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="sandbox" id="sandbox" />
-                <Label htmlFor="sandbox" className="font-normal cursor-pointer">
-                  Sandbox (Testing)
-                </Label>
-              </div>
-            </RadioGroup>
-            <Button onClick={() => initiateOAuthFlow(environment)} className="w-full">
-              Connect {environment === 'sandbox' ? 'Sandbox' : 'Production'} Account
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };

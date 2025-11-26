@@ -36,20 +36,13 @@ Deno.serve(async (req) => {
     console.log('[SQUARE-INIT] User authenticated:', user.id);
 
     const body = await req.json();
-    const environment = body?.environment || 'production'; // sandbox or production
     const state = body?.state;
     
-    console.log('[SQUARE-INIT] Environment:', environment);
     console.log('[SQUARE-INIT] State received:', state?.substring(0, 12) + '...');
 
     if (!state) {
       console.error('[SQUARE-INIT] Missing state parameter');
       throw new Error('Missing state parameter');
-    }
-
-    if (!['sandbox', 'production'].includes(environment)) {
-      console.error('[SQUARE-INIT] Invalid environment:', environment);
-      throw new Error('Environment must be "sandbox" or "production"');
     }
 
     // Get tenant_id
@@ -66,10 +59,13 @@ Deno.serve(async (req) => {
 
     console.log('[SQUARE-INIT] Tenant found:', userData.tenant_id);
 
-    // Get environment-specific credentials
+    // Auto-detect environment from request
     const appEnv = detectEnvironment(req);
-    console.log('[SQUARE-INIT] Environment detected:', appEnv);
-    console.log('[SQUARE-INIT] Request headers - origin:', req.headers.get('origin'), 'referer:', req.headers.get('referer'));
+    const environment = appEnv === 'development' ? 'sandbox' : 'production';
+    
+    console.log('[SQUARE-INIT] App environment detected:', appEnv);
+    console.log('[SQUARE-INIT] Square environment:', environment);
+    console.log('[SQUARE-INIT] Request origin:', req.headers.get('origin'));
     
     const { clientId } = getSquareCredentials(appEnv);
 
@@ -78,11 +74,13 @@ Deno.serve(async (req) => {
       throw new Error('Square client ID not configured');
     }
 
+    console.log('[SQUARE-INIT] Using client ID prefix:', clientId.substring(0, 20) + '...');
+
     const callbackUrl = appEnv === 'development'
       ? 'https://be93ec50-2043-42c4-b91c-5d7c30f0ef2d.lovableproject.com/integrations/square/callback'
       : 'https://bloomsuite.app/integrations/square/callback';
 
-    console.log('[SQUARE-INIT] Using callback URL:', callbackUrl);
+    console.log('[SQUARE-INIT] Callback URL:', callbackUrl);
 
     console.log('[SQUARE-INIT] Storing pending connection');
 

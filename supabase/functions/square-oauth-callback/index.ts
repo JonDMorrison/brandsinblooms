@@ -42,14 +42,20 @@ Deno.serve(async (req) => {
     }
 
     console.log('[SQUARE-CALLBACK] Found pending connection for tenant:', connectionData.tenant_id);
+    console.log('[SQUARE-CALLBACK] Connection environment:', connectionData.environment);
 
     // Detect environment and get credentials
     const appEnv = detectEnvironment(req);
+    console.log('[SQUARE-CALLBACK] App environment detected:', appEnv);
+    
     const { clientId, clientSecret } = getSquareCredentials(appEnv);
 
     if (!clientId || !clientSecret) {
+      console.error('[SQUARE-CALLBACK] Missing Square credentials for', appEnv);
       throw new Error('Square credentials not configured');
     }
+    
+    console.log('[SQUARE-CALLBACK] Using client ID prefix:', clientId.substring(0, 20) + '...');
 
     // Exchange code for tokens
     const tokenBaseUrl = connectionData.environment === 'sandbox'
