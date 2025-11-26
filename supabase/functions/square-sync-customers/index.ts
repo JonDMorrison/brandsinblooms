@@ -74,18 +74,32 @@ Deno.serve(async (req) => {
       // Process customers and insert into crm_customers
       if (data.customers && data.customers.length > 0) {
         for (const customer of data.customers) {
-          await supabaseClient.from('crm_customers').upsert({
-            tenant_id: userData.tenant_id,
-            email: customer.email_address || `square-${customer.id}@noemail.local`,
-            first_name: customer.given_name,
-            last_name: customer.family_name,
-            phone: customer.phone_number,
-            pos_source: 'square',
-            created_at: customer.created_at,
-            updated_at: customer.updated_at,
-          }, {
-            onConflict: 'tenant_id,email',
-          });
+          const customerEmail = customer.email_address || `square-${customer.id}@noemail.local`;
+          
+          console.log(`[SQUARE-SYNC] Processing customer: ${customerEmail} (Square ID: ${customer.id})`);
+          
+          const { data: upsertData, error: upsertError } = await supabaseClient
+            .from('crm_customers')
+            .upsert({
+              tenant_id: userData.tenant_id,
+              email: customerEmail,
+              first_name: customer.given_name,
+              last_name: customer.family_name,
+              phone: customer.phone_number,
+              pos_source: 'square',
+              created_at: customer.created_at,
+              updated_at: customer.updated_at,
+            }, {
+              onConflict: 'tenant_id,email',
+            })
+            .select();
+          
+          if (upsertError) {
+            console.error(`[SQUARE-SYNC] Failed to upsert customer ${customerEmail}:`, upsertError);
+            continue; // Skip this customer but continue with others
+          }
+          
+          console.log(`[SQUARE-SYNC] Successfully upserted customer ${customerEmail}`);
           customersSynced++;
         }
       }
