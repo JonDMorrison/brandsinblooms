@@ -68,6 +68,9 @@ Deno.serve(async (req) => {
 
     // Get environment-specific credentials
     const appEnv = detectEnvironment(req);
+    console.log('[SQUARE-INIT] Environment detected:', appEnv);
+    console.log('[SQUARE-INIT] Request headers - origin:', req.headers.get('origin'), 'referer:', req.headers.get('referer'));
+    
     const { clientId } = getSquareCredentials(appEnv);
 
     if (!clientId) {
