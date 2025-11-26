@@ -82,6 +82,7 @@ Deno.serve(async (req) => {
             .from('crm_customers')
             .upsert({
               tenant_id: userData.tenant_id,
+              user_id: user.id,
               email: customerEmail,
               first_name: customer.given_name,
               last_name: customer.family_name,
