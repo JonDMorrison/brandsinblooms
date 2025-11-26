@@ -29,10 +29,10 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Find pending connection by state (via oauth_states table)
+    // Find pending connection by encrypted_access_token = 'pending'
     const { data: connectionData, error: connectionError } = await supabaseClient
       .from('square_connections')
-      .select('*, users!inner(tenant_id)')
+      .select('*')
       .eq('encrypted_access_token', 'pending')
       .single();
 
