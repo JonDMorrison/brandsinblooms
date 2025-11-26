@@ -8,6 +8,9 @@ import { SidebarLayout } from '@/components/SidebarLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicRoute } from '@/components/PublicRoute';
 import { AuthPage } from '@/components/auth/AuthPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { ForgotPasswordSentPage } from '@/pages/ForgotPasswordSentPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { SmartRootRoute } from '@/components/SmartRootRoute';
 import { DataProviderWrapper } from '@/components/DataProviderWrapper';
 import { RedirectWithQuery } from '@/components/RedirectWithQuery';
@@ -89,6 +92,21 @@ function App() {
           <Route path="/auth" element={
             <PublicRoute>
               <AuthPage />
+            </PublicRoute>
+          } />
+          <Route path="/forgot-password" element={
+            <PublicRoute>
+              <ForgotPasswordPage />
+            </PublicRoute>
+          } />
+          <Route path="/forgot-password/sent" element={
+            <PublicRoute>
+              <ForgotPasswordSentPage />
+            </PublicRoute>
+          } />
+          <Route path="/reset-password" element={
+            <PublicRoute>
+              <ResetPasswordPage />
             </PublicRoute>
           } />
           <Route path="/onboarding" element={

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,11 +12,22 @@ import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
 
 export const AuthPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
+
+  // Show success message if navigated from password reset
+  useEffect(() => {
+    const message = location.state?.message;
+    if (message) {
+      toast.success(message);
+      // Clear the state
+      navigate('/auth', { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,29 +110,6 @@ export const AuthPage = () => {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      toast.error('Please enter your email address');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`
-      });
-
-      if (error) {
-        toast.error(error.message);
-      } else {
-        toast.success('Password reset email sent! Check your inbox.');
-      }
-    } catch (error) {
-      toast.error('An unexpected error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
@@ -195,14 +183,12 @@ export const AuthPage = () => {
                     </Button>
                     
                     <div className="text-center">
-                      <button
-                        type="button"
-                        onClick={handleForgotPassword}
+                      <Link
+                        to="/forgot-password"
                         className="text-sm text-blue-600 hover:underline"
-                        disabled={loading}
                       >
                         Forgot your password?
-                      </button>
+                      </Link>
                     </div>
                   </form>
                 </TabsContent>
