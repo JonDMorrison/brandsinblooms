@@ -76,9 +76,8 @@ Deno.serve(async (req) => {
 
     console.log('[SQUARE-INIT] Using client ID prefix:', clientId.substring(0, 20) + '...');
 
-    const callbackUrl = appEnv === 'development'
-      ? 'https://be93ec50-2043-42c4-b91c-5d7c30f0ef2d.lovableproject.com/integrations/square/callback'
-      : 'https://bloomsuite.app/integrations/square/callback';
+    // TEMPORARY: Use Lovable preview URL for testing with production credentials
+    const callbackUrl = 'https://be93ec50-2043-42c4-b91c-5d7c30f0ef2d.lovableproject.com/integrations/square/callback';
 
     console.log('[SQUARE-INIT] Callback URL:', callbackUrl);
 
