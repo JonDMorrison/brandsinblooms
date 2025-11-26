@@ -117,6 +117,11 @@ const CallbackPage = () => {
           merchantName: data?.merchantName,
           timestamp: Date.now()
         });
+
+        // Auto-close after 3 seconds
+        setTimeout(() => {
+          window.close();
+        }, 3000);
         
       } catch (error: any) {
         clearTimeout(timeoutId);
