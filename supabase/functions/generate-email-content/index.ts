@@ -235,6 +235,13 @@ NARRATIVE ARC REQUIREMENT: Each block should serve a distinct purpose in the ove
           - Maintain consistent voice while covering COMPLETELY DIFFERENT aspects of the theme
           - **ELIMINATE FILLER: Get straight to actionable insights - no lengthy introductions**
          
+         CRITICAL WEEK NUMBER RESTRICTIONS:
+         - NEVER use "Week" followed by any number (Week 1, Week 28, Week48, etc.)
+         - NEVER use "Weekly" references or "This Week" language
+         - NEVER mention week numbers in any context
+         - Focus on seasonal timing instead of week numbers
+         - Use phrases like "this season", "currently", "right now" instead of week references
+         
          Return your response as JSON with these fields:
          - title: A compelling, specific headline (max 60 characters) that mentions the key topic
          - content: Main body content (2-3 SHORT paragraphs, 50-80 words total, engaging and informative with specific details)
