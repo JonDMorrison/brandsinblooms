@@ -1,4 +1,5 @@
 import { ContentBlock, BlockLayout } from '@/types/emailBuilder';
+import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 
 interface GenerateBlocksOptions {
   topic: string;
@@ -135,13 +136,16 @@ const convertTemplateBlocks = (templateBlocks: any[], layout: string, topic: str
 };
 
 const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
+  // Sanitize week numbers from topic for header blocks
+  const sanitizedTopic = sanitizeWeekNumbers(topic);
+  
   const blocks: ContentBlock[] = [
     {
       id: `header_${Date.now()}`,
       type: 'header',
-      title: topic,
+      title: sanitizedTopic,
       content: '',
-      headline: topic,
+      headline: sanitizedTopic,
       body: '',
       imageUrl: '',
       imageQuery: '',
@@ -258,13 +262,16 @@ const generateBlockBuilderBlocks = (topic: string): ContentBlock[] => {
 };
 
 const generateSimpleEmailBlocks = (topic: string): ContentBlock[] => {
+  // Sanitize week numbers from topic for header blocks
+  const sanitizedTopic = sanitizeWeekNumbers(topic);
+  
   const blocks: ContentBlock[] = [
     {
       id: `header_${Date.now()}`,
       type: 'header',
-      title: topic,
+      title: sanitizedTopic,
       content: '',
-      headline: topic,
+      headline: sanitizedTopic,
       body: '',
       imageUrl: '',
       imageQuery: '',
@@ -414,13 +421,16 @@ const getLayoutHint = (layout: string, blockType: string, index: number): BlockL
 export const getFallbackBlocks = (topic: string): ContentBlock[] => {
   console.warn(`[NewsletterInit] Using fallback blocks for "${topic}"`);
   
+  // Sanitize week numbers from topic
+  const sanitizedTopic = sanitizeWeekNumbers(topic) || 'Weekly Newsletter';
+  
   return [
     {
       id: `fallback_header_${Date.now()}`,
       type: 'header',
-      title: topic || 'Weekly Newsletter',
+      title: sanitizedTopic,
       content: '',
-      headline: topic || 'Weekly Newsletter',
+      headline: sanitizedTopic,
       body: '',
       imageUrl: '',
       imageQuery: '',
