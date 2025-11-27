@@ -3168,27 +3168,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           }
           break;
 
-        case 'image-text':
-          const textAlign = block.textAlign || 'left';
-          const textColor = block.textColor || '#475569';
-          const textCtaText = block.ctaText || block.buttonText;
-          const textCtaUrl = block.ctaUrl || block.buttonUrl;
-          const textButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
-          
-          html += `
-            <div style="margin: 20px 0; text-align: ${textAlign}; font-size: ${block.fontSize || '16px'}; font-family: ${fonts.bodyFont}; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
-              ${block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor}; font-family: ${fonts.subheadingFont};">${block.headline}</h2>` : ''}
-              ${block.content || block.body ? `<div style="color: ${textColor}; line-height: 1.6; font-family: ${fonts.bodyFont};">${block.content || block.body}</div>` : ''}
-              ${textCtaText && textCtaUrl ? `
-                <div style="margin-top: 20px;">
-                  <a href="${textCtaUrl}" style="display: inline-block; padding: 12px 24px; background: ${textButtonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont};">
-                    ${textCtaText}
-                  </a>
-                </div>
-              ` : ''}
-            </div>
-          `;
-          break;
 
         case 'image':
           // Only render image block if it has an imageUrl
