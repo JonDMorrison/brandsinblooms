@@ -249,36 +249,15 @@ serve(async (req) => {
     if (userUpdateError) throw userUpdateError;
     console.log(`[SeedDemo] Assigned user to tenant`);
 
-    // Step 3: Create personas
-    const personaIds: string[] = [];
-    for (const persona of personas) {
-      const { data: existingPersona } = await supabase
-        .from('crm_personas')
-        .select('id')
-        .eq('tenant_id', tenantId)
-        .eq('persona_name', persona.name)
-        .maybeSingle();
-
-      if (existingPersona) {
-        personaIds.push(existingPersona.id);
-      } else {
-        const { data: newPersona, error: personaError } = await supabase
-          .from('crm_personas')
-          .insert({
-            tenant_id: tenantId,
-            user_id: userId,
-            persona_name: persona.name,
-            persona_description: persona.description,
-            is_custom: true
-          })
-          .select()
-          .single();
-
-        if (personaError) throw personaError;
-        personaIds.push(newPersona.id);
-      }
-    }
-    console.log(`[SeedDemo] Created/verified ${personaIds.length} personas`);
+    // Step 3: Get existing personas from personas table
+    const { data: existingPersonas, error: personasError } = await supabase
+      .from('personas')
+      .select('id');
+    
+    if (personasError) throw personasError;
+    
+    const personaIds = existingPersonas.map(p => p.id);
+    console.log(`[SeedDemo] Found ${personaIds.length} personas`);
 
     // Step 4: Generate and insert customers in batches
     const batchSize = 50;
