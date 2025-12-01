@@ -81,6 +81,7 @@ import HelpDeskPage from '@/pages/HelpDeskPage';
 import TicketListPage from '@/pages/TicketListPage';
 import CreateTicketPage from '@/pages/CreateTicketPage';
 import TicketDetailPage from '@/pages/TicketDetailPage';
+import SeedDemoCustomers from '@/pages/SeedDemoCustomers';
 
 
 function App() {
@@ -527,6 +528,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <OAuthDebugPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/seed-demo" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <SeedDemoCustomers />
               </SidebarLayout>
             </ProtectedRoute>
           } />
