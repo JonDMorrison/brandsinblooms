@@ -24,7 +24,7 @@ export const ReportProblemButton: React.FC = () => {
               className="gap-2"
             >
               <Bug className="h-5 w-5" />
-              <span className="hidden sm:inline">Have problem?</span>
+              <span className="hidden sm:inline">Got a question?</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
