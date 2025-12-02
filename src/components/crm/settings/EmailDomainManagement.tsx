@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +59,15 @@ export const EmailDomainManagement: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const guideRef = useRef<HTMLDivElement>(null);
+
+  const handleOpenGuide = () => {
+    setGuideOpen(true);
+    // Scroll to guide section after state update
+    setTimeout(() => {
+      guideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
 
   const handleRefreshVerification = async (domainId: string) => {
     setRefreshing(domainId);
@@ -125,7 +134,7 @@ export const EmailDomainManagement: React.FC = () => {
               Resend Domain Settings <ExternalLink className="h-3 w-3" />
             </a>
             <button 
-              onClick={() => setGuideOpen(true)}
+              onClick={handleOpenGuide}
               className="text-primary hover:underline inline-flex items-center gap-1"
             >
               DNS Setup Instructions <BookOpen className="h-3 w-3" />
@@ -135,8 +144,9 @@ export const EmailDomainManagement: React.FC = () => {
       </Card>
 
       {/* Setup Guide - Collapsible */}
-      <Collapsible open={shouldShowGuide} onOpenChange={setGuideOpen}>
-        <Card>
+      <div ref={guideRef}>
+        <Collapsible open={shouldShowGuide} onOpenChange={setGuideOpen}>
+          <Card>
           <CollapsibleTrigger className="w-full">
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
               <div className="flex items-center justify-between">
@@ -161,7 +171,8 @@ export const EmailDomainManagement: React.FC = () => {
             </CardContent>
           </CollapsibleContent>
         </Card>
-      </Collapsible>
+        </Collapsible>
+      </div>
 
       {/* Domain List */}
       {domains.length === 0 ? (
@@ -179,7 +190,7 @@ export const EmailDomainManagement: React.FC = () => {
                 Connect Domain
               </Button>
               <button 
-                onClick={() => setGuideOpen(true)}
+                onClick={handleOpenGuide}
                 className="text-sm text-primary hover:underline inline-flex items-center gap-1"
               >
                 <BookOpen className="h-4 w-4" />
