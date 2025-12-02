@@ -8,6 +8,7 @@ import {
   canSendCampaign,
   getActiveOrFallbackSender
 } from '@/lib/email/domainService';
+import { upsertEmailDomainFromEntriCallback } from '@/lib/email/domainProvisioning';
 
 export interface DomainUsageStats {
   date: string;
@@ -262,12 +263,48 @@ export const useEmailDomainManagement = () => {
     return getActiveOrFallbackSender(tenant.id);
   };
 
+  /**
+   * Provision a domain via Entri automatic DNS setup
+   */
+  const provisionDomainWithEntri = async (
+    domain: string,
+    entriConnectionId: string,
+    entriProvider: string
+  ): Promise<{ success: boolean; data?: EmailDomain; error?: string }> => {
+    if (!tenant?.id) {
+      return { success: false, error: 'No tenant context' };
+    }
+
+    try {
+      const result = await upsertEmailDomainFromEntriCallback({
+        accountId: tenant.id,
+        domain,
+        entriConnectionId,
+        entriProvider
+      });
+
+      if (result.success) {
+        toast.success(`Domain ${domain} configured via ${entriProvider}. Verifying...`);
+        await fetchDomains();
+      } else {
+        toast.error(result.error || 'Failed to save domain configuration');
+      }
+
+      return result;
+    } catch (err: any) {
+      console.error('Error provisioning domain with Entri:', err);
+      toast.error(err.message || 'Failed to configure domain');
+      return { success: false, error: err.message };
+    }
+  };
+
   return {
     domains,
     loading,
     error,
     refetch: fetchDomains,
     provisionDomain,
+    provisionDomainWithEntri,
     refreshVerificationStatus,
     updateDomainSender,
     toggleDomainPause,
