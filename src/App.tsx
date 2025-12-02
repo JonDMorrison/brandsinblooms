@@ -82,6 +82,7 @@ import TicketListPage from '@/pages/TicketListPage';
 import CreateTicketPage from '@/pages/CreateTicketPage';
 import TicketDetailPage from '@/pages/TicketDetailPage';
 import SeedDemoCustomers from '@/pages/SeedDemoCustomers';
+import EmailSendingSettings from '@/pages/crm/EmailSendingSettings';
 
 
 function App() {
@@ -280,6 +281,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <CRMAutomationBuilderPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/settings/email-sending" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <EmailSendingSettings />
               </SidebarLayout>
             </ProtectedRoute>
           } />

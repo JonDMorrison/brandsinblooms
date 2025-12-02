@@ -4,7 +4,7 @@ import { Resend } from "https://esm.sh/resend@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, traceparent, tracestate',
 }
 
 serve(async (req) => {
@@ -75,13 +75,12 @@ serve(async (req) => {
     // Get company profile for sender configuration
     const { data: companyProfile, error: profileError } = await supabase
       .from('company_profiles')
-      .select('email_auth_status, custom_sender_email, company_name')
+      .select('email_auth_status, custom_sender_email, company_name, location_info')
       .eq('user_id', campaign.user_id)
       .single();
 
     if (profileError) {
       console.error('Error fetching company profile:', profileError);
-      // Continue with fallback sender if profile not found
     }
 
     // Get customers based on campaign audience targeting
@@ -90,7 +89,6 @@ serve(async (req) => {
 
     // Check if campaign has a single segment_id or multiple segments via campaign_segments
     if (campaign.segment_id) {
-      // Single segment targeting
       console.log(`Targeting single segment: ${campaign.segment_id}`);
       const { data: segmentCustomers, error } = await supabase
         .from('customer_segments')
@@ -109,7 +107,6 @@ serve(async (req) => {
           .filter(c => c && c.email && c.email.trim() !== '') || [];
       }
     } else {
-      // Multiple segments targeting via campaign_segments table
       console.log(`Checking for multiple segment targeting...`);
       const { data: campaignSegments, error: segError } = await supabase
         .from('campaign_segments')
@@ -121,7 +118,6 @@ serve(async (req) => {
       } else if (campaignSegments && campaignSegments.length > 0) {
         console.log(`Targeting ${campaignSegments.length} segments:`, campaignSegments.map(cs => cs.segment_id));
         
-        // Get customers from all linked segments and dedupe by email
         const { data: multiSegmentCustomers, error } = await supabase
           .from('customer_segments')
           .select(`
@@ -134,7 +130,6 @@ serve(async (req) => {
         if (error) {
           customersError = error;
         } else {
-          // Deduplicate customers by email
           const customerMap = new Map();
           multiSegmentCustomers?.forEach(sc => {
             const customer = sc.crm_customers;
@@ -184,29 +179,78 @@ serve(async (req) => {
       );
     }
 
-    // Dynamically determine sender configuration based on domain verification
-    const isVerified = companyProfile?.email_auth_status === 'verified' && companyProfile?.custom_sender_email;
-    const companyName = companyProfile?.company_name || 'Your Garden Center';
-    
+    const recipientCount = customers.length;
+    console.log(`Found ${recipientCount} customers with valid emails`);
+
+    // ========== PRE-SEND QUOTA CHECK ==========
+    // Check if sending is allowed before proceeding
+    const { data: quotaCheck, error: quotaError } = await supabase.rpc('check_send_quota', {
+      p_tenant_id: campaign.tenant_id,
+      p_domain_id: campaign.from_email_domain_id || null,
+      p_recipient_count: recipientCount
+    });
+
+    if (quotaError) {
+      console.error('Error checking quota:', quotaError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to check sending quota' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    if (!quotaCheck?.allowed) {
+      console.warn(`Campaign ${campaignId} blocked: ${quotaCheck?.reason} - ${quotaCheck?.message}`);
+      
+      // Update campaign status to blocked
+      await supabase
+        .from('crm_campaigns')
+        .update({ 
+          status: 'blocked',
+          send_blocked_reason: quotaCheck?.message || quotaCheck?.reason
+        })
+        .eq('id', campaignId);
+
+      return new Response(
+        JSON.stringify({ 
+          error: 'Send blocked',
+          reason: quotaCheck?.reason,
+          message: quotaCheck?.message
+        }),
+        { 
+          status: 403, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    console.log(`Quota check passed. Domain: ${quotaCheck.domain?.domain || 'fallback'}, Limits: daily ${quotaCheck.limits?.daily_limit}, hourly ${quotaCheck.limits?.hourly_limit}`);
+
+    // ========== DETERMINE SENDER ==========
     let senderEmail: string;
     let senderDisplayName: string;
     let deliveryMethod: string;
     let usesVerifiedDomain: boolean;
+    let activeDomainId: string | null = null;
+    const companyName = companyProfile?.company_name || 'Your Garden Center';
 
-    if (isVerified) {
-      // Use verified custom domain
-      senderEmail = companyProfile.custom_sender_email;
-      senderDisplayName = companyName;
-      deliveryMethod = 'custom_domain';
-      usesVerifiedDomain = true;
-      console.log(`Using verified domain: ${senderEmail}`);
-    } else {
-      // Fallback to shared sender
-      senderEmail = 'noreply@bloomsuite.email';
+    if (quotaCheck.using_fallback) {
+      // Use fallback sender
+      senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.email';
       senderDisplayName = `${companyName} via BloomSuite`;
       deliveryMethod = 'shared_sender';
       usesVerifiedDomain = false;
-      console.log(`Using shared sender fallback for: ${companyName}`);
+      console.log(`Using fallback sender: ${senderEmail}`);
+    } else {
+      // Use custom domain sender
+      senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.email';
+      senderDisplayName = quotaCheck.sender?.from_name || companyName;
+      deliveryMethod = 'custom_domain';
+      usesVerifiedDomain = true;
+      activeDomainId = quotaCheck.domain?.id || null;
+      console.log(`Using custom domain: ${senderEmail}`);
     }
 
     const fromAddress = `${senderDisplayName} <${senderEmail}>`;
@@ -217,11 +261,10 @@ serve(async (req) => {
       .update({
         delivery_method: deliveryMethod,
         sender_display_name: senderDisplayName,
-        actual_sender_email: senderEmail
+        actual_sender_email: senderEmail,
+        from_email_domain_id: activeDomainId
       })
       .eq('id', campaignId);
-
-    console.log(`Found ${customers.length} customers with valid emails`);
 
     // Update campaign status to sending
     await supabase
@@ -256,7 +299,7 @@ serve(async (req) => {
         // Replace merge tags in content
         emailContent = emailContent.replace(/\{\{unsubscribe_link\}\}/g, unsubscribeLink);
         emailContent = emailContent.replace(/\{\{company_name\}\}/g, companyName);
-        emailContent = emailContent.replace(/\{\{company_website\}\}/g, companyProfile?.email_domain || 'your website');
+        emailContent = emailContent.replace(/\{\{company_website\}\}/g, companyProfile?.custom_sender_email?.split('@')[1] || 'your website');
         emailContent = emailContent.replace(/\{\{company_address\}\}/g, companyProfile?.location_info || 'Your Business Address');
 
         // Check if unsubscribe link is missing and auto-append footer
@@ -269,7 +312,6 @@ serve(async (req) => {
             </div>
           `;
           emailContent += autoFooter;
-          console.log(`Auto-appended compliance footer for campaign ${campaignId}`);
         }
 
         // Create or update subscription record
@@ -293,34 +335,36 @@ serve(async (req) => {
           subject: emailSubject,
           html: emailContent,
           headers: {
-            'X-Campaign-ID': campaignId, // Critical for webhook tracking
+            'X-Campaign-ID': campaignId,
             'X-Campaign-Type': 'bulk',
-            'X-Tenant-ID': campaign.tenant_id
+            'X-Tenant-ID': campaign.tenant_id,
+            'X-Domain-ID': activeDomainId || 'fallback'
           },
           tags: [
             `campaign:${campaignId}`,
             'type:bulk',
-            `tenant:${campaign.tenant_id}`
+            `tenant:${campaign.tenant_id}`,
+            `domain:${activeDomainId || 'fallback'}`
           ]
         };
 
         // Add reply-to if custom sender is available
-        if (isVerified && companyProfile?.custom_sender_email) {
-          emailPayload.reply_to = companyProfile.custom_sender_email;
+        if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.email') {
+          emailPayload.reply_to = senderEmail;
         }
 
         let emailResponse;
         let fallbackUsed = false;
 
         try {
-          // Attempt to send with configured sender
           emailResponse = await resend.emails.send(emailPayload);
         } catch (senderError: any) {
           // If custom domain fails due to DNS issues, fallback to shared sender
-          if (isVerified && senderError.message?.includes('DNS')) {
+          if (usesVerifiedDomain && senderError.message?.includes('DNS')) {
             console.warn(`DNS error with custom domain for ${customer.email}, falling back to shared sender`);
             
             emailPayload.from = `${companyName} via BloomSuite <noreply@bloomsuite.email>`;
+            emailPayload.headers['X-Domain-ID'] = 'fallback';
             fallbackUsed = true;
             
             try {
@@ -335,15 +379,7 @@ serve(async (req) => {
 
         if (emailResponse?.id) {
           emailsSent++;
-          const logMessage = fallbackUsed 
-            ? `Email sent with fallback sender to ${customer.email}, ID: ${emailResponse.id}`
-            : `Email sent successfully to ${customer.email}, ID: ${emailResponse.id}`;
-          console.log(logMessage);
-          
-          // Log delivery method used
-          if (fallbackUsed) {
-            console.log(`Campaign ${campaignId}: Fallback sender used due to DNS issues`);
-          }
+          console.log(`Email sent to ${customer.email}, ID: ${emailResponse.id}${fallbackUsed ? ' (fallback)' : ''}`);
         } else {
           failed++;
           console.error(`Failed to send email to ${customer.email}`);
@@ -355,20 +391,30 @@ serve(async (req) => {
       } catch (error: any) {
         failed++;
         console.error(`Error sending email to customer ${customer.id}:`, error);
-        
-        // Log specific error details for debugging
-        if (error.message?.includes('DNS')) {
-          console.error(`DNS configuration issue detected for campaign ${campaignId}`);
-        }
+      }
+    }
+
+    // ========== RECORD USAGE ==========
+    // Record email usage for quota tracking
+    if (emailsSent > 0 && activeDomainId) {
+      const { error: usageError } = await supabase.rpc('record_email_usage', {
+        p_domain_id: activeDomainId,
+        p_emails_sent: emailsSent
+      });
+      
+      if (usageError) {
+        console.error('Error recording email usage:', usageError);
+      } else {
+        console.log(`Recorded ${emailsSent} emails sent for domain ${activeDomainId}`);
       }
     }
 
     // Update campaign with final metrics
     const metrics = {
       sent: emailsSent,
-      opens: 0, // Will be updated by webhook handlers later
-      clicks: 0, // Will be updated by webhook handlers later
-      unsubscribes: 0 // Will be updated by webhook handlers later
+      opens: 0,
+      clicks: 0,
+      unsubscribes: 0
     };
 
     await supabase
@@ -379,7 +425,7 @@ serve(async (req) => {
       })
       .eq('id', campaignId);
 
-    // Update subscription email usage
+    // Update subscription email usage (legacy tracking)
     const { data: subscription, error: subError } = await supabase
       .from('subscriptions')
       .select('email_usage, user_id')
@@ -393,8 +439,6 @@ serve(async (req) => {
           email_usage: (subscription.email_usage || 0) + emailsSent
         })
         .eq('user_id', campaign.user_id);
-
-      console.log(`Updated email usage for user ${campaign.user_id}: +${emailsSent} emails`);
     }
 
     console.log(`Campaign ${campaignId} completed. Sent: ${emailsSent}, Failed: ${failed}`);

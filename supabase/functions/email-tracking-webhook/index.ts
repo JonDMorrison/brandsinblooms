@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, resend-signature, resend-timestamp",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, resend-signature, resend-timestamp, traceparent, tracestate",
 };
 
 interface EmailTrackingEvent {
@@ -32,6 +32,9 @@ interface ResendWebhookPayload {
     open?: {
       timestamp: string;
     };
+    bounce?: {
+      message: string;
+    };
   };
 }
 
@@ -40,7 +43,7 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
   const webhookSecret = Deno.env.get('RESEND_WEBHOOK_SECRET');
   if (!webhookSecret) {
     console.warn('RESEND_WEBHOOK_SECRET not configured - skipping signature verification');
-    return true; // Allow requests in development
+    return true;
   }
 
   try {
@@ -50,7 +53,6 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
       return false;
     }
 
-    // Verify timestamp to prevent replay attacks
     const timestamp = request.headers.get('resend-timestamp');
     if (!timestamp) {
       console.error('Missing resend-timestamp header');
@@ -61,16 +63,13 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
     const timestampInt = parseInt(timestamp);
     const timeDiff = Math.abs(now - timestampInt);
     
-    // Reject if timestamp is more than 5 minutes old
     if (timeDiff > 300) {
       console.error(`Webhook timestamp too old: ${timeDiff} seconds`);
       return false;
     }
 
-    // Create payload for signature verification
     const payloadToSign = `${timestamp}.${body}`;
     
-    // Create HMAC signature
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       'raw',
@@ -100,7 +99,6 @@ const verifyWebhookSignature = async (request: Request, body: string): Promise<b
 };
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -118,10 +116,8 @@ const handler = async (req: Request): Promise<Response> => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get raw body for signature verification
     const rawBody = await req.text();
     
-    // Verify webhook signature (security requirement)
     const isValidSignature = await verifyWebhookSignature(req, rawBody);
     if (!isValidSignature) {
       console.error('Invalid webhook signature - rejecting request');
@@ -131,7 +127,6 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Parse the webhook payload
     const payload: ResendWebhookPayload = JSON.parse(rawBody);
     console.log('✅ Verified webhook payload:', {
       type: payload.type,
@@ -140,9 +135,12 @@ const handler = async (req: Request): Promise<Response> => {
       timestamp: payload.created_at
     });
 
-    // Extract campaign_id from headers (preferred) or tags (fallback)
+    // Extract campaign_id and domain_id from headers or tags
     const campaignId = payload.data.headers?.['X-Campaign-ID'] ||
                       payload.data.tags?.find(tag => tag.startsWith('campaign:'))?.replace('campaign:', '');
+    
+    const domainId = payload.data.headers?.['X-Domain-ID'] ||
+                    payload.data.tags?.find(tag => tag.startsWith('domain:'))?.replace('domain:', '');
 
     if (!campaignId) {
       console.log('No campaign ID found in webhook payload - skipping analytics tracking');
@@ -156,11 +154,11 @@ const handler = async (req: Request): Promise<Response> => {
     const eventTypeMap: Record<string, EmailTrackingEvent['event_type']> = {
       'email.sent': 'sent',
       'email.delivered': 'delivered',
-      'email.delivery_delayed': 'delivered', // Still count as delivered
+      'email.delivery_delayed': 'delivered',
       'email.opened': 'opened',
       'email.clicked': 'clicked',
       'email.bounced': 'bounced',
-      'email.complained': 'unsubscribed' // Treat complaints as unsubscribes
+      'email.complained': 'unsubscribed'
     };
 
     const eventType = eventTypeMap[payload.type];
@@ -172,7 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Check for existing event to prevent duplicates (idempotency requirement)
+    // Check for existing event to prevent duplicates
     const { data: existingEvent } = await supabase
       .from('email_tracking_events')
       .select('id')
@@ -183,44 +181,45 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (existingEvent) {
-      console.log(`🔄 Duplicate ${eventType} event detected - skipping (campaign: ${campaignId}, email: ${payload.data.to[0]})`);
+      console.log(`🔄 Duplicate ${eventType} event detected - skipping`);
       return new Response(JSON.stringify({ message: 'Duplicate event ignored' }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    // Get user agent and IP from headers
     const userAgent = req.headers.get('user-agent');
     const ipAddress = req.headers.get('x-forwarded-for') || 
                      req.headers.get('x-real-ip') || 
-                     req.headers.get('cf-connecting-ip') || // Cloudflare
+                     req.headers.get('cf-connecting-ip') || 
                      'unknown';
 
-    // Prepare enhanced event data
     const eventData: Record<string, any> = {
       email_id: payload.data.email_id,
       subject: payload.data.subject,
       timestamp: payload.created_at,
       from: payload.data.from,
-      tags: payload.data.tags || []
+      tags: payload.data.tags || [],
+      domain_id: domainId
     };
 
-    // Add click-specific data
     if (eventType === 'clicked' && payload.data.click) {
       eventData.click_link = payload.data.click.link;
       eventData.click_timestamp = payload.data.click.timestamp;
     }
 
-    // Add open-specific data
     if (eventType === 'opened' && payload.data.open) {
       eventData.open_timestamp = payload.data.open.timestamp;
     }
 
-    // Insert tracking event into database
+    if (eventType === 'bounced' && payload.data.bounce) {
+      eventData.bounce_message = payload.data.bounce.message;
+    }
+
+    // Insert tracking event
     const trackingEvent: EmailTrackingEvent = {
       campaign_id: campaignId,
-      customer_email: payload.data.to[0], // Take first recipient
+      customer_email: payload.data.to[0],
       event_type: eventType,
       event_data: eventData,
       user_agent: userAgent,
@@ -236,9 +235,20 @@ const handler = async (req: Request): Promise<Response> => {
       throw insertError;
     }
 
-    console.log(`✅ Successfully recorded ${eventType} event for campaign ${campaignId} (email: ${payload.data.to[0]})`);
+    console.log(`✅ Recorded ${eventType} event for campaign ${campaignId}`);
 
-    // Update campaign metrics in real-time
+    // ========== UPDATE DOMAIN REPUTATION STATS ==========
+    // Update domain stats for bounces and complaints
+    if (domainId && domainId !== 'fallback' && (eventType === 'bounced' || payload.type === 'email.complained')) {
+      await updateDomainReputationStats(supabase, domainId, eventType === 'bounced' ? 'bounce' : 'complaint');
+    }
+
+    // Track delivered emails for 30-day stats
+    if (domainId && domainId !== 'fallback' && eventType === 'delivered') {
+      await incrementDomainSentCount(supabase, domainId);
+    }
+
+    // Update campaign metrics
     await updateCampaignMetrics(supabase, campaignId);
 
     return new Response(JSON.stringify({ 
@@ -267,10 +277,96 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-// Function to update campaign metrics after each event
+// Update domain reputation stats for bounces and complaints
+const updateDomainReputationStats = async (supabase: any, domainId: string, type: 'bounce' | 'complaint') => {
+  try {
+    const column = type === 'bounce' ? 'total_bounces_30d' : 'total_complaints_30d';
+    
+    // Get current stats
+    const { data: domain, error: fetchError } = await supabase
+      .from('email_domains')
+      .select('total_sent_30d, total_bounces_30d, total_complaints_30d')
+      .eq('id', domainId)
+      .single();
+
+    if (fetchError || !domain) {
+      console.error('Error fetching domain for reputation update:', fetchError);
+      return;
+    }
+
+    // Increment the appropriate counter
+    const updates: any = {
+      [column]: (domain[column] || 0) + 1
+    };
+
+    // Recalculate rates
+    const totalSent = domain.total_sent_30d || 1;
+    const bounces = type === 'bounce' ? (domain.total_bounces_30d || 0) + 1 : (domain.total_bounces_30d || 0);
+    const complaints = type === 'complaint' ? (domain.total_complaints_30d || 0) + 1 : (domain.total_complaints_30d || 0);
+
+    updates.bounce_rate_30d = bounces / totalSent;
+    updates.complaint_rate_30d = complaints / totalSent;
+
+    // Check if we need to auto-pause the domain
+    const BOUNCE_AUTO_PAUSE = 0.08;     // 8%
+    const COMPLAINT_AUTO_PAUSE = 0.005; // 0.5%
+
+    if (updates.bounce_rate_30d >= BOUNCE_AUTO_PAUSE || updates.complaint_rate_30d >= COMPLAINT_AUTO_PAUSE) {
+      updates.status = 'paused';
+      updates.notes = `Auto-paused due to high ${type} rate: ${type === 'bounce' ? updates.bounce_rate_30d : updates.complaint_rate_30d}`;
+      console.warn(`⚠️ Domain ${domainId} auto-paused due to high ${type} rate`);
+    }
+
+    const { error: updateError } = await supabase
+      .from('email_domains')
+      .update(updates)
+      .eq('id', domainId);
+
+    if (updateError) {
+      console.error('Error updating domain reputation:', updateError);
+    } else {
+      console.log(`📊 Updated ${type} stats for domain ${domainId}`);
+    }
+  } catch (error) {
+    console.error('Error in updateDomainReputationStats:', error);
+  }
+};
+
+// Increment domain's 30-day sent count
+const incrementDomainSentCount = async (supabase: any, domainId: string) => {
+  try {
+    const { data: domain, error: fetchError } = await supabase
+      .from('email_domains')
+      .select('total_sent_30d, total_bounces_30d, total_complaints_30d')
+      .eq('id', domainId)
+      .single();
+
+    if (fetchError || !domain) {
+      return;
+    }
+
+    const totalSent = (domain.total_sent_30d || 0) + 1;
+    
+    // Recalculate rates with new total
+    const bounceRate = (domain.total_bounces_30d || 0) / totalSent;
+    const complaintRate = (domain.total_complaints_30d || 0) / totalSent;
+
+    await supabase
+      .from('email_domains')
+      .update({
+        total_sent_30d: totalSent,
+        bounce_rate_30d: bounceRate,
+        complaint_rate_30d: complaintRate
+      })
+      .eq('id', domainId);
+  } catch (error) {
+    console.error('Error incrementing domain sent count:', error);
+  }
+};
+
+// Update campaign metrics
 const updateCampaignMetrics = async (supabase: any, campaignId: string) => {
   try {
-    // Get current event counts for this campaign
     const { data: events, error: eventsError } = await supabase
       .from('email_tracking_events')
       .select('event_type, customer_email')
@@ -281,7 +377,6 @@ const updateCampaignMetrics = async (supabase: any, campaignId: string) => {
       return;
     }
 
-    // Calculate unique metrics (one per email address per event type)
     const uniqueEvents = new Map<string, Set<string>>();
     
     events.forEach((event: any) => {
@@ -301,12 +396,10 @@ const updateCampaignMetrics = async (supabase: any, campaignId: string) => {
       unsubscribed: uniqueEvents.get('unsubscribed')?.size || 0
     };
 
-    // Calculate rates
-    const totalDelivered = metrics.delivered || metrics.sent || 1; // Avoid division by zero
-    const openRate = Math.round((metrics.opened / totalDelivered) * 100 * 100) / 100; // 2 decimal places
+    const totalDelivered = metrics.delivered || metrics.sent || 1;
+    const openRate = Math.round((metrics.opened / totalDelivered) * 100 * 100) / 100;
     const clickRate = Math.round((metrics.clicked / totalDelivered) * 100 * 100) / 100;
 
-    // Update campaign with calculated metrics
     const { error: updateError } = await supabase
       .from('crm_campaigns')
       .update({
@@ -322,7 +415,7 @@ const updateCampaignMetrics = async (supabase: any, campaignId: string) => {
     if (updateError) {
       console.error('Error updating campaign metrics:', updateError);
     } else {
-      console.log(`📊 Updated metrics for campaign ${campaignId}: ${metrics.opened} opens, ${metrics.clicked} clicks, ${openRate}% open rate`);
+      console.log(`📊 Updated metrics for campaign ${campaignId}: ${metrics.opened} opens, ${metrics.clicked} clicks`);
     }
   } catch (error) {
     console.error('Error in updateCampaignMetrics:', error);
