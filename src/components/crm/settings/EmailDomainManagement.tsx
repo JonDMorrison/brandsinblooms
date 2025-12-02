@@ -82,6 +82,8 @@ export const EmailDomainManagement: React.FC = () => {
     );
   }
 
+  const [guideOpen, setGuideOpen] = useState(domains.length === 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -97,16 +99,41 @@ export const EmailDomainManagement: React.FC = () => {
                 </CardDescription>
               </div>
             </div>
-            <Button onClick={() => setShowWizard(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Connect Domain
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setGuideOpen(!guideOpen)}>
+                <BookOpen className="h-4 w-4 mr-2" />
+                {guideOpen ? 'Hide Guide' : 'Setup Guide'}
+              </Button>
+              <Button onClick={() => setShowWizard(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Connect Domain
+              </Button>
+            </div>
+          </div>
+          
+          {/* Quick help link */}
+          <div className="flex items-center gap-4 mt-3 pt-3 border-t text-sm">
+            <span className="text-muted-foreground">Quick links:</span>
+            <a 
+              href="https://resend.com/domains" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline inline-flex items-center gap-1"
+            >
+              Resend Domain Settings <ExternalLink className="h-3 w-3" />
+            </a>
+            <button 
+              onClick={() => setGuideOpen(true)}
+              className="text-primary hover:underline inline-flex items-center gap-1"
+            >
+              DNS Setup Instructions <BookOpen className="h-3 w-3" />
+            </button>
           </div>
         </CardHeader>
       </Card>
 
       {/* Setup Guide - Collapsible */}
-      <Collapsible defaultOpen={domains.length === 0}>
+      <Collapsible open={guideOpen} onOpenChange={setGuideOpen}>
         <Card>
           <CollapsibleTrigger className="w-full">
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
@@ -122,7 +149,7 @@ export const EmailDomainManagement: React.FC = () => {
                     </CardDescription>
                   </div>
                 </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform duration-200 [&[data-state=open]>svg]:rotate-180" />
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${guideOpen ? 'rotate-180' : ''}`} />
               </div>
             </CardHeader>
           </CollapsibleTrigger>
@@ -140,13 +167,23 @@ export const EmailDomainManagement: React.FC = () => {
           <CardContent className="py-12 text-center">
             <Globe className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No Domains Connected</h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
               Connect your first custom domain to start sending emails from your own address.
+              You'll need to add DNS records (SPF, DKIM, DMARC) to verify ownership.
             </p>
-            <Button onClick={() => setShowWizard(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Connect Domain
-            </Button>
+            <div className="flex flex-col items-center gap-3">
+              <Button onClick={() => setShowWizard(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Connect Domain
+              </Button>
+              <button 
+                onClick={() => setGuideOpen(true)}
+                className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <BookOpen className="h-4 w-4" />
+                Read setup instructions first
+              </button>
+            </div>
           </CardContent>
         </Card>
       ) : (
