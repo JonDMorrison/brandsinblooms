@@ -1648,6 +1648,7 @@ export type Database = {
           content: string | null
           created_at: string | null
           delivery_method: string | null
+          from_email_domain_id: string | null
           id: string
           metadata: Json | null
           metrics: Json | null
@@ -1659,6 +1660,7 @@ export type Database = {
           preheader_text: string | null
           scheduled_at: string | null
           segment_id: string | null
+          send_blocked_reason: string | null
           send_reasoning: string | null
           sender_display_name: string | null
           sender_email: string | null
@@ -1682,6 +1684,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           delivery_method?: string | null
+          from_email_domain_id?: string | null
           id?: string
           metadata?: Json | null
           metrics?: Json | null
@@ -1693,6 +1696,7 @@ export type Database = {
           preheader_text?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
+          send_blocked_reason?: string | null
           send_reasoning?: string | null
           sender_display_name?: string | null
           sender_email?: string | null
@@ -1716,6 +1720,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           delivery_method?: string | null
+          from_email_domain_id?: string | null
           id?: string
           metadata?: Json | null
           metrics?: Json | null
@@ -1727,6 +1732,7 @@ export type Database = {
           preheader_text?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
+          send_blocked_reason?: string | null
           send_reasoning?: string | null
           sender_display_name?: string | null
           sender_email?: string | null
@@ -1744,6 +1750,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_campaigns_from_email_domain_id_fkey"
+            columns: ["from_email_domain_id"]
+            isOneToOne: false
+            referencedRelation: "email_domains"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_campaigns_segment_id_fkey"
             columns: ["segment_id"]
@@ -3300,45 +3313,134 @@ export type Database = {
           },
         ]
       }
-      email_domains: {
+      email_domain_usage: {
         Row: {
+          bounces: number | null
+          complaints: number | null
           created_at: string | null
-          domain: string
-          env: Database["public"]["Enums"]["email_env"] | null
-          error: string | null
+          date: string
+          email_domain_id: string
+          emails_sent: number | null
+          hour: number
           id: string
-          is_sandbox: boolean | null
-          report_email: string | null
-          resend_domain_id: string | null
-          status: string
           tenant_id: string
           updated_at: string | null
         }
         Insert: {
+          bounces?: number | null
+          complaints?: number | null
           created_at?: string | null
-          domain: string
-          env?: Database["public"]["Enums"]["email_env"] | null
-          error?: string | null
+          date: string
+          email_domain_id: string
+          emails_sent?: number | null
+          hour: number
           id?: string
-          is_sandbox?: boolean | null
-          report_email?: string | null
-          resend_domain_id?: string | null
-          status?: string
           tenant_id: string
           updated_at?: string | null
         }
         Update: {
+          bounces?: number | null
+          complaints?: number | null
           created_at?: string | null
+          date?: string
+          email_domain_id?: string
+          emails_sent?: number | null
+          hour?: number
+          id?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_domain_usage_email_domain_id_fkey"
+            columns: ["email_domain_id"]
+            isOneToOne: false
+            referencedRelation: "email_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_domains: {
+        Row: {
+          bounce_rate_30d: number | null
+          complaint_rate_30d: number | null
+          created_at: string | null
+          daily_limit: number | null
+          default_from_email: string | null
+          default_from_name: string | null
+          dns_records: Json | null
+          domain: string
+          env: Database["public"]["Enums"]["email_env"] | null
+          error: string | null
+          hourly_limit: number | null
+          id: string
+          is_sandbox: boolean | null
+          manual_pause: boolean | null
+          notes: string | null
+          report_email: string | null
+          resend_domain_id: string | null
+          status: string
+          tenant_id: string
+          total_bounces_30d: number | null
+          total_complaints_30d: number | null
+          total_sent_30d: number | null
+          updated_at: string | null
+          warmup_stage: number | null
+          warmup_started_at: string | null
+        }
+        Insert: {
+          bounce_rate_30d?: number | null
+          complaint_rate_30d?: number | null
+          created_at?: string | null
+          daily_limit?: number | null
+          default_from_email?: string | null
+          default_from_name?: string | null
+          dns_records?: Json | null
+          domain: string
+          env?: Database["public"]["Enums"]["email_env"] | null
+          error?: string | null
+          hourly_limit?: number | null
+          id?: string
+          is_sandbox?: boolean | null
+          manual_pause?: boolean | null
+          notes?: string | null
+          report_email?: string | null
+          resend_domain_id?: string | null
+          status?: string
+          tenant_id: string
+          total_bounces_30d?: number | null
+          total_complaints_30d?: number | null
+          total_sent_30d?: number | null
+          updated_at?: string | null
+          warmup_stage?: number | null
+          warmup_started_at?: string | null
+        }
+        Update: {
+          bounce_rate_30d?: number | null
+          complaint_rate_30d?: number | null
+          created_at?: string | null
+          daily_limit?: number | null
+          default_from_email?: string | null
+          default_from_name?: string | null
+          dns_records?: Json | null
           domain?: string
           env?: Database["public"]["Enums"]["email_env"] | null
           error?: string | null
+          hourly_limit?: number | null
           id?: string
           is_sandbox?: boolean | null
+          manual_pause?: boolean | null
+          notes?: string | null
           report_email?: string | null
           resend_domain_id?: string | null
           status?: string
           tenant_id?: string
+          total_bounces_30d?: number | null
+          total_complaints_30d?: number | null
+          total_sent_30d?: number | null
           updated_at?: string | null
+          warmup_stage?: number | null
+          warmup_started_at?: string | null
         }
         Relationships: []
       }
@@ -7188,6 +7290,14 @@ export type Database = {
       bundle_channels: { Args: { j: Json }; Returns: string[] }
       bundle_first_media_url: { Args: { j: Json }; Returns: string }
       check_email_exists: { Args: { email_to_check: string }; Returns: boolean }
+      check_send_quota: {
+        Args: {
+          p_domain_id: string
+          p_recipient_count: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       check_trial_expiration_emails: { Args: never; Returns: number }
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_oauth_codes: { Args: never; Returns: undefined }
@@ -7330,6 +7440,16 @@ export type Database = {
         Args: { keep_user_id: string; merge_user_id: string }
         Returns: boolean
       }
+      record_email_usage: {
+        Args: {
+          p_bounces?: number
+          p_complaints?: number
+          p_count: number
+          p_domain_id: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       refill_tokens: {
         Args: { p_tokens?: number; p_user_id: string }
         Returns: boolean
@@ -7372,6 +7492,10 @@ export type Database = {
           compressed_size_bytes: number
           original_size_bytes: number
         }
+        Returns: undefined
+      }
+      update_domain_warmup: {
+        Args: { p_domain_id: string }
         Returns: undefined
       }
       update_import_job_progress: {
