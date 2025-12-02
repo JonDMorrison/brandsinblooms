@@ -11,30 +11,40 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Globe, ArrowRight, Loader2, Info, CheckCircle2 } from 'lucide-react';
+import { Globe, ArrowRight, Loader2, Info, CheckCircle2, Zap, Settings, Sparkles } from 'lucide-react';
 import { useEmailDomainManagement } from '@/hooks/useEmailDomainManagement';
+import { useEntriConnect } from '@/hooks/useEntriConnect';
+import { useTenant } from '@/hooks/useTenant';
 
 interface DomainConnectWizardProps {
   open: boolean;
   onClose: () => void;
 }
 
-type WizardStep = 'enter_domain' | 'provisioning' | 'dns_pending' | 'complete';
+type WizardStep = 'enter_domain' | 'choose_method' | 'provisioning' | 'dns_pending' | 'entri_success' | 'complete';
 
 export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, onClose }) => {
-  const { provisionDomain } = useEmailDomainManagement();
+  const { provisionDomain, refetch } = useEmailDomainManagement();
+  const { openEntriSetup, isEntriConfigured, isLoading: entriLoading } = useEntriConnect();
+  const { tenant } = useTenant();
+  
   const [step, setStep] = useState<WizardStep>('enter_domain');
   const [domain, setDomain] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [provisionedData, setProvisionedData] = useState<any>(null);
+  const [entriProvider, setEntriProvider] = useState<string | null>(null);
 
   const validateDomain = (value: string): boolean => {
     const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
     return domainRegex.test(value);
   };
 
-  const handleSubmit = async () => {
+  const cleanDomainInput = (value: string): string => {
+    return value.trim().toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '');
+  };
+
+  const handleContinueToMethod = () => {
     setError(null);
     
     if (!domain.trim()) {
@@ -42,16 +52,47 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
       return;
     }
 
-    const cleanDomain = domain.trim().toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '');
+    const cleanDomain = cleanDomainInput(domain);
     
     if (!validateDomain(cleanDomain)) {
       setError('Please enter a valid domain (e.g., example.com)');
       return;
     }
 
+    setDomain(cleanDomain);
+    setStep('choose_method');
+  };
+
+  const handleEntriSetup = async () => {
+    if (!tenant?.id) {
+      setError('No workspace context');
+      return;
+    }
+
+    const cleanDomain = cleanDomainInput(domain);
+    
+    openEntriSetup(
+      cleanDomain,
+      tenant.id,
+      undefined, // Use default DNS records
+      // onSuccess
+      () => {
+        refetch();
+        setStep('entri_success');
+      },
+      // onCancel - fall back to manual
+      () => {
+        setStep('choose_method');
+      }
+    );
+  };
+
+  const handleManualSetup = async () => {
+    setError(null);
     setLoading(true);
     setStep('provisioning');
 
+    const cleanDomain = cleanDomainInput(domain);
     const result = await provisionDomain(cleanDomain);
     
     setLoading(false);
@@ -60,7 +101,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
       setProvisionedData(result.data);
       setStep('dns_pending');
     } else {
-      setStep('enter_domain');
+      setStep('choose_method');
       setError(result.error || 'Failed to provision domain');
     }
   };
@@ -70,12 +111,13 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
     setDomain('');
     setError(null);
     setProvisionedData(null);
+    setEntriProvider(null);
     onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-primary" />
@@ -89,7 +131,6 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
         {/* Step 1: Enter Domain */}
         {step === 'enter_domain' && (
           <div className="space-y-4 py-4">
-            {/* Why This Matters */}
             <Alert className="bg-primary/5 border-primary/20">
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <AlertDescription className="text-xs">
@@ -106,7 +147,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                 placeholder="example.com"
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                onKeyDown={(e) => e.key === 'Enter' && handleContinueToMethod()}
               />
               <p className="text-xs text-muted-foreground">
                 Enter your domain without https:// or www
@@ -118,19 +159,114 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+          </div>
+        )}
+
+        {/* Step 2: Choose Setup Method */}
+        {step === 'choose_method' && (
+          <div className="space-y-4 py-4">
+            <div className="text-center mb-4">
+              <p className="text-sm text-muted-foreground">
+                Setting up <span className="font-medium text-foreground">{domain}</span>
+              </p>
+            </div>
+
+            {/* Automatic Setup Option */}
+            {isEntriConfigured && (
+              <div 
+                className="relative border-2 border-primary/20 rounded-lg p-4 hover:border-primary/40 transition-colors cursor-pointer bg-primary/5"
+                onClick={handleEntriSetup}
+              >
+                <div className="absolute -top-2.5 left-3 px-2 bg-background">
+                  <span className="text-xs font-medium text-primary flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    Recommended
+                  </span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Zap className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-sm">Automatic Setup</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      One-click DNS configuration. Works with GoDaddy, Cloudflare, Namecheap, and 50+ providers.
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    disabled={entriLoading}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEntriSetup();
+                    }}
+                  >
+                    {entriLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Set Up'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="relative flex items-center py-2">
+              <div className="flex-grow border-t border-border"></div>
+              <span className="mx-3 text-xs text-muted-foreground">or</span>
+              <div className="flex-grow border-t border-border"></div>
+            </div>
+
+            {/* Manual Setup Option */}
+            <div 
+              className="border rounded-lg p-4 hover:border-primary/30 transition-colors cursor-pointer"
+              onClick={handleManualSetup}
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-muted">
+                  <Settings className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium text-sm">Manual Setup</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Get DNS records to add manually. Best for advanced users or unsupported providers.
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  disabled={loading}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleManualSetup();
+                  }}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Configure'
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                <span className="font-medium">What you'll need:</span> Access to your domain's DNS settings 
-                (Cloudflare, GoDaddy, Namecheap, etc.). The setup takes about 5-10 minutes, then DNS 
-                propagation can take up to 48 hours (usually much faster).
+                <span className="font-medium">What's configured:</span> SPF (sender verification), 
+                DKIM (email signing), and DMARC (policy enforcement) records for email authentication.
               </AlertDescription>
             </Alert>
           </div>
         )}
 
-        {/* Step 2: Provisioning */}
+        {/* Step 3: Provisioning */}
         {step === 'provisioning' && (
           <div className="py-8 text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
@@ -141,13 +277,13 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
           </div>
         )}
 
-        {/* Step 3: DNS Pending */}
+        {/* Step 4: DNS Pending (Manual) */}
         {step === 'dns_pending' && (
           <div className="space-y-4 py-4">
-            <Alert className="bg-green-50 border-green-200">
+            <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
-                Domain registered successfully! Now add the DNS records to verify ownership.
+              <AlertDescription className="text-green-800 dark:text-green-200">
+                Domain registered! Now add the DNS records to verify ownership.
               </AlertDescription>
             </Alert>
 
@@ -167,20 +303,58 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
           </div>
         )}
 
+        {/* Step 5: Entri Success */}
+        {step === 'entri_success' && (
+          <div className="space-y-4 py-4">
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
+                <CheckCircle2 className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="font-semibold text-lg">DNS Configured Successfully!</h3>
+              <p className="text-sm text-muted-foreground mt-2">
+                Your DNS records have been automatically applied{entriProvider ? ` via ${entriProvider}` : ''}.
+              </p>
+            </div>
+
+            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800 dark:text-blue-200 text-xs">
+                <span className="font-medium">What happens next:</span> DNS changes typically propagate within 
+                5-30 minutes. We'll automatically verify your domain and start the warmup process to build 
+                sending reputation.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Warmup Period:</p>
+              <p className="text-xs text-muted-foreground">
+                New domains start with limited sending capacity that gradually increases over 2-3 weeks. 
+                This protects your domain reputation and ensures high deliverability.
+              </p>
+            </div>
+          </div>
+        )}
+
         <DialogFooter>
           {step === 'enter_domain' && (
             <>
               <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button onClick={handleSubmit} disabled={loading}>
+              <Button onClick={handleContinueToMethod}>
                 Continue
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </>
           )}
 
-          {step === 'dns_pending' && (
+          {step === 'choose_method' && (
+            <Button variant="outline" onClick={() => setStep('enter_domain')}>
+              Back
+            </Button>
+          )}
+
+          {(step === 'dns_pending' || step === 'entri_success') && (
             <Button onClick={handleClose}>
               Done
             </Button>

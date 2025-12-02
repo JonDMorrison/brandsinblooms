@@ -21,6 +21,10 @@ export interface EmailDomain {
   manual_pause: boolean;
   notes?: string;
   dns_records?: DnsRecords;
+  // Entri integration fields
+  entri_connection_id?: string;
+  entri_provider?: string;
+  is_entri_managed: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -121,12 +125,14 @@ export async function getActiveOrFallbackSender(tenantId: string): Promise<{
   domainId?: string;
   usingFallback: boolean;
 }> {
+  // Prefer Entri-managed domains first, then any verified domain
   const { data: domains, error } = await supabase
     .from('email_domains')
     .select('*')
     .eq('tenant_id', tenantId)
     .in('status', ['warming_up', 'active'])
     .eq('manual_pause', false)
+    .order('is_entri_managed', { ascending: false }) // Entri-managed first
     .order('created_at', { ascending: false })
     .limit(1);
 

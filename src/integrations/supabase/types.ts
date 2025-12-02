@@ -3370,10 +3370,13 @@ export type Database = {
           default_from_name: string | null
           dns_records: Json | null
           domain: string
+          entri_connection_id: string | null
+          entri_provider: string | null
           env: Database["public"]["Enums"]["email_env"] | null
           error: string | null
           hourly_limit: number | null
           id: string
+          is_entri_managed: boolean
           is_sandbox: boolean | null
           manual_pause: boolean | null
           notes: string | null
@@ -3397,10 +3400,13 @@ export type Database = {
           default_from_name?: string | null
           dns_records?: Json | null
           domain: string
+          entri_connection_id?: string | null
+          entri_provider?: string | null
           env?: Database["public"]["Enums"]["email_env"] | null
           error?: string | null
           hourly_limit?: number | null
           id?: string
+          is_entri_managed?: boolean
           is_sandbox?: boolean | null
           manual_pause?: boolean | null
           notes?: string | null
@@ -3424,10 +3430,13 @@ export type Database = {
           default_from_name?: string | null
           dns_records?: Json | null
           domain?: string
+          entri_connection_id?: string | null
+          entri_provider?: string | null
           env?: Database["public"]["Enums"]["email_env"] | null
           error?: string | null
           hourly_limit?: number | null
           id?: string
+          is_entri_managed?: boolean
           is_sandbox?: boolean | null
           manual_pause?: boolean | null
           notes?: string | null
