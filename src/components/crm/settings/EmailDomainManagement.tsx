@@ -58,6 +58,7 @@ export const EmailDomainManagement: React.FC = () => {
   const [showSenderSettings, setShowSenderSettings] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const handleRefreshVerification = async (domainId: string) => {
     setRefreshing(domainId);
@@ -72,6 +73,9 @@ export const EmailDomainManagement: React.FC = () => {
     }
   };
 
+  // Auto-open guide when no domains exist
+  const shouldShowGuide = guideOpen || domains.length === 0;
+
   if (loading) {
     return (
       <Card>
@@ -81,8 +85,6 @@ export const EmailDomainManagement: React.FC = () => {
       </Card>
     );
   }
-
-  const [guideOpen, setGuideOpen] = useState(domains.length === 0);
 
   return (
     <div className="space-y-6">
@@ -133,7 +135,7 @@ export const EmailDomainManagement: React.FC = () => {
       </Card>
 
       {/* Setup Guide - Collapsible */}
-      <Collapsible open={guideOpen} onOpenChange={setGuideOpen}>
+      <Collapsible open={shouldShowGuide} onOpenChange={setGuideOpen}>
         <Card>
           <CollapsibleTrigger className="w-full">
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
@@ -149,7 +151,7 @@ export const EmailDomainManagement: React.FC = () => {
                     </CardDescription>
                   </div>
                 </div>
-                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${guideOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${shouldShowGuide ? 'rotate-180' : ''}`} />
               </div>
             </CardHeader>
           </CollapsibleTrigger>
