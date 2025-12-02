@@ -12,11 +12,11 @@ import {
   Play, 
   Trash2, 
   Settings, 
-  Shield,
   AlertTriangle,
   CheckCircle2,
-  Copy,
-  ExternalLink
+  ExternalLink,
+  BookOpen,
+  ChevronDown
 } from 'lucide-react';
 import { useEmailDomainManagement } from '@/hooks/useEmailDomainManagement';
 import { 
@@ -29,6 +29,8 @@ import {
 import { DomainConnectWizard } from './DomainConnectWizard';
 import { DomainSenderSettings } from './DomainSenderSettings';
 import { DnsInstructionsCard } from './DnsInstructionsCard';
+import { EmailDomainGuide } from './EmailDomainGuide';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -103,21 +105,34 @@ export const EmailDomainManagement: React.FC = () => {
         </CardHeader>
       </Card>
 
-      {/* Trusted Sending Explainer */}
-      <Card className="bg-muted/50 border-dashed">
-        <CardContent className="py-4">
-          <div className="flex items-start gap-3">
-            <Shield className="h-5 w-5 text-primary mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Trusted Email Sending</p>
-              <p className="text-xs text-muted-foreground">
-                By connecting your domain, we set up SPF, DKIM, and DMARC records. This authenticates your 
-                emails and improves inbox placement. New domains go through a warmup period to build reputation.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Setup Guide - Collapsible */}
+      <Collapsible defaultOpen={domains.length === 0}>
+        <Card>
+          <CollapsibleTrigger className="w-full">
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <CardTitle className="text-base">Email Domain Setup Guide</CardTitle>
+                    <CardDescription>
+                      Learn why custom domains matter and how to set yours up
+                    </CardDescription>
+                  </div>
+                </div>
+                <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform duration-200 [&[data-state=open]>svg]:rotate-180" />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <EmailDomainGuide />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Domain List */}
       {domains.length === 0 ? (

@@ -89,6 +89,16 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
         {/* Step 1: Enter Domain */}
         {step === 'enter_domain' && (
           <div className="space-y-4 py-4">
+            {/* Why This Matters */}
+            <Alert className="bg-primary/5 border-primary/20">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <AlertDescription className="text-xs">
+                <span className="font-medium">Why connect your domain?</span> Emails sent from your own domain 
+                (like news@yourbusiness.com) have better deliverability than shared addresses, and recipients 
+                recognize and trust your brand.
+              </AlertDescription>
+            </Alert>
+
             <div className="space-y-2">
               <Label htmlFor="domain">Your Domain</Label>
               <Input
@@ -112,8 +122,9 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                You'll need access to your domain's DNS settings (Cloudflare, GoDaddy, Namecheap, etc.) 
-                to complete the setup.
+                <span className="font-medium">What you'll need:</span> Access to your domain's DNS settings 
+                (Cloudflare, GoDaddy, Namecheap, etc.). The setup takes about 5-10 minutes, then DNS 
+                propagation can take up to 48 hours (usually much faster).
               </AlertDescription>
             </Alert>
           </div>

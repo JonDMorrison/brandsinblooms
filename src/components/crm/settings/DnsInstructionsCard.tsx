@@ -77,14 +77,35 @@ export const DnsInstructionsCard: React.FC<DnsInstructionsCardProps> = ({ domain
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const getPurposeLabel = (purpose: string): string => {
+  const getPurposeInfo = (purpose: string): { label: string; description: string } => {
     switch (purpose) {
-      case 'dkim': return 'DKIM (Email Signing)';
-      case 'spf': return 'SPF (Sender Policy)';
-      case 'return_path': return 'Return Path';
-      case 'dmarc': return 'DMARC (Policy)';
-      case 'verification': return 'Domain Verification';
-      default: return purpose;
+      case 'dkim': 
+        return { 
+          label: 'DKIM (Email Signing)', 
+          description: 'Adds a digital signature to prove your emails are authentic and unchanged' 
+        };
+      case 'spf': 
+        return { 
+          label: 'SPF (Sender Policy)', 
+          description: 'Tells mailboxes which servers are allowed to send emails for your domain' 
+        };
+      case 'return_path': 
+        return { 
+          label: 'Return Path', 
+          description: 'Where bounce notifications are sent when emails can\'t be delivered' 
+        };
+      case 'dmarc': 
+        return { 
+          label: 'DMARC (Policy)', 
+          description: 'Instructs mailboxes what to do if authentication checks fail' 
+        };
+      case 'verification': 
+        return { 
+          label: 'Domain Verification', 
+          description: 'Proves you own this domain and have permission to send from it' 
+        };
+      default: 
+        return { label: purpose, description: '' };
     }
   };
 
@@ -108,15 +129,28 @@ export const DnsInstructionsCard: React.FC<DnsInstructionsCardProps> = ({ domain
           </div>
         ) : (
           <div className="space-y-4">
+            {/* What These Records Do */}
+            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
+              <CardContent className="py-4">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">What are DNS records?</h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  DNS records are like address book entries that tell the internet where to find things. 
+                  These specific records tell email providers that BloomSuite is authorized to send emails 
+                  on behalf of your domain, improving deliverability and preventing your emails from being 
+                  marked as spam.
+                </p>
+              </CardContent>
+            </Card>
+
             {/* Instructions */}
             <Card className="bg-muted/50">
               <CardContent className="py-4">
                 <h4 className="font-medium mb-2">How to add these records:</h4>
                 <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                   <li>Log in to your DNS provider (Cloudflare, GoDaddy, Namecheap, etc.)</li>
-                  <li>Navigate to DNS settings for {domain}</li>
-                  <li>Add each record below with the exact Type, Name, and Value</li>
-                  <li>Save changes and allow up to 48 hours for propagation</li>
+                  <li>Navigate to DNS settings for <span className="font-medium text-foreground">{domain}</span></li>
+                  <li>Add each record below with the <span className="font-medium text-foreground">exact</span> Type, Name, and Value</li>
+                  <li>Save changes and allow up to 48 hours for propagation (usually much faster)</li>
                 </ol>
               </CardContent>
             </Card>
@@ -148,9 +182,16 @@ export const DnsInstructionsCard: React.FC<DnsInstructionsCardProps> = ({ domain
                         <code className="text-xs bg-muted px-1.5 py-0.5 rounded break-all max-w-[200px] block overflow-hidden text-ellipsis">
                           {record.value}
                         </code>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {getPurposeLabel(record.purpose)}
-                        </p>
+                        <div className="mt-1">
+                          <p className="text-xs font-medium text-foreground">
+                            {getPurposeInfo(record.purpose).label}
+                          </p>
+                          {getPurposeInfo(record.purpose).description && (
+                            <p className="text-xs text-muted-foreground">
+                              {getPurposeInfo(record.purpose).description}
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">Auto</td>
                       <td className="px-4 py-3">
@@ -200,6 +241,19 @@ export const DnsInstructionsCard: React.FC<DnsInstructionsCardProps> = ({ domain
                 Namecheap <ExternalLink className="h-3 w-3" />
               </a>
             </div>
+
+            {/* Troubleshooting Tips */}
+            <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900">
+              <CardContent className="py-4">
+                <h4 className="font-medium text-amber-900 dark:text-amber-100 mb-2">Troubleshooting Tips</h4>
+                <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                  <li>• <span className="font-medium">Records not verifying?</span> DNS changes can take 15 min to 48 hours to propagate.</li>
+                  <li>• <span className="font-medium">Copy values exactly</span> — even small typos will cause verification to fail.</li>
+                  <li>• <span className="font-medium">Some providers require "@"</span> for the root domain instead of the domain name.</li>
+                  <li>• <span className="font-medium">Cloudflare users:</span> Make sure the proxy (orange cloud) is OFF for these records.</li>
+                </ul>
+              </CardContent>
+            </Card>
           </div>
         )}
 
