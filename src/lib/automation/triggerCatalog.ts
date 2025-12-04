@@ -29,6 +29,15 @@ export const triggerCatalog: TriggerMeta[] = [
     description: 'First POS transaction recorded for customer'
   },
   {
+    id: 'order.completed',
+    label: '🛍️ Any Purchase Completed',
+    icon: '🛍️',
+    defaultDelayMin: 30,
+    channels: ['sms', 'email'],
+    goalHint: 'Purchase Follow-up',
+    description: 'Triggered immediately when any Square purchase is completed'
+  },
+  {
     id: 'repeat_purchase_90d',
     label: '📅 90-Day Purchase Lapse',
     icon: '⏰',
