@@ -285,6 +285,13 @@ async function getEligibleCustomers(supabase: any, automation: any) {
       query = query.eq('last_purchase_date', fiveDaysAgo);
       break;
       
+    case 'order.completed':
+      // Customers with purchases in last 24 hours (for scheduled executor)
+      // Note: Real-time triggers are handled by square-webhook-handler
+      const orderOneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte('last_purchase_date', orderOneDayAgo.split('T')[0]);
+      break;
+      
     case 'plant_care_reminder':
     case 'garden_tips_subscription':
     case 'event_registration':

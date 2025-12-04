@@ -246,5 +246,8 @@ verify_jwt = true
 [functions.square-sync-products]
 verify_jwt = true
 
+[functions.square-webhook-handler]
+verify_jwt = false
+
 [functions.entri-domain-callback]
 verify_jwt = true
