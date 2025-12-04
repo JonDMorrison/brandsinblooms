@@ -1798,6 +1798,7 @@ export type Database = {
           email_opt_in: boolean | null
           email_opt_in_at: string | null
           first_name: string | null
+          first_purchase_date: string | null
           footer_last_sent_at: string | null
           id: string
           last_name: string | null
@@ -1831,6 +1832,7 @@ export type Database = {
           email_opt_in?: boolean | null
           email_opt_in_at?: string | null
           first_name?: string | null
+          first_purchase_date?: string | null
           footer_last_sent_at?: string | null
           id?: string
           last_name?: string | null
@@ -1864,6 +1866,7 @@ export type Database = {
           email_opt_in?: boolean | null
           email_opt_in_at?: string | null
           first_name?: string | null
+          first_purchase_date?: string | null
           footer_last_sent_at?: string | null
           id?: string
           last_name?: string | null
