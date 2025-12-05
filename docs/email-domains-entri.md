@@ -27,23 +27,29 @@ BloomSuite uses [Entri Connect](https://www.goentri.com/) for one-click DNS setu
    - "Automatic Setup" button using Entri
    - "Manual Setup" fallback option
 
-## Environment Variables
+## Configuration
 
-### Frontend (Vite)
+### Centralized Config
 
-```env
-# Required: Your Entri Application ID
-VITE_ENTRI_APPLICATION_ID=your-entri-application-id
+Entri configuration is managed in `src/lib/config/emailDomainsConfig.ts`:
+
+```typescript
+export const emailDomainsConfig = {
+  entriEnabled: true,
+  entriAppId: 'bloomsuite',  // Entri Application ID (public key)
+  entriScriptUrl: 'https://cdn.goentri.com/entri.js',
+  autoSetupRecommended: true,
+};
 ```
 
 ### Backend (Supabase Edge Function Secrets)
 
 ```env
-# Optional: Entri API key for server-side operations
+# Required: Entri API key for server-side operations
 ENTRI_API_KEY=your-entri-api-key
 
-# Optional: Specific template ID if using Entri templates
-ENTRI_TEMPLATE_ID=email-auth-template-1
+# Required: Resend API key for email domain provisioning
+RESEND_API_KEY=your-resend-api-key
 ```
 
 ## Database Schema

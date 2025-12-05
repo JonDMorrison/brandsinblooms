@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { emailDomainsConfig } from '@/lib/config/emailDomainsConfig';
 
 // Declare Entri global types
 declare global {
@@ -61,9 +62,9 @@ const EMAIL_DNS_RECORDS: EntriDnsRecord[] = [
   }
 ];
 
-// TODO: Replace with actual Entri Application ID from environment
-const ENTRI_APPLICATION_ID = import.meta.env.VITE_ENTRI_APPLICATION_ID || 'YOUR_ENTRI_APP_ID';
-const ENTRI_SCRIPT_URL = 'https://cdn.goentri.com/entri.js';
+// Entri configuration from centralized config
+const ENTRI_APPLICATION_ID = emailDomainsConfig.entriAppId;
+const ENTRI_SCRIPT_URL = emailDomainsConfig.entriScriptUrl;
 
 export const useEntriConnect = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -129,9 +130,9 @@ export const useEntriConnect = () => {
         return;
       }
 
-      if (ENTRI_APPLICATION_ID === 'YOUR_ENTRI_APP_ID') {
+      if (!emailDomainsConfig.isEntriConfigured()) {
         toast.error('Entri integration not configured. Please contact support.');
-        console.error('VITE_ENTRI_APPLICATION_ID environment variable not set');
+        console.error('Entri Application ID not configured in emailDomainsConfig');
         onCancel?.();
         return;
       }
@@ -238,6 +239,6 @@ export const useEntriConnect = () => {
     generateDnsRecords,
     isLoading,
     isScriptLoaded,
-    isEntriConfigured: ENTRI_APPLICATION_ID !== 'YOUR_ENTRI_APP_ID'
+    isEntriConfigured: emailDomainsConfig.isEntriConfigured()
   };
 };
