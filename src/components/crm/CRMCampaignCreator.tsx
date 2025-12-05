@@ -36,6 +36,7 @@ import { CampaignReadiness } from './CampaignReadiness';
 import { createBlockPrompt } from '@/utils/blockPromptBuilder';
 import { normalizeAIResponse, applyAIToBlock } from '@/lib/newsletter/aiMapping';
 import { usePagePersistence } from '@/hooks/usePagePersistence';
+import { normalizeBlockForSave, normalizeBlockFromDatabase, DatabaseBlock } from '@/utils/blockFieldMapping';
 import { useSaveQueue } from '@/hooks/useSaveQueue';
 import { 
   Breadcrumb,
@@ -438,7 +439,7 @@ const createWeeklyThemeImageQuery = (
 };
 
 // Normalize blocks to ensure consistency - convert all to image-text for weekly themes
-// PHASE 1: Updated to ensure all blocks have images
+// PHASE 1: Updated to respect user content and lifecycle flags
 const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
   return blocks.map(block => {
     // CRITICAL CHANGE: Convert all content blocks to image-text for weekly themes
@@ -458,17 +459,19 @@ const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
         }
       }
       
-      // CRITICAL FIX: Only set default if content was never generated
-      if (!headline && !block.hasGeneratedContent) {
+      // CRITICAL FIX: Only set default if content was never generated AND user hasn't edited
+      // Respect empty strings if userEdited is true (user intentionally cleared the field)
+      if (!headline && !block.hasGeneratedContent && !block.userEdited) {
         headline = 'Content Headline';
       }
       
       const body = block.body || block.content || '';
-      const finalBody = (!body && !block.hasGeneratedContent) 
+      // Only set default body if no content, never generated, and user hasn't edited
+      const finalBody = (!body && !block.hasGeneratedContent && !block.userEdited) 
         ? 'Add your content here' 
         : body;
       
-      console.log(`🔄 Normalizing text block ${block.id}, hasGeneratedContent: ${!!block.hasGeneratedContent}, keeping type as 'text'`);
+      console.log(`🔄 Normalizing text block ${block.id}, hasGeneratedContent: ${!!block.hasGeneratedContent}, userEdited: ${!!block.userEdited}`);
       
       return {
         ...block,
@@ -477,8 +480,8 @@ const normalizeBlocks = (blocks: ContentBlock[]): ContentBlock[] => {
         headline: headline || block.headline,
         body: finalBody || block.body,
         imageUrl: block.imageUrl || '',
-        shouldFetchImage: true,
-        isGeneratingImage: !block.imageUrl,
+        shouldFetchImage: !block.imageUrl, // Only fetch if no image
+        isGeneratingImage: block.isGeneratingImage || false, // Preserve existing state
         isWeeklyTheme: true,
         hasGeneratedContent: block.hasGeneratedContent || !!(headline || body)
       };
@@ -885,52 +888,11 @@ const { counts: segmentCounts } = useSegmentCounts();
             campaignData.blocks.forEach((block, index) => {
               const existingId = existingBlockMap.get(index);
               
+              // CANONICAL: Use normalizeBlockForSave for consistent field mapping
+              const normalizedBlock = normalizeBlockForSave(block, index);
               const blockData = {
                 campaign_id: existingCampaignId,
-                block_type: block.type,
-                content: {
-                  title: block.title || block.headline,
-                  content: block.content || block.body,
-                  headline: block.headline,
-                  body: block.body,
-                  alignment: block.alignment,
-                  padding: block.padding,
-                  margin: block.margin,
-                  fontFamily: block.fontFamily,
-                  fontSize: block.fontSize,
-                  textColor: block.textColor,
-                  backgroundColor: block.backgroundColor,
-                  backgroundImageUrl: block.backgroundImageUrl,
-                  backgroundOpacity: block.backgroundOpacity,
-                  layout: block.layout,
-                  caption: block.caption,
-                  altText: block.altText,
-                  buttonText: block.buttonText,
-                  buttonUrl: block.buttonUrl,
-                  ctaStyle: block.ctaStyle,
-                  ctaSize: block.ctaSize,
-                  quote: block.quote,
-                  author: block.author,
-                  authorTitle: block.authorTitle,
-                  subtitle: block.subtitle,
-                  issueNumber: block.issueNumber,
-                  publishDate: block.publishDate,
-                  visible: block.visible,
-                  collapsed: block.collapsed
-                },
-                // CRITICAL FIX: Save backgroundImageUrl for header blocks, imageUrl for others
-                image_url: (block.type === 'header' || block.type === 'newsletter-header') 
-                  ? block.backgroundImageUrl 
-                  : block.imageUrl,
-                cta_url: block.ctaUrl || block.buttonUrl,
-                cta_text: block.ctaText || block.buttonText,
-                source: block.source || 'manual',
-                persona_tag: block.personaTag,
-                order_index: index,
-                // Save overlay properties to dedicated database columns
-                overlay_opacity: block.overlayOpacity ?? null,
-                overlay_color: block.overlayColor || null,
-                dark_overlay_opacity: (block as any).darkOverlayOpacity ?? null
+                ...normalizedBlock
               };
 
               // Validate required fields
@@ -2598,212 +2560,8 @@ const { counts: segmentCounts } = useSegmentCounts();
         preheader: campaign.preheader
       });
 
-        // Convert campaign blocks back to ContentBlocks using enhanced transformBlock function
-        const transformBlock = async (block: any): Promise<ContentBlock> => {
-          console.log('🔍 Transforming block:', {
-            blockId: block.id,
-            blockType: block.block_type,
-            rawContent: block.content,
-            imageUrl: block.image_url,
-            ctaUrl: block.cta_url,
-            ctaText: block.cta_text
-          });
-
-          // Parse the content if it's a string
-          let contentObj = block.content;
-          if (typeof block.content === 'string') {
-            try {
-              contentObj = JSON.parse(block.content);
-            } catch (e) {
-              console.warn('Failed to parse block content as JSON:', e);
-              contentObj = {};
-            }
-          } else if (!block.content || typeof block.content !== 'object') {
-            contentObj = {};
-          }
-
-          // CRITICAL FIX: Unwrap nested content structure
-          // Database stores content like: { content: { body: "text", content: "text", headline: "..." } }
-          // We need to unwrap to get to the actual content fields
-          while (contentObj && typeof contentObj === 'object' && contentObj.content && typeof contentObj.content === 'object') {
-            console.log('🔧 Unwrapping nested content layer:', Object.keys(contentObj.content));
-            contentObj = contentObj.content;
-          }
-          
-          console.log('✅ Content after unwrapping:', {
-            blockId: block.id,
-            hasBody: !!contentObj?.body,
-            hasContent: !!contentObj?.content,
-            hasHeadline: !!contentObj?.headline,
-            bodyType: typeof contentObj?.body,
-            contentType: typeof contentObj?.content
-          });
-
-          // Detect if this should actually be a header block
-          // Check for header block characteristics: backgroundColor + imageUrl + full-width layout
-          let actualBlockType = block.block_type;
-          if (block.block_type === 'text' && contentObj?.content) {
-            const nestedContent = contentObj.content;
-            const hasBackgroundColor = nestedContent?.backgroundColor;
-            const hasImageUrl = nestedContent?.imageUrl;
-            const isFullWidth = nestedContent?.layout === 'full-width';
-            
-            if (hasBackgroundColor && hasImageUrl && isFullWidth) {
-              console.log('🔄 Converting misclassified text block to header block:', block.id);
-              actualBlockType = 'header';
-            }
-          }
-
-        // Use simplified content structure with validation
-        console.log('[HYDRATION] Processing block with clean content structure:', {
-          blockId: block.id,
-          blockType: block.block_type,
-          contentObj: contentObj,
-          hasContent: !!contentObj?.content,
-          hasBody: !!contentObj?.body,
-          hasHeadline: !!contentObj?.headline,
-          hasTitle: !!contentObj?.title
-        });
-        
-        // Extract content directly from the simplified structure
-        const finalExtractedContent = {
-          // Essential content fields - prioritize direct fields
-          headline: contentObj?.headline,
-          title: contentObj?.title,
-          body: contentObj?.body || contentObj?.content,
-          content: contentObj?.content || contentObj?.body,
-          subtitle: contentObj?.subtitle,
-          // Image fields - CRITICAL FIX: Treat empty strings as null and fetch if missing
-          imageUrl: await getOrFetchImage(contentObj, block),
-          altText: contentObj?.altText,
-          caption: contentObj?.caption,
-          // Button/CTA fields
-          buttonText: contentObj?.buttonText,
-          buttonUrl: contentObj?.buttonUrl,
-          ctaText: contentObj?.ctaText,
-          ctaUrl: contentObj?.ctaUrl,
-          ctaStyle: contentObj?.ctaStyle,
-          ctaSize: contentObj?.ctaSize,
-          // Layout and styling
-          layout: contentObj?.layout || 'full-width',
-          alignment: contentObj?.alignment,
-          padding: contentObj?.padding || 'medium',
-          margin: contentObj?.margin,
-          // Typography
-          fontFamily: contentObj?.fontFamily,
-          fontSize: contentObj?.fontSize,
-          textColor: contentObj?.textColor,
-          textAlign: contentObj?.textAlign || contentObj?.alignment,
-          // Background
-          backgroundColor: contentObj?.backgroundColor,
-          backgroundImageUrl: contentObj?.backgroundImageUrl,
-          backgroundOpacity: contentObj?.backgroundOpacity,
-          // Overlays - prioritize top-level database columns
-          overlayColor: block.overlay_color || contentObj?.overlayColor,
-          overlayOpacity: block.overlay_opacity ?? contentObj?.overlayOpacity,
-          colorOverlayOpacity: contentObj?.colorOverlayOpacity,
-          darkOverlayOpacity: block.dark_overlay_opacity ?? contentObj?.darkOverlayOpacity,
-          // Special content
-          quote: contentObj?.quote,
-          author: contentObj?.author,
-          authorTitle: contentObj?.authorTitle,
-          issueNumber: contentObj?.issueNumber,
-          publishDate: contentObj?.publishDate,
-          // Meta
-          visible: contentObj?.visible !== false,
-          collapsed: contentObj?.collapsed || false
-        };
-
-        console.log('📋 Content extraction details:', {
-          blockId: block.id,
-          originalContentObj: contentObj,
-          extractedContent: {
-            headline: finalExtractedContent.headline,
-            title: finalExtractedContent.title,
-            body: finalExtractedContent.body,
-            imageUrl: finalExtractedContent.imageUrl,
-            altText: finalExtractedContent.altText,
-            buttonText: finalExtractedContent.buttonText,
-            buttonUrl: finalExtractedContent.buttonUrl,
-            backgroundColor: finalExtractedContent.backgroundColor,
-            layout: finalExtractedContent.layout
-          }
-        });
-
-        // Build the transformed block with comprehensive field mapping
-        const transformedBlock: ContentBlock = {
-          id: block.id,
-          // Use the detected actualBlockType which includes header block auto-detection
-          type: actualBlockType === 'header'
-            ? 'header' as ContentBlock['type']
-            : (actualBlockType === 'text' && finalExtractedContent.imageUrl && finalExtractedContent.imageUrl !== '/images/newsletter-fallback.jpg')
-              ? 'image-text' as ContentBlock['type']
-              : actualBlockType as ContentBlock['type'],
-          title: finalExtractedContent.title || finalExtractedContent.headline || '',
-          headline: finalExtractedContent.headline || finalExtractedContent.title,
-          body: finalExtractedContent.body || finalExtractedContent.content,
-          content: finalExtractedContent.body || finalExtractedContent.content || '',
-          source: (block.source as ContentBlock['source']) || 'manual',
-          // Image fields - map correctly for header vs other blocks
-          imageUrl: block.block_type === 'header' ? undefined : (finalExtractedContent.imageUrl || block.image_url),
-          altText: finalExtractedContent.altText,
-          caption: finalExtractedContent.caption,
-          // Button/CTA fields
-          buttonText: finalExtractedContent.buttonText || block.cta_text,
-          buttonUrl: finalExtractedContent.buttonUrl || block.cta_url,
-          ctaText: finalExtractedContent.ctaText || block.cta_text,
-          ctaUrl: finalExtractedContent.ctaUrl || block.cta_url,
-          ctaStyle: finalExtractedContent.ctaStyle,
-          ctaSize: finalExtractedContent.ctaSize,
-          // Layout and styling
-          visible: finalExtractedContent.visible !== false,
-          collapsed: finalExtractedContent.collapsed || false,
-          layout: finalExtractedContent.layout || 'full-width',
-          alignment: finalExtractedContent.alignment || 'left',
-          padding: finalExtractedContent.padding || 'medium',
-          margin: finalExtractedContent.margin,
-          // Typography
-          fontFamily: finalExtractedContent.fontFamily,
-          fontSize: finalExtractedContent.fontSize,
-          textColor: finalExtractedContent.textColor,
-          textAlign: finalExtractedContent.textAlign || finalExtractedContent.alignment,
-          // Background
-          backgroundColor: finalExtractedContent.backgroundColor,
-          backgroundImageUrl: actualBlockType === 'header' ? (finalExtractedContent.backgroundImageUrl || block.image_url) : finalExtractedContent.backgroundImageUrl,
-          backgroundOpacity: finalExtractedContent.backgroundOpacity,
-          // Overlay settings (per-image)
-          overlayColor: finalExtractedContent.overlayColor,
-          overlayOpacity: finalExtractedContent.overlayOpacity,
-          // Newsletter-specific
-          subtitle: finalExtractedContent.subtitle,
-          quote: finalExtractedContent.quote,
-          author: finalExtractedContent.author,
-          authorTitle: finalExtractedContent.authorTitle,
-          issueNumber: finalExtractedContent.issueNumber,
-          publishDate: finalExtractedContent.publishDate
-        };
-
-        // Enhanced logging to verify header block fix
-        console.log('🧱 Hydrated contentObj:', {
-          blockId: block.id,
-          originalType: block.block_type,
-          finalType: transformedBlock.type, 
-          headline: transformedBlock.headline,
-          body: transformedBlock.body,
-          imageUrl: transformedBlock.imageUrl,
-          backgroundImageUrl: transformedBlock.backgroundImageUrl,
-          buttonText: transformedBlock.buttonText,
-          buttonUrl: transformedBlock.buttonUrl,
-          backgroundColor: transformedBlock.backgroundColor,
-          layout: transformedBlock.layout,
-          hasImage: !!transformedBlock.imageUrl && transformedBlock.imageUrl !== '/images/newsletter-fallback.jpg',
-          isHeaderWithBackground: block.block_type === 'header' && !!transformedBlock.backgroundImageUrl
-        });
-
-        return transformedBlock;
-      };
-
-      const contentBlocks: ContentBlock[] = await Promise.all(campaignBlocks.map(transformBlock));
+        // CANONICAL: Use normalizeBlockFromDatabase for consistent field mapping
+        const contentBlocks: ContentBlock[] = (campaignBlocks as DatabaseBlock[]).map(normalizeBlockFromDatabase);
 
       setBlocks(contentBlocks);
 

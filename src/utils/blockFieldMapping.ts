@@ -1,7 +1,7 @@
 /**
  * Unified Block Field Mapping Utility
- * Ensures consistent field names between frontend state and database storage
- * Prevents content loss due to field name mismatches
+ * CANONICAL SOURCE OF TRUTH for mapping between frontend ContentBlock and database storage
+ * All save/load operations MUST use these functions
  */
 
 import { ContentBlock } from '@/types/emailBuilder';
@@ -55,8 +55,29 @@ export function isHeaderBlock(block: { type?: string; block_type?: string }): bo
 }
 
 /**
+ * Database block shape returned from Supabase
+ */
+export interface DatabaseBlock {
+  id: string;
+  block_type: string;
+  content: Record<string, any>;
+  image_url?: string | null;
+  cta_url?: string | null;
+  cta_text?: string | null;
+  order_index: number;
+  source?: string;
+  persona_tag?: string | null;
+  overlay_opacity?: number | null;
+  overlay_color?: string | null;
+  dark_overlay_opacity?: number | null;
+  campaign_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
  * Normalize a block for saving to the database
- * Ensures all fields are in the correct format for database storage
+ * CANONICAL SAVE FUNCTION - All save operations MUST use this
  */
 export function normalizeBlockForSave(block: ContentBlock, index: number): {
   block_type: string;
@@ -88,15 +109,16 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
   return {
     block_type: block.type,
     content: {
-      // Always save both title and headline for consistency
+      // CANONICAL text fields - always save both for compatibility
       title: headline,
       headline: headline,
       heading: headline,
-      // Always save both body and content for consistency  
       body: body,
       content: body,
+      
       // Layout and styling
       alignment: block.alignment,
+      textAlign: block.textAlign || block.alignment,
       padding: block.padding,
       margin: block.margin,
       fontFamily: block.fontFamily,
@@ -108,24 +130,38 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
       layout: block.layout,
       caption: block.caption,
       altText: block.altText,
-      // CTA - save both formats
+      
+      // CANONICAL CTA - save both formats for compatibility
       buttonText: ctaText,
       buttonUrl: ctaUrl,
       ctaText: ctaText,
       ctaUrl: ctaUrl,
       ctaStyle: block.ctaStyle,
       ctaSize: block.ctaSize,
+      
       // Quote block fields
       quote: block.quote,
       author: block.author,
       authorTitle: block.authorTitle,
+      
       // Visibility
       visible: block.visible,
       collapsed: block.collapsed,
+      
       // Header-specific fields
       subtitle: (block as any).subtitle,
       issueNumber: (block as any).issueNumber,
       publishDate: (block as any).publishDate,
+      
+      // Content lifecycle flags - preserve through save/load
+      hasGeneratedContent: block.hasGeneratedContent,
+      userEdited: block.userEdited,
+      contentGeneratedAt: block.contentGeneratedAt,
+      contentVersion: block.contentVersion,
+      
+      // Image generation state (transient, but preserve for reload)
+      isGeneratingImage: block.isGeneratingImage,
+      shouldFetchImage: block.shouldFetchImage,
     },
     image_url: imageUrl,
     cta_url: ctaUrl || null,
@@ -140,33 +176,57 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
 }
 
 /**
- * Normalize a database block record back to frontend ContentBlock format
- * Ensures all fields are properly mapped from database to frontend state
+ * Unwrap nested content structure from database
+ * Database sometimes stores content like: { content: { body: "text", ... } }
  */
-export function normalizeBlockFromDatabase(dbBlock: {
-  id: string;
-  block_type: string;
-  content: Record<string, any>;
-  image_url?: string | null;
-  cta_url?: string | null;
-  cta_text?: string | null;
-  order_index: number;
-  source?: string;
-  persona_tag?: string | null;
-  overlay_opacity?: number | null;
-  overlay_color?: string | null;
-  dark_overlay_opacity?: number | null;
-}): ContentBlock {
-  const contentObj = dbBlock.content || {};
+function unwrapContentObject(content: any): Record<string, any> {
+  if (!content || typeof content !== 'object') {
+    return {};
+  }
+  
+  let contentObj = content;
+  
+  // Parse if string
+  if (typeof contentObj === 'string') {
+    try {
+      contentObj = JSON.parse(contentObj);
+    } catch {
+      return {};
+    }
+  }
+  
+  // Unwrap nested content layers (max 3 levels to prevent infinite loops)
+  let depth = 0;
+  while (
+    depth < 3 &&
+    contentObj && 
+    typeof contentObj === 'object' && 
+    contentObj.content && 
+    typeof contentObj.content === 'object' &&
+    !Array.isArray(contentObj.content)
+  ) {
+    contentObj = contentObj.content;
+    depth++;
+  }
+  
+  return contentObj || {};
+}
+
+/**
+ * Normalize a database block record back to frontend ContentBlock format
+ * CANONICAL LOAD FUNCTION - All load operations MUST use this
+ */
+export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock {
+  const contentObj = unwrapContentObject(dbBlock.content);
   const isHeader = dbBlock.block_type === 'header' || dbBlock.block_type === 'newsletter-header';
   
-  // Extract headline from all possible field names
+  // Extract headline from all possible field names (priority order)
   const headline = contentObj.headline || contentObj.title || contentObj.heading || '';
   
-  // Extract body from all possible field names
+  // Extract body from all possible field names (priority order)
   const body = contentObj.body || contentObj.content || '';
   
-  // Extract CTA fields from all possible sources
+  // Extract CTA fields from all possible sources (DB columns take priority)
   const ctaText = dbBlock.cta_text || contentObj.ctaText || contentObj.buttonText || '';
   const ctaUrl = dbBlock.cta_url || contentObj.ctaUrl || contentObj.buttonUrl || '';
   
@@ -177,28 +237,40 @@ export function normalizeBlockFromDatabase(dbBlock: {
     ? (dbBlock.image_url || contentObj.backgroundImageUrl || '')
     : (contentObj.backgroundImageUrl || '');
   
+  // Extract lifecycle flags with conservative defaults
+  const hasGeneratedContent = contentObj.hasGeneratedContent === true || 
+    (!!headline && headline.length > 0) || 
+    (!!body && body.length > 0);
+  const userEdited = contentObj.userEdited === true;
+  
   return {
     id: dbBlock.id,
     type: dbBlock.block_type as ContentBlock['type'],
-    // Text content - normalized to consistent fields
+    
+    // CANONICAL text fields - populate both for compatibility
     headline,
     title: headline,
     body,
     content: body,
+    
     // Image fields - properly mapped based on block type
     imageUrl,
     backgroundImageUrl,
     altText: contentObj.altText || '',
-    // CTA fields - both formats populated
+    caption: contentObj.caption || '',
+    
+    // CANONICAL CTA fields - both formats populated
     ctaText,
     ctaUrl,
     buttonText: ctaText,
     buttonUrl: ctaUrl,
     ctaStyle: contentObj.ctaStyle,
     ctaSize: contentObj.ctaSize,
+    
     // Layout and styling
     layout: contentObj.layout,
     alignment: contentObj.alignment,
+    textAlign: contentObj.textAlign || contentObj.alignment,
     padding: contentObj.padding,
     margin: contentObj.margin,
     fontFamily: contentObj.fontFamily,
@@ -206,18 +278,39 @@ export function normalizeBlockFromDatabase(dbBlock: {
     textColor: contentObj.textColor,
     backgroundColor: contentObj.backgroundColor,
     backgroundOpacity: contentObj.backgroundOpacity,
+    
     // Quote block fields
     quote: contentObj.quote,
     author: contentObj.author,
     authorTitle: contentObj.authorTitle,
+    
     // Visibility
-    visible: contentObj.visible,
-    collapsed: contentObj.collapsed,
+    visible: contentObj.visible !== false,
+    collapsed: contentObj.collapsed || false,
+    
+    // Header-specific fields
+    subtitle: contentObj.subtitle,
+    issueNumber: contentObj.issueNumber,
+    publishDate: contentObj.publishDate,
+    
     // Metadata
     source: (dbBlock.source || 'manual') as ContentBlock['source'],
     personaTag: dbBlock.persona_tag || undefined,
-    overlayOpacity: dbBlock.overlay_opacity ?? undefined,
-    overlayColor: dbBlock.overlay_color || undefined,
+    
+    // Overlay settings (DB columns take priority)
+    overlayOpacity: dbBlock.overlay_opacity ?? contentObj.overlayOpacity,
+    overlayColor: dbBlock.overlay_color || contentObj.overlayColor,
+    darkOverlayOpacity: dbBlock.dark_overlay_opacity ?? contentObj.darkOverlayOpacity,
+    
+    // Content lifecycle flags
+    hasGeneratedContent,
+    userEdited,
+    contentGeneratedAt: contentObj.contentGeneratedAt,
+    contentVersion: contentObj.contentVersion,
+    
+    // Image generation state
+    isGeneratingImage: contentObj.isGeneratingImage || false,
+    shouldFetchImage: contentObj.shouldFetchImage,
   };
 }
 
@@ -266,5 +359,7 @@ export function logBlockState(block: ContentBlock, context: string): void {
     backgroundImageUrl: block.backgroundImageUrl?.substring(0, 50) || '(empty)',
     ctaText: block.ctaText || block.buttonText || '(empty)',
     ctaUrl: block.ctaUrl || block.buttonUrl || '(empty)',
+    hasGeneratedContent: block.hasGeneratedContent,
+    userEdited: block.userEdited,
   });
 }
