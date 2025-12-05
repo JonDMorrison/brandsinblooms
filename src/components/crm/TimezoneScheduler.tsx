@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Clock, Calendar as CalendarIcon, Globe, Zap } from 'lucide-react';
-import { format, addDays, setHours, setMinutes } from 'date-fns';
+import { format, addDays, setHours, setMinutes, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface ScheduleOption {
@@ -201,8 +201,17 @@ export const TimezoneScheduler = ({ onScheduleChange, defaultSchedule }: Timezon
                     <Calendar
                       mode="single"
                       selected={selectedDate}
-                      onSelect={(date) => date && setSelectedDate(date)}
-                      disabled={(date) => date < new Date()}
+                      onSelect={(date) => {
+                        if (date) {
+                          // CRITICAL FIX: Normalize date to start of day to prevent timezone offset issues
+                          // This ensures the selected day is preserved regardless of local timezone
+                          const normalizedDate = startOfDay(date);
+                          // Set to noon to avoid any edge cases with DST transitions
+                          normalizedDate.setHours(12, 0, 0, 0);
+                          setSelectedDate(normalizedDate);
+                        }
+                      }}
+                      disabled={(date) => date < startOfDay(new Date())}
                       initialFocus
                     />
                   </PopoverContent>

@@ -6,15 +6,24 @@ interface PagePersistenceOptions {
   ttl?: number; // Time to live in milliseconds (default: 1 hour)
   onHidden?: () => void;
   onVisible?: () => void;
+  /**
+   * Optional unique session ID to prevent cross-campaign contamination
+   * When provided, persisted state is isolated to this specific session
+   */
+  sessionId?: string;
 }
 
 export const usePagePersistence = <T extends Record<string, any>>(
   options: PagePersistenceOptions
 ) => {
   const location = useLocation();
-  const { key, ttl = 60 * 60 * 1000, onHidden, onVisible } = options; // 1 hour default TTL
+  const { key, ttl = 60 * 60 * 1000, onHidden, onVisible, sessionId } = options; // 1 hour default TTL
   
-  const persistenceKey = `page_persist_${key}_${location.pathname}`;
+  // CRITICAL FIX: Include sessionId in persistence key to prevent cross-campaign contamination
+  // If no sessionId provided, use pathname only (legacy behavior)
+  const persistenceKey = sessionId 
+    ? `page_persist_${key}_${sessionId}`
+    : `page_persist_${key}_${location.pathname}`;
   const lastSavedRef = useRef<number>(0);
 
   // Save state to sessionStorage with TTL
