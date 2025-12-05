@@ -43,8 +43,15 @@ serve(async (req) => {
       - Use seasonal timing instead: "this season", "currently", "right now"
       - **ELIMINATE FILLER: Get to the point quickly, readers want actionable insights**
       
+      PERSONALIZATION REQUIREMENTS:
+      - Always start emails with: "Hi {{ first_name | default: "Friend" }},"
+      - NEVER use hardcoded names like "Hi John" or "Hello Sarah"
+      - Use merge tags for any customer-specific data
+      - Available merge tags: {{ first_name }}, {{ last_name }}, {{ email }}
+      - Always include fallbacks: {{ first_name | default: "Friend" }}
+      
       Always include:
-      - A warm, personal greeting
+      - A warm, personal greeting using merge tags
       - Helpful gardening tips relevant to the season
       - A call-to-action to visit the garden center
       - A friendly closing
@@ -59,6 +66,11 @@ serve(async (req) => {
       Maximum ${maxLength || 160} characters including spaces.
       Do NOT include "Reply STOP to unsubscribe" - this will be added automatically.
       Use garden/plant emojis sparingly but effectively.
+      
+      PERSONALIZATION REQUIREMENTS:
+      - Start messages with: "Hi {{ first_name | default: "Friend" }}!" when appropriate
+      - NEVER use hardcoded names
+      - Keep merge tags short for character limits
       
       CRITICAL RESTRICTIONS:
       - NEVER use "Week" followed by any number (Week 1, Week 28, etc.)

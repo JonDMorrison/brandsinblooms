@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -328,11 +329,10 @@ async function sendAutomationSms(customer: Customer, step: WorkflowStep, automat
 }
 
 function personalizeContent(content: string, customer: Customer): string {
-  return content
-    .replace(/\{first_name\}/g, customer.first_name || 'there')
-    .replace(/\{last_name\}/g, customer.last_name || '')
-    .replace(/\{email\}/g, customer.email || '')
-    .replace(/\{name\}/g, `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'there');
+  // Convert legacy tags and render with unified engine
+  const normalized = convertLegacyTags(content);
+  const mergeTagData = createMergeTagDataFromCustomer(customer as unknown as Record<string, unknown>, {});
+  return renderMergeTags(normalized, mergeTagData);
 }
 
 serve(handler);

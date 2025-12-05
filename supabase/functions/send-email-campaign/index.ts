@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Resend } from "https://esm.sh/resend@2";
+import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, type MergeTagData } from "../_shared/mergeTagEngine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -283,24 +284,31 @@ serve(async (req) => {
       try {
         console.log(`Sending email to customer ${customer.id} at ${customer.email}`);
 
-        // Prepare email content with personalization
-        let emailContent = campaign.content || '';
-        let emailSubject = campaign.subject_line || 'Newsletter from your Garden Center';
-        
-        if (customer.first_name) {
-          emailContent = emailContent.replace(/\{firstName\}/g, customer.first_name);
-          emailSubject = emailSubject.replace(/\{firstName\}/g, customer.first_name);
-        }
-
         // Generate unsubscribe token and link
         const unsubscribeToken = btoa(`${customer.email}:${campaign.tenant_id}`);
         const unsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${campaign.tenant_id}&token=${unsubscribeToken}`;
 
-        // Replace merge tags in content
-        emailContent = emailContent.replace(/\{\{unsubscribe_link\}\}/g, unsubscribeLink);
-        emailContent = emailContent.replace(/\{\{company_name\}\}/g, companyName);
-        emailContent = emailContent.replace(/\{\{company_website\}\}/g, companyProfile?.custom_sender_email?.split('@')[1] || 'your website');
-        emailContent = emailContent.replace(/\{\{company_address\}\}/g, companyProfile?.location_info || 'Your Business Address');
+        // Create merge tag data from customer and company info
+        const mergeTagData: MergeTagData = createMergeTagDataFromCustomer(customer, {
+          company_name: companyName,
+          address: companyProfile?.location_info,
+          website_url: companyProfile?.custom_sender_email?.split('@')[1]
+        });
+        
+        // Add system URLs
+        mergeTagData.system = {
+          unsubscribe_url: unsubscribeLink,
+          preferences_url: unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences'),
+          current_year: new Date().getFullYear().toString(),
+          current_date: new Date().toLocaleDateString()
+        };
+
+        // Convert legacy tags and render with unified engine
+        let emailContent = convertLegacyTags(campaign.content || '');
+        let emailSubject = convertLegacyTags(campaign.subject_line || 'Newsletter from your Garden Center');
+        
+        emailContent = renderMergeTags(emailContent, mergeTagData);
+        emailSubject = renderMergeTags(emailSubject, mergeTagData);
 
         // Check if unsubscribe link is missing and auto-append footer
         if (!emailContent.includes(unsubscribeLink) && !emailContent.includes('{{unsubscribe_link}}')) {

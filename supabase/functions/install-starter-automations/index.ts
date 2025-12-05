@@ -31,24 +31,24 @@ const STARTER_TEMPLATES: StarterTemplate[] = [
         type: 'email',
         delayMin: 0,
         subject: 'Welcome to the Garden Club 🌿',
-        text: 'Thanks for your first purchase! Here\'s what to expect... {{help_links}}'
+        text: 'Hi {{ first_name | default: "Friend" }}!\n\nThanks for your first purchase! We\'re so glad you\'ve joined our gardening community.\n\nHere\'s what to expect as a member of our garden family...'
       },
       {
         type: 'email',
         delayMin: 1440, // 24 hours
         subject: 'Care Tips for Your New Plants',
-        text: '{{category_tips}} + watering/placement cheatsheet'
+        text: 'Hi {{ first_name | default: "Friend" }},\n\nHere are some helpful care tips for your recent purchase. Remember, every plant is unique and these guidelines will help you keep them thriving!'
       },
       {
         type: 'sms',
         delayMin: 4320, // 3 days
-        text: 'How are your plants doing? Reply with questions anytime. Text STOP to opt out.'
+        text: 'Hi {{ first_name | default: "Friend" }}! How are your plants doing? Reply with questions anytime. Text STOP to opt out.'
       },
       {
         type: 'email',
         delayMin: 10080, // 7 days
         subject: '$5 Off Your Next Visit',
-        text: 'Use code WELCOME5 by {{expiry_date}}'
+        text: 'Hi {{ first_name | default: "Friend" }},\n\nAs a thank you for being part of our community, here\'s $5 off your next visit!\n\nUse code WELCOME5 on your next purchase.'
       }
     ]
   },
@@ -62,18 +62,18 @@ const STARTER_TEMPLATES: StarterTemplate[] = [
         type: 'email',
         delayMin: 0,
         subject: 'You\'re In! How Your Points Work',
-        text: 'Earn on every purchase... {{loyalty_rules}}'
+        text: 'Hi {{ first_name | default: "Friend" }},\n\nWelcome to our loyalty program! You\'ll earn points on every purchase.\n\nHow it works: Earn 1 point for every $1 spent. Redeem 100 points for $5 off.'
       },
       {
         type: 'email',
         delayMin: 10080, // 7 days
         subject: 'Double Points This Weekend',
-        text: 'Shop Fri–Sun and earn 2x points.'
+        text: 'Hi {{ first_name | default: "Friend" }},\n\nShop this Friday through Sunday and earn 2x points on every purchase!'
       },
       {
         type: 'sms',
         delayMin: 43200, // 30 days
-        text: 'You have {{points}} points—redeem this week! Text STOP to opt out.'
+        text: 'Hi {{ first_name | default: "Friend" }}! You\'ve got points waiting—redeem them this week! Text STOP to opt out.'
       }
     ]
   },
@@ -87,18 +87,18 @@ const STARTER_TEMPLATES: StarterTemplate[] = [
         type: 'email',
         delayMin: 0,
         subject: 'We Miss You—See What\'s New 🌱',
-        text: 'Fresh perennials & indoor plants just in...'
+        text: 'Hi {{ first_name | default: "Friend" }},\n\nIt\'s been a while since we\'ve seen you! We\'ve got fresh perennials and indoor plants just in that we think you\'ll love.'
       },
       {
         type: 'sms',
         delayMin: 2880, // 2 days
-        text: 'Pop in this week for a fresh look—new arrivals daily. Text STOP to opt out.'
+        text: 'Hi {{ first_name | default: "Friend" }}! Pop in this week for a fresh look—new arrivals daily. Text STOP to opt out.'
       },
       {
         type: 'email',
         delayMin: 10080, // 7 days
         subject: 'A Little Nudge: 10% Off',
-        text: 'Use code COMEHOME10 by {{expiry_date}}'
+        text: 'Hi {{ first_name | default: "Friend" }},\n\nWe\'d love to see you again! Here\'s 10% off to welcome you back.\n\nUse code COMEHOME10 on your next visit.'
       }
     ]
   },
@@ -112,12 +112,12 @@ const STARTER_TEMPLATES: StarterTemplate[] = [
         type: 'email',
         delayMin: -10080, // 7 days before birthday
         subject: 'Your Birthday Month Treat 🎉',
-        text: 'Celebrate with {{offer}}. Visit us this week!'
+        text: 'Hi {{ first_name | default: "Friend" }},\n\nYour birthday is coming up and we want to celebrate with you! Enjoy 20% off any purchase this month.'
       },
       {
         type: 'sms',
         delayMin: 0, // On birthday
-        text: 'Happy Birthday! Enjoy {{offer}} today. Text STOP to opt out.'
+        text: 'Happy Birthday {{ first_name | default: "Friend" }}! 🎂 Enjoy 20% off today. Text STOP to opt out.'
       }
     ]
   },
@@ -131,12 +131,12 @@ const STARTER_TEMPLATES: StarterTemplate[] = [
         type: 'email',
         delayMin: 30, // 30 minutes
         subject: 'You Left Something in Your Cart',
-        text: 'Finish your order here: {{cart_url}}'
+        text: 'Hi {{ first_name | default: "Friend" }},\n\nLooks like you left some items behind! Your cart is waiting for you.\n\nClick here to complete your order.'
       },
       {
         type: 'sms',
         delayMin: 1440, // 24 hours
-        text: 'Still want those items? Reply if you need help. Text STOP to opt out.'
+        text: 'Hi {{ first_name | default: "Friend" }}! Still want those items? Reply if you need help. Text STOP to opt out.'
       }
     ]
   },
@@ -150,13 +150,13 @@ const STARTER_TEMPLATES: StarterTemplate[] = [
         type: 'email',
         delayMin: 0,
         subject: 'Seasonal Tips: Get Your Garden Ready',
-        text: '{{seasonal_tips}} + featured perennials'
+        text: 'Hi {{ first_name | default: "Friend" }},\n\nThe season is changing and it\'s the perfect time to prepare your garden! Here are some tips to help your plants thrive.'
       },
       {
         type: 'email',
         delayMin: 4320, // 3 days
         subject: 'Join Our Workshop This Week',
-        text: 'Reserve a spot: {{workshop_link}}'
+        text: 'Hi {{ first_name | default: "Friend" }},\n\nWe\'re hosting a hands-on workshop this week! Reserve your spot and learn expert gardening techniques.'
       }
     ]
   }
