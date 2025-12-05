@@ -209,24 +209,51 @@ async function generateImagesForBlocks(
 }
 
 // Helper function to fetch image for blocks with missing images
+// DETERMINISTIC IMAGE BEHAVIOR - respects autoImageMode and shouldFetchImage
 const getOrFetchImage = async (contentObj: any, block: any): Promise<string | null> => {
+  const blockType = block.block_type || block.type;
+  const isHeader = blockType === 'header' || blockType === 'newsletter-header';
+  
   // CRITICAL: Never fetch images for plain text blocks
-  if (block.block_type === 'text' || block.type === 'text') {
+  if (blockType === 'text') {
     console.log(`📝 Skipping image fetch for plain text block ${block.id}`);
     return null;
   }
 
-  // CRITICAL: Respect the shouldFetchImage flag
-  if (contentObj?.shouldFetchImage === false) {
-    console.log(`🚫 shouldFetchImage is false for block ${block.id}, skipping image fetch`);
-    return null;
+  // RULE 1: If autoImageMode is false, never fetch images
+  // Return whatever image the block currently has
+  if (contentObj?.autoImageMode === false) {
+    const existingImage = isHeader 
+      ? (contentObj.backgroundImageUrl || block.image_url)
+      : (contentObj.imageUrl || block.image_url);
+    console.log(`🚫 autoImageMode=false for block ${block.id}, returning existing: ${existingImage ? 'has image' : 'null'}`);
+    return existingImage || null;
   }
 
-  // Check if we already have a valid image URL (from content OR from database column)
-  const existingImageUrl = contentObj?.imageUrl || block.image_url;
+  // RULE 2: If shouldFetchImage is explicitly false, never fetch
+  if (contentObj?.shouldFetchImage === false) {
+    console.log(`🚫 shouldFetchImage=false for block ${block.id}, skipping fetch`);
+    const existingImage = isHeader 
+      ? (contentObj.backgroundImageUrl || block.image_url)
+      : (contentObj.imageUrl || block.image_url);
+    return existingImage || null;
+  }
+
+  // Check for existing valid image URL (from content OR from database column)
+  const existingImageUrl = isHeader
+    ? (contentObj?.backgroundImageUrl || block.image_url)
+    : (contentObj?.imageUrl || block.image_url);
+    
+  // RULE 3: If autoImageMode is true and an image already exists, return it
   if (existingImageUrl && existingImageUrl.trim() !== '') {
     console.log(`✅ Found existing image for block ${block.id}: ${existingImageUrl.substring(0, 50)}...`);
     return existingImageUrl;
+  }
+
+  // RULE 4: Only fetch if shouldFetchImage is true AND no image exists
+  if (contentObj?.shouldFetchImage !== true) {
+    console.log(`🚫 No image and shouldFetchImage !== true for block ${block.id}, returning null`);
+    return null;
   }
 
   // Generate image based on block content
@@ -237,14 +264,24 @@ const getOrFetchImage = async (contentObj: any, block: any): Promise<string | nu
     const imageData = await fetchSmartImage(searchQuery, '', true);
     if (imageData?.url) {
       // Save the image URL back to the database
+      const updateContent = {
+        ...contentObj,
+        shouldFetchImage: false, // Clear flag after successful fetch
+        autoImageMode: true, // Mark as auto-mode
+      };
+      
+      if (isHeader) {
+        updateContent.backgroundImageUrl = imageData.url;
+      } else {
+        updateContent.imageUrl = imageData.url;
+      }
+      updateContent.altText = imageData.alt;
+      
       const { error } = await supabase
         .from('campaign_blocks')
         .update({ 
-          content: {
-            ...contentObj,
-            imageUrl: imageData.url,
-            altText: imageData.alt
-          }
+          content: updateContent,
+          image_url: imageData.url
         })
         .eq('id', block.id);
 
@@ -1045,6 +1082,7 @@ const { counts: segmentCounts } = useSegmentCounts();
           console.log(`🔧 [CampaignCreator] Updating block ${blockId}:`, {
             isHeaderBlock,
             currentImageUrl: block.imageUrl,
+            currentBackgroundImageUrl: block.backgroundImageUrl,
             newImageUrl: imageUrl,
             wasGenerating: block.isGeneratingImage
           });
@@ -1052,11 +1090,14 @@ const { counts: segmentCounts } = useSegmentCounts();
           return {
             ...block,
             ...(isHeaderBlock 
-              ? { backgroundImageUrl: imageUrl }
-              : { imageUrl }
+              ? { backgroundImageUrl: imageUrl || undefined }
+              : { imageUrl: imageUrl || undefined }
             ),
             isGeneratingImage: false,
-            imageGenerationError: undefined
+            imageGenerationError: undefined,
+            // DETERMINISTIC IMAGE BEHAVIOR: Clear shouldFetchImage after generation
+            shouldFetchImage: false,
+            // Keep autoImageMode as is - it was set when generation was triggered
           };
         }
         return block;

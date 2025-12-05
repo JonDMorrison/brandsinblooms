@@ -30,7 +30,19 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
   const updateField = (field: string, value: any) => {
     console.log('[HeaderBlockEditor] updateField called:', field, value);
     console.log('[HeaderBlockEditor] Current block before update:', block);
-    onUpdate({ [field]: value });
+    
+    // DETERMINISTIC IMAGE BEHAVIOR: When user manually selects a background image,
+    // set autoImageMode = false to prevent system from ever auto-replacing it
+    if (field === 'backgroundImageUrl') {
+      onUpdate({ 
+        [field]: value,
+        autoImageMode: false,
+        shouldFetchImage: false,
+        isGeneratingImage: false
+      });
+    } else {
+      onUpdate({ [field]: value });
+    }
     console.log('[HeaderBlockEditor] onUpdate called with:', { [field]: value });
   };
 

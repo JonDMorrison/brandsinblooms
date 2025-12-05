@@ -35,9 +35,14 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
   const backgroundOpacity = (block as any).backgroundOpacity ?? (contentObj as any)?.backgroundOpacity ?? 0.25;
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
+    // DETERMINISTIC IMAGE BEHAVIOR: When user manually selects a background image,
+    // set autoImageMode = false to prevent system from ever auto-replacing it
     onUpdate({ 
       backgroundImageUrl: imageUrl,
-      altText: metadata?.alt || 'Newsletter header background'
+      altText: metadata?.alt || 'Newsletter header background',
+      autoImageMode: false,
+      shouldFetchImage: false,
+      isGeneratingImage: false
     } as any);
   };
 

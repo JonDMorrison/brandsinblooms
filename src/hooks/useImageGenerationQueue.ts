@@ -143,17 +143,37 @@ export function useImageGenerationQueue(options: UseImageGenerationQueueOptions)
   
   /**
    * Enqueue multiple blocks for image generation
+   * DETERMINISTIC IMAGE BEHAVIOR: Only enqueues blocks that explicitly need images
    */
   const enqueueMultipleBlocks = useCallback((
     blocks: ContentBlock[],
     campaignTitle: string
   ) => {
     const blocksNeedingImages = blocks.filter(block => {
+      // Never generate for plain text, button, or divider
+      if (block.type === 'text' || block.type === 'button' || block.type === 'divider') {
+        return false;
+      }
+      
+      // RULE: If autoImageMode is explicitly false, never auto-generate
+      if (block.autoImageMode === false) {
+        return false;
+      }
+      
       // Check for image-bearing block types
-      const needsImage = (block.type === 'image-text' || block.type === 'image');
-      const hasImage = !!(block.imageUrl && block.imageUrl !== 'loading');
+      const isHeaderBlock = block.type === 'header' || block.type === 'newsletter-header';
+      const needsImage = isHeaderBlock || block.type === 'image-text' || block.type === 'image';
+      
+      // Check if already has an image
+      const hasImage = isHeaderBlock
+        ? !!(block.backgroundImageUrl && block.backgroundImageUrl !== 'loading')
+        : !!(block.imageUrl && block.imageUrl !== 'loading');
+      
       const isGenerating = block.isGeneratingImage;
-      return needsImage && !hasImage && !isGenerating;
+      const shouldFetch = block.shouldFetchImage === true;
+      
+      // Only generate if: needs image, doesn't have one, not already generating, and shouldFetch is true
+      return needsImage && !hasImage && !isGenerating && shouldFetch;
     });
     
     console.log(`📥 [ImageQueue] Enqueueing ${blocksNeedingImages.length} blocks for image generation`);
