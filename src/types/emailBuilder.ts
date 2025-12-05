@@ -149,6 +149,7 @@ export interface ContentBlock {
   contentGeneratedAt?: number; // Timestamp when content was first generated
   hasGeneratedContent?: boolean; // Permanent flag: true once content is generated
   contentVersion?: number; // Increment on each update to prevent stale data
+  userEdited?: boolean; // Flag to indicate user has manually edited this block
 }
 
 // Specialized interfaces for type safety
