@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/NativeSelect';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
@@ -12,6 +11,10 @@ import { Upload, CheckCircle, AlertCircle, Download, Loader2, X } from 'lucide-r
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { parseCSVFile, isValidEmail, generateCSVTemplate } from '@/utils/csvParser';
 import type { ColumnMapping, ValidationResult, ImportResult, ImportProgress, DatabaseField, AIAnalysisResult } from '@/types/import';
+import {
+  CUSTOMER_FIELDS,
+  applyField,
+} from '@/lib/crm/customerImportSchema';
 
 interface EnhancedSegmentImportDialogProps {
   open: boolean;
@@ -42,33 +45,19 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
 
+  // Build field options from CUSTOMER_FIELDS schema
   const fieldOptions = [
     { value: 'skip', label: '-- Skip Column --' },
-    // Core contact fields
-    { value: 'email', label: 'Email (Required)' },
-    { value: 'first_name', label: 'First Name' },
-    { value: 'last_name', label: 'Last Name' },
+    ...CUSTOMER_FIELDS.map(field => ({
+      value: field.key,
+      label: field.key === 'email' ? `${field.label} (Required)` : field.label
+    })),
+    // Additional fields not in schema but used by import
     { value: 'phone', label: 'Phone Number' },
-    // Marketing preferences  
-    { value: 'email_opt_in', label: 'Email Subscription (yes/no)' },
     { value: 'sms_opt_in', label: 'SMS Opt-In (yes/no)' },
-    // Customer data
-    { value: 'date_of_birth', label: 'Birthday' },
-    { value: 'lifetime_value', label: 'Lifetime Spend' },
-    { value: 'first_purchase_date', label: 'First Visit/Purchase Date' },
-    { value: 'last_purchase_date', label: 'Last Visit/Purchase Date' },
-    // Company & Address
-    { value: 'company_name', label: 'Company Name' },
-    { value: 'address_line1', label: 'Street Address 1' },
-    { value: 'address_line2', label: 'Street Address 2' },
-    { value: 'city', label: 'City' },
-    { value: 'state', label: 'State' },
-    { value: 'postal_code', label: 'Postal Code' },
-    // Other
-    { value: 'notes', label: 'Notes/Memo' },
-    { value: 'external_id', label: 'Reference ID' },
     { value: 'tags', label: 'Tags (comma-separated)' },
     { value: 'persona', label: 'Persona' },
+    { value: 'notes', label: 'Notes/Memo' },
   ];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,53 +226,53 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
       throw new Error('You are not assigned to a tenant');
     }
 
-    // Transform rows to customer objects
-    const customers = dataRows.map(row => {
-      const customer: any = {
-        tenant_id: userRecord.tenant_id,
-        user_id: user.user.id,
+    const tenantId = userRecord.tenant_id;
+    const userId = user.user.id;
+
+    // Build customers using applyField from shared schema
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const customers: any[] = [];
+    let skippedNoEmail = 0;
+
+    for (const row of dataRows) {
+      // Find email mapping
+      const emailMappingIndex = columnMappings.findIndex(m => m.databaseField === 'email');
+      const rawEmail = emailMappingIndex >= 0 ? row[emailMappingIndex] : null;
+      const email = rawEmail ? String(rawEmail).trim().toLowerCase() : '';
+      
+      if (!email || !isValidEmail(email)) {
+        skippedNoEmail++;
+        continue;
+      }
+
+      const customer: Record<string, unknown> = {
+        tenant_id: tenantId,
+        user_id: userId,
+        email,
         email_opt_in: false,
         email_consent_source: 'csv_import',
         email_consent_method: 'pending_confirmation',
-        custom_fields: {}
+        custom_fields: {},
       };
-      
+
+      // Apply all mapped fields using the shared schema
       columnMappings.forEach((mapping, index) => {
-        const value = row[index]?.trim();
-        if (!value) return;
+        const raw = row[index];
+        const fieldKey = mapping.databaseField;
         
-        // Store unmapped columns in custom_fields
-        if (mapping.databaseField === 'skip') {
-          customer.custom_fields[mapping.csvHeader] = value;
+        if (fieldKey === 'skip' || fieldKey === 'email') {
+          // Skip already handled or explicitly skipped
           return;
         }
-        
-        const parseOptIn = (val: string): boolean => {
-          return ['true', '1', 'yes', 'y', 'subscribed', 'opted-in', 'opted_in'].includes(val.toLowerCase());
-        };
-        
-        const parseDate = (val: string): string | null => {
-          if (!val) return null;
-          const parsed = new Date(val);
-          return isNaN(parsed.getTime()) ? null : parsed.toISOString().split('T')[0];
-        };
-        
-        const parseNumber = (val: string): number | null => {
-          const cleaned = val.replace(/[$,]/g, '');
-          const num = parseFloat(cleaned);
-          return isNaN(num) ? null : num;
-        };
 
-        switch (mapping.databaseField) {
-          case 'email':
-            customer.email = value.toLowerCase();
-            break;
-          case 'first_name':
-            customer.first_name = value;
-            break;
-          case 'last_name':
-            customer.last_name = value;
-            break;
+        // Use applyField for schema-defined fields
+        applyField(customer, fieldKey, raw);
+
+        // Handle fields not in schema (phone, tags, persona, sms_opt_in, notes)
+        const value = raw ? String(raw).trim() : '';
+        if (!value) return;
+
+        switch (fieldKey) {
           case 'phone':
             customer.phone = value.replace(/\D/g, '');
             break;
@@ -294,101 +283,62 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
             customer.persona = value;
             break;
           case 'sms_opt_in':
-            customer.sms_opt_in = parseOptIn(value);
-            break;
-          case 'email_opt_in':
-            customer.email_opt_in = parseOptIn(value);
-            if (customer.email_opt_in) {
-              customer.email_opt_in_at = new Date().toISOString();
-              customer.email_consent_method = 'csv_import_subscribed';
-            }
-            break;
-          case 'date_of_birth':
-            const dob = parseDate(value);
-            if (dob) customer.custom_fields.date_of_birth = dob;
-            break;
-          case 'lifetime_value':
-            const ltv = parseNumber(value);
-            if (ltv !== null) customer.lifetime_value = ltv;
-            break;
-          case 'first_purchase_date':
-            const fpd = parseDate(value);
-            if (fpd) customer.first_purchase_date = fpd;
-            break;
-          case 'last_purchase_date':
-            const lpd = parseDate(value);
-            if (lpd) customer.last_purchase_date = lpd;
-            break;
-          case 'company_name':
-            customer.custom_fields.company_name = value;
-            break;
-          case 'address_line1':
-            customer.custom_fields.address_line1 = value;
-            break;
-          case 'address_line2':
-            customer.custom_fields.address_line2 = value;
-            break;
-          case 'city':
-            customer.custom_fields.city = value;
-            break;
-          case 'state':
-            customer.custom_fields.state = value;
-            break;
-          case 'postal_code':
-            customer.custom_fields.postal_code = value;
+            customer.sms_opt_in = ['true', '1', 'yes', 'y', 'subscribed', 'opted-in', 'opted_in'].includes(value.toLowerCase());
             break;
           case 'notes':
-            customer.custom_fields.notes = value;
-            break;
-          case 'external_id':
-            customer.custom_fields.external_id = value;
+            (customer.custom_fields as Record<string, unknown>).notes = value;
             break;
         }
       });
-      
-      return customer;
-    });
 
-    // Filter valid customers
-    const validCustomers = customers.filter(c => c.email && isValidEmail(c.email));
-    const skipped = customers.length - validCustomers.length;
+      // Handle email_opt_in timestamp if opted in
+      if (customer.email_opt_in === true) {
+        customer.email_opt_in_at = new Date().toISOString();
+        customer.email_consent_method = 'csv_import_subscribed';
+      }
 
-    // Deduplicate by email - merge duplicate rows, keeping non-empty values
+      customers.push(customer);
+    }
+
+    console.log(`📊 Parsed ${customers.length} customers with valid emails, ${skippedNoEmail} skipped (no/invalid email)`);
+
+    // Deduplicate by email and merge data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const customerMap = new Map<string, any>();
-    validCustomers.forEach(customer => {
-      const email = customer.email.toLowerCase();
+    for (const customer of customers) {
+      const email = String(customer.email).toLowerCase();
       const existing = customerMap.get(email);
-      if (existing) {
-        // Merge: prefer non-empty values from newer row
-        Object.entries(customer).forEach(([key, value]) => {
-          if (value !== null && value !== undefined && value !== '' && 
-              !(Array.isArray(value) && value.length === 0) &&
-              !(typeof value === 'object' && Object.keys(value).length === 0)) {
+      if (!existing) {
+        customerMap.set(email, customer);
+      } else {
+        // Merge non-empty values
+        for (const [key, value] of Object.entries(customer)) {
+          if (value === null || value === undefined || value === '') continue;
+          if (key === 'custom_fields' && typeof value === 'object' && value !== null) {
+            existing.custom_fields = {
+              ...(existing.custom_fields || {}),
+              ...(value as Record<string, unknown>),
+            };
+          } else if (existing[key] === null || existing[key] === undefined || existing[key] === '') {
             existing[key] = value;
           }
-        });
-        // Merge custom_fields separately
-        if (customer.custom_fields && typeof customer.custom_fields === 'object') {
-          existing.custom_fields = { ...existing.custom_fields, ...customer.custom_fields };
         }
-      } else {
-        customerMap.set(email, { ...customer });
       }
-    });
+    }
 
     const deduplicatedCustomers = Array.from(customerMap.values());
-    const duplicatesMerged = validCustomers.length - deduplicatedCustomers.length;
+    const duplicatesMerged = customers.length - deduplicatedCustomers.length;
     
-    console.log(`📊 Deduplication: ${validCustomers.length} valid → ${deduplicatedCustomers.length} unique (${duplicatesMerged} duplicates merged)`);
+    console.log(`📊 Deduplication: ${customers.length} valid → ${deduplicatedCustomers.length} unique (${duplicatesMerged} duplicates merged)`);
 
-    // Insert customers in batches
+    // Insert customers in batches using upsert
     const BATCH_SIZE = 500;
     const totalBatches = Math.ceil(deduplicatedCustomers.length / BATCH_SIZE);
     const results: ImportResult = {
-      total: customers.length,
+      total: dataRows.length,
       imported: 0,
       failed: 0,
-      skipped,
+      skipped: skippedNoEmail,
       duplicatesMerged,
       errors: []
     };
@@ -409,7 +359,7 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
         const { data, error } = await supabase
           .from('crm_customers')
           .upsert(batch, {
-            onConflict: 'email,tenant_id',
+            onConflict: 'tenant_id,email',
             ignoreDuplicates: false
           })
           .select('id');
@@ -423,7 +373,7 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
           const segmentAssignments = data.map(customer => ({
             customer_id: customer.id,
             segment_id: segmentId,
-            assigned_by_user_id: user.user.id
+            assigned_by_user_id: userId
           }));
           
           await supabase
@@ -777,6 +727,14 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
                   {importResult.imported}
                 </p>
               </div>
+              {importResult.duplicatesMerged && importResult.duplicatesMerged > 0 && (
+                <div className="border rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground">Duplicates Merged</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-500">
+                    {importResult.duplicatesMerged}
+                  </p>
+                </div>
+              )}
               {importResult.skipped > 0 && (
                 <div className="border rounded-lg p-4">
                   <p className="text-sm text-muted-foreground">Skipped (invalid email)</p>
