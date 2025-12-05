@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -181,11 +182,10 @@ async function handler(req: Request): Promise<Response> {
 
         console.log(`Sending SMS to customer ${customer.id} at ${phone}`);
 
-        // Prepare message body with personalization
-        let messageBody = campaign.message;
-        if (customer.first_name) {
-          messageBody = `Hi ${customer.first_name}! ${messageBody}`;
-        }
+        // Create merge tag data and render message with unified engine
+        const mergeTagData = createMergeTagDataFromCustomer(customer, {});
+        let messageBody = convertLegacyTags(campaign.message || '');
+        messageBody = renderMergeTags(messageBody, mergeTagData);
 
         // Prepare Twilio API request
         const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;

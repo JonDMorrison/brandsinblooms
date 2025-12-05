@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, GLOBAL_FALLBACKS } from "../_shared/mergeTagEngine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -373,41 +374,38 @@ async function enqueueMessage(supabase: any, automation: any, customer: any, ste
 }
 
 function personalizeMessage(template: string, customer: any, automation: any): string {
-  let personalized = template;
+  // Convert legacy tags first
+  let normalized = convertLegacyTags(template);
   
-  // Replace common placeholders
-  const replacements = {
-    '{{first_name}}': customer.first_name || 'there',
-    '{{last_name}}': customer.last_name || '',
-    '{{email}}': customer.email || '',
-    '{{business}}': 'our garden center', // Could come from tenant settings
-    '{{shop_url}}': 'https://example.com/shop', // Could come from tenant settings
-    '{{help_links}}': 'Visit our help center at help.example.com',
-    
-    // Dynamic content placeholders
-    '{{category_tips}}': 'Here are some care tips based on your recent purchase...',
-    '{{loyalty_rules}}': 'Earn 1 point for every $1 spent. Redeem 100 points for $5 off.',
-    '{{points}}': String(customer.loyalty_points || 0),
-    '{{offer}}': '20% off your next purchase',
-    '{{expiry_date}}': new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-    '{{cart_url}}': `https://example.com/cart?restore=${customer.id}`,
-    '{{seasonal_tips}}': 'Fall is perfect for planting perennials and preparing your garden for winter.',
-    '{{workshop_link}}': 'https://example.com/workshops',
-    
-    // Discount codes
-    '{{discount_code}}': 'WELCOME10',
-    'WELCOME5': 'WELCOME5',
-    'COMEHOME10': 'COMEHOME10',
-    
-    // URLs
-    '{{review_url}}': 'https://example.com/review'
+  // Create merge tag data from customer
+  const mergeTagData = createMergeTagDataFromCustomer(customer, {
+    company_name: 'Your Garden Center' // Could come from tenant settings
+  });
+  
+  // Add automation-specific placeholders to system
+  mergeTagData.system = {
+    ...mergeTagData.system,
+    unsubscribe_url: '#',
+    preferences_url: '#',
+    current_year: new Date().getFullYear().toString(),
+    current_date: new Date().toLocaleDateString()
   };
   
-  for (const [placeholder, value] of Object.entries(replacements)) {
-    personalized = personalized.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
-  }
+  // Add custom automation data
+  mergeTagData.custom = {
+    ...mergeTagData.custom,
+    points: String(customer.loyalty_points || 0),
+    offer: '20% off your next purchase',
+    expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+    discount_code: 'WELCOME10',
+    shop_url: 'https://example.com/shop',
+    cart_url: `https://example.com/cart?restore=${customer.id}`,
+    review_url: 'https://example.com/review',
+    workshop_link: 'https://example.com/workshops'
+  };
   
-  return personalized;
+  // Render with unified engine
+  return renderMergeTags(normalized, mergeTagData);
 }
 
 serve(handler);

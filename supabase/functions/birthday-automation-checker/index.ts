@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,7 +28,7 @@ Deno.serve(async (req) => {
     // Get all customers with birthdays - we'll filter by month/day
     const { data: customers, error: customersError } = await supabase
       .from('crm_customers')
-      .select('id, tenant_id, email, first_name, last_name, custom_fields')
+      .select('id, tenant_id, email, first_name, last_name, phone, custom_fields')
       .not('custom_fields', 'is', null);
 
     if (customersError) {
@@ -101,9 +102,17 @@ Deno.serve(async (req) => {
             const scheduledAt = new Date();
             scheduledAt.setMinutes(scheduledAt.getMinutes() + delayMinutes);
 
-            // Personalize content
-            const personalizedContent = personalizeContent(step.text || step.body || step.content || '', customer);
-            const personalizedSubject = step.subject ? personalizeContent(step.subject, customer) : null;
+            // Personalize content using unified merge tag engine
+            const rawContent = step.text || step.body || step.content || '';
+            const normalizedContent = convertLegacyTags(rawContent);
+            const mergeTagData = createMergeTagDataFromCustomer(customer as unknown as Record<string, unknown>, {});
+            const personalizedContent = renderMergeTags(normalizedContent, mergeTagData);
+            
+            let personalizedSubject = null;
+            if (step.subject) {
+              const normalizedSubject = convertLegacyTags(step.subject);
+              personalizedSubject = renderMergeTags(normalizedSubject, mergeTagData);
+            }
 
             // Determine recipient and message type
             const messageType = step.channel || step.type || 'email';
@@ -190,14 +199,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
-// Helper function to personalize content with customer data
-function personalizeContent(content: string, customer: any): string {
-  return content
-    .replace(/\{\{first_name\}\}/gi, customer.first_name || 'Valued Customer')
-    .replace(/\{\{firstName\}\}/gi, customer.first_name || 'Valued Customer')
-    .replace(/\{\{last_name\}\}/gi, customer.last_name || '')
-    .replace(/\{\{lastName\}\}/gi, customer.last_name || '')
-    .replace(/\{\{email\}\}/gi, customer.email || '')
-    .replace(/\{\{name\}\}/gi, `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Valued Customer');
-}
