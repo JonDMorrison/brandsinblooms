@@ -251,3 +251,6 @@ verify_jwt = false
 
 [functions.entri-domain-callback]
 verify_jwt = true
+
+[functions.birthday-automation-checker]
+verify_jwt = false
