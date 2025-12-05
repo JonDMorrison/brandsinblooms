@@ -353,20 +353,49 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
     const validCustomers = customers.filter(c => c.email && isValidEmail(c.email));
     const skipped = customers.length - validCustomers.length;
 
+    // Deduplicate by email - merge duplicate rows, keeping non-empty values
+    const customerMap = new Map<string, any>();
+    validCustomers.forEach(customer => {
+      const email = customer.email.toLowerCase();
+      const existing = customerMap.get(email);
+      if (existing) {
+        // Merge: prefer non-empty values from newer row
+        Object.entries(customer).forEach(([key, value]) => {
+          if (value !== null && value !== undefined && value !== '' && 
+              !(Array.isArray(value) && value.length === 0) &&
+              !(typeof value === 'object' && Object.keys(value).length === 0)) {
+            existing[key] = value;
+          }
+        });
+        // Merge custom_fields separately
+        if (customer.custom_fields && typeof customer.custom_fields === 'object') {
+          existing.custom_fields = { ...existing.custom_fields, ...customer.custom_fields };
+        }
+      } else {
+        customerMap.set(email, { ...customer });
+      }
+    });
+
+    const deduplicatedCustomers = Array.from(customerMap.values());
+    const duplicatesMerged = validCustomers.length - deduplicatedCustomers.length;
+    
+    console.log(`📊 Deduplication: ${validCustomers.length} valid → ${deduplicatedCustomers.length} unique (${duplicatesMerged} duplicates merged)`);
+
     // Insert customers in batches
     const BATCH_SIZE = 500;
-    const totalBatches = Math.ceil(validCustomers.length / BATCH_SIZE);
+    const totalBatches = Math.ceil(deduplicatedCustomers.length / BATCH_SIZE);
     const results: ImportResult = {
       total: customers.length,
       imported: 0,
       failed: 0,
       skipped,
+      duplicatesMerged,
       errors: []
     };
 
-    for (let i = 0; i < validCustomers.length; i += BATCH_SIZE) {
+    for (let i = 0; i < deduplicatedCustomers.length; i += BATCH_SIZE) {
       const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-      const batch = validCustomers.slice(i, i + BATCH_SIZE);
+      const batch = deduplicatedCustomers.slice(i, i + BATCH_SIZE);
       
       setProgress({
         stage: 'importing',
@@ -406,7 +435,11 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
       } catch (error) {
         console.error('Batch import error:', error);
         results.failed += batch.length;
-        results.errors.push(error instanceof Error ? error.message : 'Unknown error');
+        // Extract actual error message from Supabase error object
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : (error as any)?.message || (error as any)?.details || (error as any)?.hint || JSON.stringify(error);
+        results.errors.push(errorMessage);
       }
     }
     
@@ -444,7 +477,7 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
 
       toast({
         title: 'Import completed',
-        description: `Successfully imported ${result.imported} customers${result.failed > 0 ? `, ${result.failed} failed` : ''}${result.skipped > 0 ? `, ${result.skipped} skipped` : ''}`
+        description: `Successfully imported ${result.imported} customers${result.duplicatesMerged ? `, ${result.duplicatesMerged} duplicates merged` : ''}${result.failed > 0 ? `, ${result.failed} failed` : ''}${result.skipped > 0 ? `, ${result.skipped} skipped` : ''}`
       });
 
       if (onImportComplete) {
