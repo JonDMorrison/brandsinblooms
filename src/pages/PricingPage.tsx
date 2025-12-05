@@ -4,13 +4,14 @@ import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-import { PricingHero } from "@/components/pricing/PricingHero";
-import { PricingPlans } from "@/components/pricing/PricingPlans";
-import { CompetitorComparison } from "@/components/pricing/CompetitorComparison";
-import { DifferentiatorsSection } from "@/components/landing/DifferentiatorsSection";
-import { FAQSection } from "@/components/pricing/FAQSection";
-import { FinalCTA } from "@/components/pricing/FinalCTA";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
+import { PricingHeroNew } from "@/components/pricing/PricingHeroNew";
+import { PricingCardsGrid } from "@/components/pricing/PricingCardsGrid";
+import { AllPlansInclude } from "@/components/pricing/AllPlansInclude";
+import { WhyThisWorks } from "@/components/pricing/WhyThisWorks";
+import { FuturePricingSection } from "@/components/pricing/FuturePricingSection";
+import { PricingFAQ } from "@/components/pricing/PricingFAQ";
+import { FinalCTANew } from "@/components/pricing/FinalCTANew";
 
 const PricingPage = () => {
   const navigate = useNavigate();
@@ -78,19 +79,15 @@ const PricingPage = () => {
   }, [navigate, refreshSubscription]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
+    <div className="min-h-screen bg-white">
       <LandingPageHeader onLogin={() => navigate('/auth')} showUserMenu={true} />
-      <PricingHero subscription={subscription} onStartTrial={handleStartTrial} onBuyNow={handleSelectPlan} />
-      <PricingPlans 
-        subscription={subscription}
-        loading={loading}
-        onSelectPlan={handleSelectPlan}
-        onStartTrial={handleStartTrial}
-      />
-      <CompetitorComparison />
-      <DifferentiatorsSection onTalkToTeam={handleStartTrial} />
-      <FAQSection />
-      <FinalCTA subscription={subscription} onStartTrial={handleStartTrial} />
+      <PricingHeroNew />
+      <PricingCardsGrid />
+      <AllPlansInclude />
+      <WhyThisWorks />
+      <FuturePricingSection />
+      <PricingFAQ />
+      <FinalCTANew />
     </div>
   );
 };
