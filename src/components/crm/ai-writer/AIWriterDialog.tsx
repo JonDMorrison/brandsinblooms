@@ -185,14 +185,24 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
       isGeneratingFlags: blocks.map(b => b.isGeneratingImage)
     });
 
-    // CRITICAL: ALL blocks must have images for weekly themes (except button/divider/header)
-    const imageBlocks = blocks.filter(block => 
-      block.type !== 'button' && 
-      block.type !== 'divider' && 
-      block.type !== 'header' && 
-      block.type !== 'newsletter-header' &&
-      (block.isGeneratingImage || block.shouldFetchImage || block.layout === 'image-left')
-    );
+    // OPTION A IMPLEMENTED: Header blocks ARE allowed to have auto-generated images
+    // Include header blocks that need images (backgroundImageUrl is empty)
+    const imageBlocks = blocks.filter(block => {
+      // Never generate for button/divider
+      if (block.type === 'button' || block.type === 'divider') {
+        return false;
+      }
+      
+      // For header blocks, check if they need a background image
+      if (block.type === 'header' || block.type === 'newsletter-header') {
+        const needsImage = block.isGeneratingImage || !block.backgroundImageUrl;
+        console.log(`🔍 [Image Generation] Header block ${block.id}: needsImage=${needsImage}, hasBackgroundUrl=${!!block.backgroundImageUrl}`);
+        return needsImage;
+      }
+      
+      // For other blocks, check normal image generation conditions
+      return block.isGeneratingImage || block.shouldFetchImage || block.layout === 'image-left';
+    });
 
     console.log(`📊 [Image Generation] Filtered to ${imageBlocks.length} image blocks:`, {
       blockIds: imageBlocks.map(b => b.id),
@@ -217,7 +227,8 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
     // Each image will notify parent as soon as it's ready
     imageBlocks.forEach(async (block, index) => {
       try {
-        console.log(`📸 Generating image ${index + 1}/${imageBlocks.length} for block ${block.id}`);
+        const isHeaderBlock = block.type === 'header' || block.type === 'newsletter-header';
+        console.log(`📸 Generating image ${index + 1}/${imageBlocks.length} for ${isHeaderBlock ? 'HEADER' : ''} block ${block.id}`);
         
         const contentContext = (block.body || block.content || topic).trim();
         const contentTitle = (block.headline || block.title || topic).trim();
@@ -233,7 +244,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
 
         if (error) throw error;
 
-        console.log(`✅ Image generated for block ${block.id}:`, data.imageUrl?.substring(0, 50));
+        console.log(`✅ Image generated for ${isHeaderBlock ? 'HEADER' : ''} block ${block.id}:`, data.imageUrl?.substring(0, 50));
         succeeded++;
         
         // Update progress
@@ -243,8 +254,9 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
         }));
         
         // Notify parent component immediately as soon as image is ready
+        // Parent must handle header vs non-header image field assignment
         if (onBlockImageGenerated && data?.imageUrl) {
-          console.log(`📤 [Image Generation] Calling onBlockImageGenerated for block ${block.id}`);
+          console.log(`📤 [Image Generation] Calling onBlockImageGenerated for ${isHeaderBlock ? 'HEADER' : ''} block ${block.id}`);
           onBlockImageGenerated(block.id, data.imageUrl);
         } else {
           console.warn(`⚠️ [Image Generation] Cannot notify parent - callback missing or no imageUrl`, {

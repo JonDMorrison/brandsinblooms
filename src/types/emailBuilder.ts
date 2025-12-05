@@ -54,7 +54,7 @@ export interface ContentBlock {
   type: BlockType;
   title?: string;
   content?: string;
-  imageUrl?: string; // Required for weekly theme blocks
+  imageUrl?: string | null; // Explicit null means user deleted the image
   imageQuery?: string; // AI-generated image search query
   ctaText?: string;
   ctaUrl?: string;
@@ -87,7 +87,7 @@ export interface ContentBlock {
   // New specialized block fields
   headline?: string;
   body?: string;
-  backgroundImageUrl?: string;
+  backgroundImageUrl?: string | null; // Explicit null means user deleted the image
   backgroundOpacity?: number;
   colorOverlayOpacity?: number;
   darkOverlayOpacity?: number;
@@ -113,8 +113,9 @@ export interface ContentBlock {
   issueNumber?: string;
   publishDate?: string;
   
-  // Image fetching control
-  shouldFetchImage?: boolean; // Flag to control automatic image fetching
+  // Image fetching control - DETERMINISTIC IMAGE BEHAVIOR
+  autoImageMode?: boolean; // true = system may auto-fetch images; false = never auto-fetch
+  shouldFetchImage?: boolean; // Flag to trigger image fetching when autoImageMode is true
   
   // AI Image generation state
   isGeneratingImage?: boolean;

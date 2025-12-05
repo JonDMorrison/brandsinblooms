@@ -102,9 +102,10 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
   
   // CRITICAL: For header blocks, save backgroundImageUrl to image_url
   // For other blocks, save imageUrl to image_url
+  // Respect explicit null (user deleted image) vs undefined
   const imageUrl = isHeader 
-    ? (block.backgroundImageUrl || null)
-    : (block.imageUrl || null);
+    ? (block.backgroundImageUrl ?? null)
+    : (block.imageUrl ?? null);
   
   return {
     block_type: block.type,
@@ -159,9 +160,10 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
       contentGeneratedAt: block.contentGeneratedAt,
       contentVersion: block.contentVersion,
       
-      // Image generation state (transient, but preserve for reload)
-      isGeneratingImage: block.isGeneratingImage,
+      // Image control flags - DETERMINISTIC IMAGE BEHAVIOR
+      autoImageMode: block.autoImageMode,
       shouldFetchImage: block.shouldFetchImage,
+      isGeneratingImage: block.isGeneratingImage,
     },
     image_url: imageUrl,
     cta_url: ctaUrl || null,
@@ -232,16 +234,24 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
   
   // CRITICAL: For header blocks, load image_url into backgroundImageUrl
   // For other blocks, load image_url into imageUrl
-  const imageUrl = isHeader ? '' : (dbBlock.image_url || contentObj.imageUrl || '');
+  // PRESERVE EXISTING IMAGES - do not trigger fetch on load
+  const imageUrl = isHeader ? undefined : (dbBlock.image_url || contentObj.imageUrl || undefined);
   const backgroundImageUrl = isHeader 
-    ? (dbBlock.image_url || contentObj.backgroundImageUrl || '')
-    : (contentObj.backgroundImageUrl || '');
+    ? (dbBlock.image_url || contentObj.backgroundImageUrl || undefined)
+    : (contentObj.backgroundImageUrl || undefined);
   
   // Extract lifecycle flags with conservative defaults
   const hasGeneratedContent = contentObj.hasGeneratedContent === true || 
     (!!headline && headline.length > 0) || 
     (!!body && body.length > 0);
   const userEdited = contentObj.userEdited === true;
+  
+  // DETERMINISTIC IMAGE BEHAVIOR: 
+  // - autoImageMode defaults to false for existing campaigns (preserve user intent)
+  // - shouldFetchImage defaults to false on load (never auto-fetch on reload)
+  // - isGeneratingImage always false on load (generation finished or failed)
+  const hasExistingImage = !!(imageUrl || backgroundImageUrl);
+  const autoImageMode = contentObj.autoImageMode ?? false; // Default false = manual mode
   
   return {
     id: dbBlock.id,
@@ -254,6 +264,7 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
     content: body,
     
     // Image fields - properly mapped based on block type
+    // CRITICAL: Preserve undefined vs empty string distinction
     imageUrl,
     backgroundImageUrl,
     altText: contentObj.altText || '',
@@ -308,9 +319,10 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
     contentGeneratedAt: contentObj.contentGeneratedAt,
     contentVersion: contentObj.contentVersion,
     
-    // Image generation state
-    isGeneratingImage: contentObj.isGeneratingImage || false,
-    shouldFetchImage: contentObj.shouldFetchImage,
+    // DETERMINISTIC IMAGE BEHAVIOR - critical for predictable behavior
+    autoImageMode, // Preserved from DB or defaults to false
+    shouldFetchImage: false, // NEVER auto-fetch on reload
+    isGeneratingImage: false, // Always false on load - generation is complete
   };
 }
 

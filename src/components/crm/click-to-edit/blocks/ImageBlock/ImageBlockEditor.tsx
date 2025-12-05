@@ -37,7 +37,14 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
   });
 
   const handleImageChange = useCallback((imageUrl: string) => {
-    onUpdate({ imageUrl });
+    // DETERMINISTIC IMAGE BEHAVIOR: When user manually selects an image,
+    // set autoImageMode = false to prevent system from ever auto-replacing it
+    onUpdate({ 
+      imageUrl, 
+      autoImageMode: false,
+      shouldFetchImage: false,
+      isGeneratingImage: false
+    });
   }, [onUpdate]);
 
   const handleCaptionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

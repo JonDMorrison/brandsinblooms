@@ -56,7 +56,14 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
   }, []);
 
   const handleImageChange = useCallback((imageUrl: string) => {
-    onUpdate({ imageUrl });
+    // DETERMINISTIC IMAGE BEHAVIOR: When user manually selects an image,
+    // set autoImageMode = false to prevent system from ever auto-replacing it
+    onUpdate({ 
+      imageUrl, 
+      autoImageMode: false,
+      shouldFetchImage: false,
+      isGeneratingImage: false
+    });
   }, [onUpdate]);
 
   const handleBackgroundColorChange = useCallback((color: string) => {
