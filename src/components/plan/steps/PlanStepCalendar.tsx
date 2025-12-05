@@ -641,24 +641,24 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                                   Merge Tags
                                                 </Button>
                                               </DropdownMenuTrigger>
-                                               <DropdownMenuContent align="end" className="w-48">
+                                               <DropdownMenuContent align="end" className="w-64">
                                                  <DropdownMenuLabel>Insert Tag</DropdownMenuLabel>
                                                   <DropdownMenuItem 
-                                                    onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{first_name}}')}
+                                                    onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{ first_name | default: "Friend" }}')}
                                                   >
-                                                    {'{{first_name}}'}
+                                                    {'{{ first_name | default: "Friend" }}'}
                                                   </DropdownMenuItem>
                                                   <DropdownMenuItem 
-                                                    onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{last_name}}')}
+                                                    onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{ last_name | default: "" }}')}
                                                   >
-                                                    {'{{last_name}}'}
+                                                    {'{{ last_name }}'}
                                                   </DropdownMenuItem>
                                                   <DropdownMenuSeparator />
                                                   <DropdownMenuLabel>Company Info</DropdownMenuLabel>
                                                   <DropdownMenuItem 
-                                                    onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{company_name}}')}
+                                                    onClick={() => handleItemUpdate(item.id, 'emailSubject', (item.emailSubject || '') + '{{ company.name | default: "Our Team" }}')}
                                                   >
-                                                    {'{{company_name}}'}
+                                                    {'{{ company.name }}'}
                                                   </DropdownMenuItem>
                                                   <DropdownMenuSeparator />
                                                   <DropdownMenuLabel>Preview</DropdownMenuLabel>
@@ -702,22 +702,22 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
                                                   Merge Tags
                                                 </Button>
                                               </DropdownMenuTrigger>
-                                               <DropdownMenuContent align="end" className="w-48">
+                                               <DropdownMenuContent align="end" className="w-64">
                                                  <DropdownMenuLabel>Insert Tag</DropdownMenuLabel>
                                                   <DropdownMenuItem 
-                                                    onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{first_name}}')}
+                                                    onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{ first_name | default: "Friend" }}')}
                                                   >
-                                                    {'{{first_name}}'}
+                                                    {'{{ first_name | default: "Friend" }}'}
                                                   </DropdownMenuItem>
                                                   <DropdownMenuItem 
-                                                    onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{last_name}}')}
+                                                    onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{ last_name | default: "" }}')}
                                                   >
-                                                    {'{{last_name}}'}
+                                                    {'{{ last_name }}'}
                                                   </DropdownMenuItem>
                                                   <DropdownMenuSeparator />
                                                   <DropdownMenuLabel>Company Info</DropdownMenuLabel>
                                                   <DropdownMenuItem 
-                                                    onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{company_name}}')}
+                                                    onClick={() => handleItemUpdate(item.id, 'emailPreheader', (item.emailPreheader || '') + '{{ company.name | default: "Our Team" }}')}
                                                   >
                                                     {'{{company_name}}'}
                                                   </DropdownMenuItem>

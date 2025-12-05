@@ -104,11 +104,11 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
 
   // Personalization tokens
   const personalizationTokens = [
-    { label: 'First Name', value: '{{first_name}}', icon: User },
-    { label: 'Last Name', value: '{{last_name}}', icon: User },
-    { label: 'Email', value: '{{email}}', icon: Mail },
-    { label: 'Purchase Date', value: '{{last_purchase_date}}', icon: CalendarIcon },
-    { label: 'Favorite Product', value: '{{favorite_product}}', icon: Package },
+    { label: 'First Name', value: '{{ first_name | default: "Friend" }}', icon: User },
+    { label: 'Last Name', value: '{{ last_name | default: "" }}', icon: User },
+    { label: 'Email', value: '{{ email }}', icon: Mail },
+    { label: 'Purchase Date', value: '{{ last_purchase_date }}', icon: CalendarIcon },
+    { label: 'Favorite Product', value: '{{ custom.favorite_product | default: "" }}', icon: Package },
   ];
 
   useEffect(() => {

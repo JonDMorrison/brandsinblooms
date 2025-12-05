@@ -51,7 +51,7 @@ export const getLoyaltyProgramFlow = (): PresetFlow => {
       position: { x: 250, y: 440 },
       data: {
         subject: 'A quick tip for your garden this week',
-        content: 'Hi {{first_name}}!\n\nHere\'s a quick gardening tip to help you make the most of this season:\n\n{{seasonal_tip}}\n\nAs a loyal member, you still have that 10% off reward waiting for you at {{garden_center_name}}.',
+        content: 'Hi {{ first_name | default: "Friend" }}!\n\nHere\'s a quick gardening tip to help you make the most of this season:\n\n{{ seasonal_tip | default: "" }}\n\nAs a loyal member, you still have that 10% off reward waiting for you at {{ garden_center_name | default: "our garden center" }}.',
         template: 'customer_loyalty_program-2',
         editable: true,
         delay: '7 days',
@@ -62,7 +62,7 @@ export const getLoyaltyProgramFlow = (): PresetFlow => {
       type: 'sms',
       position: { x: 250, y: 570 },
       data: {
-        content: 'Hi {{first_name}}, just a reminder you\'ve got 10% off waiting for you at {{garden_center_name}}. Stop by soon and see what\'s new! Reply STOP to opt out.',
+        content: 'Hi {{ first_name | default: "Friend" }}, just a reminder you\'ve got 10% off waiting for you at {{ garden_center_name | default: "our garden center" }}. Stop by soon and see what\'s new! Reply STOP to opt out.',
         characterCount: 158,
         editable: true,
         delay: '14 days',
@@ -74,7 +74,7 @@ export const getLoyaltyProgramFlow = (): PresetFlow => {
       position: { x: 250, y: 700 },
       data: {
         subject: 'Why we love serving gardeners like you',
-        content: 'Hi {{first_name}}!\n\nWe wanted to take a moment to share why {{garden_center_name}} exists. Our mission is simple: to help every gardener in our community grow beautiful, thriving spaces that bring joy and connection to nature.',
+        content: 'Hi {{ first_name | default: "Friend" }}!\n\nWe wanted to take a moment to share why {{ garden_center_name | default: "our garden center" }} exists. Our mission is simple: to help every gardener in our community grow beautiful, thriving spaces that bring joy and connection to nature.',
         template: 'customer_loyalty_program-4',
         editable: true,
         delay: '30 days',

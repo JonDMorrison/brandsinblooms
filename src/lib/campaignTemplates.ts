@@ -58,7 +58,7 @@ export const TEMPLATES = {
         delayValue: 0,
         delayUnit: 'minutes' as const,
         channel: 'email' as const,
-        body: 'Hi {{first_name}}, thanks for joining our community! We\'re excited to help you grow beautiful gardens.',
+        body: 'Hi {{ first_name | default: "Friend" }}, thanks for joining our community! We\'re excited to help you grow beautiful gardens.',
         template_id: 'welcome_series_email-0',
         delayHours: 0
       },
@@ -99,7 +99,7 @@ export const TEMPLATES = {
       delayValue: 0,
       delayUnit: 'minutes' as const,
       channel: 'sms' as const,
-      body: '🎂 Happy Birthday {{first_name}}! Here\'s a special 20% off coupon: BLOOM20',
+      body: '🎂 Happy Birthday {{ first_name | default: "Friend" }}! Here\'s a special 20% off coupon: BLOOM20',
       template_id: 'birthday_sms-0',
       delayHours: 0
     }]
@@ -152,7 +152,7 @@ export const TEMPLATES = {
         delayValue: 7,
         delayUnit: 'days' as const,
         channel: 'email' as const,
-        body: 'A quick tip for your garden this week\n\nHi {{first_name}}!\n\nHere\'s a quick gardening tip to help you make the most of this season:\n\n{{seasonal_tip}}\n\nAs a loyal member, you still have that 10% off reward waiting for you at {{garden_center_name}}. We\'re always here to help with any questions about your garden!\n\nHappy gardening,\nThe {{garden_center_name}} Team',
+        body: 'A quick tip for your garden this week\n\nHi {{ first_name | default: "Friend" }}!\n\nHere\'s a quick gardening tip to help you make the most of this season:\n\n{{ seasonal_tip | default: "" }}\n\nAs a loyal member, you still have that 10% off reward waiting for you at {{ garden_center_name | default: "our garden center" }}. We\'re always here to help with any questions about your garden!\n\nHappy gardening,\nThe {{ garden_center_name | default: "Garden Center" }} Team',
         template_id: 'customer_loyalty_program-2',
         delayHours: 168
       },
@@ -160,7 +160,7 @@ export const TEMPLATES = {
         delayValue: 14,
         delayUnit: 'days' as const,
         channel: 'sms' as const,
-        body: 'Hi {{first_name}}, just a reminder you\'ve got 10% off waiting for you at {{garden_center_name}}. Stop by soon and see what\'s new! Reply STOP to opt out.',
+        body: 'Hi {{ first_name | default: "Friend" }}, just a reminder you\'ve got 10% off waiting for you at {{ garden_center_name | default: "our garden center" }}. Stop by soon and see what\'s new! Reply STOP to opt out.',
         template_id: 'customer_loyalty_program-3',
         delayHours: 336
       },
@@ -168,7 +168,7 @@ export const TEMPLATES = {
         delayValue: 30,
         delayUnit: 'days' as const,
         channel: 'email' as const,
-        body: 'Why we love serving gardeners like you\n\nHi {{first_name}}!\n\nWe wanted to take a moment to share why {{garden_center_name}} exists. Our mission is simple: to help every gardener in our community grow beautiful, thriving spaces that bring joy and connection to nature.\n\nWhether you\'re just starting out or you\'ve been gardening for years, we believe everyone deserves access to healthy plants, expert advice, and a supportive community of fellow plant lovers.\n\nThat\'s why we offer:\n• Expert plant care guidance from our knowledgeable staff\n• Community workshops and seasonal events\n• Locally-sourced plants that thrive in our climate\n• Support for sustainable gardening practices\n\nAs a loyalty member, you\'re part of this growing community! Keep an eye out for our upcoming workshops and seasonal events.\n\nThank you for being part of the {{garden_center_name}} family!\n\nWith gratitude,\nThe {{garden_center_name}} Team\n\nP.S. Follow us on social media for daily inspiration and connect with fellow gardeners!',
+        body: 'Why we love serving gardeners like you\n\nHi {{ first_name | default: "Friend" }}!\n\nWe wanted to take a moment to share why {{ garden_center_name | default: "our garden center" }} exists. Our mission is simple: to help every gardener in our community grow beautiful, thriving spaces that bring joy and connection to nature.\n\nWhether you\'re just starting out or you\'ve been gardening for years, we believe everyone deserves access to healthy plants, expert advice, and a supportive community of fellow plant lovers.\n\nThat\'s why we offer:\n• Expert plant care guidance from our knowledgeable staff\n• Community workshops and seasonal events\n• Locally-sourced plants that thrive in our climate\n• Support for sustainable gardening practices\n\nAs a loyalty member, you\'re part of this growing community! Keep an eye out for our upcoming workshops and seasonal events.\n\nThank you for being part of the {{ garden_center_name | default: "Garden Center" }} family!\n\nWith gratitude,\nThe {{ garden_center_name | default: "Garden Center" }} Team\n\nP.S. Follow us on social media for daily inspiration and connect with fellow gardeners!',
         template_id: 'customer_loyalty_program-4',
         delayHours: 720
       }
