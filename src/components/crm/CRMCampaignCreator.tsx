@@ -533,20 +533,34 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     console.log('🚨🚨🚨 PREFILL: Conditions not met - typeParam:', typeParam, 'prefillDataParam:', !!prefillDataParam);
   }
 
-  const { counts: segmentCounts } = useSegmentCounts();
+const { counts: segmentCounts } = useSegmentCounts();
   
   const [campaignName, setCampaignName] = useState('');
   
   // Track used images to prevent duplicates
   const [usedImageIds, setUsedImageIds] = useState<Set<string>>(new Set());
   
+  // CRITICAL FIX: Generate unique session ID for new campaigns to prevent cross-contamination
+  // This ensures each "new" campaign has its own persistence namespace
+  const sessionIdRef = useRef<string | null>(null);
+  if (sessionIdRef.current === null) {
+    // For existing campaigns (UUID in slug), use the campaign ID as session
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (campaignSlug && uuidRegex.test(campaignSlug)) {
+      sessionIdRef.current = campaignSlug;
+    } else {
+      // For new campaigns, generate a unique session ID
+      sessionIdRef.current = `new_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    }
+  }
+  
   // Reset tracker when campaign changes
   useEffect(() => {
     setUsedImageIds(new Set());
   }, [campaignSlug]);
   
-  // Page persistence hook
-  const { persistState, restoreState } = usePagePersistence<{
+  // Page persistence hook with unique session ID
+  const { persistState, restoreState, clearPersistedState } = usePagePersistence<{
     campaignName: string;
     subjectLine: string;
     preheaderText: string;
@@ -556,7 +570,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     selectedSegments: any[];
     flow?: string;
   }>({
-    key: `campaign_creator_${campaignSlug || 'new'}`,
+    key: 'campaign_creator',
+    sessionId: sessionIdRef.current, // CRITICAL: Use unique session ID
     ttl: 2 * 60 * 60 * 1000, // 2 hours for campaign data
     onHidden: () => {
       // Persist critical state when tab is hidden
@@ -1649,44 +1664,54 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       const isFreshStart = campaignSlug === 'new' && !hasTemplateId && !hasBundleId && !hasPrefillData && !finalContentTaskId && !hasTemplatePickerFlow;
       
       if (isFreshStart) {
-        console.log('🆕 Fresh campaign start detected - skipping persistence restoration to start blank');
-      } else {
-        // First try to restore from persisted state
-        const persistedState = restoreState();
-        if (persistedState && !existingCampaignId) {
-          console.log('📋 Restoring persisted state - but preserving URL personas');
-          setCampaignName(persistedState.campaignName);
-          setSubjectLine(persistedState.subjectLine);
-          setPreheaderText(persistedState.preheaderText);
-          setBlocks(persistedState.blocks);
-          setShowPreview(persistedState.showPreview);
-          
-          // Restore flow parameter if persisted
-          if (persistedState.flow && !searchParams.get('flow')) {
-            console.log('📋 Restoring flow parameter:', persistedState.flow);
-            const url = new URL(window.location.href);
-            url.searchParams.set('flow', persistedState.flow);
-            window.history.replaceState({}, '', url.toString());
-          }
-          
-          // Only restore personas if no URL persona parameter exists
-          if (persistedState.selectedPersonas && initialPersonas.length === 0) {
-            console.log('📋 Restoring persisted personas (no URL override):', persistedState.selectedPersonas);
-            setSelectedPersonas(persistedState.selectedPersonas);
-          } else if (initialPersonas.length > 0) {
-            console.log('🎯 Keeping URL personas, ignoring persisted personas. URL:', initialPersonas, 'Persisted:', persistedState.selectedPersonas);
-          } else {
-            console.log('📋 No personas in URL or persistence');
-          }
-          
-          if (persistedState.selectedSegments) {
-            setSelectedSegments(persistedState.selectedSegments);
-          }
-          console.log('📋 Restored audience selection:', { 
-            personas: persistedState.selectedPersonas?.length || 0,
-            segments: persistedState.selectedSegments?.length || 0
-          });
+        console.log('🆕 Fresh campaign start detected - clearing persisted state and starting blank');
+        // CRITICAL FIX: Clear any persisted state to prevent cross-contamination
+        clearPersistedState();
+        // Reset all state to defaults
+        setBlocks([]);
+        setCampaignName('');
+        setSubjectLine('');
+        setPreheaderText('');
+        setSelectedPersonas([]);
+        setSelectedSegments([]);
+        return; // Exit early - don't restore anything
+      }
+      
+      // Try to restore from persisted state (for tab switches, etc.)
+      const persistedState = restoreState();
+      if (persistedState && !existingCampaignId) {
+        console.log('📋 Restoring persisted state - but preserving URL personas');
+        setCampaignName(persistedState.campaignName);
+        setSubjectLine(persistedState.subjectLine);
+        setPreheaderText(persistedState.preheaderText);
+        setBlocks(persistedState.blocks);
+        setShowPreview(persistedState.showPreview);
+        
+        // Restore flow parameter if persisted
+        if (persistedState.flow && !searchParams.get('flow')) {
+          console.log('📋 Restoring flow parameter:', persistedState.flow);
+          const url = new URL(window.location.href);
+          url.searchParams.set('flow', persistedState.flow);
+          window.history.replaceState({}, '', url.toString());
         }
+        
+        // Only restore personas if no URL persona parameter exists
+        if (persistedState.selectedPersonas && initialPersonas.length === 0) {
+          console.log('📋 Restoring persisted personas (no URL override):', persistedState.selectedPersonas);
+          setSelectedPersonas(persistedState.selectedPersonas);
+        } else if (initialPersonas.length > 0) {
+          console.log('🎯 Keeping URL personas, ignoring persisted personas. URL:', initialPersonas, 'Persisted:', persistedState.selectedPersonas);
+        } else {
+          console.log('📋 No personas in URL or persistence');
+        }
+        
+        if (persistedState.selectedSegments) {
+          setSelectedSegments(persistedState.selectedSegments);
+        }
+        console.log('📋 Restored audience selection:', { 
+          personas: persistedState.selectedPersonas?.length || 0,
+          segments: persistedState.selectedSegments?.length || 0
+        });
       }
       
       // Handle newsletter template processing (from picker)
