@@ -6204,8 +6204,11 @@ export type Database = {
           email_usage: number | null
           end_date: string
           id: string
+          is_founding_customer: boolean | null
           max_connections: number | null
           max_posts_per_month: number | null
+          overage_emails_this_month: number | null
+          overage_sms_this_month: number | null
           overage_token_price: number | null
           plan: Database["public"]["Enums"]["subscription_plan"]
           sms_enabled: boolean | null
@@ -6214,7 +6217,10 @@ export type Database = {
           sms_usage: number | null
           start_date: string
           stripe_subscription_item_id: string | null
+          tier: string | null
           updated_at: string
+          usage_alert_100_sent_at: string | null
+          usage_alert_80_sent_at: string | null
           user_id: string
         }
         Insert: {
@@ -6231,8 +6237,11 @@ export type Database = {
           email_usage?: number | null
           end_date: string
           id?: string
+          is_founding_customer?: boolean | null
           max_connections?: number | null
           max_posts_per_month?: number | null
+          overage_emails_this_month?: number | null
+          overage_sms_this_month?: number | null
           overage_token_price?: number | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
           sms_enabled?: boolean | null
@@ -6241,7 +6250,10 @@ export type Database = {
           sms_usage?: number | null
           start_date?: string
           stripe_subscription_item_id?: string | null
+          tier?: string | null
           updated_at?: string
+          usage_alert_100_sent_at?: string | null
+          usage_alert_80_sent_at?: string | null
           user_id: string
         }
         Update: {
@@ -6258,8 +6270,11 @@ export type Database = {
           email_usage?: number | null
           end_date?: string
           id?: string
+          is_founding_customer?: boolean | null
           max_connections?: number | null
           max_posts_per_month?: number | null
+          overage_emails_this_month?: number | null
+          overage_sms_this_month?: number | null
           overage_token_price?: number | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
           sms_enabled?: boolean | null
@@ -6268,7 +6283,10 @@ export type Database = {
           sms_usage?: number | null
           start_date?: string
           stripe_subscription_item_id?: string | null
+          tier?: string | null
           updated_at?: string
+          usage_alert_100_sent_at?: string | null
+          usage_alert_80_sent_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -6700,6 +6718,45 @@ export type Database = {
           slug?: string | null
           updated_at?: string
           website?: string | null
+        }
+        Relationships: []
+      }
+      tier_limits: {
+        Row: {
+          created_at: string | null
+          email_limit: number
+          email_overage_rate: number | null
+          includes_website: boolean | null
+          price_annual: number | null
+          price_monthly: number
+          sms_limit: number
+          sms_overage_rate: number | null
+          tier: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_limit: number
+          email_overage_rate?: number | null
+          includes_website?: boolean | null
+          price_annual?: number | null
+          price_monthly: number
+          sms_limit: number
+          sms_overage_rate?: number | null
+          tier: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email_limit?: number
+          email_overage_rate?: number | null
+          includes_website?: boolean | null
+          price_annual?: number | null
+          price_monthly?: number
+          sms_limit?: number
+          sms_overage_rate?: number | null
+          tier?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -7302,12 +7359,20 @@ export type Database = {
       bundle_channels: { Args: { j: Json }; Returns: string[] }
       bundle_first_media_url: { Args: { j: Json }; Returns: string }
       check_email_exists: { Args: { email_to_check: string }; Returns: boolean }
+      check_email_quota: {
+        Args: { p_recipient_count: number; p_tenant_id: string }
+        Returns: Json
+      }
       check_send_quota: {
         Args: {
           p_domain_id: string
           p_recipient_count: number
           p_tenant_id: string
         }
+        Returns: Json
+      }
+      check_sms_quota: {
+        Args: { p_recipient_count: number; p_tenant_id: string }
         Returns: Json
       }
       check_trial_expiration_emails: { Args: never; Returns: number }
@@ -7391,6 +7456,7 @@ export type Database = {
           tokens_reset_at: string
         }[]
       }
+      get_usage_stats: { Args: { p_user_id: string }; Returns: Json }
       get_user_image_analytics: {
         Args: never
         Returns: {

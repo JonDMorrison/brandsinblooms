@@ -49,6 +49,9 @@ verify_jwt = false
 [functions.analyze-website]
 verify_jwt = false
 
+[functions.usage-notifications]
+verify_jwt = false
+
 [functions.generate-company-profile]
 verify_jwt = false
 

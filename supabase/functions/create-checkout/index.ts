@@ -134,13 +134,28 @@ serve(async (req) => {
       });
     }
 
-    // Price mapping
+    // Price mapping - New BloomSuite tiers
+    // TODO: Replace these with actual Stripe Price IDs after creating products in Stripe
     const priceMapping = {
-      'sprout_monthly': 'price_1RbUP6DmtxsdhOlWBTpvxBaZ',
-      'sprout_annual': 'price_1RbUQNDmtxsdhOlWf2vCkehE',
-      'bloom_monthly': 'price_1RbUUUDmtxsdhOlWrjI1a1jC',
-      'bloom_annual': 'price_1RbUVODmtxsdhOlW7mrK3Q9y',
+      // New tier pricing
+      'seed_monthly': 'price_SEED_MONTHLY_ID',
+      'seed_annual': 'price_SEED_ANNUAL_ID',
+      'sprout_monthly': 'price_SPROUT_MONTHLY_ID',
+      'sprout_annual': 'price_SPROUT_ANNUAL_ID',
+      'bloom_monthly': 'price_BLOOM_MONTHLY_ID',
+      'bloom_annual': 'price_BLOOM_ANNUAL_ID',
+      'thrive_monthly': 'price_THRIVE_MONTHLY_ID',
+      'thrive_annual': 'price_THRIVE_ANNUAL_ID',
+      // Legacy pricing (keep for backwards compatibility)
       'bloomsuite_year': 'price_1S6VGuDmtxsdhOlWxO4LCYXU',
+    };
+
+    // Tier limits for setting quotas
+    const tierLimits = {
+      seed: { email_quota: 10000, sms_quota: 1000 },
+      sprout: { email_quota: 20000, sms_quota: 2000 },
+      bloom: { email_quota: 100000, sms_quota: 5000 },
+      thrive: { email_quota: -1, sms_quota: 50000 }, // -1 = unlimited
     };
 
     const priceKey = `${plan}_${billingInterval}` as keyof typeof priceMapping;

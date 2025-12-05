@@ -55,14 +55,32 @@ serve(async (req) => {
         const startDate = new Date(subscription.start_date * 1000).toISOString().split('T')[0];
         const endDate = new Date(subscription.current_period_end * 1000).toISOString().split('T')[0];
 
-        // Update subscription in database
+        // Tier limits mapping
+        const tierLimits: Record<string, { email_quota: number; sms_quota: number }> = {
+          seed: { email_quota: 10000, sms_quota: 1000 },
+          sprout: { email_quota: 20000, sms_quota: 2000 },
+          bloom: { email_quota: 100000, sms_quota: 5000 },
+          thrive: { email_quota: -1, sms_quota: 50000 }, // -1 = unlimited
+        };
+
+        const limits = tierLimits[plan] || tierLimits.seed;
+
+        // Update subscription in database with new tier system
         const { error } = await supabaseClient
           .from('subscriptions')
           .update({
             plan: plan as 'sprout' | 'bloom',
+            tier: plan, // Set the new tier field
             billing_interval: billingInterval as 'monthly' | 'annual',
             start_date: startDate,
             end_date: endDate,
+            email_quota: limits.email_quota,
+            sms_quota: limits.sms_quota,
+            email_usage: 0, // Reset usage on new subscription
+            sms_usage: 0,
+            overage_emails_this_month: 0,
+            overage_sms_this_month: 0,
+            is_founding_customer: true, // Launch program customers are founding customers
             updated_at: new Date().toISOString()
           })
           .eq('user_id', userId);
@@ -70,7 +88,7 @@ serve(async (req) => {
         if (error) {
           logStep("Error updating subscription after checkout", { error, userId });
         } else {
-          logStep("Successfully updated subscription after checkout", { userId, plan, billingInterval });
+          logStep("Successfully updated subscription after checkout", { userId, plan, billingInterval, tier: plan, limits });
         }
         break;
       }
