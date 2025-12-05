@@ -44,13 +44,31 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
 
   const fieldOptions = [
     { value: 'skip', label: '-- Skip Column --' },
+    // Core contact fields
     { value: 'email', label: 'Email (Required)' },
     { value: 'first_name', label: 'First Name' },
     { value: 'last_name', label: 'Last Name' },
     { value: 'phone', label: 'Phone Number' },
+    // Marketing preferences  
+    { value: 'email_opt_in', label: 'Email Subscription (yes/no)' },
+    { value: 'sms_opt_in', label: 'SMS Opt-In (yes/no)' },
+    // Customer data
+    { value: 'date_of_birth', label: 'Birthday' },
+    { value: 'lifetime_value', label: 'Lifetime Spend' },
+    { value: 'first_purchase_date', label: 'First Visit/Purchase Date' },
+    { value: 'last_purchase_date', label: 'Last Visit/Purchase Date' },
+    // Company & Address
+    { value: 'company_name', label: 'Company Name' },
+    { value: 'address_line1', label: 'Street Address 1' },
+    { value: 'address_line2', label: 'Street Address 2' },
+    { value: 'city', label: 'City' },
+    { value: 'state', label: 'State' },
+    { value: 'postal_code', label: 'Postal Code' },
+    // Other
+    { value: 'notes', label: 'Notes/Memo' },
+    { value: 'external_id', label: 'Reference ID' },
     { value: 'tags', label: 'Tags (comma-separated)' },
     { value: 'persona', label: 'Persona' },
-    { value: 'sms_opt_in', label: 'SMS Opt-In (yes/no)' }
   ];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -240,6 +258,22 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
           return;
         }
         
+        const parseOptIn = (val: string): boolean => {
+          return ['true', '1', 'yes', 'y', 'subscribed', 'opted-in', 'opted_in'].includes(val.toLowerCase());
+        };
+        
+        const parseDate = (val: string): string | null => {
+          if (!val) return null;
+          const parsed = new Date(val);
+          return isNaN(parsed.getTime()) ? null : parsed.toISOString().split('T')[0];
+        };
+        
+        const parseNumber = (val: string): number | null => {
+          const cleaned = val.replace(/[$,]/g, '');
+          const num = parseFloat(cleaned);
+          return isNaN(num) ? null : num;
+        };
+
         switch (mapping.databaseField) {
           case 'email':
             customer.email = value.toLowerCase();
@@ -260,7 +294,54 @@ export const EnhancedSegmentImportDialog: React.FC<EnhancedSegmentImportDialogPr
             customer.persona = value;
             break;
           case 'sms_opt_in':
-            customer.sms_opt_in = ['true', '1', 'yes', 'y'].includes(value.toLowerCase());
+            customer.sms_opt_in = parseOptIn(value);
+            break;
+          case 'email_opt_in':
+            customer.email_opt_in = parseOptIn(value);
+            if (customer.email_opt_in) {
+              customer.email_opt_in_at = new Date().toISOString();
+              customer.email_consent_method = 'csv_import_subscribed';
+            }
+            break;
+          case 'date_of_birth':
+            const dob = parseDate(value);
+            if (dob) customer.custom_fields.date_of_birth = dob;
+            break;
+          case 'lifetime_value':
+            const ltv = parseNumber(value);
+            if (ltv !== null) customer.lifetime_value = ltv;
+            break;
+          case 'first_purchase_date':
+            const fpd = parseDate(value);
+            if (fpd) customer.first_purchase_date = fpd;
+            break;
+          case 'last_purchase_date':
+            const lpd = parseDate(value);
+            if (lpd) customer.last_purchase_date = lpd;
+            break;
+          case 'company_name':
+            customer.custom_fields.company_name = value;
+            break;
+          case 'address_line1':
+            customer.custom_fields.address_line1 = value;
+            break;
+          case 'address_line2':
+            customer.custom_fields.address_line2 = value;
+            break;
+          case 'city':
+            customer.custom_fields.city = value;
+            break;
+          case 'state':
+            customer.custom_fields.state = value;
+            break;
+          case 'postal_code':
+            customer.custom_fields.postal_code = value;
+            break;
+          case 'notes':
+            customer.custom_fields.notes = value;
+            break;
+          case 'external_id':
+            customer.custom_fields.external_id = value;
             break;
         }
       });

@@ -32,12 +32,37 @@ serve(async (req) => {
 You have access to the following database fields:
 - email: Email address (CRITICAL - this field is required for import)
 - first_name: Customer's first name
-- last_name: Customer's last name
+- last_name: Customer's last name  
 - phone: Phone number (any format)
+- email_opt_in: Email subscription status (subscribed/unsubscribed, yes/no, true/false) - IMPORTANT: Map "Email Subscription Status" to this field
+- sms_opt_in: SMS marketing consent (yes/no, true/false, 1/0)
+- date_of_birth: Birthday (any date format like MM/DD/YYYY, YYYY-MM-DD)
+- lifetime_value: Lifetime spend/value (currency amounts like $500.00 or 500)
+- first_purchase_date: First visit or purchase date
+- last_purchase_date: Last visit or purchase date
+- company_name: Company or business name
+- address_line1: Street address line 1
+- address_line2: Street address line 2 (apt, suite, etc.)
+- city: City name
+- state: State/province
+- postal_code: ZIP or postal code
+- notes: Notes, memo, or comments
+- external_id: Reference ID, customer ID from external system
 - tags: Comma-separated tags or categories
 - persona: Customer persona/type (e.g., "VIP", "Regular", "New")
-- sms_opt_in: SMS marketing consent (yes/no, true/false, 1/0)
 - skip: Don't import this column
+
+Common CSV Column Names to Field Mappings:
+- "Email Subscription Status" -> email_opt_in
+- "Birthday" -> date_of_birth
+- "Lifetime Spend" -> lifetime_value
+- "First Visit" -> first_purchase_date
+- "Last Visit" -> last_purchase_date
+- "Reference ID" -> external_id
+- "Memo" -> notes
+- "Nickname" -> skip (or first_name if no first_name column)
+- "Creation Source" -> skip
+- "Transaction Count" -> skip
 
 Rules for Column Naming:
 1. If the first row appears to be a header row, use it (cleaned up)
@@ -48,9 +73,10 @@ Rules for Column Naming:
 Rules for Field Mapping:
 1. Email detection is CRITICAL - be aggressive in detecting email columns
 2. Look for email patterns in data if headers are unclear
-3. Use 'skip' for columns that don't match any database field
-4. Provide 'low' confidence when unsure rather than forcing a mapping
-5. Use reasoning to explain your decisions
+3. Map "Email Subscription Status" to email_opt_in, NOT sms_opt_in
+4. Use 'skip' for columns that don't match any database field
+5. Provide 'low' confidence when unsure rather than forcing a mapping
+6. Use reasoning to explain your decisions
 
 Rules for Data Consistency:
 1. Check if all rows have the same number of columns
@@ -123,7 +149,7 @@ Remember: Always include the column number in parentheses if there's any uncerta
                       },
                       suggestedField: {
                         type: 'string',
-                        enum: ['email', 'first_name', 'last_name', 'phone', 'tags', 'persona', 'sms_opt_in', 'skip'],
+                        enum: ['email', 'first_name', 'last_name', 'phone', 'email_opt_in', 'sms_opt_in', 'date_of_birth', 'lifetime_value', 'first_purchase_date', 'last_purchase_date', 'company_name', 'address_line1', 'address_line2', 'city', 'state', 'postal_code', 'notes', 'external_id', 'tags', 'persona', 'skip'],
                         description: 'Database field to map this column to'
                       },
                       confidence: {
