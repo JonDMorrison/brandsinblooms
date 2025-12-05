@@ -39,6 +39,7 @@ export interface ImportResult {
   imported: number;
   failed: number;
   skipped: number;
+  duplicatesMerged?: number;
   errors: string[];
 }
 
