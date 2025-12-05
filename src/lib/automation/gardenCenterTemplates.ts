@@ -45,7 +45,7 @@ export const gardenCenterTemplates: GardenCenterTemplate[] = [
         { id: 'trigger-1', type: 'trigger', position: { x: 100, y: 50 }, data: { triggerType: 'loyalty_join', label: 'New Customer Signs Up' } },
         { id: 'email-1', type: 'email', position: { x: 100, y: 200 }, data: { 
           subject: 'Welcome to Your Plant Journey! 🌱', 
-          content: 'Hi {{first_name}}, Welcome to our garden center family! We\'re here to help you grow beautiful plants and create the garden of your dreams. Get started with our beginner\'s plant care guide.' 
+          content: 'Hi {{ first_name | default: "Friend" }}, Welcome to our garden center family! We\'re here to help you grow beautiful plants and create the garden of your dreams. Get started with our beginner\'s plant care guide.' 
         }},
         { id: 'delay-1', type: 'delay', position: { x: 100, y: 350 }, data: { delayValue: 3, delayUnit: 'days' } },
         { id: 'email-2', type: 'email', position: { x: 100, y: 500 }, data: { 
@@ -230,7 +230,7 @@ export const gardenCenterTemplates: GardenCenterTemplate[] = [
         { id: 'trigger-1', type: 'trigger', position: { x: 200, y: 50 }, data: { triggerType: 'repeat_purchase_90d', label: '90 Days No Purchase' } },
         { id: 'email-1', type: 'email', position: { x: 200, y: 200 }, data: { 
           subject: 'We Miss You! What\'s Growing in Your Garden? 🌿', 
-          content: 'Hi {{first_name}}, It\'s been a while since we\'ve seen you! How are your plants doing? We\'d love to help with your next garden project.' 
+          content: 'Hi {{ first_name | default: "Friend" }}, It\'s been a while since we\'ve seen you! How are your plants doing? We\'d love to help with your next garden project.' 
         }},
         { id: 'delay-1', type: 'delay', position: { x: 200, y: 350 }, data: { delayValue: 7, delayUnit: 'days' } },
         { id: 'split-1', type: 'split', position: { x: 200, y: 500 }, data: { condition: 'email_opened', label: 'Opened Email?' } },
