@@ -85,8 +85,11 @@ serve(async (req) => {
     }
 
     // Get customers based on campaign audience targeting
+    // CRITICAL: Only include customers who have explicitly opted in (email_opt_in = true)
     let customers = [];
     let customersError = null;
+    let totalInSegment = 0;
+    let excludedCount = 0;
 
     // Check if campaign has a single segment_id or multiple segments via campaign_segments
     if (campaign.segment_id) {
@@ -95,7 +98,7 @@ serve(async (req) => {
         .from('customer_segments')
         .select(`
           crm_customers (
-            id, first_name, last_name, email
+            id, first_name, last_name, email, email_opt_in
           )
         `)
         .eq('segment_id', campaign.segment_id);
@@ -103,9 +106,16 @@ serve(async (req) => {
       if (error) {
         customersError = error;
       } else {
-        customers = segmentCustomers
+        const allCustomers = segmentCustomers
           ?.map(sc => sc.crm_customers)
           .filter(c => c && c.email && c.email.trim() !== '') || [];
+        
+        totalInSegment = allCustomers.length;
+        // ENFORCE: Only opted-in customers (email_opt_in === true)
+        customers = allCustomers.filter(c => c.email_opt_in === true);
+        excludedCount = totalInSegment - customers.length;
+        
+        console.log(`Email consent filtering: ${totalInSegment} total, ${customers.length} opted-in, ${excludedCount} excluded`);
       }
     } else {
       console.log(`Checking for multiple segment targeting...`);
@@ -123,7 +133,7 @@ serve(async (req) => {
           .from('customer_segments')
           .select(`
             crm_customers (
-              id, first_name, last_name, email
+              id, first_name, last_name, email, email_opt_in
             )
           `)
           .in('segment_id', campaignSegments.map(cs => cs.segment_id));
@@ -138,7 +148,13 @@ serve(async (req) => {
               customerMap.set(customer.email, customer);
             }
           });
-          customers = Array.from(customerMap.values());
+          const allCustomers = Array.from(customerMap.values());
+          totalInSegment = allCustomers.length;
+          // ENFORCE: Only opted-in customers (email_opt_in === true)
+          customers = allCustomers.filter(c => c.email_opt_in === true);
+          excludedCount = totalInSegment - customers.length;
+          
+          console.log(`Email consent filtering: ${totalInSegment} total, ${customers.length} opted-in, ${excludedCount} excluded`);
         }
       } else {
         return new Response(

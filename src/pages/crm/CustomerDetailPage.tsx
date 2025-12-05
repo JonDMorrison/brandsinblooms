@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CustomerPersonaSelector } from '@/components/crm/CustomerPersonaSelector';
 import { CustomerSegmentSelector } from '@/components/crm/CustomerSegmentSelector';
 import { CustomFieldsManager } from '@/components/crm/CustomFieldsManager';
+import { CustomerConsentHistory } from '@/components/crm/CustomerConsentHistory';
 import { Mail, Phone, Calendar, DollarSign, Save, User, ArrowLeft, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -26,6 +27,7 @@ interface Customer {
   total_spent?: number;
   last_purchase_date?: string;
   sms_opt_in?: boolean;
+  email_opt_in?: boolean | null;
   created_at: string;
   updated_at: string;
   custom_fields?: Record<string, any>;
@@ -374,6 +376,17 @@ export const CustomerDetailPage: React.FC = () => {
           <CustomerSegmentSelector customerId={customer.id} />
         </CardContent>
       </Card>
+
+      {/* Email Consent Section */}
+      <CustomerConsentHistory 
+        customer={{
+          id: customer.id,
+          email: customer.email,
+          email_opt_in: customer.email_opt_in ?? null,
+          tenant_id: null
+        }}
+        onConsentUpdated={fetchCustomer}
+      />
 
       {/* Custom Fields Section */}
       <CustomFieldsManager

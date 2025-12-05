@@ -84,6 +84,7 @@ import TicketDetailPage from '@/pages/TicketDetailPage';
 import SeedDemoCustomers from '@/pages/SeedDemoCustomers';
 import EmailSendingSettings from '@/pages/crm/EmailSendingSettings';
 import UsagePage from '@/pages/UsagePage';
+import EmailPreferences from '@/pages/EmailPreferences';
 
 
 function App() {
@@ -129,6 +130,7 @@ function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/features" element={<FeaturesPage />} />
           <Route path="/home1" element={<Home1Page />} />
+          <Route path="/email-preferences" element={<EmailPreferences />} />
           <Route path="/" element={<SmartRootRoute />} />
           
           {/* Protected routes with sidebar */}

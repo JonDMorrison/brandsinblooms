@@ -44,6 +44,7 @@ import { TestEmailModal } from './TestEmailModal';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { SenderStatusIndicator } from '../campaigns/SenderStatusIndicator';
 import { SharedSenderConfirmationModal } from '../campaigns/SharedSenderConfirmationModal';
+import { SegmentConsentWarning } from '../SegmentConsentWarning';
 
 interface Segment {
   id: string;
@@ -527,6 +528,11 @@ export const EmailCampaignComposer: React.FC = () => {
                       Will reach {selectedSegment.customer_count} customers
                     </span>
                   </div>
+                )}
+                
+                {/* Email Consent Warning */}
+                {campaignData.segment_id && (
+                  <SegmentConsentWarning segmentId={campaignData.segment_id} />
                 )}
               </div>
 
