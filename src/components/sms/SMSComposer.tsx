@@ -1,13 +1,12 @@
-import React, { useState, useCallback } from 'react'
+import React, { useCallback, useRef } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Card, CardContent } from '@/components/ui/card'
-import { ImageIcon, UserIcon, PhoneIcon, MessageSquareIcon } from 'lucide-react'
+import { ImageIcon } from 'lucide-react'
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage'
 import { MultiImageUpload } from './MultiImageUpload'
 import { CarrierStatus } from './CarrierStatus'
+import { MergeTagPicker } from '@/components/shared/MergeTagPicker'
 
 interface SMSComposerProps {
   value: string
@@ -27,13 +26,6 @@ interface SMSComposerProps {
   className?: string
 }
 
-const MERGE_TAGS = [
-  { tag: '{{first_name}}', label: 'First Name', icon: UserIcon },
-  { tag: '{{last_name}}', label: 'Last Name', icon: UserIcon },
-  { tag: '{{phone}}', label: 'Phone', icon: PhoneIcon },
-  { tag: '{{email}}', label: 'Email', icon: MessageSquareIcon },
-]
-
 export function SMSComposer({
   value,
   onChange,
@@ -51,25 +43,28 @@ export function SMSComposer({
   testPhoneNumber,
   className = ""
 }: SMSComposerProps) {
-  const [showMergeTagMenu, setShowMergeTagMenu] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const characterCount = value.length
   const isOverLimit = characterCount > maxLength
   const isNearLimit = characterCount > maxLength * 0.8
   const segmentCount = Math.ceil(characterCount / 160) || 1
 
-  const insertMergeTag = useCallback((tag: string) => {
-    const textarea = document.querySelector('textarea[data-sms-composer="true"]') as HTMLTextAreaElement
-    if (!textarea) return
+  const handleInsertTag = useCallback((tag: string) => {
+    const textarea = textareaRef.current
+    if (!textarea) {
+      // Fallback: append to end
+      onChange(value + tag)
+      return
+    }
 
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
     const newValue = value.substring(0, start) + tag + value.substring(end)
     
     onChange(newValue)
-    setShowMergeTagMenu(false)
 
-    // Restore cursor position
+    // Restore cursor position after the inserted tag
     setTimeout(() => {
       textarea.focus()
       textarea.setSelectionRange(start + tag.length, start + tag.length)
@@ -81,6 +76,7 @@ export function SMSComposer({
       {/* SMS Input */}
       <div className="relative">
         <Textarea
+          ref={textareaRef}
           data-sms-composer="true"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -107,39 +103,11 @@ export function SMSComposer({
 
       {/* Merge Tags */}
       {showMergeTags && (
-        <div className="relative">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowMergeTagMenu(!showMergeTagMenu)}
-            className="h-8"
-          >
-            <UserIcon className="h-3 w-3 mr-1" />
-            Insert Merge Tag
-          </Button>
-
-          {showMergeTagMenu && (
-            <Card className="absolute top-10 left-0 z-50 w-48 shadow-lg">
-              <CardContent className="p-2">
-                <div className="space-y-1">
-                  {MERGE_TAGS.map((mergeTag) => (
-                    <Button
-                      key={mergeTag.tag}
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start h-8"
-                      onClick={() => insertMergeTag(mergeTag.tag)}
-                    >
-                      <mergeTag.icon className="h-3 w-3 mr-2" />
-                      {mergeTag.label}
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        <MergeTagPicker
+          onSelectTag={handleInsertTag}
+          size="sm"
+          excludeCategories={['system']} // SMS doesn't need unsubscribe links etc.
+        />
       )}
 
       {/* Image Upload */}
