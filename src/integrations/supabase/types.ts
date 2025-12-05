@@ -1914,6 +1914,133 @@ export type Database = {
           },
         ]
       }
+      crm_email_consent_events: {
+        Row: {
+          created_at: string
+          customer_id: string
+          email: string
+          event_type: string
+          id: string
+          ip_address: string | null
+          source: string
+          tenant_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          email: string
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          source: string
+          tenant_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          email?: string
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          source?: string
+          tenant_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_email_consent_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_email_consent_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_email_consent_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "crm_email_consent_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_email_preference_tokens: {
+        Row: {
+          created_at: string
+          customer_id: string
+          email: string
+          expires_at: string
+          id: string
+          purpose: string
+          tenant_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          email: string
+          expires_at: string
+          id?: string
+          purpose?: string
+          tenant_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          purpose?: string
+          tenant_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_email_preference_tokens_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_email_preference_tokens_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_email_preference_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "crm_email_preference_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_email_sends: {
         Row: {
           campaign_id: string | null
@@ -7442,6 +7569,15 @@ export type Database = {
           email: string
           suggested_keep_user_id: string
           suggestion_reason: string
+        }[]
+      }
+      get_email_consent_stats: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          opted_in_count: number
+          opted_out_count: number
+          total_customers: number
+          unknown_count: number
         }[]
       }
       get_next_message_sequence: {
