@@ -244,18 +244,17 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
   };
 
   const insertToken = (token: string) => {
-    // For now, just append the token to the message
-    // In the future, we could integrate with TipTap's editor commands for cursor positioning
     setMessage(prev => prev + token);
   };
 
   const generatePreviewHTML = () => {
+    // Use simple preview replacements for now
     const processedMessage = message
-      .replace(/{{first_name}}/g, 'John')
-      .replace(/{{last_name}}/g, 'Doe')
-      .replace(/{{email}}/g, 'john.doe@example.com')
-      .replace(/{{last_purchase_date}}/g, 'March 15, 2024')
-      .replace(/{{favorite_product}}/g, 'Premium Garden Set');
+      .replace(/\{\{\s*first_name\s*(?:\|[^}]*)?\}\}/g, 'Sarah')
+      .replace(/\{\{\s*last_name\s*(?:\|[^}]*)?\}\}/g, 'Johnson')
+      .replace(/\{\{\s*email\s*(?:\|[^}]*)?\}\}/g, 'sarah@example.com')
+      .replace(/\{\{\s*last_purchase_date\s*(?:\|[^}]*)?\}\}/g, 'March 15, 2024')
+      .replace(/\{\{\s*[^}]+\}\}/g, ''); // Remove any remaining tags
 
     return `
       <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">

@@ -9,10 +9,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Smartphone, User, Building } from 'lucide-react';
+import { Monitor, Smartphone, User } from 'lucide-react';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
-import { processEmailTokens, getDefaultTokenData, type TokenData } from '@/utils/emailTokenProcessor';
+import { renderMergeTags, createPreviewData, type MergeTagData } from '@/lib/mergeTagEngine';
 import { SafeHtml } from '@/components/ui/safe-html';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -41,39 +41,52 @@ export const MergeTagsPreviewDialog: React.FC<MergeTagsPreviewDialogProps> = ({
   const { personas } = useAllPersonas();
 
   // Get merge data based on selection
-  const mergeData = useMemo(() => {
+  const mergeData = useMemo((): MergeTagData => {
     if (selectedCustomerId === 'sample') {
-      // Use sample data
-      return getDefaultTokenData({
+      // Use sample preview data
+      return createPreviewData({
         name: 'Your Garden Center',
         address: '123 Garden Way, Green Valley, CA 90210',
         phone: '(555) 123-GROW',
-        emailDomain: 'yourgardencenter.com'
+        email: 'hello@yourgardencenter.com'
       });
     }
 
     // Find selected customer
     const customer = customers?.find(c => c.id === selectedCustomerId);
-    if (!customer) return getDefaultTokenData();
+    if (!customer) return createPreviewData();
 
+    // Access fields safely - the Customer type may not have all these
+    const customerRecord = customer as unknown as Record<string, unknown>;
+    
     return {
-      customerName: customer.first_name || 'Valued Customer',
-      customerEmail: customer.email,
-      companyName: 'Your Garden Center',
-      companyAddress: '123 Garden Way, Green Valley, CA 90210',
-      companyPhone: '(555) 123-GROW',
-      companyEmail: 'hello@yourgardencenter.com',
-      unsubscribeUrl: `https://bloomsuite.app/unsubscribe/${customer.id}`,
-      managePreferencesUrl: `https://bloomsuite.app/preferences/${customer.id}`,
-    } as TokenData;
+      first_name: customer.first_name || undefined,
+      last_name: customer.last_name || undefined,
+      email: customer.email,
+      phone: customer.phone || undefined,
+      lifetime_value: (customerRecord.lifetime_value as number) || undefined,
+      first_purchase_date: (customerRecord.first_purchase_date as string) || undefined,
+      last_purchase_date: customer.last_purchase_date || undefined,
+      custom: ((customerRecord.custom_fields as Record<string, unknown>) || {}),
+      company: {
+        name: 'Your Garden Center',
+        address: '123 Garden Way, Green Valley, CA 90210',
+        phone: '(555) 123-GROW',
+        email: 'hello@yourgardencenter.com',
+      },
+      system: {
+        unsubscribe_url: `https://bloomsuite.app/unsubscribe/${customer.id}`,
+        preferences_url: `https://bloomsuite.app/preferences/${customer.id}`,
+      },
+    };
   }, [selectedCustomerId, customers]);
 
-  // Process content with merge tags
+  // Process content with merge tags using the new engine
   const processedContent = useMemo(() => {
     return {
-      subject: processEmailTokens(emailContent.subject || '', mergeData),
-      preheader: processEmailTokens(emailContent.preheader || '', mergeData),
-      body: processEmailTokens(emailContent.body || '', mergeData)
+      subject: renderMergeTags(emailContent.subject || '', mergeData),
+      preheader: renderMergeTags(emailContent.preheader || '', mergeData),
+      body: renderMergeTags(emailContent.body || '', mergeData)
     };
   }, [emailContent, mergeData]);
 
@@ -203,7 +216,7 @@ export const MergeTagsPreviewDialog: React.FC<MergeTagsPreviewDialogProps> = ({
                       <span className="font-medium">From:</span> Your Garden Center &lt;hello@yourgardencenter.com&gt;
                     </div>
                     <div>
-                      <span className="font-medium">To:</span> {mergeData.customerEmail}
+                      <span className="font-medium">To:</span> {mergeData.email || 'customer@example.com'}
                     </div>
                     <div>
                       <span className="font-medium">Subject:</span> {processedContent.subject}
@@ -228,14 +241,14 @@ export const MergeTagsPreviewDialog: React.FC<MergeTagsPreviewDialogProps> = ({
                     {/* Footer */}
                     <div className="border-t pt-4 mt-8 text-xs text-muted-foreground space-y-1">
                       <p>
-                        You're receiving this email from {mergeData.companyName} because you signed up for updates.
+                        You're receiving this email from {mergeData.company?.name || 'Your Garden Center'} because you signed up for updates.
                       </p>
                       <p>
-                        <a href={mergeData.unsubscribeUrl} className="underline">Unsubscribe</a> |{' '}
-                        <a href={mergeData.managePreferencesUrl} className="underline">Manage Preferences</a>
+                        <a href={mergeData.system?.unsubscribe_url || '#'} className="underline">Unsubscribe</a> |{' '}
+                        <a href={mergeData.system?.preferences_url || '#'} className="underline">Manage Preferences</a>
                       </p>
                       <p>
-                        {mergeData.companyName} | {mergeData.companyAddress}
+                        {mergeData.company?.name || 'Your Garden Center'} | {mergeData.company?.address || ''}
                       </p>
                     </div>
                   </div>

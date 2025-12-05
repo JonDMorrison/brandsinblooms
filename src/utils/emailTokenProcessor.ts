@@ -1,3 +1,13 @@
+/**
+ * Email Token Processor (Legacy Compatibility Layer)
+ * 
+ * This file provides backward compatibility for older code using the legacy token system.
+ * New code should use the unified merge tag engine from @/lib/mergeTagEngine
+ */
+
+import { renderMergeTags, createPreviewData, type MergeTagData } from '@/lib/mergeTagEngine';
+import { convertLegacyTags } from '@/lib/mergeTagCompatibility';
+
 export interface TokenData {
   companyName?: string;
   companyAddress?: string;
@@ -9,55 +19,46 @@ export interface TokenData {
   customerEmail?: string;
 }
 
+/**
+ * Convert legacy TokenData to the new MergeTagData format
+ */
+function convertToMergeTagData(tokenData: TokenData): MergeTagData {
+  return {
+    first_name: tokenData.customerName?.split(' ')[0],
+    last_name: tokenData.customerName?.split(' ').slice(1).join(' '),
+    email: tokenData.customerEmail,
+    company: {
+      name: tokenData.companyName,
+      address: tokenData.companyAddress,
+      phone: tokenData.companyPhone,
+      email: tokenData.companyEmail,
+    },
+    system: {
+      unsubscribe_url: tokenData.unsubscribeUrl,
+      preferences_url: tokenData.managePreferencesUrl,
+    },
+  };
+}
+
+/**
+ * Process email tokens (legacy function - delegates to new engine)
+ * @deprecated Use renderMergeTags from @/lib/mergeTagEngine instead
+ */
 export const processEmailTokens = (content: string, tokenData: TokenData): string => {
-  let processedContent = content;
-
-  // Company tokens
-  if (tokenData.companyName) {
-    processedContent = processedContent.replace(/\{\{company\.name\}\}/g, tokenData.companyName);
-    processedContent = processedContent.replace(/\{\{company_name\}\}/g, tokenData.companyName);
-  }
-
-  if (tokenData.companyAddress) {
-    processedContent = processedContent.replace(/\{\{company\.address\}\}/g, tokenData.companyAddress);
-    processedContent = processedContent.replace(/\{\{company_address\}\}/g, tokenData.companyAddress);
-  }
-
-  if (tokenData.companyPhone) {
-    processedContent = processedContent.replace(/\{\{company\.phone\}\}/g, tokenData.companyPhone);
-    processedContent = processedContent.replace(/\{\{company_phone\}\}/g, tokenData.companyPhone);
-  }
-
-  if (tokenData.companyEmail) {
-    processedContent = processedContent.replace(/\{\{company\.email\}\}/g, tokenData.companyEmail);
-    processedContent = processedContent.replace(/\{\{company_email\}\}/g, tokenData.companyEmail);
-  }
-
-  // Unsubscribe and preference tokens
-  if (tokenData.unsubscribeUrl) {
-    processedContent = processedContent.replace(/\{\{unsubscribe_url\}\}/g, tokenData.unsubscribeUrl);
-    processedContent = processedContent.replace(/\{\{unsubscribe\.url\}\}/g, tokenData.unsubscribeUrl);
-  }
-
-  if (tokenData.managePreferencesUrl) {
-    processedContent = processedContent.replace(/\{\{manage_preferences_url\}\}/g, tokenData.managePreferencesUrl);
-    processedContent = processedContent.replace(/\{\{preferences\.url\}\}/g, tokenData.managePreferencesUrl);
-  }
-
-  // Customer tokens
-  if (tokenData.customerName) {
-    processedContent = processedContent.replace(/\{\{customer\.name\}\}/g, tokenData.customerName);
-    processedContent = processedContent.replace(/\{\{customer_name\}\}/g, tokenData.customerName);
-  }
-
-  if (tokenData.customerEmail) {
-    processedContent = processedContent.replace(/\{\{customer\.email\}\}/g, tokenData.customerEmail);
-    processedContent = processedContent.replace(/\{\{customer_email\}\}/g, tokenData.customerEmail);
-  }
-
-  return processedContent;
+  // First convert any legacy tag syntax to modern syntax
+  const normalizedContent = convertLegacyTags(content);
+  
+  // Convert legacy TokenData to new format
+  const mergeData = convertToMergeTagData(tokenData);
+  
+  // Use the new engine
+  return renderMergeTags(normalizedContent, mergeData);
 };
 
+/**
+ * Get default token data (legacy function)
+ * @deprecated Use createPreviewData from @/lib/mergeTagEngine instead
+ */
 export const getDefaultTokenData = (companyInfo?: any): TokenData => {
   return {
     companyName: companyInfo?.name || 'Your Company',
