@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, traceparent, tracestate",
 };
 
 interface AnalyzeRequest {
@@ -40,12 +40,30 @@ Our database fields:
 - tags: Comma-separated tags/categories
 - persona: Customer persona (newbie, struggler, regular, expert)
 - sms_opt_in: Whether customer opted into SMS (true/false)
+- email_opt_in: Whether customer opted into email marketing (true/false) - use for "Email Subscription Status", "Subscribed", etc.
+- date_of_birth: Customer birthday/date of birth (for birthday campaigns)
+- first_purchase_date: Date of first purchase/visit
+- last_purchase_date: Date of last purchase/visit
+- lifetime_value: Total lifetime spend amount
+- company_name: Business/company name
+- address_line1: Street address line 1
+- address_line2: Street address line 2 (apt, suite, etc.)
+- city: City name
+- state: State/province
+- postal_code: ZIP/postal code
+- notes: Memo, notes, or comments
+- external_id: External system ID (Square Customer ID, Shopify ID, etc.)
+- skip: Column should be skipped/not imported
 
 For each CSV header, suggest which database field it should map to. Consider:
-- Similar names (e.g., "Email Address" → email)
-- Common variations (e.g., "Cell Phone" → phone)
-- Content patterns from sample data
-- If no good match exists, return null
+- Similar names (e.g., "Email Address" → email, "First Name" → first_name)
+- Common variations (e.g., "Cell Phone" → phone, "Birthday" → date_of_birth)
+- Square-specific columns (e.g., "Square Customer ID" → external_id, "Lifetime Spend" → lifetime_value)
+- Subscription status (e.g., "Email Subscription Status" → email_opt_in, "Subscribed" → email_opt_in)
+- Visit dates (e.g., "First Visit" → first_purchase_date, "Last Visit" → last_purchase_date)
+- Address components should map to individual fields
+- Transaction counts and similar metadata → skip
+- Creation Source and similar system metadata → skip
 
 Return your analysis as a mapping object.`;
 
@@ -60,7 +78,7 @@ Return your analysis as a mapping object.`;
         messages: [
           { 
             role: "system", 
-            content: "You are a data mapping expert. Analyze CSV headers and suggest optimal field mappings." 
+            content: "You are a data mapping expert. Analyze CSV headers and suggest optimal field mappings. Pay special attention to email subscription status fields which should map to email_opt_in (not sms_opt_in)." 
           },
           { role: "user", content: prompt }
         ],
@@ -80,8 +98,14 @@ Return your analysis as a mapping object.`;
                       csvHeader: { type: "string", description: "Original CSV column name" },
                       databaseField: { 
                         type: "string", 
-                        enum: ["first_name", "last_name", "email", "phone", "tags", "persona", "sms_opt_in"],
-                        description: "Target database field, or null if no good match"
+                        enum: [
+                          "first_name", "last_name", "email", "phone", "tags", "persona",
+                          "sms_opt_in", "email_opt_in", "date_of_birth", 
+                          "first_purchase_date", "last_purchase_date", "lifetime_value",
+                          "company_name", "address_line1", "address_line2", 
+                          "city", "state", "postal_code", "notes", "external_id", "skip"
+                        ],
+                        description: "Target database field"
                       },
                       confidence: { 
                         type: "string", 
@@ -142,7 +166,7 @@ Return your analysis as a mapping object.`;
     const suggestions: Record<string, { confidence: string; reasoning: string }> = {};
     
     mappings.mappings.forEach((m: any) => {
-      if (m.databaseField && m.databaseField !== 'null') {
+      if (m.databaseField && m.databaseField !== 'null' && m.databaseField !== 'skip') {
         columnMapping[m.databaseField] = m.csvHeader;
         suggestions[m.databaseField] = {
           confidence: m.confidence,
