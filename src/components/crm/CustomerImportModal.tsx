@@ -54,13 +54,31 @@ interface ImportResult {
 }
 
 const expectedColumns = [
+  // Core contact fields
   { key: 'first_name', label: 'First Name', required: false },
   { key: 'last_name', label: 'Last Name', required: false },
   { key: 'email', label: 'Email', required: false },
   { key: 'phone', label: 'Phone', required: false },
+  // Marketing preferences
+  { key: 'email_opt_in', label: 'Email Subscription (true/false)', required: false },
+  { key: 'sms_opt_in', label: 'SMS Opt-in (true/false)', required: false },
+  // Customer data
+  { key: 'date_of_birth', label: 'Birthday', required: false },
+  { key: 'lifetime_value', label: 'Lifetime Spend', required: false },
+  { key: 'first_purchase_date', label: 'First Purchase Date', required: false },
+  { key: 'last_purchase_date', label: 'Last Purchase Date', required: false },
+  // Address fields
+  { key: 'company_name', label: 'Company Name', required: false },
+  { key: 'address_line1', label: 'Street Address 1', required: false },
+  { key: 'address_line2', label: 'Street Address 2', required: false },
+  { key: 'city', label: 'City', required: false },
+  { key: 'state', label: 'State', required: false },
+  { key: 'postal_code', label: 'Postal Code', required: false },
+  // Other
+  { key: 'notes', label: 'Notes/Memo', required: false },
+  { key: 'external_id', label: 'External ID', required: false },
   { key: 'tags', label: 'Tags (comma separated)', required: false },
   { key: 'persona', label: 'Persona', required: false },
-  { key: 'sms_opt_in', label: 'SMS Opt-in (true/false)', required: false },
 ];
 
 const validPersonas = ['newbie', 'struggler', 'regular', 'expert'];
@@ -365,19 +383,75 @@ export const CustomerImportModal = () => {
           continue;
         }
         
-        const customersData = batch.map(row => ({
-          email: row.email || `placeholder-${Date.now()}-${Math.random()}@example.com`,
-          first_name: row.first_name || null,
-          last_name: row.last_name || null,
-          phone: row.phone || null,
-          persona: row.persona || null,
-          tags: row.tags ? row.tags.split(',') : null,
-          sms_opt_in: row.sms_opt_in === 'true',
-          sms_opt_in_at: row.sms_opt_in === 'true' ? new Date().toISOString() : null,
-          pos_source: 'manual_import',
-          tenant_id: userData?.tenant_id,
-          user_id: user.id
-        }));
+        // Parse email opt-in status from various formats
+        const parseOptIn = (value: string | undefined): boolean => {
+          if (!value) return false;
+          const normalized = value.toLowerCase().trim();
+          return ['true', 'yes', '1', 'subscribed', 'opted-in', 'opted in'].includes(normalized);
+        };
+
+        // Parse date strings (various formats)
+        const parseDate = (value: string | undefined): string | null => {
+          if (!value) return null;
+          try {
+            const date = new Date(value);
+            return isNaN(date.getTime()) ? null : date.toISOString();
+          } catch {
+            return null;
+          }
+        };
+
+        // Parse numeric values
+        const parseNumber = (value: string | undefined): number | null => {
+          if (!value) return null;
+          const num = parseFloat(value.replace(/[^0-9.-]/g, ''));
+          return isNaN(num) ? null : num;
+        };
+
+        const customersData = batch.map(row => {
+          // Build custom_fields object for address and other data
+          const customFields: Record<string, any> = {};
+          
+          if (row.company_name) customFields['Company Name'] = row.company_name;
+          if (row.address_line1) customFields['Street Address 1'] = row.address_line1;
+          if (row.address_line2) customFields['Street Address 2'] = row.address_line2;
+          if (row.city) customFields['City'] = row.city;
+          if (row.state) customFields['State'] = row.state;
+          if (row.postal_code) customFields['Postal Code'] = row.postal_code;
+          if (row.notes) customFields['Notes'] = row.notes;
+          if (row.external_id) customFields['External ID'] = row.external_id;
+
+          return {
+            email: row.email || `placeholder-${Date.now()}-${Math.random()}@example.com`,
+            first_name: row.first_name || null,
+            last_name: row.last_name || null,
+            phone: row.phone || null,
+            persona: row.persona || null,
+            tags: row.tags ? row.tags.split(',') : null,
+            // Marketing preferences
+            email_opt_in: parseOptIn(row.email_opt_in),
+            email_opt_in_at: parseOptIn(row.email_opt_in) ? new Date().toISOString() : null,
+            sms_opt_in: parseOptIn(row.sms_opt_in),
+            sms_opt_in_at: parseOptIn(row.sms_opt_in) ? new Date().toISOString() : null,
+            // Purchase data
+            first_purchase_date: parseDate(row.first_purchase_date),
+            last_purchase_date: parseDate(row.last_purchase_date),
+            lifetime_value: parseNumber(row.lifetime_value),
+            total_spent: parseNumber(row.lifetime_value),
+            // Birthday for automation
+            custom_fields: {
+              ...customFields,
+              date_of_birth: row.date_of_birth || null,
+            },
+            // Consent tracking
+            email_consent_source: 'csv_import',
+            email_consent_method: row.email_opt_in ? 'imported' : 'pending_confirmation',
+            // Metadata
+            pos_source: 'csv_import',
+            tenant_id: userData?.tenant_id,
+            user_id: user.id
+          };
+        });
         
         const { error } = await supabase
           .from('crm_customers')

@@ -5,7 +5,20 @@ export type DatabaseField =
   | 'phone' 
   | 'tags' 
   | 'persona' 
-  | 'sms_opt_in' 
+  | 'sms_opt_in'
+  | 'email_opt_in'
+  | 'date_of_birth'
+  | 'first_purchase_date'
+  | 'last_purchase_date'
+  | 'lifetime_value'
+  | 'company_name'
+  | 'address_line1'
+  | 'address_line2'
+  | 'city'
+  | 'state'
+  | 'postal_code'
+  | 'notes'
+  | 'external_id'
   | 'skip';
 
 export interface ColumnMapping {
