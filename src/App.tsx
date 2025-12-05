@@ -83,6 +83,7 @@ import CreateTicketPage from '@/pages/CreateTicketPage';
 import TicketDetailPage from '@/pages/TicketDetailPage';
 import SeedDemoCustomers from '@/pages/SeedDemoCustomers';
 import EmailSendingSettings from '@/pages/crm/EmailSendingSettings';
+import UsagePage from '@/pages/UsagePage';
 
 
 function App() {
@@ -344,6 +345,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <SettingsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/settings/usage" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <UsagePage />
               </SidebarLayout>
             </ProtectedRoute>
           } />

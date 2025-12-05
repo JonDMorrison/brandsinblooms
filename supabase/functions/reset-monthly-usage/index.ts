@@ -28,11 +28,16 @@ async function handler(req: Request): Promise<Response> {
     console.log('Starting monthly usage reset...');
 
     // Reset email and SMS usage for all subscriptions
+    // Also reset overage counters and usage alert timestamps
     const { data: updated, error } = await supabase
       .from('subscriptions')
       .update({ 
         email_usage: 0,
         sms_usage: 0,
+        overage_emails_this_month: 0,
+        overage_sms_this_month: 0,
+        usage_alert_80_sent_at: null,
+        usage_alert_100_sent_at: null,
         updated_at: new Date().toISOString()
       })
       .neq('id', '00000000-0000-0000-0000-000000000000'); // Update all rows
