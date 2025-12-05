@@ -29,7 +29,7 @@ import {
   Edit,
   X
 } from 'lucide-react';
-import { CustomerImportModal } from '@/components/crm/CustomerImportModal';
+import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedSegmentImportDialog';
 import { CustomerPersonaSelector } from '@/components/crm/CustomerPersonaSelector';
 import { CustomerSegmentSelector } from '@/components/crm/CustomerSegmentSelector';
 
@@ -71,8 +71,9 @@ const CRMCustomers = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(100); // 100 customers per page
+const [pageSize] = useState(100); // 100 customers per page
   const [totalCount, setTotalCount] = useState(0);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   
   
   const { toast } = useToast();
@@ -259,7 +260,10 @@ const CRMCustomers = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <CustomerImportModal />
+            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import
+            </Button>
             <Button onClick={() => navigate('/crm/customers/new')}>
               <Plus className="h-4 w-4 mr-2" />
               Add Customer
@@ -351,7 +355,10 @@ const CRMCustomers = () => {
                   }
                 </p>
                 <div className="flex justify-center gap-2">
-                  <CustomerImportModal />
+                  <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import
+                  </Button>
                   <Button onClick={() => navigate('/crm/customers/new')}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Customer
@@ -647,6 +654,14 @@ const CRMCustomers = () => {
             )}
           </SheetContent>
         </Sheet>
+
+        <EnhancedSegmentImportDialog
+          open={showImportDialog}
+          onOpenChange={setShowImportDialog}
+          onImportComplete={() => {
+            queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
+          }}
+        />
       </div>
     </SubscriptionGate>
   );
