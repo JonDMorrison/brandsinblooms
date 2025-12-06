@@ -2939,6 +2939,10 @@ const { counts: segmentCounts } = useSegmentCounts();
     blocks.forEach(block => {
       if (block.visible === false) return; // Only skip blocks explicitly set to false
       
+      // CANONICAL: Use both headline and title as fallbacks for text display
+      const blockHeadline = block.headline || block.title || '';
+      const blockBody = block.body || block.content || '';
+      
       switch (block.type) {
         case 'header':
           const headerAlign = block.textAlign || 'center';
@@ -2962,8 +2966,8 @@ const { counts: segmentCounts } = useSegmentCounts();
                     <![endif]-->
                     <!-- Content container - transparent background (TD already has overlay) -->
                     <div style="padding: 0;">
-                      ${!shouldHideContent(block) && block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
-                      ${!shouldHideContent(block) && (block.body || block.content) ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
+                      ${!shouldHideContent(block) && blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${blockHeadline}</h1>` : ''}
+                      ${!shouldHideContent(block) && blockBody ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${blockBody}</div>` : ''}
                     </div>
                     <!--[if gte mso 9]>
                     </v:textbox>
@@ -2982,8 +2986,8 @@ const { counts: segmentCounts } = useSegmentCounts();
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
                   <td style="background-color: ${headerBgColor}; padding: 40px 20px; text-align: ${headerAlign};">
-                    ${!shouldHideContent(block) && block.headline && !isBlockTypeLabel(block.headline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${block.headline}</h1>` : ''}
-                    ${!shouldHideContent(block) && (block.body || block.content) ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${block.body || block.content || ''}</div>` : ''}
+                    ${!shouldHideContent(block) && blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${blockHeadline}</h1>` : ''}
+                    ${!shouldHideContent(block) && blockBody ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${blockBody}</div>` : ''}
                   </td>
                 </tr>
               </table>
@@ -3052,8 +3056,8 @@ const { counts: segmentCounts } = useSegmentCounts();
             html += `
               <div style="text-align: ${imgAlign}; margin: 20px 0; ${block.backgroundColor ? `background-color: ${block.backgroundColor}; padding: 20px; border-radius: 8px;` : ''}">
                 ${imageHtml}
-                ${!shouldHideContent(block) && block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: ${fonts.subheadingFont}; text-align: ${imgAlign};">${block.headline}</h2>` : ''}
-                ${!shouldHideContent(block) && (block.body || block.content) ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: ${fonts.bodyFont}; text-align: ${imgAlign};">${block.body || block.content}</div>` : ''}
+                ${!shouldHideContent(block) && blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 16px 0; color: ${imgHeadlineColor}; font-family: ${fonts.subheadingFont}; text-align: ${imgAlign};">${blockHeadline}</h2>` : ''}
+                ${!shouldHideContent(block) && blockBody ? `<div style="color: ${imgTextColor}; line-height: 1.6; margin: 0; font-family: ${fonts.bodyFont}; text-align: ${imgAlign};">${blockBody}</div>` : ''}
                 ${imgCtaText && imgCtaUrl ? `
                   <div style="margin-top: 20px;">
                     <a href="${imgCtaUrl}" style="display: inline-block; padding: 12px 24px; background: ${imgButtonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont};">
@@ -3091,8 +3095,8 @@ const { counts: segmentCounts } = useSegmentCounts();
           if (!block.imageUrl) {
             html += `
               <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px; text-align: ${itTextAlign};">
-                ${block.headline && !isBlockTypeLabel(block.headline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: ${fonts.subheadingFont};">${block.headline}</h2>` : ''}
-                ${block.body ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: ${fonts.bodyFont};">${block.body}</div>` : ''}
+                ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: ${fonts.subheadingFont};">${blockHeadline}</h2>` : ''}
+                ${blockBody ? `<div style="color: ${itTextColor}; line-height: 1.6; margin: 0; font-family: ${fonts.bodyFont};">${blockBody}</div>` : ''}
                 ${ctaText && ctaUrl ? `
                   <div style="margin-top: 20px;">
                     <a href="${ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${buttonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont};">
@@ -3133,7 +3137,7 @@ const { counts: segmentCounts } = useSegmentCounts();
 
             // Build text content HTML with proper table structure for email compatibility
             // Strip any inline color styles from body content and force dark colors
-            let cleanBody = block.body || '';
+            let cleanBody = blockBody || '';
             // Remove any color styles from the body content
             cleanBody = cleanBody.replace(/color:\s*#[0-9a-fA-F]{3,6};?/gi, '');
             cleanBody = cleanBody.replace(/color:\s*rgb\([^)]+\);?/gi, '');
@@ -3146,9 +3150,9 @@ const { counts: segmentCounts } = useSegmentCounts();
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
                 <tr>
                   <td style="padding: 0; vertical-align: top;">
-                    ${block.headline && !isBlockTypeLabel(block.headline) ? `
+                    ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `
                       <h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor} !important; font-family: ${fonts.subheadingFont}; line-height: 1.3; display: block;">
-                        ${block.headline}
+                        ${blockHeadline}
                       </h2>
                     ` : ''}
                     ${cleanBody ? `
@@ -3203,8 +3207,8 @@ const { counts: segmentCounts } = useSegmentCounts();
           const btnAlign = block.textAlign || 'center';
           html += `
              <div style="text-align: ${btnAlign}; margin: 30px 0;">
-               ${block.headline ? `<h3 style="color: ${block.textColor || '#1f2937'}; margin: 0 0 10px 0; font-size: 20px; font-family: ${fonts.subheadingFont}; font-weight: 600;">${block.headline}</h3>` : ''}
-               ${block.body ? `<div style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6; font-family: ${fonts.bodyFont};">${block.body}</div>` : ''}
+               ${blockHeadline ? `<h3 style="color: ${block.textColor || '#1f2937'}; margin: 0 0 10px 0; font-size: 20px; font-family: ${fonts.subheadingFont}; font-weight: 600;">${blockHeadline}</h3>` : ''}
+               ${blockBody ? `<div style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6; font-family: ${fonts.bodyFont};">${blockBody}</div>` : ''}
                <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont};">
                  ${block.buttonText || 'Learn More'}
                </a>
@@ -3223,8 +3227,8 @@ const { counts: segmentCounts } = useSegmentCounts();
         case 'social-follow':
           html += `
             <div style="text-align: center; margin: 30px 0; padding: 20px; background: #f8fafc; border-radius: 8px;">
-              ${block.headline ? `<h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 20px;">${block.headline}</h3>` : ''}
-              ${block.body ? `<div style="color: #64748b; margin: 0 0 20px 0;">${block.body}</div>` : ''}
+              ${blockHeadline ? `<h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 20px;">${blockHeadline}</h3>` : ''}
+              ${blockBody ? `<div style="color: #64748b; margin: 0 0 20px 0;">${blockBody}</div>` : ''}
               <div style="display: inline-block;">
                 <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #1877f2; color: white; text-decoration: none; border-radius: 4px;">Facebook</a>
                 <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #1da1f2; color: white; text-decoration: none; border-radius: 4px;">Twitter</a>
