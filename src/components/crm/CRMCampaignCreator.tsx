@@ -2997,7 +2997,103 @@ const { counts: segmentCounts } = useSegmentCounts();
 
 
         case 'image':
-          // Only render image block if it has an imageUrl
+          // Check if this is a two-column layout - if so, render like image-text
+          const isImageTwoColumnLayout = block.layout === 'two-column-left' || block.layout === 'two-column-right';
+          
+          if (isImageTwoColumnLayout) {
+            // Render as two-column layout (same logic as image-text)
+            const isImgLeft = block.layout === 'two-column-left';
+            const imgTcTextAlign = block.textAlign || 'left';
+            const imgTcTextColor = '#475569';
+            const imgTcHeadlineColor = '#1f2937';
+            const imgTcButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
+            const imgTcCtaText = block.ctaText || block.buttonText;
+            const imgTcCtaUrl = block.ctaUrl || block.buttonUrl;
+            
+            // If no image, render as text-only block
+            if (!block.imageUrl) {
+              html += `
+                <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px; text-align: ${imgTcTextAlign};">
+                  ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${imgTcHeadlineColor}; font-family: ${fonts.subheadingFont};">${blockHeadline}</h2>` : ''}
+                  ${blockBody ? `<div style="color: ${imgTcTextColor}; line-height: 1.6; margin: 0; font-family: ${fonts.bodyFont};">${blockBody}</div>` : ''}
+                  ${imgTcCtaText && imgTcCtaUrl ? `
+                    <div style="margin-top: 20px;">
+                      <a href="${imgTcCtaUrl}" style="display: inline-block; padding: 12px 24px; background: ${imgTcButtonColor}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont};">
+                        ${imgTcCtaText}
+                      </a>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            } else {
+              // Build image cell HTML
+              let imgTcImageHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
+              
+              // Build text content HTML
+              let imgTcCleanBody = blockBody || '';
+              imgTcCleanBody = imgTcCleanBody.replace(/color:\s*#[0-9a-fA-F]{3,6};?/gi, '');
+              imgTcCleanBody = imgTcCleanBody.replace(/color:\s*rgb\([^)]+\);?/gi, '');
+              imgTcCleanBody = imgTcCleanBody.replace(/color:\s*rgba\([^)]+\);?/gi, '');
+              
+              const imgTcTextContentHtml = `
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 0; vertical-align: top;">
+                      ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `
+                        <h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${imgTcHeadlineColor} !important; font-family: ${fonts.subheadingFont}; line-height: 1.3; display: block;">
+                          ${blockHeadline}
+                        </h2>
+                      ` : ''}
+                      ${imgTcCleanBody ? `
+                        <div style="color: ${imgTcTextColor} !important; line-height: 1.6; margin: 0 0 16px 0; font-family: ${fonts.bodyFont}; font-size: 16px; display: block;">
+                          ${imgTcCleanBody}
+                        </div>
+                      ` : ''}
+                      ${imgTcCtaText && imgTcCtaUrl ? `
+                        <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-top: 20px;">
+                          <tr>
+                            <td style="border-radius: 6px; background: ${imgTcButtonColor};">
+                              <a href="${imgTcCtaUrl}" style="display: inline-block; padding: 12px 24px; background: ${imgTcButtonColor}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont}; font-size: 16px;">
+                                ${imgTcCtaText}
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      ` : ''}
+                    </td>
+                  </tr>
+                </table>
+              `;
+
+              // Render with image and text in two-column layout
+              html += `
+                <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px;">
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse: collapse;" class="mobile-stack">
+                    <tr>
+                      ${isImgLeft ? `
+                        <td width="50%" style="padding-right: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                          ${imgTcImageHtml}
+                        </td>
+                        <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: left;" class="mobile-full-width mobile-stack">
+                          ${imgTcTextContentHtml}
+                        </td>
+                      ` : `
+                        <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: left;" class="mobile-full-width mobile-stack">
+                          ${imgTcTextContentHtml}
+                        </td>
+                        <td width="50%" style="padding-left: 20px; vertical-align: top;" class="mobile-full-width mobile-stack">
+                          ${imgTcImageHtml}
+                        </td>
+                      `}
+                    </tr>
+                  </table>
+                </div>
+              `;
+            }
+            break;
+          }
+          
+          // Only render single-column image block if it has an imageUrl
           if (block.imageUrl) {
             console.log('🔍 IMAGE BLOCK DEBUG:', {
               id: block.id,
