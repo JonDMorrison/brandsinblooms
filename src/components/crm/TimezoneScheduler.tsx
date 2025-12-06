@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -8,12 +8,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Clock, Calendar as CalendarIcon, Globe, Zap } from 'lucide-react';
-import { format, addDays, setHours, setMinutes, startOfDay } from 'date-fns';
+import { format, setHours, setMinutes, startOfDay } from 'date-fns';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { cn } from '@/lib/utils';
 
 interface ScheduleOption {
   type: 'now' | 'optimal' | 'custom';
+  /** The scheduled date/time in UTC */
   date?: Date;
+  /** The timezone used for display/scheduling */
   timezone?: string;
   sendInRecipientTimezone?: boolean;
 }
@@ -24,6 +27,7 @@ interface TimezoneSchedulerProps {
 }
 
 const TIMEZONES = [
+  { value: 'America/Vancouver', label: 'Vancouver (PT)' },
   { value: 'America/New_York', label: 'Eastern (ET)' },
   { value: 'America/Chicago', label: 'Central (CT)' },
   { value: 'America/Denver', label: 'Mountain (MT)' },
@@ -42,22 +46,83 @@ const OPTIMAL_TIMES = [
   { label: 'Evening (6:00 PM)', hours: 18, minutes: 0 },
 ];
 
+/**
+ * TimezoneScheduler - Handles timezone-aware scheduling
+ * 
+ * CRITICAL: All dates are stored in UTC. The UI displays times in selectedTimezone.
+ * 
+ * Flow:
+ * 1. User selects date/time in their timezone (selectedTimezone)
+ * 2. We convert to UTC using fromZonedTime() for storage
+ * 3. When displaying, we convert from UTC back to selectedTimezone using toZonedTime()
+ */
 export const TimezoneScheduler = ({ onScheduleChange, defaultSchedule }: TimezoneSchedulerProps) => {
   const [scheduleType, setScheduleType] = useState<ScheduleOption['type']>(defaultSchedule?.type || 'optimal');
-  const [selectedDate, setSelectedDate] = useState<Date>(defaultSchedule?.date || new Date());
-  const [selectedTime, setSelectedTime] = useState('14:00'); // 2 PM default
+  
+  // Detect user's timezone for default
+  const userTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  
   const [selectedTimezone, setSelectedTimezone] = useState(
-    defaultSchedule?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+    defaultSchedule?.timezone || userTimezone
   );
+  
+  // Initialize selectedDate from defaultSchedule, converting from UTC if needed
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    if (defaultSchedule?.date) {
+      // Convert stored UTC date to selected timezone for display
+      return toZonedTime(defaultSchedule.date, defaultSchedule.timezone || userTimezone);
+    }
+    // Default to today at noon in the selected timezone
+    const now = new Date();
+    now.setHours(12, 0, 0, 0);
+    return now;
+  });
+  
+  const [selectedTime, setSelectedTime] = useState(() => {
+    if (defaultSchedule?.date && scheduleType === 'custom') {
+      // Convert from UTC to selected timezone for initial display
+      const localDate = toZonedTime(defaultSchedule.date, defaultSchedule.timezone || userTimezone);
+      return `${localDate.getHours().toString().padStart(2, '0')}:${localDate.getMinutes().toString().padStart(2, '0')}`;
+    }
+    return '14:00'; // 2 PM default
+  });
+  
   const [sendInRecipientTimezone, setSendInRecipientTimezone] = useState(
     defaultSchedule?.sendInRecipientTimezone || false
   );
   const [optimalTime, setOptimalTime] = useState('14:00');
 
-  // Detect user's timezone
-  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const userTimezoneLabel = TIMEZONES.find(tz => tz.value === userTimezone)?.label || userTimezone;
 
+  /**
+   * Convert a local date/time in selectedTimezone to UTC
+   * This is the value that gets stored in the database
+   */
+  const convertToUtc = (localDate: Date, timeStr: string): Date => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    
+    // Create a date object with the selected date and time
+    const dateWithTime = new Date(localDate);
+    dateWithTime.setHours(hours, minutes, 0, 0);
+    
+    // Convert from selectedTimezone to UTC
+    // fromZonedTime interprets the input as being in the specified timezone
+    // and returns the equivalent UTC time
+    const utcDate = fromZonedTime(dateWithTime, selectedTimezone);
+    
+    console.log(`🕐 Timezone conversion: ${format(dateWithTime, 'PPP p')} in ${selectedTimezone} → UTC: ${utcDate.toISOString()}`);
+    
+    return utcDate;
+  };
+
+  /**
+   * Convert a UTC date back to the selected timezone for display
+   */
+  const convertFromUtc = (utcDate: Date): Date => {
+    return toZonedTime(utcDate, selectedTimezone);
+  };
+
+  // Update schedule whenever relevant state changes
   useEffect(() => {
     const schedule: ScheduleOption = {
       type: scheduleType,
@@ -66,43 +131,84 @@ export const TimezoneScheduler = ({ onScheduleChange, defaultSchedule }: Timezon
     };
 
     if (scheduleType === 'custom') {
-      const [hours, minutes] = selectedTime.split(':').map(Number);
-      const scheduledDate = setMinutes(setHours(selectedDate, hours), minutes);
-      schedule.date = scheduledDate;
+      // Convert the local date/time to UTC for storage
+      schedule.date = convertToUtc(selectedDate, selectedTime);
     } else if (scheduleType === 'optimal') {
-      const [hours, minutes] = optimalTime.split(':').map(Number);
-      const scheduledDate = setMinutes(setHours(new Date(), hours), minutes);
-      schedule.date = scheduledDate;
+      // For optimal, use today's date with the optimal time, converted to UTC
+      const today = new Date();
+      today.setHours(12, 0, 0, 0); // Use noon to avoid DST issues
+      schedule.date = convertToUtc(today, optimalTime);
     } else {
+      // 'now' - just use current time (already in UTC when stored)
       schedule.date = new Date();
     }
 
+    console.log(`📅 Schedule updated: type=${scheduleType}, UTC=${schedule.date?.toISOString()}, timezone=${selectedTimezone}`);
     onScheduleChange(schedule);
   }, [scheduleType, selectedDate, selectedTime, selectedTimezone, sendInRecipientTimezone, optimalTime]);
 
+  /**
+   * Handle calendar date selection
+   * We normalize to noon to avoid DST edge cases at midnight
+   */
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date) return;
+    
+    // Normalize to noon in the picked date to avoid DST edge cases
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(12, 0, 0, 0);
+    
+    console.log(`📆 Date selected: ${format(normalizedDate, 'PPP')} (normalized to noon)`);
+    setSelectedDate(normalizedDate);
+  };
+
+  /**
+   * Generate the schedule preview text
+   * Always converts from UTC to selectedTimezone for display
+   */
   const getSchedulePreview = () => {
     if (scheduleType === 'now') {
       return 'Sending immediately';
     }
 
-    const date = scheduleType === 'custom' ? selectedDate : new Date();
-    const timeStr = scheduleType === 'custom' ? selectedTime : optimalTime;
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const scheduledDate = setMinutes(setHours(date, hours), minutes);
-
+    // Build the scheduled date in UTC first
+    let utcDate: Date;
+    if (scheduleType === 'custom') {
+      utcDate = convertToUtc(selectedDate, selectedTime);
+    } else {
+      const today = new Date();
+      today.setHours(12, 0, 0, 0);
+      utcDate = convertToUtc(today, optimalTime);
+    }
+    
+    // Convert UTC back to selected timezone for display
+    const displayDate = convertFromUtc(utcDate);
+    
     const timezoneName = TIMEZONES.find(tz => tz.value === selectedTimezone)?.label || selectedTimezone;
     
     return (
       <div className="space-y-1">
         <div className="font-medium">
-          {format(scheduledDate, 'EEEE, MMMM d, yyyy')} at {format(scheduledDate, 'h:mm a')}
+          {format(displayDate, 'EEEE, MMMM d, yyyy')} at {format(displayDate, 'h:mm a')}
         </div>
         <div className="text-sm text-muted-foreground">
           {timezoneName}
           {sendInRecipientTimezone && ' (or recipient\'s timezone)'}
         </div>
+        <div className="text-xs text-muted-foreground">
+          UTC: {utcDate.toISOString()}
+        </div>
       </div>
     );
+  };
+
+  /**
+   * Check if a date is in the past (relative to user's current timezone)
+   */
+  const isDateInPast = (date: Date): boolean => {
+    const today = startOfDay(new Date());
+    const checkDate = startOfDay(date);
+    return checkDate < today;
   };
 
   return (
@@ -201,17 +307,8 @@ export const TimezoneScheduler = ({ onScheduleChange, defaultSchedule }: Timezon
                     <Calendar
                       mode="single"
                       selected={selectedDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          // CRITICAL FIX: Normalize date to start of day to prevent timezone offset issues
-                          // This ensures the selected day is preserved regardless of local timezone
-                          const normalizedDate = startOfDay(date);
-                          // Set to noon to avoid any edge cases with DST transitions
-                          normalizedDate.setHours(12, 0, 0, 0);
-                          setSelectedDate(normalizedDate);
-                        }
-                      }}
-                      disabled={(date) => date < startOfDay(new Date())}
+                      onSelect={handleDateSelect}
+                      disabled={isDateInPast}
                       initialFocus
                     />
                   </PopoverContent>
@@ -219,7 +316,7 @@ export const TimezoneScheduler = ({ onScheduleChange, defaultSchedule }: Timezon
               </div>
 
               <div className="space-y-2">
-                <Label>Time</Label>
+                <Label>Time ({TIMEZONES.find(tz => tz.value === selectedTimezone)?.label || selectedTimezone})</Label>
                 <input
                   type="time"
                   value={selectedTime}
