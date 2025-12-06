@@ -9,6 +9,14 @@ export type ResponsiveBehaviorType = 'stack' | 'reverse' | 'hide-image' | 'mobil
 export type ImageSizeType = 'small' | 'medium' | 'large' | 'full-width' | 'cover';
 export type ImagePositionType = 'left' | 'right' | 'center' | 'background' | 'overlay';
 
+/**
+ * Block status for tracking content state
+ * - "empty": Block created with placeholders, no real content
+ * - "ai-generated": AI writer created content for this block
+ * - "user-edited": User manually edited headline, body, CTA, or other visible content
+ */
+export type BlockStatus = 'empty' | 'ai-generated' | 'user-edited';
+
 export interface EmailBlock {
   id: string;
   block_type: BlockType;
@@ -62,6 +70,9 @@ export interface ContentBlock {
   personaTag?: string;
   layout?: BlockLayout;
   isWeeklyTheme?: boolean; // Flag for weekly theme enforcement
+  
+  // BLOCK STATUS - controls hydration and default injection behavior
+  status?: BlockStatus;
   
   // Layout & Structure
   collapsed?: boolean;

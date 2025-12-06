@@ -38,6 +38,7 @@ import { normalizeAIResponse, applyAIToBlock } from '@/lib/newsletter/aiMapping'
 import { usePagePersistence } from '@/hooks/usePagePersistence';
 import { normalizeBlockForSave, normalizeBlockFromDatabase, DatabaseBlock } from '@/utils/blockFieldMapping';
 import { useSaveQueue } from '@/hooks/useSaveQueue';
+import { DraftRestorationDialog } from './DraftRestorationDialog';
 import { 
   Breadcrumb,
   BreadcrumbItem,
@@ -547,30 +548,27 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const { toast } = useToast();
   console.log('🚨 COMPONENT DEBUG: searchParams =', searchParams.toString());
   
-  // 🚨 NEWSLETTER PREFILL LOGIC - Read directly from URL params
+  // 🚨 UNIFIED PREFILL LOGIC - Single source of truth for all prefill sources
+  // Parse prefill sources ONCE during render (not in effects)
   const typeParam = searchParams.get('type');
   const prefillDataParam = searchParams.get('prefillData');
+  const bundleIdParam = searchParams.get('bundleId');
+  const urlContentTaskId = searchParams.get('contentTaskId');
+  const templateIdParam = searchParams.get('templateId');
+  const finalContentTaskId = propContentTaskId || urlContentTaskId;
+
+  // Parse URL personas early
+  const personaParam = searchParams.get('persona');
+  const segmentIdParam = searchParams.get('segment');
   
-  console.log('🚨🚨🚨 PREFILL DEBUG: typeParam =', typeParam);
-  console.log('🚨🚨🚨 PREFILL DEBUG: prefillDataParam exists =', !!prefillDataParam);
-  console.log('🚨🚨🚨 PREFILL DEBUG: prefillDataParam length =', prefillDataParam?.length);
-  
-  let shouldApplyPrefill = false;
-  let prefillData: any = null;
-  
-  // Check if this is a newsletter with prefill data
-  if (typeParam === 'newsletter' && prefillDataParam) {
-    console.log('🚨🚨🚨 PREFILL: Found newsletter prefill data in URL params');
+  let initialPersonas: any[] = [];
+  if (personaParam) {
     try {
-      prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
-      shouldApplyPrefill = true;
-      console.log('🚨🚨🚨 PREFILL: Successfully parsed data, will apply');
-      console.log('🚨 PREFILL DATA:', prefillData);
+      initialPersonas = [JSON.parse(decodeURIComponent(personaParam))];
+      console.log('🎯 Parsed persona from URL:', initialPersonas);
     } catch (error) {
-      console.log('🚨 PREFILL: Parse error =', error);
+      console.error('❌ Failed to parse persona parameter:', error);
     }
-  } else {
-    console.log('🚨🚨🚨 PREFILL: Conditions not met - typeParam:', typeParam, 'prefillDataParam:', !!prefillDataParam);
   }
 
 const { counts: segmentCounts } = useSegmentCounts();
@@ -580,16 +578,27 @@ const { counts: segmentCounts } = useSegmentCounts();
   // Track used images to prevent duplicates
   const [usedImageIds, setUsedImageIds] = useState<Set<string>>(new Set());
   
+  // CRITICAL: Track lastModifiedAt for DB vs localStorage coordination
+  const [lastModifiedAt, setLastModifiedAt] = useState<string>(new Date().toISOString());
+  
+  // UNIFIED PREFILL REF - Ensures prefill runs exactly once
+  const hasAppliedPrefillRef = useRef(false);
+  
+  // Draft restoration dialog state
+  const [showDraftDialog, setShowDraftDialog] = useState(false);
+  const [pendingDraftData, setPendingDraftData] = useState<{
+    state: any;
+    draftTimestamp?: string;
+    dbTimestamp?: string;
+  } | null>(null);
+  
   // CRITICAL FIX: Generate unique session ID for new campaigns to prevent cross-contamination
-  // This ensures each "new" campaign has its own persistence namespace
   const sessionIdRef = useRef<string | null>(null);
   if (sessionIdRef.current === null) {
-    // For existing campaigns (UUID in slug), use the campaign ID as session
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (campaignSlug && uuidRegex.test(campaignSlug)) {
       sessionIdRef.current = campaignSlug;
     } else {
-      // For new campaigns, generate a unique session ID
       sessionIdRef.current = `new_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     }
   }
@@ -599,8 +608,8 @@ const { counts: segmentCounts } = useSegmentCounts();
     setUsedImageIds(new Set());
   }, [campaignSlug]);
   
-  // Page persistence hook with unique session ID
-  const { persistState, restoreState, clearPersistedState } = usePagePersistence<{
+  // Page persistence hook with unique session ID and lastModifiedAt support
+  const { persistState, restoreState, clearPersistedState, getPersistedTimestamp } = usePagePersistence<{
     campaignName: string;
     subjectLine: string;
     preheaderText: string;
@@ -611,10 +620,10 @@ const { counts: segmentCounts } = useSegmentCounts();
     flow?: string;
   }>({
     key: 'campaign_creator',
-    sessionId: sessionIdRef.current, // CRITICAL: Use unique session ID
-    ttl: 2 * 60 * 60 * 1000, // 2 hours for campaign data
+    sessionId: sessionIdRef.current,
+    ttl: 2 * 60 * 60 * 1000, // 2 hours
     onHidden: () => {
-      // Persist critical state when tab is hidden
+      // Persist with current lastModifiedAt
       persistState({
         campaignName,
         subjectLine,
@@ -624,96 +633,80 @@ const { counts: segmentCounts } = useSegmentCounts();
         selectedPersonas,
         selectedSegments,
         flow: searchParams.get('flow') || undefined
-      });
+      }, lastModifiedAt);
     }
   });
   
-  // Prefill from Generated Bundle if provided
-  const bundleIdParam = searchParams.get('bundleId');
   const { query: bundleQuery } = useGeneratedBundle(bundleIdParam || undefined);
-  
-  // Get contentTaskId from props or URL parameters
-  const urlContentTaskId = searchParams.get('contentTaskId');
-  const finalContentTaskId = propContentTaskId || urlContentTaskId;
-  
-  // Check for pre-selected persona from URL
-  const personaParam = searchParams.get('persona');
-  console.log('🔍 Persona param from URL:', personaParam);
-  
-  let initialPersonas: any[] = [];
-  if (personaParam) {
-    try {
-      console.log('🔄 Attempting to parse persona parameter...');
-      const persona = JSON.parse(decodeURIComponent(personaParam));
-      initialPersonas = [persona];
-      console.log('🎯 Pre-selected persona from URL:', persona);
-      console.log('✅ Initial personas set to:', initialPersonas);
-    } catch (error) {
-      console.error('❌ Failed to parse persona parameter:', error);
-      console.log('🔍 Raw personaParam was:', personaParam);
-    }
-  } else {
-    console.log('🔍 No persona parameter found in URL');
-  }
-  // Check for pre-selected segment from URL
-  const segmentIdParam = searchParams.get('segment'); // Fixed: was 'segmentId', should be 'segment'
-  console.log('🔍 Segment ID param from URL:', segmentIdParam);
   
   const [subjectLine, setSubjectLine] = useState('');
   const [preheaderText, setPreheaderText] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
   
-  // 🚨 APPLY NEWSLETTER PREFILL - Clean implementation after state is ready
+  // UNIFIED PREFILL EFFECT - Runs exactly once when component mounts
+  // Handles: URL prefillData, bundleId, templateId, contentTaskId
   useEffect(() => {
-    if (shouldApplyPrefill && prefillData) {
-      console.log('🚨🚨🚨 APPLYING PREFILL: Processing newsletter data');
-      console.log('🚨 PREFILL DATA:', prefillData);
-      
-      // Create header block
-      const headerBlock: ContentBlock = {
-        id: `prefill-header-${Date.now()}`,
-        type: 'header' as const,
-        title: prefillData.title || 'Newsletter Campaign',
-        headline: prefillData.title || 'Newsletter Campaign',
-        source: 'manual' as const
-      };
-      
-      // Create content block with image
-      const contentBlock: ContentBlock = {
-        id: `prefill-content-${Date.now()}`,
-        type: 'image-text' as const,
-        layout: 'image-left' as const,
-        headline: 'Newsletter Content',
-        body: prefillData.content || 'Your newsletter content will appear here. This newsletter covers essential topics to help you succeed.',
-        imageUrl: prefillData.featuredImage || '',
-        altText: 'Newsletter featured image',
-        source: 'manual' as const
-      };
-      
-      const newBlocks = [headerBlock, contentBlock];
-      
-      console.log('🚨 APPLYING PREFILL: Setting blocks =', newBlocks);
-      setBlocks(newBlocks);
-      
-      console.log('🚨 APPLYING PREFILL: Setting campaign name =', prefillData.title);
-      setCampaignName(prefillData.title || 'Newsletter Campaign');
-      setSubjectLine(prefillData.title || 'Newsletter Campaign');
-      
-      // Generate preheader
-      const preheader = `${prefillData.title || 'Newsletter'} - Expert insights delivered to your inbox`;
-      setPreheaderText(preheader);
-      
-      // Show success toast
-      toast({
-        title: 'Newsletter content loaded!',
-        description: `Successfully loaded: "${prefillData.title}"`
-      });
-      
-      console.log('🚨🚨🚨 PREFILL COMPLETE: Successfully applied all data!');
+    if (hasAppliedPrefillRef.current) {
+      console.log('🚫 Prefill already applied, skipping');
+      return;
     }
-  }, [shouldApplyPrefill, prefillData, toast]); // Add dependencies to ensure it runs when data is available
+    
+    // Handle prefillData from URL (direct newsletter prefill)
+    if (typeParam === 'newsletter' && prefillDataParam) {
+      try {
+        const prefillData = JSON.parse(decodeURIComponent(prefillDataParam));
+        console.log('🚨 UNIFIED PREFILL: Applying newsletter prefill data');
+        
+        const headerBlock: ContentBlock = {
+          id: `prefill-header-${Date.now()}`,
+          type: 'header' as const,
+          title: prefillData.title || 'Newsletter Campaign',
+          headline: prefillData.title || 'Newsletter Campaign',
+          source: 'manual' as const,
+          status: 'empty'
+        };
+        
+        const contentBlock: ContentBlock = {
+          id: `prefill-content-${Date.now()}`,
+          type: 'image-text' as const,
+          layout: 'image-left' as const,
+          headline: 'Newsletter Content',
+          body: prefillData.content || 'Your newsletter content will appear here.',
+          imageUrl: prefillData.featuredImage || '',
+          source: 'manual' as const,
+          status: prefillData.content ? 'ai-generated' : 'empty'
+        };
+        
+        setBlocks([headerBlock, contentBlock]);
+        setCampaignName(prefillData.title || 'Newsletter Campaign');
+        setSubjectLine(prefillData.title || 'Newsletter Campaign');
+        setPreheaderText(`${prefillData.title || 'Newsletter'} - Expert insights delivered to your inbox`);
+        
+        // Mark prefill as applied and update timestamp
+        hasAppliedPrefillRef.current = true;
+        setLastModifiedAt(new Date().toISOString());
+        
+        // Clean URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('prefillData');
+        window.history.replaceState({}, '', url.toString());
+        
+        toast({
+          title: 'Newsletter content loaded!',
+          description: `Successfully loaded: "${prefillData.title}"`
+        });
+        
+      } catch (error) {
+        console.error('🚨 UNIFIED PREFILL: Parse error', error);
+      }
+    }
+    
+    // Note: Other prefill sources (bundleId, templateId, contentTaskId) are handled
+    // in their respective useEffects but they check hasAppliedPrefillRef first
+    
+  }, [typeParam, prefillDataParam, toast]);
+  
   const [selectedPersonas, setSelectedPersonas] = useState<any[]>(() => {
-    console.log('🏁 CRMCampaignCreator: Initializing selectedPersonas state with:', initialPersonas);
     return initialPersonas;
   });
   const [selectedSegments, setSelectedSegments] = useState<any[]>([]);
@@ -1681,8 +1674,9 @@ const { counts: segmentCounts } = useSegmentCounts();
       }
       
       // Try to restore from persisted state (for tab switches, etc.)
-      const persistedState = restoreState();
-      if (persistedState && !existingCampaignId) {
+      const restoredData = restoreState();
+      if (restoredData && !existingCampaignId) {
+        const persistedState = restoredData.state;
         console.log('📋 Restoring persisted state - but preserving URL personas');
         setCampaignName(persistedState.campaignName);
         setSubjectLine(persistedState.subjectLine);
