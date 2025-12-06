@@ -131,8 +131,9 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           layout: 'two-column-left',
           alignment: 'left',
           imageUrl: '',
-          shouldFetchImage: true,
-          isGeneratingImage: true
+          shouldFetchImage: false,
+          isGeneratingImage: false,
+          autoImageMode: false
         }
       };
     case 'text-plain':
@@ -144,8 +145,9 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           layout: 'full-width',
           alignment: 'left',
           imageUrl: '',
-          shouldFetchImage: true,
-          isGeneratingImage: true
+          shouldFetchImage: false,
+          isGeneratingImage: false,
+          autoImageMode: false
         }
       };
     default:
@@ -155,8 +157,9 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           title: '',
           content: '',
           imageUrl: '',
-          shouldFetchImage: true,
-          isGeneratingImage: true
+          shouldFetchImage: false,
+          isGeneratingImage: false,
+          autoImageMode: false
         }
       };
   }
@@ -354,8 +357,9 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         responsiveBehavior: 'stack',
         visible: true,
         animation: 'fade-in',
-        shouldFetchImage: type !== 'button' && type !== 'divider',
-        isGeneratingImage: type !== 'button' && type !== 'divider',
+        shouldFetchImage: false,  // User adds images manually via AI Assistant
+        isGeneratingImage: false, // No auto-generation on manual block add
+        autoImageMode: false,     // Prevent any auto-regeneration
         // Apply layout-specific configuration
         ...config
       };
@@ -380,7 +384,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           alignment: 'left' as const,
           layout: 'full-width' as const
         }
-      } : { type: 'image-text' as const, config: { shouldFetchImage: true, isGeneratingImage: true } };
+      } : { type: 'image-text' as const, config: { shouldFetchImage: false, isGeneratingImage: false, autoImageMode: false } };
       
       const newBlock: ContentBlock = {
         id: `block_${Date.now()}`,
