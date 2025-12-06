@@ -3885,9 +3885,22 @@ const { counts: segmentCounts } = useSegmentCounts();
             
             if (blockToUpdate) {
               // Update the appropriate image field based on block type
+              // Clear generation flags to prevent skeleton loader from showing
               const imageUpdate = blockToUpdate.type === 'newsletter-header'
-                ? { backgroundImageUrl: imageUrl, altText: 'AI Generated Image' }
-                : { imageUrl, altText: 'AI Generated Image' };
+                ? { 
+                    backgroundImageUrl: imageUrl, 
+                    altText: 'AI Generated Image',
+                    isGeneratingImage: false,
+                    shouldFetchImage: false,
+                    autoImageMode: false // User manually selected, prevent auto-regeneration
+                  }
+                : { 
+                    imageUrl, 
+                    altText: 'AI Generated Image',
+                    isGeneratingImage: false,
+                    shouldFetchImage: false,
+                    autoImageMode: false // User manually selected, prevent auto-regeneration
+                  };
               
               console.log('🖼️ [AIPersonalizationDialog] Image update:', imageUpdate);
               
