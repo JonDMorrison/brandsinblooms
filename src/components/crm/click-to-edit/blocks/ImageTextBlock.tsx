@@ -121,6 +121,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
   // Text-only layout: only hide image section if no image AND it's a text block or full-width layout
   // If there's an imageUrl, always show the image regardless of block type
   const isTextOnly = !block.imageUrl && (block.layout === 'full-width' || block.type === 'text');
+  // For text blocks with images added, use vertical layout (image on top, content below)
+  const isTextBlockWithImage = block.type === 'text' && !!block.imageUrl;
 
   const handleModeClick = (mode: EditMode, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -366,15 +368,108 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
       
       {!isEmpty && (
         <div className={cn(
-          "grid gap-6 items-center",
-          (isImageLeft || isImageRight) && !isTextOnly ? "md:grid-cols-2" : "md:grid-cols-1"
+          "grid gap-6 items-start",
+          // For text blocks with images: single column (image top, content below)
+          // For regular image-text blocks: two columns on desktop
+          (isImageLeft || isImageRight) && !isTextOnly && !isTextBlockWithImage ? "md:grid-cols-2" : "md:grid-cols-1"
         )}>
-          {/* Content - shown first on mobile, positioned based on layout on desktop */}
+          {/* Image - render FIRST for text blocks with images (vertical layout: image top, content below) */}
+          {isTextBlockWithImage && (
+            <div 
+              className="relative group/image cursor-pointer hover:opacity-90 transition-opacity duration-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onModeChange) {
+                  handleModeClick('image', e);
+                }
+              }}
+            >
+              {(() => {
+                const isImageLoadingState = block.imageUrl === 'loading' || (block as any).isLoadingImage === true;
+                const isBlockGeneratingImage = (block as any).isGeneratingImage === true;
+                
+                if (isGeneratingImage || isBlockGeneratingImage || isImageLoadingState || isAutoPickGenerating) {
+                  return (
+                    <div className="relative w-full h-64 rounded-lg bg-muted flex items-center justify-center">
+                      <ImageSkeleton className="w-full h-full" />
+                      <AIImageLoadingOverlay message="Generating Images" className="rounded-lg" />
+                    </div>
+                  );
+                }
+                
+                const displayImageUrl = currentImageUrl || block.imageUrl;
+                
+                return displayImageUrl ? (
+                  <div className="relative group/image-actions">
+                    <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/image-actions:opacity-100 transition-opacity">
+                      <button
+                        onClick={handleAutoPick}
+                        disabled={isAutoPickGenerating}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-lg transition-colors disabled:opacity-50"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Auto Pick
+                      </button>
+                    </div>
+                    {isImageLoading && !currentImageUrl && (
+                      <div className="absolute inset-0 z-10">
+                        <ImageSkeleton className="w-full h-full" />
+                      </div>
+                    )}
+                    {displayImageUrl && displayImageUrl !== 'loading' && (
+                      <img
+                        src={displayImageUrl}
+                        alt={block.altText || 'Content image'}
+                        className={cn(
+                          "w-full h-auto rounded-lg cursor-pointer transition-opacity duration-300 relative z-0",
+                          isImageLoading && currentImageUrl ? "opacity-70" : "opacity-100"
+                        )}
+                        onLoad={() => {
+                          if (displayImageUrl === block.imageUrl) {
+                            setCurrentImageUrl(block.imageUrl);
+                            setIsImageLoading(false);
+                            setHasImageLoaded(true);
+                            setImageError(false);
+                          }
+                        }}
+                        onError={() => {
+                          if (displayImageUrl === block.imageUrl) {
+                            setIsImageLoading(false);
+                            setHasImageLoaded(false);
+                            setImageError(true);
+                          }
+                        }}
+                      />
+                    )}
+                    {isImageLoading && currentImageUrl && (
+                      <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <div className="bg-background/80 backdrop-blur-sm rounded-full p-2">
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent animate-spin rounded-full"></div>
+                        </div>
+                      </div>
+                    )}
+                    {imageError && !isImageLoading && !currentImageUrl && (
+                      <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center">
+                        <div className="text-center text-muted-foreground">
+                          <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                          <span className="text-sm">Image unavailable</span>
+                          <p className="text-xs mt-1">Click to choose another</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          )}
+          
+          {/* Content - shown after image for text blocks with images */}
           <div 
             className={cn(
               "space-y-4 relative group/text cursor-pointer",
-              isImageLeft && !isTextOnly && "md:order-2",
-              isImageRight && !isTextOnly && "md:order-1",
+              // For non-text-block-with-image layouts, use original ordering
+              !isTextBlockWithImage && isImageLeft && !isTextOnly && "md:order-2",
+              !isTextBlockWithImage && isImageRight && !isTextOnly && "md:order-1",
               block.textAlign === 'center' && "text-center",
               block.textAlign === 'right' && "text-right",
               "hover:bg-background/50 rounded-md transition-colors duration-200 p-2 -m-2"
@@ -462,8 +557,8 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
             )}
           </div>
 
-          {/* Image - only render for image-text layouts */}
-          {!isTextOnly && (
+          {/* Image - only render for image-text layouts, skip if already rendered above for text blocks with images */}
+          {!isTextOnly && !isTextBlockWithImage && (
             <div className={cn(
               isImageLeft && "md:order-1",
               isImageRight && "md:order-2", 
