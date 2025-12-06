@@ -2,9 +2,16 @@
  * Unified Block Field Mapping Utility
  * CANONICAL SOURCE OF TRUTH for mapping between frontend ContentBlock and database storage
  * All save/load operations MUST use these functions
+ * 
+ * STEP 2: This is the single source of truth for field name mapping
+ * - headline/title/heading → headline (canonical)
+ * - body/content → body (canonical)
+ * - ctaText/buttonText/cta_text → ctaText (canonical)
+ * - imageUrl/image_url → imageUrl (for non-headers) / backgroundImageUrl (for headers)
  */
 
 import { ContentBlock, BlockStatus } from '@/types/emailBuilder';
+import { newsletterDebug } from './newsletterDebug';
 
 /**
  * Field mapping definitions
@@ -92,6 +99,12 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
   overlay_color: string | null;
   dark_overlay_opacity: number | null;
 } {
+  const endTimer = newsletterDebug.startTimer('mapping', `normalizeBlockForSave(${block.id})`);
+  newsletterDebug.log('save', `Saving block ${block.id} (${block.type})`, {
+    headline: block.headline?.substring(0, 30),
+    hasImage: !!(block.imageUrl || block.backgroundImageUrl),
+    status: block.status,
+  });
   const isHeader = isHeaderBlock(block);
   
   // Get headline/title with fallback chain
@@ -107,7 +120,7 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
     ? (block.backgroundImageUrl ?? null)
     : (block.imageUrl ?? null);
   
-  return {
+  const result = {
     block_type: block.type,
     content: {
       // CANONICAL text fields - always save both for compatibility
@@ -178,6 +191,9 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
     overlay_color: block.overlayColor || null,
     dark_overlay_opacity: (block as any).darkOverlayOpacity ?? null,
   };
+  
+  endTimer();
+  return result;
 }
 
 /**
@@ -222,8 +238,16 @@ function unwrapContentObject(content: any): Record<string, any> {
  * CANONICAL LOAD FUNCTION - All load operations MUST use this
  */
 export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock {
+  const endTimer = newsletterDebug.startTimer('mapping', `normalizeBlockFromDatabase(${dbBlock.id})`);
+  
   const contentObj = unwrapContentObject(dbBlock.content);
   const isHeader = dbBlock.block_type === 'header' || dbBlock.block_type === 'newsletter-header';
+  
+  newsletterDebug.log('load', `Loading block ${dbBlock.id} (${dbBlock.block_type})`, {
+    hasImageUrl: !!dbBlock.image_url,
+    contentKeys: Object.keys(contentObj).length,
+    isHeader,
+  });
   
   // Extract headline from all possible field names (priority order)
   const headline = contentObj.headline || contentObj.title || contentObj.heading || '';
@@ -260,7 +284,7 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
   const hasExistingImage = !!(imageUrl || backgroundImageUrl);
   const autoImageMode = contentObj.autoImageMode ?? false; // Default false = manual mode
   
-  return {
+  const result: ContentBlock = {
     id: dbBlock.id,
     type: dbBlock.block_type as ContentBlock['type'],
     
@@ -334,6 +358,9 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
     shouldFetchImage: false, // NEVER auto-fetch on reload
     isGeneratingImage: false, // Always false on load - generation is complete
   };
+  
+  endTimer();
+  return result;
 }
 
 /**

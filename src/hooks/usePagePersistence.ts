@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { newsletterDebug } from '@/utils/newsletterDebug';
 
 interface PagePersistenceOptions {
   key: string;
@@ -11,6 +12,11 @@ interface PagePersistenceOptions {
    * When provided, persisted state is isolated to this specific session
    */
   sessionId?: string;
+  /**
+   * STEP 7: If true, ignore localStorage drafts when loading
+   * Use when switching campaigns or loading templates
+   */
+  ignoreDrafts?: boolean;
 }
 
 interface PersistedData<T> {
@@ -28,7 +34,7 @@ export const usePagePersistence = <T extends Record<string, any>>(
   options: PagePersistenceOptions
 ) => {
   const location = useLocation();
-  const { key, ttl = 60 * 60 * 1000, onHidden, onVisible, sessionId } = options; // 1 hour default TTL
+  const { key, ttl = 60 * 60 * 1000, onHidden, onVisible, sessionId, ignoreDrafts = false } = options; // 1 hour default TTL
   
   // CRITICAL FIX: Include sessionId in persistence key to prevent cross-campaign contamination
   // If no sessionId provided, use pathname only (legacy behavior)
@@ -36,6 +42,9 @@ export const usePagePersistence = <T extends Record<string, any>>(
     ? `page_persist_${key}_${sessionId}`
     : `page_persist_${key}_${location.pathname}`;
   const lastSavedRef = useRef<number>(0);
+  
+  // STEP 7: Track if this is a fresh session (campaign/template switch)
+  const isFreshSessionRef = useRef(false);
 
   // Save state to sessionStorage with TTL and lastModifiedAt
   const persistState = useCallback((state: T, lastModifiedAt?: string) => {
@@ -48,14 +57,23 @@ export const usePagePersistence = <T extends Record<string, any>>(
       };
       sessionStorage.setItem(persistenceKey, JSON.stringify(data));
       lastSavedRef.current = Date.now();
-      console.log('💾 State persisted for', persistenceKey, 'at', data.lastModifiedAt);
+      newsletterDebug.log('persistence', `State persisted for ${persistenceKey}`, { 
+        lastModifiedAt: data.lastModifiedAt,
+        stateKeys: Object.keys(state) 
+      });
     } catch (error) {
-      console.warn('Failed to persist state:', error);
+      newsletterDebug.warn('persistence', 'Failed to persist state', error);
     }
   }, [persistenceKey, ttl]);
 
   // Restore state from sessionStorage - returns the persisted data including lastModifiedAt
   const restoreState = useCallback((): { state: T; lastModifiedAt?: string } | null => {
+    // STEP 7: If ignoreDrafts is true, don't restore from localStorage
+    if (ignoreDrafts) {
+      newsletterDebug.log('persistence', `Ignoring drafts for ${persistenceKey} (ignoreDrafts=true)`);
+      return null;
+    }
+    
     try {
       const savedData = sessionStorage.getItem(persistenceKey);
       if (!savedData) return null;
@@ -66,17 +84,20 @@ export const usePagePersistence = <T extends Record<string, any>>(
       // Check if data is still valid
       if (age > savedTtl) {
         sessionStorage.removeItem(persistenceKey);
-        console.log('🗑️ Expired state removed for', persistenceKey);
+        newsletterDebug.log('persistence', `Expired state removed for ${persistenceKey}`);
         return null;
       }
 
-      console.log('📋 State restored for', persistenceKey, '- age:', Math.round(age / 1000), 'seconds, lastModifiedAt:', lastModifiedAt);
+      newsletterDebug.log('persistence', `State restored for ${persistenceKey}`, {
+        age: Math.round(age / 1000) + 's',
+        lastModifiedAt
+      });
       return { state, lastModifiedAt };
     } catch (error) {
-      console.warn('Failed to restore state:', error);
+      newsletterDebug.warn('persistence', 'Failed to restore state', error);
       return null;
     }
-  }, [persistenceKey]);
+  }, [persistenceKey, ignoreDrafts]);
 
   // Get only the lastModifiedAt timestamp without loading full state
   const getPersistedTimestamp = useCallback((): string | null => {
@@ -102,11 +123,18 @@ export const usePagePersistence = <T extends Record<string, any>>(
   const clearPersistedState = useCallback(() => {
     try {
       sessionStorage.removeItem(persistenceKey);
-      console.log('🗑️ State cleared for', persistenceKey);
+      newsletterDebug.log('persistence', `State cleared for ${persistenceKey}`);
     } catch (error) {
-      console.warn('Failed to clear persisted state:', error);
+      newsletterDebug.warn('persistence', 'Failed to clear persisted state', error);
     }
   }, [persistenceKey]);
+  
+  // STEP 7: Mark this session as fresh (used after DB save or campaign switch)
+  const markAsFreshSession = useCallback(() => {
+    isFreshSessionRef.current = true;
+    clearPersistedState();
+    newsletterDebug.log('persistence', `Marked as fresh session for ${persistenceKey}`);
+  }, [clearPersistedState, persistenceKey]);
 
   // Listen for visibility changes
   useEffect(() => {
@@ -139,6 +167,8 @@ export const usePagePersistence = <T extends Record<string, any>>(
     persistState,
     restoreState,
     clearPersistedState,
-    getPersistedTimestamp
+    getPersistedTimestamp,
+    markAsFreshSession,
+    isFreshSession: isFreshSessionRef.current,
   };
 };
