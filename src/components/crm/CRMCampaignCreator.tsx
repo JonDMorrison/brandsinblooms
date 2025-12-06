@@ -47,6 +47,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { generateCampaignSessionId } from '@/types/campaign';
 
 // Helper function to generate images for blocks using batch API
 interface ImageGenerationContext {
@@ -593,14 +594,13 @@ const { counts: segmentCounts } = useSegmentCounts();
   } | null>(null);
   
   // CRITICAL FIX: Generate unique session ID for new campaigns to prevent cross-contamination
+  // Uses helper function that ensures:
+  // - Existing campaigns (UUID slug) use campaignSlug as session ID
+  // - New campaigns get unique session ID that cannot collide with other campaigns
   const sessionIdRef = useRef<string | null>(null);
   if (sessionIdRef.current === null) {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (campaignSlug && uuidRegex.test(campaignSlug)) {
-      sessionIdRef.current = campaignSlug;
-    } else {
-      sessionIdRef.current = `new_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    }
+    sessionIdRef.current = generateCampaignSessionId(campaignSlug);
+    console.log(`🔑 Generated session ID: ${sessionIdRef.current} for slug: ${campaignSlug || 'new'}`);
   }
   
   // Reset tracker when campaign changes
@@ -2196,82 +2196,87 @@ const { counts: segmentCounts } = useSegmentCounts();
             setBlocks(blocksWithLoadingStates);
             console.log(`✅ [FallbackInit] Generated ${crmBlocks.length} blocks for "${topic}" (layout: ${layoutType})`);
             
-            // Check if we already have cached content for this template
-            const cacheKey = `${templateId}-${encodeURIComponent(topic)}-${encodeURIComponent(description)}`;
-            console.log(`🔍 Checking for existing content with cache key: ${cacheKey}`);
+            // TEMPLATE REUSE: Only reuse content when explicitly provided via template_id or source_campaign_id
+            // REMOVED: Fuzzy ilike name matching that caused cross-contamination between campaigns
+            // Template reuse is now explicit and ID-based, not name-pattern based
+            console.log(`🚫 [NoFuzzyLookup] Skipping fuzzy name-based campaign lookup for: "${topic}"`);
+            console.log(`📌 Template reuse requires explicit template_id or source_campaign_id params`);
             
-            try {
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user) {
-                // Check for existing campaigns with matching template or title
-                const { data: existingCampaign, error } = await supabase
-                  .from('crm_campaigns')
-                  .select(`
-                    id, 
-                    name, 
-                    subject_line, 
-                    preheader, 
-                    metadata,
-                    campaign_blocks(*)
-                  `)
-                  .eq('user_id', user.id)
-                  .eq('status', 'draft')
-                  .ilike('name', `%${topic}%`)
-                  .limit(1)
-                  .maybeSingle();
+            // If a specific templateId was provided via URL params, use it for explicit template lookup
+            if (templateIdParam) {
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                  // EXPLICIT template lookup - only matches exact template_id
+                  const { data: templateCampaign, error } = await supabase
+                    .from('crm_campaigns')
+                    .select(`
+                      id, 
+                      name, 
+                      subject_line, 
+                      preheader, 
+                      metadata,
+                      campaign_blocks(*)
+                    `)
+                    .eq('user_id', user.id)
+                    .eq('template_id', templateIdParam)
+                    .eq('status', 'draft')
+                    .limit(1)
+                    .maybeSingle();
 
-                if (!error && existingCampaign && 
-                    ((existingCampaign.metadata as any)?.content_blocks?.length > 0 || 
-                     existingCampaign.campaign_blocks?.length > 0)) {
-                  console.log(`📋 Found existing campaign with content: ${existingCampaign.id}`);
-                  
-                  // Use campaign_blocks if available, otherwise metadata
-                  const blocksData = existingCampaign.campaign_blocks?.length > 0 
-                    ? existingCampaign.campaign_blocks
-                    : (existingCampaign.metadata as any)?.content_blocks || [];
-                  
-                  // Convert existing blocks back to our format
-                  const existingBlocks = blocksData.map((block: any, index: number) => {
-                    const blockType = block.block_type || block.type || 'text';
-                    const isHeaderBlock = blockType === 'header' || blockType === 'newsletter-header';
+                  if (!error && templateCampaign && 
+                      ((templateCampaign.metadata as any)?.content_blocks?.length > 0 || 
+                       templateCampaign.campaign_blocks?.length > 0)) {
+                    console.log(`📋 Found existing campaign from template_id=${templateIdParam}: ${templateCampaign.id}`);
                     
-                    return {
-                      id: block.id || `existing_${Date.now()}_${index}`,
-                      type: blockType,
-                      title: block.title || '',
-                      content: block.content || '',
-                      headline: block.headline || block.title || '',
-                      body: block.body || (typeof block.content === 'string' ? block.content : ''),
-                      // CRITICAL FIX: Map image_url to backgroundImageUrl for header blocks, imageUrl for others
-                      ...(isHeaderBlock 
-                        ? { backgroundImageUrl: block.image_url || '' }
-                        : { imageUrl: block.image_url || '' }
-                      ),
-                      ctaText: block.cta_text || '',
-                      ctaUrl: block.cta_url || '',
-                      source: block.source || 'cached',
-                      personaTag: block.persona_tag || 'general',
-                      layout: block.layout || 'full-width',
-                      alignment: 'left',
-                      textAlign: 'left',
-                      padding: 'medium',
-                      visible: true,
-                      collapsed: false
-                    };
-                  });
-                  
-                  setBlocks(normalizeBlocks(existingBlocks));
-                  setExistingCampaignId(existingCampaign.id);
-                  setCampaignName(existingCampaign.name);
-                  setSubjectLine(existingCampaign.subject_line || topic);
-                  setPreheaderText(existingCampaign.preheader || generatePreheaderText(topic, description));
-                  
-                  console.log(`✅ Loaded cached content with ${existingBlocks.length} blocks`);
-                  return; // Skip AI generation since we have cached content
+                    // Use campaign_blocks if available, otherwise metadata
+                    const blocksData = templateCampaign.campaign_blocks?.length > 0 
+                      ? templateCampaign.campaign_blocks
+                      : (templateCampaign.metadata as any)?.content_blocks || [];
+                    
+                    // Convert existing blocks back to our format
+                    const existingBlocks = blocksData.map((block: any, index: number) => {
+                      const blockType = block.block_type || block.type || 'text';
+                      const isHeaderBlock = blockType === 'header' || blockType === 'newsletter-header';
+                      
+                      return {
+                        id: block.id || `existing_${Date.now()}_${index}`,
+                        type: blockType,
+                        title: block.title || '',
+                        content: block.content || '',
+                        headline: block.headline || block.title || '',
+                        body: block.body || (typeof block.content === 'string' ? block.content : ''),
+                        ...(isHeaderBlock 
+                          ? { backgroundImageUrl: block.image_url || '' }
+                          : { imageUrl: block.image_url || '' }
+                        ),
+                        ctaText: block.cta_text || '',
+                        ctaUrl: block.cta_url || '',
+                        source: block.source || 'template',
+                        personaTag: block.persona_tag || 'general',
+                        layout: block.layout || 'full-width',
+                        alignment: 'left',
+                        textAlign: 'left',
+                        padding: 'medium',
+                        visible: true,
+                        collapsed: false,
+                        status: 'ai-generated' as const
+                      };
+                    });
+                    
+                    setBlocks(normalizeBlocks(existingBlocks));
+                    setExistingCampaignId(templateCampaign.id);
+                    setCampaignName(templateCampaign.name);
+                    setSubjectLine(templateCampaign.subject_line || topic);
+                    setPreheaderText(templateCampaign.preheader || generatePreheaderText(topic, description));
+                    
+                    console.log(`✅ Loaded template content with ${existingBlocks.length} blocks`);
+                    return; // Skip AI generation since we have template content
+                  }
                 }
+              } catch (error) {
+                console.warn('Failed to load template campaign:', error);
               }
-            } catch (error) {
-              console.warn('Failed to check for existing content:', error);
             }
             
             // Add AI content generation for fallback blocks

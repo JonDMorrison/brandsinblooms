@@ -1666,10 +1666,12 @@ export type Database = {
           sender_email: string | null
           sender_name: string | null
           sent_at: string | null
+          source_campaign_id: string | null
           source_content_task_id: string | null
           status: string | null
           subject_line: string | null
           synced_from: string | null
+          template_id: string | null
           tenant_id: string | null
           total_clicks: number | null
           total_opens: number | null
@@ -1702,10 +1704,12 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           sent_at?: string | null
+          source_campaign_id?: string | null
           source_content_task_id?: string | null
           status?: string | null
           subject_line?: string | null
           synced_from?: string | null
+          template_id?: string | null
           tenant_id?: string | null
           total_clicks?: number | null
           total_opens?: number | null
@@ -1738,10 +1742,12 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           sent_at?: string | null
+          source_campaign_id?: string | null
           source_content_task_id?: string | null
           status?: string | null
           subject_line?: string | null
           synced_from?: string | null
+          template_id?: string | null
           tenant_id?: string | null
           total_clicks?: number | null
           total_opens?: number | null
@@ -1762,6 +1768,13 @@ export type Database = {
             columns: ["segment_id"]
             isOneToOne: false
             referencedRelation: "crm_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaigns_source_campaign_id_fkey"
+            columns: ["source_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
             referencedColumns: ["id"]
           },
           {

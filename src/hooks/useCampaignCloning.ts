@@ -62,7 +62,7 @@ export const useCampaignCloning = () => {
 
       if (blocksError) throw blocksError;
 
-      // 3. Prepare cloned campaign data
+      // 3. Prepare cloned campaign data with EXPLICIT source_campaign_id tracking
       const clonedCampaignData = {
         name: options.newName || `${originalCampaign.name} (Copy)`,
         subject_line: originalCampaign.subject_line,
@@ -74,6 +74,10 @@ export const useCampaignCloning = () => {
         actual_sender_email: originalCampaign.actual_sender_email,
         user_id: user.id,
         tenant_id: originalCampaign.tenant_id,
+        // CRITICAL: Set source_campaign_id for explicit tracking of cloned campaigns
+        source_campaign_id: originalCampaignId,
+        // Preserve template_id if original was from a template
+        template_id: (originalCampaign as any).template_id || null,
         metadata: originalCampaign.metadata ? {
           ...(originalCampaign.metadata as any),
           cloned_from: originalCampaignId,
