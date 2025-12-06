@@ -12,7 +12,14 @@ import {
   isHeaderBlock,
   DatabaseBlock 
 } from '@/utils/blockFieldMapping';
-import { ContentBlock } from '@/types/emailBuilder';
+import { ContentBlock, BlockType } from '@/types/emailBuilder';
+
+// Helper to create test blocks with required fields
+const createTestBlock = (overrides: Partial<ContentBlock> & { type: BlockType }): ContentBlock => ({
+  id: `test-${Date.now()}`,
+  source: 'manual' as const,
+  ...overrides,
+});
 
 describe('Block Field Mapping - Round Trip', () => {
   

@@ -130,14 +130,22 @@ export const TimezoneScheduler = ({ onScheduleChange, defaultSchedule }: Timezon
       sendInRecipientTimezone
     };
 
+    // Create local convertToUtc to ensure we use current selectedTimezone
+    const getUtcDate = (localDate: Date, timeStr: string): Date => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const dateWithTime = new Date(localDate);
+      dateWithTime.setHours(hours, minutes, 0, 0);
+      return fromZonedTime(dateWithTime, selectedTimezone);
+    };
+
     if (scheduleType === 'custom') {
       // Convert the local date/time to UTC for storage
-      schedule.date = convertToUtc(selectedDate, selectedTime);
+      schedule.date = getUtcDate(selectedDate, selectedTime);
     } else if (scheduleType === 'optimal') {
       // For optimal, use today's date with the optimal time, converted to UTC
       const today = new Date();
       today.setHours(12, 0, 0, 0); // Use noon to avoid DST issues
-      schedule.date = convertToUtc(today, optimalTime);
+      schedule.date = getUtcDate(today, optimalTime);
     } else {
       // 'now' - just use current time (already in UTC when stored)
       schedule.date = new Date();
@@ -145,7 +153,7 @@ export const TimezoneScheduler = ({ onScheduleChange, defaultSchedule }: Timezon
 
     console.log(`📅 Schedule updated: type=${scheduleType}, UTC=${schedule.date?.toISOString()}, timezone=${selectedTimezone}`);
     onScheduleChange(schedule);
-  }, [scheduleType, selectedDate, selectedTime, selectedTimezone, sendInRecipientTimezone, optimalTime]);
+  }, [scheduleType, selectedDate, selectedTime, selectedTimezone, sendInRecipientTimezone, optimalTime, onScheduleChange]);
 
   /**
    * Handle calendar date selection

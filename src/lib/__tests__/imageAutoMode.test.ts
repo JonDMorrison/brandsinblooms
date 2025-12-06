@@ -8,7 +8,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ContentBlock } from '@/types/emailBuilder';
+import { ContentBlock, BlockType } from '@/types/emailBuilder';
+
+// Helper to create test blocks with required fields
+const createTestBlock = (overrides: Partial<ContentBlock> & { type: BlockType }): ContentBlock => ({
+  id: `test-${Date.now()}`,
+  source: 'manual' as const,
+  ...overrides,
+});
 
 // Mock image fetching function signature
 type MockFetchImage = (query: string) => Promise<{ url: string } | null>;

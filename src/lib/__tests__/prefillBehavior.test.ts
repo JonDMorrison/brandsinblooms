@@ -6,7 +6,14 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { ContentBlock, BlockStatus } from '@/types/emailBuilder';
+import { ContentBlock, BlockStatus, BlockType } from '@/types/emailBuilder';
+
+// Helper to create test blocks with required fields
+const createTestBlock = (overrides: Partial<ContentBlock> & { type: BlockType }): ContentBlock => ({
+  id: `test-${Date.now()}`,
+  source: 'manual' as const,
+  ...overrides,
+});
 
 /**
  * Simulates the prefill guard logic
