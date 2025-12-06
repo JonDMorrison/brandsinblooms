@@ -13,6 +13,17 @@ interface PagePersistenceOptions {
   sessionId?: string;
 }
 
+interface PersistedData<T> {
+  state: T;
+  timestamp: number;
+  ttl: number;
+  /**
+   * ISO timestamp of the last modification to the persisted data
+   * Used to compare against DB lastModifiedAt to determine which is newer
+   */
+  lastModifiedAt?: string;
+}
+
 export const usePagePersistence = <T extends Record<string, any>>(
   options: PagePersistenceOptions
 ) => {
@@ -26,29 +37,30 @@ export const usePagePersistence = <T extends Record<string, any>>(
     : `page_persist_${key}_${location.pathname}`;
   const lastSavedRef = useRef<number>(0);
 
-  // Save state to sessionStorage with TTL
-  const persistState = useCallback((state: T) => {
+  // Save state to sessionStorage with TTL and lastModifiedAt
+  const persistState = useCallback((state: T, lastModifiedAt?: string) => {
     try {
-      const data = {
+      const data: PersistedData<T> = {
         state,
         timestamp: Date.now(),
-        ttl
+        ttl,
+        lastModifiedAt: lastModifiedAt || new Date().toISOString()
       };
       sessionStorage.setItem(persistenceKey, JSON.stringify(data));
       lastSavedRef.current = Date.now();
-      console.log('💾 State persisted for', persistenceKey);
+      console.log('💾 State persisted for', persistenceKey, 'at', data.lastModifiedAt);
     } catch (error) {
       console.warn('Failed to persist state:', error);
     }
   }, [persistenceKey, ttl]);
 
-  // Restore state from sessionStorage
-  const restoreState = useCallback((): T | null => {
+  // Restore state from sessionStorage - returns the persisted data including lastModifiedAt
+  const restoreState = useCallback((): { state: T; lastModifiedAt?: string } | null => {
     try {
       const savedData = sessionStorage.getItem(persistenceKey);
       if (!savedData) return null;
 
-      const { state, timestamp, ttl: savedTtl } = JSON.parse(savedData);
+      const { state, timestamp, ttl: savedTtl, lastModifiedAt } = JSON.parse(savedData) as PersistedData<T>;
       const age = Date.now() - timestamp;
       
       // Check if data is still valid
@@ -58,10 +70,30 @@ export const usePagePersistence = <T extends Record<string, any>>(
         return null;
       }
 
-      console.log('📋 State restored for', persistenceKey, '- age:', Math.round(age / 1000), 'seconds');
-      return state;
+      console.log('📋 State restored for', persistenceKey, '- age:', Math.round(age / 1000), 'seconds, lastModifiedAt:', lastModifiedAt);
+      return { state, lastModifiedAt };
     } catch (error) {
       console.warn('Failed to restore state:', error);
+      return null;
+    }
+  }, [persistenceKey]);
+
+  // Get only the lastModifiedAt timestamp without loading full state
+  const getPersistedTimestamp = useCallback((): string | null => {
+    try {
+      const savedData = sessionStorage.getItem(persistenceKey);
+      if (!savedData) return null;
+
+      const { timestamp, ttl: savedTtl, lastModifiedAt } = JSON.parse(savedData) as PersistedData<T>;
+      const age = Date.now() - timestamp;
+      
+      // Check if data is still valid
+      if (age > savedTtl) {
+        return null;
+      }
+
+      return lastModifiedAt || null;
+    } catch (error) {
       return null;
     }
   }, [persistenceKey]);
@@ -106,6 +138,7 @@ export const usePagePersistence = <T extends Record<string, any>>(
   return {
     persistState,
     restoreState,
-    clearPersistedState
+    clearPersistedState,
+    getPersistedTimestamp
   };
 };

@@ -4,7 +4,7 @@
  * All save/load operations MUST use these functions
  */
 
-import { ContentBlock } from '@/types/emailBuilder';
+import { ContentBlock, BlockStatus } from '@/types/emailBuilder';
 
 /**
  * Field mapping definitions
@@ -154,6 +154,9 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
       issueNumber: (block as any).issueNumber,
       publishDate: (block as any).publishDate,
       
+      // Block status for hydration control
+      status: block.status,
+      
       // Content lifecycle flags - preserve through save/load
       hasGeneratedContent: block.hasGeneratedContent,
       userEdited: block.userEdited,
@@ -246,6 +249,10 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
     (!!body && body.length > 0);
   const userEdited = contentObj.userEdited === true;
   
+  // Determine block status from content state
+  const status: BlockStatus = contentObj.status || 
+    (userEdited ? 'user-edited' : hasGeneratedContent ? 'ai-generated' : 'empty');
+  
   // DETERMINISTIC IMAGE BEHAVIOR: 
   // - autoImageMode defaults to false for existing campaigns (preserve user intent)
   // - shouldFetchImage defaults to false on load (never auto-fetch on reload)
@@ -312,6 +319,9 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
     overlayOpacity: dbBlock.overlay_opacity ?? contentObj.overlayOpacity,
     overlayColor: dbBlock.overlay_color || contentObj.overlayColor,
     darkOverlayOpacity: dbBlock.dark_overlay_opacity ?? contentObj.darkOverlayOpacity,
+    
+    // Block status for hydration control
+    status,
     
     // Content lifecycle flags
     hasGeneratedContent,

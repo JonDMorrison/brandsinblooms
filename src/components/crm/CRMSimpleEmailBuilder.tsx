@@ -116,8 +116,9 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
     loadSegments();
     
     // Try to restore persisted state
-    const persistedState = restoreState();
-    if (persistedState) {
+    const restoredData = restoreState();
+    if (restoredData) {
+      const persistedState = restoredData.state;
       console.log('📋 Restoring simple email builder state');
       setCampaignName(persistedState.campaignName);
       setSubjectLine(persistedState.subjectLine);
