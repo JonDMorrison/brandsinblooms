@@ -334,7 +334,46 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
     );
   }
   
-  // Default layout for other block types
+  // Text block with image - Card style layout (Image -> Headline -> Content)
+  if (block.type === 'text' && isValidImageUrl(block.imageUrl)) {
+    return (
+      <div className={cn('space-y-4', paddingClass, className)}>
+        {/* Image at top */}
+        <img
+          src={block.imageUrl as string}
+          alt={block.altText || block.title || 'Image'}
+          className="w-full h-auto rounded-lg object-cover"
+        />
+        {/* Headline */}
+        {(block.title || block.headline) ? (
+          <h3 className="text-xl font-semibold">{block.title || block.headline}</h3>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add heading</p>
+        )}
+        {/* Content */}
+        {(block.content || block.body) ? (
+          <div 
+            className="text-muted-foreground leading-relaxed"
+            dangerouslySetInnerHTML={{ 
+              __html: parseSimpleMarkdown(block.content || block.body || '')
+            }}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Click to add content</p>
+        )}
+        {/* CTA Button */}
+        {(block.ctaText || block.buttonText) && (
+          <div>
+            <button className="bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90 transition-colors">
+              {block.ctaText || block.buttonText}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // Default layout for other block types (text without image)
   return (
     <div className={cn('space-y-4', paddingClass, className)}>
       {(block.title || block.headline) ? (
