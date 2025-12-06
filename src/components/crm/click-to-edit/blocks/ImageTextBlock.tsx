@@ -118,7 +118,9 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
 
   const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left';
   const isImageRight = block.layout === 'image-right' || block.layout === 'two-column-right';
-  const isTextOnly = block.layout === 'full-width' || block.type === 'text';
+  // Text-only layout: only hide image section if no image AND it's a text block or full-width layout
+  // If there's an imageUrl, always show the image regardless of block type
+  const isTextOnly = !block.imageUrl && (block.layout === 'full-width' || block.type === 'text');
 
   const handleModeClick = (mode: EditMode, event: React.MouseEvent) => {
     event.stopPropagation();
