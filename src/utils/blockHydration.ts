@@ -1,213 +1,364 @@
 /**
  * Block Hydration Utilities
- * STEP 6: Consistency guards for all block-hydration paths
+ * STEP 6: Enhanced consistency guards for block state management
  * 
- * These helpers ensure:
- * - Never overwrite user-edited fields
- * - Never replace non-empty content with defaults
- * - Never re-normalize blocks multiple times in a single render
- * - Always run hydration exactly once per load
+ * Provides utility functions for managing the hydration and state of content blocks,
+ * ensuring that user-edited content is preserved and that blocks are updated consistently.
  */
 
 import { ContentBlock, BlockStatus } from '@/types/emailBuilder';
 import { newsletterDebug } from './newsletterDebug';
 
 /**
- * Check if a block has been edited by the user
- * User-edited blocks should never have their content overwritten
+ * Check if a block has been marked as user-edited
  */
 export function isUserEdited(block: Partial<ContentBlock>): boolean {
-  return block.status === 'user-edited' || block.userEdited === true;
+  return block.userEdited === true || block.status === 'user-edited';
 }
 
 /**
  * Check if a block has AI-generated content
  */
 export function isAIGenerated(block: Partial<ContentBlock>): boolean {
-  return block.status === 'ai-generated' || block.hasGeneratedContent === true;
+  return block.hasGeneratedContent === true || block.status === 'ai-generated';
 }
 
 /**
- * Check if a block is empty (no meaningful content)
- */
-export function isEmptyBlock(block: Partial<ContentBlock>): boolean {
-  const hasHeadline = !!(block.headline || block.title);
-  const hasBody = !!(block.body || block.content);
-  const hasImage = !!(block.imageUrl || block.backgroundImageUrl);
-  const hasCTA = !!(block.ctaText || block.buttonText);
-  
-  return !hasHeadline && !hasBody && !hasImage && !hasCTA;
-}
-
-/**
- * Check if content is empty or only contains placeholder text
+ * Check if content string is empty or contains placeholder text
  */
 export function isEmptyContent(content: string | undefined | null): boolean {
   if (!content) return true;
   
-  const trimmed = content.trim();
-  if (!trimmed) return true;
+  const trimmed = content.trim().toLowerCase();
+  if (trimmed.length === 0) return true;
   
-  // Check for common placeholder patterns
+  // Common placeholder patterns
   const placeholderPatterns = [
-    /^add your (content|headline|text|body)/i,
-    /^your (content|headline|text|body)/i,
-    /^content headline$/i,
-    /^newsletter content$/i,
-    /^placeholder/i,
-    /^lorem ipsum/i,
+    'add your',
+    'enter your',
+    'type your',
+    'your text here',
+    'placeholder',
+    'lorem ipsum',
+    'click to edit',
+    'edit this',
   ];
   
-  return placeholderPatterns.some(pattern => pattern.test(trimmed));
+  return placeholderPatterns.some(pattern => trimmed.includes(pattern));
 }
 
 /**
- * Determine if a block should be hydrated with defaults
- * Only hydrate empty blocks that have never been generated or edited
+ * Check if a block has no meaningful content (headline, body, image, or CTA)
+ */
+export function isEmptyBlock(block: Partial<ContentBlock>): boolean {
+  const hasHeadline = !isEmptyContent(block.headline) || !isEmptyContent(block.title);
+  const hasBody = !isEmptyContent(block.body) || !isEmptyContent(block.content);
+  const hasImage = !!(block.imageUrl || block.backgroundImageUrl);
+  const hasCta = !isEmptyContent(block.ctaText) || !isEmptyContent(block.buttonText);
+  
+  // Special handling for divider blocks - they're never "empty"
+  if (block.type === 'divider') {
+    return false;
+  }
+  
+  return !hasHeadline && !hasBody && !hasImage && !hasCta;
+}
+
+/**
+ * Determine if a block should be hydrated with default content
+ * Only hydrate empty blocks that haven't been edited or AI-generated
+ * 
+ * STEP 6: Enhanced with proper status checking
  */
 export function shouldHydrate(block: Partial<ContentBlock>): boolean {
   // Never hydrate user-edited blocks
   if (isUserEdited(block)) {
-    newsletterDebug.log('hydration', `Block ${block.id} - skipping hydration (user-edited)`);
+    newsletterDebug.log('hydration', `Block ${block.id}: shouldHydrate=false (user-edited)`);
     return false;
   }
   
-  // Never hydrate blocks with generated content
+  // Never hydrate AI-generated blocks
   if (isAIGenerated(block)) {
-    newsletterDebug.log('hydration', `Block ${block.id} - skipping hydration (ai-generated)`);
+    newsletterDebug.log('hydration', `Block ${block.id}: shouldHydrate=false (ai-generated)`);
     return false;
   }
   
-  // Only hydrate if block has empty or placeholder content
-  const isEmpty = isEmptyBlock(block);
-  const needsHydration = block.status === 'empty' || (!block.status && isEmpty);
+  // Only hydrate if the block is actually empty
+  const empty = isEmptyBlock(block);
+  newsletterDebug.log('hydration', `Block ${block.id}: shouldHydrate=${empty} (isEmpty=${empty})`);
   
-  newsletterDebug.log('hydration', `Block ${block.id} - shouldHydrate: ${needsHydration}`, {
-    status: block.status,
-    isEmpty,
-    hasGeneratedContent: block.hasGeneratedContent
-  });
+  return empty;
+}
+
+/**
+ * Check if content can be safely overwritten
+ * Returns true only if the block is empty AND not user-edited AND not AI-generated
+ */
+export function canOverwriteContent(block: Partial<ContentBlock>): boolean {
+  if (isUserEdited(block)) {
+    return false;
+  }
   
-  return needsHydration;
+  if (isAIGenerated(block)) {
+    return false;
+  }
+  
+  return isEmptyBlock(block);
 }
 
 /**
  * Mark a block as user-edited
- * Call this whenever the user manually modifies content
  */
 export function markAsUserEdited(block: ContentBlock): ContentBlock {
-  newsletterDebug.log('hydration', `Block ${block.id} - marking as user-edited`);
+  newsletterDebug.log('hydration', `Marking block ${block.id} as user-edited`);
   return {
     ...block,
-    status: 'user-edited' as BlockStatus,
     userEdited: true,
-  };
-}
-
-/**
- * Mark a block as AI-generated
- * Call this after AI Writer generates content
- */
-export function markAsAIGenerated(block: ContentBlock): ContentBlock {
-  newsletterDebug.log('hydration', `Block ${block.id} - marking as ai-generated`);
-  return {
-    ...block,
-    status: 'ai-generated' as BlockStatus,
-    hasGeneratedContent: true,
-    contentGeneratedAt: Date.now(),
+    status: 'user-edited' as BlockStatus,
     contentVersion: (block.contentVersion || 0) + 1,
   };
 }
 
 /**
- * Safely set content on a block, respecting user edits
- * Will not overwrite if the block is user-edited
+ * Mark a block as AI-generated
+ */
+export function markAsAIGenerated(block: ContentBlock): ContentBlock {
+  newsletterDebug.log('hydration', `Marking block ${block.id} as AI-generated`);
+  return {
+    ...block,
+    hasGeneratedContent: true,
+    status: 'ai-generated' as BlockStatus,
+    contentGeneratedAt: Date.now(),
+  };
+}
+
+/**
+ * Safely update block content
+ * Prevents overwrites on user-edited blocks and only fills empty fields
  */
 export function safeSetContent(
   block: ContentBlock, 
   updates: Partial<Pick<ContentBlock, 'headline' | 'title' | 'body' | 'content' | 'imageUrl' | 'backgroundImageUrl'>>
 ): ContentBlock {
-  // Never overwrite user-edited blocks
+  // If user-edited, don't update any content fields
   if (isUserEdited(block)) {
-    newsletterDebug.log('hydration', `Block ${block.id} - safeSetContent skipped (user-edited)`);
+    newsletterDebug.log('hydration', `safeSetContent: Block ${block.id} is user-edited, skipping update`);
     return block;
   }
   
-  // Only set fields that are currently empty
-  const safeUpdates: Partial<ContentBlock> = {};
+  const result = { ...block };
   
+  // Only update empty fields
   if (updates.headline && isEmptyContent(block.headline)) {
-    safeUpdates.headline = updates.headline;
-    safeUpdates.title = updates.headline;
+    result.headline = updates.headline;
+    result.title = updates.headline;
   }
   
   if (updates.body && isEmptyContent(block.body)) {
-    safeUpdates.body = updates.body;
-    safeUpdates.content = updates.body;
+    result.body = updates.body;
+    result.content = updates.body;
   }
   
+  // Image updates are allowed if no image exists
   if (updates.imageUrl && !block.imageUrl) {
-    safeUpdates.imageUrl = updates.imageUrl;
+    result.imageUrl = updates.imageUrl;
   }
   
   if (updates.backgroundImageUrl && !block.backgroundImageUrl) {
-    safeUpdates.backgroundImageUrl = updates.backgroundImageUrl;
+    result.backgroundImageUrl = updates.backgroundImageUrl;
   }
   
-  newsletterDebug.log('hydration', `Block ${block.id} - safeSetContent applied`, safeUpdates);
+  newsletterDebug.log('hydration', `safeSetContent: Updated block ${block.id}`, {
+    updatedHeadline: result.headline !== block.headline,
+    updatedBody: result.body !== block.body,
+    updatedImage: result.imageUrl !== block.imageUrl || result.backgroundImageUrl !== block.backgroundImageUrl,
+  });
   
-  return {
-    ...block,
-    ...safeUpdates,
-  };
+  return result;
 }
 
 /**
- * Create a fresh block with proper initial status
+ * Create a new block with initial 'empty' status and default properties
  */
 export function createEmptyBlock(type: ContentBlock['type'], id: string): ContentBlock {
-  const block: ContentBlock = {
+  const baseBlock: ContentBlock = {
     id,
     type,
-    source: 'manual',
-    status: 'empty',
-    visible: true,
-    
-    // Image control flags - defaults for new blocks
-    autoImageMode: false,
-    shouldFetchImage: false,
-    isGeneratingImage: false,
-    
-    // Content lifecycle
+    headline: '',
+    title: '',
+    body: '',
+    content: '',
+    status: 'empty' as BlockStatus,
     hasGeneratedContent: false,
     userEdited: false,
+    visible: true,
+    collapsed: false,
+    source: 'manual',
+    autoImageMode: true, // New blocks default to auto mode
+    shouldFetchImage: false,
+    isGeneratingImage: false,
   };
   
-  newsletterDebug.log('hydration', `Created empty block ${id} of type ${type}`);
-  
-  return block;
+  // Add type-specific defaults
+  switch (type) {
+    case 'header':
+    case 'newsletter-header':
+      return {
+        ...baseBlock,
+        alignment: 'center',
+        padding: 'large',
+      };
+    case 'image-text':
+      return {
+        ...baseBlock,
+        layout: 'image-left',
+        alignment: 'left',
+        padding: 'medium',
+      };
+    case 'button':
+    case 'cta':
+      return {
+        ...baseBlock,
+        alignment: 'center',
+        ctaText: '',
+        ctaUrl: '',
+        buttonText: '',
+        buttonUrl: '',
+      };
+    case 'divider':
+      return {
+        ...baseBlock,
+        visible: true,
+      };
+    default:
+      return {
+        ...baseBlock,
+        alignment: 'left',
+        padding: 'medium',
+      };
+  }
 }
 
 /**
- * Validate that a block has consistent state
- * Returns warnings if state is inconsistent
+ * Validate block state for inconsistencies
+ * Returns array of warning messages
  */
 export function validateBlockState(block: ContentBlock): string[] {
   const warnings: string[] = [];
   
-  // Check for status vs flags mismatch
-  if (block.status === 'user-edited' && !block.userEdited) {
-    warnings.push(`Block ${block.id}: status is 'user-edited' but userEdited flag is false`);
+  // Check for status/flag inconsistencies
+  if (block.userEdited && block.status !== 'user-edited') {
+    warnings.push(`Block ${block.id}: userEdited=true but status="${block.status}"`);
   }
   
-  if (block.status === 'ai-generated' && !block.hasGeneratedContent) {
-    warnings.push(`Block ${block.id}: status is 'ai-generated' but hasGeneratedContent is false`);
+  if (block.hasGeneratedContent && block.status === 'empty') {
+    warnings.push(`Block ${block.id}: hasGeneratedContent=true but status="empty"`);
   }
   
-  // Check for image state inconsistencies
+  // Check for content without proper flags
+  const hasContent = !isEmptyBlock(block);
+  if (hasContent && block.status === 'empty') {
+    warnings.push(`Block ${block.id}: has content but status="empty"`);
+  }
+  
+  // Check for image generation state issues
   if (block.isGeneratingImage && (block.imageUrl || block.backgroundImageUrl)) {
-    warnings.push(`Block ${block.id}: isGeneratingImage is true but image URL exists`);
+    warnings.push(`Block ${block.id}: isGeneratingImage=true but already has image`);
+  }
+  
+  // Log warnings
+  if (warnings.length > 0) {
+    newsletterDebug.warn('hydration', `Block state validation warnings for ${block.id}:`, warnings);
   }
   
   return warnings;
+}
+
+/**
+ * Normalize block status based on content state
+ * Use this when loading blocks to ensure status is consistent with content
+ */
+export function normalizeBlockStatus(block: ContentBlock): ContentBlock {
+  const hasContent = !isEmptyBlock(block);
+  
+  // If block has userEdited flag, preserve it
+  if (block.userEdited) {
+    return {
+      ...block,
+      status: 'user-edited' as BlockStatus,
+    };
+  }
+  
+  // If block has AI-generated content flag, preserve it
+  if (block.hasGeneratedContent) {
+    return {
+      ...block,
+      status: 'ai-generated' as BlockStatus,
+    };
+  }
+  
+  // Infer status from content
+  if (hasContent) {
+    // Content exists but no flags - assume AI-generated
+    return {
+      ...block,
+      hasGeneratedContent: true,
+      status: 'ai-generated' as BlockStatus,
+    };
+  }
+  
+  // No content - mark as empty
+  return {
+    ...block,
+    status: 'empty' as BlockStatus,
+  };
+}
+
+/**
+ * Check if a block needs image generation
+ * STEP 4: Deterministic image behavior
+ */
+export function needsImageGeneration(block: ContentBlock): boolean {
+  // Don't generate if already generating
+  if (block.isGeneratingImage) {
+    return false;
+  }
+  
+  // Don't generate if autoImageMode is disabled
+  if (block.autoImageMode === false) {
+    return false;
+  }
+  
+  // Don't generate if shouldFetchImage is explicitly false
+  if (block.shouldFetchImage === false) {
+    return false;
+  }
+  
+  // Check if block type supports images
+  const imageBlockTypes = ['image', 'image-text', 'header', 'newsletter-header', 'background-image', 'background-image-section'];
+  if (!imageBlockTypes.includes(block.type)) {
+    return false;
+  }
+  
+  // Header blocks use backgroundImageUrl
+  const isHeader = block.type === 'header' || block.type === 'newsletter-header';
+  const hasImage = isHeader 
+    ? !!block.backgroundImageUrl 
+    : !!block.imageUrl;
+  
+  // Only generate if no image exists
+  return !hasImage;
+}
+
+/**
+ * Log block state for debugging
+ */
+export function logBlockDebugState(block: ContentBlock, context: string): void {
+  newsletterDebug.logBlockState({
+    id: block.id,
+    type: block.type,
+    status: block.status,
+    hasGeneratedContent: block.hasGeneratedContent,
+    userEdited: block.userEdited,
+  }, context);
 }

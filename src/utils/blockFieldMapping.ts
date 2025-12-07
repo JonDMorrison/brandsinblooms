@@ -10,7 +10,7 @@
  * - imageUrl/image_url → imageUrl (for non-headers) / backgroundImageUrl (for headers)
  */
 
-import { ContentBlock, BlockStatus } from '@/types/emailBuilder';
+import { ContentBlock, BlockStatus, EmailBlock } from '@/types/emailBuilder';
 import { newsletterDebug } from './newsletterDebug';
 
 /**
@@ -80,6 +80,106 @@ export interface DatabaseBlock {
   campaign_id?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+/**
+ * Convert EmailBlock to ContentBlock format
+ * STEP 1: Canonical conversion for autosave hook compatibility
+ */
+export function convertEmailBlockToContentBlock(emailBlock: EmailBlock): ContentBlock {
+  newsletterDebug.log('mapping', `Converting EmailBlock to ContentBlock: ${emailBlock.id}`);
+  
+  const isHeader = emailBlock.block_type === 'header' || emailBlock.block_type === 'newsletter-header';
+  
+  // Extract content fields from both top-level and nested content object
+  const content = emailBlock.content || {};
+  
+  const headline = (emailBlock as any).headline || content.headline || content.title || '';
+  const body = (emailBlock as any).body || content.body || content.content || '';
+  const ctaText = (emailBlock as any).ctaText || content.ctaText || content.buttonText || emailBlock.cta_text || '';
+  const ctaUrl = (emailBlock as any).ctaUrl || content.ctaUrl || content.buttonUrl || emailBlock.cta_url || '';
+  
+  // Handle image URLs based on block type
+  const imageUrl = isHeader 
+    ? undefined 
+    : ((emailBlock as any).imageUrl || content.imageUrl || emailBlock.image_url || undefined);
+  const backgroundImageUrl = isHeader 
+    ? ((emailBlock as any).backgroundImageUrl || content.backgroundImageUrl || emailBlock.image_url || undefined)
+    : ((emailBlock as any).backgroundImageUrl || content.backgroundImageUrl || undefined);
+
+  const result: ContentBlock = {
+    id: emailBlock.id,
+    type: emailBlock.block_type as ContentBlock['type'],
+    
+    // Canonical text fields
+    headline,
+    title: headline,
+    body,
+    content: body,
+    
+    // Image fields
+    imageUrl,
+    backgroundImageUrl,
+    altText: (emailBlock as any).altText || content.altText || '',
+    caption: (emailBlock as any).caption || content.caption || '',
+    
+    // CTA fields
+    ctaText,
+    ctaUrl,
+    buttonText: ctaText,
+    buttonUrl: ctaUrl,
+    ctaStyle: content.ctaStyle,
+    ctaSize: content.ctaSize,
+    
+    // Layout and styling
+    layout: content.layout,
+    alignment: content.alignment,
+    textAlign: content.textAlign || content.alignment,
+    padding: content.padding,
+    margin: content.margin,
+    fontFamily: content.fontFamily,
+    fontSize: content.fontSize,
+    textColor: content.textColor,
+    backgroundColor: content.backgroundColor,
+    backgroundOpacity: content.backgroundOpacity,
+    
+    // Quote block fields
+    quote: content.quote,
+    author: content.author,
+    authorTitle: content.authorTitle,
+    
+    // Visibility
+    visible: content.visible !== false,
+    collapsed: content.collapsed || false,
+    
+    // Header-specific fields
+    subtitle: content.subtitle,
+    issueNumber: content.issueNumber,
+    publishDate: content.publishDate,
+    
+    // Metadata
+    source: (content.source || 'manual') as ContentBlock['source'],
+    personaTag: content.persona_tag,
+    
+    // Overlays
+    overlayOpacity: content.overlayOpacity,
+    overlayColor: content.overlayColor,
+    darkOverlayOpacity: content.darkOverlayOpacity,
+    
+    // Lifecycle flags - preserve through conversions
+    status: content.status,
+    hasGeneratedContent: content.hasGeneratedContent,
+    userEdited: content.userEdited,
+    contentGeneratedAt: content.contentGeneratedAt,
+    contentVersion: content.contentVersion,
+    
+    // Image control flags
+    autoImageMode: content.autoImageMode,
+    shouldFetchImage: content.shouldFetchImage,
+    isGeneratingImage: content.isGeneratingImage,
+  };
+  
+  return result;
 }
 
 /**
@@ -369,8 +469,10 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
 export function validateBlockContent(block: ContentBlock): {
   isValid: boolean;
   missingFields: string[];
+  warnings: string[];
 } {
   const missingFields: string[] = [];
+  const warnings: string[] = [];
   
   // Check headline/title
   const hasHeadline = !!(block.headline || block.title);
@@ -391,9 +493,26 @@ export function validateBlockContent(block: ContentBlock): {
     missingFields.push('image');
   }
   
+  // Header block specific validation
+  if (isHeaderBlock(block)) {
+    if (!block.backgroundImageUrl && !block.imageUrl) {
+      warnings.push('Header block has no background image');
+    }
+  }
+  
+  // Status consistency checks
+  if (block.userEdited && block.status === 'empty') {
+    warnings.push('Block marked as user-edited but status is empty');
+  }
+  
+  if (block.hasGeneratedContent && block.status === 'empty') {
+    warnings.push('Block has generated content but status is empty');
+  }
+  
   return {
     isValid: missingFields.length === 0,
-    missingFields
+    missingFields,
+    warnings
   };
 }
 
@@ -401,7 +520,7 @@ export function validateBlockContent(block: ContentBlock): {
  * Debug helper to log block content state
  */
 export function logBlockState(block: ContentBlock, context: string): void {
-  console.log(`📊 [${context}] Block ${block.id} (${block.type}):`, {
+  newsletterDebug.log('hydration', `[${context}] Block ${block.id} (${block.type})`, {
     headline: block.headline || block.title || '(empty)',
     body: (block.body || block.content || '').substring(0, 50) + '...',
     imageUrl: block.imageUrl?.substring(0, 50) || '(empty)',
@@ -410,5 +529,7 @@ export function logBlockState(block: ContentBlock, context: string): void {
     ctaUrl: block.ctaUrl || block.buttonUrl || '(empty)',
     hasGeneratedContent: block.hasGeneratedContent,
     userEdited: block.userEdited,
+    status: block.status,
+    autoImageMode: block.autoImageMode,
   });
 }
