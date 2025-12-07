@@ -2944,6 +2944,11 @@ const { counts: segmentCounts } = useSegmentCounts();
         console.log('[EMAIL-HTML] Rendering header block:', {
           id: block.id,
           type: block.type,
+          title: block.title,
+          headline: block.headline,
+          subtitle: block.subtitle,
+          body: block.body,
+          publishDate: block.publishDate,
           backgroundImageUrl: block.backgroundImageUrl,
           hasBackgroundImage: !!block.backgroundImageUrl,
           imageUrl: block.imageUrl
