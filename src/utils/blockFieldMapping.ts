@@ -280,6 +280,12 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
       autoImageMode: block.autoImageMode,
       shouldFetchImage: block.shouldFetchImage,
       isGeneratingImage: block.isGeneratingImage,
+      
+      // Image Gallery block specific fields
+      galleryImages: (block as any).galleryImages,
+      galleryLayout: (block as any).galleryLayout,
+      galleryGap: (block as any).galleryGap,
+      galleryImageRadius: (block as any).galleryImageRadius,
     },
     image_url: imageUrl,
     cta_url: ctaUrl || null,
@@ -457,7 +463,13 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
     autoImageMode, // Preserved from DB or defaults to false
     shouldFetchImage: false, // NEVER auto-fetch on reload
     isGeneratingImage: false, // Always false on load - generation is complete
-  };
+    
+    // Image Gallery block specific fields
+    galleryImages: contentObj.galleryImages,
+    galleryLayout: contentObj.galleryLayout,
+    galleryGap: contentObj.galleryGap,
+    galleryImageRadius: contentObj.galleryImageRadius,
+  } as ContentBlock;
   
   endTimer();
   return result;

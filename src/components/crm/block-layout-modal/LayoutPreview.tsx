@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface LayoutPreviewProps {
-  type: 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'text-plain' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background';
+  type: 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'text-plain' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'image-gallery';
 }
 
 export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
@@ -206,6 +206,18 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
             <div className="absolute inset-0 bg-white/40 rounded-md"></div>
             <div className="relative text-center">
               <div className="text-xs font-medium text-slate-600">Background</div>
+            </div>
+          </div>
+        );
+      
+      case 'image-gallery':
+        return (
+          <div className="h-full bg-gradient-to-b from-gray-50 to-white rounded-md p-2 border flex flex-col">
+            <div className="text-xs font-medium text-center mb-1 text-gray-700">Gallery</div>
+            <div className="flex-1 grid grid-cols-3 gap-1">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="bg-gradient-to-br from-slate-200 to-slate-300 rounded-sm" />
+              ))}
             </div>
           </div>
         );

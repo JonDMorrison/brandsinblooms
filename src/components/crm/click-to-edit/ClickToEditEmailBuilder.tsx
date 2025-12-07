@@ -12,6 +12,7 @@ import { DividerBlock } from './blocks/DividerBlock';
 import { ButtonBlock } from './blocks/ButtonBlock';
 import { SocialFollowBlock } from './blocks/SocialFollowBlock';
 import { FooterBlock } from './blocks/FooterBlock';
+import { ImageGalleryBlock } from './blocks/ImageGalleryBlock';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
@@ -288,6 +289,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         return <SocialFollowBlock {...props} isPreview={false} />;
       case 'footer':
         return <FooterBlock {...props} isPreview={false} />;
+      case 'image-gallery':
+        return <ImageGalleryBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
       default:
         return <div>Unknown block type</div>;
     }
@@ -332,6 +335,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         return <SocialFollowBlock {...props} isPreview={true} />;
       case 'footer':
         return <FooterBlock {...props} isPreview={true} />;
+      case 'image-gallery':
+        return <ImageGalleryBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
       default:
         return <div>Unknown block type</div>;
     }

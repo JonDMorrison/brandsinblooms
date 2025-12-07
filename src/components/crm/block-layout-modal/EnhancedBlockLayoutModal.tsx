@@ -63,6 +63,15 @@ const layoutOptions = [
     icon: <ArrowRight className="h-4 w-4 text-muted-foreground" />,
     previewType: 'image-right' as const
   },
+  {
+    id: 'image-gallery' as LayoutType,
+    title: 'Image Gallery',
+    description: 'Grid of 3, 6, or 9 images with headline and CTA',
+    category: 'Image',
+    icon: <Grid className="h-4 w-4 text-muted-foreground" />,
+    isNew: true,
+    previewType: 'image-gallery' as const
+  },
 
   // Text Layouts
   {
