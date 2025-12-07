@@ -187,10 +187,11 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       title: b.title || b.headline,
       hasContent: !!(b.content || b.body),
       imageUrl: b.imageUrl,
+      backgroundImageUrl: b.backgroundImageUrl, // Log header block images
       visible: b.visible,
       source: b.source,
-      isLoadingContent: (b as any).isLoadingContent,  // LOG loading state
-      isLoadingImage: (b as any).isLoadingImage        // LOG image loading state
+      isLoadingContent: (b as any).isLoadingContent,
+      isLoadingImage: (b as any).isLoadingImage
     }))
   });
 
@@ -440,9 +441,8 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           id: updatedBlock.id,
           type: updatedBlock.type,
           title: updatedBlock.title,
-          subtitle: updatedBlock.subtitle,
-          issueNumber: updatedBlock.issueNumber,
-          publishDate: updatedBlock.publishDate
+          backgroundImageUrl: updatedBlock.backgroundImageUrl, // Log header images
+          imageUrl: updatedBlock.imageUrl
         });
         return updatedBlock;
       }

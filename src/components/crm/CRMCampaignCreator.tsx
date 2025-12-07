@@ -2939,6 +2939,17 @@ const { counts: segmentCounts } = useSegmentCounts();
     blocks.forEach(block => {
       if (block.visible === false) return; // Only skip blocks explicitly set to false
       
+      // DEBUG: Log block data for newsletter-header blocks
+      if (block.type === 'newsletter-header' || block.type === 'header') {
+        console.log('[EMAIL-HTML] Rendering header block:', {
+          id: block.id,
+          type: block.type,
+          backgroundImageUrl: block.backgroundImageUrl,
+          hasBackgroundImage: !!block.backgroundImageUrl,
+          imageUrl: block.imageUrl
+        });
+      }
+      
       // CANONICAL: Use both headline and title as fallbacks for text display
       const blockHeadline = block.headline || block.title || '';
       const blockBody = block.body || block.content || '';
