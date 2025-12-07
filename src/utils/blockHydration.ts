@@ -230,6 +230,16 @@ export function createEmptyBlock(type: ContentBlock['type'], id: string): Conten
         ...baseBlock,
         visible: true,
       };
+    case 'image-gallery':
+      return {
+        ...baseBlock,
+        galleryImages: [],
+        galleryLayout: '3-across',
+        galleryGap: 'medium',
+        galleryImageRadius: 'medium',
+        alignment: 'center',
+        padding: 'medium',
+      };
     default:
       return {
         ...baseBlock,
@@ -336,6 +346,12 @@ export function needsImageGeneration(block: ContentBlock): boolean {
   
   // Check if block type supports images
   const imageBlockTypes = ['image', 'image-text', 'header', 'newsletter-header', 'background-image', 'background-image-section'];
+  
+  // Gallery blocks handle their own images differently
+  if (block.type === 'image-gallery') {
+    return false; // Gallery manages its own images via galleryImages array
+  }
+  
   if (!imageBlockTypes.includes(block.type)) {
     return false;
   }

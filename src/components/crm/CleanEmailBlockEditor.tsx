@@ -150,6 +150,23 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           autoImageMode: false
         }
       };
+    case 'image-gallery':
+      return {
+        type: 'image-gallery',
+        config: {
+          headline: '',
+          body: '',
+          galleryImages: [],
+          galleryLayout: '3-across',
+          galleryGap: 'medium',
+          galleryImageRadius: 'medium',
+          ctaText: '',
+          ctaUrl: '',
+          shouldFetchImage: false,
+          isGeneratingImage: false,
+          autoImageMode: false
+        }
+      };
     default:
       return {
         type: 'image-text',

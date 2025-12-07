@@ -162,6 +162,17 @@ export interface ContentBlock {
   hasGeneratedContent?: boolean; // Permanent flag: true once content is generated
   contentVersion?: number; // Increment on each update to prevent stale data
   userEdited?: boolean; // Flag to indicate user has manually edited this block
+  
+  // IMAGE GALLERY block specific fields
+  galleryImages?: Array<{
+    id: string;
+    url: string;
+    alt?: string;
+    caption?: string;
+  }>;
+  galleryLayout?: '3-across' | '6-across' | '9-images';
+  galleryGap?: 'small' | 'medium' | 'large';
+  galleryImageRadius?: 'none' | 'small' | 'medium' | 'large';
 }
 
 // Specialized interfaces for type safety

@@ -14,7 +14,8 @@ export type LayoutType =
   | 'button-centered'
   | 'newsletter-header'
   | 'quote-featured'
-  | 'image-background';
+  | 'image-background'
+  | 'image-gallery';
 
 interface BlockLayoutModalProps {
   isOpen: boolean;
