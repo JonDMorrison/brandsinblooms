@@ -104,7 +104,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
         setCurrentPage(1);
       }
       
-      setHasMorePages(curatedImages.length === 12); // If we got 12 images, there might be more
+      setHasMorePages(curatedImages.length >= 20); // If we got 20+ images, there might be more
       setCurrentPage(page);
     } catch (error) {
       console.error('Error loading curated images:', error);

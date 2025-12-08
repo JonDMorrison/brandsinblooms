@@ -27,7 +27,7 @@ export const useUnsplash = () => {
         body: { 
           collection: 'cfl9BkhJD2o',
           page: page,
-          maxImages: 12
+          maxImages: 30 // Increased from 12 to show more images
         }
       });
 
@@ -45,7 +45,7 @@ export const useUnsplash = () => {
         download_location: img.download_location
       }));
       
-      console.log('[useUnsplash] Mapped curated collection images:', mappedImages);
+      console.log('[useUnsplash] Mapped curated collection images:', mappedImages.length);
       return mappedImages;
     } catch (err) {
       console.error('Error fetching curated collection images:', err);
@@ -105,7 +105,7 @@ export const useUnsplash = () => {
 
   const searchImages = useCallback(async (query: string, useRawQuery = false): Promise<ImageAttachment[]> => {
     console.log('[useUnsplash] Searching images with query:', query, 'rawQuery:', useRawQuery);
-    return getSmartImages(query, 12, useRawQuery);
+    return getSmartImages(query, 30, useRawQuery); // Increased from 12 to 30
   }, [getSmartImages]);
 
   const refreshImages = useCallback(async (prevQuery: string): Promise<ImageAttachment[]> => {
