@@ -5278,12 +5278,17 @@ export type Database = {
           currency: string | null
           external_customer_id: string | null
           external_id: string
+          fulfillment_state: string | null
+          fulfillment_type: string | null
           id: string
           items: Json
           order_date: string
           pos_connection_id: string
           pos_customer_id: string | null
           raw_data: Json | null
+          refund_amount: number | null
+          refund_reason: string | null
+          refunded_at: string | null
           status: string | null
           total_amount: number | null
           updated_at: string
@@ -5293,12 +5298,17 @@ export type Database = {
           currency?: string | null
           external_customer_id?: string | null
           external_id: string
+          fulfillment_state?: string | null
+          fulfillment_type?: string | null
           id?: string
           items?: Json
           order_date: string
           pos_connection_id: string
           pos_customer_id?: string | null
           raw_data?: Json | null
+          refund_amount?: number | null
+          refund_reason?: string | null
+          refunded_at?: string | null
           status?: string | null
           total_amount?: number | null
           updated_at?: string
@@ -5308,12 +5318,17 @@ export type Database = {
           currency?: string | null
           external_customer_id?: string | null
           external_id?: string
+          fulfillment_state?: string | null
+          fulfillment_type?: string | null
           id?: string
           items?: Json
           order_date?: string
           pos_connection_id?: string
           pos_customer_id?: string | null
           raw_data?: Json | null
+          refund_amount?: number | null
+          refund_reason?: string | null
+          refunded_at?: string | null
           status?: string | null
           total_amount?: number | null
           updated_at?: string
