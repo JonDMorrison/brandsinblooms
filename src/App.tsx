@@ -85,6 +85,7 @@ import SeedDemoCustomers from '@/pages/SeedDemoCustomers';
 import EmailSendingSettings from '@/pages/crm/EmailSendingSettings';
 import UsagePage from '@/pages/UsagePage';
 import EmailPreferences from '@/pages/EmailPreferences';
+import { ProductsPage, ProductDetailPage } from '@/pages/products';
 
 
 function App() {
@@ -421,6 +422,22 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <POSIntegrationsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          
+          {/* Products routes */}
+          <Route path="/products" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <ProductsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/products/:productId" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <ProductDetailPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
