@@ -38,7 +38,8 @@ export const CRMAutomationBuilder = () => {
       setSelectedSegments(automationConfig.audience.segments || []);
     }
     toast({ title: 'Blueprint applied', description: 'We prefilled your canvas based on your selections.' });
-    if (isMobile) setIsGuideOpen(false);
+    // Always close the guide sheet when switching to canvas
+    setIsGuideOpen(false);
   };
 
   useEffect(() => {
