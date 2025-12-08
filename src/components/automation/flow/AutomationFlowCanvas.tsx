@@ -495,14 +495,6 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         </div>
       )}
 
-      {/* Floating Toolbar */}
-      <FloatingToolbar
-        onAddNode={handleAddNode}
-        selectedNodeId={selectedNode}
-        onToggleAISuggestions={() => setShowAISuggestions(!showAISuggestions)}
-        showAISuggestions={showAISuggestions}
-        isModalOpen={showAudienceSelector}
-      />
 
       {/* AI Suggestions Panel */}
       {showAISuggestions && selectedNode && (
