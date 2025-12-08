@@ -1,5 +1,5 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,9 @@ const GuidedAutomationBuilder = lazy(() => import('@/components/automation/Guide
 
 export const CRMAutomationBuilder = () => {
   const { automationId } = useParams();
+  const location = useLocation();
+  // If user navigated directly to canvas route, don't show the guide sidebar
+  const isDirectCanvasRoute = location.pathname === '/crm/automations/new/canvas';
   const [automationName, setAutomationName] = useState('New Automation');
   const [isSaving, setIsSaving] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -410,7 +413,7 @@ export const CRMAutomationBuilder = () => {
       </header>
 
       <div className="flex-1 flex">
-        {!automationId && flowState.nodes.length === 0 && !guideCompleted && (
+        {!automationId && flowState.nodes.length === 0 && !guideCompleted && !isDirectCanvasRoute && (
           <aside className="hidden md:block md:w-80 border-r p-6 overflow-y-auto">
             <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
               <GuidedAutomationBuilder 
