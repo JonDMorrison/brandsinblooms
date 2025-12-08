@@ -571,7 +571,7 @@ export const SquareSetupWizard = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className="sm:max-w-2xl" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogTitle className="sr-only">Square Setup Wizard</DialogTitle>
         
         {/* Progress indicator */}
