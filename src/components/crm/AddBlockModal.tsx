@@ -41,6 +41,12 @@ export const AddBlockModal: React.FC<AddBlockModalProps> = ({
       description: 'Grid of 3, 6, or 9 images'
     },
     { 
+      type: 'image-gallery' as const, 
+      label: 'Product Gallery', 
+      icon: '🪴',
+      description: '2×2 product grid with badges'
+    },
+    { 
       type: 'button' as const, 
       label: 'Button', 
       icon: '🔘',

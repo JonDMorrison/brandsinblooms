@@ -173,6 +173,18 @@ export interface ContentBlock {
   galleryLayout?: '3-across' | '6-across' | '9-images';
   galleryGap?: 'small' | 'medium' | 'large';
   galleryImageRadius?: 'none' | 'small' | 'medium' | 'large';
+  
+  // PRODUCT GALLERY (2x2 grid) block specific fields
+  galleryItems?: GalleryItem[];
+}
+
+// Product gallery item for 2x2 product showcase
+export interface GalleryItem {
+  id: string;
+  title: string;
+  imageUrl: string;
+  badgeText?: string; // e.g. "25% OFF"
+  url?: string;       // product or category link
 }
 
 // Specialized interfaces for type safety

@@ -283,6 +283,7 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
       
       // Image Gallery block specific fields
       galleryImages: (block as any).galleryImages,
+      galleryItems: (block as any).galleryItems, // Product gallery items (2x2)
       galleryLayout: (block as any).galleryLayout,
       galleryGap: (block as any).galleryGap,
       galleryImageRadius: (block as any).galleryImageRadius,
@@ -466,6 +467,7 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
     
     // Image Gallery block specific fields
     galleryImages: contentObj.galleryImages,
+    galleryItems: contentObj.galleryItems, // Product gallery items (2x2)
     galleryLayout: contentObj.galleryLayout,
     galleryGap: contentObj.galleryGap,
     galleryImageRadius: contentObj.galleryImageRadius,
