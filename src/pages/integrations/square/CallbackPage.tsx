@@ -115,6 +115,7 @@ const CallbackPage = () => {
           status: 'success',
           message: data?.message || 'Connection successful',
           merchantName: data?.merchantName,
+          showSetupWizard: true, // Trigger the setup wizard
           timestamp: Date.now()
         });
 

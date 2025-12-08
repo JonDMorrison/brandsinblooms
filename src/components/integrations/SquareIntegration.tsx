@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -8,10 +8,13 @@ import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen } from 'lucide-rea
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { detectEnvironment } from '@/utils/environmentUtils';
+import { SquareSetupWizard } from './square/SquareSetupWizard';
 
 export const SquareIntegration = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting' | 'completing'>('preparing');
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const previousConnectionRef = useRef<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -24,10 +27,15 @@ export const SquareIntegration = () => {
         
         if (data.status === 'success') {
           queryClient.invalidateQueries({ queryKey: ['square-connection'] });
-          toast({ 
-            title: "✓ Square connected successfully",
-            description: data.merchantName ? `Connected to ${data.merchantName}` : undefined
-          });
+          // Show setup wizard for new connections
+          if (data.showSetupWizard) {
+            setShowSetupWizard(true);
+          } else {
+            toast({ 
+              title: "✓ Square connected successfully",
+              description: data.merchantName ? `Connected to ${data.merchantName}` : undefined
+            });
+          }
         } else if (data.status === 'error') {
           toast({ 
             title: 'Connection failed', 
@@ -117,12 +125,27 @@ export const SquareIntegration = () => {
     return () => clearInterval(interval);
   }, [loading, queryClient]);
 
+  // Detect new connection and trigger setup wizard
   useEffect(() => {
-    if (loading && connection && connection.encrypted_access_token !== 'pending') {
+    const prev = previousConnectionRef.current;
+    const curr = connection;
+    
+    // Check if connection just became valid (was pending or null, now has token)
+    const wasNotConnected = !prev || prev.encrypted_access_token === 'pending';
+    const isNowConnected = curr && curr.encrypted_access_token && curr.encrypted_access_token !== 'pending';
+    const wizardNotCompleted = !curr?.setup_wizard_completed_at;
+    
+    if (wasNotConnected && isNowConnected && wizardNotCompleted && loading) {
+      setLoading(false);
+      setShowSetupWizard(true);
+      queryClient.invalidateQueries({ queryKey: ['square-connection-status'] });
+    } else if (loading && isNowConnected && !wizardNotCompleted) {
       setLoading(false);
       toast({ title: '✓ Square connected successfully' });
       queryClient.invalidateQueries({ queryKey: ['square-connection-status'] });
     }
+    
+    previousConnectionRef.current = curr;
   }, [loading, connection, toast, queryClient]);
 
   const syncMutation = useMutation({
@@ -357,6 +380,14 @@ export const SquareIntegration = () => {
           </Button>
         )}
       </Card>
+      
+      {/* Setup Wizard */}
+      <SquareSetupWizard
+        open={showSetupWizard}
+        onOpenChange={setShowSetupWizard}
+        merchantName={connection?.merchant_name}
+        connectionId={connection?.id}
+      />
     </>
   );
 };
