@@ -2,7 +2,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Grid, Mail, FileText, Image, ArrowLeft, ArrowRight, Quote, MousePointer } from 'lucide-react';
+import { Plus, Grid, Mail, FileText, Image, ArrowLeft, ArrowRight, Quote, MousePointer, ShoppingBag } from 'lucide-react';
 import { LayoutType } from '../BlockLayoutModal';
 import { LayoutOption } from './LayoutOption';
 import { LayoutPreview } from './LayoutPreview';
@@ -71,6 +71,15 @@ const layoutOptions = [
     icon: <Grid className="h-4 w-4 text-muted-foreground" />,
     isNew: true,
     previewType: 'image-gallery' as const
+  },
+  {
+    id: 'product-gallery' as LayoutType,
+    title: 'Product Gallery',
+    description: '2×2 grid showcasing up to 4 products with badges',
+    category: 'Product',
+    icon: <ShoppingBag className="h-4 w-4 text-muted-foreground" />,
+    isNew: true,
+    previewType: 'product-gallery' as const
   },
 
   // Text Layouts

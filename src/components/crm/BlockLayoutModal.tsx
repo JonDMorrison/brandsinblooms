@@ -15,7 +15,8 @@ export type LayoutType =
   | 'newsletter-header'
   | 'quote-featured'
   | 'image-background'
-  | 'image-gallery';
+  | 'image-gallery'
+  | 'product-gallery';
 
 interface BlockLayoutModalProps {
   isOpen: boolean;
