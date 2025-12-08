@@ -29,7 +29,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
-  Bug
+  Bug,
+  Package
 } from 'lucide-react';
 import {
   Sidebar,
@@ -97,6 +98,11 @@ export function AppSidebar() {
           title: "Customers",
           url: "/crm/customers",
           icon: Users,
+        },
+        {
+          title: "Products",
+          url: "/products",
+          icon: Package,
         },
         {
           title: "Campaigns",
