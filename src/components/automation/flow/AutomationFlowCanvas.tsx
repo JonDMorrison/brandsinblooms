@@ -31,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 import { AudienceSelector } from '@/components/crm/AudienceSelector';
 import { useSegmentSelector } from '@/hooks/useSegmentSelector';
-import { Play, Save, Users, Map } from 'lucide-react';
+import { Play, Save, Users, Map, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -426,8 +426,25 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
               </Button>
             </div>
             
-            {/* Select Audience Button - Top Right */}
-            <div className="absolute top-4 right-4 z-10">
+            {/* Stacked Controls - Top Right */}
+            <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleAddNode('email')}
+                      className="w-8 h-8 p-0 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+                      aria-label="Add new node"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Add new step</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
