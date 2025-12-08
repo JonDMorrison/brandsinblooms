@@ -1,33 +1,64 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { NewsletterFooterProps } from '@/types/newsletterFooter';
 
-interface FooterSettings {
+export interface FooterSettings {
+  // Display toggles
   showPhone: boolean;
   showLogo: boolean;
   showManagePreferences: boolean;
+  showDivider: boolean;
+  
+  // Layout
   padding: 'compact' | 'normal' | 'spacious';
   alignment: 'left' | 'center';
-  showDivider: boolean;
-  backgroundColor: 'light' | 'dark' | 'white';
   fontSize: 'xs' | 'sm';
+  
+  // Colors (legacy - kept for backward compatibility)
+  backgroundColor: 'light' | 'dark' | 'white';
+  
+  // Text content
   complianceText: string;
   customFooterText?: string;
+  
+  // Social URLs
+  facebookUrl?: string;
+  instagramUrl?: string;
+  tiktokUrl?: string;
+  pinterestUrl?: string;
+  youtubeUrl?: string;
+  linkedinUrl?: string;
+  
+  // Address fields
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+  email?: string;
+  websiteUrl?: string;
 }
 
 const defaultFooterSettings: FooterSettings = {
   showPhone: true,
-  showLogo: false,
+  showLogo: true,
   showManagePreferences: true,
   padding: 'normal',
   alignment: 'center',
   showDivider: true,
-  backgroundColor: 'light',
+  backgroundColor: 'dark',
   fontSize: 'xs',
   complianceText: 'You are receiving this email because you opted in at {{company.name}}. If you no longer wish to receive these emails, you can unsubscribe at any time.',
 };
 
+export interface CampaignFooterOverrides {
+  footerBackgroundColor?: string;
+}
+
 export const useFooterSettings = (campaignId?: string) => {
-  const [footerSettings, setFooterSettings] = useState<FooterSettings>(defaultFooterSettings);
+  const [footerSettings, setFooterSettingsState] = useState<FooterSettings>(defaultFooterSettings);
+  const [campaignOverrides, setCampaignOverrides] = useState<CampaignFooterOverrides>({});
   const [isLoading, setIsLoading] = useState(true);
 
   // Load footer settings from company profile
@@ -48,12 +79,18 @@ export const useFooterSettings = (campaignId?: string) => {
         }
 
         if (profile) {
-          // Extract footer settings from feature_flags or a separate field
           const featureFlags = profile.feature_flags as any;
           const savedSettings = featureFlags?.footer_settings as FooterSettings;
-          if (savedSettings) {
-            setFooterSettings({ ...defaultFooterSettings, ...savedSettings });
-          }
+          
+          // Merge saved settings with address info from profile
+          const mergedSettings: FooterSettings = {
+            ...defaultFooterSettings,
+            ...savedSettings,
+            // Pull address from location_info if not separately stored
+            websiteUrl: profile.website_url || savedSettings?.websiteUrl,
+          };
+          
+          setFooterSettingsState(mergedSettings);
         }
       } catch (error) {
         console.error('Error loading footer settings:', error);
@@ -65,8 +102,40 @@ export const useFooterSettings = (campaignId?: string) => {
     loadFooterSettings();
   }, []);
 
+  // Load campaign-specific footer overrides
+  useEffect(() => {
+    const loadCampaignOverrides = async () => {
+      if (!campaignId) {
+        setCampaignOverrides({});
+        return;
+      }
+      
+      try {
+        const { data: campaign, error } = await supabase
+          .from('crm_campaigns')
+          .select('metadata')
+          .eq('id', campaignId)
+          .single();
+
+        if (error) {
+          console.error('Error loading campaign overrides:', error);
+          return;
+        }
+
+        const metadata = campaign?.metadata as any;
+        setCampaignOverrides({
+          footerBackgroundColor: metadata?.footerBackgroundColor,
+        });
+      } catch (error) {
+        console.error('Error loading campaign footer overrides:', error);
+      }
+    };
+
+    loadCampaignOverrides();
+  }, [campaignId]);
+
   // Save footer settings to company profile
-  const saveFooterSettings = async (settings: FooterSettings) => {
+  const saveFooterSettings = useCallback(async (settings: FooterSettings) => {
     try {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('User not authenticated');
@@ -95,16 +164,139 @@ export const useFooterSettings = (campaignId?: string) => {
         throw error;
       }
 
-      setFooterSettings(settings);
+      setFooterSettingsState(settings);
     } catch (error) {
       console.error('Failed to save footer settings:', error);
       throw error;
     }
-  };
+  }, []);
+
+  // Save campaign-level footer override
+  const saveCampaignFooterOverride = useCallback(async (
+    campaignIdToUpdate: string,
+    overrides: CampaignFooterOverrides
+  ) => {
+    try {
+      // Get current campaign metadata
+      const { data: campaign, error: fetchError } = await supabase
+        .from('crm_campaigns')
+        .select('metadata')
+        .eq('id', campaignIdToUpdate)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const currentMetadata = (campaign?.metadata as any) || {};
+      
+      const { error } = await supabase
+        .from('crm_campaigns')
+        .update({
+          metadata: {
+            ...currentMetadata,
+            ...overrides,
+          }
+        })
+        .eq('id', campaignIdToUpdate);
+
+      if (error) throw error;
+
+      setCampaignOverrides(overrides);
+    } catch (error) {
+      console.error('Failed to save campaign footer override:', error);
+      throw error;
+    }
+  }, []);
+
+  // Clear campaign footer override (reset to brand default)
+  const clearCampaignFooterOverride = useCallback(async (campaignIdToUpdate: string) => {
+    try {
+      const { data: campaign, error: fetchError } = await supabase
+        .from('crm_campaigns')
+        .select('metadata')
+        .eq('id', campaignIdToUpdate)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const currentMetadata = (campaign?.metadata as any) || {};
+      delete currentMetadata.footerBackgroundColor;
+      
+      const { error } = await supabase
+        .from('crm_campaigns')
+        .update({ metadata: currentMetadata })
+        .eq('id', campaignIdToUpdate);
+
+      if (error) throw error;
+
+      setCampaignOverrides({});
+    } catch (error) {
+      console.error('Failed to clear campaign footer override:', error);
+      throw error;
+    }
+  }, []);
 
   return {
     footerSettings,
     setFooterSettings: saveFooterSettings,
+    campaignOverrides,
+    saveCampaignFooterOverride,
+    clearCampaignFooterOverride,
     isLoading
   };
 };
+
+/**
+ * Build NewsletterFooterProps from various data sources
+ */
+export function buildFooterProps(
+  footerSettings: FooterSettings,
+  companyInfo: {
+    name?: string;
+    address?: string;
+    phone?: string;
+    logoUrl?: string;
+    brandPrimaryColor?: string;
+    brandSecondaryColor?: string;
+  },
+  unsubscribeUrl: string,
+  managePreferencesUrl?: string,
+  campaignOverrides?: CampaignFooterOverrides
+): NewsletterFooterProps {
+  // Parse address if it's a single string
+  let addressLine1 = footerSettings.addressLine1;
+  let city = footerSettings.city;
+  let region = footerSettings.region;
+  let postalCode = footerSettings.postalCode;
+  let country = footerSettings.country;
+  
+  // If no structured address but companyInfo.address exists, use that
+  if (!addressLine1 && companyInfo.address) {
+    addressLine1 = companyInfo.address;
+  }
+  
+  return {
+    logoUrl: footerSettings.showLogo ? companyInfo.logoUrl : undefined,
+    companyName: companyInfo.name,
+    addressLine1,
+    addressLine2: footerSettings.addressLine2,
+    city,
+    region,
+    postalCode,
+    country,
+    websiteUrl: footerSettings.websiteUrl,
+    email: footerSettings.email,
+    phone: footerSettings.showPhone ? companyInfo.phone : undefined,
+    facebookUrl: footerSettings.facebookUrl,
+    instagramUrl: footerSettings.instagramUrl,
+    tiktokUrl: footerSettings.tiktokUrl,
+    pinterestUrl: footerSettings.pinterestUrl,
+    youtubeUrl: footerSettings.youtubeUrl,
+    linkedinUrl: footerSettings.linkedinUrl,
+    unsubscribeUrl,
+    managePreferencesUrl: footerSettings.showManagePreferences ? managePreferencesUrl : undefined,
+    legalText: footerSettings.complianceText,
+    footerBackgroundColor: campaignOverrides?.footerBackgroundColor,
+    brandPrimaryColor: companyInfo.brandPrimaryColor,
+    brandSecondaryColor: companyInfo.brandSecondaryColor,
+  };
+}
