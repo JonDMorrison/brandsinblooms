@@ -9,6 +9,14 @@ interface ProductGalleryBlockPreviewProps {
   isGenerating?: boolean;
 }
 
+// Strip HTML tags from content
+const stripHtml = (html: string | undefined): string => {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
+
 export const ProductGalleryBlockPreview: React.FC<ProductGalleryBlockPreviewProps> = ({
   block,
   isGenerating = false,
@@ -48,7 +56,7 @@ export const ProductGalleryBlockPreview: React.FC<ProductGalleryBlockPreviewProp
           className="text-center mb-8 max-w-lg mx-auto"
           style={{ color: '#6b7280' }}
         >
-          {block.body || block.content}
+          {stripHtml(block.body || block.content)}
         </p>
       )}
 
