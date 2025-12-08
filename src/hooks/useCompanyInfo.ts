@@ -11,6 +11,7 @@ interface CompanyInfo {
   brandPrimaryColor?: string;
   brandSecondaryColor?: string;
   brandAccentColor?: string;
+  brandTextColor?: string;
   selectedFont?: {
     id: string;
     name: string;
@@ -133,6 +134,7 @@ export const useCompanyInfo = () => {
           brandPrimaryColor: profile.brand_primary_color || '#22c55e',
           brandSecondaryColor: profile.brand_secondary_color || '#1e40af',
           brandAccentColor: profile.brand_accent_color || '#f59e0b',
+          brandTextColor: profile.brand_text_color || '#1f2937',
           selectedFont: font ? {
             id: font.id,
             name: font.name,

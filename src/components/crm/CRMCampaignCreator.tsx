@@ -3020,8 +3020,8 @@ const { counts: segmentCounts } = useSegmentCounts();
             // Render as two-column layout (same logic as image-text)
             const isImgLeft = block.layout === 'two-column-left';
             const imgTcTextAlign = block.textAlign || 'left';
-            const imgTcTextColor = '#475569';
-            const imgTcHeadlineColor = '#1f2937';
+            const imgTcTextColor = companyInfo?.brandTextColor || '#475569';
+            const imgTcHeadlineColor = companyInfo?.brandTextColor || '#1f2937';
             const imgTcButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
             const imgTcCtaText = block.ctaText || block.buttonText;
             const imgTcCtaUrl = block.ctaUrl || block.buttonUrl;
@@ -3125,8 +3125,8 @@ const { counts: segmentCounts } = useSegmentCounts();
             
             const imgAlign = block.textAlign || 'center';
             // Force dark text colors for visibility
-            const imgTextColor = '#475569'; // Always use dark gray for body text
-            const imgHeadlineColor = '#1f2937'; // Always use darker gray for headlines
+            const imgTextColor = companyInfo?.brandTextColor || '#475569';
+            const imgHeadlineColor = companyInfo?.brandTextColor || '#1f2937';
             const imgButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
             const imgCtaText = block.ctaText || block.buttonText;
             const imgCtaUrl = block.ctaUrl || block.buttonUrl;
@@ -3185,9 +3185,9 @@ const { counts: segmentCounts } = useSegmentCounts();
         case 'image-text':
           const isImageLeft = block.layout === 'image-left' || block.layout === 'two-column-left' || !block.layout;
           const itTextAlign = block.textAlign || 'left';
-          // Force dark text colors for visibility - ignore block.textColor if it's too light
-          const itTextColor = '#475569'; // Always use dark gray for body text
-          const itHeadlineColor = '#1f2937'; // Always use darker gray for headlines
+          // Use brand text color with fallbacks
+          const itTextColor = companyInfo?.brandTextColor || '#475569';
+          const itHeadlineColor = companyInfo?.brandTextColor || '#1f2937';
           const buttonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
           const ctaText = block.ctaText || block.buttonText;
           const ctaUrl = block.ctaUrl || block.buttonUrl;
@@ -3319,8 +3319,8 @@ const { counts: segmentCounts } = useSegmentCounts();
           const btnAlign = block.textAlign || 'center';
           html += `
              <div style="text-align: ${btnAlign}; margin: 30px 0;">
-               ${blockHeadline ? `<h3 style="color: ${block.textColor || '#1f2937'}; margin: 0 0 10px 0; font-size: 20px; font-family: ${fonts.subheadingFont}; font-weight: 600;">${blockHeadline}</h3>` : ''}
-               ${blockBody ? `<div style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6; font-family: ${fonts.bodyFont};">${blockBody}</div>` : ''}
+               ${blockHeadline ? `<h3 style="color: ${block.textColor || companyInfo?.brandTextColor || '#1f2937'}; margin: 0 0 10px 0; font-size: 20px; font-family: ${fonts.subheadingFont}; font-weight: 600;">${blockHeadline}</h3>` : ''}
+               ${blockBody ? `<div style="color: ${companyInfo?.brandTextColor || '#64748b'}; margin: 0 0 20px 0; line-height: 1.6; font-family: ${fonts.bodyFont};">${blockBody}</div>` : ''}
                <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont};">
                  ${block.buttonText || 'Learn More'}
                </a>
@@ -3339,8 +3339,8 @@ const { counts: segmentCounts } = useSegmentCounts();
         case 'social-follow':
           html += `
             <div style="text-align: center; margin: 30px 0; padding: 20px; background: #f8fafc; border-radius: 8px;">
-              ${blockHeadline ? `<h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 20px;">${blockHeadline}</h3>` : ''}
-              ${blockBody ? `<div style="color: #64748b; margin: 0 0 20px 0;">${blockBody}</div>` : ''}
+              ${blockHeadline ? `<h3 style="color: ${companyInfo?.brandSecondaryColor || '#1e40af'}; margin: 0 0 10px 0; font-size: 20px;">${blockHeadline}</h3>` : ''}
+              ${blockBody ? `<div style="color: ${companyInfo?.brandTextColor || '#64748b'}; margin: 0 0 20px 0;">${blockBody}</div>` : ''}
               <div style="display: inline-block;">
                 <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #1877f2; color: white; text-decoration: none; border-radius: 4px;">Facebook</a>
                 <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #1da1f2; color: white; text-decoration: none; border-radius: 4px;">Twitter</a>
@@ -3534,12 +3534,12 @@ const { counts: segmentCounts } = useSegmentCounts();
               <div style="background-color: ${bgColor}; padding: 32px 16px; margin: 20px 0; border-radius: 8px;">
                 <div style="max-width: 600px; margin: 0 auto;">
                   ${productHeadline ? `
-                    <h2 style="font-size: 28px; font-weight: 700; text-align: center; margin: 0 0 8px 0; color: #1f2937; font-family: ${fonts.headlineFont};">
+                    <h2 style="font-size: 28px; font-weight: 700; text-align: center; margin: 0 0 8px 0; color: ${companyInfo?.brandTextColor || '#1f2937'}; font-family: ${fonts.headlineFont};">
                       ${productHeadline}
                     </h2>
                   ` : ''}
                   ${productBody ? `
-                    <p style="font-size: 16px; text-align: center; margin: 0 0 24px 0; color: #6b7280; font-family: ${fonts.bodyFont};">
+                    <p style="font-size: 16px; text-align: center; margin: 0 0 24px 0; color: ${companyInfo?.brandTextColor || '#6b7280'}; font-family: ${fonts.bodyFont};">
                       ${productBody}
                     </p>
                   ` : ''}

@@ -45,6 +45,7 @@ interface CompanyInfo {
   logoUrl?: string;
   brandPrimaryColor?: string;
   brandSecondaryColor?: string;
+  brandTextColor?: string;
 }
 
 /**

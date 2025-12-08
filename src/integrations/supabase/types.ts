@@ -1003,6 +1003,7 @@ export type Database = {
           brand_accent_color: string | null
           brand_primary_color: string | null
           brand_secondary_color: string | null
+          brand_text_color: string | null
           brand_voice: string | null
           button_font_id: string | null
           city: string | null
@@ -1060,6 +1061,7 @@ export type Database = {
           brand_accent_color?: string | null
           brand_primary_color?: string | null
           brand_secondary_color?: string | null
+          brand_text_color?: string | null
           brand_voice?: string | null
           button_font_id?: string | null
           city?: string | null
@@ -1117,6 +1119,7 @@ export type Database = {
           brand_accent_color?: string | null
           brand_primary_color?: string | null
           brand_secondary_color?: string | null
+          brand_text_color?: string | null
           brand_voice?: string | null
           button_font_id?: string | null
           city?: string | null

@@ -9,18 +9,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Palette, Save, RotateCcw, Upload, X, Image as ImageIcon } from 'lucide-react';
 
 const COLOR_PRESETS = [
-  { name: 'Green Garden (Default)', primary: '#22c55e', secondary: '#1e40af', accent: '#f59e0b' },
-  { name: 'Ocean Blue', primary: '#0ea5e9', secondary: '#1e3a8a', accent: '#06b6d4' },
-  { name: 'Rose Garden', primary: '#f43f5e', secondary: '#be123c', accent: '#fda4af' },
-  { name: 'Sunset Orange', primary: '#f97316', secondary: '#c2410c', accent: '#fed7aa' },
-  { name: 'Purple Bloom', primary: '#a855f7', secondary: '#7e22ce', accent: '#e9d5ff' },
-  { name: 'Forest Green', primary: '#16a34a', secondary: '#14532d', accent: '#86efac' },
+  { name: 'Green Garden (Default)', primary: '#22c55e', secondary: '#1e40af', accent: '#f59e0b', text: '#1f2937' },
+  { name: 'Ocean Blue', primary: '#0ea5e9', secondary: '#1e3a8a', accent: '#06b6d4', text: '#1e3a5f' },
+  { name: 'Rose Garden', primary: '#f43f5e', secondary: '#be123c', accent: '#fda4af', text: '#4a1c24' },
+  { name: 'Sunset Orange', primary: '#f97316', secondary: '#c2410c', accent: '#fed7aa', text: '#3d2414' },
+  { name: 'Purple Bloom', primary: '#a855f7', secondary: '#7e22ce', accent: '#e9d5ff', text: '#2d1b4e' },
+  { name: 'Forest Green', primary: '#16a34a', secondary: '#14532d', accent: '#86efac', text: '#1a2e1a' },
 ];
 
 const DEFAULT_COLORS = {
   primary: '#22c55e',
   secondary: '#1e40af',
   accent: '#f59e0b',
+  text: '#1f2937',
 };
 
 export const BrandColorsSettings: React.FC = () => {
@@ -44,7 +45,7 @@ export const BrandColorsSettings: React.FC = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('company_profiles')
-        .select('brand_primary_color, brand_secondary_color, brand_accent_color, feature_flags')
+        .select('brand_primary_color, brand_secondary_color, brand_accent_color, brand_text_color, feature_flags')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -58,6 +59,7 @@ export const BrandColorsSettings: React.FC = () => {
           primary: data.brand_primary_color || DEFAULT_COLORS.primary,
           secondary: data.brand_secondary_color || DEFAULT_COLORS.secondary,
           accent: data.brand_accent_color || DEFAULT_COLORS.accent,
+          text: data.brand_text_color || DEFAULT_COLORS.text,
         });
         
         // Load logo URL from feature_flags
@@ -84,6 +86,7 @@ export const BrandColorsSettings: React.FC = () => {
           brand_primary_color: colors.primary,
           brand_secondary_color: colors.secondary,
           brand_accent_color: colors.accent,
+          brand_text_color: colors.text,
         })
         .eq('user_id', user.id);
 
@@ -110,6 +113,7 @@ export const BrandColorsSettings: React.FC = () => {
       primary: preset.primary,
       secondary: preset.secondary,
       accent: preset.accent,
+      text: preset.text,
     });
   };
 
@@ -405,6 +409,27 @@ export const BrandColorsSettings: React.FC = () => {
               </div>
               <p className="text-xs text-muted-foreground">Used for highlights and accents</p>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="text-color">Text Color</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="text-color"
+                  type="color"
+                  value={colors.text}
+                  onChange={(e) => setColors({ ...colors, text: e.target.value })}
+                  className="h-10 w-20 cursor-pointer"
+                />
+                <Input
+                  type="text"
+                  value={colors.text}
+                  onChange={(e) => setColors({ ...colors, text: e.target.value })}
+                  placeholder="#1f2937"
+                  className="flex-1"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Used for headlines and body text in emails</p>
+            </div>
           </div>
 
           {/* Live Preview */}
@@ -415,8 +440,8 @@ export const BrandColorsSettings: React.FC = () => {
                 <h3 className="text-lg font-semibold" style={{ color: colors.secondary }}>
                   Newsletter Header
                 </h3>
-                <p className="text-sm text-muted-foreground">
-                  See how your brand colors look in an email campaign
+                <p style={{ color: colors.text }}>
+                  This is how your body text will appear in emails. The text color you choose will be used for headlines and paragraphs.
                 </p>
               </div>
               <Button style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
@@ -468,6 +493,7 @@ export const BrandColorsSettings: React.FC = () => {
                     <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.primary }} />
                     <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.secondary }} />
                     <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.accent }} />
+                    <div className="w-6 h-6 rounded border" style={{ backgroundColor: preset.text }} />
                   </div>
                 </div>
                 <p className="text-sm font-medium">{preset.name}</p>
