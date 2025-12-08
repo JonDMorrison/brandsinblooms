@@ -98,19 +98,10 @@ export const EmailDomainsList = () => {
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="w-5 h-5" />
-              Email Domains
-            </CardTitle>
-            <Button 
-              onClick={() => setShowWizard(true)}
-              className="flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Add Domain
-            </Button>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="w-5 h-5" />
+            Email Domains
+          </CardTitle>
         </CardHeader>
         
         <CardContent>
