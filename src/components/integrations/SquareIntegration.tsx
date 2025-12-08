@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug, Clock } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { Link } from 'react-router-dom';
 import { detectEnvironment } from '@/utils/environmentUtils';
 
 export const SquareIntegration = () => {
@@ -336,6 +337,12 @@ export const SquareIntegration = () => {
               <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending || loading} size="sm" variant="outline">
                 {testMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Test Connection
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/integrations/square/guide">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  View Guide
+                </Link>
               </Button>
               <Button onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending || loading} size="sm" variant="destructive">
                 {disconnectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
