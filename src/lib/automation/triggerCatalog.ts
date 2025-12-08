@@ -12,12 +12,12 @@ export interface TriggerMeta {
 export const triggerCatalog: TriggerMeta[] = [
   {
     id: 'loyalty_join',
-    label: '🧑‍🤝‍🧑 Loyalty Program Sign-up',
-    icon: '🤝',
+    label: '🎖️ Loyalty Program Enrollment',
+    icon: '🎖️',
     defaultDelayMin: 5,
     channels: ['sms', 'email'],
     goalHint: 'Welcome Series',
-    description: 'Triggered when customer joins loyalty program'
+    description: 'Triggered when customer enrolls in Square Loyalty program'
   },
   {
     id: 'first_purchase',
@@ -38,31 +38,58 @@ export const triggerCatalog: TriggerMeta[] = [
     description: 'Triggered immediately when any Square purchase is completed'
   },
   {
+    id: 'order.ready_for_pickup',
+    label: '🏪 Order Ready for Pickup',
+    icon: '🏪',
+    defaultDelayMin: 0,
+    channels: ['sms', 'email'],
+    goalHint: 'Order Notifications',
+    description: 'Order is ready for customer pickup at store'
+  },
+  {
+    id: 'order.shipped',
+    label: '📬 Order Shipped',
+    icon: '📬',
+    defaultDelayMin: 0,
+    channels: ['sms', 'email'],
+    goalHint: 'Order Notifications',
+    description: 'Order has been shipped to customer'
+  },
+  {
+    id: 'refund.created',
+    label: '💸 Refund Processed',
+    icon: '💸',
+    defaultDelayMin: 30,
+    channels: ['sms', 'email'],
+    goalHint: 'Service Recovery',
+    description: 'Refund has been processed - opportunity for service recovery'
+  },
+  {
     id: 'repeat_purchase_90d',
     label: '📅 90-Day Purchase Lapse',
     icon: '⏰',
-    defaultDelayMin: 1440, // 24 hours
+    defaultDelayMin: 1440,
     channels: ['sms', 'email'],
     goalHint: 'Re-engagement',
-    description: 'Customer hasn\'t purchased in 90 days'
+    description: 'Customer hasn\'t purchased in 90 days (daily job)'
   },
   {
     id: 'plant_care_reminder',
     label: '🌱 Plant Care Reminder',
     icon: '🌱',
-    defaultDelayMin: 14400, // 10 days
+    defaultDelayMin: 14400,
     channels: ['sms', 'email'],
     goalHint: 'Care Tips',
     description: 'Tag-based reminder for plant care (e.g., tomato seedlings)'
   },
   {
     id: 'birthday',
-    label: '🎂 Birthday (SMS)',
+    label: '🎂 Birthday',
     icon: '🎂',
-    defaultDelayMin: 0, // immediate
+    defaultDelayMin: 0,
     channels: ['sms', 'email'],
     goalHint: 'Birthday Celebration',
-    description: 'Customer\'s birthday matches today'
+    description: 'Customer\'s birthday matches today (daily job)'
   },
   {
     id: 'new_product_drop',
@@ -86,7 +113,7 @@ export const triggerCatalog: TriggerMeta[] = [
     id: 'abandoned_cart',
     label: '🛍️ Abandoned Cart',
     icon: '🛍️',
-    defaultDelayMin: 120, // 2 hours
+    defaultDelayMin: 120,
     channels: ['sms', 'email'],
     goalHint: 'Cart Recovery',
     description: 'E-commerce cart abandoned for 2+ hours'
@@ -95,7 +122,7 @@ export const triggerCatalog: TriggerMeta[] = [
     id: 'review_request',
     label: '⭐ Review Request',
     icon: '⭐',
-    defaultDelayMin: 7200, // 5 days
+    defaultDelayMin: 7200,
     channels: ['sms', 'email'],
     goalHint: 'Review Collection',
     description: 'Request review 5 days after purchase completion'

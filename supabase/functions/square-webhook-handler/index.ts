@@ -114,6 +114,47 @@ async function fetchSquareOrder(orderId: string, accessToken: string, environmen
   }
 }
 
+// Fetch customer details from Square
+async function fetchSquareCustomer(supabase: any, tenantId: string, customerId: string, merchantId: string): Promise<any | null> {
+  const { data: connection } = await supabase
+    .from('square_connections')
+    .select('encrypted_access_token, environment')
+    .eq('merchant_id', merchantId)
+    .eq('status', 'connected')
+    .single();
+
+  if (!connection?.encrypted_access_token) {
+    console.log('⚠️ No access token found for merchant');
+    return null;
+  }
+
+  try {
+    const { decryptToken } = await import('../_shared/crypto/tokens.ts');
+    const accessToken = await decryptToken(connection.encrypted_access_token);
+    
+    const baseUrl = connection.environment === 'sandbox'
+      ? `https://connect.squareupsandbox.com/v2/customers/${customerId}`
+      : `https://connect.squareup.com/v2/customers/${customerId}`;
+
+    const response = await fetch(baseUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Square-Version': '2024-01-18',
+      },
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error(`❌ Failed to fetch customer ${customerId}:`, data.errors);
+      return null;
+    }
+    return data.customer;
+  } catch (error) {
+    console.error(`❌ Error fetching customer ${customerId}:`, error);
+    return null;
+  }
+}
+
 // Fetch customer groups from Square
 async function fetchSquareCustomerGroups(accessToken: string, environment: string): Promise<Map<string, string>> {
   const groupMap = new Map<string, string>();
@@ -150,6 +191,36 @@ function extractProductNames(order: any): string[] {
     .filter((name: string | undefined): name is string => !!name);
 }
 
+// Helper function to check persona targeting
+function checkPersonaTargeting(customer: any, personaTargeting: any): boolean {
+  if (!personaTargeting || Object.keys(personaTargeting).length === 0) {
+    return true;
+  }
+
+  if (personaTargeting.persona_ids && personaTargeting.persona_ids.length > 0) {
+    if (!customer.persona_id || !personaTargeting.persona_ids.includes(customer.persona_id)) {
+      return false;
+    }
+  }
+
+  if (personaTargeting.required_tags && personaTargeting.required_tags.length > 0) {
+    const customerTags = customer.tags || [];
+    const hasAllTags = personaTargeting.required_tags.every((tag: string) => customerTags.includes(tag));
+    if (!hasAllTags) {
+      return false;
+    }
+  }
+
+  if (personaTargeting.min_lifetime_value !== undefined && personaTargeting.min_lifetime_value !== null) {
+    const customerLTV = customer.lifetime_value || 0;
+    if (customerLTV < personaTargeting.min_lifetime_value) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Process payment.completed event
 async function processPaymentCompleted(supabase: any, tenantId: string, userId: string, payment: any, merchantId: string, connection: any) {
   console.log('💳 Processing payment.completed event for merchant:', merchantId);
@@ -165,7 +236,6 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
   
   console.log('📦 Payment details:', { customerId, amount, currency, receiptEmail, receiptPhone });
   
-  // Phase 3: Fetch order details for product tags
   let productNames: string[] = [];
   let orderData: any = null;
   
@@ -181,7 +251,6 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
     }
   }
   
-  // 1. Upsert order to pos_orders
   const { data: posConnection } = await supabase
     .from('square_connections')
     .select('id')
@@ -216,7 +285,6 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
     }
   }
   
-  // 2. Find or create customer in crm_customers
   let customer = null;
   let isFirstPurchase = false;
   
@@ -231,7 +299,6 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
     isFirstPurchase = !existingCustomer?.first_purchase_date;
     const currentDate = new Date().toISOString().split('T')[0];
     
-    // Merge product tags
     const existingProductTags = existingCustomer?.product_tags || [];
     const mergedProductTags = [...new Set([...existingProductTags, ...productNames])];
     
@@ -260,7 +327,6 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
     }
   }
   
-  // 3. Fire automation triggers
   if (customer) {
     const triggerTypes = ['order.completed', 'review_request'];
     
@@ -298,14 +364,12 @@ async function processCustomerCreated(supabase: any, tenantId: string, userId: s
     return { success: false, reason: 'no_email' };
   }
   
-  // Phase 1: Extract marketing preferences
   const emailOptIn = customer.preferences?.email_unsubscribed === true 
     ? false 
     : customer.preferences?.email_unsubscribed === false 
       ? true 
       : null;
   
-  // Phase 2: Fetch group names
   let tags: string[] = [];
   if (groupIds.length > 0 && connection?.encrypted_access_token) {
     try {
@@ -361,14 +425,12 @@ async function processCustomerUpdated(supabase: any, tenantId: string, userId: s
     return { success: false, reason: 'no_email' };
   }
   
-  // Phase 1: Extract marketing preferences
   const emailOptIn = customer.preferences?.email_unsubscribed === true 
     ? false 
     : customer.preferences?.email_unsubscribed === false 
       ? true 
       : null;
   
-  // Get existing customer
   const { data: existingCustomer } = await supabase
     .from('crm_customers')
     .select('tags, product_tags')
@@ -376,7 +438,6 @@ async function processCustomerUpdated(supabase: any, tenantId: string, userId: s
     .eq('email', email)
     .single();
   
-  // Phase 2: Fetch and merge group names
   let newTags: string[] = [];
   if (groupIds.length > 0 && connection?.encrypted_access_token) {
     try {
@@ -416,7 +477,276 @@ async function processCustomerUpdated(supabase: any, tenantId: string, userId: s
   return { success: true };
 }
 
-// Fire automation triggers
+// Process loyalty.account.created event
+async function processLoyaltyAccountCreated(
+  supabase: any,
+  tenantId: string,
+  userId: string,
+  loyaltyData: any,
+  merchantId: string
+) {
+  console.log('🎖️ Processing loyalty.account.created event');
+  
+  const loyaltyAccount = loyaltyData.loyalty_account || loyaltyData;
+  const squareCustomerId = loyaltyAccount.customer_id;
+  
+  if (!squareCustomerId) {
+    console.log('⚠️ No customer_id in loyalty account data');
+    return { success: false, error: 'No customer ID' };
+  }
+
+  // Fetch customer details from Square
+  const squareCustomer = await fetchSquareCustomer(supabase, tenantId, squareCustomerId, merchantId);
+  
+  if (!squareCustomer) {
+    console.log('⚠️ Could not fetch Square customer details');
+    return { success: false, error: 'Customer not found in Square' };
+  }
+
+  const email = squareCustomer.email_address;
+  const phone = squareCustomer.phone_number;
+
+  if (!email && !phone) {
+    console.log('⚠️ No email or phone for loyalty customer');
+    return { success: false, error: 'No contact info' };
+  }
+
+  // Find or create CRM customer
+  let customer;
+  const query = email 
+    ? supabase.from('crm_customers').select('*').eq('tenant_id', tenantId).eq('email', email).single()
+    : supabase.from('crm_customers').select('*').eq('tenant_id', tenantId).eq('phone', phone).single();
+
+  const { data: existingCustomer } = await query;
+
+  if (existingCustomer) {
+    // Add loyalty tag if not already present
+    const existingTags = existingCustomer.tags || [];
+    const updatedTags = existingTags.includes('Loyalty Member') 
+      ? existingTags 
+      : [...existingTags, 'Loyalty Member'];
+    
+    const { data: updatedCustomer, error } = await supabase
+      .from('crm_customers')
+      .update({
+        tags: updatedTags,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existingCustomer.id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Error updating customer with loyalty tag:', error);
+    } else {
+      customer = updatedCustomer;
+      console.log('✅ Added Loyalty Member tag to customer:', customer.email || customer.phone);
+    }
+  } else {
+    // Create new customer with loyalty tag
+    const { data: newCustomer, error } = await supabase
+      .from('crm_customers')
+      .insert({
+        tenant_id: tenantId,
+        user_id: userId,
+        email: email,
+        phone: phone,
+        first_name: squareCustomer.given_name,
+        last_name: squareCustomer.family_name,
+        tags: ['Loyalty Member'],
+        pos_source: 'square',
+        square_customer_id: squareCustomerId
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Error creating loyalty customer:', error);
+    } else {
+      customer = newCustomer;
+      console.log('✅ Created new loyalty customer:', customer.email || customer.phone);
+    }
+  }
+
+  // Fire loyalty_join automation trigger
+  if (customer) {
+    await fireAutomationTriggers(supabase, tenantId, customer.id, ['loyalty_join'], {
+      loyalty_account_id: loyaltyAccount.id,
+      merchant_id: merchantId,
+      enrolled_at: new Date().toISOString()
+    });
+  }
+
+  return { success: true, customerId: customer?.id };
+}
+
+// Process order.fulfillment.updated event
+async function processFulfillmentUpdated(
+  supabase: any,
+  tenantId: string,
+  userId: string,
+  fulfillmentData: any,
+  merchantId: string
+) {
+  console.log('📦 Processing order.fulfillment.updated event');
+  
+  const fulfillment = fulfillmentData.fulfillment || fulfillmentData;
+  const orderId = fulfillment.order_id;
+  const state = fulfillment.state; // PROPOSED, RESERVED, PREPARED, COMPLETED, CANCELED, FAILED
+  const type = fulfillment.type; // PICKUP, SHIPMENT
+
+  console.log('📦 Fulfillment details:', { orderId, state, type });
+
+  // Update pos_orders with fulfillment state
+  const { error: updateError } = await supabase
+    .from('pos_orders')
+    .update({
+      fulfillment_state: state,
+      fulfillment_type: type,
+      updated_at: new Date().toISOString()
+    })
+    .eq('external_id', orderId)
+    .eq('tenant_id', tenantId);
+
+  if (updateError) {
+    console.error('❌ Error updating order fulfillment:', updateError);
+  }
+
+  // Get customer for this order
+  const { data: order } = await supabase
+    .from('pos_orders')
+    .select('customer_external_id')
+    .eq('external_id', orderId)
+    .eq('tenant_id', tenantId)
+    .single();
+
+  if (!order?.customer_external_id) {
+    console.log('⚠️ No customer linked to order');
+    return { success: true, message: 'Order updated, no customer to notify' };
+  }
+
+  // Find CRM customer by square_customer_id
+  const { data: customer } = await supabase
+    .from('crm_customers')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('square_customer_id', order.customer_external_id)
+    .single();
+
+  if (!customer) {
+    console.log('⚠️ CRM customer not found for order');
+    return { success: true, message: 'Order updated, CRM customer not found' };
+  }
+
+  // Fire appropriate trigger based on state
+  const triggerTypes: string[] = [];
+  
+  if (state === 'PREPARED' && type === 'PICKUP') {
+    triggerTypes.push('order.ready_for_pickup');
+    console.log('🏪 Order ready for pickup');
+  } else if (state === 'COMPLETED' && type === 'SHIPMENT') {
+    triggerTypes.push('order.shipped');
+    console.log('📬 Order shipped');
+  }
+
+  if (triggerTypes.length > 0) {
+    await fireAutomationTriggers(supabase, tenantId, customer.id, triggerTypes, {
+      order_id: orderId,
+      fulfillment_type: type,
+      fulfillment_state: state,
+      merchant_id: merchantId
+    });
+  }
+
+  return { success: true, triggersFiret: triggerTypes };
+}
+
+// Process refund.created event
+async function processRefundCreated(
+  supabase: any,
+  tenantId: string,
+  userId: string,
+  refundData: any,
+  merchantId: string
+) {
+  console.log('💸 Processing refund.created event');
+  
+  const refund = refundData.refund || refundData;
+  const paymentId = refund.payment_id;
+  const refundAmountCents = refund.amount_money?.amount || 0;
+  const refundAmount = refundAmountCents / 100;
+  const reason = refund.reason || 'Not specified';
+
+  console.log('💸 Refund details:', { paymentId, refundAmount, reason });
+
+  // Find the original order by payment ID (which is stored as external_id)
+  const { data: order } = await supabase
+    .from('pos_orders')
+    .select('id, customer_external_id, total_amount')
+    .eq('external_id', paymentId)
+    .eq('tenant_id', tenantId)
+    .single();
+
+  if (!order) {
+    console.log('⚠️ Original order not found for refund');
+    return { success: false, error: 'Order not found' };
+  }
+
+  // Update order with refund info
+  const { error: updateError } = await supabase
+    .from('pos_orders')
+    .update({
+      status: 'REFUNDED',
+      refund_amount: refundAmount,
+      refund_reason: reason,
+      refunded_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', order.id);
+
+  if (updateError) {
+    console.error('❌ Error updating order with refund:', updateError);
+  }
+
+  // Find CRM customer and adjust lifetime_value
+  if (order.customer_external_id) {
+    const { data: customer } = await supabase
+      .from('crm_customers')
+      .select('id, lifetime_value, total_spent')
+      .eq('tenant_id', tenantId)
+      .eq('square_customer_id', order.customer_external_id)
+      .single();
+
+    if (customer) {
+      const { error: customerUpdateError } = await supabase
+        .from('crm_customers')
+        .update({
+          lifetime_value: Math.max(0, (customer.lifetime_value || 0) - refundAmount),
+          total_spent: Math.max(0, (customer.total_spent || 0) - refundAmount),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', customer.id);
+
+      if (customerUpdateError) {
+        console.error('❌ Error adjusting customer LTV:', customerUpdateError);
+      } else {
+        console.log('✅ Adjusted customer lifetime value by -$' + refundAmount);
+      }
+
+      // Fire refund.created trigger for service recovery automation
+      await fireAutomationTriggers(supabase, tenantId, customer.id, ['refund.created'], {
+        refund_amount: refundAmount,
+        refund_reason: reason,
+        original_order_id: paymentId,
+        merchant_id: merchantId
+      });
+    }
+  }
+
+  return { success: true, refundAmount };
+}
+
+// Fire automation triggers with consent and targeting checks
 async function fireAutomationTriggers(
   supabase: any, 
   tenantId: string, 
@@ -460,6 +790,14 @@ async function fireAutomationTriggers(
     try {
       console.log(`🤖 Processing automation: ${automation.name} (${automation.trigger_type})`);
       
+      // Check persona targeting
+      const personaTargeting = automation.persona_targeting || {};
+      if (!checkPersonaTargeting(customer, personaTargeting)) {
+        console.log(`⏭️ Skipping automation ${automation.name} - customer does not match persona targeting`);
+        continue;
+      }
+      
+      // Check for existing queued messages (idempotency)
       const { data: existingLogs } = await supabase
         .from('crm_automation_logs')
         .select('id')
@@ -480,16 +818,32 @@ async function fireAutomationTriggers(
       }
       
       const baseTime = new Date();
+      let messagesEnqueued = 0;
+      let messagesSkipped = 0;
       
       for (let i = 0; i < workflowSteps.length; i++) {
         const step = workflowSteps[i];
         const delayMs = step.delayMin * 60 * 1000;
         const scheduledAt = new Date(baseTime.getTime() + delayMs);
+        const messageType = step.type || 'email';
         
-        const recipient = step.type === 'sms' ? customer.phone : customer.email;
+        // Check consent for this message type
+        if (messageType === 'email' && customer.email_opt_in === false) {
+          console.log(`⏭️ Skipping email step ${i} for ${customer.email} - not opted in`);
+          messagesSkipped++;
+          continue;
+        }
+        if (messageType === 'sms' && customer.sms_opt_in !== true) {
+          console.log(`⏭️ Skipping SMS step ${i} for ${customer.email} - not opted in`);
+          messagesSkipped++;
+          continue;
+        }
+        
+        const recipient = messageType === 'sms' ? customer.phone : customer.email;
         
         if (!recipient) {
-          console.log(`⚠️ No ${step.type} recipient for customer ${customer.email}`);
+          console.log(`⚠️ No ${messageType} recipient for customer ${customer.email}`);
+          messagesSkipped++;
           continue;
         }
         
@@ -502,7 +856,7 @@ async function fireAutomationTriggers(
             tenant_id: tenantId,
             automation_id: automation.id,
             customer_id: customerId,
-            message_type: step.type,
+            message_type: messageType,
             recipient,
             content: personalizedContent,
             subject: personalizedSubject,
@@ -527,12 +881,13 @@ async function fireAutomationTriggers(
             automation_id: automation.id,
             customer_id: customerId,
             step_index: i,
-            message_type: step.type,
+            message_type: messageType,
             status: 'queued',
             scheduled_at: scheduledAt.toISOString()
           });
         
-        console.log(`✅ Enqueued ${step.type} message for ${customer.email} (step ${i + 1}, scheduled: ${scheduledAt.toISOString()})`);
+        messagesEnqueued++;
+        console.log(`✅ Enqueued ${messageType} message for ${customer.email} (step ${i + 1}, scheduled: ${scheduledAt.toISOString()})`);
       }
       
       await supabase
@@ -544,9 +899,12 @@ async function fireAutomationTriggers(
           metadata: {
             trigger_types: triggerTypes,
             event_data: eventData,
-            steps_scheduled: workflowSteps.length
+            steps_scheduled: messagesEnqueued,
+            steps_skipped: messagesSkipped
           }
         });
+      
+      console.log(`✅ Automation ${automation.name} processed: ${messagesEnqueued} enqueued, ${messagesSkipped} skipped`);
       
     } catch (error) {
       console.error(`❌ Error processing automation ${automation.id}:`, error);
@@ -788,6 +1146,8 @@ function personalizeMessage(template: string, customer: any, eventData: Record<s
     '{{email}}': customer.email || '',
     '{{order_amount}}': eventData.order_amount ? `$${eventData.order_amount.toFixed(2)}` : '',
     '{{order_id}}': eventData.order_id || '',
+    '{{refund_amount}}': eventData.refund_amount ? `$${eventData.refund_amount.toFixed(2)}` : '',
+    '{{refund_reason}}': eventData.refund_reason || '',
   };
   
   for (const [placeholder, value] of Object.entries(replacements)) {
@@ -841,7 +1201,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log('✅ Found tenant:', connection.tenant_id, 'for merchant:', payload.merchant_id);
     
-    let result = { success: false, message: 'Unknown event type' };
+    let result: any = { success: false, message: 'Unknown event type' };
     
     switch (payload.type) {
       case 'payment.completed':
@@ -875,6 +1235,37 @@ const handler = async (req: Request): Promise<Response> => {
         );
         break;
         
+      case 'loyalty.account.created':
+      case 'loyalty.program.enrollment.created':
+        result = await processLoyaltyAccountCreated(
+          supabase,
+          connection.tenant_id,
+          connection.user_id,
+          payload.data.object,
+          payload.merchant_id
+        );
+        break;
+        
+      case 'order.fulfillment.updated':
+        result = await processFulfillmentUpdated(
+          supabase,
+          connection.tenant_id,
+          connection.user_id,
+          payload.data.object,
+          payload.merchant_id
+        );
+        break;
+        
+      case 'refund.created':
+        result = await processRefundCreated(
+          supabase,
+          connection.tenant_id,
+          connection.user_id,
+          payload.data.object,
+          payload.merchant_id
+        );
+        break;
+        
       case 'catalog.version.updated':
         result = await processCatalogVersionUpdated(
           supabase,
@@ -905,7 +1296,7 @@ const handler = async (req: Request): Promise<Response> => {
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('💥 Webhook handler error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
