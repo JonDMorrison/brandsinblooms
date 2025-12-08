@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,9 @@ import {
   FileText,
   Save,
   Edit,
-  X
+  X,
+  ExternalLink,
+  Shield
 } from 'lucide-react';
 
 interface ContactFormData {
@@ -440,6 +443,31 @@ export const ContactFooterTab = () => {
             disabled={!isEditing}
             rows={3}
           />
+        </CardContent>
+      </Card>
+
+      {/* Email Domain Setup Link */}
+      <Card className="border-dashed">
+        <CardContent className="py-4">
+          <Link 
+            to="/domains" 
+            className="flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Shield className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground group-hover:text-primary transition-colors">
+                  Email Domain & DNS Setup
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Configure custom sending domain, SPF, DKIM, and DMARC records
+                </p>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </Link>
         </CardContent>
       </Card>
     </div>
