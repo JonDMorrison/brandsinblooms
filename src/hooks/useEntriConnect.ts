@@ -208,8 +208,9 @@ export const useEntriConnect = () => {
           onCancel?.();
         },
         onClose: () => {
-          console.log('Entri modal closed');
-          // Don't call onCancel here - user might have succeeded
+          console.log('Entri modal closed by user');
+          // Call onCancel to restore the parent dialog when user closes Entri
+          onCancel?.();
         }
       });
     } catch (err: any) {
