@@ -9,6 +9,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProductGalleryImageSlot } from './ProductGalleryImageSlot';
 
+// Helper to strip HTML tags from content
+const stripHtmlTags = (html: string | undefined): string => {
+  if (!html) return '';
+  // Create a temporary element to parse HTML and extract text
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
+
 interface ProductGalleryBlockEditorProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
@@ -149,7 +158,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
         <Label htmlFor="product-gallery-body">Subheadline</Label>
         <Input
           id="product-gallery-body"
-          value={block.body || ''}
+          value={stripHtmlTags(block.body)}
           onChange={(e) => onUpdate({ 
             body: e.target.value, 
             content: e.target.value,
