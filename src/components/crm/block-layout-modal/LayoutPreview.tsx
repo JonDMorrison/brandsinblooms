@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface LayoutPreviewProps {
-  type: 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'text-plain' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'image-gallery';
+  type: 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'text-plain' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'image-gallery' | 'product-gallery';
 }
 
 export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
@@ -218,6 +218,27 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="bg-gradient-to-br from-slate-200 to-slate-300 rounded-sm" />
               ))}
+            </div>
+          </div>
+        );
+      
+      case 'product-gallery':
+        return (
+          <div className="h-full bg-gradient-to-b from-gray-50 to-white rounded-md p-2 border flex flex-col">
+            <div className="text-xs font-medium text-center mb-1 text-gray-700">Products</div>
+            <div className="flex-1 grid grid-cols-2 gap-1">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-gradient-to-br from-slate-200 to-slate-300 rounded-sm relative">
+                  {i <= 2 && (
+                    <div className="absolute top-0.5 right-0.5 bg-rose-400 text-white text-[6px] px-1 rounded-sm">
+                      %
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-1 mx-auto bg-rose-400/80 text-white text-[8px] px-2 py-0.5 rounded-full">
+              Shop
             </div>
           </div>
         );

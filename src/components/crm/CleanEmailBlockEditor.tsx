@@ -167,6 +167,20 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           autoImageMode: false
         }
       };
+    case 'product-gallery':
+      return {
+        type: 'image-gallery',
+        config: {
+          headline: '',
+          body: '',
+          galleryItems: [],
+          ctaText: 'Shop Holiday',
+          ctaUrl: '',
+          shouldFetchImage: false,
+          isGeneratingImage: false,
+          autoImageMode: false
+        }
+      };
     default:
       return {
         type: 'image-text',
