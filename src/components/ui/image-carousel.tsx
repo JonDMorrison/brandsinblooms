@@ -70,7 +70,6 @@ export const ImageCarousel = ({
 
   const handleDownload = (imageUrl: string, photographer: string) => {
     if (usingPlaceholders) {
-      toast.info('Add your Unsplash API key to download real images');
       return;
     }
     
@@ -81,7 +80,6 @@ export const ImageCarousel = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Image download started');
   };
 
   const handleCopyCredit = (photographer: string) => {
@@ -99,7 +97,6 @@ export const ImageCarousel = ({
     }
 
     if (usingPlaceholders) {
-      toast.info('Add your Unsplash API key to save real images to your library');
       return;
     }
 
@@ -121,7 +118,6 @@ export const ImageCarousel = ({
       if (error) throw error;
 
       setFavoriteImages(prev => new Set([...prev, image.id]));
-      toast.success('Image saved to your asset library');
     } catch (error) {
       console.error('Error saving favorite:', error);
       toast.error('Failed to save favorite');

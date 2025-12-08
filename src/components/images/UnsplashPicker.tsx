@@ -198,7 +198,6 @@ export const UnsplashPicker: React.FC<UnsplashPickerProps> = ({
       });
 
       onClose();
-      toast.success('Image selected successfully!');
     } catch (err) {
       console.error('Error selecting image:', err);
       toast.error('Failed to select image');

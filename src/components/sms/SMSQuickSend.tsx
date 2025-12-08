@@ -54,14 +54,12 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
 
     setProcessingImage(true);
     setImageStatus('processing');
-    toast.info('Processing image...');
 
     try {
       let processedFile = file;
       
       // If file is too large, compress it automatically
       if (file.size > 500 * 1024) {
-        toast.info('Image is too large, compressing automatically...');
         
         const processor = new ImageProcessor();
         const processed = await processor.processImage(file, {
@@ -81,10 +79,6 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
           toast.error('Image is still too large after compression. Please use a smaller image.');
           return;
         }
-        
-        toast.success(`Image optimized: ${Math.round(file.size / 1024)}KB → ${Math.round(processedFile.size / 1024)}KB`);
-      } else {
-        toast.success('Image ready for MMS');
       }
 
       setImageFile(processedFile);
@@ -158,7 +152,6 @@ export const SMSQuickSend: React.FC<SMSQuickSendProps> = ({ onSent }) => {
     // Set external image
     setExternalImageUrl(imageUrl);
     setExternalImageMetadata(metadata);
-    toast.success('Unsplash image selected for MMS');
   };
 
   const handleSend = async (e: React.FormEvent) => {

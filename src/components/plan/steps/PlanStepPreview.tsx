@@ -66,7 +66,6 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
   const handleImageSelected = async (imageUrl: string, itemId: string) => {
     updateItem(itemId, { imageUrl });
     setSelectingImageFor(null);
-    toast.success('Image updated');
   };
 
   const renderPreviewCard = (item: PlanItem) => {

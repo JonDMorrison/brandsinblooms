@@ -120,7 +120,6 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
             }
           });
           console.log('[PlanStepCalendar] AI featured image generated:', data.globalImageId);
-          toast.success('Featured image generated with AI');
         }
       }).catch(err => {
         console.warn('[PlanStepCalendar] Featured image generation failed:', err);
@@ -244,10 +243,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
               }
               
               if (completedCount > 0) {
-                toast.success(
-                  `✅ Generated ${completedCount}/${itemsNeedingImages.length} AI images`,
-                  { id: toastId }
-                );
+                toast.dismiss(toastId);
               } else {
                 toast.error('Failed to generate images. Please try again.', { id: toastId });
               }
@@ -291,7 +287,6 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({ onNext, onBa
         imageUrl: featuredImage.url,
         imageMetadata: featuredImage.metadata
       });
-      toast.success('Featured image applied');
     }
   };
 

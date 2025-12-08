@@ -601,12 +601,10 @@ export const AIPersonalizationDialog: React.FC<AIPersonalizationDialogProps> = (
       
       onImageSelect(selectedImage);
       onOpenChange(false);
-      toast.success('Image applied successfully!');
     } else if (selectedImage) {
       // Fallback if no record ID (shouldn't happen)
       onImageSelect(selectedImage);
       onOpenChange(false);
-      toast.success('Image applied successfully!');
     }
   };
 

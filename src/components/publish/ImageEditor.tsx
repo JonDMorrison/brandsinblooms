@@ -123,7 +123,6 @@ export const ImageEditor = ({ isOpen, onClose, imageUrl, onSave }: ImageEditorPr
         if (blob) {
           const editedUrl = URL.createObjectURL(blob);
           onSave(editedUrl);
-          toast.success('Image edited successfully!');
           onClose();
         }
       }, 'image/png', 0.9);
