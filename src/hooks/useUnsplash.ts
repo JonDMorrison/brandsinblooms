@@ -27,7 +27,8 @@ export const useUnsplash = () => {
         body: { 
           collection: 'cfl9BkhJD2o',
           page: page,
-          maxImages: 30 // Increased from 12 to show more images
+          maxImages: 50,
+          randomize: true
         }
       });
 
@@ -105,7 +106,7 @@ export const useUnsplash = () => {
 
   const searchImages = useCallback(async (query: string, useRawQuery = false): Promise<ImageAttachment[]> => {
     console.log('[useUnsplash] Searching images with query:', query, 'rawQuery:', useRawQuery);
-    return getSmartImages(query, 30, useRawQuery); // Increased from 12 to 30
+    return getSmartImages(query, 50, useRawQuery);
   }, [getSmartImages]);
 
   const refreshImages = useCallback(async (prevQuery: string): Promise<ImageAttachment[]> => {
