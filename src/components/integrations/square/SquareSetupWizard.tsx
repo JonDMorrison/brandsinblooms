@@ -94,54 +94,102 @@ export const SquareSetupWizard = ({
       products: { synced: 0, total: 0, status: 'pending' },
     });
 
-    try {
-      // Call the full sync function
-      const { data, error } = await supabase.functions.invoke('square-full-sync');
-      
-      if (error) throw error;
+    let customersCount = 0;
+    let salesCount = 0;
+    let productsCount = 0;
 
-      const results = data?.results || {};
+    try {
+      // Step 1: Sync customers
+      console.log('[SquareSetupWizard] Starting customer sync...');
+      const { data: customersData, error: customersError } = await supabase.functions.invoke(
+        'square-sync-customers'
+      );
       
-      setSyncProgress({
-        customers: { 
-          synced: results.customers?.customersSynced || 0, 
-          total: results.customers?.customersSynced || 0, 
-          status: 'complete' 
-        },
-        sales: { 
-          synced: results.sales?.salesSynced || 0, 
-          total: results.sales?.salesSynced || 0, 
-          status: 'complete' 
-        },
-        products: { 
-          synced: results.products?.productsSynced || 0, 
-          total: results.products?.productsSynced || 0, 
-          status: 'complete' 
-        },
-      });
+      if (customersError) {
+        console.error('[SquareSetupWizard] Customer sync error:', customersError);
+        setSyncProgress(prev => ({ ...prev, customers: { ...prev.customers, status: 'error' } }));
+      } else {
+        customersCount = customersData?.customersSynced || 0;
+        console.log('[SquareSetupWizard] Customer sync complete:', customersCount);
+        setSyncProgress(prev => ({
+          ...prev,
+          customers: { synced: customersCount, total: customersCount, status: 'complete' },
+          sales: { ...prev.sales, status: 'syncing' },
+        }));
+      }
+
+      // Step 2: Sync sales
+      console.log('[SquareSetupWizard] Starting sales sync...');
+      const { data: salesData, error: salesError } = await supabase.functions.invoke(
+        'square-sync-sales'
+      );
+      
+      if (salesError) {
+        console.error('[SquareSetupWizard] Sales sync error:', salesError);
+        setSyncProgress(prev => ({ ...prev, sales: { ...prev.sales, status: 'error' } }));
+      } else {
+        salesCount = salesData?.salesSynced || 0;
+        console.log('[SquareSetupWizard] Sales sync complete:', salesCount);
+        setSyncProgress(prev => ({
+          ...prev,
+          sales: { synced: salesCount, total: salesCount, status: 'complete' },
+          products: { ...prev.products, status: 'syncing' },
+        }));
+      }
+
+      // Step 3: Sync products
+      console.log('[SquareSetupWizard] Starting products sync...');
+      const { data: productsData, error: productsError } = await supabase.functions.invoke(
+        'square-sync-products'
+      );
+      
+      if (productsError) {
+        console.error('[SquareSetupWizard] Products sync error:', productsError);
+        setSyncProgress(prev => ({ ...prev, products: { ...prev.products, status: 'error' } }));
+      } else {
+        productsCount = productsData?.productsSynced || 0;
+        console.log('[SquareSetupWizard] Products sync complete:', productsCount);
+        setSyncProgress(prev => ({
+          ...prev,
+          products: { synced: productsCount, total: productsCount, status: 'complete' },
+        }));
+      }
 
       setSyncResults({
-        customersCount: results.customers?.customersSynced || 0,
-        salesCount: results.sales?.salesSynced || 0,
-        productsCount: results.products?.productsSynced || 0,
-        totalRevenue: 0, // Could be calculated from sales data
+        customersCount,
+        salesCount,
+        productsCount,
+        totalRevenue: 0,
       });
 
-      // Auto-advance to overview after short delay
-      setTimeout(() => {
-        setCurrentStep('overview');
-      }, 1500);
+      // Check if at least one sync succeeded
+      const hasData = customersCount > 0 || salesCount > 0 || productsCount > 0;
+      
+      if (hasData) {
+        toast({
+          title: 'Sync complete!',
+          description: `Imported ${customersCount} customers, ${salesCount} sales, ${productsCount} products`,
+        });
+        
+        // Auto-advance to overview after short delay
+        setTimeout(() => {
+          setCurrentStep('overview');
+        }, 1500);
+      } else {
+        toast({
+          title: 'Sync complete',
+          description: 'No data found to import. You can proceed to set up automations.',
+        });
+        setTimeout(() => {
+          setCurrentStep('overview');
+        }, 1500);
+      }
 
     } catch (error: any) {
       console.error('Sync error:', error);
-      setSyncProgress(prev => ({
-        customers: { ...prev.customers, status: 'error' },
-        sales: { ...prev.sales, status: 'error' },
-        products: { ...prev.products, status: 'error' },
-      }));
       toast({
-        title: 'Sync failed',
-        description: error.message,
+        title: 'Sync encountered issues',
+        description: 'Some data may have synced. You can retry or proceed.',
         variant: 'destructive',
       });
     } finally {
