@@ -7,6 +7,7 @@ import { Plus, X } from "lucide-react";
 interface CompanyProfileFormFieldsProps {
   formData: {
     company_name: string;
+    company_phone?: string;
     company_overview: string;
     mission_statement: string;
     brand_voice: string;
@@ -121,16 +122,29 @@ export const CompanyProfileFormFields = ({ formData, isEditing, onInputChange }:
   };
   return (
     <div className="grid grid-cols-1 gap-6">
-      <div>
-        <Label htmlFor="company_name" className="text-lg font-semibold">Company Name</Label>
-        <Input
-          id="company_name"
-          placeholder="Your garden center name"
-          value={formData.company_name}
-          onChange={(e) => onInputChange('company_name', e.target.value)}
-          disabled={!isEditing}
-          className="text-2xl p-4 h-12"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="company_name" className="text-lg font-semibold">Company Name</Label>
+          <Input
+            id="company_name"
+            placeholder="Your garden center name"
+            value={formData.company_name}
+            onChange={(e) => onInputChange('company_name', e.target.value)}
+            disabled={!isEditing}
+            className="text-xl p-4 h-12"
+          />
+        </div>
+        <div>
+          <Label htmlFor="company_phone" className="text-lg font-semibold">Phone Number</Label>
+          <Input
+            id="company_phone"
+            placeholder="(555) 123-4567"
+            value={formData.company_phone || ''}
+            onChange={(e) => onInputChange('company_phone', e.target.value)}
+            disabled={!isEditing}
+            className="text-xl p-4 h-12"
+          />
+        </div>
       </div>
 
       <div>

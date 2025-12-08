@@ -22,6 +22,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     company_name: '',
+    company_phone: '',
     company_overview: '',
     mission_statement: '',
     brand_voice: '',
@@ -41,6 +42,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
     if (profile) {
       setFormData({
         company_name: profile.company_name || '',
+        company_phone: profile.company_phone || '',
         company_overview: profile.company_overview || '',
         mission_statement: profile.mission_statement || '',
         brand_voice: profile.brand_voice || '',
@@ -141,6 +143,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       const payload = {
         user_id: user.id,
         company_name: formData.company_name || null,
+        company_phone: formData.company_phone || null,
         company_overview: formData.company_overview || null,
         brand_voice: formData.brand_voice || null,
         tone_of_writing: formData.tone_of_writing || null,
@@ -213,6 +216,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
     if (profile) {
       setFormData({
         company_name: profile.company_name || '',
+        company_phone: profile.company_phone || '',
         company_overview: profile.company_overview || '',
         mission_statement: profile.mission_statement || '',
         brand_voice: profile.brand_voice || '',

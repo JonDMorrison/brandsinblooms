@@ -4,6 +4,7 @@ import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { CompanyInformationTab } from './profile/CompanyInformationTab';
 import { BrandColorsTab } from './profile/BrandColorsTab';
 import { TypographyTab } from './profile/TypographyTab';
+import { ContactFooterTab } from './profile/ContactFooterTab';
 
 export default function ProfilePage() {
   return (
@@ -11,6 +12,7 @@ export default function ProfilePage() {
       <Route element={<ProfileLayout />}>
         <Route index element={<Navigate to="company" replace />} />
         <Route path="company" element={<CompanyInformationTab />} />
+        <Route path="contact-footer" element={<ContactFooterTab />} />
         <Route path="brand-colors" element={<BrandColorsTab />} />
         <Route path="typography" element={<TypographyTab />} />
       </Route>
