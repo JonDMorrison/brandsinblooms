@@ -376,8 +376,8 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const isReadyToLaunch = hasValidFlow && hasAudience;
 
   return (
-    <div className={`relative w-full h-full flex flex-col ${className}`}>
-      <section role="region" aria-label="Automation canvas" className="w-full flex-1 min-h-0">
+    <div className={`relative w-full h-full flex flex-col overflow-hidden ${className}`}>
+      <section role="region" aria-label="Automation canvas" className="w-full flex-1 min-h-0 overflow-hidden">
         <div className="w-full h-full rounded-lg bg-muted/30">
           <ReactFlow
             nodes={nodes}
@@ -430,8 +430,8 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         </div>
       </section>
 
-      {/* Audience Targeting Section - Fixed at bottom of main content area */}
-      <div className="sticky bottom-0 left-0 right-0 z-20 border-t bg-background shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
+      {/* Audience Targeting Section - Always visible at bottom */}
+      <div className="flex-shrink-0 border-t bg-background shadow-[0_-2px_10px_rgba(0,0,0,0.1)] z-20">
         {/* Collapse Toggle Header */}
         <button
           onClick={() => setIsFooterCollapsed(!isFooterCollapsed)}
