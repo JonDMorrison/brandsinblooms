@@ -42,14 +42,29 @@ interface CompanyInfo {
   name?: string;
   address?: string;
   phone?: string;
+  email?: string;
+  websiteUrl?: string;
+  streetAddress?: string;
+  city?: string;
+  stateProvince?: string;
+  postalCode?: string;
+  country?: string;
   logoUrl?: string;
   brandPrimaryColor?: string;
   brandSecondaryColor?: string;
   brandTextColor?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  tiktokUrl?: string;
+  pinterestUrl?: string;
+  youtubeUrl?: string;
+  linkedinUrl?: string;
+  footerLegalText?: string;
 }
 
 /**
  * Generate footer HTML - enhanced version using new footer system
+ * Prioritizes fresh companyInfo data over footerSettings for contact/address info
  */
 export const generateFooterHTML = (
   footerSettings: FooterSettings,
@@ -60,40 +75,61 @@ export const generateFooterHTML = (
   const tokens = tokenData || {
     companyName: companyInfo?.name || 'Your Company',
     companyAddress: companyInfo?.address || '123 Business St, Suite 100, City, State 12345',
-    companyPhone: companyInfo?.phone || '(555) 123-4567',
+    companyPhone: companyInfo?.phone || '',
     unsubscribeUrl: '[Unsubscribe Link]',
     managePreferencesUrl: '[Manage Preferences Link]',
   };
 
+  // Use fresh companyInfo data, fallback to footerSettings for backward compatibility
+  const addressLine1 = companyInfo?.streetAddress || footerSettings.addressLine1 || companyInfo?.address;
+  const city = companyInfo?.city || footerSettings.city;
+  const region = companyInfo?.stateProvince || footerSettings.region;
+  const postalCode = companyInfo?.postalCode || footerSettings.postalCode;
+  const country = companyInfo?.country || footerSettings.country;
+  const email = companyInfo?.email || footerSettings.email;
+  const websiteUrl = companyInfo?.websiteUrl || footerSettings.websiteUrl;
+  const phone = companyInfo?.phone || tokens.companyPhone;
+  
+  // Social URLs from companyInfo (fresh data)
+  const facebookUrl = companyInfo?.facebookUrl || footerSettings.facebookUrl;
+  const instagramUrl = companyInfo?.instagramUrl || footerSettings.instagramUrl;
+  const tiktokUrl = companyInfo?.tiktokUrl || footerSettings.tiktokUrl;
+  const pinterestUrl = companyInfo?.pinterestUrl || footerSettings.pinterestUrl;
+  const youtubeUrl = companyInfo?.youtubeUrl || footerSettings.youtubeUrl;
+  const linkedinUrl = companyInfo?.linkedinUrl || footerSettings.linkedinUrl;
+  
+  // Legal text from companyInfo
+  const legalText = companyInfo?.footerLegalText || footerSettings.complianceText;
+
   // Check if we have extended footer settings - use new renderer
-  const hasExtendedSettings = footerSettings.facebookUrl || 
-    footerSettings.instagramUrl || 
-    footerSettings.addressLine1 ||
+  const hasExtendedSettings = facebookUrl || 
+    instagramUrl || 
+    addressLine1 ||
     footerBackgroundColor;
 
   if (hasExtendedSettings) {
-    // Use the new newsletter footer HTML generator
+    // Use the new newsletter footer HTML generator with fresh data
     const footerProps: NewsletterFooterProps = {
       logoUrl: footerSettings.showLogo ? companyInfo?.logoUrl : undefined,
       companyName: tokens.companyName,
-      addressLine1: footerSettings.addressLine1 || companyInfo?.address,
+      addressLine1,
       addressLine2: footerSettings.addressLine2,
-      city: footerSettings.city,
-      region: footerSettings.region,
-      postalCode: footerSettings.postalCode,
-      country: footerSettings.country,
-      websiteUrl: footerSettings.websiteUrl,
-      email: footerSettings.email,
-      phone: footerSettings.showPhone ? tokens.companyPhone : undefined,
-      facebookUrl: footerSettings.facebookUrl,
-      instagramUrl: footerSettings.instagramUrl,
-      tiktokUrl: footerSettings.tiktokUrl,
-      pinterestUrl: footerSettings.pinterestUrl,
-      youtubeUrl: footerSettings.youtubeUrl,
-      linkedinUrl: footerSettings.linkedinUrl,
+      city,
+      region,
+      postalCode,
+      country,
+      websiteUrl,
+      email,
+      phone: footerSettings.showPhone ? phone : undefined,
+      facebookUrl,
+      instagramUrl,
+      tiktokUrl,
+      pinterestUrl,
+      youtubeUrl,
+      linkedinUrl,
       unsubscribeUrl: tokens.unsubscribeUrl || '#',
       managePreferencesUrl: footerSettings.showManagePreferences ? tokens.managePreferencesUrl : undefined,
-      legalText: processEmailTokens(footerSettings.complianceText, tokens),
+      legalText: processEmailTokens(legalText, tokens),
       footerBackgroundColor,
       brandPrimaryColor: companyInfo?.brandPrimaryColor,
     };

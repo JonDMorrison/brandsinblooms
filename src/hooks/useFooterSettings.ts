@@ -247,6 +247,7 @@ export const useFooterSettings = (campaignId?: string) => {
 
 /**
  * Build NewsletterFooterProps from various data sources
+ * Always uses fresh companyInfo data for contact/address information
  */
 export function buildFooterProps(
   footerSettings: FooterSettings,
@@ -254,25 +255,49 @@ export function buildFooterProps(
     name?: string;
     address?: string;
     phone?: string;
+    email?: string;
+    websiteUrl?: string;
+    streetAddress?: string;
+    city?: string;
+    stateProvince?: string;
+    postalCode?: string;
+    country?: string;
     logoUrl?: string;
     brandPrimaryColor?: string;
     brandSecondaryColor?: string;
+    facebookUrl?: string;
+    instagramUrl?: string;
+    tiktokUrl?: string;
+    pinterestUrl?: string;
+    youtubeUrl?: string;
+    linkedinUrl?: string;
+    footerLegalText?: string;
   },
   unsubscribeUrl: string,
   managePreferencesUrl?: string,
   campaignOverrides?: CampaignFooterOverrides
 ): NewsletterFooterProps {
-  // Parse address if it's a single string
-  let addressLine1 = footerSettings.addressLine1;
-  let city = footerSettings.city;
-  let region = footerSettings.region;
-  let postalCode = footerSettings.postalCode;
-  let country = footerSettings.country;
+  // Always use fresh companyInfo data, with footerSettings overrides as fallback
+  // This ensures changes in Contact & Footer Settings are reflected immediately
+  const addressLine1 = companyInfo.streetAddress || footerSettings.addressLine1 || companyInfo.address;
+  const city = companyInfo.city || footerSettings.city;
+  const region = companyInfo.stateProvince || footerSettings.region;
+  const postalCode = companyInfo.postalCode || footerSettings.postalCode;
+  const country = companyInfo.country || footerSettings.country;
+  const email = companyInfo.email || footerSettings.email;
+  const websiteUrl = companyInfo.websiteUrl || footerSettings.websiteUrl;
+  const phone = companyInfo.phone || '';
   
-  // If no structured address but companyInfo.address exists, use that
-  if (!addressLine1 && companyInfo.address) {
-    addressLine1 = companyInfo.address;
-  }
+  // Use social URLs from companyInfo (fresh data from Contact & Footer Settings)
+  const facebookUrl = companyInfo.facebookUrl || footerSettings.facebookUrl;
+  const instagramUrl = companyInfo.instagramUrl || footerSettings.instagramUrl;
+  const tiktokUrl = companyInfo.tiktokUrl || footerSettings.tiktokUrl;
+  const pinterestUrl = companyInfo.pinterestUrl || footerSettings.pinterestUrl;
+  const youtubeUrl = companyInfo.youtubeUrl || footerSettings.youtubeUrl;
+  const linkedinUrl = companyInfo.linkedinUrl || footerSettings.linkedinUrl;
+  
+  // Use legal text from companyInfo if available
+  const legalText = companyInfo.footerLegalText || footerSettings.complianceText;
   
   return {
     logoUrl: footerSettings.showLogo ? companyInfo.logoUrl : undefined,
@@ -283,18 +308,18 @@ export function buildFooterProps(
     region,
     postalCode,
     country,
-    websiteUrl: footerSettings.websiteUrl,
-    email: footerSettings.email,
-    phone: footerSettings.showPhone ? companyInfo.phone : undefined,
-    facebookUrl: footerSettings.facebookUrl,
-    instagramUrl: footerSettings.instagramUrl,
-    tiktokUrl: footerSettings.tiktokUrl,
-    pinterestUrl: footerSettings.pinterestUrl,
-    youtubeUrl: footerSettings.youtubeUrl,
-    linkedinUrl: footerSettings.linkedinUrl,
+    websiteUrl,
+    email,
+    phone: footerSettings.showPhone ? phone : undefined,
+    facebookUrl,
+    instagramUrl,
+    tiktokUrl,
+    pinterestUrl,
+    youtubeUrl,
+    linkedinUrl,
     unsubscribeUrl,
     managePreferencesUrl: footerSettings.showManagePreferences ? managePreferencesUrl : undefined,
-    legalText: footerSettings.complianceText,
+    legalText,
     footerBackgroundColor: campaignOverrides?.footerBackgroundColor,
     brandPrimaryColor: companyInfo.brandPrimaryColor,
     brandSecondaryColor: companyInfo.brandSecondaryColor,

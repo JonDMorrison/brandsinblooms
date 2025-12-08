@@ -6,12 +6,26 @@ interface CompanyInfo {
   name?: string;
   address?: string;
   phone?: string;
+  email?: string;
+  websiteUrl?: string;
+  streetAddress?: string;
+  city?: string;
+  stateProvince?: string;
+  postalCode?: string;
+  country?: string;
   logoUrl?: string;
   emailDomain?: string;
   brandPrimaryColor?: string;
   brandSecondaryColor?: string;
   brandAccentColor?: string;
   brandTextColor?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  tiktokUrl?: string;
+  pinterestUrl?: string;
+  youtubeUrl?: string;
+  linkedinUrl?: string;
+  footerLegalText?: string;
   selectedFont?: {
     id: string;
     name: string;
@@ -125,16 +139,46 @@ export const useCompanyInfo = () => {
         const bodyFont = profile.body_font as any;
         const buttonFont = profile.button_font as any;
         
+        // Build full address from structured fields
+        const addressParts = [
+          profile.street_address,
+          profile.city,
+          profile.state_province,
+          profile.postal_code,
+          profile.country
+        ].filter(Boolean);
+        const fullAddress = addressParts.length > 0 
+          ? addressParts.join(', ') 
+          : (profile.location_info || '');
+        
         setCompanyInfo({
           name: profile.company_name || 'Your Company',
-          address: profile.location_info || '123 Business St, Suite 100, City, State 12345',
-          phone: featureFlags?.company_phone || '(555) 123-4567',
+          // Use structured address, fallback to location_info for legacy data
+          address: fullAddress || '123 Business St, Suite 100, City, State 12345',
+          // Read phone from proper column, fallback to feature_flags for legacy
+          phone: profile.company_phone || featureFlags?.company_phone || '',
+          email: profile.company_email || '',
+          websiteUrl: profile.website_url || '',
+          // Structured address fields
+          streetAddress: profile.street_address || '',
+          city: profile.city || '',
+          stateProvince: profile.state_province || '',
+          postalCode: profile.postal_code || '',
+          country: profile.country || '',
           logoUrl: featureFlags?.company_logo_url,
           emailDomain: profile.email_domain,
           brandPrimaryColor: profile.brand_primary_color || '#22c55e',
           brandSecondaryColor: profile.brand_secondary_color || '#1e40af',
           brandAccentColor: profile.brand_accent_color || '#f59e0b',
           brandTextColor: profile.brand_text_color || '#1f2937',
+          // Social URLs
+          facebookUrl: profile.facebook_url || '',
+          instagramUrl: profile.instagram_url || '',
+          tiktokUrl: profile.tiktok_url || '',
+          pinterestUrl: profile.pinterest_url || '',
+          youtubeUrl: profile.youtube_url || '',
+          linkedinUrl: profile.linkedin_url || '',
+          footerLegalText: profile.footer_legal_text || '',
           selectedFont: font ? {
             id: font.id,
             name: font.name,
