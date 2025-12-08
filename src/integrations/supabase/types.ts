@@ -1828,6 +1828,9 @@ export type Database = {
           product_tags: string[] | null
           sms_opt_in: boolean | null
           sms_opt_in_at: string | null
+          square_customer_id: string | null
+          square_group_ids: string[] | null
+          square_last_synced_at: string | null
           tags: string[] | null
           tenant_id: string | null
           timezone: string | null
@@ -1862,6 +1865,9 @@ export type Database = {
           product_tags?: string[] | null
           sms_opt_in?: boolean | null
           sms_opt_in_at?: string | null
+          square_customer_id?: string | null
+          square_group_ids?: string[] | null
+          square_last_synced_at?: string | null
           tags?: string[] | null
           tenant_id?: string | null
           timezone?: string | null
@@ -1896,6 +1902,9 @@ export type Database = {
           product_tags?: string[] | null
           sms_opt_in?: boolean | null
           sms_opt_in_at?: string | null
+          square_customer_id?: string | null
+          square_group_ids?: string[] | null
+          square_last_synced_at?: string | null
           tags?: string[] | null
           tenant_id?: string | null
           timezone?: string | null

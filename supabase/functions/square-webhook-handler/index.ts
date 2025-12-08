@@ -25,6 +25,13 @@ interface WorkflowStep {
   text: string;
 }
 
+interface SquareOrderLineItem {
+  name?: string;
+  quantity: string;
+  catalog_object_id?: string;
+  variation_name?: string;
+}
+
 // Verify Square webhook signature using HMAC-SHA256
 async function verifySquareSignature(body: string, signature: string | null, notificationUrl: string): Promise<boolean> {
   const webhookSecret = Deno.env.get('SQUARE_WEBHOOK_SIGNATURE_KEY');
@@ -40,7 +47,6 @@ async function verifySquareSignature(body: string, signature: string | null, not
   }
   
   try {
-    // Square signature is: base64(HMAC-SHA256(notificationUrl + body))
     const stringToSign = notificationUrl + body;
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
@@ -69,7 +75,7 @@ async function verifySquareSignature(body: string, signature: string | null, not
 async function findTenantByMerchantId(supabase: any, merchantId: string) {
   const { data: connection, error } = await supabase
     .from('square_connections')
-    .select('tenant_id, user_id, merchant_id')
+    .select('tenant_id, user_id, merchant_id, environment, encrypted_access_token')
     .eq('merchant_id', merchantId)
     .eq('status', 'connected')
     .single();
@@ -82,8 +88,70 @@ async function findTenantByMerchantId(supabase: any, merchantId: string) {
   return connection;
 }
 
+// Fetch order details from Square
+async function fetchSquareOrder(orderId: string, accessToken: string, environment: string): Promise<any | null> {
+  const baseUrl = environment === 'sandbox'
+    ? `https://connect.squareupsandbox.com/v2/orders/${orderId}`
+    : `https://connect.squareup.com/v2/orders/${orderId}`;
+
+  try {
+    const response = await fetch(baseUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Square-Version': '2024-01-18',
+      },
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error(`❌ Failed to fetch order ${orderId}:`, data.errors);
+      return null;
+    }
+    return data.order;
+  } catch (error) {
+    console.error(`❌ Error fetching order ${orderId}:`, error);
+    return null;
+  }
+}
+
+// Fetch customer groups from Square
+async function fetchSquareCustomerGroups(accessToken: string, environment: string): Promise<Map<string, string>> {
+  const groupMap = new Map<string, string>();
+  const baseUrl = environment === 'sandbox'
+    ? 'https://connect.squareupsandbox.com/v2/customers/groups'
+    : 'https://connect.squareup.com/v2/customers/groups';
+
+  try {
+    const response = await fetch(baseUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Square-Version': '2024-01-18',
+      },
+    });
+
+    const data = await response.json();
+    if (response.ok && data.groups) {
+      for (const group of data.groups) {
+        groupMap.set(group.id, group.name);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error fetching customer groups:', error);
+  }
+
+  return groupMap;
+}
+
+// Extract product names from order line items
+function extractProductNames(order: any): string[] {
+  if (!order?.line_items) return [];
+  return order.line_items
+    .map((item: SquareOrderLineItem) => item.name || item.variation_name)
+    .filter((name: string | undefined): name is string => !!name);
+}
+
 // Process payment.completed event
-async function processPaymentCompleted(supabase: any, tenantId: string, userId: string, payment: any, merchantId: string) {
+async function processPaymentCompleted(supabase: any, tenantId: string, userId: string, payment: any, merchantId: string, connection: any) {
   console.log('💳 Processing payment.completed event for merchant:', merchantId);
   
   const paymentData = payment.payment || payment;
@@ -96,6 +164,22 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
   const receiptPhone = paymentData.buyer_phone_number;
   
   console.log('📦 Payment details:', { customerId, amount, currency, receiptEmail, receiptPhone });
+  
+  // Phase 3: Fetch order details for product tags
+  let productNames: string[] = [];
+  let orderData: any = null;
+  
+  if (paymentData.order_id && connection?.encrypted_access_token) {
+    try {
+      const { decryptToken } = await import('../_shared/crypto/tokens.ts');
+      const accessToken = await decryptToken(connection.encrypted_access_token);
+      orderData = await fetchSquareOrder(paymentData.order_id, accessToken, connection.environment || 'production');
+      productNames = extractProductNames(orderData);
+      console.log('📦 Order products:', productNames);
+    } catch (error) {
+      console.error('❌ Error fetching order details:', error);
+    }
+  }
   
   // 1. Upsert order to pos_orders
   const { data: posConnection } = await supabase
@@ -117,7 +201,12 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
         customer_external_id: customerId,
         order_date: paymentData.created_at || new Date().toISOString(),
         status: paymentData.status || 'COMPLETED',
-        raw_data: paymentData
+        items: orderData?.line_items?.map((li: SquareOrderLineItem) => ({
+          name: li.name || li.variation_name,
+          quantity: li.quantity,
+          catalog_object_id: li.catalog_object_id
+        })) || [],
+        raw_data: { payment: paymentData, order: orderData }
       }, { onConflict: 'external_id,pos_connection_id' });
     
     if (orderError) {
@@ -142,6 +231,10 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
     isFirstPurchase = !existingCustomer?.first_purchase_date;
     const currentDate = new Date().toISOString().split('T')[0];
     
+    // Merge product tags
+    const existingProductTags = existingCustomer?.product_tags || [];
+    const mergedProductTags = [...new Set([...existingProductTags, ...productNames])];
+    
     const { data: upsertedCustomer, error: customerError } = await supabase
       .from('crm_customers')
       .upsert({
@@ -153,6 +246,7 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
         last_purchase_date: currentDate,
         total_spent: (existingCustomer?.total_spent || 0) + amount,
         lifetime_value: (existingCustomer?.lifetime_value || 0) + amount,
+        product_tags: mergedProductTags.length > 0 ? mergedProductTags : null,
         pos_source: 'square'
       }, { onConflict: 'tenant_id,email' })
       .select()
@@ -162,7 +256,7 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
       console.error('❌ Error upserting customer:', customerError);
     } else {
       customer = upsertedCustomer;
-      console.log('✅ Customer upserted:', customer.email, 'First purchase:', isFirstPurchase);
+      console.log('✅ Customer upserted:', customer.email, 'First purchase:', isFirstPurchase, 'Product tags:', mergedProductTags.length);
     }
   }
   
@@ -178,15 +272,16 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
     await fireAutomationTriggers(supabase, tenantId, customer.id, triggerTypes, {
       order_amount: amount,
       order_id: paymentData.id,
-      merchant_id: merchantId
+      merchant_id: merchantId,
+      products: productNames
     });
   }
   
-  return { success: true, isFirstPurchase, customerId: customer?.id };
+  return { success: true, isFirstPurchase, customerId: customer?.id, productTagsAdded: productNames.length };
 }
 
 // Process customer.created event
-async function processCustomerCreated(supabase: any, tenantId: string, userId: string, customerData: any) {
+async function processCustomerCreated(supabase: any, tenantId: string, userId: string, customerData: any, connection: any) {
   console.log('👤 Processing customer.created event');
   
   const customer = customerData.customer || customerData;
@@ -194,10 +289,31 @@ async function processCustomerCreated(supabase: any, tenantId: string, userId: s
   const phone = customer.phone_number;
   const firstName = customer.given_name;
   const lastName = customer.family_name;
+  const groupIds = customer.group_ids || [];
   
   if (!email) {
     console.log('⚠️ No email in customer data, skipping');
     return { success: false, reason: 'no_email' };
+  }
+  
+  // Phase 1: Extract marketing preferences
+  const emailOptIn = customer.preferences?.email_unsubscribed === true 
+    ? false 
+    : customer.preferences?.email_unsubscribed === false 
+      ? true 
+      : null;
+  
+  // Phase 2: Fetch group names
+  let tags: string[] = [];
+  if (groupIds.length > 0 && connection?.encrypted_access_token) {
+    try {
+      const { decryptToken } = await import('../_shared/crypto/tokens.ts');
+      const accessToken = await decryptToken(connection.encrypted_access_token);
+      const groupMap = await fetchSquareCustomerGroups(accessToken, connection.environment || 'production');
+      tags = groupIds.map((id: string) => groupMap.get(id)).filter((name: string | undefined): name is string => !!name);
+    } catch (error) {
+      console.error('❌ Error fetching customer groups:', error);
+    }
   }
   
   const { error } = await supabase
@@ -209,7 +325,13 @@ async function processCustomerCreated(supabase: any, tenantId: string, userId: s
       phone: phone,
       first_name: firstName,
       last_name: lastName,
-      pos_source: 'square'
+      pos_source: 'square',
+      email_opt_in: emailOptIn,
+      sms_opt_in: null,
+      tags: tags.length > 0 ? tags : null,
+      square_customer_id: customer.id,
+      square_group_ids: groupIds.length > 0 ? groupIds : null,
+      square_last_synced_at: new Date().toISOString()
     }, { onConflict: 'tenant_id,email' });
   
   if (error) {
@@ -217,12 +339,12 @@ async function processCustomerCreated(supabase: any, tenantId: string, userId: s
     return { success: false, error };
   }
   
-  console.log('✅ Customer created:', email);
+  console.log('✅ Customer created:', email, 'Tags:', tags.length, 'Email opt-in:', emailOptIn);
   return { success: true };
 }
 
 // Process customer.updated event
-async function processCustomerUpdated(supabase: any, tenantId: string, userId: string, customerData: any) {
+async function processCustomerUpdated(supabase: any, tenantId: string, userId: string, customerData: any, connection: any) {
   console.log('👤 Processing customer.updated event');
   
   const customer = customerData.customer || customerData;
@@ -230,11 +352,43 @@ async function processCustomerUpdated(supabase: any, tenantId: string, userId: s
   const phone = customer.phone_number;
   const firstName = customer.given_name;
   const lastName = customer.family_name;
+  const groupIds = customer.group_ids || [];
   
   if (!email) {
     console.log('⚠️ No email in customer data, skipping');
     return { success: false, reason: 'no_email' };
   }
+  
+  // Phase 1: Extract marketing preferences
+  const emailOptIn = customer.preferences?.email_unsubscribed === true 
+    ? false 
+    : customer.preferences?.email_unsubscribed === false 
+      ? true 
+      : null;
+  
+  // Get existing customer
+  const { data: existingCustomer } = await supabase
+    .from('crm_customers')
+    .select('tags, product_tags')
+    .eq('tenant_id', tenantId)
+    .eq('email', email)
+    .single();
+  
+  // Phase 2: Fetch and merge group names
+  let newTags: string[] = [];
+  if (groupIds.length > 0 && connection?.encrypted_access_token) {
+    try {
+      const { decryptToken } = await import('../_shared/crypto/tokens.ts');
+      const accessToken = await decryptToken(connection.encrypted_access_token);
+      const groupMap = await fetchSquareCustomerGroups(accessToken, connection.environment || 'production');
+      newTags = groupIds.map((id: string) => groupMap.get(id)).filter((name: string | undefined): name is string => !!name);
+    } catch (error) {
+      console.error('❌ Error fetching customer groups:', error);
+    }
+  }
+  
+  const existingTags = existingCustomer?.tags || [];
+  const mergedTags = [...new Set([...existingTags, ...newTags])];
   
   const { error } = await supabase
     .from('crm_customers')
@@ -242,6 +396,10 @@ async function processCustomerUpdated(supabase: any, tenantId: string, userId: s
       phone: phone,
       first_name: firstName,
       last_name: lastName,
+      email_opt_in: emailOptIn !== null ? emailOptIn : undefined,
+      tags: mergedTags.length > 0 ? mergedTags : null,
+      square_group_ids: groupIds.length > 0 ? groupIds : null,
+      square_last_synced_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })
     .eq('tenant_id', tenantId)
@@ -252,7 +410,7 @@ async function processCustomerUpdated(supabase: any, tenantId: string, userId: s
     return { success: false, error };
   }
   
-  console.log('✅ Customer updated:', email);
+  console.log('✅ Customer updated:', email, 'Tags:', mergedTags.length);
   return { success: true };
 }
 
@@ -266,7 +424,6 @@ async function fireAutomationTriggers(
 ) {
   console.log('🔥 Firing automation triggers:', triggerTypes, 'for customer:', customerId);
   
-  // Find active automations matching triggers
   const { data: automations, error: automationsError } = await supabase
     .from('crm_automations')
     .select('*')
@@ -286,7 +443,6 @@ async function fireAutomationTriggers(
   
   console.log(`📋 Found ${automations.length} active automations for triggers`);
   
-  // Get customer data
   const { data: customer } = await supabase
     .from('crm_customers')
     .select('*')
@@ -302,7 +458,6 @@ async function fireAutomationTriggers(
     try {
       console.log(`🤖 Processing automation: ${automation.name} (${automation.trigger_type})`);
       
-      // Check if customer already has queued messages for this automation
       const { data: existingLogs } = await supabase
         .from('crm_automation_logs')
         .select('id')
@@ -316,7 +471,6 @@ async function fireAutomationTriggers(
         continue;
       }
       
-      // Schedule workflow steps
       const workflowSteps: WorkflowStep[] = automation.workflow_steps || [];
       if (workflowSteps.length === 0) {
         console.log(`⚠️ No workflow steps for automation: ${automation.name}`);
@@ -337,11 +491,9 @@ async function fireAutomationTriggers(
           continue;
         }
         
-        // Personalize message
         const personalizedContent = personalizeMessage(step.text, customer, eventData);
         const personalizedSubject = step.subject ? personalizeMessage(step.subject, customer, eventData) : undefined;
         
-        // Insert into outbox
         const { error: outboxError } = await supabase
           .from('crm_outbox')
           .insert({
@@ -367,7 +519,6 @@ async function fireAutomationTriggers(
           continue;
         }
         
-        // Log the automation step
         await supabase
           .from('crm_automation_logs')
           .insert({
@@ -382,7 +533,6 @@ async function fireAutomationTriggers(
         console.log(`✅ Enqueued ${step.type} message for ${customer.email} (step ${i + 1}, scheduled: ${scheduledAt.toISOString()})`);
       }
       
-      // Log automation event
       await supabase
         .from('automation_events')
         .insert({
@@ -402,7 +552,7 @@ async function fireAutomationTriggers(
   }
 }
 
-// Process catalog.version.updated event - triggers product sync
+// Process catalog.version.updated event
 async function processCatalogVersionUpdated(
   supabase: any, 
   tenantId: string, 
@@ -413,7 +563,6 @@ async function processCatalogVersionUpdated(
   console.log('📦 Processing catalog.version.updated event');
   console.log('📋 Catalog update timestamp:', catalogData?.updated_at);
   
-  // Get the Square connection to access token
   const { data: connection } = await supabase
     .from('square_connections')
     .select('id, encrypted_access_token, environment')
@@ -426,7 +575,6 @@ async function processCatalogVersionUpdated(
     return { success: false, reason: 'no_connection' };
   }
   
-  // Trigger product sync via the sync function
   try {
     const { decryptToken } = await import('../_shared/crypto/tokens.ts');
     const accessToken = await decryptToken(connection.encrypted_access_token);
@@ -468,7 +616,6 @@ async function processCatalogVersionUpdated(
       cursor = data.cursor;
     } while (cursor);
     
-    // Update sync timestamp
     await supabase
       .from('square_connections')
       .update({
@@ -500,11 +647,10 @@ async function processInventoryCountUpdated(
   for (const count of counts) {
     const catalogObjectId = count.catalog_object_id;
     const quantity = parseInt(count.quantity || '0', 10);
-    const state = count.state; // IN_STOCK, SOLD, etc.
+    const state = count.state;
     
     console.log(`📦 Updating inventory for ${catalogObjectId}: ${quantity} (${state})`);
     
-    // Update main product if it matches
     const { data: product } = await supabase
       .from('products')
       .select('id')
@@ -528,7 +674,6 @@ async function processInventoryCountUpdated(
       }
     }
     
-    // Also update variation if it matches
     const { data: variation } = await supabase
       .from('product_variations')
       .select('id')
@@ -567,7 +712,6 @@ async function syncProductToDatabase(
   const itemData = item.item_data || {};
   
   try {
-    // Upsert main product
     const { data: product, error: productError } = await supabase
       .from('products')
       .upsert({
@@ -597,7 +741,6 @@ async function syncProductToDatabase(
     
     console.log(`✅ Product synced: ${itemData.name}`);
     
-    // Sync variations
     if (itemData.variations && itemData.variations.length > 0) {
       for (const variation of itemData.variations) {
         const variationData = variation.item_variation_data || {};
@@ -619,10 +762,7 @@ async function syncProductToDatabase(
       }
     }
     
-    // Sync images
     if (itemData.image_ids && itemData.image_ids.length > 0) {
-      // Note: Would need to fetch image details from Square's catalog
-      // For now, mark that images exist
       await supabase
         .from('products')
         .update({ has_images: true })
@@ -656,7 +796,6 @@ function personalizeMessage(template: string, customer: any, eventData: Record<s
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -668,7 +807,6 @@ const handler = async (req: Request): Promise<Response> => {
     const signature = req.headers.get('x-square-hmacsha256-signature');
     const notificationUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/square-webhook-handler`;
     
-    // Verify signature
     const isValid = await verifySquareSignature(body, signature, notificationUrl);
     if (!isValid) {
       console.error('❌ Invalid webhook signature');
@@ -685,13 +823,11 @@ const handler = async (req: Request): Promise<Response> => {
       event_id: payload.event_id
     }));
     
-    // Create Supabase client with service role
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
     
-    // Find tenant by merchant_id
     const connection = await findTenantByMerchantId(supabase, payload.merchant_id);
     if (!connection) {
       console.error('❌ No connected tenant found for merchant:', payload.merchant_id);
@@ -703,7 +839,6 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log('✅ Found tenant:', connection.tenant_id, 'for merchant:', payload.merchant_id);
     
-    // Route event to appropriate handler
     let result = { success: false, message: 'Unknown event type' };
     
     switch (payload.type) {
@@ -713,7 +848,8 @@ const handler = async (req: Request): Promise<Response> => {
           connection.tenant_id, 
           connection.user_id, 
           payload.data.object,
-          payload.merchant_id
+          payload.merchant_id,
+          connection
         );
         break;
         
@@ -722,7 +858,8 @@ const handler = async (req: Request): Promise<Response> => {
           supabase, 
           connection.tenant_id, 
           connection.user_id, 
-          payload.data.object
+          payload.data.object,
+          connection
         );
         break;
         
@@ -731,7 +868,8 @@ const handler = async (req: Request): Promise<Response> => {
           supabase, 
           connection.tenant_id, 
           connection.user_id, 
-          payload.data.object
+          payload.data.object,
+          connection
         );
         break;
         
