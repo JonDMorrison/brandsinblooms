@@ -78,8 +78,12 @@ export function CustomerConsentManager({ customer, onConsentUpdated }: CustomerC
   
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showSmsModal, setShowSmsModal] = useState(false);
-  const [newEmailConsent, setNewEmailConsent] = useState<'opted_in' | 'opted_out'>('opted_in');
-  const [newSmsConsent, setNewSmsConsent] = useState<'opted_in' | 'opted_out'>('opted_in');
+  const [newEmailConsent, setNewEmailConsent] = useState<'opted_in' | 'opted_out'>(
+    customer.email_opt_in === true ? 'opted_in' : 'opted_out'
+  );
+  const [newSmsConsent, setNewSmsConsent] = useState<'opted_in' | 'opted_out'>(
+    customer.sms_opt_in === true ? 'opted_in' : 'opted_out'
+  );
   const [updatingEmail, setUpdatingEmail] = useState(false);
   const [updatingSms, setUpdatingSms] = useState(false);
   
