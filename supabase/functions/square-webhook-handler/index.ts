@@ -262,12 +262,14 @@ async function processPaymentCompleted(supabase: any, tenantId: string, userId: 
   
   // 3. Fire automation triggers
   if (customer) {
-    const triggerTypes = ['order.completed'];
+    const triggerTypes = ['order.completed', 'review_request'];
     
     if (isFirstPurchase) {
       triggerTypes.push('first_purchase');
       console.log('🎉 First purchase detected, adding first_purchase trigger');
     }
+    
+    console.log('⭐ review_request trigger included - will fire if automation exists for tenant');
     
     await fireAutomationTriggers(supabase, tenantId, customer.id, triggerTypes, {
       order_amount: amount,
