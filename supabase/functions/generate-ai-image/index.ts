@@ -114,11 +114,11 @@ serve(async (req) => {
       try {
         const startTime = Date.now();
         
-        // Call AI with retry logic and timeout
+        // Call AI with retry logic and timeout (60s allows for 2 retries with 18s each + backoff)
         const aiData = await Promise.race([
           generateWithRetry(imagePrompt, LOVABLE_API_KEY),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('AI generation timeout after 20s')), 20000)
+            setTimeout(() => reject(new Error('AI generation timeout after 60s')), 60000)
           )
         ]);
         
