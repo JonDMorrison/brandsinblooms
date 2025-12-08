@@ -576,15 +576,65 @@ Generate an image that captures beautiful gardens and plants with ${seasonInfo.s
 
 function extractBase64Image(aiData: any): string | null {
   try {
+    // Log the full response structure for debugging
+    console.log('🔍 AI Response structure:', JSON.stringify({
+      hasChoices: !!aiData.choices,
+      choicesLength: aiData.choices?.length,
+      hasMessage: !!aiData.choices?.[0]?.message,
+      hasImages: !!aiData.choices?.[0]?.message?.images,
+      imagesLength: aiData.choices?.[0]?.message?.images?.length,
+      hasContent: !!aiData.choices?.[0]?.message?.content,
+      contentType: typeof aiData.choices?.[0]?.message?.content,
+      contentPreview: typeof aiData.choices?.[0]?.message?.content === 'string' 
+        ? aiData.choices[0].message.content.substring(0, 100) 
+        : 'not a string'
+    }));
+
+    // Standard image response format
     if (aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url) {
+      console.log('✅ Found image in standard images array format');
       return aiData.choices[0].message.images[0].image_url.url;
     }
+    
+    // Alternative: image directly in image_url
+    if (aiData.choices?.[0]?.message?.images?.[0]?.url) {
+      console.log('✅ Found image in images[0].url format');
+      return aiData.choices[0].message.images[0].url;
+    }
+    
+    // Content as base64 string
     if (aiData.choices?.[0]?.message?.content) {
       const content = aiData.choices[0].message.content;
       if (typeof content === 'string' && content.startsWith('data:image')) {
+        console.log('✅ Found image as base64 string in content');
         return content;
       }
+      // Check if content is an array with image data
+      if (Array.isArray(content)) {
+        for (const item of content) {
+          if (item.type === 'image_url' && item.image_url?.url) {
+            console.log('✅ Found image in content array');
+            return item.image_url.url;
+          }
+          if (item.type === 'image' && item.url) {
+            console.log('✅ Found image in content array (image type)');
+            return item.url;
+          }
+        }
+      }
     }
+    
+    // Check for data field (some APIs return here)
+    if (aiData.data?.[0]?.url) {
+      console.log('✅ Found image in data[0].url format');
+      return aiData.data[0].url;
+    }
+    if (aiData.data?.[0]?.b64_json) {
+      console.log('✅ Found image as b64_json in data');
+      return `data:image/png;base64,${aiData.data[0].b64_json}`;
+    }
+    
+    console.error('❌ No image found in any known format. Full response:', JSON.stringify(aiData).substring(0, 500));
     return null;
   } catch (error) {
     console.error('Error extracting image:', error);
