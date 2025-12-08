@@ -376,9 +376,9 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   const isReadyToLaunch = hasValidFlow && hasAudience;
 
   return (
-    <div className={`relative w-full ${className}`}>
-      <section role="region" aria-label="Automation canvas" className="w-full">
-        <div className="w-full rounded-lg bg-muted/30 h-[60vh] min-h-[420px]">
+    <div className={`relative w-full h-full flex flex-col ${className}`}>
+      <section role="region" aria-label="Automation canvas" className="w-full flex-1 min-h-0">
+        <div className="w-full h-full rounded-lg bg-muted/30">
           <ReactFlow
             nodes={nodes}
             edges={edges}
