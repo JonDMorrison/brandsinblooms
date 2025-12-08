@@ -95,28 +95,34 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   const effectiveBackgroundColor = footerBackgroundColor || campaignOverrides.footerBackgroundColor || companyInfo.brandPrimaryColor;
   const styles = getFooterStyleConfig(effectiveBackgroundColor, companyInfo.brandPrimaryColor);
 
-  // Build social links array
+  // Build social links array - prioritize companyInfo (fresh data from Contact & Footer Settings)
   const socialLinks = [
-    { platform: 'facebook', url: footerSettings.facebookUrl },
-    { platform: 'instagram', url: footerSettings.instagramUrl },
-    { platform: 'tiktok', url: footerSettings.tiktokUrl },
-    { platform: 'pinterest', url: footerSettings.pinterestUrl },
-    { platform: 'youtube', url: footerSettings.youtubeUrl },
-    { platform: 'linkedin', url: footerSettings.linkedinUrl },
+    { platform: 'facebook', url: companyInfo.facebookUrl || footerSettings.facebookUrl },
+    { platform: 'instagram', url: companyInfo.instagramUrl || footerSettings.instagramUrl },
+    { platform: 'tiktok', url: companyInfo.tiktokUrl || footerSettings.tiktokUrl },
+    { platform: 'pinterest', url: companyInfo.pinterestUrl || footerSettings.pinterestUrl },
+    { platform: 'youtube', url: companyInfo.youtubeUrl || footerSettings.youtubeUrl },
+    { platform: 'linkedin', url: companyInfo.linkedinUrl || footerSettings.linkedinUrl },
   ].filter(s => s.url);
 
-  // Build address string
+  // Build address string - prioritize companyInfo (fresh data from Contact & Footer Settings)
   const addressParts: string[] = [];
-  if (footerSettings.addressLine1 || companyInfo.address) {
-    addressParts.push(footerSettings.addressLine1 || companyInfo.address || '');
-  }
+  const streetAddr = companyInfo.streetAddress || footerSettings.addressLine1 || companyInfo.address;
+  if (streetAddr) addressParts.push(streetAddr);
   if (footerSettings.addressLine2) addressParts.push(footerSettings.addressLine2);
-  const cityLine = [footerSettings.city, footerSettings.region, footerSettings.postalCode].filter(Boolean).join(', ');
+  const cityLine = [
+    companyInfo.city || footerSettings.city, 
+    companyInfo.stateProvince || footerSettings.region, 
+    companyInfo.postalCode || footerSettings.postalCode
+  ].filter(Boolean).join(', ');
   if (cityLine) addressParts.push(cityLine);
-  if (footerSettings.country) addressParts.push(footerSettings.country);
+  const countryVal = companyInfo.country || footerSettings.country;
+  if (countryVal) addressParts.push(countryVal);
 
   const hasAddress = addressParts.length > 0;
-  const hasContact = footerSettings.email || (footerSettings.showPhone && companyInfo.phone);
+  // Use fresh companyInfo for email and phone
+  const emailAddr = companyInfo.email || footerSettings.email;
+  const hasContact = emailAddr || (footerSettings.showPhone && companyInfo.phone);
   const hasSocial = socialLinks.length > 0;
 
   // Logo or initials
@@ -174,12 +180,12 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
               )}
               {hasContact && (
                 <div className="text-xs space-x-2" style={{ color: styles.textMuted }}>
-                  {footerSettings.email && (
-                    <a href={`mailto:${footerSettings.email}`} className="hover:underline">
-                      {footerSettings.email}
+                  {emailAddr && (
+                    <a href={`mailto:${emailAddr}`} className="hover:underline">
+                      {emailAddr}
                     </a>
                   )}
-                  {footerSettings.email && companyInfo.phone && footerSettings.showPhone && (
+                  {emailAddr && companyInfo.phone && footerSettings.showPhone && (
                     <span>|</span>
                   )}
                   {footerSettings.showPhone && companyInfo.phone && (
@@ -218,12 +224,12 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
 
           {/* Compliance Strip */}
           <div className="text-center">
-            {footerSettings.complianceText && (
+            {(companyInfo.footerLegalText || footerSettings.complianceText) && (
               <p 
                 className="text-xs max-w-md mx-auto mb-3 leading-relaxed"
                 style={{ color: styles.textMuted }}
               >
-                {footerSettings.complianceText.replace(/\{\{company\.name\}\}/g, companyInfo.name || 'Our Company')}
+                {(companyInfo.footerLegalText || footerSettings.complianceText).replace(/\{\{company\.name\}\}/g, companyInfo.name || 'Our Company')}
               </p>
             )}
             
