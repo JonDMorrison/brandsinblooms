@@ -237,7 +237,6 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
         .getPublicUrl(fileName);
 
       setCoverImage({ url: publicUrl, alt: '' });
-      toast.success('Image uploaded successfully');
     } catch (error) {
       console.error('Error uploading image:', error);
       toast.error('Failed to upload image');

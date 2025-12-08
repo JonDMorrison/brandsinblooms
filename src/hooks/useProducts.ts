@@ -287,7 +287,6 @@ export function useProductImages(productId: string | undefined) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product', productId] });
-      toast.success('Primary image updated');
     },
   });
   

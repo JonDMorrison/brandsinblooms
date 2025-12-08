@@ -277,7 +277,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['content-task', contentTaskId] });
-      toast.success('Image updated successfully');
     },
     onError: (error) => {
       console.error('Error updating image:', error);

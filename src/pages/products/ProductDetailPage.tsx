@@ -125,8 +125,6 @@ export default function ProductDetailPage() {
         is_primary: product?.images?.length === 0,
         sort_order: (product?.images?.length || 0) + 1,
       });
-      
-      toast.success('Image uploaded successfully');
     } catch (error: any) {
       console.error('Upload error:', error);
       toast.error(`Failed to upload image: ${error.message}`);

@@ -83,8 +83,6 @@ const CarouselComposerPage = () => {
       const generatedUrls: string[] = [];
       const contextText = caption || 'Beautiful garden and nature scenes';
       
-      toast.info(`Generating ${imagesToGenerate} images...`);
-      
       for (let i = 0; i < imagesToGenerate; i++) {
         const result = await generateImageForChannel(
           platform,
@@ -94,12 +92,10 @@ const CarouselComposerPage = () => {
         
         if (result?.imageUrl) {
           generatedUrls.push(result.imageUrl);
-          toast.success(`Generated image ${i + 1}/${imagesToGenerate}`);
         }
       }
       
       setCarouselImages(generatedUrls);
-      toast.success(`All ${generatedUrls.length} images generated!`);
     } catch (error) {
       console.error('Bulk generation failed:', error);
       toast.error('Failed to generate all images');
@@ -118,12 +114,10 @@ const CarouselComposerPage = () => {
       const newImages = [...carouselImages];
       newImages[editingImageIndex] = imageUrl;
       setCarouselImages(newImages);
-      toast.success('Image updated!');
     } else {
       // Add new image
       if (carouselImages.length < 10) {
         setCarouselImages([...carouselImages, imageUrl]);
-        toast.success('Image added!');
       }
     }
     setShowAIDialog(false);

@@ -219,7 +219,6 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         throw error;
       }
 
-      toast.success('Image added to post successfully!');
       setShowImageModal(false);
       
       window.dispatchEvent(new CustomEvent('draft-updated'));

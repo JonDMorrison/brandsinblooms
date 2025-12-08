@@ -291,12 +291,6 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                             .eq('id', task.id);
 
                           if (error) throw error;
-
-                          if (shouldRequireReApproval) {
-                            toast.success('Image updated! Content moved to review for re-approval.');
-                          } else {
-                            toast.success('Image updated successfully!');
-                          }
                           
                           if (onTaskUpdate) onTaskUpdate();
                         } catch (error) {

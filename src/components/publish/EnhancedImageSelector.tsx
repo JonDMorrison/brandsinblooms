@@ -121,7 +121,6 @@ export const UniversalImageSelector = ({
         }
       } else {
         setImages([]);
-        toast.info('No images found for this search.');
       }
     } catch (error) {
       console.error('Error fetching images:', error);
@@ -206,7 +205,6 @@ export const UniversalImageSelector = ({
         return null;
       }
 
-      toast.success('File uploaded successfully!');
       return urlData.publicUrl;
     } catch (error) {
       console.error('Upload exception:', error);
@@ -229,7 +227,6 @@ export const UniversalImageSelector = ({
     const uploadedUrl = await uploadFile(file);
     if (uploadedUrl) {
       onImageChange(uploadedUrl);
-      toast.success('Image uploaded and selected!');
     }
   };
 
@@ -315,18 +312,11 @@ export const UniversalImageSelector = ({
           throw error;
         }
 
-        if (shouldRequireReApproval) {
-          toast.success('Image updated! Content moved to review for re-approval.');
-        } else {
-          toast.success('Image added to post successfully!');
-        }
-        
         // Trigger refresh
         window.dispatchEvent(new CustomEvent('draft-updated'));
       } else {
         // Universal callback for non-task workflows
         onImageChange(image.download_url);
-        toast.success('Image selected successfully!');
       }
     } catch (error) {
       console.error('Error handling image selection:', error);
@@ -339,7 +329,6 @@ export const UniversalImageSelector = ({
   const handleCanvaComplete = (newImageUrl: string) => {
     // Update with the new Canva-edited version
     onImageChange(newImageUrl);
-    toast.success('Design saved successfully!');
     setShowCanvaEditor(false);
   };
 

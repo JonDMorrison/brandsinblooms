@@ -190,7 +190,6 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         setQuery(finalQuery);
         setUsingPlaceholders(true);
         setHasStoredImages(false);
-        toast.info(`Using garden center sample images - Unsplash API unavailable`);
         return;
       }
 
@@ -201,7 +200,6 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         setQuery(finalQuery);
         setUsingPlaceholders(false);
         setHasStoredImages(true);
-        toast.success(`Found ${limitedImages.length} relevant images for "${finalQuery}"`);
       } else {
         console.log('[IMAGE_HOOK] No images returned, using garden center fallbacks');
         const placeholders = getGardenCenterPlaceholderImages(finalQuery, contentType || 'instagram');
@@ -209,7 +207,6 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         setQuery(finalQuery);
         setUsingPlaceholders(true);
         setHasStoredImages(false);
-        toast.info(`No images found, using garden center sample images`);
       }
     } catch (error) {
       console.error('[IMAGE_HOOK] Error fetching images:', error);
@@ -219,7 +216,6 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
       setQuery(searchQuery);
       setUsingPlaceholders(true);
       setHasStoredImages(false);
-      toast.info(`Using garden center sample images - connection error`);
     } finally {
       setLoading(false);
     }
