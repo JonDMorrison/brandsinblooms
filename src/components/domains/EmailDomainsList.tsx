@@ -14,7 +14,7 @@ import {
   RefreshCw,
   TestTube
 } from 'lucide-react';
-import { EmailDomainWizard } from './EmailDomainWizard';
+import { DomainConnectWizard } from '@/components/crm/settings/DomainConnectWizard';
 import { EmailDomainDetails } from './EmailDomainDetails';
 import { useEmailDomains, EmailDomain } from '@/hooks/useEmailDomains';
 import { toast } from 'sonner';
@@ -203,9 +203,9 @@ export const EmailDomainsList = () => {
         </CardContent>
       </Card>
 
-      <EmailDomainWizard 
+      <DomainConnectWizard 
         open={showWizard} 
-        onOpenChange={setShowWizard} 
+        onClose={() => setShowWizard(false)} 
       />
 
       {selectedDomain && (
