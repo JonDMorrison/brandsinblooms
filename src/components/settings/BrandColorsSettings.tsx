@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Palette, Save, RotateCcw } from 'lucide-react';
+import { Palette, Save, RotateCcw, Upload, X, Image as ImageIcon } from 'lucide-react';
 
 const COLOR_PRESETS = [
   { name: 'Green Garden (Default)', primary: '#22c55e', secondary: '#1e40af', accent: '#f59e0b' },
@@ -28,7 +28,10 @@ export const BrandColorsSettings: React.FC = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [colors, setColors] = useState(DEFAULT_COLORS);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadBrandColors();
@@ -41,7 +44,7 @@ export const BrandColorsSettings: React.FC = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('company_profiles')
-        .select('brand_primary_color, brand_secondary_color, brand_accent_color')
+        .select('brand_primary_color, brand_secondary_color, brand_accent_color, feature_flags')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -56,6 +59,12 @@ export const BrandColorsSettings: React.FC = () => {
           secondary: data.brand_secondary_color || DEFAULT_COLORS.secondary,
           accent: data.brand_accent_color || DEFAULT_COLORS.accent,
         });
+        
+        // Load logo URL from feature_flags
+        const featureFlags = data.feature_flags as any;
+        if (featureFlags?.company_logo_url) {
+          setLogoUrl(featureFlags.company_logo_url);
+        }
       }
     } catch (error) {
       console.error('Error loading brand colors:', error);
@@ -108,6 +117,131 @@ export const BrandColorsSettings: React.FC = () => {
     setColors(DEFAULT_COLORS);
   };
 
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload an image file (PNG, JPG, etc.)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Please upload an image smaller than 2MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      // Upload to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/company-logo.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('company-assets')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('company-assets')
+        .getPublicUrl(fileName);
+
+      const publicUrl = urlData.publicUrl;
+
+      // Get current feature_flags
+      const { data: profile } = await supabase
+        .from('company_profiles')
+        .select('feature_flags')
+        .eq('user_id', user.id)
+        .single();
+
+      const currentFlags = (profile?.feature_flags as any) || {};
+
+      // Update company_profiles with logo URL in feature_flags
+      const { error: updateError } = await supabase
+        .from('company_profiles')
+        .update({
+          feature_flags: {
+            ...currentFlags,
+            company_logo_url: publicUrl,
+          },
+        })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      setLogoUrl(publicUrl);
+      toast({
+        title: 'Logo uploaded',
+        description: 'Your company logo will appear in email footers.',
+      });
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast({
+        title: 'Upload failed',
+        description: 'Failed to upload logo. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingLogo(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!user?.id) return;
+
+    try {
+      // Get current feature_flags
+      const { data: profile } = await supabase
+        .from('company_profiles')
+        .select('feature_flags')
+        .eq('user_id', user.id)
+        .single();
+
+      const currentFlags = (profile?.feature_flags as any) || {};
+      delete currentFlags.company_logo_url;
+
+      // Update company_profiles to remove logo URL
+      const { error } = await supabase
+        .from('company_profiles')
+        .update({
+          feature_flags: currentFlags,
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setLogoUrl(null);
+      toast({
+        title: 'Logo removed',
+        description: 'Your company logo has been removed.',
+      });
+    } catch (error) {
+      console.error('Error removing logo:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to remove logo. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -122,6 +256,79 @@ export const BrandColorsSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Company Logo */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" />
+            Company Logo
+          </CardTitle>
+          <CardDescription>
+            Upload your company logo to display in email footers and other branded content.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleLogoUpload}
+            className="hidden"
+          />
+          
+          {logoUrl ? (
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <img 
+                  src={logoUrl} 
+                  alt="Company logo" 
+                  className="h-20 w-auto max-w-[200px] object-contain rounded-lg border bg-white p-2"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingLogo}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Replace Logo
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveLogo}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Remove Logo
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
+            >
+              {isUploadingLogo ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full"></div>
+                  <p className="text-sm text-muted-foreground">Uploading...</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium">Click to upload your logo</p>
+                  <p className="text-xs text-muted-foreground">PNG, JPG up to 2MB</p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Brand Colors */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
