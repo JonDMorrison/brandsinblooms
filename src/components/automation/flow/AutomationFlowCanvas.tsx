@@ -452,7 +452,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
                       variant="outline"
                       size="sm"
                       onClick={() => setShowAudienceSelector(true)}
-                      className="flex items-center gap-2 bg-background/80 backdrop-blur-sm hover:bg-background/90 mt-2"
+                      className="flex items-center gap-2 bg-background backdrop-blur-sm hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary focus:outline-none mt-2"
                     >
                       <Users className="w-4 h-4" />
                       <span className="hidden sm:inline">
