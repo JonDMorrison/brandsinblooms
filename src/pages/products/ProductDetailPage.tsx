@@ -496,10 +496,6 @@ export default function ProductDetailPage() {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Images</CardTitle>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      AI Generate
-                    </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
