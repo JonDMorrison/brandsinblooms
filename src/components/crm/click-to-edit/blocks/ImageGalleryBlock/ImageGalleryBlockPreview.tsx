@@ -17,6 +17,15 @@ interface ImageGalleryBlockPreviewProps {
   isGenerating?: boolean;
 }
 
+// Strip HTML tags from content
+const stripHtml = (html: string | undefined): string => {
+  if (!html) return '';
+  // Create a temporary element to parse HTML and extract text
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
+
 const getImageCount = (layout: GalleryLayout): number => {
   switch (layout) {
     case '3-across': return 3;
@@ -73,7 +82,7 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
       {/* Subheadline */}
       {hasBody && (
         <p className="text-center text-muted-foreground mb-6 max-w-2xl mx-auto">
-          {block.body || block.content}
+          {stripHtml(block.body || block.content)}
         </p>
       )}
 
