@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Trash2, Plus, GripVertical, Image as ImageIcon, Sparkles, Upload, Star, X } from 'lucide-react';
 import { useProduct, useProductMutations, useProductVariations, useProductImages } from '@/hooks/useProducts';
+import { supabase } from '@/integrations/supabase/client';
 import { ProductFormData } from '@/types/product';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -72,6 +74,70 @@ export default function ProductDetailPage() {
   const [showVariationDialog, setShowVariationDialog] = useState(false);
   const [newVariation, setNewVariation] = useState({ name: '', sku: '', price: 0 });
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const { addImage } = useProductImages(productId);
+  
+  // Handle image upload
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !productId) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+    
+    setIsUploadingImage(true);
+    
+    try {
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${productId}/${Date.now()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, file, { upsert: true });
+      
+      if (uploadError) {
+        throw uploadError;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+      
+      // Add image record to database
+      await addImage.mutateAsync({
+        product_id: productId,
+        image_url: urlData.publicUrl,
+        alt_text: file.name,
+        source: 'upload',
+        is_primary: product?.images?.length === 0,
+        sort_order: (product?.images?.length || 0) + 1,
+      });
+      
+      toast.success('Image uploaded successfully');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(`Failed to upload image: ${error.message}`);
+    } finally {
+      setIsUploadingImage(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
   
   // Populate form when product loads
   useEffect(() => {
@@ -434,9 +500,22 @@ export default function ProductDetailPage() {
                       <Sparkles className="h-4 w-4 mr-2" />
                       AI Generate
                     </Button>
-                    <Button variant="outline" size="sm">
-                      <Upload className="h-4 w-4" />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingImage}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {isUploadingImage ? 'Uploading...' : 'Upload'}
                     </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
                   </div>
                 </CardHeader>
                 <CardContent>
