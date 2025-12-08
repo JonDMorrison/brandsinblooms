@@ -1826,6 +1826,9 @@ export type Database = {
           phone: string | null
           pos_source: string | null
           product_tags: string[] | null
+          sms_consent_ip: string | null
+          sms_consent_method: string | null
+          sms_consent_source: string | null
           sms_opt_in: boolean | null
           sms_opt_in_at: string | null
           square_customer_id: string | null
@@ -1863,6 +1866,9 @@ export type Database = {
           phone?: string | null
           pos_source?: string | null
           product_tags?: string[] | null
+          sms_consent_ip?: string | null
+          sms_consent_method?: string | null
+          sms_consent_source?: string | null
           sms_opt_in?: boolean | null
           sms_opt_in_at?: string | null
           square_customer_id?: string | null
@@ -1900,6 +1906,9 @@ export type Database = {
           phone?: string | null
           pos_source?: string | null
           product_tags?: string[] | null
+          sms_consent_ip?: string | null
+          sms_consent_method?: string | null
+          sms_consent_source?: string | null
           sms_opt_in?: boolean | null
           sms_opt_in_at?: string | null
           square_customer_id?: string | null
@@ -2439,6 +2448,71 @@ export type Database = {
             columns: ["segment_id"]
             isOneToOne: false
             referencedRelation: "crm_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_sms_consent_events: {
+        Row: {
+          created_at: string
+          customer_id: string
+          event_type: string
+          id: string
+          ip_address: string | null
+          phone: string
+          source: string
+          tenant_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          phone: string
+          source: string
+          tenant_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          phone?: string
+          source?: string
+          tenant_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_sms_consent_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_sms_consent_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_sms_consent_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "crm_sms_consent_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
