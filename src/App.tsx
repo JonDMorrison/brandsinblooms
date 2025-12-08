@@ -62,6 +62,7 @@ import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import CallbackPage from '@/pages/integrations/lightspeed/CallbackPage';
 import GuidePage from '@/pages/integrations/lightspeed/GuidePage';
 import DebugPage from '@/pages/integrations/lightspeed/DebugPage';
+import LightspeedConnectPage from '@/pages/integrations/lightspeed/ConnectPage';
 import SquareCallbackPage from '@/pages/integrations/square/CallbackPage';
 import SquareGuidePage from '@/pages/integrations/square/GuidePage';
 import SupportPage from '@/pages/SupportPage';
@@ -443,6 +444,13 @@ function App() {
           <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/integrations/lightspeed/callback" element={<CallbackPage />} />
+          <Route path="/integrations/lightspeed/connect" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <LightspeedConnectPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
           <Route path="/integrations/lightspeed/guide" element={
             <ProtectedRoute>
               <SidebarLayout>
