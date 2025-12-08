@@ -6,6 +6,7 @@ import { ProductGalleryBlockPreview } from './ProductGalleryBlockPreview';
 interface ProductGalleryBlockProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
+  onClose?: () => void;
   isPreview?: boolean;
   isGenerating?: boolean;
 }
@@ -13,6 +14,7 @@ interface ProductGalleryBlockProps {
 export const ProductGalleryBlock: React.FC<ProductGalleryBlockProps> = ({
   block,
   onUpdate,
+  onClose,
   isPreview = false,
   isGenerating = false,
 }) => {
@@ -30,6 +32,7 @@ export const ProductGalleryBlock: React.FC<ProductGalleryBlockProps> = ({
     <ProductGalleryBlockEditor 
       block={block} 
       onUpdate={onUpdate}
+      onClose={onClose}
       isGenerating={isGenerating}
     />
   );

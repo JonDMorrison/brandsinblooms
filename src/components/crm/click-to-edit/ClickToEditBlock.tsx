@@ -528,6 +528,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                 {React.cloneElement(children.editor as React.ReactElement, {
                   block: localBlock,
                   onUpdate: handleLocalUpdate,
+                  onClose: exitEditMode,
                   isPreview: false,
                   editMode: 'image',
                   onModeChange: handleModeChange
