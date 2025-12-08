@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CustomerPersonaSelector } from '@/components/crm/CustomerPersonaSelector';
 import { CustomerSegmentSelector } from '@/components/crm/CustomerSegmentSelector';
 import { CustomFieldsManager } from '@/components/crm/CustomFieldsManager';
-import { CustomerConsentHistory } from '@/components/crm/CustomerConsentHistory';
+import { CustomerConsentManager } from '@/components/crm/CustomerConsentManager';
 import { Mail, Phone, Calendar, DollarSign, Save, User, ArrowLeft, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -37,6 +37,7 @@ export const CustomerDetailPage: React.FC = () => {
   const { customerId } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -68,6 +69,7 @@ export const CustomerDetailPage: React.FC = () => {
         .single();
 
       if (!userRecord?.tenant_id) throw new Error('No tenant found');
+      setTenantId(userRecord.tenant_id);
 
       const { data, error } = await supabase
         .from('crm_customers')
@@ -377,13 +379,15 @@ export const CustomerDetailPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Email Consent Section */}
-      <CustomerConsentHistory 
+      {/* Consent Management Section */}
+      <CustomerConsentManager 
         customer={{
           id: customer.id,
           email: customer.email,
+          phone: customer.phone,
           email_opt_in: customer.email_opt_in ?? null,
-          tenant_id: null
+          sms_opt_in: customer.sms_opt_in ?? null,
+          tenant_id: tenantId
         }}
         onConsentUpdated={fetchCustomer}
       />
