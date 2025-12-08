@@ -3919,6 +3919,9 @@ const { counts: segmentCounts } = useSegmentCounts();
     );
   }
 
+  // Check if any blocks are still generating images
+  const hasGeneratingImages = blocks.some(b => b.isGeneratingImage);
+
   return (
     <>
       {/* Sticky Action Bar */}
@@ -3934,6 +3937,7 @@ const { counts: segmentCounts } = useSegmentCounts();
         saveError={saveError}
         sending={sending}
         loading={loading}
+        hasGeneratingImages={hasGeneratingImages}
         onSend={handleSendCampaign}
         onSave={handleSave}
         onPreview={() => setShowPreview(true)}

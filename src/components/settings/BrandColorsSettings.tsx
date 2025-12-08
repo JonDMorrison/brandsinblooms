@@ -148,7 +148,18 @@ export const BrandColorsSettings: React.FC = () => {
 
     setIsUploadingLogo(true);
     try {
-      // Upload to storage
+      // STEP 1: Delete any existing logo files first (handles different extensions)
+      const { data: existingFiles } = await supabase.storage
+        .from('company-assets')
+        .list(user.id, { search: 'company-logo' });
+
+      if (existingFiles && existingFiles.length > 0) {
+        const pathsToDelete = existingFiles.map(f => `${user.id}/${f.name}`);
+        console.log('🗑️ Deleting old logo files:', pathsToDelete);
+        await supabase.storage.from('company-assets').remove(pathsToDelete);
+      }
+
+      // STEP 2: Upload new file
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/company-logo.${fileExt}`;
       
@@ -158,12 +169,13 @@ export const BrandColorsSettings: React.FC = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
+      // STEP 3: Get public URL with cache-busting timestamp
       const { data: urlData } = supabase.storage
         .from('company-assets')
         .getPublicUrl(fileName);
 
-      const publicUrl = urlData.publicUrl;
+      // Add cache-busting timestamp to force browser to fetch new image
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
       // Get current feature_flags
       const { data: profile } = await supabase
