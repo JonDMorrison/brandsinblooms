@@ -24,11 +24,12 @@ serve(async (req) => {
       collection,
       page = 1,
       contentTaskId, 
-      maxImages = 30,
+      maxImages = 50,
       orientation = 'squarish',
       orderBy = 'relevant',
       contentFilter = 'high',
-      skipFiltering = false
+      skipFiltering = false,
+      randomize = false
     } = await req.json();
 
     if (!query && !collection && variants.length === 0) {
@@ -204,7 +205,13 @@ serve(async (req) => {
     } else {
       // For curated collections, use all images (already curated for gardens)
       validImages = images.slice(0, maxImages);
-      console.log(`[UNSPLASH] Using ${validImages.length} images from curated collection (no filtering needed)`);
+      
+      // Randomize if requested for variety
+      if (randomize) {
+        validImages = validImages.sort(() => Math.random() - 0.5);
+      }
+      
+      console.log(`[UNSPLASH] Using ${validImages.length} images from curated collection (randomize: ${randomize})`);
     }
 
     // If contentTaskId is provided, store the images in the database
