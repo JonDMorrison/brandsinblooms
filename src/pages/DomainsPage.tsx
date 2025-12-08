@@ -15,53 +15,6 @@ const DomainsPage = () => {
         </p>
       </div>
 
-      {/* Info Cards */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Mail className="w-4 h-4 text-blue-600" />
-              Better Deliverability
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CardDescription className="text-xs">
-              Custom domains improve email deliverability rates and reduce the chance 
-              of emails landing in spam folders.
-            </CardDescription>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Shield className="w-4 h-4 text-green-600" />
-              DMARC Protection
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CardDescription className="text-xs">
-              Automatic DMARC setup protects your domain from spoofing and phishing 
-              attempts while maintaining compliance.
-            </CardDescription>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-purple-600" />
-              Brand Consistency
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CardDescription className="text-xs">
-              Send emails from your own domain to maintain professional branding 
-              and build customer trust.
-            </CardDescription>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Main Content */}
       <EmailDomainsList />
