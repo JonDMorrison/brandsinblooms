@@ -3454,6 +3454,160 @@ const { counts: segmentCounts } = useSegmentCounts();
           }
           break;
 
+        case 'image-gallery':
+          // Check if this is a product gallery (has galleryItems) or image gallery (has galleryImages)
+          const galleryItems = (block as any).galleryItems || [];
+          const galleryImages = (block as any).galleryImages || [];
+          
+          if (galleryItems.length > 0) {
+            // Product Gallery Mode (2x2 grid with badges)
+            const productHeadline = block.headline || block.title || '';
+            const productBody = block.body || block.content || '';
+            const productCtaText = block.ctaText || block.buttonText || '';
+            const productCtaUrl = block.ctaUrl || block.buttonUrl || '';
+            const brandColor = '#8B4B5C'; // Dusty rose
+            const bgColor = '#FAF9F6'; // Warm cream
+            
+            // Limit to 4 items for 2x2 grid
+            const items = galleryItems.slice(0, 4);
+            
+            // Build product cards HTML (2 per row for email compatibility)
+            let productRowsHtml = '';
+            for (let i = 0; i < items.length; i += 2) {
+              const item1 = items[i];
+              const item2 = items[i + 1];
+              
+              const buildProductCard = (item: any) => {
+                if (!item) return '<td width="50%" style="padding: 8px;"></td>';
+                
+                const badgeHtml = item.badgeText ? `
+                  <div style="position: absolute; top: 8px; right: 8px; background-color: ${brandColor}; color: #ffffff; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600;">
+                    ${item.badgeText}
+                  </div>
+                ` : '';
+                
+                const linkStart = item.url ? `<a href="${item.url}" style="text-decoration: none; color: inherit;">` : '';
+                const linkEnd = item.url ? '</a>' : '';
+                
+                return `
+                  <td width="50%" style="padding: 8px; vertical-align: top;">
+                    ${linkStart}
+                    <div style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                      <div style="position: relative;">
+                        ${item.imageUrl ? `
+                          <img src="${item.imageUrl}" alt="${item.title || 'Product'}" style="width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; display: block;" />
+                        ` : `
+                          <div style="width: 100%; padding-top: 100%; background-color: #f3f4f6;"></div>
+                        `}
+                        ${badgeHtml}
+                      </div>
+                      ${item.title ? `
+                        <div style="padding: 16px; text-align: center;">
+                          <p style="margin: 0; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: #374151; font-family: ${fonts.bodyFont};">
+                            ${item.title}
+                          </p>
+                        </div>
+                      ` : ''}
+                    </div>
+                    ${linkEnd}
+                  </td>
+                `;
+              };
+              
+              productRowsHtml += `
+                <tr>
+                  ${buildProductCard(item1)}
+                  ${buildProductCard(item2)}
+                </tr>
+              `;
+            }
+            
+            html += `
+              <div style="background-color: ${bgColor}; padding: 32px 16px; margin: 20px 0; border-radius: 8px;">
+                <div style="max-width: 600px; margin: 0 auto;">
+                  ${productHeadline ? `
+                    <h2 style="font-size: 28px; font-weight: 700; text-align: center; margin: 0 0 8px 0; color: #1f2937; font-family: Georgia, serif;">
+                      ${productHeadline}
+                    </h2>
+                  ` : ''}
+                  ${productBody ? `
+                    <p style="font-size: 16px; text-align: center; margin: 0 0 24px 0; color: #6b7280; font-family: ${fonts.bodyFont};">
+                      ${productBody}
+                    </p>
+                  ` : ''}
+                  
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; margin: 0 auto;">
+                    ${productRowsHtml}
+                  </table>
+                  
+                  ${productCtaText && productCtaUrl ? `
+                    <div style="text-align: center; margin-top: 32px;">
+                      <a href="${productCtaUrl}" style="display: inline-block; padding: 14px 32px; background-color: ${brandColor}; color: #ffffff; text-decoration: none; border-radius: 999px; font-weight: 600; font-size: 16px; font-family: ${fonts.buttonFont};">
+                        ${productCtaText}
+                      </a>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          } else if (galleryImages.length > 0) {
+            // Standard Image Gallery Mode (3/6/9 images)
+            const galleryHeadline = block.headline || block.title || '';
+            const galleryBody = block.body || block.content || '';
+            const galleryCtaText = block.ctaText || block.buttonText || '';
+            const galleryCtaUrl = block.ctaUrl || block.buttonUrl || '';
+            
+            // Build image grid (3 per row)
+            let imageRowsHtml = '';
+            for (let i = 0; i < galleryImages.length; i += 3) {
+              const row = galleryImages.slice(i, i + 3);
+              const cellWidth = Math.floor(100 / 3);
+              
+              imageRowsHtml += '<tr>';
+              for (let j = 0; j < 3; j++) {
+                const img = row[j];
+                if (img?.url) {
+                  imageRowsHtml += `
+                    <td width="${cellWidth}%" style="padding: 4px; vertical-align: top;">
+                      <img src="${img.url}" alt="${img.alt || 'Gallery image'}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />
+                    </td>
+                  `;
+                } else {
+                  imageRowsHtml += `<td width="${cellWidth}%" style="padding: 4px;"></td>`;
+                }
+              }
+              imageRowsHtml += '</tr>';
+            }
+            
+            html += `
+              <div style="padding: 24px 16px; margin: 20px 0;">
+                ${galleryHeadline ? `
+                  <h2 style="font-size: 24px; font-weight: 600; text-align: center; margin: 0 0 8px 0; color: #1f2937; font-family: ${fonts.headlineFont};">
+                    ${galleryHeadline}
+                  </h2>
+                ` : ''}
+                ${galleryBody ? `
+                  <p style="font-size: 16px; text-align: center; margin: 0 0 24px 0; color: #6b7280; font-family: ${fonts.bodyFont};">
+                    ${galleryBody}
+                  </p>
+                ` : ''}
+                
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto;">
+                  ${imageRowsHtml}
+                </table>
+                
+                ${galleryCtaText && galleryCtaUrl ? `
+                  <div style="text-align: center; margin-top: 24px;">
+                    <a href="${galleryCtaUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${companyInfo?.brandPrimaryColor || '#22c55e'}; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont};">
+                      ${galleryCtaText}
+                    </a>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }
+          break;
+
         case 'footer':
           // Footer rendering is handled separately at the end of the function
           // This case is just for the switch statement - actual footer HTML is added below

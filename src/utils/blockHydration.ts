@@ -233,12 +233,17 @@ export function createEmptyBlock(type: ContentBlock['type'], id: string): Conten
     case 'image-gallery':
       return {
         ...baseBlock,
+        headline: '',
+        body: '',
         galleryImages: [],
+        galleryItems: [], // Product gallery items (2x2 grid)
         galleryLayout: '3-across',
         galleryGap: 'medium',
         galleryImageRadius: 'medium',
         alignment: 'center',
         padding: 'medium',
+        ctaText: 'Shop Holiday',
+        ctaUrl: '',
       };
     default:
       return {
