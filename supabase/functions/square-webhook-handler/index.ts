@@ -402,6 +402,240 @@ async function fireAutomationTriggers(
   }
 }
 
+// Process catalog.version.updated event - triggers product sync
+async function processCatalogVersionUpdated(
+  supabase: any, 
+  tenantId: string, 
+  userId: string, 
+  catalogData: any,
+  merchantId: string
+) {
+  console.log('📦 Processing catalog.version.updated event');
+  console.log('📋 Catalog update timestamp:', catalogData?.updated_at);
+  
+  // Get the Square connection to access token
+  const { data: connection } = await supabase
+    .from('square_connections')
+    .select('id, encrypted_access_token, environment')
+    .eq('merchant_id', merchantId)
+    .eq('status', 'connected')
+    .single();
+  
+  if (!connection) {
+    console.error('❌ No active Square connection found');
+    return { success: false, reason: 'no_connection' };
+  }
+  
+  // Trigger product sync via the sync function
+  try {
+    const { decryptToken } = await import('../_shared/crypto/tokens.ts');
+    const accessToken = await decryptToken(connection.encrypted_access_token);
+    
+    const baseUrl = connection.environment === 'sandbox'
+      ? 'https://connect.squareupsandbox.com/v2/catalog/list'
+      : 'https://connect.squareup.com/v2/catalog/list';
+    
+    let cursor: string | undefined;
+    let productsSynced = 0;
+    
+    do {
+      const url = new URL(baseUrl);
+      url.searchParams.set('types', 'ITEM');
+      if (cursor) url.searchParams.set('cursor', cursor);
+      
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Square-Version': '2024-01-18',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.errors?.[0]?.detail || 'Failed to fetch catalog');
+      }
+      
+      if (data.objects && data.objects.length > 0) {
+        for (const item of data.objects) {
+          if (item.type === 'ITEM') {
+            const synced = await syncProductToDatabase(supabase, tenantId, userId, item, connection.environment);
+            if (synced) productsSynced++;
+          }
+        }
+      }
+      
+      cursor = data.cursor;
+    } while (cursor);
+    
+    // Update sync timestamp
+    await supabase
+      .from('square_connections')
+      .update({
+        last_product_sync: new Date().toISOString(),
+        products_synced: productsSynced,
+        last_synced_at: new Date().toISOString(),
+      })
+      .eq('id', connection.id);
+    
+    console.log(`✅ Catalog sync complete. Products synced: ${productsSynced}`);
+    return { success: true, productsSynced };
+  } catch (error: any) {
+    console.error('❌ Error syncing catalog:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+// Process inventory.count.updated event
+async function processInventoryCountUpdated(
+  supabase: any,
+  tenantId: string,
+  inventoryData: any
+) {
+  console.log('📊 Processing inventory.count.updated event');
+  
+  const counts = inventoryData?.inventory_counts || [];
+  let updatedCount = 0;
+  
+  for (const count of counts) {
+    const catalogObjectId = count.catalog_object_id;
+    const quantity = parseInt(count.quantity || '0', 10);
+    const state = count.state; // IN_STOCK, SOLD, etc.
+    
+    console.log(`📦 Updating inventory for ${catalogObjectId}: ${quantity} (${state})`);
+    
+    // Update main product if it matches
+    const { data: product } = await supabase
+      .from('products')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('external_id', catalogObjectId)
+      .single();
+    
+    if (product) {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          inventory_count: state === 'IN_STOCK' ? quantity : 0,
+          track_inventory: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', product.id);
+      
+      if (!error) {
+        updatedCount++;
+        console.log(`✅ Updated product inventory: ${product.id}`);
+      }
+    }
+    
+    // Also update variation if it matches
+    const { data: variation } = await supabase
+      .from('product_variations')
+      .select('id')
+      .eq('external_id', catalogObjectId)
+      .single();
+    
+    if (variation) {
+      const { error } = await supabase
+        .from('product_variations')
+        .update({
+          inventory_count: state === 'IN_STOCK' ? quantity : 0,
+          track_inventory: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', variation.id);
+      
+      if (!error) {
+        updatedCount++;
+        console.log(`✅ Updated variation inventory: ${variation.id}`);
+      }
+    }
+  }
+  
+  console.log(`✅ Inventory update complete. Updated ${updatedCount} items`);
+  return { success: true, updatedCount };
+}
+
+// Sync a single product item to the database
+async function syncProductToDatabase(
+  supabase: any,
+  tenantId: string,
+  userId: string,
+  item: any,
+  environment: string
+): Promise<boolean> {
+  const itemData = item.item_data || {};
+  
+  try {
+    // Upsert main product
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .upsert({
+        tenant_id: tenantId,
+        user_id: userId,
+        external_id: item.id,
+        name: itemData.name || 'Unnamed Product',
+        description: itemData.description || null,
+        category: itemData.category?.name || null,
+        source: 'square',
+        status: item.is_deleted ? 'archived' : 'active',
+        sku: itemData.variations?.[0]?.item_variation_data?.sku || null,
+        price: itemData.variations?.[0]?.item_variation_data?.price_money?.amount 
+          ? itemData.variations[0].item_variation_data.price_money.amount / 100 
+          : 0,
+        currency: itemData.variations?.[0]?.item_variation_data?.price_money?.currency || 'USD',
+        raw_data: item,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'tenant_id,external_id' })
+      .select()
+      .single();
+    
+    if (productError) {
+      console.error(`❌ Error upserting product ${item.id}:`, productError);
+      return false;
+    }
+    
+    console.log(`✅ Product synced: ${itemData.name}`);
+    
+    // Sync variations
+    if (itemData.variations && itemData.variations.length > 0) {
+      for (const variation of itemData.variations) {
+        const variationData = variation.item_variation_data || {};
+        
+        await supabase
+          .from('product_variations')
+          .upsert({
+            product_id: product.id,
+            external_id: variation.id,
+            name: variationData.name || 'Default',
+            sku: variationData.sku || null,
+            price: variationData.price_money?.amount 
+              ? variationData.price_money.amount / 100 
+              : 0,
+            currency: variationData.price_money?.currency || 'USD',
+            attributes: variationData.item_option_values || null,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'product_id,external_id' });
+      }
+    }
+    
+    // Sync images
+    if (itemData.image_ids && itemData.image_ids.length > 0) {
+      // Note: Would need to fetch image details from Square's catalog
+      // For now, mark that images exist
+      await supabase
+        .from('products')
+        .update({ has_images: true })
+        .eq('id', product.id);
+    }
+    
+    return true;
+  } catch (error: any) {
+    console.error(`❌ Error syncing product ${item.id}:`, error.message);
+    return false;
+  }
+}
+
 // Personalize message with customer data
 function personalizeMessage(template: string, customer: any, eventData: Record<string, any>): string {
   let personalized = template;
@@ -497,6 +731,24 @@ const handler = async (req: Request): Promise<Response> => {
           supabase, 
           connection.tenant_id, 
           connection.user_id, 
+          payload.data.object
+        );
+        break;
+        
+      case 'catalog.version.updated':
+        result = await processCatalogVersionUpdated(
+          supabase,
+          connection.tenant_id,
+          connection.user_id,
+          payload.data.object,
+          payload.merchant_id
+        );
+        break;
+        
+      case 'inventory.count.updated':
+        result = await processInventoryCountUpdated(
+          supabase,
+          connection.tenant_id,
           payload.data.object
         );
         break;
