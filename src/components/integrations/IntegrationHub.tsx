@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,9 +14,7 @@ import {
   Users,
   BarChart3,
   Smartphone,
-  ExternalLink,
   Check,
-  X,
   AlertCircle,
   Facebook,
   Instagram,
@@ -30,6 +28,9 @@ import { LightspeedDebug } from './LightspeedDebug';
 import { SquareIntegration } from './SquareIntegration';
 import { useQuery } from '@tanstack/react-query';
 import { MigrationStatusIndicator } from '@/components/migrations/MigrationStatusIndicator';
+import { IntegrationSection } from './IntegrationSection';
+import { IntegrationCard } from './IntegrationCard';
+import { FeaturedCard } from './FeaturedCard';
 
 const APP_ORIGIN = window.location.origin;
 
@@ -142,17 +143,6 @@ export const IntegrationHub = () => {
       isActive: true
     },
     {
-      id: 'pos_sync',
-      name: 'Point of Sale (POS) Sync',
-      description: 'Connect Shopify, Square, and other POS systems to sync customer data',
-      category: 'crm',
-      icon: <Store className="w-6 h-6 text-green-600" />,
-      isConnected: false,
-      provider: 'pos',
-      setupUrl: '/crm/pos',
-      isActive: true
-    },
-    {
       id: 'hubspot',
       name: 'HubSpot',
       description: 'Sync contacts and track lead engagement',
@@ -215,7 +205,6 @@ export const IntegrationHub = () => {
 
     try {
       await fetchProviderConnections();
-      // TODO: Replace with actual database call once migration is applied
       setUserIntegrations([]);
     } catch (error) {
       console.error('Error fetching integrations:', error);
@@ -254,10 +243,8 @@ export const IntegrationHub = () => {
     if (integration.provider === 'mailchimp') {
       await handleConnectMailchimp();
     } else if (integration.setupUrl) {
-      // Navigate to specific setup page
       window.location.href = integration.setupUrl;
     } else {
-      // Generic connection flow
       toast({
         title: "Coming Soon",
         description: `${integration.name} integration coming soon!`,
@@ -266,7 +253,6 @@ export const IntegrationHub = () => {
   };
 
   const handleDisconnectIntegration = async (integrationId: string) => {
-    // TODO: Replace with actual database call once migration is applied
     toast({
       title: "Coming Soon",
       description: "Integrations will be available once database setup is complete",
@@ -274,13 +260,11 @@ export const IntegrationHub = () => {
   };
 
   const getConnectionStatus = (providerId: string) => {
-    // Check provider_connections first
     const providerConnection = providerConnections.find(
       conn => conn.provider === providerId
     );
     if (providerConnection) return providerConnection;
 
-    // Fallback to user_integrations
     return userIntegrations.find(
       int => int.provider === providerId && int.is_active
     );
@@ -320,21 +304,47 @@ export const IntegrationHub = () => {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-32 bg-gray-100 animate-pulse rounded-lg"></div>
-        <div className="h-64 bg-gray-100 animate-pulse rounded-lg"></div>
+        <div className="h-32 bg-muted animate-pulse rounded-lg"></div>
+        <div className="h-64 bg-muted animate-pulse rounded-lg"></div>
       </div>
     );
   }
 
   const connectedCount = userIntegrations.filter(int => int.is_active).length;
 
-  const categories = [
-    { id: 'data-sync', label: 'Data & CRM Sync', icon: <Download className="w-5 h-5" /> },
-    { id: 'social', label: 'Social Media', icon: <Smartphone className="w-5 h-5" /> },
-    { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-5 h-5" /> },
-    { id: 'automation', label: 'Automation', icon: <Zap className="w-5 h-5" /> },
-    { id: 'email', label: 'Email & Marketing', icon: <Mail className="w-5 h-5" /> },
-  ];
+  const renderIntegrationCard = (integration: Integration) => {
+    const connection = getConnectionStatus(integration.provider);
+    const isConnected = !!connection;
+
+    return (
+      <IntegrationCard
+        key={integration.id}
+        title={integration.name}
+        description={integration.description}
+        icon={integration.icon}
+        isConnected={isConnected}
+      >
+        <Button
+          size="sm"
+          onClick={() => handleConnectIntegration(integration)}
+          className="w-full"
+          variant={isConnected ? "outline" : "default"}
+        >
+          {isConnected ? (
+            <>
+              <Settings className="w-4 h-4 mr-2" />
+              Manage
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              Connect
+            </>
+          )}
+        </Button>
+      </IntegrationCard>
+    );
+  };
 
   return (
     <div className="space-y-8">
@@ -368,440 +378,178 @@ export const IntegrationHub = () => {
         </TabsList>
 
         <TabsContent value="marketplace" className="space-y-8">
-          {/* Data & CRM Sync Section */}
+          {/* Featured Section */}
           <section className="space-y-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Download className="w-5 h-5" />
-              <h2 className="text-xl font-semibold">Data & CRM Sync</h2>
-            </div>
+            <h2 className="text-xl font-semibold">Featured</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FeaturedCard
+                title="Data Migration Tool"
+                description="One-time import from Mailchimp or Klaviyo with AI-powered mapping"
+                icon={<Download className="w-6 h-6 text-primary" />}
+                badge={{ label: "New" }}
+                features={["✓ Contacts & Consent", "✓ Tags & Segments", "✓ AI Auto-Mapping", "✓ Reconciliation Report"]}
+              >
+                <Button onClick={() => window.location.href = '/integrations/migrations'} className="mt-2">
+                  <Download className="w-4 h-4 mr-2" />
+                  Start Migration
+                </Button>
+              </FeaturedCard>
 
-            <div className="grid gap-4">
-              {/* One-Time Migration */}
-              <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex gap-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                        <Download className="w-6 h-6 text-primary" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <CardTitle className="text-lg">Data Migration Tool</CardTitle>
-                          <Badge className="bg-primary">New</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          One-time import from Mailchimp or Klaviyo with AI-powered mapping
-                        </p>
-                      </div>
-                    </div>
-                    <Button onClick={() => window.location.href = '/integrations/migrations'}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Start Migration
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                    <span>✓ Contacts & Consent</span>
-                    <span>•</span>
-                    <span>✓ Tags & Segments</span>
-                    <span>•</span>
-                    <span>✓ AI Auto-Mapping</span>
-                    <span>•</span>
-                    <span>✓ Reconciliation Report</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* POS Integration */}
-              <Card className="border-2 border-green-500/20 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex gap-4">
-                      <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center shrink-0">
-                        <Store className="w-6 h-6 text-green-600 dark:text-green-400" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <CardTitle className="text-lg">Point of Sale (POS) Sync</CardTitle>
-                          <Badge className="bg-green-600">Popular</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Ongoing sync from Shopify, Square, Counterpoint, VMX & more
-                        </p>
-                      </div>
-                    </div>
-                    <Button onClick={() => window.location.href = '/crm/pos'} className="bg-green-600 hover:bg-green-700">
-                      <Store className="w-4 h-4 mr-2" />
-                      Setup POS
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                    <span>✓ Customer Sync</span>
-                    <span>•</span>
-                    <span>✓ Order History</span>
-                    <span>•</span>
-                    <span>✓ Purchase Data</span>
-                    <span>•</span>
-                    <span>✓ Real-time Updates</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Lightspeed X-Series */}
-              <LightspeedIntegration />
-
-              {/* Square POS */}
-              <SquareIntegration />
-
-              {/* Lightspeed Debug Tools - Only show when not connected */}
-              {!hasValidLightspeedConnection && <LightspeedDebug />}
+              <FeaturedCard
+                title="Point of Sale Overview"
+                description="Connect your POS to sync customers, orders, and purchase data in real-time"
+                icon={<Store className="w-6 h-6 text-primary" />}
+                badge={{ label: "Popular", className: "bg-green-600" }}
+                features={["✓ Customer Sync", "✓ Order History", "✓ Purchase Data", "✓ Real-time Updates"]}
+              >
+                <Button onClick={() => window.location.href = '/crm/pos'} className="mt-2">
+                  <Store className="w-4 h-4 mr-2" />
+                  Browse POS Options
+                </Button>
+              </FeaturedCard>
             </div>
           </section>
+
+          {/* Point of Sale Section */}
+          <IntegrationSection
+            title="Point of Sale"
+            description="Connect your POS systems to sync customer and sales data"
+            icon={<Store className="w-5 h-5" />}
+          >
+            <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <LightspeedIntegration />
+              <SquareIntegration />
+            </div>
+            {/* Lightspeed Debug Tools - Only show when not connected */}
+            {!hasValidLightspeedConnection && (
+              <div className="col-span-full">
+                <LightspeedDebug />
+              </div>
+            )}
+          </IntegrationSection>
+
+          {/* Marketing & CRM Section */}
+          <IntegrationSection
+            title="Marketing & CRM"
+            description="Sync contacts and manage your marketing tools"
+            icon={<Users className="w-5 h-5" />}
+          >
+            {renderIntegrationCard(availableIntegrations.find(i => i.id === 'mailchimp')!)}
+            {renderIntegrationCard(availableIntegrations.find(i => i.id === 'hubspot')!)}
+          </IntegrationSection>
 
           {/* Social Media Section */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Smartphone className="w-5 h-5" />
-              <h2 className="text-xl font-semibold">Social Media</h2>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {getIntegrationsByCategory('social').map((integration) => {
-                const connection = getConnectionStatus(integration.provider);
-                const isConnected = !!connection;
+          <IntegrationSection
+            title="Social Media"
+            description="Connect your social accounts to publish and manage content"
+            icon={<Smartphone className="w-5 h-5" />}
+          >
+            {getIntegrationsByCategory('social').map(renderIntegrationCard)}
+          </IntegrationSection>
 
-                return (
-                  <Card key={integration.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-start gap-3">
-                        {integration.icon}
-                        <div className="flex-1">
-                          <CardTitle className="text-base">{integration.name}</CardTitle>
-                          {isConnected && (
-                            <Badge variant="secondary" className="mt-1">
-                              <Check className="w-3 h-3 mr-1" />
-                              Connected
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm text-muted-foreground">{integration.description}</p>
-                      <Button
-                        size="sm"
-                        onClick={() => handleConnectIntegration(integration)}
-                        className="w-full"
-                        variant={isConnected ? "outline" : "default"}
-                      >
-                        {isConnected ? (
-                          <>
-                            <Settings className="w-4 h-4 mr-2" />
-                            Manage
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Connect
-                          </>
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </section>
+          {/* Analytics & Tracking Section */}
+          <IntegrationSection
+            title="Analytics & Tracking"
+            description="Track performance and measure your marketing impact"
+            icon={<BarChart3 className="w-5 h-5" />}
+          >
+            <GoogleAnalyticsConnection />
+          </IntegrationSection>
 
-          {/* Analytics Section */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
-              <h2 className="text-xl font-semibold">Analytics & Tracking</h2>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <GoogleAnalyticsConnection />
-              
-              {getIntegrationsByCategory('analytics').filter(i => i.id !== 'google_analytics').map((integration) => {
-                const connection = getConnectionStatus(integration.provider);
-                const isConnected = !!connection;
-
-                return (
-                  <Card key={integration.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-start gap-3">
-                        {integration.icon}
-                        <div className="flex-1">
-                          <CardTitle className="text-base">{integration.name}</CardTitle>
-                          {isConnected && (
-                            <Badge variant="secondary" className="mt-1">
-                              <Check className="w-3 h-3 mr-1" />
-                              Connected
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm text-muted-foreground">{integration.description}</p>
-                      <Button
-                        size="sm"
-                        onClick={() => handleConnectIntegration(integration)}
-                        className="w-full"
-                        variant={isConnected ? "outline" : "default"}
-                      >
-                        {isConnected ? (
-                          <>
-                            <Settings className="w-4 h-4 mr-2" />
-                            Manage
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Connect
-                          </>
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Automation Section */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5" />
-              <h2 className="text-xl font-semibold">Automation & Workflows</h2>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {getIntegrationsByCategory('automation').map((integration) => {
-                const connection = getConnectionStatus(integration.provider);
-                const isConnected = !!connection;
-
-                return (
-                  <Card key={integration.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-start gap-3">
-                        {integration.icon}
-                        <div className="flex-1">
-                          <CardTitle className="text-base">{integration.name}</CardTitle>
-                          {isConnected && (
-                            <Badge variant="secondary" className="mt-1">
-                              <Check className="w-3 h-3 mr-1" />
-                              Connected
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm text-muted-foreground">{integration.description}</p>
-                      <Button
-                        size="sm"
-                        onClick={() => handleConnectIntegration(integration)}
-                        className="w-full"
-                        variant={isConnected ? "outline" : "default"}
-                      >
-                        {isConnected ? (
-                          <>
-                            <Settings className="w-4 h-4 mr-2" />
-                            Manage
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Connect
-                          </>
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Email & Marketing Section */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Mail className="w-5 h-5" />
-              <h2 className="text-xl font-semibold">Email & Marketing</h2>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {getIntegrationsByCategory('email').map((integration) => {
-                const connection = getConnectionStatus(integration.provider);
-                const isConnected = !!connection;
-
-                return (
-                  <Card key={integration.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-start gap-3">
-                        {integration.icon}
-                        <div className="flex-1">
-                          <CardTitle className="text-base">{integration.name}</CardTitle>
-                          {isConnected && (
-                            <Badge variant="secondary" className="mt-1">
-                              <Check className="w-3 h-3 mr-1" />
-                              Connected
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm text-muted-foreground">{integration.description}</p>
-                      <Button
-                        size="sm"
-                        onClick={() => handleConnectIntegration(integration)}
-                        className="w-full"
-                        variant={isConnected ? "outline" : "default"}
-                      >
-                        {isConnected ? (
-                          <>
-                            <Settings className="w-4 h-4 mr-2" />
-                            Manage
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Connect
-                          </>
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* CRM Section */}
-          {getIntegrationsByCategory('crm').filter(i => i.id !== 'pos_sync').length > 0 && (
-            <section className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                <h2 className="text-xl font-semibold">CRM Platforms</h2>
-              </div>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {getIntegrationsByCategory('crm').filter(i => i.id !== 'pos_sync').map((integration) => {
-                  const connection = getConnectionStatus(integration.provider);
-                  const isConnected = !!connection;
-
-                  return (
-                    <Card key={integration.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader>
-                        <div className="flex items-start gap-3">
-                          {integration.icon}
-                          <div className="flex-1">
-                            <CardTitle className="text-base">{integration.name}</CardTitle>
-                            {isConnected && (
-                              <Badge variant="secondary" className="mt-1">
-                                <Check className="w-3 h-3 mr-1" />
-                                Connected
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <p className="text-sm text-muted-foreground">{integration.description}</p>
-                        <Button
-                          size="sm"
-                          onClick={() => handleConnectIntegration(integration)}
-                          className="w-full"
-                          variant={isConnected ? "outline" : "default"}
-                        >
-                          {isConnected ? (
-                            <>
-                              <Settings className="w-4 h-4 mr-2" />
-                              Manage
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="w-4 h-4 mr-2" />
-                              Connect
-                            </>
-                          )}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </section>
-          )}
+          {/* Automation & Workflows Section */}
+          <IntegrationSection
+            title="Automation & Workflows"
+            description="Automate tasks and connect to thousands of apps"
+            icon={<Zap className="w-5 h-5" />}
+          >
+            {getIntegrationsByCategory('automation').map(renderIntegrationCard)}
+          </IntegrationSection>
         </TabsContent>
 
-        <TabsContent value="connected" className="space-y-4">
+        <TabsContent value="connected" className="space-y-6">
           {userIntegrations.filter(int => int.is_active).length === 0 ? (
-            <Card>
+            <Card className="bg-card border border-border">
               <CardContent className="p-12 text-center">
-                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">
                   No Connected Integrations
                 </h3>
-                <p className="text-gray-600 mb-4">
+                <p className="text-muted-foreground mb-4">
                   Connect your first integration to start automating your workflow
                 </p>
                 <Button onClick={() => setActiveTab('marketplace')}>
-                  Browse Marketplace
+                  Browse Integrations
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
-              {userIntegrations.filter(int => int.is_active).map((integration) => (
-                <Card key={integration.id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                          <Check className="w-6 h-6 text-green-600" />
+            <div className="space-y-6">
+              {/* POS Connections */}
+              <section className="space-y-3">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Store className="w-4 h-4" />
+                  Point of Sale
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Would show connected POS integrations here */}
+                </div>
+              </section>
+
+              {/* Other connected integrations */}
+              <section className="space-y-3">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  Other Integrations
+                </h3>
+                <div className="grid grid-cols-1 gap-4">
+                  {userIntegrations.filter(int => int.is_active).map((integration) => (
+                    <Card key={integration.id} className="bg-card border border-border">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                              <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium capitalize">
+                                {integration.provider} Integration
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                Connected on {new Date(integration.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDisconnectIntegration(integration.id)}
+                            >
+                              Disconnect
+                            </Button>
+                            <Button size="sm" variant="outline">
+                              <Settings className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-medium capitalize">
-                            {integration.provider} Integration
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            Connected on {new Date(integration.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDisconnectIntegration(integration.id)}
-                        >
-                          Disconnect
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Settings className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </section>
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="webhooks" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="bg-card border border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
                 <Webhook className="w-5 h-5" />
-                Custom Webhooks
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4">
+                <h3 className="font-semibold">Custom Webhooks</h3>
+              </div>
+              <p className="text-muted-foreground mb-4">
                 Create custom webhook endpoints to integrate with any external service.
                 Coming soon!
               </p>
