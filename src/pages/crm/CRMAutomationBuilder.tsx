@@ -323,7 +323,7 @@ export const CRMAutomationBuilder = () => {
   const showGuideSidebar = !automationId ? flowState.nodes.length === 0 : false;
 
   return (
-    <div className="min-h-[100dvh] flex flex-col">
+    <div className="h-[100dvh] flex flex-col overflow-hidden">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
@@ -412,7 +412,7 @@ export const CRMAutomationBuilder = () => {
         </div>
       </header>
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {!automationId && flowState.nodes.length === 0 && !guideCompleted && !isDirectCanvasRoute && (
           <aside className="hidden md:block md:w-80 border-r p-6 overflow-y-auto">
             <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
@@ -423,7 +423,7 @@ export const CRMAutomationBuilder = () => {
             </Suspense>
           </aside>
         )}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 min-h-0 flex flex-col">
           <AutomationFlowCanvas
             automationId={automationId}
             initialFlowState={flowState}
@@ -435,6 +435,7 @@ export const CRMAutomationBuilder = () => {
             selectedSegments={selectedSegments}
             onPersonasChange={setSelectedPersonas}
             onSegmentsChange={setSelectedSegments}
+            className="flex-1 min-h-0"
           />
         </main>
       </div>
