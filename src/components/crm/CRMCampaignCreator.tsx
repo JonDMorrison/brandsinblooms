@@ -48,6 +48,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { generateCampaignSessionId } from '@/types/campaign';
+import { sanitizeCampaignTitle } from '@/utils/weekNumberSanitizer';
 
 // Helper function to generate images for blocks using batch API
 interface ImageGenerationContext {
@@ -347,12 +348,15 @@ const generatePreheaderText = (content: string, campaignName: string): string =>
 const autoFillHeaderTitle = (blocks: ContentBlock[], campaignTitle: string): ContentBlock[] => {
   if (!campaignTitle || campaignTitle === 'Newsletter Campaign') return blocks;
   
+  // Sanitize the title to remove week number references
+  const sanitizedTitle = sanitizeCampaignTitle(campaignTitle);
+  
   return blocks.map(block => {
     if (block.type === 'header' && (!block.title || block.title === 'Campaign Title' || block.title === '')) {
       return {
         ...block,
-        title: campaignTitle,
-        headline: campaignTitle
+        title: sanitizedTitle,
+        headline: sanitizedTitle
       };
     }
     return block;
@@ -2161,9 +2165,10 @@ const { counts: segmentCounts } = useSegmentCounts();
             
             // Generate blocks based on layout and topic
             const layoutType = layout as 'block-builder' | 'simple-email' || 'block-builder';
-            setCampaignName(topic);
-            setSubjectLine(topic.replace(' Newsletter', ''));
-            setPreheaderText(generatePreheaderText(description, topic));
+            const sanitizedTopic = sanitizeCampaignTitle(topic);
+            setCampaignName(sanitizedTopic);
+            setSubjectLine(sanitizedTopic.replace(' Newsletter', ''));
+            setPreheaderText(generatePreheaderText(description, sanitizedTopic));
             
             console.log(`🎨 Generating ${layoutType} layout blocks for topic: "${topic}"`);
             
@@ -2969,6 +2974,7 @@ const { counts: segmentCounts } = useSegmentCounts();
           
           if (block.backgroundImageUrl) {
             // Table-based layout with background image and RGBA overlay for email compatibility
+            // Use nested div structure so overlay sits ON TOP of background image
             const overlayColor = hexToRgba(block.backgroundColor || '#000000', headerOpacity);
             html += `
               <!--[if mso | IE]>
@@ -2976,15 +2982,15 @@ const { counts: segmentCounts } = useSegmentCounts();
               <![endif]-->
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
-                  <td style="background-image: url(${block.backgroundImageUrl}); background-size: cover; background-position: center; padding: 40px 20px; text-align: ${headerAlign}; background-color: ${overlayColor};">
+                  <td style="background-image: url(${block.backgroundImageUrl}); background-size: cover; background-position: center;">
                     <!--[if gte mso 9]>
                     <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;">
                     <v:fill type="frame" src="${block.backgroundImageUrl}" color="${headerBgColor}" />
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
-                    <!-- Content container - transparent background (TD already has overlay) -->
-                    <div style="padding: 0;">
-                      ${!shouldHideContent(block) && blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${blockHeadline}</h1>` : ''}
+                    <!-- Overlay div sits on top of background image -->
+                    <div style="background-color: ${overlayColor}; padding: 40px 20px; text-align: ${headerAlign};">
+                      ${!shouldHideContent(block) && blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${sanitizeCampaignTitle(blockHeadline)}</h1>` : ''}
                       ${!shouldHideContent(block) && blockBody ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${blockBody}</div>` : ''}
                     </div>
                     <!--[if gte mso 9]>
