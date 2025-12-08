@@ -3,12 +3,11 @@ import { ContentBlock, GalleryItem } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Plus, X, Sparkles, Loader2, ImageIcon } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-
+import { ProductGalleryImageSlot } from './ProductGalleryImageSlot';
 interface ProductGalleryBlockEditorProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
@@ -191,45 +190,15 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
               </Button>
 
               {/* Image */}
-              <div 
-                className="relative aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer group"
-                onClick={() => openMediaSelectorForSlot(index)}
-              >
-                {generatingSlots.has(index) ? (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                ) : item.imageUrl ? (
-                  <img
-                    src={item.imageUrl}
-                    alt={item.title || 'Product'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
-                    <ImageIcon className="h-8 w-8 mb-1" />
-                    <span className="text-xs">Click to add</span>
-                  </div>
-                )}
-
-                {/* Hover overlay with AI button */}
-                {!generatingSlots.has(index) && (
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        generateImageForSlot(index);
-                      }}
-                      className="gap-1"
-                    >
-                      <Sparkles className="h-3 w-3" />
-                      AI
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <ProductGalleryImageSlot
+                imageUrl={item.imageUrl}
+                title={item.title}
+                index={index}
+                isGenerating={generatingSlots.has(index)}
+                onOpenMediaSelector={() => openMediaSelectorForSlot(index)}
+                onOpenAIDialog={() => generateImageForSlot(index)}
+                onImageRemove={() => updateProduct(index, 'imageUrl', '')}
+              />
 
               {/* Title */}
               <Input
