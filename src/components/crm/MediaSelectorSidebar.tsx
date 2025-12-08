@@ -511,36 +511,20 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                 </div>
 
                 {/* Load More Button */}
-                {hasMorePages && !debouncedQuery && (
-                  <div className="mt-6">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleLoadMore}
-                      disabled={isLoading}
-                      className="w-full"
-                    >
-                      {isLoading ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Camera className="h-4 w-4 mr-2" />
-                      )}
-                      Load More Images
-                    </Button>
-                  </div>
-                )}
-
-                {/* Refresh Section */}
                 <div className="mt-6 pt-4 border-t border-gray-100">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={handleRefresh}
-                    disabled={isLoading}
+                    onClick={handleLoadMore}
+                    disabled={isLoading || !hasMorePages || !!debouncedQuery}
                     className="w-full"
                   >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh Results
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4 mr-2" />
+                    )}
+                    {!hasMorePages ? 'No More Images' : debouncedQuery ? 'Search for more' : 'Load More'}
                   </Button>
                 </div>
 
