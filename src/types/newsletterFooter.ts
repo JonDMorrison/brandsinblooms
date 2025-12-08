@@ -40,6 +40,7 @@ export interface NewsletterFooterProps {
   // Brand colors for fallback
   brandPrimaryColor?: string;
   brandSecondaryColor?: string;
+  brandTextColor?: string;
 }
 
 export interface FooterStyleConfig {
