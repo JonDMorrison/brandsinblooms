@@ -59,6 +59,7 @@ import CallbackPage from '@/pages/integrations/lightspeed/CallbackPage';
 import GuidePage from '@/pages/integrations/lightspeed/GuidePage';
 import DebugPage from '@/pages/integrations/lightspeed/DebugPage';
 import SquareCallbackPage from '@/pages/integrations/square/CallbackPage';
+import SquareGuidePage from '@/pages/integrations/square/GuidePage';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
 import FAQPage from '@/pages/FAQPage';
@@ -418,6 +419,13 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/integrations/square/callback" element={<SquareCallbackPage />} />
+          <Route path="/integrations/square/guide" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <SquareGuidePage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
           <Route path="/crm/pos" element={
             <ProtectedRoute>
               <SidebarLayout>
