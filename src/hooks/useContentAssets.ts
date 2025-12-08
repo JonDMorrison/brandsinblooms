@@ -33,19 +33,17 @@ export const useContentAssets = () => {
 
       if (error) throw error;
       
-      // Generate signed URLs for assets
-      const assetsWithUrls = await Promise.all(
-        (data || []).map(async (asset) => {
-          const { data: urlData } = await supabase.storage
-            .from('content-assets')
-            .createSignedUrl(asset.file_path, 3600); // 1 hour expiry
+      // Generate public URLs for assets (not signed URLs - emails need permanent URLs)
+      const assetsWithUrls = (data || []).map((asset) => {
+        const { data: urlData } = supabase.storage
+          .from('content-assets')
+          .getPublicUrl(asset.file_path);
 
-          return {
-            ...asset,
-            url: urlData?.signedUrl || '/placeholder.svg'
-          };
-        })
-      );
+        return {
+          ...asset,
+          url: urlData?.publicUrl || '/placeholder.svg'
+        };
+      });
 
       setAssets(assetsWithUrls);
     } catch (error) {
@@ -99,14 +97,14 @@ export const useContentAssets = () => {
 
       if (error) throw error;
 
-      // Generate signed URL
-      const { data: urlData } = await supabase.storage
+      // Generate public URL (not signed - emails need permanent URLs)
+      const { data: urlData } = supabase.storage
         .from('content-assets')
-        .createSignedUrl(filePath, 3600);
+        .getPublicUrl(filePath);
 
       const assetWithUrl = {
         ...data,
-        url: urlData?.signedUrl || '/placeholder.svg'
+        url: urlData?.publicUrl || '/placeholder.svg'
       };
 
       setAssets(prev => [assetWithUrl, ...prev]);
@@ -164,19 +162,17 @@ export const useContentAssets = () => {
 
       if (error) throw error;
       
-      // Generate signed URLs for search results
-      const assetsWithUrls = await Promise.all(
-        (data || []).map(async (asset) => {
-          const { data: urlData } = await supabase.storage
-            .from('content-assets')
-            .createSignedUrl(asset.file_path, 3600);
+      // Generate public URLs for search results (not signed - emails need permanent URLs)
+      const assetsWithUrls = (data || []).map((asset) => {
+        const { data: urlData } = supabase.storage
+          .from('content-assets')
+          .getPublicUrl(asset.file_path);
 
-          return {
-            ...asset,
-            url: urlData?.signedUrl || '/placeholder.svg'
-          };
-        })
-      );
+        return {
+          ...asset,
+          url: urlData?.publicUrl || '/placeholder.svg'
+        };
+      });
 
       return assetsWithUrls;
     } catch (error) {

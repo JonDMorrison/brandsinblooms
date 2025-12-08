@@ -46,10 +46,10 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       console.log('[HeaderBlock] Auto-selected background:', imageUrl, metadata);
       onUpdate({ 
         backgroundImageUrl: imageUrl,
-        // Set a subtle dark overlay for better text readability
-        backgroundColor: '#000000',
-        colorOverlayOpacity: 30,
-        backgroundOpacity: 80
+        // Set a subtle dark overlay for better text readability (using dark gray instead of black)
+        backgroundColor: '#1f2937',
+        colorOverlayOpacity: 40,
+        backgroundOpacity: 60
       });
     },
     enabled: !isPreview,

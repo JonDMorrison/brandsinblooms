@@ -2962,7 +2962,9 @@ const { counts: segmentCounts } = useSegmentCounts();
       switch (block.type) {
         case 'header':
           const headerAlign = block.textAlign || 'center';
-          const headerOpacity = block.backgroundOpacity || 0.4;
+          // Normalize opacity: if > 1, assume it's a percentage (0-100) and convert to decimal (0-1)
+          const rawHeaderOpacity = block.backgroundOpacity ?? 40;
+          const headerOpacity = rawHeaderOpacity > 1 ? rawHeaderOpacity / 100 : rawHeaderOpacity;
           const headerBgColor = block.backgroundColor || '#1f2937';
           
           if (block.backgroundImageUrl) {
@@ -3353,8 +3355,11 @@ const { counts: segmentCounts } = useSegmentCounts();
         case 'newsletter-header':
           const nhTextColor = block.textColor || '#ffffff';
           const nhBackgroundColor = block.backgroundColor || '#1f2937';
-          const nhColorOverlayOpacity = block.colorOverlayOpacity !== undefined ? block.colorOverlayOpacity : 0.7;
-          const nhDarkOverlayOpacity = block.darkOverlayOpacity !== undefined ? block.darkOverlayOpacity : 0.3;
+          // Normalize opacity: if > 1, assume it's a percentage (0-100) and convert to decimal (0-1)
+          const rawNhColorOverlayOpacity = block.colorOverlayOpacity ?? 70;
+          const nhColorOverlayOpacity = rawNhColorOverlayOpacity > 1 ? rawNhColorOverlayOpacity / 100 : rawNhColorOverlayOpacity;
+          const rawNhDarkOverlayOpacity = block.darkOverlayOpacity ?? 30;
+          const nhDarkOverlayOpacity = rawNhDarkOverlayOpacity > 1 ? rawNhDarkOverlayOpacity / 100 : rawNhDarkOverlayOpacity;
           const nhTextAlign = block.textAlign || 'center';
           
           // Format publish date if exists
