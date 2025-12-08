@@ -461,7 +461,7 @@ export const SquareSetupWizard = ({
         </p>
       </div>
 
-      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+      <div className="space-y-3 max-h-[350px] overflow-y-auto px-1 -mx-1">
         {SQUARE_QUICK_AUTOMATIONS.map((automation) => {
           const IconComponent = ICON_MAP[automation.icon];
           const isSelected = selectedAutomations.has(automation.id);
