@@ -28,10 +28,10 @@ import { NodeEditorDialog } from './NodeEditorDialog';
 import { useAutomationFlow } from '../hooks/useAutomationFlow';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { AudienceTargetingButton } from '@/components/crm/AudienceTargetingButton';
+
 import { AudienceSelector } from '@/components/crm/AudienceSelector';
 import { useSegmentSelector } from '@/hooks/useSegmentSelector';
-import { Play, Save, Users, Map, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, Save, Users, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -103,7 +103,6 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
     const saved = localStorage.getItem('automation.showMinimap');
     return saved ? JSON.parse(saved) : false;
   });
-  const [isFooterCollapsed, setIsFooterCollapsed] = useState(true);
 
   useEffect(() => {
     localStorage.setItem('automation.showMinimap', JSON.stringify(showMinimap));
@@ -414,7 +413,7 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
               />
             )}
             
-            {/* Minimap Toggle Button */}
+            {/* Canvas Controls - Top corners */}
             <div className="absolute top-4 left-4 z-10">
               <Button
                 variant="ghost"
@@ -426,82 +425,33 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
                 <Map className="w-4 h-4" />
               </Button>
             </div>
+            
+            {/* Select Audience Button - Top Right */}
+            <div className="absolute top-4 right-4 z-10">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAudienceSelector(true)}
+                      className="flex items-center gap-2 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+                    >
+                      <Users className="w-4 h-4" />
+                      <span className="hidden sm:inline">
+                        {selectedPersonas.length > 0 || selectedSegments.length > 0 
+                          ? `${selectedPersonas.length + selectedSegments.length} Selected` 
+                          : 'Select Audience'}
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Choose target audience for this automation</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </ReactFlow>
         </div>
       </section>
-
-      {/* Audience Targeting Section - Always visible at bottom */}
-      <div className="flex-shrink-0 border-t bg-background shadow-[0_-2px_10px_rgba(0,0,0,0.1)] z-20">
-        {/* Collapse Toggle Header */}
-        <button
-          onClick={() => setIsFooterCollapsed(!isFooterCollapsed)}
-          className="w-full px-4 py-2 flex items-center justify-between text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
-          aria-expanded={!isFooterCollapsed}
-          aria-label={isFooterCollapsed ? "Expand audience targeting" : "Collapse audience targeting"}
-        >
-          <span className="font-medium">Target Audience & Actions</span>
-          {isFooterCollapsed ? (
-            <ChevronUp className="w-4 h-4 transition-transform" />
-          ) : (
-            <ChevronDown className="w-4 h-4 transition-transform" />
-          )}
-        </button>
-        
-        {/* Collapsible Content */}
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            isFooterCollapsed ? 'max-h-0 opacity-0' : 'max-h-40 opacity-100'
-          }`}
-        >
-          <div className="p-4 pt-2">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <AudienceTargetingButton
-                  selectedPersonas={selectedPersonas}
-                  selectedSegments={selectedSegments}
-                  onPersonasChange={onPersonasChange || (() => {})}
-                  onSegmentsChange={onSegmentsChange || (() => {})}
-                />
-              </div>
-              <div className="flex items-center gap-2 ml-4">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSaveDraft}
-                        className="flex items-center gap-2"
-                      >
-                        <Save className="w-4 h-4" />
-                        Save Draft
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Save your automation as draft</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={handleReviewAndLaunch}
-                        disabled={!isReadyToLaunch}
-                        className="flex items-center gap-2"
-                      >
-                        <Play className="w-4 h-4" />
-                        Review & Launch
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {isReadyToLaunch ? 'Review and launch automation' : 'Complete flow and select audience first'}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Audience Selector Modal */}
       {showAudienceSelector && (
