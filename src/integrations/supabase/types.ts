@@ -1005,10 +1005,14 @@ export type Database = {
           brand_secondary_color: string | null
           brand_voice: string | null
           button_font_id: string | null
+          city: string | null
+          company_email: string | null
           company_name: string | null
           company_overview: string | null
+          company_phone: string | null
           company_values: string | null
           compliance_settings: Json | null
+          country: string | null
           created_at: string
           crm_onboarding_completed_at: string | null
           custom_sender_email: string | null
@@ -1018,20 +1022,29 @@ export type Database = {
           email_auth_setup_at: string | null
           email_auth_status: string | null
           email_domain: string | null
+          facebook_url: string | null
           feature_flags: Json | null
           first_content_generated: boolean | null
           first_welcome_dismissed: boolean | null
+          footer_legal_text: string | null
           headline_font_id: string | null
           id: string
           ideal_customer: string | null
+          instagram_url: string | null
+          linkedin_url: string | null
           location_info: string | null
           onboarding_completed_at: string | null
+          pinterest_url: string | null
+          postal_code: string | null
           seasonal_focus: string | null
           selected_font_id: string | null
           specializations: string | null
+          state_province: string | null
+          street_address: string | null
           subheading_font_id: string | null
           target_audience: string | null
           test_numbers: string[] | null
+          tiktok_url: string | null
           tokens_balance: number | null
           tokens_reset_at: string | null
           tone_of_writing: string | null
@@ -1039,6 +1052,7 @@ export type Database = {
           updated_at: string
           user_id: string
           website_url: string | null
+          youtube_url: string | null
         }
         Insert: {
           beta_tour_enabled?: boolean | null
@@ -1048,10 +1062,14 @@ export type Database = {
           brand_secondary_color?: string | null
           brand_voice?: string | null
           button_font_id?: string | null
+          city?: string | null
+          company_email?: string | null
           company_name?: string | null
           company_overview?: string | null
+          company_phone?: string | null
           company_values?: string | null
           compliance_settings?: Json | null
+          country?: string | null
           created_at?: string
           crm_onboarding_completed_at?: string | null
           custom_sender_email?: string | null
@@ -1061,20 +1079,29 @@ export type Database = {
           email_auth_setup_at?: string | null
           email_auth_status?: string | null
           email_domain?: string | null
+          facebook_url?: string | null
           feature_flags?: Json | null
           first_content_generated?: boolean | null
           first_welcome_dismissed?: boolean | null
+          footer_legal_text?: string | null
           headline_font_id?: string | null
           id?: string
           ideal_customer?: string | null
+          instagram_url?: string | null
+          linkedin_url?: string | null
           location_info?: string | null
           onboarding_completed_at?: string | null
+          pinterest_url?: string | null
+          postal_code?: string | null
           seasonal_focus?: string | null
           selected_font_id?: string | null
           specializations?: string | null
+          state_province?: string | null
+          street_address?: string | null
           subheading_font_id?: string | null
           target_audience?: string | null
           test_numbers?: string[] | null
+          tiktok_url?: string | null
           tokens_balance?: number | null
           tokens_reset_at?: string | null
           tone_of_writing?: string | null
@@ -1082,6 +1109,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           website_url?: string | null
+          youtube_url?: string | null
         }
         Update: {
           beta_tour_enabled?: boolean | null
@@ -1091,10 +1119,14 @@ export type Database = {
           brand_secondary_color?: string | null
           brand_voice?: string | null
           button_font_id?: string | null
+          city?: string | null
+          company_email?: string | null
           company_name?: string | null
           company_overview?: string | null
+          company_phone?: string | null
           company_values?: string | null
           compliance_settings?: Json | null
+          country?: string | null
           created_at?: string
           crm_onboarding_completed_at?: string | null
           custom_sender_email?: string | null
@@ -1104,20 +1136,29 @@ export type Database = {
           email_auth_setup_at?: string | null
           email_auth_status?: string | null
           email_domain?: string | null
+          facebook_url?: string | null
           feature_flags?: Json | null
           first_content_generated?: boolean | null
           first_welcome_dismissed?: boolean | null
+          footer_legal_text?: string | null
           headline_font_id?: string | null
           id?: string
           ideal_customer?: string | null
+          instagram_url?: string | null
+          linkedin_url?: string | null
           location_info?: string | null
           onboarding_completed_at?: string | null
+          pinterest_url?: string | null
+          postal_code?: string | null
           seasonal_focus?: string | null
           selected_font_id?: string | null
           specializations?: string | null
+          state_province?: string | null
+          street_address?: string | null
           subheading_font_id?: string | null
           target_audience?: string | null
           test_numbers?: string[] | null
+          tiktok_url?: string | null
           tokens_balance?: number | null
           tokens_reset_at?: string | null
           tone_of_writing?: string | null
@@ -1125,6 +1166,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           website_url?: string | null
+          youtube_url?: string | null
         }
         Relationships: [
           {
