@@ -29,6 +29,7 @@ export const CRMAutomationBuilder = () => {
 
   const isMobile = useIsMobile();
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [guideCompleted, setGuideCompleted] = useState(false);
 
   const handleGuideComplete = (automationConfig: any) => {
     if (automationConfig?.name) setAutomationName(automationConfig.name);
@@ -38,8 +39,9 @@ export const CRMAutomationBuilder = () => {
       setSelectedSegments(automationConfig.audience.segments || []);
     }
     toast({ title: 'Blueprint applied', description: 'We prefilled your canvas based on your selections.' });
-    // Always close the guide sheet when switching to canvas
+    // Close guide sheet and mark guide as completed to hide sidebar
     setIsGuideOpen(false);
+    setGuideCompleted(true);
   };
 
   useEffect(() => {
@@ -408,7 +410,7 @@ export const CRMAutomationBuilder = () => {
       </header>
 
       <div className="flex-1 flex">
-        {!automationId && flowState.nodes.length === 0 && (
+        {!automationId && flowState.nodes.length === 0 && !guideCompleted && (
           <aside className="hidden md:block md:w-80 border-r p-6 overflow-y-auto">
             <Suspense fallback={<div className="text-sm text-muted-foreground">Loading guide...</div>}>
               <GuidedAutomationBuilder 
