@@ -34,6 +34,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
   const [loading, setLoading] = useState(false);
   const [provisionedData, setProvisionedData] = useState<any>(null);
   const [entriProvider, setEntriProvider] = useState<string | null>(null);
+  const [isEntriModalOpen, setIsEntriModalOpen] = useState(false);
 
   const validateDomain = (value: string): boolean => {
     const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
@@ -71,17 +72,22 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
 
     const cleanDomain = cleanDomainInput(domain);
     
+    // Hide our dialog while Entri modal is active
+    setIsEntriModalOpen(true);
+    
     openEntriSetup(
       cleanDomain,
       tenant.id,
       undefined, // Use default DNS records
       // onSuccess
       () => {
+        setIsEntriModalOpen(false);
         refetch();
         setStep('entri_success');
       },
       // onCancel - fall back to manual
       () => {
+        setIsEntriModalOpen(false);
         setStep('choose_method');
       }
     );
@@ -112,8 +118,14 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({ open, 
     setError(null);
     setProvisionedData(null);
     setEntriProvider(null);
+    setIsEntriModalOpen(false);
     onClose();
   };
+
+  // Don't render our dialog when Entri modal is active to prevent z-index conflicts
+  if (isEntriModalOpen) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
