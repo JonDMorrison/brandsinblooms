@@ -24,10 +24,11 @@ serve(async (req) => {
       collection,
       page = 1,
       contentTaskId, 
-      maxImages = 4,
+      maxImages = 30,
       orientation = 'squarish',
       orderBy = 'relevant',
-      contentFilter = 'high'
+      contentFilter = 'high',
+      skipFiltering = false
     } = await req.json();
 
     if (!query && !collection && variants.length === 0) {
@@ -181,20 +182,30 @@ serve(async (req) => {
       return { score, reason };
     };
 
-    // Score all images
-    const scoredImages = images.map(image => {
-      const { score, reason } = scoreImageRelevance(image);
-      return { image, score, reason };
-    });
+    // Score all images (skip filtering for curated collections since they're pre-filtered)
+    const shouldFilter = !collection && !skipFiltering;
+    
+    let validImages: any[];
+    
+    if (shouldFilter) {
+      const scoredImages = images.map(image => {
+        const { score, reason } = scoreImageRelevance(image);
+        return { image, score, reason };
+      });
 
-    // Filter: Only keep images with positive scores (garden-relevant)
-    const validImages = scoredImages
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxImages)
-      .map(item => item.image);
+      // Filter: Only keep images with positive scores (garden-relevant)
+      validImages = scoredImages
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, maxImages)
+        .map(item => item.image);
 
-    console.log(`[UNSPLASH] After garden validation: ${validImages.length}/${images.length} images are garden-relevant`);
+      console.log(`[UNSPLASH] After garden validation: ${validImages.length}/${images.length} images are garden-relevant`);
+    } else {
+      // For curated collections, use all images (already curated for gardens)
+      validImages = images.slice(0, maxImages);
+      console.log(`[UNSPLASH] Using ${validImages.length} images from curated collection (no filtering needed)`);
+    }
 
     // If contentTaskId is provided, store the images in the database
     if (contentTaskId && validImages.length > 0) {
