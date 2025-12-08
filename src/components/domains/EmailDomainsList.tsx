@@ -97,13 +97,6 @@ export const EmailDomainsList = () => {
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="w-5 h-5" />
-            Email Domains
-          </CardTitle>
-        </CardHeader>
-        
         <CardContent>
           {emailDomains.length === 0 ? (
             <div className="text-center py-12">
