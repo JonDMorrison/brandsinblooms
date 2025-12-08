@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -7,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Settings, RotateCcw } from 'lucide-react';
+import { Settings, RotateCcw, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFooterSettings, buildFooterProps } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
@@ -283,6 +284,15 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
                 ×
               </Button>
             </div>
+
+            {/* Link to Contact & Footer Settings */}
+            <Link 
+              to="/profile/contact-footer" 
+              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors py-1.5 px-2 -mx-2 rounded hover:bg-muted/50"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Edit company contact info & social links
+            </Link>
 
             {/* Campaign Footer Color */}
             <div className="p-3 bg-muted/50 rounded-lg">
