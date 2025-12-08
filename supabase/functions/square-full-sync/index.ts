@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, traceparent, tracestate',
 };
 
 Deno.serve(async (req) => {
@@ -22,23 +22,47 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Invoke customer sync
+    console.log('[SQUARE-FULL-SYNC] Starting full sync orchestration...');
+
+    // Phase 5: Sequential sync for proper data flow
+    // 1. Sync customers first (gets groups + preferences)
+    console.log('[SQUARE-FULL-SYNC] Step 1: Syncing customers...');
     const { data: customersData, error: customersError } = await supabaseClient.functions.invoke(
       'square-sync-customers',
       { headers: { Authorization: authHeader } }
     );
 
-    // Invoke sales sync
+    if (customersError) {
+      console.error('[SQUARE-FULL-SYNC] Customer sync error:', customersError.message);
+    } else {
+      console.log('[SQUARE-FULL-SYNC] Customer sync complete:', customersData);
+    }
+
+    // 2. Sync sales second (uses customer data, builds product_tags)
+    console.log('[SQUARE-FULL-SYNC] Step 2: Syncing sales...');
     const { data: salesData, error: salesError } = await supabaseClient.functions.invoke(
       'square-sync-sales',
       { headers: { Authorization: authHeader } }
     );
 
-    // Invoke products sync
+    if (salesError) {
+      console.error('[SQUARE-FULL-SYNC] Sales sync error:', salesError.message);
+    } else {
+      console.log('[SQUARE-FULL-SYNC] Sales sync complete:', salesData);
+    }
+
+    // 3. Sync products third (for inventory + catalog reference)
+    console.log('[SQUARE-FULL-SYNC] Step 3: Syncing products...');
     const { data: productsData, error: productsError } = await supabaseClient.functions.invoke(
       'square-sync-products',
       { headers: { Authorization: authHeader } }
     );
+
+    if (productsError) {
+      console.error('[SQUARE-FULL-SYNC] Products sync error:', productsError.message);
+    } else {
+      console.log('[SQUARE-FULL-SYNC] Products sync complete:', productsData);
+    }
 
     const results = {
       customers: customersData || { error: customersError?.message },
@@ -51,11 +75,20 @@ Deno.serve(async (req) => {
     if (salesError) errors.push(`Sales: ${salesError.message}`);
     if (productsError) errors.push(`Products: ${productsError.message}`);
 
+    console.log('[SQUARE-FULL-SYNC] Full sync complete. Errors:', errors.length);
+
     return new Response(
       JSON.stringify({
         success: errors.length === 0,
         results,
         errors: errors.length > 0 ? errors : undefined,
+        summary: {
+          customersSynced: customersData?.customersSynced || 0,
+          groupsLoaded: customersData?.groupsLoaded || 0,
+          salesSynced: salesData?.salesSynced || 0,
+          customersWithProductTags: salesData?.customersWithProductTags || 0,
+          productsSynced: productsData?.productsSynced || 0
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
