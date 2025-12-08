@@ -33,29 +33,17 @@ export const ProductGalleryBlockPreview: React.FC<ProductGalleryBlockPreviewProp
   );
 
   return (
-    <div 
-      className="py-8 px-4"
-      style={{ backgroundColor: '#FAF9F6' }}
-    >
+    <div className="py-8 px-4">
       {/* Headline */}
       {hasHeadline && (
-        <h2 
-          className="text-2xl md:text-3xl font-bold text-center mb-2"
-          style={{ 
-            color: '#1f2937',
-            fontFamily: 'Georgia, serif'
-          }}
-        >
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-2 text-foreground">
           {block.headline || block.title}
         </h2>
       )}
 
       {/* Subheadline */}
       {hasBody && (
-        <p 
-          className="text-center mb-8 max-w-lg mx-auto"
-          style={{ color: '#6b7280' }}
-        >
+        <p className="text-center mb-8 max-w-lg mx-auto text-muted-foreground">
           {stripHtml(block.body || block.content)}
         </p>
       )}
@@ -65,8 +53,7 @@ export const ProductGalleryBlockPreview: React.FC<ProductGalleryBlockPreviewProp
         {itemSlots.map((item, index) => (
           <div
             key={item?.id || `slot-${index}`}
-            className="rounded-xl shadow-md overflow-hidden"
-            style={{ backgroundColor: '#ffffff' }}
+            className="rounded-xl shadow-md overflow-hidden bg-card"
           >
             {/* Image Container */}
             <div className="relative aspect-square">
@@ -79,22 +66,13 @@ export const ProductGalleryBlockPreview: React.FC<ProductGalleryBlockPreviewProp
                   />
                   {/* Badge */}
                   {item.badgeText && (
-                    <div 
-                      className="absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold"
-                      style={{ 
-                        backgroundColor: '#8B4B5C',
-                        color: '#ffffff'
-                      }}
-                    >
+                    <div className="absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold bg-primary text-primary-foreground">
                       {item.badgeText}
                     </div>
                   )}
                 </>
               ) : (
-                <div 
-                  className="w-full h-full flex items-center justify-center"
-                  style={{ backgroundColor: '#f3f4f6' }}
-                >
+                <div className="w-full h-full flex items-center justify-center bg-muted">
                   <ImageIcon className="h-12 w-12 text-muted-foreground/40" />
                 </div>
               )}
@@ -103,10 +81,7 @@ export const ProductGalleryBlockPreview: React.FC<ProductGalleryBlockPreviewProp
             {/* Title */}
             {item?.title && (
               <div className="p-4 text-center">
-                <p 
-                  className="text-sm font-medium uppercase tracking-wide"
-                  style={{ color: '#374151' }}
-                >
+                <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
                   {item.title}
                 </p>
               </div>
@@ -122,8 +97,7 @@ export const ProductGalleryBlockPreview: React.FC<ProductGalleryBlockPreviewProp
             href={block.ctaUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="py-3 px-8 rounded-full text-white font-semibold transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#8B4B5C' }}
+            className="py-3 px-8 rounded-full font-semibold transition-opacity hover:opacity-90 bg-primary text-primary-foreground"
           >
             {block.ctaText}
           </a>
