@@ -257,3 +257,6 @@ verify_jwt = true
 
 [functions.birthday-automation-checker]
 verify_jwt = false
+
+[functions.lapsed-customer-checker]
+verify_jwt = false
