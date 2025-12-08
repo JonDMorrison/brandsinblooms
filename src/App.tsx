@@ -48,7 +48,11 @@ import CalendarPage from '@/pages/CalendarPage';
 import AccountPage from '@/pages/AccountPage';
 import ProfilePage from '@/pages/ProfilePage';
 import IntegrationsPage from '@/pages/IntegrationsPage';
-import POSIntegrationsPage from '@/pages/POSIntegrationsPage';
+import POSIntegrationsPage from '@/pages/integrations/POSIntegrationsPage';
+import CRMIntegrationsPage from '@/pages/integrations/CRMIntegrationsPage';
+import SocialIntegrationsPage from '@/pages/integrations/SocialIntegrationsPage';
+import AutomationsIntegrationsPage from '@/pages/integrations/AutomationsIntegrationsPage';
+import WebsiteIntegrationsPage from '@/pages/integrations/WebsiteIntegrationsPage';
 import MigrationsPage from '@/pages/MigrationsPage';
 import { OAuthCallbackHandler } from '@/components/migrations/OAuthCallbackHandler';
 import ReportedProblemsPage from '@/pages/admin/ReportedProblemsPage';
@@ -391,6 +395,41 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <IntegrationsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations/pos" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <POSIntegrationsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations/crm" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMIntegrationsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations/social" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <SocialIntegrationsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations/automations" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <AutomationsIntegrationsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations/website" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <WebsiteIntegrationsPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
