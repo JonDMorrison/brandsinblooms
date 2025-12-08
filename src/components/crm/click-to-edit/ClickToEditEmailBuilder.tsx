@@ -74,10 +74,10 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       if (headerBlock) {
         const updates: Partial<ContentBlock> = {
           backgroundImageUrl: imageUrl,
-          // Set a subtle dark overlay for better text readability
-          backgroundColor: '#000000',
-          colorOverlayOpacity: 30,
-          backgroundOpacity: 80
+          // Set a subtle dark overlay for better text readability (using dark green instead of black)
+          backgroundColor: '#1f2937',
+          colorOverlayOpacity: 40,
+          backgroundOpacity: 60
         };
 
         // Set the generated subtitle if available
