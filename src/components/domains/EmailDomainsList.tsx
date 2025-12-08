@@ -124,7 +124,7 @@ export const EmailDomainsList = () => {
               </p>
               <Button 
                 onClick={() => setShowWizard(true)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 mx-auto"
               >
                 <Plus className="w-4 h-4" />
                 Add Your First Domain
