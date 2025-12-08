@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { detectEnvironment } from '@/utils/environmentUtils';
@@ -367,6 +367,12 @@ export const SquareIntegration = () => {
                   View Guide
                 </Link>
               </Button>
+              {!connection.setup_wizard_completed_at && (
+                <Button onClick={() => setShowSetupWizard(true)} size="sm" variant="secondary">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Run Setup Wizard
+                </Button>
+              )}
               <Button onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending || loading} size="sm" variant="destructive">
                 {disconnectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Disconnect
