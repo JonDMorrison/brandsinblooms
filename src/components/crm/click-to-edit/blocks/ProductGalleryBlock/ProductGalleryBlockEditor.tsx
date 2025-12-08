@@ -3,20 +3,23 @@ import { ContentBlock, GalleryItem } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Check } from 'lucide-react';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProductGalleryImageSlot } from './ProductGalleryImageSlot';
+
 interface ProductGalleryBlockEditorProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
+  onClose?: () => void;
   isGenerating?: boolean;
 }
 
 export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps> = ({
   block,
   onUpdate,
+  onClose,
   isGenerating = false,
 }) => {
   const { toast } = useToast();
@@ -274,6 +277,19 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
           </div>
         </div>
       </div>
+
+      {/* Save & Close Button */}
+      {onClose && (
+        <div className="pt-4 border-t">
+          <Button
+            onClick={onClose}
+            className="w-full gap-2"
+          >
+            <Check className="h-4 w-4" />
+            Save & Close
+          </Button>
+        </div>
+      )}
 
       {/* Media Selector Sidebar */}
       <MediaSelectorSidebar

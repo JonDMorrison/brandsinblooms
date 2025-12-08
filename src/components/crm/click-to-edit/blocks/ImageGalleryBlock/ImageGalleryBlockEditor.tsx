@@ -3,7 +3,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, Check } from 'lucide-react';
 import { GalleryLayoutSelector, GalleryLayout } from './GalleryLayoutSelector';
 import { GalleryImageSlot } from './GalleryImageSlot';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
@@ -20,6 +20,7 @@ interface GalleryImage {
 interface ImageGalleryBlockEditorProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
+  onClose?: () => void;
   isGenerating?: boolean;
 }
 
@@ -35,6 +36,7 @@ const getImageCount = (layout: GalleryLayout): number => {
 export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = ({
   block,
   onUpdate,
+  onClose,
   isGenerating = false,
 }) => {
   const { toast } = useToast();
@@ -279,6 +281,19 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
           </div>
         </div>
       </div>
+
+      {/* Save & Close Button */}
+      {onClose && (
+        <div className="pt-4 border-t">
+          <Button
+            onClick={onClose}
+            className="w-full gap-2"
+          >
+            <Check className="h-4 w-4" />
+            Save & Close
+          </Button>
+        </div>
+      )}
 
       {/* Media Selector Sidebar */}
       <MediaSelectorSidebar
