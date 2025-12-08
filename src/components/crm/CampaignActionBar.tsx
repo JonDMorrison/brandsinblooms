@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Send, Save, Eye, Users, Sparkles } from 'lucide-react';
+import { Send, Save, Eye, Users, Sparkles, Loader2 } from 'lucide-react';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
 import { SaveIndicator } from './SaveIndicator';
 import { ShortenAllBlocksButton } from './ShortenAllBlocksButton';
@@ -27,6 +27,7 @@ interface CampaignActionBarProps {
   // Loading states
   sending: boolean;
   loading: boolean;
+  hasGeneratingImages?: boolean; // Track if any blocks are generating images
   
   // Actions
   onSend: () => void;
@@ -51,6 +52,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
   saveError,
   sending,
   loading,
+  hasGeneratingImages = false,
   onSend,
   onSave,
   onPreview,
@@ -88,6 +90,9 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
     blocks.length > 0
   );
 
+  // Count blocks currently generating images
+  const generatingImageCount = blocks.filter(b => b.isGeneratingImage).length;
+
   return (
     <>
       <div ref={stickyRef} className="h-0" />
@@ -119,6 +124,14 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                     <span>{selectedSegments.length} audience{selectedSegments.length !== 1 ? 's' : ''}</span>
                   </Badge>
                 )}
+
+                {/* Image generation status indicator */}
+                {hasGeneratingImages && (
+                  <Badge variant="secondary" className="flex items-center space-x-1 bg-amber-100 text-amber-800 border-amber-200">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Generating {generatingImageCount} image{generatingImageCount !== 1 ? 's' : ''}...</span>
+                  </Badge>
+                )}
               </div>
             )}
 
@@ -131,7 +144,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                     variant="ghost"
                     size="sm"
                     onClick={onAIWriter}
-                    disabled={loading}
+                    disabled={loading || hasGeneratingImages}
                     className="flex items-center space-x-2"
                   >
                     <Sparkles className="h-4 w-4" />
@@ -150,11 +163,21 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={onPreview}
-                    disabled={loading}
+                    disabled={loading || hasGeneratingImages}
+                    title={hasGeneratingImages ? "Waiting for images to generate..." : undefined}
                     className="flex items-center space-x-2"
                   >
-                    <Eye className="h-4 w-4" />
-                    <span>Preview</span>
+                    {hasGeneratingImages ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="h-4 w-4" />
+                        <span>Preview</span>
+                      </>
+                    )}
                   </Button>
                 </div>
               )}
@@ -175,7 +198,8 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
               {!isSticky && (
                 <Button
                   onClick={onSend}
-                  disabled={!isReady || sending || loading || loadingSenderConfig}
+                  disabled={!isReady || sending || loading || loadingSenderConfig || hasGeneratingImages}
+                  title={hasGeneratingImages ? "Waiting for images to generate..." : undefined}
                   size="sm"
                   className="flex items-center space-x-2 animate-fade-in"
                 >
@@ -183,6 +207,11 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                     <>
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                       <span>Sending...</span>
+                    </>
+                  ) : hasGeneratingImages ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Generating...</span>
                     </>
                   ) : (
                     <>
