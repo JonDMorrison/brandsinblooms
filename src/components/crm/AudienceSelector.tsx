@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Search, Users, Lightbulb, X, Plus } from "lucide-react";
+import { Search, Users, Lightbulb, X, Plus, Check } from "lucide-react";
 import { PersonaTag } from "./PersonaTag";
 import { SegmentChip } from "./SegmentChip";
 import { CustomPersonaModal } from "./personas/CustomPersonaModal";
@@ -240,7 +240,7 @@ export const AudienceSelector = ({
   }
 
   return (
-    <div className={`p-6 space-y-6 min-h-0 transition-all duration-300 ${fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+    <div className={`p-6 space-y-6 min-h-0 flex flex-col transition-all duration-300 ${fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -518,6 +518,13 @@ export const AudienceSelector = ({
         </div>
       </div>
 
+      {/* Save & Close Button */}
+      <div className="flex justify-end pt-4 border-t flex-shrink-0">
+        <Button onClick={onClose} className="gap-2">
+          <Check className="h-4 w-4" />
+          Save & Close
+        </Button>
+      </div>
 
       {/* Modals */}
       <CustomPersonaModal
