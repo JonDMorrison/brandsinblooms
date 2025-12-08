@@ -190,7 +190,7 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
         <Input
           id="gallery-headline"
           value={block.headline || ''}
-          onChange={(e) => onUpdate({ headline: e.target.value, title: e.target.value })}
+          onChange={(e) => onUpdate({ headline: e.target.value, title: e.target.value, userEdited: true })}
           placeholder="Gallery Headline"
           className="text-lg font-semibold"
         />
@@ -202,7 +202,7 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
         <Input
           id="gallery-body"
           value={block.body || ''}
-          onChange={(e) => onUpdate({ body: e.target.value, content: e.target.value })}
+          onChange={(e) => onUpdate({ body: e.target.value, content: e.target.value, userEdited: true })}
           placeholder="Optional description text"
         />
       </div>
@@ -260,7 +260,7 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
       {/* CTA Section */}
       <div className="space-y-4 pt-4 border-t">
         <Label className="text-sm font-medium">Call to Action (Optional)</Label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="gallery-cta-text" className="text-xs">Button Text</Label>
             <Input

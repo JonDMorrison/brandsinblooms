@@ -121,11 +121,12 @@ export const BrandColorsSettings: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file || !user?.id) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
+    // Validate file type - only allow email-safe formats
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
       toast({
         title: 'Invalid file type',
-        description: 'Please upload an image file (PNG, JPG, etc.)',
+        description: 'Please upload a PNG, JPG, or GIF image. SVG and WebP are not supported in emails.',
         variant: 'destructive',
       });
       return;
@@ -271,7 +272,7 @@ export const BrandColorsSettings: React.FC = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/jpg,image/gif"
             onChange={handleLogoUpload}
             className="hidden"
           />
