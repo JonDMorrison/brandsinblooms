@@ -61,7 +61,6 @@ async function syncProductToDatabase(
             price: variationData.price_money?.amount 
               ? variationData.price_money.amount / 100 
               : 0,
-            currency: variationData.price_money?.currency || 'USD',
             attributes: variationData.item_option_values || null,
             updated_at: new Date().toISOString()
           }, { onConflict: 'product_id,external_id' });
