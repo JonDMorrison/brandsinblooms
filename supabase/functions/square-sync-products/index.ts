@@ -21,7 +21,7 @@ async function syncProductToDatabase(
       .from('products')
       .upsert({
         tenant_id: tenantId,
-        user_id: userId,
+        created_by_user_id: userId,
         external_id: item.id,
         name: itemData.name || 'Unnamed Product',
         description: itemData.description || null,
@@ -33,7 +33,7 @@ async function syncProductToDatabase(
           ? itemData.variations[0].item_variation_data.price_money.amount / 100 
           : 0,
         currency: itemData.variations?.[0]?.item_variation_data?.price_money?.currency || 'USD',
-        raw_data: item,
+        external_data: item,
         updated_at: new Date().toISOString()
       }, { onConflict: 'tenant_id,external_id' })
       .select()
