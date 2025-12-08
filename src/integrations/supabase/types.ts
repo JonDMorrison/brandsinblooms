@@ -6632,6 +6632,7 @@ export type Database = {
           merchant_name: string | null
           products_synced: number | null
           sales_synced: number | null
+          setup_wizard_completed_at: string | null
           status: string | null
           sync_errors: Json | null
           tenant_id: string
@@ -6657,6 +6658,7 @@ export type Database = {
           merchant_name?: string | null
           products_synced?: number | null
           sales_synced?: number | null
+          setup_wizard_completed_at?: string | null
           status?: string | null
           sync_errors?: Json | null
           tenant_id: string
@@ -6682,6 +6684,7 @@ export type Database = {
           merchant_name?: string | null
           products_synced?: number | null
           sales_synced?: number | null
+          setup_wizard_completed_at?: string | null
           status?: string | null
           sync_errors?: Json | null
           tenant_id?: string
