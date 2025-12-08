@@ -5454,13 +5454,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "pos_orders_pos_connection_id_fkey"
-            columns: ["pos_connection_id"]
-            isOneToOne: false
-            referencedRelation: "pos_connections"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "pos_orders_pos_customer_id_fkey"
             columns: ["pos_customer_id"]
             isOneToOne: false
