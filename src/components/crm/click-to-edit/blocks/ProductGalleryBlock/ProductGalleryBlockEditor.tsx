@@ -174,7 +174,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {galleryItems.map((item, index) => (
             <div 
               key={item.id} 
@@ -276,7 +276,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
       {/* CTA Section */}
       <div className="space-y-4 pt-4 border-t">
         <Label className="text-sm font-medium">Call to Action</Label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="product-cta-text" className="text-xs">Button Text</Label>
             <Input

@@ -3478,7 +3478,7 @@ const { counts: segmentCounts } = useSegmentCounts();
               const item2 = items[i + 1];
               
               const buildProductCard = (item: any) => {
-                if (!item) return '<td width="50%" style="padding: 8px;"></td>';
+                if (!item) return '<td class="product-cell" width="50%" style="padding: 8px;"></td>';
                 
                 const badgeHtml = item.badgeText ? `
                   <div style="position: absolute; top: 8px; right: 8px; background-color: ${brandColor}; color: #ffffff; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600;">
@@ -3490,7 +3490,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                 const linkEnd = item.url ? '</a>' : '';
                 
                 return `
-                  <td width="50%" style="padding: 8px; vertical-align: top;">
+                  <td class="product-cell" width="50%" style="padding: 8px; vertical-align: top;">
                     ${linkStart}
                     <div style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                       <div style="position: relative;">
@@ -3523,10 +3523,18 @@ const { counts: segmentCounts } = useSegmentCounts();
             }
             
             html += `
+              <style>
+                @media only screen and (max-width: 480px) {
+                  .product-cell {
+                    width: 100% !important;
+                    display: block !important;
+                  }
+                }
+              </style>
               <div style="background-color: ${bgColor}; padding: 32px 16px; margin: 20px 0; border-radius: 8px;">
                 <div style="max-width: 600px; margin: 0 auto;">
                   ${productHeadline ? `
-                    <h2 style="font-size: 28px; font-weight: 700; text-align: center; margin: 0 0 8px 0; color: #1f2937; font-family: Georgia, serif;">
+                    <h2 style="font-size: 28px; font-weight: 700; text-align: center; margin: 0 0 8px 0; color: #1f2937; font-family: ${fonts.headlineFont};">
                       ${productHeadline}
                     </h2>
                   ` : ''}
