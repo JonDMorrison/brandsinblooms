@@ -85,6 +85,7 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
             variant="secondary"
             onClick={onOpenMediaSelector}
             className="h-8 px-2"
+            aria-label="Replace image"
           >
             <ImageIcon className="h-4 w-4" />
           </Button>
@@ -93,6 +94,7 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
             variant="secondary"
             onClick={onOpenAIDialog}
             className="h-8 px-2"
+            aria-label="Generate with AI"
           >
             <Sparkles className="h-4 w-4" />
           </Button>
@@ -101,6 +103,7 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
             variant="destructive"
             onClick={onImageRemove}
             className="h-8 px-2"
+            aria-label="Remove image"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -129,6 +132,7 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
             onOpenMediaSelector();
           }}
           className="h-8 w-8 p-0"
+          aria-label="Add image"
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -140,6 +144,7 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
             onOpenAIDialog();
           }}
           className="h-8 w-8 p-0"
+          aria-label="Generate with AI"
         >
           <Sparkles className="h-4 w-4" />
         </Button>
