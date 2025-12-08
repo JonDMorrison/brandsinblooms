@@ -66,6 +66,28 @@ const EMAIL_DNS_RECORDS: EntriDnsRecord[] = [
 const ENTRI_APPLICATION_ID = emailDomainsConfig.entriAppId;
 const ENTRI_SCRIPT_URL = emailDomainsConfig.entriScriptUrl;
 
+// Fetch JWT token from server-side edge function
+async function fetchEntriToken(): Promise<{ token: string; applicationId: string } | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('entri-get-token');
+    
+    if (error) {
+      console.error('Error fetching Entri token:', error);
+      return null;
+    }
+    
+    if (data?.token) {
+      console.log('Entri token fetched successfully');
+      return { token: data.token, applicationId: data.applicationId || ENTRI_APPLICATION_ID };
+    }
+    
+    return null;
+  } catch (err) {
+    console.error('Failed to fetch Entri token:', err);
+    return null;
+  }
+}
+
 export const useEntriConnect = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
@@ -140,9 +162,19 @@ export const useEntriConnect = () => {
       // Use provided DNS records or default email authentication records
       const records = dnsRecords || EMAIL_DNS_RECORDS;
 
-      // Open Entri modal
+      // Fetch authenticated JWT token from server
+      const tokenData = await fetchEntriToken();
+      if (!tokenData) {
+        toast.error('Failed to authenticate with DNS setup service. Please try manual setup.');
+        onCancel?.();
+        setIsLoading(false);
+        return;
+      }
+
+      // Open Entri modal with authenticated token
       window.entri.showEntri({
-        applicationId: ENTRI_APPLICATION_ID,
+        applicationId: tokenData.applicationId,
+        token: tokenData.token,
         dnsRecords: records,
         onSuccess: async (result: EntriSuccessResult) => {
           console.log('Entri setup successful:', result);
