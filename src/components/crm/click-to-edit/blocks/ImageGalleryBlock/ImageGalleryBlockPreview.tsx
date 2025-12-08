@@ -89,7 +89,7 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
       {/* Image Grid */}
       <div
         className={cn(
-          "grid grid-cols-3 max-w-3xl mx-auto",
+          "grid grid-cols-2 sm:grid-cols-3 max-w-3xl mx-auto",
           gapMap[galleryGap]
         )}
       >
