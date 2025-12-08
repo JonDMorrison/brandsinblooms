@@ -430,8 +430,8 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         </div>
       </section>
 
-      {/* Audience Targeting Section - Collapsible */}
-      <div className="border-t bg-background">
+      {/* Audience Targeting Section - Fixed at bottom of main content area */}
+      <div className="sticky bottom-0 left-0 right-0 z-20 border-t bg-background shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
         {/* Collapse Toggle Header */}
         <button
           onClick={() => setIsFooterCollapsed(!isFooterCollapsed)}
