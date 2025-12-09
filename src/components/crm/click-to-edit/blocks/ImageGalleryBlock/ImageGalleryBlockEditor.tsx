@@ -69,16 +69,33 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
   };
 
   const handleImageSelect = (index: number, imageUrl: string, metadata?: { alt?: string }) => {
-    const newImages = [...galleryImages];
+    // Create a new array with the right length, preserving existing images
+    const newImages: GalleryImage[] = Array.from({ length: imageCount }, (_, i) => 
+      galleryImages[i] || { id: `img_placeholder_${i}`, url: '', alt: '' }
+    );
+    
+    // Set the new image at the specified index
     newImages[index] = {
       id: `img_${Date.now()}_${index}`,
       url: imageUrl,
       alt: metadata?.alt || `Gallery image ${index + 1}`,
     };
     
+    // Filter out placeholder/empty images for storage, keeping only those with URLs
+    const imagesToSave = newImages.filter(img => img.url && img.url.length > 0);
+    
+    console.log('[ImageGalleryBlockEditor] Saving gallery images:', {
+      index,
+      imageUrl: imageUrl.substring(0, 50) + '...',
+      totalImages: imagesToSave.length,
+      allImages: imagesToSave.map(img => ({ id: img.id, hasUrl: !!img.url })),
+    });
+    
     onUpdate({
-      ...block,
-      galleryImages: newImages,
+      galleryImages: imagesToSave,
+      galleryLayout,
+      galleryRows,
+      galleryColumns,
       userEdited: true,
     } as any);
     
@@ -87,14 +104,12 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
   };
 
   const handleImageRemove = (index: number) => {
-    const newImages = [...galleryImages];
-    newImages[index] = undefined as any;
-    // Filter out undefined values but maintain order
-    const filteredImages = newImages.filter(Boolean);
+    const newImages = galleryImages.filter((_, i) => i !== index);
+    
+    console.log('[ImageGalleryBlockEditor] Removing image at index:', index, 'remaining:', newImages.length);
     
     onUpdate({
-      ...block,
-      galleryImages: filteredImages,
+      galleryImages: newImages,
       userEdited: true,
     } as any);
   };

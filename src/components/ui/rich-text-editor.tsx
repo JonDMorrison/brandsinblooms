@@ -288,6 +288,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                   size="sm"
                   excludeCategories={excludeMergeTagCategories}
                   onSelectTag={(tag) => {
+                    console.log('[RichTextEditor] Inserting merge tag:', tag);
                     editor.chain().focus().insertContent(tag).run();
                   }}
                   className="h-8 w-8"
