@@ -110,10 +110,13 @@ function buildLogoHtml(props: NewsletterFooterProps, styles: FooterStyleConfig):
   }
   
   // Fallback: initials in a rounded square
+  // Use logo colors from props if available, otherwise fall back to styles
+  const logoBgColor = props.footerLogoBackgroundColor || styles.linkAccent;
+  const logoTextColor = props.footerLogoTextColor || styles.backgroundColor;
   const initials = getCompanyInitials(props.companyName);
   return `
-    <div style="width: 48px; height: 48px; background-color: ${styles.linkAccent}; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
-      <span style="color: ${styles.backgroundColor}; font-size: 18px; font-weight: bold; line-height: 48px;">${initials}</span>
+    <div style="width: 48px; height: 48px; background-color: ${logoBgColor}; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+      <span style="color: ${logoTextColor}; font-size: 18px; font-weight: bold; line-height: 48px;">${initials}</span>
     </div>
   `;
 }

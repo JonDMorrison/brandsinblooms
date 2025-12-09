@@ -83,17 +83,28 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   // Get footer styling from: 1) campaign metadata, 2) local state
   const footerStyling: FooterStyling = campaignOverrides.footerStyling || localFooterStyling;
 
-  // Get computed styles - now considering per-campaign styling
-  const effectiveBackgroundColor = footerStyling.backgroundColor || footerBackgroundColor || campaignOverrides.footerBackgroundColor || companyInfo.brandPrimaryColor;
+  // Get brand footer colors from profile settings
+  const brandFooterColors = companyInfo.brandFooterColors;
+
+  // Priority cascade: 1) Campaign footer_styling → 2) Brand footer_colors → 3) Default colors
+  const effectiveBackgroundColor = 
+    footerStyling.backgroundColor || 
+    brandFooterColors?.backgroundColor || 
+    footerBackgroundColor || 
+    campaignOverrides.footerBackgroundColor || 
+    companyInfo.brandPrimaryColor;
+  
   const baseStyles = getFooterStyleConfig(effectiveBackgroundColor, companyInfo.brandPrimaryColor);
   
-  // Apply per-campaign styling overrides
+  // Apply styling with priority cascade: campaign → brand → defaults
   const styles = {
-    backgroundColor: footerStyling.backgroundColor || baseStyles.backgroundColor,
-    textPrimary: footerStyling.textColor || baseStyles.textPrimary,
-    textMuted: footerStyling.textColor ? `${footerStyling.textColor}B3` : baseStyles.textMuted, // 70% opacity
-    linkAccent: footerStyling.linkColor || baseStyles.linkAccent,
-    dividerColor: footerStyling.dividerColor || baseStyles.dividerColor,
+    backgroundColor: footerStyling.backgroundColor || brandFooterColors?.backgroundColor || baseStyles.backgroundColor,
+    textPrimary: footerStyling.textColor || brandFooterColors?.textColor || baseStyles.textPrimary,
+    textMuted: (footerStyling.textColor || brandFooterColors?.textColor) 
+      ? `${footerStyling.textColor || brandFooterColors?.textColor}B3` 
+      : baseStyles.textMuted, // 70% opacity
+    linkAccent: footerStyling.linkColor || brandFooterColors?.linkColor || baseStyles.linkAccent,
+    dividerColor: footerStyling.dividerColor || brandFooterColors?.dividerColor || baseStyles.dividerColor,
   };
 
   // Build social links array - prioritize companyInfo (fresh data from Contact & Footer Settings)
@@ -129,9 +140,9 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   // Company name (with possible override)
   const displayCompanyName = footerStyling.companyNameOverride || companyInfo.name;
 
-  // Logo colors from styling
-  const logoBackgroundColor = footerStyling.logoBackgroundColor || styles.linkAccent;
-  const logoTextColor = footerStyling.logoTextColor || styles.backgroundColor;
+  // Logo colors from styling with priority cascade: campaign → brand → defaults
+  const logoBackgroundColor = footerStyling.logoBackgroundColor || brandFooterColors?.logoBackgroundColor || styles.linkAccent;
+  const logoTextColor = footerStyling.logoTextColor || brandFooterColors?.logoTextColor || styles.backgroundColor;
 
   // Logo or initials
   const hasLogoImage = !!(footerSettings.showLogo && companyInfo.logoUrl);

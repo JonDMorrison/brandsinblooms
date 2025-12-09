@@ -2,6 +2,16 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Brand footer colors from profile settings
+export interface BrandFooterColors {
+  backgroundColor?: string;
+  textColor?: string;
+  linkColor?: string;
+  dividerColor?: string;
+  logoBackgroundColor?: string;
+  logoTextColor?: string;
+}
+
 interface CompanyInfo {
   name?: string;
   address?: string;
@@ -26,6 +36,8 @@ interface CompanyInfo {
   youtubeUrl?: string;
   linkedinUrl?: string;
   footerLegalText?: string;
+  // Brand footer colors from profile settings
+  brandFooterColors?: BrandFooterColors;
   selectedFont?: {
     id: string;
     name: string;
@@ -179,6 +191,15 @@ export const useCompanyInfo = () => {
           youtubeUrl: profile.youtube_url || '',
           linkedinUrl: profile.linkedin_url || '',
           footerLegalText: profile.footer_legal_text || '',
+          // Brand footer colors from feature_flags
+          brandFooterColors: featureFlags?.footer_colors ? {
+            backgroundColor: featureFlags.footer_colors.backgroundColor,
+            textColor: featureFlags.footer_colors.textColor,
+            linkColor: featureFlags.footer_colors.linkColor,
+            dividerColor: featureFlags.footer_colors.dividerColor,
+            logoBackgroundColor: featureFlags.footer_colors.logoBackgroundColor,
+            logoTextColor: featureFlags.footer_colors.logoTextColor,
+          } : undefined,
           selectedFont: font ? {
             id: font.id,
             name: font.name,

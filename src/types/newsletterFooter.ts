@@ -42,6 +42,10 @@ export interface NewsletterFooterProps {
   footerLinkColor?: string;
   footerDividerColor?: string;
   
+  // Logo color overrides
+  footerLogoBackgroundColor?: string;
+  footerLogoTextColor?: string;
+  
   // Brand colors for fallback
   brandPrimaryColor?: string;
   brandSecondaryColor?: string;
