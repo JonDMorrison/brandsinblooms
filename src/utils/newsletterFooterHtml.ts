@@ -122,7 +122,15 @@ function buildLogoHtml(props: NewsletterFooterProps, styles: FooterStyleConfig):
  * Generate the complete footer HTML
  */
 export function generateNewsletterFooterHtml(props: NewsletterFooterProps): string {
-  const styles = getFooterStyleConfig(props.footerBackgroundColor, props.brandPrimaryColor);
+  const baseStyles = getFooterStyleConfig(props.footerBackgroundColor, props.brandPrimaryColor);
+  
+  // Apply custom style overrides from campaign metadata
+  const styles: FooterStyleConfig = {
+    ...baseStyles,
+    ...(props.footerTextColor && { textPrimary: props.footerTextColor, textMuted: props.footerTextColor }),
+    ...(props.footerLinkColor && { linkAccent: props.footerLinkColor }),
+    ...(props.footerDividerColor && { dividerColor: props.footerDividerColor }),
+  };
   
   const hasAddress = props.addressLine1 || props.city || props.region || props.postalCode || props.country;
   const hasContact = props.email || props.phone;

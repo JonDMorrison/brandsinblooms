@@ -131,6 +131,9 @@ export const generateFooterHTML = (
       managePreferencesUrl: footerSettings.showManagePreferences ? tokens.managePreferencesUrl : undefined,
       legalText: processEmailTokens(legalText, tokens),
       footerBackgroundColor,
+      footerTextColor: footerStyling?.textColor,
+      footerLinkColor: footerStyling?.linkColor,
+      footerDividerColor: footerStyling?.dividerColor,
       brandPrimaryColor: companyInfo?.brandPrimaryColor,
     };
 
