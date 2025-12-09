@@ -293,6 +293,12 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         // Preserve overlay settings - prioritize top-level database columns
         overlayOpacity: block.overlayOpacity ?? (typeof block.content === 'object' && block.content ? (block.content as any).overlayOpacity : undefined),
         overlayColor: block.overlayColor || (typeof block.content === 'object' && block.content ? (block.content as any).overlayColor : undefined),
+        // Preserve color overlay opacity and related fields
+        colorOverlayOpacity: block.colorOverlayOpacity ?? (typeof block.content === 'object' && block.content ? (block.content as any).colorOverlayOpacity : undefined),
+        darkOverlayOpacity: block.darkOverlayOpacity ?? (typeof block.content === 'object' && block.content ? (block.content as any).darkOverlayOpacity : undefined),
+        backgroundColor: block.backgroundColor || (typeof block.content === 'object' && block.content ? (block.content as any).backgroundColor : undefined),
+        backgroundOpacity: block.backgroundOpacity ?? (typeof block.content === 'object' && block.content ? (block.content as any).backgroundOpacity : undefined),
+        textColor: block.textColor || (typeof block.content === 'object' && block.content ? (block.content as any).textColor : undefined),
         // Lift nested imageUrl to top level if missing at top level
         imageUrl: block.imageUrl ||
                  (typeof block.content === 'object' && block.content && (block.content as any).imageUrl) || 
