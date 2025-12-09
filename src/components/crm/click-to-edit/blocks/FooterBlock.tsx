@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
-import { Palette } from 'lucide-react';
+import { Palette, RotateCcw } from 'lucide-react';
+import { hasFooterStylingOverrides } from '@/types/footerStyling';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { getFooterStyleConfig, getCompanyInitials } from '@/types/newsletterFooter';
@@ -166,16 +167,36 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
         style={{ backgroundColor: styles.backgroundColor }}
       >
         {/* Customize Colors Toolbar */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200">
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 bg-white border rounded-lg shadow-lg px-2 py-1.5">
           <Button
-            variant="secondary"
+            variant="ghost"
             size="sm"
             onClick={() => setIsStylingDialogOpen(true)}
-            className="h-8 px-3 text-xs gap-1.5 shadow-lg"
+            className="h-7 px-2.5 text-xs gap-1.5"
           >
             <Palette className="h-3.5 w-3.5" />
             Customize Colors
           </Button>
+          {hasFooterStylingOverrides(footerStyling) && (
+            <>
+              <div className="w-px h-4 bg-border" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  setLocalFooterStyling({});
+                  if (campaignId && saveFooterStyling) {
+                    await saveFooterStyling(campaignId, {});
+                  }
+                  onFooterColorChange?.(undefined);
+                }}
+                className="h-7 px-2 text-xs text-muted-foreground"
+                title="Reset to default colors"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Footer Styling Dialog */}
@@ -305,16 +326,36 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   return (
     <div className="relative group py-8">
       {/* Customize Colors Toolbar */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200">
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 bg-white border rounded-lg shadow-lg px-2 py-1.5">
         <Button
-          variant="secondary"
+          variant="ghost"
           size="sm"
           onClick={() => setIsStylingDialogOpen(true)}
-          className="h-8 px-3 text-xs gap-1.5 shadow-lg"
+          className="h-7 px-2.5 text-xs gap-1.5"
         >
           <Palette className="h-3.5 w-3.5" />
           Customize Colors
         </Button>
+        {hasFooterStylingOverrides(footerStyling) && (
+          <>
+            <div className="w-px h-4 bg-border" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                setLocalFooterStyling({});
+                if (campaignId && saveFooterStyling) {
+                  await saveFooterStyling(campaignId, {});
+                }
+                onFooterColorChange?.(undefined);
+              }}
+              className="h-7 px-2 text-xs text-muted-foreground"
+              title="Reset to default colors"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Footer Styling Dialog */}
