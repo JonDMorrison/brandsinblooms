@@ -184,14 +184,14 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
     <div className="py-6 px-4">
       {/* Headline */}
       {hasHeadline && (
-        <h2 className="text-2xl font-bold text-center mb-2 text-foreground">
+        <h2 className="text-2xl font-bold text-center mb-2" style={{ color: '#1f2937' }}>
           {block.headline || block.title}
         </h2>
       )}
 
       {/* Subheadline */}
       {hasBody && (
-        <p className="text-center text-muted-foreground mb-6 max-w-2xl mx-auto">
+        <p className="text-center mb-6 max-w-2xl mx-auto" style={{ color: '#6b7280' }}>
           {stripHtml(block.body || block.content)}
         </p>
       )}

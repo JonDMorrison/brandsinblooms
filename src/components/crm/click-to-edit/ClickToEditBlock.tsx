@@ -444,7 +444,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             return '';
           })()
         )}
-        style={{ pointerEvents: 'auto', overflow: 'visible' }}
+        style={{ pointerEvents: 'auto', overflow: 'visible', backgroundColor: '#ffffff' }}
       >
         {/* Quality Badge */}
         {(() => {
