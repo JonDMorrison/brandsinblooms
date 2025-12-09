@@ -26,7 +26,10 @@ interface ClickToEditEmailBuilderProps {
   onOpenAddModal?: (afterIndex?: number) => void;
   generatingBlocks?: Set<string>;
   campaignName?: string;
+  campaignId?: string;
   onOpenAIImageDialog?: (blockId: string) => void;
+  footerBackgroundColor?: string;
+  onFooterColorChange?: (color: string | undefined) => void;
 }
 
 export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = ({
@@ -35,7 +38,10 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   onOpenAddModal,
   generatingBlocks = new Set(),
   campaignName,
-  onOpenAIImageDialog
+  campaignId,
+  onOpenAIImageDialog,
+  footerBackgroundColor,
+  onFooterColorChange
 }) => {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
@@ -288,7 +294,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'social-follow':
         return <SocialFollowBlock {...props} isPreview={false} />;
       case 'footer':
-        return <FooterBlock {...props} isPreview={false} />;
+        return <FooterBlock {...props} isPreview={false} campaignId={campaignId} footerBackgroundColor={footerBackgroundColor} onFooterColorChange={onFooterColorChange} />;
       case 'image-gallery':
         return <ImageGalleryBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
       default:
@@ -334,7 +340,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'social-follow':
         return <SocialFollowBlock {...props} isPreview={true} />;
       case 'footer':
-        return <FooterBlock {...props} isPreview={true} />;
+        return <FooterBlock {...props} isPreview={true} campaignId={campaignId} footerBackgroundColor={footerBackgroundColor} onFooterColorChange={onFooterColorChange} />;
       case 'image-gallery':
         return <ImageGalleryBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
       default:
