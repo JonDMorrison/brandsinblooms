@@ -3640,23 +3640,35 @@ const { counts: segmentCounts } = useSegmentCounts();
               const row = galleryImages.slice(i, i + 3);
               const cellWidth = Math.floor(100 / 3);
               
-              imageRowsHtml += '<tr>';
+              imageRowsHtml += '<tr class="gallery-row">';
               for (let j = 0; j < 3; j++) {
                 const img = row[j];
                 if (img?.url) {
                   imageRowsHtml += `
-                    <td width="${cellWidth}%" style="padding: 4px; vertical-align: top;">
+                    <td class="gallery-cell" width="${cellWidth}%" style="padding: 4px; vertical-align: top;">
                       <img src="${img.url}" alt="${img.alt || 'Gallery image'}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />
                     </td>
                   `;
                 } else {
-                  imageRowsHtml += `<td width="${cellWidth}%" style="padding: 4px;"></td>`;
+                  imageRowsHtml += `<td class="gallery-cell" width="${cellWidth}%" style="padding: 4px;"></td>`;
                 }
               }
               imageRowsHtml += '</tr>';
             }
             
             html += `
+              <style>
+                @media only screen and (max-width: 480px) {
+                  .gallery-cell {
+                    width: 100% !important;
+                    display: block !important;
+                    padding: 8px 4px !important;
+                  }
+                  .gallery-row {
+                    display: block !important;
+                  }
+                }
+              </style>
               <div style="padding: 24px 16px; margin: 20px 0;">
                 ${galleryHeadline ? `
                   <h2 style="font-size: 24px; font-weight: 600; text-align: center; margin: 0 0 8px 0; color: #1f2937; font-family: ${fonts.headlineFont};">
