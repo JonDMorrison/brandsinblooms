@@ -69,7 +69,7 @@ serve(async (req) => {
 
     const body: GenerateImageRequest = await req.json();
     const {
-      contentContext,
+      contentContext: rawContentContext,
       contentTitle = '',
       channel = 'newsletter',
       uploadToStorage = true,
@@ -77,12 +77,12 @@ serve(async (req) => {
       userId = 'anonymous'
     } = body;
 
-    if (!contentContext) {
-      return new Response(
-        JSON.stringify({ error: 'contentContext is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Provide fallback for empty contentContext - use contentTitle or generic garden context
+    const contentContext = (rawContentContext && rawContentContext.trim()) 
+      ? rawContentContext.trim()
+      : (contentTitle && contentTitle.trim()) 
+        ? contentTitle.trim()
+        : 'Beautiful seasonal garden with vibrant plants and flowers for garden center marketing';
 
     console.log('🎨 [AI Image Generator] Starting generation:', {
       channel,
