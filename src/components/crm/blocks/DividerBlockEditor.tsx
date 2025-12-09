@@ -43,7 +43,7 @@ export const DividerBlockEditor: React.FC<DividerBlockEditorProps> = ({
           />
         </div>
 
-        <div>
+        <div className="w-full">
           <Label htmlFor="divider-color">Color</Label>
           <Input
             id="divider-color"

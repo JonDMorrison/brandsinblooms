@@ -104,7 +104,7 @@ export const CTABlockEditor: React.FC<CTABlockEditorProps> = ({
 
       {/* CTA Button Settings */}
       <div className="grid grid-cols-2 gap-4">
-        <div>
+        <div className="w-full">
           <Label htmlFor="cta-text">Button Text</Label>
           <Input
             id="cta-text"
@@ -113,7 +113,7 @@ export const CTABlockEditor: React.FC<CTABlockEditorProps> = ({
             placeholder="Call to action text..."
           />
         </div>
-        <div>
+        <div className="w-full">
           <Label htmlFor="cta-url">Button URL</Label>
           <Input
             id="cta-url"

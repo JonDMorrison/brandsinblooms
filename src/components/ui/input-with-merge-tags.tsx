@@ -48,7 +48,7 @@ export const InputWithMergeTags: React.FC<InputWithMergeTagsProps> = ({
   };
 
   return (
-    <div className={cn("relative flex items-center gap-1", className)}>
+    <div className={cn("relative flex items-center gap-1 w-full", className)}>
       <Input
         ref={inputRef}
         value={value}

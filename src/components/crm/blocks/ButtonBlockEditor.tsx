@@ -83,7 +83,7 @@ export const ButtonBlockEditor: React.FC<ButtonBlockEditorProps> = ({
       {/* Editor Fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
-          <div>
+          <div className="w-full">
             <Label htmlFor="heading">Heading</Label>
             <Input
               id="heading"
@@ -119,7 +119,7 @@ export const ButtonBlockEditor: React.FC<ButtonBlockEditorProps> = ({
         </div>
 
         <div className="space-y-4">
-          <div>
+          <div className="w-full">
             <Label htmlFor="buttonText">Button Text *</Label>
             <Input
               id="buttonText"
@@ -129,7 +129,7 @@ export const ButtonBlockEditor: React.FC<ButtonBlockEditorProps> = ({
             />
           </div>
 
-          <div>
+          <div className="w-full">
             <Label htmlFor="buttonUrl">Button URL *</Label>
             <Input
               id="buttonUrl"

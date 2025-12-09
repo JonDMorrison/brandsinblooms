@@ -67,7 +67,7 @@ export const QuoteBlockEditor: React.FC<QuoteBlockEditorProps> = ({
 
       {/* Author Information */}
       <div className="grid grid-cols-2 gap-4">
-        <div>
+        <div className="w-full">
           <Label htmlFor="quote-author">Author</Label>
           <Input
             id="quote-author"
@@ -76,7 +76,7 @@ export const QuoteBlockEditor: React.FC<QuoteBlockEditorProps> = ({
             placeholder="Author name..."
           />
         </div>
-        <div>
+        <div className="w-full">
           <Label htmlFor="author-title">Author Title</Label>
           <Input
             id="author-title"
