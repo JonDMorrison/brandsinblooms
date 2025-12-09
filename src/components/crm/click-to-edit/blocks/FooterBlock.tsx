@@ -183,12 +183,57 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
     logoBackground: baseStyles.linkAccent,
   };
 
+  // Toolbar component shared between preview and editor
+  const renderToolbar = () => (
+    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 bg-white border rounded-lg shadow-lg px-2 py-1.5">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsStylingDialogOpen(true)}
+        className="h-7 px-2.5 text-xs gap-1.5"
+      >
+        <Palette className="h-3.5 w-3.5" />
+        Customize Colors
+      </Button>
+      <div className="w-px h-4 bg-border" />
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+        className="h-7 px-2.5 text-xs gap-1.5"
+      >
+        <Settings className="h-3.5 w-3.5" />
+        Settings
+      </Button>
+      {hasFooterStylingOverrides(footerStyling) && (
+        <>
+          <div className="w-px h-4 bg-border" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              if (campaignId && saveFooterStyling) {
+                await saveFooterStyling(campaignId, {});
+                onFooterColorChange?.(undefined);
+              }
+            }}
+            className="h-7 px-2 text-xs text-muted-foreground"
+            title="Reset to default colors"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
   if (isPreview) {
     return (
       <div 
-        className="w-full mt-10"
+        className="relative group w-full mt-10"
         style={{ backgroundColor: styles.backgroundColor }}
       >
+        {renderToolbar()}
         <div className="max-w-[640px] mx-auto px-4 py-8">
           {/* Three-column layout */}
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
@@ -298,6 +343,43 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Footer Styling Dialog - also available in preview */}
+        <FooterStylingDialog
+          open={isStylingDialogOpen}
+          onOpenChange={setIsStylingDialogOpen}
+          styling={footerStyling}
+          onSave={handleSaveStyling}
+          companyName={companyInfo.name}
+          hasLogoImage={hasLogoImage}
+          defaultColors={defaultColorsForDialog}
+        />
+
+        {/* Settings Panel - also available in preview */}
+        {isSettingsOpen && (
+          <Card className="absolute top-16 right-4 z-50 w-96 max-h-[70vh] overflow-y-auto p-4 shadow-lg border-2 border-primary/20 bg-white">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">Footer Settings</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  ×
+                </Button>
+              </div>
+              <Link 
+                to="/profile/contact-footer" 
+                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors py-1.5 px-2 -mx-2 rounded hover:bg-muted/50"
+              >
+                <ExternalLink className="w-3 h-3" />
+                Edit company contact info & social links
+              </Link>
+            </div>
+          </Card>
+        )}
       </div>
     );
   }
@@ -306,46 +388,7 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   return (
     <div className="relative group py-8">
       {/* Hover Toolbar */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 bg-white border rounded-lg shadow-lg px-2 py-1.5">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsStylingDialogOpen(true)}
-          className="h-7 px-2.5 text-xs gap-1.5"
-        >
-          <Palette className="h-3.5 w-3.5" />
-          Customize Colors
-        </Button>
-        <div className="w-px h-4 bg-border" />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-          className="h-7 px-2.5 text-xs gap-1.5"
-        >
-          <Settings className="h-3.5 w-3.5" />
-          Settings
-        </Button>
-        {hasFooterStylingOverrides(footerStyling) && (
-          <>
-            <div className="w-px h-4 bg-border" />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                if (campaignId && saveFooterStyling) {
-                  await saveFooterStyling(campaignId, {});
-                  onFooterColorChange?.(undefined);
-                }
-              }}
-              className="h-7 px-2 text-xs text-muted-foreground"
-              title="Reset to default colors"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </Button>
-          </>
-        )}
-      </div>
+      {renderToolbar()}
 
       {/* Footer Styling Dialog */}
       <FooterStylingDialog
@@ -360,7 +403,7 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
 
       {/* Settings Panel */}
       {isSettingsOpen && (
-        <Card className="absolute top-12 right-0 z-20 w-96 max-h-[70vh] overflow-y-auto p-4 shadow-lg border-2 border-primary/20">
+        <Card className="absolute top-12 right-0 z-50 w-96 max-h-[70vh] overflow-y-auto p-4 shadow-lg border-2 border-primary/20 bg-white">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-medium">Footer Settings</h3>
