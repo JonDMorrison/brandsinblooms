@@ -37,6 +37,11 @@ export interface NewsletterFooterProps {
   // Campaign-level background color override (hex like "#283024")
   footerBackgroundColor?: string;
   
+  // Campaign-level style overrides
+  footerTextColor?: string;
+  footerLinkColor?: string;
+  footerDividerColor?: string;
+  
   // Brand colors for fallback
   brandPrimaryColor?: string;
   brandSecondaryColor?: string;
