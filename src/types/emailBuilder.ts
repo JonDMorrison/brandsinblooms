@@ -170,7 +170,9 @@ export interface ContentBlock {
     alt?: string;
     caption?: string;
   }>;
-  galleryLayout?: '3-across' | '6-across' | '9-images';
+  galleryLayout?: '3-across' | '6-across' | '9-images' | 'custom';
+  galleryRows?: number;    // 1-4 rows (for custom layout)
+  galleryColumns?: number; // 2-4 columns (for custom layout)
   galleryGap?: 'small' | 'medium' | 'large';
   galleryImageRadius?: 'none' | 'small' | 'medium' | 'large';
   

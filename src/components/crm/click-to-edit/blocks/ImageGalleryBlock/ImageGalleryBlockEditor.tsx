@@ -24,7 +24,10 @@ interface ImageGalleryBlockEditorProps {
   isGenerating?: boolean;
 }
 
-const getImageCount = (layout: GalleryLayout): number => {
+const getImageCount = (layout: GalleryLayout, rows?: number, cols?: number): number => {
+  if (layout === 'custom' && rows && cols) {
+    return rows * cols;
+  }
   switch (layout) {
     case '3-across': return 3;
     case '6-across': return 6;
@@ -46,9 +49,11 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
 
   const galleryLayout = (block as any).galleryLayout || '3-across';
+  const galleryRows = (block as any).galleryRows || 2;
+  const galleryColumns = (block as any).galleryColumns || 3;
   const galleryImages: GalleryImage[] = (block as any).galleryImages || [];
   const galleryImageRadius = (block as any).galleryImageRadius || 'medium';
-  const imageCount = getImageCount(galleryLayout);
+  const imageCount = getImageCount(galleryLayout, galleryRows, galleryColumns);
 
   // Ensure we have the right number of image slots
   const imageSlots: (GalleryImage | undefined)[] = Array.from(
@@ -181,6 +186,8 @@ export const ImageGalleryBlockEditor: React.FC<ImageGalleryBlockEditorProps> = (
         <GalleryLayoutSelector
           value={galleryLayout}
           onChange={handleLayoutChange}
+          customRows={galleryRows}
+          customColumns={galleryColumns}
         />
       </div>
 

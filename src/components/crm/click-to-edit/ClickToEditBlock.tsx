@@ -3,7 +3,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GripVertical, Trash2, Edit, Zap, CheckCircle, AlertTriangle, Layers } from 'lucide-react';
+import { GripVertical, Trash2, Edit, Zap, CheckCircle, AlertTriangle, Layers, Grid3X3 } from 'lucide-react';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
@@ -12,6 +12,7 @@ import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
 import { ImageActionMenu } from './ImageActionMenu';
 import { assessContentQuality, sanitizeAndImproveContent } from '@/utils/contentQuality';
 import { ImageOverlayDialog } from './ImageOverlayDialog';
+import { GalleryGridConfigDialog } from './blocks/ImageGalleryBlock/GalleryGridConfigDialog';
 import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
 import { useToast } from '@/hooks/use-toast';
 
@@ -56,6 +57,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   const editingRef = useRef<HTMLDivElement>(null);
   const [isMediaSelectorOpen, setIsMediaSelectorOpen] = useState(false);
   const [isOverlayDialogOpen, setIsOverlayDialogOpen] = useState(false);
+  const [isGridConfigOpen, setIsGridConfigOpen] = useState(false);
   
   // Use the new edit mode hook
   const { editMode, setEditMode, toggleMode, exitEditMode, isTextEditing, isImageEditing } = useBlockEditMode();
@@ -347,6 +349,22 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             disabled={block.isGeneratingImage}
           />
 
+          {/* Grid Config Button - only show for image-gallery blocks */}
+          {block.type === 'image-gallery' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsGridConfigOpen(true);
+              }}
+              className="h-7 w-7 p-0 hover:bg-muted"
+              title="Configure grid layout"
+            >
+              <Grid3X3 className="w-3 h-3" />
+            </Button>
+          )}
+
           {/* Image Overlay Button - only show for Newsletter Header blocks */}
           {block.type === 'newsletter-header' && (block.imageUrl || block.backgroundImageUrl) && (
             <Button
@@ -597,6 +615,21 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         onClose={() => setIsOverlayDialogOpen(false)}
         block={localBlock}
         onUpdate={handleLocalUpdate}
+      />
+
+      {/* Gallery Grid Config Dialog */}
+      <GalleryGridConfigDialog
+        isOpen={isGridConfigOpen}
+        onClose={() => setIsGridConfigOpen(false)}
+        currentRows={(localBlock as any).galleryRows || 2}
+        currentColumns={(localBlock as any).galleryColumns || 3}
+        onApply={(rows, columns) => {
+          handleLocalUpdate({
+            galleryLayout: 'custom',
+            galleryRows: rows,
+            galleryColumns: columns,
+          } as any);
+        }}
       />
     </div>
   );
