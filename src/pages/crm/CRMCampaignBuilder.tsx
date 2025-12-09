@@ -371,7 +371,7 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
     // Footer HTML would be added here if needed for this builder
     
     return `
-      <div style="font-family: ${globalSettings.fontFamily}; font-size: ${globalSettings.fontSize}; max-width: 600px; margin: 0 auto;">
+      <div style="font-family: ${globalSettings.fontFamily}; font-size: ${globalSettings.fontSize}; max-width: 800px; margin: 0 auto;">
         ${htmlContent}
       </div>
     `;

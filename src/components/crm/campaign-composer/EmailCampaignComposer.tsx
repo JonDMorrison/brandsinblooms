@@ -248,7 +248,7 @@ export const EmailCampaignComposer: React.FC = () => {
       <title>${campaignData.subject_line}</title>
       <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
-        .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; }
+        .container { max-width: 800px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; }
         .content { padding: 40px 30px; }
         h1, h2, h3 { color: #1f2937; margin: 0 0 16px 0; }
         h1 { font-size: 28px; }
