@@ -309,7 +309,7 @@ const convertToEmailHTML = (processed: any): string => {
 
   // Email header
   emailHTML += `
-<div style="max-width: 800px; margin: 0 auto; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+<div style="width: 100%; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
   <!-- Header Section -->
   <div style="background: linear-gradient(135deg, #22c55e, #16a34a); padding: 30px 20px; text-align: center; color: white;">
     <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Your Garden Newsletter</h1>

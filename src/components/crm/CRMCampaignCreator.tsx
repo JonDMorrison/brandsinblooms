@@ -2991,7 +2991,7 @@ const { counts: segmentCounts } = useSegmentCounts();
     };
     
     let html = `
-      <div class="email-container" style="max-width: 800px; margin: 0 auto; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <div class="email-container" style="width: 100%; background: white;">
         <div class="content-block" style="padding: 30px 24px;">
     `;
     
@@ -3600,7 +3600,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                 }
               </style>
               <div style="background-color: ${bgColor}; padding: 32px 16px; margin: 20px 0; border-radius: 8px;">
-                <div style="max-width: 800px; margin: 0 auto;">
+                <div style="width: 100%;">
                   ${productHeadline ? `
                     <h2 style="font-size: 28px; font-weight: 700; text-align: center; margin: 0 0 8px 0; color: ${companyInfo?.brandTextColor || '#1f2937'}; font-family: ${fonts.headlineFont};">
                       ${productHeadline}
@@ -3612,7 +3612,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                     </p>
                   ` : ''}
                   
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 720px; margin: 0 auto;">
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
                     ${productRowsHtml}
                   </table>
                   
@@ -3680,7 +3680,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                   </p>
                 ` : ''}
                 
-                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 800px; margin: 0 auto;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
                   ${imageRowsHtml}
                 </table>
                 
