@@ -257,7 +257,7 @@ export const CRMSimpleEmailBuilder: React.FC<CRMSimpleEmailBuilderProps> = ({
       .replace(/\{\{\s*[^}]+\}\}/g, ''); // Remove any remaining tags
 
     return `
-      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 800px; margin: 0 auto; background-color: #ffffff;">
         ${coverImage ? `
           <div style="margin-bottom: 32px;">
             <img src="${coverImage.url}" alt="${coverImage.alt}" style="width: 100%; height: auto; border-radius: 12px;" />
