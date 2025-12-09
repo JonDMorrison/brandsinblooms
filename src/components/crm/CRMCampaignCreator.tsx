@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
-import { Loader2, Mail, ArrowLeft, Users, Sparkles, Send, Eye } from 'lucide-react';
+import { Loader2, Mail, Users, Sparkles, Send, Eye } from 'lucide-react';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { SharedSenderConfirmationModal } from './campaigns/SharedSenderConfirmationModal';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
@@ -4051,19 +4051,12 @@ const { counts: segmentCounts } = useSegmentCounts();
           </BreadcrumbList>
         </Breadcrumb>
         
-        {/* Back Button & Simple Header */}
-        <div className="space-y-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/crm/campaigns')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {existingCampaignId ? 'Edit Email Campaign' : 'Create Email Campaign'}
-            </h1>
-            <p className="text-muted-foreground">Build and customize your email campaign</p>
-          </div>
+        {/* Page Header */}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {existingCampaignId ? 'Edit Email Campaign' : 'Create Email Campaign'}
+          </h1>
+          <p className="text-muted-foreground">Build and customize your email campaign</p>
         </div>
 
         {/* Campaign Settings - Top Horizontal Section */}
