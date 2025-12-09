@@ -4204,6 +4204,8 @@ const { counts: segmentCounts } = useSegmentCounts();
               }
             }}
             generatingBlocks={generatingBlocks}
+            campaignId={existingCampaignId || undefined}
+            campaignName={campaignName}
             onOpenAIImageDialog={(blockId) => {
               setEditingBlockId(blockId);
               setShowAIImageDialog(true);

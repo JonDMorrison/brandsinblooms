@@ -94,18 +94,26 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
     onFooterColorChange?.(undefined);
   };
 
+  // Local state for footer styling when campaign doesn't exist yet
+  const [localFooterStyling, setLocalFooterStyling] = useState<FooterStyling>({});
+
   const handleSaveStyling = async (styling: FooterStyling) => {
+    // Always update local state immediately for preview
+    setLocalFooterStyling(styling);
+    
+    // If we have a campaignId, save to database
     if (campaignId && saveFooterStyling) {
       await saveFooterStyling(campaignId, styling);
-      // Also update the background color for immediate preview
-      if (styling.backgroundColor) {
-        onFooterColorChange?.(styling.backgroundColor);
-      }
+    }
+    
+    // Update the background color for immediate preview
+    if (styling.backgroundColor) {
+      onFooterColorChange?.(styling.backgroundColor);
     }
   };
 
-  // Get footer styling from campaign metadata
-  const footerStyling: FooterStyling = campaignOverrides.footerStyling || {};
+  // Get footer styling from: 1) campaign metadata, 2) local state
+  const footerStyling: FooterStyling = campaignOverrides.footerStyling || localFooterStyling;
 
   // Get computed styles - now considering per-campaign styling
   const effectiveBackgroundColor = footerStyling.backgroundColor || footerBackgroundColor || campaignOverrides.footerBackgroundColor || companyInfo.brandPrimaryColor;
