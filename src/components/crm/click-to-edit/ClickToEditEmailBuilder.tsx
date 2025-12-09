@@ -424,6 +424,9 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
           block={footerBlock}
           onUpdate={() => {}} // Footer settings managed separately
           isPreview={true}
+          campaignId={campaignId}
+          footerBackgroundColor={footerBackgroundColor}
+          onFooterColorChange={onFooterColorChange}
         />
       </div>
 
