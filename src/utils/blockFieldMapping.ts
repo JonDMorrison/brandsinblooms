@@ -288,9 +288,11 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
       isGeneratingImage: block.isGeneratingImage,
       
       // Image Gallery block specific fields
-      galleryImages: (block as any).galleryImages,
+      galleryImages: (block as any).galleryImages || [],
       galleryItems: (block as any).galleryItems, // Product gallery items (2x2)
       galleryLayout: (block as any).galleryLayout,
+      galleryRows: (block as any).galleryRows,
+      galleryColumns: (block as any).galleryColumns,
       galleryGap: (block as any).galleryGap,
       galleryImageRadius: (block as any).galleryImageRadius,
     },
@@ -473,9 +475,11 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
     isGeneratingImage: false, // Always false on load - generation is complete
     
     // Image Gallery block specific fields
-    galleryImages: contentObj.galleryImages,
+    galleryImages: contentObj.galleryImages || [],
     galleryItems: contentObj.galleryItems, // Product gallery items (2x2)
     galleryLayout: contentObj.galleryLayout,
+    galleryRows: contentObj.galleryRows,
+    galleryColumns: contentObj.galleryColumns,
     galleryGap: contentObj.galleryGap,
     galleryImageRadius: contentObj.galleryImageRadius,
   } as ContentBlock;

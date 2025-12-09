@@ -90,16 +90,32 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
   const hasCta = block.ctaText && block.ctaUrl;
 
   const handleImageSelect = (index: number, imageUrl: string, metadata?: { alt?: string }) => {
-    const newImages = [...galleryImages];
+    // Create a new array with the right length, preserving existing images
+    const newImages: GalleryImage[] = Array.from({ length: imageCount }, (_, i) => 
+      galleryImages[i] || { id: `img_placeholder_${i}`, url: '', alt: '' }
+    );
+    
+    // Set the new image at the specified index
     newImages[index] = {
       id: `img_${Date.now()}_${index}`,
       url: imageUrl,
       alt: metadata?.alt || `Gallery image ${index + 1}`,
     };
     
+    // Filter out placeholder/empty images for storage
+    const imagesToSave = newImages.filter(img => img.url && img.url.length > 0);
+    
+    console.log('[ImageGalleryBlockPreview] Saving gallery images:', {
+      index,
+      imageUrl: imageUrl.substring(0, 50) + '...',
+      totalImages: imagesToSave.length,
+    });
+    
     onUpdate({
-      ...block,
-      galleryImages: newImages,
+      galleryImages: imagesToSave,
+      galleryLayout,
+      galleryRows,
+      galleryColumns,
       userEdited: true,
     } as any);
     
@@ -108,13 +124,12 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
   };
 
   const handleImageRemove = (index: number) => {
-    const newImages = [...galleryImages];
-    newImages[index] = undefined as any;
-    const filteredImages = newImages.filter(Boolean);
+    const newImages = galleryImages.filter((_, i) => i !== index);
+    
+    console.log('[ImageGalleryBlockPreview] Removing image at index:', index);
     
     onUpdate({
-      ...block,
-      galleryImages: filteredImages,
+      galleryImages: newImages,
       userEdited: true,
     } as any);
   };
