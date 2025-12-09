@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { NewsletterFooterProps } from '@/types/newsletterFooter';
+import { FooterStyling } from '@/types/footerStyling';
 
 export interface FooterSettings {
   // Display toggles
@@ -54,6 +55,7 @@ const defaultFooterSettings: FooterSettings = {
 
 export interface CampaignFooterOverrides {
   footerBackgroundColor?: string;
+  footerStyling?: FooterStyling;
 }
 
 export const useFooterSettings = (campaignId?: string) => {
@@ -125,6 +127,7 @@ export const useFooterSettings = (campaignId?: string) => {
         const metadata = campaign?.metadata as any;
         setCampaignOverrides({
           footerBackgroundColor: metadata?.footerBackgroundColor,
+          footerStyling: metadata?.footer_styling as FooterStyling,
         });
       } catch (error) {
         console.error('Error loading campaign footer overrides:', error);
@@ -174,7 +177,7 @@ export const useFooterSettings = (campaignId?: string) => {
   // Save campaign-level footer override
   const saveCampaignFooterOverride = useCallback(async (
     campaignIdToUpdate: string,
-    overrides: CampaignFooterOverrides
+    overrides: Partial<CampaignFooterOverrides>
   ) => {
     try {
       // Get current campaign metadata
@@ -200,9 +203,52 @@ export const useFooterSettings = (campaignId?: string) => {
 
       if (error) throw error;
 
-      setCampaignOverrides(overrides);
+      setCampaignOverrides(prev => ({ ...prev, ...overrides }));
     } catch (error) {
       console.error('Failed to save campaign footer override:', error);
+      throw error;
+    }
+  }, []);
+
+  // Save footer styling to campaign metadata
+  const saveFooterStyling = useCallback(async (
+    campaignIdToUpdate: string,
+    styling: FooterStyling
+  ) => {
+    try {
+      // Get current campaign metadata
+      const { data: campaign, error: fetchError } = await supabase
+        .from('crm_campaigns')
+        .select('metadata')
+        .eq('id', campaignIdToUpdate)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const currentMetadata = (campaign?.metadata as any) || {};
+      
+      // Store under footer_styling key
+      const { error } = await supabase
+        .from('crm_campaigns')
+        .update({
+          metadata: {
+            ...currentMetadata,
+            footer_styling: styling,
+            // Also update footerBackgroundColor for backward compatibility
+            footerBackgroundColor: styling.backgroundColor || currentMetadata.footerBackgroundColor,
+          }
+        })
+        .eq('id', campaignIdToUpdate);
+
+      if (error) throw error;
+
+      setCampaignOverrides(prev => ({ 
+        ...prev, 
+        footerStyling: styling,
+        footerBackgroundColor: styling.backgroundColor || prev.footerBackgroundColor,
+      }));
+    } catch (error) {
+      console.error('Failed to save footer styling:', error);
       throw error;
     }
   }, []);
@@ -220,6 +266,7 @@ export const useFooterSettings = (campaignId?: string) => {
 
       const currentMetadata = (campaign?.metadata as any) || {};
       delete currentMetadata.footerBackgroundColor;
+      delete currentMetadata.footer_styling;
       
       const { error } = await supabase
         .from('crm_campaigns')
@@ -240,6 +287,7 @@ export const useFooterSettings = (campaignId?: string) => {
     setFooterSettings: saveFooterSettings,
     campaignOverrides,
     saveCampaignFooterOverride,
+    saveFooterStyling,
     clearCampaignFooterOverride,
     isLoading
   };
@@ -298,10 +346,13 @@ export function buildFooterProps(
   
   // Use legal text from companyInfo if available
   const legalText = companyInfo.footerLegalText || footerSettings.complianceText;
+
+  // Apply styling overrides if available
+  const footerStyling = campaignOverrides?.footerStyling;
   
   return {
     logoUrl: footerSettings.showLogo ? companyInfo.logoUrl : undefined,
-    companyName: companyInfo.name,
+    companyName: footerStyling?.companyNameOverride || companyInfo.name,
     addressLine1,
     addressLine2: footerSettings.addressLine2,
     city,
@@ -320,7 +371,7 @@ export function buildFooterProps(
     unsubscribeUrl,
     managePreferencesUrl: footerSettings.showManagePreferences ? managePreferencesUrl : undefined,
     legalText,
-    footerBackgroundColor: campaignOverrides?.footerBackgroundColor,
+    footerBackgroundColor: footerStyling?.backgroundColor || campaignOverrides?.footerBackgroundColor,
     brandPrimaryColor: companyInfo.brandPrimaryColor,
     brandSecondaryColor: companyInfo.brandSecondaryColor,
   };
