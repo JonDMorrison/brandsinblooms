@@ -1035,6 +1035,54 @@ const { counts: segmentCounts } = useSegmentCounts();
     });
   }, [existingCampaignId, enqueueSave, toast]);
 
+  // Immediate save for critical updates like image generation
+  // Uses a 500ms batching window to collect concurrent image saves
+  const imageSaveBatchRef = useRef<{
+    timeout: NodeJS.Timeout | null;
+    pendingBlocks: ContentBlock[] | null;
+  }>({ timeout: null, pendingBlocks: null });
+
+  const immediateAutoSave = useCallback((campaignData: {
+    blocks: ContentBlock[];
+    campaign_name: string;
+    subject_line: string;
+    preheader: string;
+  }) => {
+    if (!existingCampaignId) return;
+
+    // Cancel any pending debounced saves to avoid conflicts
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+      autoSaveTimeoutRef.current = null;
+    }
+
+    // Store latest blocks for batching
+    imageSaveBatchRef.current.pendingBlocks = campaignData.blocks;
+
+    // If there's already a batch timeout, let it handle the save
+    if (imageSaveBatchRef.current.timeout) {
+      console.log('💾 [ImmediateSave] Batching image save...');
+      return;
+    }
+
+    // Set up batch window - wait 500ms to collect concurrent image updates
+    imageSaveBatchRef.current.timeout = setTimeout(() => {
+      const blocksToSave = imageSaveBatchRef.current.pendingBlocks;
+      imageSaveBatchRef.current.timeout = null;
+      imageSaveBatchRef.current.pendingBlocks = null;
+
+      if (blocksToSave) {
+        console.log('💾 [ImmediateSave] Executing batched save for images...');
+        autoSaveCampaign({
+          blocks: blocksToSave,
+          campaign_name: campaignData.campaign_name,
+          subject_line: campaignData.subject_line,
+          preheader: campaignData.preheader
+        });
+      }
+    }, 500);
+  }, [existingCampaignId, autoSaveCampaign]);
+
   // Handler for AI-generated content
   const handleAIContentGenerated = async (aiData: {
     campaignName: string;
@@ -1100,10 +1148,11 @@ const { counts: segmentCounts } = useSegmentCounts();
         return block;
       });
       
-      // CRITICAL FIX: Trigger auto-save after image generation to persist changes
-      if (existingCampaignId) {
-        console.log('💾 Auto-saving after image generation for block:', blockId);
-        debouncedAutoSave({
+      // CRITICAL FIX: Use IMMEDIATE save (not debounced) for image generation
+      // Images must be persisted immediately to survive page refreshes
+      if (existingCampaignId && imageUrl) {
+        console.log('💾 [ImmediateSave] Saving image immediately for block:', blockId);
+        immediateAutoSave({
           blocks: updatedBlocks,
           campaign_name: campaignName,
           subject_line: subjectLine,
@@ -1193,11 +1242,15 @@ const { counts: segmentCounts } = useSegmentCounts();
     }, 5000);
   }, [autoSaveCampaign]);
 
+
   // Cleanup timeout and pending saves on unmount
   useEffect(() => {
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
+      }
+      if (imageSaveBatchRef.current.timeout) {
+        clearTimeout(imageSaveBatchRef.current.timeout);
       }
       cancelPendingSaves();
     };
