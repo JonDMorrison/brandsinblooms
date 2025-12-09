@@ -36,14 +36,14 @@ export const ProductGalleryBlockPreview: React.FC<ProductGalleryBlockPreviewProp
     <div className="py-8 px-4">
       {/* Headline */}
       {hasHeadline && (
-        <h2 className="text-2xl md:text-3xl font-bold text-center mb-2 text-foreground">
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-2" style={{ color: '#1f2937' }}>
           {block.headline || block.title}
         </h2>
       )}
 
       {/* Subheadline */}
       {hasBody && (
-        <p className="text-center mb-8 max-w-lg mx-auto text-muted-foreground">
+        <p className="text-center mb-8 max-w-lg mx-auto" style={{ color: '#6b7280' }}>
           {stripHtml(block.body || block.content)}
         </p>
       )}
@@ -53,7 +53,8 @@ export const ProductGalleryBlockPreview: React.FC<ProductGalleryBlockPreviewProp
         {itemSlots.map((item, index) => (
           <div
             key={item?.id || `slot-${index}`}
-            className="rounded-xl shadow-md overflow-hidden bg-card"
+            className="rounded-xl shadow-md overflow-hidden"
+            style={{ backgroundColor: '#ffffff' }}
           >
             {/* Image Container */}
             <div className="relative aspect-square">

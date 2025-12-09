@@ -45,12 +45,12 @@ export const ButtonBlock: React.FC<ButtonBlockProps> = ({ block, onUpdate, isPre
         alignment === 'right' && "text-right"
       )}>
         {headline && (
-          <h3 className="text-xl font-semibold mb-2 text-foreground">
+          <h3 className="text-xl font-semibold mb-2" style={{ color: '#1f2937' }}>
             {headline}
           </h3>
         )}
         {body && (
-          <div className="mb-4 text-muted-foreground leading-relaxed">
+          <div className="mb-4 leading-relaxed" style={{ color: '#6b7280' }}>
             {body}
           </div>
         )}

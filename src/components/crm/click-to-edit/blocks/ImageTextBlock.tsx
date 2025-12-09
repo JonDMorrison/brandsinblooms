@@ -488,53 +488,57 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
               <>
                 
                 {/* Headline - PHASE 6: Fallback to last known content if current is empty but hasGeneratedContent */}
-                <SafeHtml
-              content={(() => {
-                // Handle both object-style content and direct properties
-                let headline;
-                if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
-                  headline = (block.content as any).headline;
-                } else if (block.headline) {
-                  headline = block.headline;
-                } else if (block.title) {
-                  headline = block.title; // Fallback for newsletter conversion
-                } else if ((block as any).hasGeneratedContent && lastKnownContentRef.current.headline) {
-                  // PHASE 6: Use last known content if current is empty but content was generated
-                  headline = lastKnownContentRef.current.headline;
-                } else {
-                  headline = 'Add headline';
-                }
-                const headlineText = typeof headline === 'string' ? headline : String(headline || 'Add headline');
-                return sanitizeWeekNumbers(headlineText);
-              })()}
-              type="newsletter"
-              className="text-2xl font-bold prose prose-headings:font-bold prose-strong:font-bold prose-em:italic prose-ul:list-disc prose-ol:list-decimal prose-li:ml-6"
-            />
+                <div style={{ color: '#1f2937' }}>
+                  <SafeHtml
+                    content={(() => {
+                      // Handle both object-style content and direct properties
+                      let headline;
+                      if (typeof block.content === 'object' && block.content && (block.content as any).headline) {
+                        headline = (block.content as any).headline;
+                      } else if (block.headline) {
+                        headline = block.headline;
+                      } else if (block.title) {
+                        headline = block.title; // Fallback for newsletter conversion
+                      } else if ((block as any).hasGeneratedContent && lastKnownContentRef.current.headline) {
+                        // PHASE 6: Use last known content if current is empty but content was generated
+                        headline = lastKnownContentRef.current.headline;
+                      } else {
+                        headline = 'Add headline';
+                      }
+                      const headlineText = typeof headline === 'string' ? headline : String(headline || 'Add headline');
+                      return sanitizeWeekNumbers(headlineText);
+                    })()}
+                    type="newsletter"
+                    className="text-2xl font-bold prose prose-headings:font-bold prose-strong:font-bold prose-em:italic prose-ul:list-disc prose-ol:list-decimal prose-li:ml-6"
+                  />
+                </div>
             
-            {/* Body text - PHASE 6: Fallback to last known content if current is empty but hasGeneratedContent */}
-            <SafeHtml 
-              content={(() => {
-                // Handle both object-style content and direct properties
-                // Prioritize non-empty content
-                let body = '';
-                
-                if (typeof block.content === 'object' && block.content && (block.content as any).body) {
-                  body = (block.content as any).body;
-                } else if (block.body && block.body.trim()) {
-                  body = block.body;
-                } else if (typeof block.content === 'string' && block.content.trim()) {
-                  body = block.content;
-                } else if ((block as any).hasGeneratedContent && lastKnownContentRef.current.body) {
-                  // PHASE 6: Use last known content if current is empty but content was generated
-                  body = lastKnownContentRef.current.body;
-                }
-                
-                const bodyText = body || 'Add body text';
-                return sanitizeWeekNumbers(bodyText);
-              })()}
-              type="newsletter"
-              className="text-muted-foreground prose max-w-none prose-p:my-2 prose-strong:font-bold prose-em:italic prose-u:underline prose-ul:list-disc prose-ol:list-decimal prose-li:ml-6 prose-ul:my-2 prose-ol:my-2 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-headings:font-bold prose-headings:my-2"
-            />
+                {/* Body text - PHASE 6: Fallback to last known content if current is empty but hasGeneratedContent */}
+                <div style={{ color: '#475569' }}>
+                  <SafeHtml 
+                    content={(() => {
+                      // Handle both object-style content and direct properties
+                      // Prioritize non-empty content
+                      let body = '';
+                      
+                      if (typeof block.content === 'object' && block.content && (block.content as any).body) {
+                        body = (block.content as any).body;
+                      } else if (block.body && block.body.trim()) {
+                        body = block.body;
+                      } else if (typeof block.content === 'string' && block.content.trim()) {
+                        body = block.content;
+                      } else if ((block as any).hasGeneratedContent && lastKnownContentRef.current.body) {
+                        // PHASE 6: Use last known content if current is empty but content was generated
+                        body = lastKnownContentRef.current.body;
+                      }
+                      
+                      const bodyText = body || 'Add body text';
+                      return sanitizeWeekNumbers(bodyText);
+                    })()}
+                    type="newsletter"
+                    className="prose max-w-none prose-p:my-2 prose-strong:font-bold prose-em:italic prose-u:underline prose-ul:list-disc prose-ol:list-decimal prose-li:ml-6 prose-ul:my-2 prose-ol:my-2 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-headings:font-bold prose-headings:my-2"
+                  />
+                </div>
             
                 {/* CTA Button */}
                 <CTAButton block={block} />
