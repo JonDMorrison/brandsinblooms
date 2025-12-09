@@ -3727,6 +3727,16 @@ const { counts: segmentCounts } = useSegmentCounts();
     // Pass footer background color and full styling from campaign styling overrides
     const footerBgColor = campaignOverrides?.footerStyling?.backgroundColor || campaignOverrides?.footerBackgroundColor;
     const footerStyling = campaignOverrides?.footerStyling;
+    
+    // Debug: Log what styling is being used for footer generation
+    console.log('🎨 [generateEmailHTML] Footer styling data:', {
+      campaignOverrides_footerStyling: campaignOverrides?.footerStyling,
+      campaignOverrides_footerBackgroundColor: campaignOverrides?.footerBackgroundColor,
+      brandFooterColors: companyInfo?.brandFooterColors,
+      brandPrimaryColor: companyInfo?.brandPrimaryColor,
+      effectiveFooterBgColor: footerBgColor,
+    });
+    
     const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData, footerBgColor, footerStyling);
     console.log('✅ Footer HTML generated with company:', companyInfo?.name, 'footerBgColor:', footerBgColor, 'footerStyling:', footerStyling);
     
@@ -3978,8 +3988,12 @@ const { counts: segmentCounts } = useSegmentCounts();
 
   // Memoize email HTML to update when blocks or other dependencies change
   const emailHTMLContent = useMemo(() => {
+    console.log('📧 [emailHTMLContent] Recalculating email HTML. campaignOverrides:', {
+      footerStyling: campaignOverrides?.footerStyling,
+      footerBackgroundColor: campaignOverrides?.footerBackgroundColor,
+    });
     return generateEmailHTML();
-  }, [generateEmailHTML]);
+  }, [generateEmailHTML, campaignOverrides]);
 
   if (converting) {
     return (
