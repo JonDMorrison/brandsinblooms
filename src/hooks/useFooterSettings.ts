@@ -215,6 +215,8 @@ export const useFooterSettings = (campaignId?: string) => {
     campaignIdToUpdate: string,
     styling: FooterStyling
   ) => {
+    console.log('[useFooterSettings] saveFooterStyling called', { campaignIdToUpdate, styling });
+    
     try {
       // Get current campaign metadata
       const { data: campaign, error: fetchError } = await supabase
@@ -223,30 +225,45 @@ export const useFooterSettings = (campaignId?: string) => {
         .eq('id', campaignIdToUpdate)
         .single();
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('[useFooterSettings] Error fetching campaign:', fetchError);
+        throw fetchError;
+      }
+
+      console.log('[useFooterSettings] Current campaign metadata:', campaign?.metadata);
 
       const currentMetadata = (campaign?.metadata as any) || {};
       
+      const newMetadata = {
+        ...currentMetadata,
+        footer_styling: styling,
+        // Also update footerBackgroundColor for backward compatibility
+        footerBackgroundColor: styling.backgroundColor || currentMetadata.footerBackgroundColor,
+      };
+      
+      console.log('[useFooterSettings] New metadata to save:', newMetadata);
+      
       // Store under footer_styling key
-      const { error } = await supabase
+      const { data: updateData, error } = await supabase
         .from('crm_campaigns')
-        .update({
-          metadata: {
-            ...currentMetadata,
-            footer_styling: styling,
-            // Also update footerBackgroundColor for backward compatibility
-            footerBackgroundColor: styling.backgroundColor || currentMetadata.footerBackgroundColor,
-          }
-        })
-        .eq('id', campaignIdToUpdate);
+        .update({ metadata: newMetadata })
+        .eq('id', campaignIdToUpdate)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useFooterSettings] Error updating campaign:', error);
+        throw error;
+      }
+      
+      console.log('[useFooterSettings] Update result:', updateData);
 
       setCampaignOverrides(prev => ({ 
         ...prev, 
         footerStyling: styling,
         footerBackgroundColor: styling.backgroundColor || prev.footerBackgroundColor,
       }));
+      
+      console.log('[useFooterSettings] Footer styling saved successfully');
     } catch (error) {
       console.error('Failed to save footer styling:', error);
       throw error;
