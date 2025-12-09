@@ -1,7 +1,7 @@
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
-import { Plus, Sparkles, ImageIcon } from 'lucide-react';
+import { ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GalleryLayout } from './GalleryLayoutSelector';
 
@@ -114,7 +114,8 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
             key={`preview-${index}`}
             className={cn(
               "aspect-[4/3] overflow-hidden",
-              radiusMap[galleryImageRadius]
+              radiusMap[galleryImageRadius],
+              !image?.url && "bg-gray-200 border border-gray-300"
             )}
           >
             {image?.url ? (
@@ -124,7 +125,7 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
+              <div className="w-full h-full flex items-center justify-center">
                 <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
               </div>
             )}
@@ -151,9 +152,15 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
       {!hasHeadline && !hasBody && !hasAnyImages && (
         <div className="text-center py-8 text-muted-foreground">
           <div className="flex justify-center gap-2 mb-2">
-            <ImageIcon className="h-8 w-8" />
-            <ImageIcon className="h-8 w-8" />
-            <ImageIcon className="h-8 w-8" />
+            <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300">
+              <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+            </div>
+            <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300">
+              <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+            </div>
+            <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300">
+              <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+            </div>
           </div>
           <p className="text-sm">Click to add images to your gallery</p>
         </div>
