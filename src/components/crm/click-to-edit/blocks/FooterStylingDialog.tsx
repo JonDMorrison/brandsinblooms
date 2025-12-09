@@ -265,19 +265,6 @@ export const FooterStylingDialog: React.FC<FooterStylingDialogProps> = ({
             </div>
           )}
 
-          {/* Company Name Override */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Company Name (Override)</Label>
-            <Input
-              value={localStyling.companyNameOverride || ''}
-              onChange={(e) => handleChange('companyNameOverride', e.target.value)}
-              placeholder={companyName || 'Leave empty to use default'}
-              className="text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              Only for this campaign. Leave empty to use your default company name.
-            </p>
-          </div>
 
           {/* Divider Color */}
           <div className="space-y-2">
