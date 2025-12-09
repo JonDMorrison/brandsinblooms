@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
+import { Button } from '@/components/ui/button';
+import { Palette } from 'lucide-react';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { getFooterStyleConfig, getCompanyInitials } from '@/types/newsletterFooter';
 import { FooterStyling } from '@/types/footerStyling';
+import { FooterStylingDialog } from './FooterStylingDialog';
 
 interface FooterBlockProps {
   block: ContentBlock;
@@ -59,11 +62,25 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   footerBackgroundColor,
   onFooterColorChange
 }) => {
-  const { footerSettings, campaignOverrides } = useFooterSettings(campaignId);
+  const [isStylingDialogOpen, setIsStylingDialogOpen] = useState(false);
+  const { footerSettings, campaignOverrides, saveFooterStyling } = useFooterSettings(campaignId);
   const { companyInfo } = useCompanyInfo();
+  
+  // Local state for footer styling when campaign doesn't exist yet
+  const [localFooterStyling, setLocalFooterStyling] = useState<FooterStyling>({});
 
-  // Get footer styling from campaign metadata
-  const footerStyling: FooterStyling = campaignOverrides.footerStyling || {};
+  const handleSaveStyling = async (styling: FooterStyling) => {
+    setLocalFooterStyling(styling);
+    if (campaignId && saveFooterStyling) {
+      await saveFooterStyling(campaignId, styling);
+    }
+    if (styling.backgroundColor) {
+      onFooterColorChange?.(styling.backgroundColor);
+    }
+  };
+
+  // Get footer styling from: 1) campaign metadata, 2) local state
+  const footerStyling: FooterStyling = campaignOverrides.footerStyling || localFooterStyling;
 
   // Get computed styles - now considering per-campaign styling
   const effectiveBackgroundColor = footerStyling.backgroundColor || footerBackgroundColor || campaignOverrides.footerBackgroundColor || companyInfo.brandPrimaryColor;
@@ -145,9 +162,32 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   if (isPreview) {
     return (
       <div 
-        className="relative w-full mt-10"
+        className="relative group w-full mt-10"
         style={{ backgroundColor: styles.backgroundColor }}
       >
+        {/* Customize Colors Toolbar */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsStylingDialogOpen(true)}
+            className="h-8 px-3 text-xs gap-1.5 shadow-lg"
+          >
+            <Palette className="h-3.5 w-3.5" />
+            Customize Colors
+          </Button>
+        </div>
+
+        {/* Footer Styling Dialog */}
+        <FooterStylingDialog
+          open={isStylingDialogOpen}
+          onOpenChange={setIsStylingDialogOpen}
+          styling={footerStyling}
+          onSave={handleSaveStyling}
+          companyName={companyInfo.name}
+          hasLogoImage={hasLogoImage}
+          defaultColors={defaultColorsForDialog}
+        />
         <div className="max-w-[640px] mx-auto px-4 py-8">
           {/* Three-column layout */}
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
@@ -263,7 +303,31 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
 
   // Editor view
   return (
-    <div className="relative py-8">
+    <div className="relative group py-8">
+      {/* Customize Colors Toolbar */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setIsStylingDialogOpen(true)}
+          className="h-8 px-3 text-xs gap-1.5 shadow-lg"
+        >
+          <Palette className="h-3.5 w-3.5" />
+          Customize Colors
+        </Button>
+      </div>
+
+      {/* Footer Styling Dialog */}
+      <FooterStylingDialog
+        open={isStylingDialogOpen}
+        onOpenChange={setIsStylingDialogOpen}
+        styling={footerStyling}
+        onSave={handleSaveStyling}
+        companyName={companyInfo.name}
+        hasLogoImage={hasLogoImage}
+        defaultColors={defaultColorsForDialog}
+      />
+
       {/* Simplified Editor Preview */}
       <div 
         className="w-full min-h-[120px] p-4 rounded border border-dashed border-gray-300"
