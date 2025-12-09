@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { InputWithMergeTags } from '@/components/ui/input-with-merge-tags';
+import { Input } from '@/components/ui/input';
 
 interface TextEditModeProps {
   block: ContentBlock;
@@ -86,14 +87,14 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       {(block.type === 'header' || block.headline !== undefined || block.title !== undefined) && (
         <div className="space-y-2">
           <Label htmlFor="headline">Headline</Label>
-          <Input
+          <InputWithMergeTags
             id="headline"
             value={headline}
-            onChange={(e) => {
-              setHeadline(e.target.value);
+            onChange={(value) => {
+              setHeadline(value);
               onUpdate({ 
-                headline: e.target.value,
-                title: e.target.value 
+                headline: value,
+                title: value 
               });
             }}
             onKeyDown={(e) => {
@@ -104,6 +105,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             }}
             placeholder="Enter headline"
             className="w-full"
+            excludeCategories={['system']}
           />
         </div>
       )}
@@ -112,12 +114,12 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       {(block.type === 'header' || block.type === 'newsletter-header' || block.subtitle !== undefined) && (
         <div className="space-y-2">
           <Label htmlFor="subheading">Subheading</Label>
-          <Input
+          <InputWithMergeTags
             id="subheading"
             value={subheading}
-            onChange={(e) => {
-              setSubheading(e.target.value);
-              onUpdate({ subtitle: e.target.value });
+            onChange={(value) => {
+              setSubheading(value);
+              onUpdate({ subtitle: value });
             }}
             onKeyDown={(e) => {
               e.stopPropagation();
@@ -127,6 +129,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             }}
             placeholder="Enter subheading"
             className="w-full"
+            excludeCategories={['system']}
           />
         </div>
       )}
@@ -170,6 +173,8 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             }}
             placeholder={block.body !== undefined ? "Enter body text..." : "Enter content..."}
             className="w-full"
+            showMergeTags={true}
+            excludeMergeTagCategories={['system']}
             autoFocus
           />
         </div>
