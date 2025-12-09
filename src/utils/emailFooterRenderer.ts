@@ -128,11 +128,12 @@ export const generateFooterHTML = (
     // Get brand footer colors from profile
     const brandFooterColors = companyInfo?.brandFooterColors;
     
-    // Priority cascade: 1) Campaign footerStyling → 2) Brand footer_colors → 3) footerBackgroundColor
+    // Priority cascade: 1) Campaign footerStyling → 2) Brand footer_colors → 3) footerBackgroundColor → 4) brandPrimaryColor
     const effectiveBgColor = 
       footerStyling?.backgroundColor || 
       brandFooterColors?.backgroundColor || 
-      footerBackgroundColor;
+      footerBackgroundColor ||
+      companyInfo?.brandPrimaryColor;
     
     // Use the new newsletter footer HTML generator with fresh data and priority cascade
     const footerProps: NewsletterFooterProps = {

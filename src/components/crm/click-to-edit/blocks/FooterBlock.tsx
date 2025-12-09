@@ -5,7 +5,7 @@ import { Palette, RotateCcw } from 'lucide-react';
 import { hasFooterStylingOverrides } from '@/types/footerStyling';
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
-import { getFooterStyleConfig, getCompanyInitials } from '@/types/newsletterFooter';
+import { getFooterStyleConfig, getCompanyInitials, DEFAULT_FOOTER_COLORS } from '@/types/newsletterFooter';
 import { FooterStyling } from '@/types/footerStyling';
 import { FooterStylingDialog } from './FooterStylingDialog';
 
@@ -92,7 +92,8 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
     brandFooterColors?.backgroundColor || 
     footerBackgroundColor || 
     campaignOverrides.footerBackgroundColor || 
-    companyInfo.brandPrimaryColor;
+    companyInfo.brandPrimaryColor ||
+    DEFAULT_FOOTER_COLORS.backgroundColor;
   
   const baseStyles = getFooterStyleConfig(effectiveBackgroundColor, companyInfo.brandPrimaryColor);
   
