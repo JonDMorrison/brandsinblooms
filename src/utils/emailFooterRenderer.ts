@@ -128,12 +128,39 @@ export const generateFooterHTML = (
     // Get brand footer colors from profile
     const brandFooterColors = companyInfo?.brandFooterColors;
     
-    // Priority cascade: 1) Campaign footerStyling → 2) Brand footer_colors → 3) footerBackgroundColor → 4) brandPrimaryColor
-    const effectiveBgColor = 
-      footerStyling?.backgroundColor || 
-      brandFooterColors?.backgroundColor || 
-      footerBackgroundColor ||
-      companyInfo?.brandPrimaryColor;
+    // Build complete effective colors with full fallback chain
+    // Priority cascade: 1) Campaign footerStyling → 2) Brand footer_colors → 3) footerBackgroundColor → 4) brandPrimaryColor → 5) defaults
+    const effectiveColors = {
+      backgroundColor: 
+        footerStyling?.backgroundColor || 
+        brandFooterColors?.backgroundColor || 
+        footerBackgroundColor ||
+        companyInfo?.brandPrimaryColor ||
+        '#283024', // Default dark green
+      textColor: 
+        footerStyling?.textColor || 
+        brandFooterColors?.textColor ||
+        '#F3F4F6', // Default light text
+      linkColor: 
+        footerStyling?.linkColor || 
+        brandFooterColors?.linkColor ||
+        '#E5BFA7', // Default warm accent
+      dividerColor: 
+        footerStyling?.dividerColor || 
+        brandFooterColors?.dividerColor ||
+        '#3D4A38', // Default muted green
+      logoBackgroundColor: 
+        footerStyling?.logoBackgroundColor || 
+        brandFooterColors?.logoBackgroundColor ||
+        companyInfo?.brandPrimaryColor ||
+        '#22C55E', // Default brand green
+      logoTextColor: 
+        footerStyling?.logoTextColor || 
+        brandFooterColors?.logoTextColor ||
+        '#FFFFFF', // Default white
+    };
+    
+    console.log('🎨 Footer effective colors:', effectiveColors);
     
     // Use the new newsletter footer HTML generator with fresh data and priority cascade
     const footerProps: NewsletterFooterProps = {
@@ -157,13 +184,13 @@ export const generateFooterHTML = (
       unsubscribeUrl: tokens.unsubscribeUrl || '#',
       managePreferencesUrl: footerSettings.showManagePreferences ? tokens.managePreferencesUrl : undefined,
       legalText: processEmailTokens(legalText, tokens),
-      // Priority cascade for all footer styling
-      footerBackgroundColor: effectiveBgColor,
-      footerTextColor: footerStyling?.textColor || brandFooterColors?.textColor,
-      footerLinkColor: footerStyling?.linkColor || brandFooterColors?.linkColor,
-      footerDividerColor: footerStyling?.dividerColor || brandFooterColors?.dividerColor,
-      footerLogoBackgroundColor: footerStyling?.logoBackgroundColor || brandFooterColors?.logoBackgroundColor,
-      footerLogoTextColor: footerStyling?.logoTextColor || brandFooterColors?.logoTextColor,
+      // Pass all effective colors with full fallbacks
+      footerBackgroundColor: effectiveColors.backgroundColor,
+      footerTextColor: effectiveColors.textColor,
+      footerLinkColor: effectiveColors.linkColor,
+      footerDividerColor: effectiveColors.dividerColor,
+      footerLogoBackgroundColor: effectiveColors.logoBackgroundColor,
+      footerLogoTextColor: effectiveColors.logoTextColor,
       brandPrimaryColor: companyInfo?.brandPrimaryColor,
     };
 
