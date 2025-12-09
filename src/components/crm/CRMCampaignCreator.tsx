@@ -840,8 +840,8 @@ const { counts: segmentCounts } = useSegmentCounts();
   // Sender configuration for domain verification
   const { senderConfig, loading: loadingSenderConfig } = useSenderConfiguration();
 
-  // Footer and company data
-  const { footerSettings } = useFooterSettings();
+  // Footer and company data - pass campaignId to load campaign-specific styling
+  const { footerSettings, campaignOverrides } = useFooterSettings(existingCampaignId || undefined);
   const { companyInfo } = useCompanyInfo();
   
   // Log company info changes for debugging footer issues
@@ -3724,8 +3724,10 @@ const { counts: segmentCounts } = useSegmentCounts();
       phone: companyInfo?.phone
     });
     const tokenData = getDefaultTokenData(companyInfo);
-    const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData);
-    console.log('✅ Footer HTML generated with company:', companyInfo?.name);
+    // Pass footer background color from campaign styling overrides
+    const footerBgColor = campaignOverrides?.footerStyling?.backgroundColor || campaignOverrides?.footerBackgroundColor;
+    const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData, footerBgColor);
+    console.log('✅ Footer HTML generated with company:', companyInfo?.name, 'footerBgColor:', footerBgColor);
     
     html += `
           ${footerHTML}
@@ -3734,7 +3736,7 @@ const { counts: segmentCounts } = useSegmentCounts();
     `;
     
     return html;
-  }, [blocks, senderConfig, companyInfo, footerSettings]);
+  }, [blocks, senderConfig, companyInfo, footerSettings, campaignOverrides]);
 
   const handleSave = async () => {
     console.log('🚀 Save button clicked');
