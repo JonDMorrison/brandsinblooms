@@ -200,14 +200,26 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={async () => {
-                  setLocalFooterStyling({});
+                  // Reset to brand colors from profile instead of clearing completely
+                  const brandFooterColors = companyInfo.brandFooterColors;
+                  const resetStyling: FooterStyling = brandFooterColors ? {
+                    backgroundColor: brandFooterColors.backgroundColor,
+                    textColor: brandFooterColors.textColor,
+                    linkColor: brandFooterColors.linkColor,
+                    dividerColor: brandFooterColors.dividerColor,
+                    logoBackgroundColor: brandFooterColors.logoBackgroundColor,
+                    logoTextColor: brandFooterColors.logoTextColor,
+                  } : {};
+                  
+                  setLocalFooterStyling(resetStyling);
                   if (campaignId && saveFooterStyling) {
-                    await saveFooterStyling(campaignId, {});
+                    await saveFooterStyling(campaignId, resetStyling);
                   }
-                  onFooterColorChange?.(undefined);
+                  onFooterColorChange?.(resetStyling.backgroundColor);
+                  onFooterStylingChange?.(resetStyling);
                 }}
                 className="h-7 px-2 text-xs text-muted-foreground"
-                title="Reset to default colors"
+                title="Reset to brand colors"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
               </Button>
