@@ -223,6 +223,11 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
   const handleBlockClick = () => {
     if (!editMode) {
+      // Don't toggle edit mode for image gallery blocks - users interact with grid items directly
+      if (block.type === 'image-gallery') {
+        return;
+      }
+      
       // Don't show text edit mode for image-only blocks without text content
       if (block.type === 'image' && !block.content && !block.title) {
         return;
@@ -552,7 +557,10 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
           </div>
         ) : (
           <div 
-            className="p-0 cursor-pointer"
+            className={cn(
+              "p-0",
+              block.type !== 'image-gallery' && "cursor-pointer"
+            )}
             onClick={handleBlockClick}
             style={{ pointerEvents: 'auto' }}
           >
