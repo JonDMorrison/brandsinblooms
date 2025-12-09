@@ -3644,9 +3644,12 @@ const { counts: segmentCounts } = useSegmentCounts();
               for (let j = 0; j < 3; j++) {
                 const img = row[j];
                 if (img?.url) {
+                  // Use table-based wrapper for email-compatible 4:3 aspect ratio
                   imageRowsHtml += `
                     <td class="gallery-cell" width="${cellWidth}%" style="padding: 4px; vertical-align: top;">
-                      <img src="${img.url}" alt="${img.alt || 'Gallery image'}" style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; display: block;" />
+                      <div style="position: relative; width: 100%; padding-top: 75%; overflow: hidden; border-radius: 8px; background-color: #f3f4f6;">
+                        <img src="${img.url}" alt="${img.alt || 'Gallery image'}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block;" />
+                      </div>
                     </td>
                   `;
                 } else {
