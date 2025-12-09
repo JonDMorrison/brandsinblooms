@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Plus, X, Sparkles, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { X, Loader2, ImageIcon } from 'lucide-react';
+import { GallerySlotActionMenu } from './GallerySlotActionMenu';
 
 interface GalleryImage {
   id: string;
@@ -17,6 +18,7 @@ interface GalleryImageSlotProps {
   onImageRemove: () => void;
   onOpenAIDialog: () => void;
   onOpenMediaSelector: () => void;
+  onAutoPickImage?: () => void;
   borderRadius?: 'none' | 'small' | 'medium' | 'large';
 }
 
@@ -35,16 +37,25 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
   onImageRemove,
   onOpenAIDialog,
   onOpenMediaSelector,
+  onAutoPickImage,
   borderRadius = 'medium',
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+
+  const handleAutoPickImage = () => {
+    if (onAutoPickImage) {
+      onAutoPickImage();
+    } else {
+      onOpenAIDialog();
+    }
+  };
 
   if (isGenerating) {
     return (
       <div
         className={cn(
-          "aspect-[4/3] bg-muted flex items-center justify-center",
-          "border-2 border-dashed border-primary/30",
+          "aspect-[4/3] bg-gray-200 flex items-center justify-center",
+          "border border-gray-300",
           radiusMap[borderRadius]
         )}
       >
@@ -75,38 +86,31 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
         {/* Hover overlay with actions */}
         <div
           className={cn(
-            "absolute inset-0 bg-black/50 flex items-center justify-center gap-2",
+            "absolute inset-0 bg-black/40 flex items-center justify-center",
             "transition-opacity duration-200",
             isHovered ? "opacity-100" : "opacity-0"
           )}
         >
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={onOpenMediaSelector}
-            className="h-8 px-2"
-            aria-label="Replace image"
-          >
-            <ImageIcon className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={onOpenAIDialog}
-            className="h-8 px-2"
-            aria-label="Generate with AI"
-          >
-            <Sparkles className="h-4 w-4" />
-          </Button>
+          {/* Remove button - top right */}
           <Button
             size="sm"
             variant="destructive"
-            onClick={onImageRemove}
-            className="h-8 px-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              onImageRemove();
+            }}
+            className="absolute top-2 right-2 h-6 w-6 p-0"
             aria-label="Remove image"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3" />
           </Button>
+          
+          {/* Centered action menu */}
+          <GallerySlotActionMenu
+            onAutoPickImage={handleAutoPickImage}
+            onOpenMediaSelector={onOpenMediaSelector}
+            onOpenAIDialog={onOpenAIDialog}
+          />
         </div>
       </div>
     );
@@ -116,39 +120,18 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
   return (
     <div
       className={cn(
-        "aspect-[4/3] bg-muted/50 border-2 border-dashed border-muted-foreground/30",
-        "flex flex-col items-center justify-center gap-2 cursor-pointer",
-        "hover:border-primary/50 hover:bg-muted transition-colors",
+        "aspect-[4/3] bg-gray-200 border border-gray-300",
+        "flex flex-col items-center justify-center gap-3",
+        "hover:bg-gray-300/70 transition-colors",
         radiusMap[borderRadius]
       )}
-      onClick={onOpenMediaSelector}
     >
-      <div className="flex gap-1">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenMediaSelector();
-          }}
-          className="h-8 w-8 p-0"
-          aria-label="Add image"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenAIDialog();
-          }}
-          className="h-8 w-8 p-0"
-          aria-label="Generate with AI"
-        >
-          <Sparkles className="h-4 w-4" />
-        </Button>
-      </div>
+      <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
+      <GallerySlotActionMenu
+        onAutoPickImage={handleAutoPickImage}
+        onOpenMediaSelector={onOpenMediaSelector}
+        onOpenAIDialog={onOpenAIDialog}
+      />
       <span className="text-xs text-muted-foreground">Add Image</span>
     </div>
   );
