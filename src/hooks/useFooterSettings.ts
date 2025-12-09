@@ -62,6 +62,7 @@ export const useFooterSettings = (campaignId?: string) => {
   const [footerSettings, setFooterSettingsState] = useState<FooterSettings>(defaultFooterSettings);
   const [campaignOverrides, setCampaignOverrides] = useState<CampaignFooterOverrides>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Load footer settings from company profile
   useEffect(() => {
@@ -135,7 +136,12 @@ export const useFooterSettings = (campaignId?: string) => {
     };
 
     loadCampaignOverrides();
-  }, [campaignId]);
+  }, [campaignId, refreshKey]);
+
+  // Method to force refresh campaign overrides from database
+  const refreshCampaignOverrides = useCallback(() => {
+    setRefreshKey(prev => prev + 1);
+  }, []);
 
   // Save footer settings to company profile
   const saveFooterSettings = useCallback(async (settings: FooterSettings) => {
@@ -303,9 +309,11 @@ export const useFooterSettings = (campaignId?: string) => {
     footerSettings,
     setFooterSettings: saveFooterSettings,
     campaignOverrides,
+    setCampaignOverrides,
     saveCampaignFooterOverride,
     saveFooterStyling,
     clearCampaignFooterOverride,
+    refreshCampaignOverrides,
     isLoading
   };
 };

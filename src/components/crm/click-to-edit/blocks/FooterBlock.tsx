@@ -16,6 +16,7 @@ interface FooterBlockProps {
   campaignId?: string;
   footerBackgroundColor?: string;
   onFooterColorChange?: (color: string | undefined) => void;
+  onFooterStylingChange?: (styling: FooterStyling) => void;
 }
 
 // Inline SVG social icons
@@ -61,7 +62,8 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   isPreview,
   campaignId,
   footerBackgroundColor,
-  onFooterColorChange
+  onFooterColorChange,
+  onFooterStylingChange
 }) => {
   const [isStylingDialogOpen, setIsStylingDialogOpen] = useState(false);
   const { footerSettings, campaignOverrides, saveFooterStyling } = useFooterSettings(campaignId);
@@ -78,6 +80,8 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
     if (styling.backgroundColor) {
       onFooterColorChange?.(styling.backgroundColor);
     }
+    // Notify parent about styling change so email preview can update
+    onFooterStylingChange?.(styling);
   };
 
   // Get footer styling from: 1) campaign metadata, 2) local state

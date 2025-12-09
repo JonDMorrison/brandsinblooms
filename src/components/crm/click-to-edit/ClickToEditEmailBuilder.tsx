@@ -30,6 +30,7 @@ interface ClickToEditEmailBuilderProps {
   onOpenAIImageDialog?: (blockId: string) => void;
   footerBackgroundColor?: string;
   onFooterColorChange?: (color: string | undefined) => void;
+  onFooterStylingChange?: (styling: import('@/types/footerStyling').FooterStyling) => void;
 }
 
 export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = ({
@@ -41,7 +42,8 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   campaignId,
   onOpenAIImageDialog,
   footerBackgroundColor,
-  onFooterColorChange
+  onFooterColorChange,
+  onFooterStylingChange
 }) => {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
@@ -294,7 +296,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'social-follow':
         return <SocialFollowBlock {...props} isPreview={false} />;
       case 'footer':
-        return <FooterBlock {...props} isPreview={false} campaignId={campaignId} footerBackgroundColor={footerBackgroundColor} onFooterColorChange={onFooterColorChange} />;
+        return <FooterBlock {...props} isPreview={false} campaignId={campaignId} footerBackgroundColor={footerBackgroundColor} onFooterColorChange={onFooterColorChange} onFooterStylingChange={onFooterStylingChange} />;
       case 'image-gallery':
         return <ImageGalleryBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
       default:
@@ -340,7 +342,7 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
       case 'social-follow':
         return <SocialFollowBlock {...props} isPreview={true} />;
       case 'footer':
-        return <FooterBlock {...props} isPreview={true} campaignId={campaignId} footerBackgroundColor={footerBackgroundColor} onFooterColorChange={onFooterColorChange} />;
+        return <FooterBlock {...props} isPreview={true} campaignId={campaignId} footerBackgroundColor={footerBackgroundColor} onFooterColorChange={onFooterColorChange} onFooterStylingChange={onFooterStylingChange} />;
       case 'image-gallery':
         return <ImageGalleryBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
       default:
