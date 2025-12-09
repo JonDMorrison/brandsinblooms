@@ -14,6 +14,7 @@ import { Image as ImageIcon } from 'lucide-react';
 import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
 import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
 import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
+import { ImageActionMenu } from '../ImageActionMenu';
 import { Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -401,15 +402,16 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 
                 return displayImageUrl ? (
                   <div className="relative group/image-actions">
+                    {/* Unified Image Action Menu - shown on hover */}
                     <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/image-actions:opacity-100 transition-opacity">
-                      <button
-                        onClick={handleAutoPick}
+                      <ImageActionMenu
+                        block={block}
+                        editMode={editMode}
+                        onModeChange={(mode) => onModeChange?.(mode)}
+                        onAutoPickImage={() => handleAutoPick({ stopPropagation: () => {} } as React.MouseEvent)}
+                        onOpenAIImageDialog={onOpenAIImageDialog ? () => onOpenAIImageDialog(block.id) : undefined}
                         disabled={isAutoPickGenerating}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-lg transition-colors disabled:opacity-50"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Auto Pick
-                      </button>
+                      />
                     </div>
                     {isImageLoading && !currentImageUrl && (
                       <div className="absolute inset-0 z-10">
@@ -597,16 +599,16 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                 
                 return displayImageUrl ? (
                   <div className="relative group/image-actions">
-                    {/* Auto Pick Button - shown on hover */}
+                    {/* Unified Image Action Menu - shown on hover */}
                     <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/image-actions:opacity-100 transition-opacity">
-                      <button
-                        onClick={handleAutoPick}
+                      <ImageActionMenu
+                        block={block}
+                        editMode={editMode}
+                        onModeChange={(mode) => onModeChange?.(mode)}
+                        onAutoPickImage={() => handleAutoPick({ stopPropagation: () => {} } as React.MouseEvent)}
+                        onOpenAIImageDialog={onOpenAIImageDialog ? () => onOpenAIImageDialog(block.id) : undefined}
                         disabled={isAutoPickGenerating}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-lg transition-colors disabled:opacity-50"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Auto Pick
-                      </button>
+                      />
                     </div>
                     
                     {/* Show skeleton overlay only when loading and no current image */}
@@ -679,26 +681,15 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
                         ) : (
                           <span className="text-muted-foreground mb-3">Click to add image</span>
                         )}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onModeChange) {
-                                handleModeClick('image', e);
-                              }
-                            }}
-                            className="px-3 py-1 text-xs bg-background border border-border rounded hover:bg-muted transition-colors"
-                          >
-                            Browse
-                          </button>
-                          <button
-                            onClick={handleAutoPick}
+                        <div className="flex justify-center">
+                          <ImageActionMenu
+                            block={block}
+                            editMode={editMode}
+                            onModeChange={(mode) => onModeChange?.(mode)}
+                            onAutoPickImage={() => handleAutoPick({ stopPropagation: () => {} } as React.MouseEvent)}
+                            onOpenAIImageDialog={onOpenAIImageDialog ? () => onOpenAIImageDialog(block.id) : undefined}
                             disabled={isAutoPickGenerating}
-                            className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1"
-                          >
-                            <Sparkles className="w-3 h-3" />
-                            Auto Pick
-                          </button>
+                          />
                         </div>
                       </>
                     )}
