@@ -26,13 +26,23 @@ const stripHtml = (html: string | undefined): string => {
   return tmp.textContent || tmp.innerText || '';
 };
 
-const getImageCount = (layout: GalleryLayout): number => {
+const getImageCount = (layout: GalleryLayout, rows?: number, cols?: number): number => {
+  if (layout === 'custom' && rows && cols) {
+    return rows * cols;
+  }
   switch (layout) {
     case '3-across': return 3;
     case '6-across': return 6;
     case '9-images': return 9;
     default: return 3;
   }
+};
+
+const getGridColumns = (layout: GalleryLayout, cols?: number): number => {
+  if (layout === 'custom' && cols) {
+    return cols;
+  }
+  return 3; // Default 3 columns for preset layouts
 };
 
 const radiusMap = {
@@ -54,10 +64,13 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
   isGenerating = false,
 }) => {
   const galleryLayout = ((block as any).galleryLayout || '3-across') as GalleryLayout;
+  const galleryRows = (block as any).galleryRows || 2;
+  const galleryColumns = (block as any).galleryColumns || 3;
   const galleryImages: GalleryImage[] = (block as any).galleryImages || [];
   const galleryImageRadius = (block as any).galleryImageRadius || 'medium';
   const galleryGap = (block as any).galleryGap || 'medium';
-  const imageCount = getImageCount(galleryLayout);
+  const imageCount = getImageCount(galleryLayout, galleryRows, galleryColumns);
+  const gridCols = getGridColumns(galleryLayout, galleryColumns);
 
   // Ensure we have the right number of image slots
   const imageSlots: (GalleryImage | undefined)[] = Array.from(
@@ -89,9 +102,12 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
       {/* Image Grid */}
       <div
         className={cn(
-          "grid grid-cols-2 sm:grid-cols-3 max-w-3xl mx-auto",
+          "grid max-w-3xl mx-auto",
           gapMap[galleryGap]
         )}
+        style={{
+          gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+        }}
       >
         {imageSlots.map((image, index) => (
           <div
