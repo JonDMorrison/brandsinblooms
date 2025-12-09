@@ -8,11 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Settings, RotateCcw, ExternalLink } from 'lucide-react';
+import { Settings, RotateCcw, ExternalLink, Palette } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFooterSettings, buildFooterProps } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { getFooterStyleConfig, getCompanyInitials } from '@/types/newsletterFooter';
+import { FooterStyling, hasFooterStylingOverrides } from '@/types/footerStyling';
+import { FooterStylingDialog } from './FooterStylingDialog';
 
 interface FooterBlockProps {
   block: ContentBlock;
@@ -69,7 +71,8 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   onFooterColorChange
 }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { footerSettings, setFooterSettings, campaignOverrides, saveCampaignFooterOverride, clearCampaignFooterOverride } = useFooterSettings(campaignId);
+  const [isStylingDialogOpen, setIsStylingDialogOpen] = useState(false);
+  const { footerSettings, setFooterSettings, campaignOverrides, saveCampaignFooterOverride, clearCampaignFooterOverride, saveFooterStyling } = useFooterSettings(campaignId);
   const { companyInfo } = useCompanyInfo();
 
   const handleSettingChange = (key: string, value: any) => {
@@ -91,9 +94,31 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
     onFooterColorChange?.(undefined);
   };
 
-  // Get computed styles
-  const effectiveBackgroundColor = footerBackgroundColor || campaignOverrides.footerBackgroundColor || companyInfo.brandPrimaryColor;
-  const styles = getFooterStyleConfig(effectiveBackgroundColor, companyInfo.brandPrimaryColor);
+  const handleSaveStyling = async (styling: FooterStyling) => {
+    if (campaignId && saveFooterStyling) {
+      await saveFooterStyling(campaignId, styling);
+      // Also update the background color for immediate preview
+      if (styling.backgroundColor) {
+        onFooterColorChange?.(styling.backgroundColor);
+      }
+    }
+  };
+
+  // Get footer styling from campaign metadata
+  const footerStyling: FooterStyling = campaignOverrides.footerStyling || {};
+
+  // Get computed styles - now considering per-campaign styling
+  const effectiveBackgroundColor = footerStyling.backgroundColor || footerBackgroundColor || campaignOverrides.footerBackgroundColor || companyInfo.brandPrimaryColor;
+  const baseStyles = getFooterStyleConfig(effectiveBackgroundColor, companyInfo.brandPrimaryColor);
+  
+  // Apply per-campaign styling overrides
+  const styles = {
+    backgroundColor: footerStyling.backgroundColor || baseStyles.backgroundColor,
+    textPrimary: footerStyling.textColor || baseStyles.textPrimary,
+    textMuted: footerStyling.textColor ? `${footerStyling.textColor}B3` : baseStyles.textMuted, // 70% opacity
+    linkAccent: footerStyling.linkColor || baseStyles.linkAccent,
+    dividerColor: footerStyling.dividerColor || baseStyles.dividerColor,
+  };
 
   // Build social links array - prioritize companyInfo (fresh data from Contact & Footer Settings)
   const socialLinks = [
@@ -125,21 +150,38 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   const hasContact = emailAddr || (footerSettings.showPhone && companyInfo.phone);
   const hasSocial = socialLinks.length > 0;
 
+  // Company name (with possible override)
+  const displayCompanyName = footerStyling.companyNameOverride || companyInfo.name;
+
+  // Logo colors from styling
+  const logoBackgroundColor = footerStyling.logoBackgroundColor || styles.linkAccent;
+  const logoTextColor = footerStyling.logoTextColor || styles.backgroundColor;
+
   // Logo or initials
-  const logoElement = footerSettings.showLogo && companyInfo.logoUrl ? (
+  const hasLogoImage = !!(footerSettings.showLogo && companyInfo.logoUrl);
+  const logoElement = hasLogoImage ? (
     <img 
       src={companyInfo.logoUrl} 
-      alt={`${companyInfo.name} logo`}
+      alt={`${displayCompanyName} logo`}
       className="h-10 object-contain mb-3"
     />
   ) : (
     <div 
       className="w-12 h-12 rounded-lg flex items-center justify-center mb-3 font-bold text-lg"
-      style={{ backgroundColor: styles.linkAccent, color: styles.backgroundColor }}
+      style={{ backgroundColor: logoBackgroundColor, color: logoTextColor }}
     >
-      {getCompanyInitials(companyInfo.name)}
+      {getCompanyInitials(displayCompanyName)}
     </div>
   );
+
+  // Default colors for the styling dialog
+  const defaultColorsForDialog = {
+    backgroundColor: baseStyles.backgroundColor,
+    textColor: baseStyles.textPrimary,
+    linkColor: baseStyles.linkAccent,
+    dividerColor: baseStyles.dividerColor,
+    logoBackground: baseStyles.linkAccent,
+  };
 
   if (isPreview) {
     return (
@@ -153,9 +195,9 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
             {/* Left: Logo & Brand */}
             <div className="flex-1 text-center md:text-left">
               {logoElement}
-              {companyInfo.name && (
+              {displayCompanyName && (
                 <div className="text-sm font-medium mb-1" style={{ color: styles.textPrimary }}>
-                  {companyInfo.name}
+                  {displayCompanyName}
                 </div>
               )}
               {footerSettings.websiteUrl && (
@@ -229,7 +271,7 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
                 className="text-xs max-w-md mx-auto mb-3 leading-relaxed"
                 style={{ color: styles.textMuted }}
               >
-                {(companyInfo.footerLegalText || footerSettings.complianceText).replace(/\{\{company\.name\}\}/g, companyInfo.name || 'Our Company')}
+                {(companyInfo.footerLegalText || footerSettings.complianceText).replace(/\{\{company\.name\}\}/g, displayCompanyName || 'Our Company')}
               </p>
             )}
             
@@ -263,17 +305,58 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   // Editor view
   return (
     <div className="relative group">
-      {/* Settings Button */}
-      <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Hover Toolbar */}
+      <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-2 py-1.5">
         <Button
-          variant="outline"
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsStylingDialogOpen(true)}
+          className="h-7 px-2.5 text-xs gap-1.5"
+        >
+          <Palette className="h-3.5 w-3.5" />
+          Customize Colors
+        </Button>
+        <div className="w-px h-4 bg-border" />
+        <Button
+          variant="ghost"
           size="sm"
           onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-          className="h-8 w-8 p-0 bg-white shadow-sm"
+          className="h-7 px-2.5 text-xs gap-1.5"
         >
-          <Settings className="h-3 w-3" />
+          <Settings className="h-3.5 w-3.5" />
+          Settings
         </Button>
+        {hasFooterStylingOverrides(footerStyling) && (
+          <>
+            <div className="w-px h-4 bg-border" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                if (campaignId && saveFooterStyling) {
+                  await saveFooterStyling(campaignId, {});
+                  onFooterColorChange?.(undefined);
+                }
+              }}
+              className="h-7 px-2 text-xs text-muted-foreground"
+              title="Reset to default colors"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        )}
       </div>
+
+      {/* Footer Styling Dialog */}
+      <FooterStylingDialog
+        open={isStylingDialogOpen}
+        onOpenChange={setIsStylingDialogOpen}
+        styling={footerStyling}
+        onSave={handleSaveStyling}
+        companyName={companyInfo.name}
+        hasLogoImage={hasLogoImage}
+        defaultColors={defaultColorsForDialog}
+      />
 
       {/* Settings Panel */}
       {isSettingsOpen && (
@@ -487,7 +570,7 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
           {logoElement}
           
           <div className="text-sm font-medium" style={{ color: styles.textPrimary }}>
-            {companyInfo.name}
+            {displayCompanyName}
           </div>
           
           {hasAddress && (
