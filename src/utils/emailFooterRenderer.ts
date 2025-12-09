@@ -70,7 +70,8 @@ export const generateFooterHTML = (
   footerSettings: FooterSettings,
   companyInfo: CompanyInfo,
   tokenData?: TokenData,
-  footerBackgroundColor?: string
+  footerBackgroundColor?: string,
+  footerStyling?: { textColor?: string; linkColor?: string; dividerColor?: string }
 ): string => {
   const tokens = tokenData || {
     companyName: companyInfo?.name || 'Your Company',

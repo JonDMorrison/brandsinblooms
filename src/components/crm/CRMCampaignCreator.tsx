@@ -3724,10 +3724,11 @@ const { counts: segmentCounts } = useSegmentCounts();
       phone: companyInfo?.phone
     });
     const tokenData = getDefaultTokenData(companyInfo);
-    // Pass footer background color from campaign styling overrides
+    // Pass footer background color and full styling from campaign styling overrides
     const footerBgColor = campaignOverrides?.footerStyling?.backgroundColor || campaignOverrides?.footerBackgroundColor;
-    const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData, footerBgColor);
-    console.log('✅ Footer HTML generated with company:', companyInfo?.name, 'footerBgColor:', footerBgColor);
+    const footerStyling = campaignOverrides?.footerStyling;
+    const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData, footerBgColor, footerStyling);
+    console.log('✅ Footer HTML generated with company:', companyInfo?.name, 'footerBgColor:', footerBgColor, 'footerStyling:', footerStyling);
     
     html += `
           ${footerHTML}
