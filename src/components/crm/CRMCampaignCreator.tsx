@@ -3024,6 +3024,8 @@ const { counts: segmentCounts } = useSegmentCounts();
           const rawHeaderOpacity = block.backgroundOpacity ?? 40;
           const headerOpacity = rawHeaderOpacity > 1 ? rawHeaderOpacity / 100 : rawHeaderOpacity;
           const headerBgColor = block.backgroundColor || '#1f2937';
+          // Use campaign name as fallback headline for header blocks
+          const headerHeadline = blockHeadline || campaignName || '';
           
           if (block.backgroundImageUrl) {
             // Table-based layout with background image and RGBA overlay for email compatibility
@@ -3043,7 +3045,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                     <![endif]-->
                     <!-- Overlay div sits on top of background image -->
                     <div style="background-color: ${overlayColor}; padding: 40px 20px; text-align: ${headerAlign};">
-                      ${!shouldHideContent(block) && blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${sanitizeCampaignTitle(blockHeadline)}</h1>` : ''}
+                      ${!shouldHideContent(block) && headerHeadline && !isBlockTypeLabel(headerHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${sanitizeCampaignTitle(headerHeadline)}</h1>` : ''}
                       ${!shouldHideContent(block) && blockBody ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${blockBody}</div>` : ''}
                     </div>
                     <!--[if gte mso 9]>
@@ -3063,7 +3065,7 @@ const { counts: segmentCounts } = useSegmentCounts();
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
                   <td style="background-color: ${headerBgColor}; padding: 40px 20px; text-align: ${headerAlign};">
-                    ${!shouldHideContent(block) && blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${blockHeadline}</h1>` : ''}
+                    ${!shouldHideContent(block) && headerHeadline && !isBlockTypeLabel(headerHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${headerHeadline}</h1>` : ''}
                     ${!shouldHideContent(block) && blockBody ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${blockBody}</div>` : ''}
                   </td>
                 </tr>
@@ -3421,6 +3423,9 @@ const { counts: segmentCounts } = useSegmentCounts();
           const nhDarkOverlayOpacity = rawNhDarkOverlayOpacity > 1 ? rawNhDarkOverlayOpacity / 100 : rawNhDarkOverlayOpacity;
           const nhTextAlign = block.textAlign || 'center';
           
+          // Use campaign name as fallback headline for newsletter-header blocks
+          const nhHeadline = block.title || block.headline || campaignName || '';
+          
           // Format publish date if exists
           let formattedDate = '';
           if (block.publishDate) {
@@ -3455,7 +3460,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
                     <div>
-                      ${block.title || block.headline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${nhTextColor}; line-height: 1.2;">${block.title || block.headline}</h1>` : ''}
+                      ${nhHeadline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${nhTextColor}; line-height: 1.2;">${nhHeadline}</h1>` : ''}
                       ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; font-family: ${fonts.subheadingFont}; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
                       ${(block.issueNumber || formattedDate) ? `
                         <div style="margin: 16px 0;">
@@ -3492,7 +3497,7 @@ const { counts: segmentCounts } = useSegmentCounts();
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
                   <td style="background-color: ${nhBackgroundColor}; padding: 60px 20px; text-align: ${nhTextAlign}; min-height: 300px;">
-                    ${block.title || block.headline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${nhTextColor}; line-height: 1.2;">${block.title || block.headline}</h1>` : ''}
+                    ${nhHeadline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${nhTextColor}; line-height: 1.2;">${nhHeadline}</h1>` : ''}
                     ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; font-family: ${fonts.subheadingFont}; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
                     ${(block.issueNumber || formattedDate) ? `
                       <div style="margin: 16px 0;">
