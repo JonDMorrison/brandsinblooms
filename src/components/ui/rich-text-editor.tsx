@@ -24,6 +24,8 @@ import {
   Type
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MergeTagPicker } from '@/components/shared/MergeTagPicker';
+import type { MergeTagCategory } from '@/lib/mergeTagDefinitions';
 
 interface RichTextEditorProps {
   content?: string;
@@ -32,6 +34,8 @@ interface RichTextEditorProps {
   className?: string;
   editorClassName?: string;
   showToolbar?: boolean;
+  showMergeTags?: boolean;
+  excludeMergeTagCategories?: MergeTagCategory[];
   onFocus?: () => void;
   onBlur?: () => void;
   autoFocus?: boolean;
@@ -44,6 +48,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   className = '',
   editorClassName = '',
   showToolbar = true,
+  showMergeTags = false,
+  excludeMergeTagCategories = [],
   onFocus,
   onBlur,
   autoFocus = false
@@ -273,6 +279,21 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 <Redo className="h-4 w-4" />
               </ToolbarButton>
             </div>
+
+            {/* Merge Tags / Personalization */}
+            {showMergeTags && (
+              <div className="flex gap-1 border-l border-border pl-2 ml-2">
+                <MergeTagPicker
+                  variant="icon"
+                  size="sm"
+                  excludeCategories={excludeMergeTagCategories}
+                  onSelectTag={(tag) => {
+                    editor.chain().focus().insertContent(tag).run();
+                  }}
+                  className="h-8 w-8"
+                />
+              </div>
+            )}
           </div>
         )}
         <EditorContent 
