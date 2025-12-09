@@ -45,8 +45,8 @@ export const GallerySlotActionMenu: React.FC<GallerySlotActionMenuProps> = ({
         "flex items-center rounded-md overflow-hidden",
         "transition-all duration-300 ease-out",
         isExpanded 
-          ? "gap-0.5 bg-background/90 backdrop-blur-sm px-1 py-0.5 shadow-sm" 
-          : "gap-0 bg-background/80 backdrop-blur-sm rounded-md shadow-sm"
+          ? "gap-0.5 bg-white px-1 py-0.5 shadow-md" 
+          : "gap-0 bg-white rounded-md shadow-md"
       )}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
