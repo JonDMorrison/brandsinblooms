@@ -83,15 +83,28 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
           className="w-full h-full object-cover"
         />
         
-        {/* Hover overlay with actions */}
+        {/* Hover overlay */}
         <div
           className={cn(
-            "absolute inset-0 bg-black/40 flex items-center justify-center",
+            "absolute inset-0 bg-black/30",
+            "transition-opacity duration-200",
+            isHovered ? "opacity-100" : "opacity-0"
+          )}
+        />
+
+        {/* Top-right toolbar group */}
+        <div
+          className={cn(
+            "absolute top-2 right-2 flex items-center gap-1",
             "transition-opacity duration-200",
             isHovered ? "opacity-100" : "opacity-0"
           )}
         >
-          {/* Remove button - top right */}
+          <GallerySlotActionMenu
+            onAutoPickImage={handleAutoPickImage}
+            onOpenMediaSelector={onOpenMediaSelector}
+            onOpenAIDialog={onOpenAIDialog}
+          />
           <Button
             size="sm"
             variant="destructive"
@@ -99,18 +112,11 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
               e.stopPropagation();
               onImageRemove();
             }}
-            className="absolute top-2 right-2 h-6 w-6 p-0"
+            className="h-6 w-6 p-0"
             aria-label="Remove image"
           >
             <X className="h-3 w-3" />
           </Button>
-          
-          {/* Centered action menu */}
-          <GallerySlotActionMenu
-            onAutoPickImage={handleAutoPickImage}
-            onOpenMediaSelector={onOpenMediaSelector}
-            onOpenAIDialog={onOpenAIDialog}
-          />
         </div>
       </div>
     );
@@ -120,19 +126,31 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
   return (
     <div
       className={cn(
-        "aspect-[4/3] bg-gray-200 border border-gray-300",
-        "flex flex-col items-center justify-center gap-3",
+        "aspect-[4/3] bg-gray-200 border border-gray-300 relative group",
+        "flex flex-col items-center justify-center gap-2",
         "hover:bg-gray-300/70 transition-colors",
         radiusMap[borderRadius]
       )}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
-      <GallerySlotActionMenu
-        onAutoPickImage={handleAutoPickImage}
-        onOpenMediaSelector={onOpenMediaSelector}
-        onOpenAIDialog={onOpenAIDialog}
-      />
       <span className="text-xs text-muted-foreground">Add Image</span>
+      
+      {/* Top-right toolbar - visible on hover */}
+      <div
+        className={cn(
+          "absolute top-2 right-2",
+          "transition-opacity duration-200",
+          isHovered ? "opacity-100" : "opacity-0"
+        )}
+      >
+        <GallerySlotActionMenu
+          onAutoPickImage={handleAutoPickImage}
+          onOpenMediaSelector={onOpenMediaSelector}
+          onOpenAIDialog={onOpenAIDialog}
+        />
+      </div>
     </div>
   );
 };
