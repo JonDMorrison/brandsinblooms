@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Palette, Save, RotateCcw, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Palette, Save, RotateCcw, Upload, X, Image as ImageIcon, Mail } from 'lucide-react';
+import { getCompanyInitials } from '@/types/newsletterFooter';
+import { cn } from '@/lib/utils';
 
 const COLOR_PRESETS = [
   { name: 'Green Garden (Default)', primary: '#22c55e', secondary: '#1e40af', accent: '#f59e0b', text: '#1f2937' },
@@ -24,6 +26,31 @@ const DEFAULT_COLORS = {
   text: '#1f2937',
 };
 
+const DEFAULT_FOOTER_COLORS = {
+  backgroundColor: '#283024',
+  textColor: '#F3F4F6',
+  linkColor: '#E5BFA7',
+  dividerColor: '#3D4A38',
+  logoBackgroundColor: '#E5BFA7',
+  logoTextColor: '#283024',
+};
+
+const FOOTER_BG_PRESETS = [
+  { label: 'Deep Green', value: '#283024' },
+  { label: 'Navy', value: '#1e3a5f' },
+  { label: 'Charcoal', value: '#374151' },
+  { label: 'Cream', value: '#FAF9F6' },
+  { label: 'White', value: '#FFFFFF' },
+];
+
+const FOOTER_ACCENT_PRESETS = [
+  { label: 'Warm Tan', value: '#E5BFA7' },
+  { label: 'Blue', value: '#3B82F6' },
+  { label: 'Green', value: '#22C55E' },
+  { label: 'Rose', value: '#F472B6' },
+  { label: 'Gold', value: '#F59E0B' },
+];
+
 export const BrandColorsSettings: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -31,7 +58,9 @@ export const BrandColorsSettings: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [colors, setColors] = useState(DEFAULT_COLORS);
+  const [footerColors, setFooterColors] = useState(DEFAULT_FOOTER_COLORS);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -45,7 +74,7 @@ export const BrandColorsSettings: React.FC = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('company_profiles')
-        .select('brand_primary_color, brand_secondary_color, brand_accent_color, brand_text_color, feature_flags')
+        .select('brand_primary_color, brand_secondary_color, brand_accent_color, brand_text_color, feature_flags, company_name')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -62,10 +91,18 @@ export const BrandColorsSettings: React.FC = () => {
           text: data.brand_text_color || DEFAULT_COLORS.text,
         });
         
-        // Load logo URL from feature_flags
+        setCompanyName(data.company_name || '');
+        
+        // Load logo URL and footer colors from feature_flags
         const featureFlags = data.feature_flags as any;
         if (featureFlags?.company_logo_url) {
           setLogoUrl(featureFlags.company_logo_url);
+        }
+        if (featureFlags?.footer_colors) {
+          setFooterColors({
+            ...DEFAULT_FOOTER_COLORS,
+            ...featureFlags.footer_colors,
+          });
         }
       }
     } catch (error) {
@@ -80,6 +117,15 @@ export const BrandColorsSettings: React.FC = () => {
 
     setIsSaving(true);
     try {
+      // Get current feature_flags
+      const { data: profile } = await supabase
+        .from('company_profiles')
+        .select('feature_flags')
+        .eq('user_id', user.id)
+        .single();
+
+      const currentFlags = (profile?.feature_flags as any) || {};
+
       const { error } = await supabase
         .from('company_profiles')
         .update({
@@ -87,6 +133,10 @@ export const BrandColorsSettings: React.FC = () => {
           brand_secondary_color: colors.secondary,
           brand_accent_color: colors.accent,
           brand_text_color: colors.text,
+          feature_flags: {
+            ...currentFlags,
+            footer_colors: footerColors,
+          },
         })
         .eq('user_id', user.id);
 
@@ -94,7 +144,7 @@ export const BrandColorsSettings: React.FC = () => {
 
       toast({
         title: 'Brand colors saved',
-        description: 'Your brand colors will be used in all new email campaigns.',
+        description: 'Your brand and footer colors will be used in all new email campaigns.',
       });
     } catch (error) {
       console.error('Error saving brand colors:', error);
@@ -119,6 +169,10 @@ export const BrandColorsSettings: React.FC = () => {
 
   const resetToDefaults = () => {
     setColors(DEFAULT_COLORS);
+  };
+
+  const resetFooterToDefaults = () => {
+    setFooterColors(DEFAULT_FOOTER_COLORS);
   };
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -484,7 +538,225 @@ export const BrandColorsSettings: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Color Presets */}
+      {/* Footer Colors */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Newsletter Footer Colors
+          </CardTitle>
+          <CardDescription>
+            Customize the default colors for email newsletter footers. These will be used as defaults for all campaigns.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Live Preview */}
+          <div className="rounded-lg overflow-hidden border">
+            <div 
+              className="p-4 text-center"
+              style={{ backgroundColor: footerColors.backgroundColor }}
+            >
+              {!logoUrl && (
+                <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm"
+                  style={{ backgroundColor: footerColors.logoBackgroundColor, color: footerColors.logoTextColor }}
+                >
+                  {getCompanyInitials(companyName)}
+                </div>
+              )}
+              {logoUrl && (
+                <img 
+                  src={logoUrl} 
+                  alt="Company logo" 
+                  className="h-10 w-auto mx-auto mb-2 object-contain"
+                />
+              )}
+              <div className="text-sm font-medium" style={{ color: footerColors.textColor }}>
+                {companyName || 'Company Name'}
+              </div>
+              <div 
+                className="h-px w-24 mx-auto my-3"
+                style={{ backgroundColor: footerColors.dividerColor }}
+              />
+              <div className="text-xs space-x-2">
+                <span style={{ color: footerColors.linkColor }} className="underline cursor-pointer">
+                  Unsubscribe
+                </span>
+                <span style={{ color: footerColors.textColor, opacity: 0.6 }}>|</span>
+                <span style={{ color: footerColors.linkColor }} className="underline cursor-pointer">
+                  Manage Preferences
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Background Color */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Background Color</Label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                value={footerColors.backgroundColor}
+                onChange={(e) => setFooterColors({ ...footerColors, backgroundColor: e.target.value })}
+                className="w-12 h-9 p-1 cursor-pointer"
+              />
+              <Input
+                value={footerColors.backgroundColor}
+                onChange={(e) => setFooterColors({ ...footerColors, backgroundColor: e.target.value })}
+                placeholder={DEFAULT_FOOTER_COLORS.backgroundColor}
+                className="flex-1 font-mono text-sm"
+              />
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {FOOTER_BG_PRESETS.map(preset => (
+                <button
+                  key={preset.value}
+                  onClick={() => setFooterColors({ ...footerColors, backgroundColor: preset.value })}
+                  className={cn(
+                    "w-6 h-6 rounded border-2 transition-all",
+                    footerColors.backgroundColor === preset.value 
+                      ? "border-primary ring-2 ring-primary/20" 
+                      : "border-transparent hover:border-muted-foreground/30"
+                  )}
+                  style={{ backgroundColor: preset.value }}
+                  title={preset.label}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Text Color */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Text Color</Label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                value={footerColors.textColor}
+                onChange={(e) => setFooterColors({ ...footerColors, textColor: e.target.value })}
+                className="w-12 h-9 p-1 cursor-pointer"
+              />
+              <Input
+                value={footerColors.textColor}
+                onChange={(e) => setFooterColors({ ...footerColors, textColor: e.target.value })}
+                placeholder={DEFAULT_FOOTER_COLORS.textColor}
+                className="flex-1 font-mono text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Link Accent Color */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Link Color</Label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                value={footerColors.linkColor}
+                onChange={(e) => setFooterColors({ ...footerColors, linkColor: e.target.value })}
+                className="w-12 h-9 p-1 cursor-pointer"
+              />
+              <Input
+                value={footerColors.linkColor}
+                onChange={(e) => setFooterColors({ ...footerColors, linkColor: e.target.value })}
+                placeholder={DEFAULT_FOOTER_COLORS.linkColor}
+                className="flex-1 font-mono text-sm"
+              />
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {FOOTER_ACCENT_PRESETS.map(preset => (
+                <button
+                  key={preset.value}
+                  onClick={() => setFooterColors({ ...footerColors, linkColor: preset.value })}
+                  className={cn(
+                    "w-6 h-6 rounded border-2 transition-all",
+                    footerColors.linkColor === preset.value 
+                      ? "border-primary ring-2 ring-primary/20" 
+                      : "border-transparent hover:border-muted-foreground/30"
+                  )}
+                  style={{ backgroundColor: preset.value }}
+                  title={preset.label}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Divider Color */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Divider Color</Label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                value={footerColors.dividerColor}
+                onChange={(e) => setFooterColors({ ...footerColors, dividerColor: e.target.value })}
+                className="w-12 h-9 p-1 cursor-pointer"
+              />
+              <Input
+                value={footerColors.dividerColor}
+                onChange={(e) => setFooterColors({ ...footerColors, dividerColor: e.target.value })}
+                placeholder={DEFAULT_FOOTER_COLORS.dividerColor}
+                className="flex-1 font-mono text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Logo Colors - only show if no logo image */}
+          {!logoUrl && (
+            <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+              <Label className="text-sm font-medium">Logo Initials Colors</Label>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Background</Label>
+                  <div className="flex gap-1.5">
+                    <Input
+                      type="color"
+                      value={footerColors.logoBackgroundColor}
+                      onChange={(e) => setFooterColors({ ...footerColors, logoBackgroundColor: e.target.value })}
+                      className="w-10 h-8 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={footerColors.logoBackgroundColor}
+                      onChange={(e) => setFooterColors({ ...footerColors, logoBackgroundColor: e.target.value })}
+                      placeholder={DEFAULT_FOOTER_COLORS.logoBackgroundColor}
+                      className="flex-1 font-mono text-xs"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Text</Label>
+                  <div className="flex gap-1.5">
+                    <Input
+                      type="color"
+                      value={footerColors.logoTextColor}
+                      onChange={(e) => setFooterColors({ ...footerColors, logoTextColor: e.target.value })}
+                      className="w-10 h-8 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={footerColors.logoTextColor}
+                      onChange={(e) => setFooterColors({ ...footerColors, logoTextColor: e.target.value })}
+                      placeholder={DEFAULT_FOOTER_COLORS.logoTextColor}
+                      className="flex-1 font-mono text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={resetFooterToDefaults} disabled={isSaving}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset to Default
+            </Button>
+            <Button onClick={saveBrandColors} disabled={isSaving}>
+              <Save className="h-4 w-4 mr-2" />
+              {isSaving ? 'Saving...' : 'Save Colors'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Color Presets</CardTitle>
