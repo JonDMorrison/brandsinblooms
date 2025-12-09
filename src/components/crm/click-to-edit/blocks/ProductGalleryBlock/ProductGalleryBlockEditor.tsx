@@ -148,6 +148,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
             title: e.target.value,
             userEdited: true 
           })}
+          onKeyDown={(e) => e.stopPropagation()}
           placeholder="Bring the Holiday Season to Life"
           className="text-lg font-semibold"
         />
@@ -164,6 +165,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
             content: e.target.value,
             userEdited: true 
           })}
+          onKeyDown={(e) => e.stopPropagation()}
           placeholder="Transform your space with festive favorites..."
         />
       </div>
@@ -216,6 +218,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
               <Input
                 value={item.title || ''}
                 onChange={(e) => updateProduct(index, 'title', e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
                 placeholder="Product name"
                 className="text-sm"
               />
@@ -224,6 +227,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
               <Input
                 value={item.badgeText || ''}
                 onChange={(e) => updateProduct(index, 'badgeText', e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
                 placeholder="25% OFF"
                 className="text-xs"
               />
@@ -232,6 +236,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
               <Input
                 value={item.url || ''}
                 onChange={(e) => updateProduct(index, 'url', e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
                 placeholder="https://..."
                 className="text-xs"
               />
@@ -268,6 +273,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
                 buttonText: e.target.value,
                 userEdited: true 
               })}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="Shop Holiday"
             />
           </div>
@@ -281,6 +287,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
                 buttonUrl: e.target.value,
                 userEdited: true 
               })}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="https://..."
             />
           </div>
