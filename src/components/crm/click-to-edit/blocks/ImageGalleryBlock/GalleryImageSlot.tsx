@@ -43,7 +43,7 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
     return (
       <div
         className={cn(
-          "aspect-square bg-muted flex items-center justify-center",
+          "aspect-[4/3] bg-muted flex items-center justify-center",
           "border-2 border-dashed border-primary/30",
           radiusMap[borderRadius]
         )}
@@ -60,7 +60,7 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
     return (
       <div
         className={cn(
-          "aspect-square relative group overflow-hidden",
+          "aspect-[4/3] relative group overflow-hidden",
           radiusMap[borderRadius]
         )}
         onMouseEnter={() => setIsHovered(true)}
@@ -116,7 +116,7 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
   return (
     <div
       className={cn(
-        "aspect-square bg-muted/50 border-2 border-dashed border-muted-foreground/30",
+        "aspect-[4/3] bg-muted/50 border-2 border-dashed border-muted-foreground/30",
         "flex flex-col items-center justify-center gap-2 cursor-pointer",
         "hover:border-primary/50 hover:bg-muted transition-colors",
         radiusMap[borderRadius]

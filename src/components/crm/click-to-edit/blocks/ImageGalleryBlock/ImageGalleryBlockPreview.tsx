@@ -97,7 +97,7 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
           <div
             key={`preview-${index}`}
             className={cn(
-              "aspect-square overflow-hidden",
+              "aspect-[4/3] overflow-hidden",
               radiusMap[galleryImageRadius]
             )}
           >
