@@ -13,6 +13,7 @@ import { EditMode } from '@/hooks/useBlockEditMode';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { Calendar } from 'lucide-react';
 import { AIImageLoadingOverlay } from '../AIImageLoadingOverlay';
+import { OPACITY_DEFAULTS, normalizeOpacityToDecimal } from '@/utils/opacityUtils';
 
 interface NewsletterHeaderBlockProps {
   block: ContentBlock;
@@ -45,50 +46,57 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
   const publishDate = block.publishDate || content.publishDate || '';
 
   // Live preview component that can be reused
-  const PreviewContent = () => (
-    <div className="relative overflow-hidden rounded-lg group min-h-[400px]">
-      {/* Background Image - bottom layer */}
-      {block.backgroundImageUrl && (
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ 
-            backgroundImage: `url(${block.backgroundImageUrl})`,
-            opacity: (block.backgroundOpacity || 100) / 100
-          }}
-        />
-      )}
-      
-      {/* Dark Overlay - for text contrast */}
-      {block.backgroundImageUrl && block.darkOverlayOpacity && block.darkOverlayOpacity > 0 && (
-        <div 
-          className="absolute inset-0 bg-black"
-          style={{ 
-            opacity: (block.darkOverlayOpacity || 0) / 100
-          }}
-        />
-      )}
-      
-      {/* Color Overlay - middle layer */}
-      {block.backgroundColor && (
-        <div 
-          className="absolute inset-0"
-          style={{ 
-            backgroundColor: block.backgroundColor,
-            opacity: (block.colorOverlayOpacity || 50) / 100
-          }}
-        />
-      )}
+  const PreviewContent = () => {
+    // Use shared opacity utility for WYSIWYG consistency with email generation
+    const backgroundOpacityDecimal = normalizeOpacityToDecimal(block.backgroundOpacity, OPACITY_DEFAULTS.backgroundImage);
+    const colorOverlayDecimal = normalizeOpacityToDecimal(block.colorOverlayOpacity, OPACITY_DEFAULTS.colorOverlay);
+    const darkOverlayDecimal = normalizeOpacityToDecimal(block.darkOverlayOpacity, OPACITY_DEFAULTS.darkOverlay);
+    const imageOverlayDecimal = normalizeOpacityToDecimal(block.overlayOpacity, OPACITY_DEFAULTS.imageOverlay);
+    
+    return (
+      <div className="relative overflow-hidden rounded-lg group min-h-[400px]">
+        {/* Background Image - bottom layer */}
+        {block.backgroundImageUrl && (
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ 
+              backgroundImage: `url(${block.backgroundImageUrl})`,
+              opacity: backgroundOpacityDecimal
+            }}
+          />
+        )}
+        
+        {/* Dark Overlay - for text contrast */}
+        {block.backgroundImageUrl && darkOverlayDecimal > 0 && (
+          <div 
+            className="absolute inset-0 bg-black"
+            style={{ 
+              opacity: darkOverlayDecimal
+            }}
+          />
+        )}
+        
+        {/* Color Overlay - middle layer */}
+        {block.backgroundColor && (
+          <div 
+            className="absolute inset-0"
+            style={{ 
+              backgroundColor: block.backgroundColor,
+              opacity: colorOverlayDecimal
+            }}
+          />
+        )}
 
-      {/* Custom Image Overlay from overlay dialog */}
-      {block.overlayOpacity && block.overlayOpacity > 0 && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundColor: block.overlayColor || '#000000',
-            opacity: block.overlayOpacity / 100
-          }}
-        />
-      )}
+        {/* Custom Image Overlay from overlay dialog */}
+        {imageOverlayDecimal > 0 && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundColor: block.overlayColor || '#000000',
+              opacity: imageOverlayDecimal
+            }}
+          />
+        )}
 
       {/* Contextual Toolbar - only show when onModeChange is available */}
       {onModeChange && (
@@ -198,7 +206,8 @@ export const NewsletterHeaderBlock: React.FC<NewsletterHeaderBlockProps> = ({
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   if (isPreview) {
     return <PreviewContent />;

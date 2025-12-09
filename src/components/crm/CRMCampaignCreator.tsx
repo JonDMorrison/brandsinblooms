@@ -37,6 +37,7 @@ import { createBlockPrompt } from '@/utils/blockPromptBuilder';
 import { normalizeAIResponse, applyAIToBlock } from '@/lib/newsletter/aiMapping';
 import { usePagePersistence } from '@/hooks/usePagePersistence';
 import { normalizeBlockForSave, normalizeBlockFromDatabase, DatabaseBlock } from '@/utils/blockFieldMapping';
+import { OPACITY_DEFAULTS, normalizeOpacityToDecimal } from '@/utils/opacityUtils';
 import { useSaveQueue } from '@/hooks/useSaveQueue';
 import { DraftRestorationDialog } from './DraftRestorationDialog';
 import { 
@@ -3416,11 +3417,9 @@ const { counts: segmentCounts } = useSegmentCounts();
         case 'newsletter-header':
           const nhTextColor = block.textColor || '#ffffff';
           const nhBackgroundColor = block.backgroundColor || '#1f2937';
-          // Normalize opacity: if > 1, assume it's a percentage (0-100) and convert to decimal (0-1)
-          const rawNhColorOverlayOpacity = block.colorOverlayOpacity ?? 70;
-          const nhColorOverlayOpacity = rawNhColorOverlayOpacity > 1 ? rawNhColorOverlayOpacity / 100 : rawNhColorOverlayOpacity;
-          const rawNhDarkOverlayOpacity = block.darkOverlayOpacity ?? 30;
-          const nhDarkOverlayOpacity = rawNhDarkOverlayOpacity > 1 ? rawNhDarkOverlayOpacity / 100 : rawNhDarkOverlayOpacity;
+          // Use shared opacity utility for WYSIWYG consistency with preview
+          const nhColorOverlayOpacity = normalizeOpacityToDecimal(block.colorOverlayOpacity, OPACITY_DEFAULTS.colorOverlay);
+          const nhDarkOverlayOpacity = normalizeOpacityToDecimal(block.darkOverlayOpacity, OPACITY_DEFAULTS.darkOverlay);
           const nhTextAlign = block.textAlign || 'center';
           
           // Use campaign name as fallback headline for newsletter-header blocks
