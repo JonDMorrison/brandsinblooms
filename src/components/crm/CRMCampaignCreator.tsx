@@ -3646,7 +3646,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                 if (img?.url) {
                   imageRowsHtml += `
                     <td class="gallery-cell" width="${cellWidth}%" style="padding: 4px; vertical-align: top;">
-                      <img src="${img.url}" alt="${img.alt || 'Gallery image'}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />
+                      <img src="${img.url}" alt="${img.alt || 'Gallery image'}" style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; display: block;" />
                     </td>
                   `;
                 } else {
