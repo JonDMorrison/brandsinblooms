@@ -1,20 +1,9 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Settings, RotateCcw, ExternalLink, Palette } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useFooterSettings, buildFooterProps } from '@/hooks/useFooterSettings';
+import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { getFooterStyleConfig, getCompanyInitials } from '@/types/newsletterFooter';
-import { FooterStyling, hasFooterStylingOverrides } from '@/types/footerStyling';
-import { FooterStylingDialog } from './FooterStylingDialog';
+import { FooterStyling } from '@/types/footerStyling';
 
 interface FooterBlockProps {
   block: ContentBlock;
@@ -70,50 +59,11 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
   footerBackgroundColor,
   onFooterColorChange
 }) => {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isStylingDialogOpen, setIsStylingDialogOpen] = useState(false);
-  const { footerSettings, setFooterSettings, campaignOverrides, saveCampaignFooterOverride, clearCampaignFooterOverride, saveFooterStyling } = useFooterSettings(campaignId);
+  const { footerSettings, campaignOverrides } = useFooterSettings(campaignId);
   const { companyInfo } = useCompanyInfo();
 
-  const handleSettingChange = (key: string, value: any) => {
-    const newSettings = { ...footerSettings, [key]: value };
-    setFooterSettings(newSettings);
-  };
-
-  const handleColorChange = async (color: string) => {
-    if (campaignId) {
-      await saveCampaignFooterOverride(campaignId, { footerBackgroundColor: color });
-    }
-    onFooterColorChange?.(color);
-  };
-
-  const handleResetColor = async () => {
-    if (campaignId) {
-      await clearCampaignFooterOverride(campaignId);
-    }
-    onFooterColorChange?.(undefined);
-  };
-
-  // Local state for footer styling when campaign doesn't exist yet
-  const [localFooterStyling, setLocalFooterStyling] = useState<FooterStyling>({});
-
-  const handleSaveStyling = async (styling: FooterStyling) => {
-    // Always update local state immediately for preview
-    setLocalFooterStyling(styling);
-    
-    // If we have a campaignId, save to database
-    if (campaignId && saveFooterStyling) {
-      await saveFooterStyling(campaignId, styling);
-    }
-    
-    // Update the background color for immediate preview
-    if (styling.backgroundColor) {
-      onFooterColorChange?.(styling.backgroundColor);
-    }
-  };
-
-  // Get footer styling from: 1) campaign metadata, 2) local state
-  const footerStyling: FooterStyling = campaignOverrides.footerStyling || localFooterStyling;
+  // Get footer styling from campaign metadata
+  const footerStyling: FooterStyling = campaignOverrides.footerStyling || {};
 
   // Get computed styles - now considering per-campaign styling
   const effectiveBackgroundColor = footerStyling.backgroundColor || footerBackgroundColor || campaignOverrides.footerBackgroundColor || companyInfo.brandPrimaryColor;
@@ -191,57 +141,13 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
     logoBackground: baseStyles.linkAccent,
   };
 
-  // Toolbar component shared between preview and editor
-  const renderToolbar = () => (
-    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 bg-white border rounded-lg shadow-lg px-2 py-1.5">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setIsStylingDialogOpen(true)}
-        className="h-7 px-2.5 text-xs gap-1.5"
-      >
-        <Palette className="h-3.5 w-3.5" />
-        Customize Colors
-      </Button>
-      <div className="w-px h-4 bg-border" />
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-        className="h-7 px-2.5 text-xs gap-1.5"
-      >
-        <Settings className="h-3.5 w-3.5" />
-        Settings
-      </Button>
-      {hasFooterStylingOverrides(footerStyling) && (
-        <>
-          <div className="w-px h-4 bg-border" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () => {
-              if (campaignId && saveFooterStyling) {
-                await saveFooterStyling(campaignId, {});
-                onFooterColorChange?.(undefined);
-              }
-            }}
-            className="h-7 px-2 text-xs text-muted-foreground"
-            title="Reset to default colors"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </Button>
-        </>
-      )}
-    </div>
-  );
 
   if (isPreview) {
     return (
       <div 
-        className="relative group w-full mt-10"
+        className="relative w-full mt-10"
         style={{ backgroundColor: styles.backgroundColor }}
       >
-        {renderToolbar()}
         <div className="max-w-[640px] mx-auto px-4 py-8">
           {/* Three-column layout */}
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
@@ -351,263 +257,13 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Footer Styling Dialog - also available in preview */}
-        <FooterStylingDialog
-          open={isStylingDialogOpen}
-          onOpenChange={setIsStylingDialogOpen}
-          styling={footerStyling}
-          onSave={handleSaveStyling}
-          companyName={companyInfo.name}
-          hasLogoImage={hasLogoImage}
-          defaultColors={defaultColorsForDialog}
-        />
-
-        {/* Settings Panel - also available in preview */}
-        {isSettingsOpen && (
-          <Card className="absolute top-16 right-4 z-50 w-96 max-h-[70vh] overflow-y-auto p-4 shadow-lg border-2 border-primary/20 bg-white">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium">Footer Settings</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsSettingsOpen(false)}
-                  className="h-6 w-6 p-0"
-                >
-                  ×
-                </Button>
-              </div>
-              <Link 
-                to="/profile/contact-footer" 
-                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors py-1.5 px-2 -mx-2 rounded hover:bg-muted/50"
-              >
-                <ExternalLink className="w-3 h-3" />
-                Edit company contact info & social links
-              </Link>
-            </div>
-          </Card>
-        )}
       </div>
     );
   }
 
   // Editor view
   return (
-    <div className="relative group py-8">
-      {/* Hover Toolbar */}
-      {renderToolbar()}
-
-      {/* Footer Styling Dialog */}
-      <FooterStylingDialog
-        open={isStylingDialogOpen}
-        onOpenChange={setIsStylingDialogOpen}
-        styling={footerStyling}
-        onSave={handleSaveStyling}
-        companyName={companyInfo.name}
-        hasLogoImage={hasLogoImage}
-        defaultColors={defaultColorsForDialog}
-      />
-
-      {/* Settings Panel */}
-      {isSettingsOpen && (
-        <Card className="absolute top-12 right-0 z-50 w-96 max-h-[70vh] overflow-y-auto p-4 shadow-lg border-2 border-primary/20 bg-white">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">Footer Settings</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsSettingsOpen(false)}
-                className="h-6 w-6 p-0"
-              >
-                ×
-              </Button>
-            </div>
-
-            {/* Link to Contact & Footer Settings */}
-            <Link 
-              to="/profile/contact-footer" 
-              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors py-1.5 px-2 -mx-2 rounded hover:bg-muted/50"
-            >
-              <ExternalLink className="w-3 h-3" />
-              Edit company contact info & social links
-            </Link>
-
-            {/* Campaign Footer Color */}
-            <div className="p-3 bg-muted/50 rounded-lg">
-              <Label className="text-sm font-medium">Footer Background (This Campaign)</Label>
-              <div className="flex gap-2 mt-2">
-                <Input
-                  type="color"
-                  value={effectiveBackgroundColor || '#283024'}
-                  onChange={(e) => handleColorChange(e.target.value)}
-                  className="w-14 h-9 p-1"
-                />
-                <Input
-                  value={effectiveBackgroundColor || '#283024'}
-                  onChange={(e) => handleColorChange(e.target.value)}
-                  placeholder="#283024"
-                  className="flex-1"
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleResetColor}
-                  title="Reset to brand default"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Override the footer color for this campaign only</p>
-            </div>
-
-            {/* Toggle Options */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">Show Logo</Label>
-                <Switch
-                  checked={footerSettings.showLogo}
-                  onCheckedChange={(checked) => handleSettingChange('showLogo', checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">Show Phone Number</Label>
-                <Switch
-                  checked={footerSettings.showPhone}
-                  onCheckedChange={(checked) => handleSettingChange('showPhone', checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">Show Manage Preferences</Label>
-                <Switch
-                  checked={footerSettings.showManagePreferences}
-                  onCheckedChange={(checked) => handleSettingChange('showManagePreferences', checked)}
-                />
-              </div>
-            </div>
-
-            {/* Address Fields */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Address</Label>
-              <Input
-                value={footerSettings.addressLine1 || ''}
-                onChange={(e) => handleSettingChange('addressLine1', e.target.value)}
-                placeholder="Street address"
-                className="text-sm"
-              />
-              <Input
-                value={footerSettings.addressLine2 || ''}
-                onChange={(e) => handleSettingChange('addressLine2', e.target.value)}
-                placeholder="Suite, unit, etc."
-                className="text-sm"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  value={footerSettings.city || ''}
-                  onChange={(e) => handleSettingChange('city', e.target.value)}
-                  placeholder="City"
-                  className="text-sm"
-                />
-                <Input
-                  value={footerSettings.region || ''}
-                  onChange={(e) => handleSettingChange('region', e.target.value)}
-                  placeholder="State"
-                  className="text-sm"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  value={footerSettings.postalCode || ''}
-                  onChange={(e) => handleSettingChange('postalCode', e.target.value)}
-                  placeholder="ZIP"
-                  className="text-sm"
-                />
-                <Input
-                  value={footerSettings.country || ''}
-                  onChange={(e) => handleSettingChange('country', e.target.value)}
-                  placeholder="Country"
-                  className="text-sm"
-                />
-              </div>
-            </div>
-
-            {/* Contact Fields */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Contact</Label>
-              <Input
-                value={footerSettings.email || ''}
-                onChange={(e) => handleSettingChange('email', e.target.value)}
-                placeholder="Email address"
-                className="text-sm"
-              />
-              <Input
-                value={footerSettings.websiteUrl || ''}
-                onChange={(e) => handleSettingChange('websiteUrl', e.target.value)}
-                placeholder="Website URL"
-                className="text-sm"
-              />
-            </div>
-
-            {/* Social Links */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Social Links</Label>
-              <Input
-                value={footerSettings.facebookUrl || ''}
-                onChange={(e) => handleSettingChange('facebookUrl', e.target.value)}
-                placeholder="Facebook URL"
-                className="text-sm"
-              />
-              <Input
-                value={footerSettings.instagramUrl || ''}
-                onChange={(e) => handleSettingChange('instagramUrl', e.target.value)}
-                placeholder="Instagram URL"
-                className="text-sm"
-              />
-              <Input
-                value={footerSettings.tiktokUrl || ''}
-                onChange={(e) => handleSettingChange('tiktokUrl', e.target.value)}
-                placeholder="TikTok URL"
-                className="text-sm"
-              />
-              <Input
-                value={footerSettings.youtubeUrl || ''}
-                onChange={(e) => handleSettingChange('youtubeUrl', e.target.value)}
-                placeholder="YouTube URL"
-                className="text-sm"
-              />
-              <Input
-                value={footerSettings.linkedinUrl || ''}
-                onChange={(e) => handleSettingChange('linkedinUrl', e.target.value)}
-                placeholder="LinkedIn URL"
-                className="text-sm"
-              />
-              <Input
-                value={footerSettings.pinterestUrl || ''}
-                onChange={(e) => handleSettingChange('pinterestUrl', e.target.value)}
-                placeholder="Pinterest URL"
-                className="text-sm"
-              />
-            </div>
-
-            {/* Compliance Text */}
-            <div>
-              <Label className="text-sm font-medium">Legal / Compliance Text</Label>
-              <Textarea
-                value={footerSettings.complianceText}
-                onChange={(e) => handleSettingChange('complianceText', e.target.value)}
-                placeholder="Enter compliance text..."
-                className="w-full text-xs mt-1"
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Use {"{{company.name}}"} for dynamic company name
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-
+    <div className="relative py-8">
       {/* Simplified Editor Preview */}
       <div 
         className="w-full min-h-[120px] p-4 rounded border border-dashed border-gray-300"
