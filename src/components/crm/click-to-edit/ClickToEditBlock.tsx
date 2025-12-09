@@ -3,13 +3,13 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GripVertical, Trash2, Edit, Image, Zap, CheckCircle, AlertTriangle, Layers, Wand2 } from 'lucide-react';
+import { GripVertical, Trash2, Edit, Zap, CheckCircle, AlertTriangle, Layers } from 'lucide-react';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
 import { BlockLoadingOverlay } from './BlockLoadingOverlay';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
-import { RegenerateBlockButton } from '../RegenerateBlockButton';
+import { ImageActionMenu } from './ImageActionMenu';
 import { assessContentQuality, sanitizeAndImproveContent } from '@/utils/contentQuality';
 import { ImageOverlayDialog } from './ImageOverlayDialog';
 import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
@@ -337,34 +337,15 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             </Button>
           )}
           
-          {/* Auto Pick Image Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAutoPickImage();
-            }}
-            className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground"
-            title="Auto Pick - Generate AI image based on content"
+          {/* Unified Image Action Menu */}
+          <ImageActionMenu
+            block={localBlock}
+            editMode={editMode}
+            onModeChange={handleModeChange}
+            onAutoPickImage={handleAutoPickImage}
+            onOpenAIImageDialog={onOpenAIImageDialog ? () => onOpenAIImageDialog(block.id) : undefined}
             disabled={block.isGeneratingImage}
-          >
-            <Wand2 className="w-3 h-3" />
-          </Button>
-          
-          {/* Image Edit Button */}
-          <Button
-            variant={editMode === 'image' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleModeChange('image');
-            }}
-            className="h-7 w-7 p-0 hover:bg-muted"
-            title="Edit image"
-          >
-            <Image className="w-3 h-3" />
-          </Button>
+          />
 
           {/* Image Overlay Button - only show for Newsletter Header blocks */}
           {block.type === 'newsletter-header' && (block.imageUrl || block.backgroundImageUrl) && (
@@ -405,11 +386,6 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             }
             return null;
           })()}
-
-          <RegenerateBlockButton
-            block={localBlock}
-            onOpenAIImageDialog={onOpenAIImageDialog}
-          />
           
           <Button
             variant="ghost"
