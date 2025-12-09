@@ -12,6 +12,7 @@
 
 import { ContentBlock, BlockStatus, EmailBlock } from '@/types/emailBuilder';
 import { newsletterDebug } from './newsletterDebug';
+import { OPACITY_DEFAULTS } from './opacityUtils';
 
 /**
  * Field mapping definitions
@@ -241,6 +242,11 @@ export function normalizeBlockForSave(block: ContentBlock, index: number): {
       backgroundColor: block.backgroundColor,
       backgroundImageUrl: block.backgroundImageUrl,
       backgroundOpacity: block.backgroundOpacity,
+      // All overlay opacity values stored in content JSON for full compatibility
+      colorOverlayOpacity: block.colorOverlayOpacity,
+      darkOverlayOpacity: block.darkOverlayOpacity,
+      overlayOpacity: block.overlayOpacity,
+      overlayColor: block.overlayColor,
       layout: block.layout,
       caption: block.caption,
       altText: block.altText,
@@ -446,10 +452,11 @@ export function normalizeBlockFromDatabase(dbBlock: DatabaseBlock): ContentBlock
     source: (dbBlock.source || 'manual') as ContentBlock['source'],
     personaTag: dbBlock.persona_tag || undefined,
     
-    // Overlay settings (DB columns take priority)
+    // Overlay settings (DB columns take priority, then content JSON)
     overlayOpacity: dbBlock.overlay_opacity ?? contentObj.overlayOpacity,
     overlayColor: dbBlock.overlay_color || contentObj.overlayColor,
     darkOverlayOpacity: dbBlock.dark_overlay_opacity ?? contentObj.darkOverlayOpacity,
+    colorOverlayOpacity: contentObj.colorOverlayOpacity,
     
     // Block status for hydration control
     status,
