@@ -37,7 +37,7 @@ export const ProductBlockEditor: React.FC<ProductBlockEditorProps> = ({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div>
+        <div className="w-full">
           <Label htmlFor="product-name">Product Name</Label>
           <Input
             id="product-name"
@@ -47,7 +47,7 @@ export const ProductBlockEditor: React.FC<ProductBlockEditorProps> = ({
           />
         </div>
 
-        <div>
+        <div className="w-full">
           <Label htmlFor="product-price">Price</Label>
           <Input
             id="product-price"
@@ -69,7 +69,7 @@ export const ProductBlockEditor: React.FC<ProductBlockEditorProps> = ({
         />
       </div>
 
-      <div>
+      <div className="w-full">
         <Label htmlFor="product-image">Product Image URL</Label>
         <div className="flex gap-2">
           <Input
@@ -85,7 +85,7 @@ export const ProductBlockEditor: React.FC<ProductBlockEditorProps> = ({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
+        <div className="w-full">
           <Label htmlFor="product-button-text">Button Text</Label>
           <Input
             id="product-button-text"
@@ -95,7 +95,7 @@ export const ProductBlockEditor: React.FC<ProductBlockEditorProps> = ({
           />
         </div>
 
-        <div>
+        <div className="w-full">
           <Label htmlFor="product-button-url">Button URL</Label>
           <Input
             id="product-button-url"
