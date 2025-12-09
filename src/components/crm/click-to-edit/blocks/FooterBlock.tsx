@@ -304,9 +304,9 @@ export const FooterBlock: React.FC<FooterBlockProps> = ({
 
   // Editor view
   return (
-    <div className="relative group">
+    <div className="relative group py-8">
       {/* Hover Toolbar */}
-      <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-2 py-1.5">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 bg-white border rounded-lg shadow-lg px-2 py-1.5">
         <Button
           variant="ghost"
           size="sm"
