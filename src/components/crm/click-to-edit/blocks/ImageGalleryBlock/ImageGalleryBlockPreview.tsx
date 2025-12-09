@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
 import { ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GalleryLayout } from './GalleryLayoutSelector';
+import { GalleryImageSlot } from './GalleryImageSlot';
+import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface GalleryImage {
   id: string;
@@ -20,7 +24,6 @@ interface ImageGalleryBlockPreviewProps {
 // Strip HTML tags from content
 const stripHtml = (html: string | undefined): string => {
   if (!html) return '';
-  // Create a temporary element to parse HTML and extract text
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   return tmp.textContent || tmp.innerText || '';
@@ -42,7 +45,7 @@ const getGridColumns = (layout: GalleryLayout, cols?: number): number => {
   if (layout === 'custom' && cols) {
     return cols;
   }
-  return 3; // Default 3 columns for preset layouts
+  return 3;
 };
 
 const radiusMap = {
@@ -63,6 +66,11 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
   onUpdate,
   isGenerating = false,
 }) => {
+  const { toast } = useToast();
+  const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false);
+  const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
+  const [generatingSlots, setGeneratingSlots] = useState<Set<number>>(new Set());
+
   const galleryLayout = ((block as any).galleryLayout || '3-across') as GalleryLayout;
   const galleryRows = (block as any).galleryRows || 2;
   const galleryColumns = (block as any).galleryColumns || 3;
@@ -72,7 +80,6 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
   const imageCount = getImageCount(galleryLayout, galleryRows, galleryColumns);
   const gridCols = getGridColumns(galleryLayout, galleryColumns);
 
-  // Ensure we have the right number of image slots
   const imageSlots: (GalleryImage | undefined)[] = Array.from(
     { length: imageCount },
     (_, i) => galleryImages[i]
@@ -81,7 +88,82 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
   const hasHeadline = block.headline || block.title;
   const hasBody = block.body || block.content;
   const hasCta = block.ctaText && block.ctaUrl;
-  const hasAnyImages = galleryImages.length > 0;
+
+  const handleImageSelect = (index: number, imageUrl: string, metadata?: { alt?: string }) => {
+    const newImages = [...galleryImages];
+    newImages[index] = {
+      id: `img_${Date.now()}_${index}`,
+      url: imageUrl,
+      alt: metadata?.alt || `Gallery image ${index + 1}`,
+    };
+    
+    onUpdate({
+      ...block,
+      galleryImages: newImages,
+      userEdited: true,
+    } as any);
+    
+    setMediaSelectorOpen(false);
+    setActiveSlotIndex(null);
+  };
+
+  const handleImageRemove = (index: number) => {
+    const newImages = [...galleryImages];
+    newImages[index] = undefined as any;
+    const filteredImages = newImages.filter(Boolean);
+    
+    onUpdate({
+      ...block,
+      galleryImages: filteredImages,
+      userEdited: true,
+    } as any);
+  };
+
+  const openMediaSelectorForSlot = (index: number) => {
+    setActiveSlotIndex(index);
+    setMediaSelectorOpen(true);
+  };
+
+  const generateImageForSlot = async (index: number) => {
+    setGeneratingSlots(prev => new Set(prev).add(index));
+    
+    try {
+      const contentContext = [
+        block.headline,
+        block.body,
+        `gallery image ${index + 1}`,
+      ].filter(Boolean).join(' - ');
+
+      const { data, error } = await supabase.functions.invoke('generate-ai-image', {
+        body: {
+          channel: 'email',
+          contentType: 'gallery',
+          headline: block.headline || 'Gallery Image',
+          bodyText: block.body || '',
+          additionalContext: contentContext,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.imageUrl) {
+        handleImageSelect(index, data.imageUrl, { alt: data.altText });
+      }
+    } catch (err) {
+      console.error('Failed to generate image:', err);
+      toast({
+        title: "Image generation failed",
+        description: "Please try again or upload an image manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingSlots(prev => {
+        const next = new Set(prev);
+        next.delete(index);
+        return next;
+      });
+    }
+  };
 
   return (
     <div className="py-6 px-4">
@@ -99,7 +181,7 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
         </p>
       )}
 
-      {/* Image Grid */}
+      {/* Interactive Image Grid */}
       <div
         className={cn(
           "grid max-w-3xl mx-auto",
@@ -110,26 +192,18 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
         }}
       >
         {imageSlots.map((image, index) => (
-          <div
-            key={`preview-${index}`}
-            className={cn(
-              "aspect-[4/3] overflow-hidden",
-              radiusMap[galleryImageRadius],
-              !image?.url && "bg-gray-200 border border-gray-300"
-            )}
-          >
-            {image?.url ? (
-              <img
-                src={image.url}
-                alt={image.alt || `Gallery image ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
-              </div>
-            )}
-          </div>
+          <GalleryImageSlot
+            key={`preview-slot-${index}`}
+            image={image}
+            index={index}
+            isGenerating={generatingSlots.has(index)}
+            onImageSelect={(url, meta) => handleImageSelect(index, url, meta)}
+            onImageRemove={() => handleImageRemove(index)}
+            onOpenAIDialog={() => generateImageForSlot(index)}
+            onOpenMediaSelector={() => openMediaSelectorForSlot(index)}
+            onAutoPickImage={() => generateImageForSlot(index)}
+            borderRadius={galleryImageRadius}
+          />
         ))}
       </div>
 
@@ -148,8 +222,8 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
         </div>
       )}
 
-      {/* Empty State */}
-      {!hasHeadline && !hasBody && !hasAnyImages && (
+      {/* Empty State - only when nothing at all */}
+      {!hasHeadline && !hasBody && galleryImages.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <div className="flex justify-center gap-2 mb-2">
             <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300">
@@ -162,9 +236,24 @@ export const ImageGalleryBlockPreview: React.FC<ImageGalleryBlockPreviewProps> =
               <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
             </div>
           </div>
-          <p className="text-sm">Click to add images to your gallery</p>
+          <p className="text-sm">Hover over slots to add images</p>
         </div>
       )}
+
+      {/* Media Selector Sidebar */}
+      <MediaSelectorSidebar
+        isOpen={mediaSelectorOpen}
+        onClose={() => {
+          setMediaSelectorOpen(false);
+          setActiveSlotIndex(null);
+        }}
+        onImageSelect={(imageUrl, metadata) => {
+          if (activeSlotIndex !== null) {
+            handleImageSelect(activeSlotIndex, imageUrl, { alt: metadata?.alt });
+          }
+        }}
+        contentContext={block.headline || 'Gallery image'}
+      />
     </div>
   );
 };
