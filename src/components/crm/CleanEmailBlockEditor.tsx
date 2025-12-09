@@ -19,6 +19,7 @@ interface CleanEmailBlockEditorProps {
   onOpenAIImageDialog?: (blockId: string) => void;
   footerBackgroundColor?: string;
   onFooterColorChange?: (color: string | undefined) => void;
+  onFooterStylingChange?: (styling: import('@/types/footerStyling').FooterStyling) => void;
 }
 
 // Enhanced mapping function to convert layout types to block types and configurations
@@ -207,7 +208,8 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   campaignId,
   onOpenAIImageDialog,
   footerBackgroundColor,
-  onFooterColorChange
+  onFooterColorChange,
+  onFooterStylingChange
 }) => {
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -558,6 +560,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         onOpenAIImageDialog={onOpenAIImageDialog}
         footerBackgroundColor={footerBackgroundColor}
         onFooterColorChange={onFooterColorChange}
+        onFooterStylingChange={onFooterStylingChange}
       />
 
 

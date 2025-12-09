@@ -841,7 +841,7 @@ const { counts: segmentCounts } = useSegmentCounts();
   const { senderConfig, loading: loadingSenderConfig } = useSenderConfiguration();
 
   // Footer and company data - pass campaignId to load campaign-specific styling
-  const { footerSettings, campaignOverrides } = useFooterSettings(existingCampaignId || undefined);
+  const { footerSettings, campaignOverrides, setCampaignOverrides } = useFooterSettings(existingCampaignId || undefined);
   const { companyInfo } = useCompanyInfo();
   
   // Log company info changes for debugging footer issues
@@ -4212,6 +4212,14 @@ const { counts: segmentCounts } = useSegmentCounts();
             onOpenAIImageDialog={(blockId) => {
               setEditingBlockId(blockId);
               setShowAIImageDialog(true);
+            }}
+            onFooterStylingChange={(styling) => {
+              // Update local campaign overrides so email preview reflects changes immediately
+              setCampaignOverrides(prev => ({
+                ...prev,
+                footerStyling: styling,
+                footerBackgroundColor: styling.backgroundColor || prev.footerBackgroundColor,
+              }));
             }}
           />
         </CardContent>
