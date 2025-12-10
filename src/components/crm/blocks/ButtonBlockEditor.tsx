@@ -71,8 +71,8 @@ export const ButtonBlockEditor: React.FC<ButtonBlockEditorProps> = ({
                 <SafeHtml content={block.body || ''} type="general" className="text-sm text-muted-foreground mb-4" />
               </div>
             )}
-            <div>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <div className="flex justify-center">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 text-center">
                 {block.buttonText || 'Click Here'}
               </Button>
             </div>
