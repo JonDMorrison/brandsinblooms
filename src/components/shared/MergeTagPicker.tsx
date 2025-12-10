@@ -102,6 +102,11 @@ export function MergeTagPicker({
             variant="outline"
             size={size}
             className={className}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setOpen(!open);
+            }}
           >
             Personalize
           </Button>
@@ -110,6 +115,11 @@ export function MergeTagPicker({
             variant="ghost"
             size="icon"
             className={className}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setOpen(!open);
+            }}
           >
             <Sparkles className="h-4 w-4" />
           </Button>
@@ -119,6 +129,7 @@ export function MergeTagPicker({
         className="w-80 p-0"
         align="start"
         side="bottom"
+        onPointerDownOutside={(e) => e.preventDefault()}
       >
         <div className="p-3 border-b">
           <div className="relative">
