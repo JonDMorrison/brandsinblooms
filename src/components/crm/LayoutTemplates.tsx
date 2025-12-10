@@ -324,8 +324,8 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
           <p className="text-sm text-muted-foreground italic">Click to add description</p>
         )}
         {block.buttonText && (
-          <div>
-            <button className="bg-primary text-primary-foreground px-6 py-3 rounded-md hover:bg-primary/90 transition-colors font-medium">
+          <div className="flex justify-center">
+            <button className="bg-primary text-primary-foreground px-4 py-3 sm:px-6 rounded-md hover:bg-primary/90 transition-colors font-medium text-center max-w-[85%] sm:max-w-none">
               {block.buttonText}
             </button>
           </div>
