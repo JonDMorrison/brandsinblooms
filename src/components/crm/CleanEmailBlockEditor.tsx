@@ -477,6 +477,16 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
 
   const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
     console.log('🔧 Updating block:', id, 'with updates:', updates);
+    
+    // DEBUG: Log overlay-specific updates
+    if ('colorOverlayOpacity' in updates || 'backgroundColor' in updates || 'darkOverlayOpacity' in updates) {
+      console.log('🎨 [OVERLAY UPDATE] Block:', id, {
+        colorOverlayOpacity: updates.colorOverlayOpacity,
+        backgroundColor: updates.backgroundColor,
+        darkOverlayOpacity: updates.darkOverlayOpacity,
+      });
+    }
+    
     const newBlocks = internalBlocks.map(block => {
       if (block.id === id) {
         // Simply merge updates at top level
@@ -489,6 +499,17 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           backgroundImageUrl: updatedBlock.backgroundImageUrl, // Log header images
           imageUrl: updatedBlock.imageUrl
         });
+        
+        // DEBUG: Log overlay values after merge for newsletter-header blocks
+        if (updatedBlock.type === 'newsletter-header' || updatedBlock.type === 'header') {
+          console.log('🎨 [OVERLAY AFTER MERGE]', {
+            id: updatedBlock.id,
+            backgroundColor: updatedBlock.backgroundColor,
+            colorOverlayOpacity: updatedBlock.colorOverlayOpacity,
+            darkOverlayOpacity: updatedBlock.darkOverlayOpacity,
+          });
+        }
+        
         return updatedBlock;
       }
       return block;

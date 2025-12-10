@@ -3415,12 +3415,35 @@ const { counts: segmentCounts } = useSegmentCounts();
           break;
 
         case 'newsletter-header':
+          // DEBUG: Log overlay values for newsletter-header blocks
+          console.log('[EMAIL-HTML] Newsletter header OVERLAY DEBUG:', {
+            id: block.id,
+            backgroundColor: block.backgroundColor,
+            colorOverlayOpacity: block.colorOverlayOpacity,
+            darkOverlayOpacity: block.darkOverlayOpacity,
+            textColor: block.textColor,
+            backgroundImageUrl: block.backgroundImageUrl?.substring(0, 50),
+            rawBlock: {
+              hasBackgroundColor: 'backgroundColor' in block,
+              hasColorOverlayOpacity: 'colorOverlayOpacity' in block,
+              hasDarkOverlayOpacity: 'darkOverlayOpacity' in block,
+            }
+          });
+          
           const nhTextColor = block.textColor || '#ffffff';
           const nhBackgroundColor = block.backgroundColor || '#1f2937';
           // Use shared opacity utility for WYSIWYG consistency with preview
           const nhColorOverlayOpacity = normalizeOpacityToDecimal(block.colorOverlayOpacity, OPACITY_DEFAULTS.colorOverlay);
           const nhDarkOverlayOpacity = normalizeOpacityToDecimal(block.darkOverlayOpacity, OPACITY_DEFAULTS.darkOverlay);
           const nhTextAlign = block.textAlign || 'center';
+          
+          console.log('[EMAIL-HTML] Newsletter header NORMALIZED values:', {
+            id: block.id,
+            nhBackgroundColor,
+            nhColorOverlayOpacity,
+            nhDarkOverlayOpacity,
+            nhTextColor,
+          });
           
           // Use campaign name as fallback headline for newsletter-header blocks
           const nhHeadline = block.title || block.headline || campaignName || '';
@@ -4192,6 +4215,20 @@ const { counts: segmentCounts } = useSegmentCounts();
             blocks={blocks}
             onBlocksChange={(newBlocks) => {
               console.log('[CRM CAMPAIGN CREATOR] Blocks changed:', newBlocks.length);
+              
+              // DEBUG: Log overlay values for header blocks when blocks change
+              newBlocks.forEach((block, idx) => {
+                if (block.type === 'newsletter-header' || block.type === 'header') {
+                  console.log('[CRM CAMPAIGN CREATOR] Header block overlay values:', {
+                    idx,
+                    id: block.id,
+                    backgroundColor: block.backgroundColor,
+                    colorOverlayOpacity: block.colorOverlayOpacity,
+                    darkOverlayOpacity: block.darkOverlayOpacity,
+                    textColor: block.textColor,
+                  });
+                }
+              });
               
               // Prevent accidental clearing of blocks unless it's intentional
               if (newBlocks.length === 0 && blocks.length > 0) {
