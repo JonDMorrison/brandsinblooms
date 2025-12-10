@@ -2943,6 +2943,9 @@ const { counts: segmentCounts } = useSegmentCounts();
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!-- Force light mode in email clients to prevent dark mode color inversion -->
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
   <title>${subjectLine || 'Email Campaign'}</title>
   <!--[if mso]>
   <noscript>
@@ -2955,6 +2958,9 @@ const { counts: segmentCounts } = useSegmentCounts();
   <![endif]-->
   ${fonts.fontUrls.map(url => `<link href="${url}" rel="stylesheet">`).join('\n  ')}
   <style>
+    /* Force light color scheme - prevents email clients from inverting colors */
+    :root { color-scheme: light only; }
+    
     ${fonts.fontUrls.map(url => `@import url('${url}');`).join('\n    ')}
     
     /* Typography system with granular fonts */
