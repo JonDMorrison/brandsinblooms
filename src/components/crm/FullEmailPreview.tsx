@@ -283,33 +283,6 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
             </div>
           </div>
 
-          {/* Social Links Status Banner */}
-          <div className="px-3 py-2 border-b bg-background">
-            <div className="flex items-center gap-2 text-xs">
-              {hasSocialLinks ? (
-                <>
-                  <CheckCircle className="h-3.5 w-3.5 text-green-600" />
-                  <span className="text-muted-foreground">Social icons in footer:</span>
-                  <div className="flex gap-1">
-                    {socialLinksStatus.facebook && <Badge variant="secondary" className="text-[10px] px-1 py-0">Facebook</Badge>}
-                    {socialLinksStatus.instagram && <Badge variant="secondary" className="text-[10px] px-1 py-0">Instagram</Badge>}
-                    {socialLinksStatus.tiktok && <Badge variant="secondary" className="text-[10px] px-1 py-0">TikTok</Badge>}
-                    {socialLinksStatus.pinterest && <Badge variant="secondary" className="text-[10px] px-1 py-0">Pinterest</Badge>}
-                    {socialLinksStatus.youtube && <Badge variant="secondary" className="text-[10px] px-1 py-0">YouTube</Badge>}
-                    {socialLinksStatus.linkedin && <Badge variant="secondary" className="text-[10px] px-1 py-0">LinkedIn</Badge>}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-muted-foreground">No social links configured.</span>
-                  <a href="/profile/contact-footer" className="text-primary hover:underline">
-                    Add social links →
-                  </a>
-                </>
-              )}
-            </div>
-          </div>
           
           {/* Email Preview */}
           <div className="flex-1 overflow-auto p-4 bg-muted/50">
