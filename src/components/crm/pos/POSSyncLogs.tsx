@@ -35,8 +35,9 @@ export const POSSyncLogs: React.FC = () => {
     fetchConnections();
     
     // Set up real-time subscription for sync logs
+    const channelId = `${user.id}-${Date.now()}`;
     const channel = supabase
-      .channel('sync-logs')
+      .channel(`sync-logs-${channelId}`)
       .on('postgres_changes', 
         { 
           event: '*', 

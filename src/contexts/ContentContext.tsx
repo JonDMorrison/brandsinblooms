@@ -123,8 +123,10 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     if (!user) return;
 
+    const channelId = `${user.id}-${Date.now()}`;
+    
     const campaignSubscription = supabase
-      .channel('campaigns-channel')
+      .channel(`campaigns-channel-${channelId}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'campaigns' },
         () => fetchData(false) // Silent refresh for real-time updates
@@ -132,7 +134,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .subscribe();
 
     const taskSubscription = supabase
-      .channel('content-tasks-channel')
+      .channel(`content-tasks-channel-${channelId}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'content_tasks' },
         () => fetchData(false) // Silent refresh for real-time updates

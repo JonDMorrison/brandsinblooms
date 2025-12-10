@@ -247,8 +247,10 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     if (!user) return;
 
+    const channelId = `${user.id}-${Date.now()}`;
+    
     const campaignSubscription = supabase
-      .channel('global-campaigns-channel')
+      .channel(`global-campaigns-channel-${channelId}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'campaigns' },
         () => {
@@ -260,7 +262,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       .subscribe();
 
     const taskSubscription = supabase
-      .channel('global-content-tasks-channel')
+      .channel(`global-content-tasks-channel-${channelId}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'content_tasks' },
         () => {
@@ -273,7 +275,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     // Subscribe to master template changes to invalidate cache
     const templateSubscription = supabase
-      .channel('global-templates-channel')
+      .channel(`global-templates-channel-${channelId}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'master_campaign_templates' },
         () => {

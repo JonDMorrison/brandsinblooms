@@ -279,8 +279,10 @@ export const DashboardContent = ({
     checkContentGenerationStatus();
 
     // Set up real-time subscription for campaigns
+    const channelId = `${user.id}-${Date.now()}`;
+    
     const campaignChannel = supabase
-      .channel('dashboard-campaign-updates')
+      .channel(`dashboard-campaign-updates-${channelId}`)
       .on(
         'postgres_changes',
         {
@@ -298,7 +300,7 @@ export const DashboardContent = ({
 
     // Set up real-time subscription for content tasks
     const taskChannel = supabase
-      .channel('dashboard-task-updates')
+      .channel(`dashboard-task-updates-${channelId}`)
       .on(
         'postgres_changes',
         {

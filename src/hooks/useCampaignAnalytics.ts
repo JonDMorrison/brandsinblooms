@@ -190,8 +190,9 @@ export const useCampaignAnalytics = () => {
 
   // Set up real-time subscription for tracking events
   useEffect(() => {
+    const channelId = Date.now();
     const channel = supabase
-      .channel('email-tracking-changes')
+      .channel(`email-tracking-changes-${channelId}`)
       .on(
         'postgres_changes',
         {

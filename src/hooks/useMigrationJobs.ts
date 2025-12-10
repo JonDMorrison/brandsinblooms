@@ -42,8 +42,9 @@ export const useMigrationJobs = () => {
 
   // Subscribe to real-time updates
   useEffect(() => {
+    const channelId = Date.now();
     const channel = supabase
-      .channel('migration-jobs-changes')
+      .channel(`migration-jobs-changes-${channelId}`)
       .on(
         'postgres_changes',
         {
