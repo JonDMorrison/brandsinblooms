@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/footerGenerator.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -25,6 +26,34 @@ interface SenderTestPayload {
 interface DomainTestPayload {
   domain: string;
   testEmail: string;
+}
+
+/**
+ * Strip existing footer from HTML content to prepare for server-side regeneration
+ */
+function stripExistingFooter(html: string): string {
+  // Look for footer markers - try multiple patterns
+  const footerPatterns = [
+    // Pattern 1: Footer with margin-top: 40px (our generated footer)
+    /<div[^>]*style="[^"]*background-color[^"]*margin-top:\s*40px[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>\s*$/i,
+    // Pattern 2: Unsubscribe section at the end
+    /<div[^>]*>\s*<div[^>]*style="[^"]*text-align:\s*center[^"]*"[^>]*>[\s\S]*?Unsubscribe[\s\S]*?<\/div>\s*<\/div>\s*$/i,
+    // Pattern 3: Footer with specific background color patterns
+    /<div[^>]*style="[^"]*background-color:\s*#283024[^"]*"[^>]*>[\s\S]*<\/div>\s*$/i,
+  ];
+
+  let strippedHtml = html;
+  
+  for (const pattern of footerPatterns) {
+    const match = strippedHtml.match(pattern);
+    if (match) {
+      console.log("📧 Found and stripping existing footer");
+      strippedHtml = strippedHtml.replace(pattern, '');
+      break;
+    }
+  }
+  
+  return strippedHtml;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -81,16 +110,32 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Fetch user's company profile to get sender info
+    // Fetch FULL company profile including social URLs for footer regeneration
     const { data: companyProfile, error: profileError } = await supabaseClient
       .from('company_profiles')
-      .select('company_name, custom_sender_email, website_url')
+      .select(`
+        company_name, custom_sender_email, website_url,
+        street_address, city, state_province, postal_code, country,
+        company_email, company_phone,
+        facebook_url, instagram_url, tiktok_url, pinterest_url, youtube_url, linkedin_url,
+        footer_legal_text, brand_primary_color, brand_text_color, feature_flags
+      `)
       .eq('user_id', user.id)
       .single();
 
     if (profileError) {
       console.error("❌ Failed to fetch company profile:", profileError);
     }
+
+    // Log social URLs for debugging
+    console.log("📧 Company profile social URLs:", {
+      facebook: companyProfile?.facebook_url ? '✓' : '✗',
+      instagram: companyProfile?.instagram_url ? '✓' : '✗',
+      tiktok: companyProfile?.tiktok_url ? '✓' : '✗',
+      pinterest: companyProfile?.pinterest_url ? '✓' : '✗',
+      youtube: companyProfile?.youtube_url ? '✓' : '✗',
+      linkedin: companyProfile?.linkedin_url ? '✓' : '✗',
+    });
 
     // Determine reply-to email and sender name
     const replyToEmail = companyProfile?.custom_sender_email || user.email;
@@ -106,17 +151,50 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Check which type of test email based on payload structure
     if (payload.email && payload.subject && payload.content) {
-      // Campaign test email
+      // Campaign test email - regenerate footer server-side
       const { email, subject, content } = payload as CampaignTestPayload;
       
       console.log("📤 Sending campaign test email to:", email);
+      
+      // Regenerate footer server-side to ensure social icons are included
+      let finalContent = content;
+      
+      if (companyProfile) {
+        console.log("📧 Regenerating footer server-side for test email");
+        
+        // Strip any existing footer
+        const contentWithoutFooter = stripExistingFooter(content);
+        
+        // Generate placeholder URLs for test emails
+        const unsubscribeUrl = '#unsubscribe-test';
+        const managePreferencesUrl = '#preferences-test';
+        
+        // Generate server-side footer with full profile data
+        const serverFooter = generateServerFooterHtml(
+          companyProfile as CompanyProfileData,
+          unsubscribeUrl,
+          managePreferencesUrl
+        );
+        
+        // Find the closing body/html tags and insert footer before them
+        if (contentWithoutFooter.includes('</body>')) {
+          finalContent = contentWithoutFooter.replace('</body>', `${serverFooter}</body>`);
+        } else if (contentWithoutFooter.includes('</html>')) {
+          finalContent = contentWithoutFooter.replace('</html>', `${serverFooter}</html>`);
+        } else {
+          // No body/html tags, just append
+          finalContent = contentWithoutFooter + serverFooter;
+        }
+        
+        console.log("📧 Footer regenerated successfully for test email");
+      }
       
       emailResponse = await resend.emails.send({
         from: fromAddress,
         reply_to: replyToEmail,
         to: [email],
         subject: `[TEST] ${subject}`,
-        html: content,
+        html: finalContent,
       });
 
       // Check for Resend errors
