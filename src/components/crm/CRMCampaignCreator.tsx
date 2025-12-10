@@ -4052,28 +4052,10 @@ const { counts: segmentCounts } = useSegmentCounts();
         onPreview={() => setShowPreview(true)}
         onAudience={() => setShowSetupWizard(true)}
         onAIWriter={() => setShowAIWriter(true)}
+        isEditMode={!!existingCampaignId}
       />
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Breadcrumb Navigation */}
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/crm">CRM</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/crm/campaigns">Campaigns</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>
-                {existingCampaignId ? 'Edit Campaign' : 'New Campaign'}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        
         {/* Page Header */}
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
