@@ -4064,12 +4064,8 @@ const { counts: segmentCounts } = useSegmentCounts();
           <p className="text-muted-foreground">Build and customize your email campaign</p>
         </div>
 
-        {/* Campaign Settings - Top Horizontal Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Campaign Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        {/* Campaign Settings */}
+        <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="campaign-name">Campaign Name</Label>
@@ -4147,8 +4143,7 @@ const { counts: segmentCounts } = useSegmentCounts();
               senderConfig={senderConfig}
               onEditAudience={() => setShowSetupWizard(true)}
             />
-          </CardContent>
-         </Card>
+        </div>
 
        {/* Campaign Setup Wizard */}
        <CampaignSetupWizard
