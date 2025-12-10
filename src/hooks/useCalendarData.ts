@@ -130,8 +130,10 @@ export const useCalendarData = () => {
   useEffect(() => {
     if (!user) return;
 
+    const channelId = `${user.id}-${Date.now()}`;
+    
     const campaignSubscription = supabase
-      .channel('calendar-campaigns-channel')
+      .channel(`calendar-campaigns-channel-${channelId}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'campaigns' },
         () => fetchData(false) // Silent refresh for real-time updates
@@ -139,7 +141,7 @@ export const useCalendarData = () => {
       .subscribe();
 
     const taskSubscription = supabase
-      .channel('calendar-content-tasks-channel')
+      .channel(`calendar-content-tasks-channel-${channelId}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'content_tasks' },
         () => fetchData(false) // Silent refresh for real-time updates

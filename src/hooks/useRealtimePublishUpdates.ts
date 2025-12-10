@@ -18,8 +18,9 @@ export const useRealtimePublishUpdates = (onUpdate?: (update: PublishUpdate) => 
   useEffect(() => {
     if (!user) return;
 
+    const channelId = `${user.id}-${Date.now()}`;
     const channel = supabase
-      .channel('publish_updates')
+      .channel(`publish_updates-${channelId}`)
       .on(
         'postgres_changes',
         {

@@ -33,8 +33,9 @@ export const useImportProgress = (jobId: string | null) => {
     fetchJob();
 
     // Subscribe to real-time updates
+    const channelId = `${jobId}-${Date.now()}`;
     const channel = supabase
-      .channel(`import-job-progress-${jobId}`)
+      .channel(`import-job-progress-${channelId}`)
       .on(
         'postgres_changes',
         {

@@ -75,8 +75,10 @@ export const ProgressiveDashboardShell = ({ children }: ProgressiveDashboardShel
     checkGenerationStatus();
 
     // Set up real-time subscription for campaigns
+    const channelId = `${user.id}-${Date.now()}`;
+    
     const campaignChannel = supabase
-      .channel('campaign-updates')
+      .channel(`campaign-updates-${channelId}`)
       .on(
         'postgres_changes',
         {
@@ -91,7 +93,7 @@ export const ProgressiveDashboardShell = ({ children }: ProgressiveDashboardShel
 
     // Set up real-time subscription for content tasks
     const taskChannel = supabase
-      .channel('task-updates')
+      .channel(`task-updates-${channelId}`)
       .on(
         'postgres_changes',
         {
