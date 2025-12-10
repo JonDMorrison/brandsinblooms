@@ -38,7 +38,7 @@ import {
   ShoppingCart
 } from 'lucide-react';
 import { EmailBlockEditor } from './email-blocks/EmailBlockEditor';
-import { EmailPreview } from './EmailPreview';
+import { FullEmailPreview } from '../FullEmailPreview';
 import { CampaignPreview } from './CampaignPreview';
 import { TestEmailModal } from './TestEmailModal';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
@@ -685,20 +685,16 @@ export const EmailCampaignComposer: React.FC = () => {
         </div>
       </div>
 
-      {/* Preview Modal */}
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-4xl h-[80vh] p-0">
-          <DialogHeader className="px-6 py-4 border-b">
-            <DialogTitle>Campaign Preview</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden">
-            <CampaignPreview 
-              campaignData={campaignData}
-              senderConfig={senderConfig}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Full Email Preview Modal with Dynamic Footer */}
+      <FullEmailPreview
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        subject={campaignData.subject_line}
+        content={generateHTML()}
+        campaignId={campaignData.id}
+        senderName={senderConfig?.displayName}
+        senderEmail={senderConfig?.senderEmail}
+      />
 
       {/* Test Email Modal */}
       <TestEmailModal

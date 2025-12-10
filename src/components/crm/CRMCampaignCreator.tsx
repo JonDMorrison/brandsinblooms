@@ -13,7 +13,7 @@ import { Loader2, Mail, Users, Sparkles, Send, Eye } from 'lucide-react';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { SharedSenderConfirmationModal } from './campaigns/SharedSenderConfirmationModal';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
-import { EmailPreview } from './campaign-composer/EmailPreview';
+import { FullEmailPreview } from './FullEmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
 import { convertNewsletterToCRM } from '@/utils/newsletterToCrmSync';
 import { supabase } from '@/integrations/supabase/client';
@@ -4245,12 +4245,15 @@ const { counts: segmentCounts } = useSegmentCounts();
         </CardContent>
       </Card>
 
-      {/* Email Preview Modal */}
-      <EmailPreview
+      {/* Full Email Preview Modal with Dynamic Footer */}
+      <FullEmailPreview
         isOpen={showPreview}
         onClose={() => setShowPreview(false)}
         subject={subjectLine}
         content={emailHTMLContent}
+        campaignId={existingCampaignId}
+        senderName={senderConfig?.displayName}
+        senderEmail={senderConfig?.senderEmail}
       />
 
       {/* AI Writer Dialog */}
