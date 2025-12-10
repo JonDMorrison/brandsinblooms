@@ -183,14 +183,14 @@ export const useCompanyInfo = () => {
           brandSecondaryColor: profile.brand_secondary_color || '#1e40af',
           brandAccentColor: profile.brand_accent_color || '#f59e0b',
           brandTextColor: profile.brand_text_color || '#1f2937',
-          // Social URLs
-          facebookUrl: profile.facebook_url || '',
-          instagramUrl: profile.instagram_url || '',
-          tiktokUrl: profile.tiktok_url || '',
-          pinterestUrl: profile.pinterest_url || '',
-          youtubeUrl: profile.youtube_url || '',
-          linkedinUrl: profile.linkedin_url || '',
-          footerLegalText: profile.footer_legal_text || '',
+          // Social URLs - use undefined fallback to allow || chaining in downstream code
+          facebookUrl: profile.facebook_url || undefined,
+          instagramUrl: profile.instagram_url || undefined,
+          tiktokUrl: profile.tiktok_url || undefined,
+          pinterestUrl: profile.pinterest_url || undefined,
+          youtubeUrl: profile.youtube_url || undefined,
+          linkedinUrl: profile.linkedin_url || undefined,
+          footerLegalText: profile.footer_legal_text || undefined,
           // Brand footer colors from feature_flags
           brandFooterColors: featureFlags?.footer_colors ? {
             backgroundColor: featureFlags.footer_colors.backgroundColor,
