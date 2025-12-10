@@ -85,7 +85,40 @@ export const useNewsletterIdeas = () => {
         estimatedReadTime: '5 min'
       }));
 
-      return weeklyIdeas;
+      // Create wrap-around: append first 12 weeks after week 52 for continuous scrolling
+      const WRAP_AROUND_WEEKS = 12;
+      const wrappedIdeas: NewsletterIdea[] = campaigns
+        .filter(c => c.week_number <= WRAP_AROUND_WEEKS)
+        .map((campaign) => ({
+          id: `weekly-theme-${campaign.week_number}-next-year`,
+          title: sanitizeCampaignTitle(campaign.title || campaign.theme || 'Weekly Newsletter'),
+          description: campaign.content_ideas || campaign.seasonal_focus || `Weekly theme for week ${campaign.week_number}`,
+          category: 'weekly' as const,
+          badge: `Week ${campaign.week_number}`,
+          weekNumber: campaign.week_number + 52,
+          templateBlocks: [
+            { 
+              type: 'header', 
+              title: sanitizeCampaignTitle(campaign.theme || campaign.title || `Week ${campaign.week_number}`),
+              body: campaign.content_ideas || campaign.seasonal_focus || `Discover what's growing this week and get expert tips for your garden.`
+            },
+            { 
+              type: 'text', 
+              content: campaign.content_ideas || 'Weekly themed content for your newsletter.' 
+            },
+            { 
+              type: 'image-text', 
+              title: 'Seasonal Focus', 
+              content: campaign.seasonal_focus || `Featured content and ideas for week ${campaign.week_number}.` 
+            }
+          ],
+          heroQuery: sanitizeCampaignTitle(campaign.theme || campaign.title || 'weekly newsletter')
+            .toLowerCase()
+            .replace(/[^a-z0-9\s]/g, ''),
+          estimatedReadTime: '5 min'
+        }));
+
+      return [...weeklyIdeas, ...wrappedIdeas];
     } catch (err) {
       console.error('Error fetching weekly themes preset:', err);
       throw err;
