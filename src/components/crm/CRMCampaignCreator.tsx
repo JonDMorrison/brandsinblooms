@@ -3014,8 +3014,11 @@ const { counts: segmentCounts } = useSegmentCounts();
       }
       .cta-button {
         width: auto !important;
-        padding: 12px 24px !important;
+        max-width: 85% !important;
+        padding: 14px 20px !important;
         font-size: 16px !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
       }
       img {
         max-width: 100% !important;
@@ -3464,7 +3467,7 @@ const { counts: segmentCounts } = useSegmentCounts();
              <div style="text-align: ${btnAlign}; margin: 30px 0;">
                ${blockHeadline ? `<h3 style="color: ${block.textColor || companyInfo?.brandTextColor || '#1f2937'}; margin: 0 0 10px 0; font-size: 20px; font-family: ${fonts.subheadingFont}; font-weight: 600;">${blockHeadline}</h3>` : ''}
                ${blockBody ? `<div style="color: ${companyInfo?.brandTextColor || '#64748b'}; margin: 0 0 20px 0; line-height: 1.6; font-family: ${fonts.bodyFont};">${blockBody}</div>` : ''}
-               <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont};">
+               <a href="${block.buttonUrl || '#'}" class="cta-button" style="display: inline-block; padding: 14px 28px; background: ${block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-family: ${fonts.buttonFont}; text-align: center; max-width: 90%; box-sizing: border-box;">
                  ${block.buttonText || 'Learn More'}
                </a>
              </div>
