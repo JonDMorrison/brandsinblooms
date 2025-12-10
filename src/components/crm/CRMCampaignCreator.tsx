@@ -40,6 +40,8 @@ import { normalizeBlockForSave, normalizeBlockFromDatabase, DatabaseBlock } from
 import { OPACITY_DEFAULTS, normalizeOpacityToDecimal } from '@/utils/opacityUtils';
 import { useSaveQueue } from '@/hooks/useSaveQueue';
 import { DraftRestorationDialog } from './DraftRestorationDialog';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
+import { AutoSaveStatusBar } from './AutoSaveStatusBar';
 import { 
   Breadcrumb,
   BreadcrumbItem,
@@ -856,8 +858,85 @@ const { counts: segmentCounts } = useSegmentCounts();
 
   // Auto-save functionality with queue-based protection
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
   const { enqueueSave, cancelPendingSaves } = useSaveQueue();
+  const isCreatingDraftRef = useRef(false);
+  
+  // Create a draft campaign if none exists (auto-save for new campaigns)
+  const createDraftCampaign = useCallback(async (): Promise<string | null> => {
+    if (!user?.id || isCreatingDraftRef.current) {
+      return null;
+    }
+    
+    // Don't create draft if we already have an existing campaign
+    if (existingCampaignId) {
+      return existingCampaignId;
+    }
+    
+    isCreatingDraftRef.current = true;
+    
+    try {
+      console.log('📝 Creating new draft campaign for auto-save...');
+      
+      const { data, error } = await supabase
+        .from('crm_campaigns')
+        .insert({
+          name: campaignName || 'Untitled Draft',
+          subject_line: subjectLine || '',
+          preheader: preheaderText || '',
+          status: 'draft',
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+      
+      if (error) {
+        console.error('❌ Failed to create draft campaign:', error);
+        return null;
+      }
+      
+      console.log('✅ Draft campaign created:', data.id);
+      setExistingCampaignId(data.id);
+      
+      // Update URL to include the new campaign ID
+      const url = new URL(window.location.href);
+      navigate(`/crm/campaigns/${data.id}`, { replace: true });
+      
+      return data.id;
+    } catch (error) {
+      console.error('❌ Error creating draft campaign:', error);
+      return null;
+    } finally {
+      isCreatingDraftRef.current = false;
+    }
+  }, [user?.id, existingCampaignId, campaignName, subjectLine, preheaderText, navigate]);
+  
+  // Warn user before leaving with unsaved changes
+  useBeforeUnload({
+    when: hasUnsavedChanges && !isAutoSaving,
+    message: 'You have unsaved changes. Are you sure you want to leave?',
+    onBeforeUnload: () => {
+      // Try to save immediately before unload
+      if (existingCampaignId && hasUnsavedChanges) {
+        // Use sendBeacon or sync request for reliability
+        console.log('💾 Attempting emergency save before unload...');
+        // Note: async operations may not complete before unload
+        // The sessionStorage persistence will help recover
+        persistState({
+          campaignName,
+          subjectLine,
+          preheaderText,
+          blocks,
+          showPreview,
+          selectedPersonas,
+          selectedSegments,
+        }, lastModifiedAt);
+      }
+    }
+  });
 
   const autoSaveCampaign = useCallback(async (campaignData: {
     blocks: ContentBlock[];
@@ -4214,16 +4293,23 @@ const { counts: segmentCounts } = useSegmentCounts();
               }
               
               setBlocks(newBlocks);
+              setHasUnsavedChanges(true);
               
               // Auto-save when blocks change
-              if (existingCampaignId && newBlocks.length > 0) {
-                console.log('[CRM CAMPAIGN CREATOR] Triggering auto-save for blocks');
-                debouncedAutoSave({
-                  blocks: newBlocks,
-                  campaign_name: campaignName,
-                  subject_line: subjectLine,
-                  preheader: preheaderText
-                });
+              if (newBlocks.length > 0) {
+                if (existingCampaignId) {
+                  console.log('[CRM CAMPAIGN CREATOR] Triggering auto-save for blocks');
+                  debouncedAutoSave({
+                    blocks: newBlocks,
+                    campaign_name: campaignName,
+                    subject_line: subjectLine,
+                    preheader: preheaderText
+                  });
+                } else if (campaignName && newBlocks.length > 1) {
+                  // Auto-create draft for new campaigns with meaningful content
+                  console.log('[CRM CAMPAIGN CREATOR] Creating draft for new campaign...');
+                  createDraftCampaign();
+                }
               }
             }}
             generatingBlocks={generatingBlocks}
