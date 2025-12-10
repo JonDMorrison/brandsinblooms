@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { Resend } from "https://esm.sh/resend@2";
+import { generateServerFooterHtml, hasProperFooter, type CompanyProfileData } from "../_shared/footerGenerator.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -200,38 +202,126 @@ async function sendEmail(supabase: any, message: OutboxMessage): Promise<boolean
   try {
     console.log(`📧 Sending email to ${message.recipient}`);
 
-    // Call existing email sending edge function
-    const { data, error } = await supabase.functions.invoke('send-email-campaign', {
-      body: {
-        tenant_id: message.tenant_id,
-        recipient: message.recipient,
-        subject: message.subject || 'Notification from your garden center',
-        content: message.content,
-        template_data: message.template_data
-      }
-    });
-
-    if (error) {
-      console.error('❌ Email sending failed:', error);
+    // Initialize Resend
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      console.error('❌ Missing Resend API key');
       return false;
     }
 
-    console.log('✅ Email sent successfully');
+    const resend = new Resend(resendApiKey);
 
-    // Log successful delivery
-    await supabase
-      .from('crm_message_logs')
-      .insert({
-        outbox_id: message.id,
-        tenant_id: message.tenant_id,
-        message_type: 'email',
-        recipient: message.recipient,
-        status: 'sent',
-        external_id: data?.message_id,
-        metadata: { email_response: data }
-      });
+    // Get company profile for footer and sender info
+    // First get a user_id from the tenant
+    const { data: tenantUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('tenant_id', message.tenant_id)
+      .limit(1)
+      .single();
 
-    return true;
+    let companyProfile: CompanyProfileData | null = null;
+    let companyName = 'Your Garden Center';
+
+    if (tenantUser?.id) {
+      const { data: profile } = await supabase
+        .from('company_profiles')
+        .select(`
+          company_name, company_email, company_phone, website_url,
+          street_address, city, state_province, postal_code, country,
+          facebook_url, instagram_url, tiktok_url, pinterest_url, youtube_url, linkedin_url,
+          footer_legal_text, brand_primary_color, brand_text_color, feature_flags,
+          custom_sender_email
+        `)
+        .eq('user_id', tenantUser.id)
+        .single();
+
+      if (profile) {
+        companyProfile = profile;
+        companyName = profile.company_name || companyName;
+        console.log('📧 Company profile loaded for automation email footer:', {
+          companyName: profile.company_name,
+          hasFacebook: !!profile.facebook_url,
+          hasInstagram: !!profile.instagram_url,
+        });
+      }
+    }
+
+    // Generate unsubscribe link
+    const unsubscribeToken = btoa(`${message.recipient}:${message.tenant_id}`);
+    const unsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(message.recipient)}&tenant_id=${message.tenant_id}&token=${unsubscribeToken}`;
+    const preferencesLink = unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences');
+
+    // Prepare email content with proper footer
+    let emailContent = message.content;
+    
+    // Check if the content already has a proper footer
+    if (!hasProperFooter(emailContent) && companyProfile) {
+      console.log('📧 Adding server-generated footer to automation email');
+      
+      const serverFooter = generateServerFooterHtml(
+        companyProfile,
+        unsubscribeLink,
+        preferencesLink
+      );
+      
+      // Wrap content in a container if it's plain text
+      if (!emailContent.includes('<html') && !emailContent.includes('<body')) {
+        emailContent = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            ${emailContent}
+          </div>
+        `;
+      }
+      
+      // Append footer
+      emailContent += serverFooter;
+    } else if (!emailContent.includes(unsubscribeLink)) {
+      // Minimal fallback footer if no company profile but need unsubscribe
+      emailContent += `
+        <div style="font-size:12px; color:#888; margin-top:40px; border-top:1px solid #eee; padding-top:20px; text-align:center;">
+          <a href="${unsubscribeLink}" style="color:#888;">Unsubscribe</a>
+        </div>
+      `;
+    }
+
+    // Determine sender
+    const senderEmail = companyProfile?.custom_sender_email || 'noreply@bloomsuite.email';
+    const fromAddress = `${companyName} <${senderEmail}>`;
+
+    // Send email via Resend
+    const emailResponse = await resend.emails.send({
+      from: fromAddress,
+      to: [message.recipient],
+      subject: message.subject || 'Notification from your garden center',
+      html: emailContent,
+      headers: {
+        'X-Tenant-ID': message.tenant_id,
+        'X-Automation-ID': message.automation_id || 'direct',
+      },
+    });
+
+    if (emailResponse?.id) {
+      console.log(`✅ Email sent successfully. ID: ${emailResponse.id}`);
+
+      // Log successful delivery
+      await supabase
+        .from('crm_message_logs')
+        .insert({
+          outbox_id: message.id,
+          tenant_id: message.tenant_id,
+          message_type: 'email',
+          recipient: message.recipient,
+          status: 'sent',
+          external_id: emailResponse.id,
+          metadata: { email_response: emailResponse }
+        });
+
+      return true;
+    } else {
+      console.error('❌ Email sending failed - no response ID');
+      return false;
+    }
 
   } catch (error) {
     console.error('❌ Email sending failed:', error);

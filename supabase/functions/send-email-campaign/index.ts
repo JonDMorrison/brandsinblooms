@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Resend } from "https://esm.sh/resend@2";
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, type MergeTagData } from "../_shared/mergeTagEngine.ts";
+import { generateServerFooterHtml, hasProperFooter, type CompanyProfileData } from "../_shared/footerGenerator.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,16 +74,32 @@ serve(async (req) => {
       );
     }
 
-    // Get company profile for sender configuration
+    // Get FULL company profile for sender configuration AND footer generation
     const { data: companyProfile, error: profileError } = await supabase
       .from('company_profiles')
-      .select('email_auth_status, custom_sender_email, company_name, location_info')
+      .select(`
+        email_auth_status, custom_sender_email, company_name, location_info,
+        street_address, city, state_province, postal_code, country,
+        website_url, company_email, company_phone,
+        facebook_url, instagram_url, tiktok_url, pinterest_url, youtube_url, linkedin_url,
+        footer_legal_text, brand_primary_color, brand_text_color, feature_flags
+      `)
       .eq('user_id', campaign.user_id)
       .single();
 
     if (profileError) {
       console.error('Error fetching company profile:', profileError);
     }
+    
+    console.log('📧 Company profile loaded for footer:', {
+      companyName: companyProfile?.company_name,
+      hasFacebook: !!companyProfile?.facebook_url,
+      hasInstagram: !!companyProfile?.instagram_url,
+      hasTiktok: !!companyProfile?.tiktok_url,
+      hasPinterest: !!companyProfile?.pinterest_url,
+      hasYoutube: !!companyProfile?.youtube_url,
+      hasLinkedin: !!companyProfile?.linkedin_url,
+    });
 
     // Get customers based on campaign audience targeting
     // CRITICAL: Only include customers who have explicitly opted in (email_opt_in = true)
@@ -326,16 +343,45 @@ serve(async (req) => {
         emailContent = renderMergeTags(emailContent, mergeTagData);
         emailSubject = renderMergeTags(emailSubject, mergeTagData);
 
-        // Check if unsubscribe link is missing and auto-append footer
-        if (!emailContent.includes(unsubscribeLink) && !emailContent.includes('{{unsubscribe_link}}')) {
-          const autoFooter = `
-            <div style="font-size:12px; color:#888; margin-top:40px; border-top:1px solid #eee; padding-top:20px;">
-              You're receiving this email from ${companyName} because you signed up for updates.<br>
-              To unsubscribe, <a href="${unsubscribeLink}" style="color:#888;">click here</a>.<br>
-              ${companyName} | ${companyProfile?.location_info || 'Your Business Address'}
-            </div>
-          `;
-          emailContent += autoFooter;
+        // Check if email already has a proper footer with social icons
+        // If not, regenerate the footer server-side with full company profile data
+        if (!hasProperFooter(emailContent)) {
+          console.log(`📧 Regenerating footer for customer ${customer.id} - social icons missing`);
+          
+          // Build CompanyProfileData for footer generator
+          const profileData: CompanyProfileData = {
+            company_name: companyProfile?.company_name,
+            company_email: companyProfile?.company_email,
+            company_phone: companyProfile?.company_phone,
+            website_url: companyProfile?.website_url,
+            street_address: companyProfile?.street_address,
+            city: companyProfile?.city,
+            state_province: companyProfile?.state_province,
+            postal_code: companyProfile?.postal_code,
+            country: companyProfile?.country,
+            facebook_url: companyProfile?.facebook_url,
+            instagram_url: companyProfile?.instagram_url,
+            tiktok_url: companyProfile?.tiktok_url,
+            pinterest_url: companyProfile?.pinterest_url,
+            youtube_url: companyProfile?.youtube_url,
+            linkedin_url: companyProfile?.linkedin_url,
+            footer_legal_text: companyProfile?.footer_legal_text,
+            brand_primary_color: companyProfile?.brand_primary_color,
+            brand_text_color: companyProfile?.brand_text_color,
+            feature_flags: companyProfile?.feature_flags,
+          };
+          
+          const serverFooter = generateServerFooterHtml(
+            profileData,
+            unsubscribeLink,
+            unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences')
+          );
+          
+          // Remove any existing minimal footer and append the full one
+          emailContent = emailContent.replace(/<div[^>]*style="[^"]*font-size:\s*12px[^"]*color:\s*#888[^"]*"[^>]*>[\s\S]*?<\/div>\s*$/, '');
+          emailContent += serverFooter;
+        } else {
+          console.log(`📧 Email already has proper footer with social icons for customer ${customer.id}`);
         }
 
         // Create or update subscription record
