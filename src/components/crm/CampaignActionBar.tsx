@@ -5,9 +5,16 @@ import { Send, Save, Eye, Users, Sparkles, Loader2 } from 'lucide-react';
 import { SenderStatusIndicator } from './campaigns/SenderStatusIndicator';
 import { SaveIndicator } from './SaveIndicator';
 import { ShortenAllBlocksButton } from './ShortenAllBlocksButton';
+import { 
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import type { SenderConfig } from '@/hooks/useSenderConfiguration';
 import type { ContentBlock } from '@/types/emailBuilder';
-
 interface CampaignActionBarProps {
   // Campaign status
   campaignName: string;
@@ -37,6 +44,9 @@ interface CampaignActionBarProps {
   onAIWriter: () => void;
   onBlockUpdate?: (blockId: string, updatedBlock: ContentBlock) => void;
   
+  // Breadcrumb
+  isEditMode?: boolean;
+  
   className?: string;
 }
 
@@ -59,6 +69,7 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
   onAudience,
   onAIWriter,
   onBlockUpdate,
+  isEditMode = false,
   className = ''
 }) => {
   const [isSticky, setIsSticky] = useState(false);
@@ -99,32 +110,26 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
       <div className={`sticky top-0 z-50 ${isSticky ? 'flex justify-start' : 'w-full'} ${className}`}>
         <div className={`${isSticky ? 'inline-flex px-4 py-2 backdrop-blur-sm rounded-md shadow-sm' : 'w-full -mx-8 px-6 py-4 backdrop-blur-sm border-b'}`} style={{ backgroundColor: '#fbf9f4' }}>
           <div className={`flex items-center ${isSticky ? '' : 'justify-between'}`}>
-            {/* Left side - Status indicators */}
+            {/* Left side - Breadcrumb */}
             {!isSticky && (
               <div className="flex items-center space-x-4 animate-fade-in">
-                <div className="flex items-center space-x-2">
-                <SaveIndicator
-                    lastSaved={lastSaved}
-                    saving={isAutoSaving}
-                    error={saveError}
-                  />
-                </div>
-                
-                
-                {selectedSegments.length > 0 && (
-                  <Badge variant="outline" className="flex items-center space-x-1">
-                    <Users className="h-3 w-3" />
-                    <span>{selectedSegments.length} audience{selectedSegments.length !== 1 ? 's' : ''}</span>
-                  </Badge>
-                )}
-
-                {/* Image generation status indicator */}
-                {hasGeneratingImages && (
-                  <Badge variant="secondary" className="flex items-center space-x-1 bg-amber-100 text-amber-800 border-amber-200">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    <span>Generating {generatingImageCount} image{generatingImageCount !== 1 ? 's' : ''}...</span>
-                  </Badge>
-                )}
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink href="/crm">CRM</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbLink href="/crm/campaigns">Campaigns</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>
+                        {isEditMode ? 'Edit Campaign' : 'New Campaign'}
+                      </BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
               </div>
             )}
 
