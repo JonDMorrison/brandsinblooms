@@ -16,9 +16,50 @@ import './index.css'
 
 import './utils/globalToastReplace'
 import { initUptrace } from '@/utils/uptrace'
+import { logDevError, logPromiseRejection } from '@/utils/devErrorLogger'
 
 // Initialize Uptrace for frontend monitoring
 initUptrace()
+
+// Global error handlers for enhanced debugging visibility
+const isDev = import.meta.env.DEV || 
+  (typeof window !== 'undefined' && (
+    window.location.hostname.includes('lovableproject.com') ||
+    window.location.hostname === 'localhost'
+  ));
+
+if (isDev) {
+  // Catch uncaught errors
+  window.onerror = (message, source, lineno, colno, error) => {
+    console.group('%c🔴 [UNCAUGHT ERROR]', 'color: #ff4444; font-weight: bold; font-size: 14px;');
+    console.error('Message:', message);
+    console.error('Source:', source);
+    console.error('Line:', lineno, 'Column:', colno);
+    if (error) {
+      console.error('Error object:', error);
+      console.error('Stack:', error.stack);
+      logDevError('runtime', error, {
+        functionName: source || 'Unknown',
+        extra: { line: lineno, column: colno }
+      });
+    }
+    console.groupEnd();
+    return false; // Let the error propagate
+  };
+
+  // Catch unhandled promise rejections
+  window.onunhandledrejection = (event) => {
+    console.group('%c🔴 [UNHANDLED PROMISE REJECTION]', 'color: #ff4444; font-weight: bold; font-size: 14px;');
+    console.error('Reason:', event.reason);
+    if (event.reason instanceof Error) {
+      console.error('Stack:', event.reason.stack);
+    }
+    console.groupEnd();
+    logPromiseRejection(event.reason);
+  };
+
+  console.log('%c🐛 Debug mode enabled - Enhanced error logging active', 'color: #69db7c; font-weight: bold; font-size: 12px;');
+}
 
 
 // Create a client with optimized settings for better performance
