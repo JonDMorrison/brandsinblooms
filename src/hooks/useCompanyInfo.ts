@@ -151,6 +151,16 @@ export const useCompanyInfo = () => {
         const bodyFont = profile.body_font as any;
         const buttonFont = profile.button_font as any;
         
+        // Log social URLs for debugging footer issues
+        console.log('📧 Company profile social URLs loaded:', {
+          facebook: profile.facebook_url,
+          instagram: profile.instagram_url,
+          tiktok: profile.tiktok_url,
+          pinterest: profile.pinterest_url,
+          youtube: profile.youtube_url,
+          linkedin: profile.linkedin_url,
+        });
+        
         // Build full address from structured fields
         const addressParts = [
           profile.street_address,
@@ -183,7 +193,7 @@ export const useCompanyInfo = () => {
           brandSecondaryColor: profile.brand_secondary_color || '#1e40af',
           brandAccentColor: profile.brand_accent_color || '#f59e0b',
           brandTextColor: profile.brand_text_color || '#1f2937',
-          // Social URLs - use undefined fallback to allow || chaining in downstream code
+          // Social URLs - log them for debugging and use undefined fallback
           facebookUrl: profile.facebook_url || undefined,
           instagramUrl: profile.instagram_url || undefined,
           tiktokUrl: profile.tiktok_url || undefined,
