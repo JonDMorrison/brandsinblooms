@@ -3,10 +3,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { captureException } from '@/utils/uptrace';
+import { logReactError } from '@/utils/devErrorLogger';
 
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  errorInfo: React.ErrorInfo | null;
 }
 
 interface ErrorBoundaryProps {
@@ -17,15 +19,31 @@ interface ErrorBoundaryProps {
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Store errorInfo for potential display
+    this.setState({ errorInfo });
+    
+    // Enhanced console logging for development
+    console.group('%c🔴 [REACT ERROR BOUNDARY]', 'color: #ff4444; font-weight: bold; font-size: 14px;');
+    console.error('%cError:', 'color: #ff6b6b; font-weight: bold;', error.message);
+    console.error('%cStack Trace:', 'color: #ffa94d; font-weight: bold;');
+    console.error(error.stack);
+    console.error('%cComponent Stack:', 'color: #74c0fc; font-weight: bold;');
+    console.error(errorInfo.componentStack);
+    console.error('%cTimestamp:', 'color: #69db7c; font-weight: bold;', new Date().toISOString());
+    console.groupEnd();
+    
+    // Log to dev error logger for Debug Panel
+    logReactError(error, errorInfo.componentStack || undefined, 'ErrorBoundary');
+    
+    // Send to Uptrace for production monitoring
     captureException(error, { 
       componentStack: errorInfo.componentStack,
       context: 'ErrorBoundary' 
