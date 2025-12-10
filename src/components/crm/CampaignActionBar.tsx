@@ -110,13 +110,6 @@ export const CampaignActionBar: React.FC<CampaignActionBarProps> = ({
                   />
                 </div>
                 
-                {senderConfig && (
-                  <SenderStatusIndicator 
-                    senderConfig={senderConfig}
-                    compact={true}
-                    className="text-xs"
-                  />
-                )}
                 
                 {selectedSegments.length > 0 && (
                   <Badge variant="outline" className="flex items-center space-x-1">
