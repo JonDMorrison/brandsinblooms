@@ -284,14 +284,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             {showMergeTags && (
               <div className="flex gap-1 border-l border-border pl-2 ml-2">
                 <MergeTagPicker
-                  variant="icon"
+                  variant="button"
                   size="sm"
                   excludeCategories={excludeMergeTagCategories}
                   onSelectTag={(tag) => {
                     console.log('[RichTextEditor] Inserting merge tag:', tag);
-                    editor.chain().focus().insertContent(tag).run();
+                    editor?.chain().focus().insertContent(tag).run();
                   }}
-                  className="h-8 w-8"
                 />
               </div>
             )}
