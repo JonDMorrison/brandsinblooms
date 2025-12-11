@@ -5,6 +5,8 @@ import { Plus, Bug } from 'lucide-react';
 import { ClickToEditBlock } from './ClickToEditBlock';
 import { HeaderBlock } from './blocks/HeaderBlock';
 import { NewsletterHeaderBlock } from './blocks/NewsletterHeaderBlock';
+import { EmailSafeHeroBlock } from './blocks/EmailSafeHeroBlock';
+import { GraphicHeroBlock } from './blocks/GraphicHeroBlock';
 import { TextBlock } from './blocks/TextBlock';
 import { ImageBlock } from './blocks/ImageBlock';
 import { ImageTextBlock } from './blocks/ImageTextBlock';
@@ -272,6 +274,10 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         return <HeaderBlock {...props} isPreview={false} isGeneratingImage={isHeaderGeneratingImage} />;
       case 'newsletter-header':
         return <NewsletterHeaderBlock {...props} isPreview={false} isGeneratingImage={isHeaderGeneratingImage} />;
+      case 'email-safe-hero':
+        return <EmailSafeHeroBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
+      case 'graphic-hero':
+        return <GraphicHeroBlock {...props} isPreview={false} isGenerating={generatingBlocks.has(block.id)} />;
       case 'text':
         // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
@@ -318,6 +324,10 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
         return <HeaderBlock {...props} isPreview={true} isGeneratingImage={isHeaderGeneratingImage} />;
       case 'newsletter-header':
         return <NewsletterHeaderBlock {...props} isPreview={true} isGeneratingImage={isHeaderGeneratingImage} />;
+      case 'email-safe-hero':
+        return <EmailSafeHeroBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
+      case 'graphic-hero':
+        return <GraphicHeroBlock {...props} isPreview={true} isGenerating={generatingBlocks.has(block.id)} />;
       case 'text':
         // Use ImageTextBlock for text blocks that have images, image-centric layouts, or headlines
         const hasImageLayout = block.layout && ['two-column-left', 'two-column-right', 'image-left', 'image-right'].includes(block.layout);
