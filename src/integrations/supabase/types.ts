@@ -1805,6 +1805,13 @@ export type Database = {
             foreignKeyName: "crm_campaigns_from_email_domain_id_fkey"
             columns: ["from_email_domain_id"]
             isOneToOne: false
+            referencedRelation: "deliverability_summary_30d"
+            referencedColumns: ["domain_id"]
+          },
+          {
+            foreignKeyName: "crm_campaigns_from_email_domain_id_fkey"
+            columns: ["from_email_domain_id"]
+            isOneToOne: false
             referencedRelation: "email_domain_stats_30d"
             referencedColumns: ["domain_id"]
           },
@@ -3533,6 +3540,13 @@ export type Database = {
             foreignKeyName: "email_dns_checks_email_domain_id_fkey"
             columns: ["email_domain_id"]
             isOneToOne: false
+            referencedRelation: "deliverability_summary_30d"
+            referencedColumns: ["domain_id"]
+          },
+          {
+            foreignKeyName: "email_dns_checks_email_domain_id_fkey"
+            columns: ["email_domain_id"]
+            isOneToOne: false
             referencedRelation: "email_domain_stats_30d"
             referencedColumns: ["domain_id"]
           },
@@ -3593,6 +3607,13 @@ export type Database = {
             foreignKeyName: "email_dns_records_email_domain_id_fkey"
             columns: ["email_domain_id"]
             isOneToOne: false
+            referencedRelation: "deliverability_summary_30d"
+            referencedColumns: ["domain_id"]
+          },
+          {
+            foreignKeyName: "email_dns_records_email_domain_id_fkey"
+            columns: ["email_domain_id"]
+            isOneToOne: false
             referencedRelation: "email_domain_stats_30d"
             referencedColumns: ["domain_id"]
           },
@@ -3643,6 +3664,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "email_domain_usage_email_domain_id_fkey"
+            columns: ["email_domain_id"]
+            isOneToOne: false
+            referencedRelation: "deliverability_summary_30d"
+            referencedColumns: ["domain_id"]
+          },
           {
             foreignKeyName: "email_domain_usage_email_domain_id_fkey"
             columns: ["email_domain_id"]
@@ -7897,6 +7925,31 @@ export type Database = {
           },
         ]
       }
+      deliverability_summary_30d: {
+        Row: {
+          bounce_rate: number | null
+          bounced_30d: number | null
+          campaign_1_open_rate: number | null
+          campaign_2_open_rate: number | null
+          campaign_3_open_rate: number | null
+          campaign_count_30d: number | null
+          click_rate: number | null
+          clicked_30d: number | null
+          complained_30d: number | null
+          complaint_rate: number | null
+          daily_limit: number | null
+          delivered_30d: number | null
+          domain_id: string | null
+          domain_name: string | null
+          open_rate: number | null
+          opened_30d: number | null
+          sent_30d: number | null
+          tenant_id: string | null
+          verification_status: string | null
+          warmup_stage: number | null
+        }
+        Relationships: []
+      }
       email_domain_stats_30d: {
         Row: {
           bounce_rate_30d: number | null
@@ -8053,6 +8106,10 @@ export type Database = {
           tokens_balance: number
           user_id: string
         }[]
+      }
+      get_deliverability_status: {
+        Args: { p_domain_id: string }
+        Returns: Json
       }
       get_domain_email_stats_30d: {
         Args: { p_tenant_id?: string }

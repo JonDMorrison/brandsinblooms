@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Search, Users, Building2, Calendar, DollarSign } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DomainReputationDashboard } from '@/components/admin/DomainReputationDashboard';
+import { DeliverabilityMonitor } from '@/components/admin/DeliverabilityMonitor';
+
 export default function AdminDashboard() {
   const [searchEmail, setSearchEmail] = useState('');
   const { data: isSuperAdmin, isLoading: checkingAdmin } = useIsSuperAdmin();
@@ -93,6 +95,10 @@ export default function AdminDashboard() {
 
       {/* Domain Reputation Dashboard */}
       <DomainReputationDashboard />
+
+      {/* Deliverability Monitor */}
+      <DeliverabilityMonitor />
+
       <Card>
         <CardHeader>
           <CardTitle>Search User by Email</CardTitle>
