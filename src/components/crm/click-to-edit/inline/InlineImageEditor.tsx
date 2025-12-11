@@ -59,10 +59,10 @@ export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
 
         {/* Color Overlay Section */}
         {(onOverlayColorChange || onOverlayOpacityChange) && (
-          <div className="space-y-2 pt-3 border-t border-border/50">
+          <div className="space-y-3 pt-3 border-t border-border/50">
             <Label className="text-xs font-medium text-foreground/80">Color Overlay</Label>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Input
                 type="color"
                 value={overlayColor || '#000000'}
@@ -72,21 +72,22 @@ export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
               <Input
                 value={overlayColor || '#000000'}
                 onChange={(e) => onOverlayColorChange?.(e.target.value)}
-                className="w-[90px] h-9 text-xs font-mono"
+                className="w-24 h-9 text-xs font-mono shrink-0"
               />
-              <div className="flex-1 flex items-center gap-2">
-                <Slider
-                  value={[overlayOpacity]}
-                  onValueChange={(value) => onOverlayOpacityChange?.(value[0])}
-                  max={100}
-                  min={0}
-                  step={1}
-                  className="flex-1"
-                />
-                <span className="text-xs font-medium text-muted-foreground w-10 text-right tabular-nums">
-                  {overlayOpacity}%
-                </span>
-              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <Slider
+                value={[overlayOpacity]}
+                onValueChange={(value) => onOverlayOpacityChange?.(value[0])}
+                max={100}
+                min={0}
+                step={1}
+                className="flex-1"
+              />
+              <span className="text-xs font-medium text-muted-foreground w-10 text-right tabular-nums shrink-0">
+                {overlayOpacity}%
+              </span>
             </div>
             
             <p className="text-[11px] text-muted-foreground">
