@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
+import { ColorPickerWithSwatches } from '../shared/ColorPickerWithSwatches';
 
 interface ButtonBlockProps {
   block: ContentBlock;
@@ -131,15 +132,13 @@ export const ButtonBlock: React.FC<ButtonBlockProps> = ({ block, onUpdate, isPre
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="buttonColor">Button Color</Label>
-          <Input
-            id="buttonColor"
-            type="color"
-            value={buttonColor}
-            onChange={(e) => onUpdate({ buttonColor: e.target.value })}
-          />
-        </div>
+        <ColorPickerWithSwatches
+          label="Button Color"
+          id="buttonColor"
+          value={buttonColor}
+          onChange={(color) => onUpdate({ buttonColor: color })}
+          defaultValue="#22c55e"
+        />
 
         <div className="space-y-2">
           <Label>Size</Label>
