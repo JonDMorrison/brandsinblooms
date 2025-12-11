@@ -4134,6 +4134,7 @@ const { counts: segmentCounts } = useSegmentCounts();
       }
       
       const campaignData: CampaignData = {
+        id: existingCampaignId || undefined, // CRITICAL: Pass existing ID to UPDATE instead of creating duplicate
         name: campaignName,
         subject: subjectLine,
         sender_name: senderConfig?.displayName || 'Garden Center',
