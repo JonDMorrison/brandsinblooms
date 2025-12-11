@@ -2,11 +2,56 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Resend } from "https://esm.sh/resend@2";
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, type MergeTagData } from "../_shared/mergeTagEngine.ts";
-import { generateServerFooterHtml, hasProperFooter, type CompanyProfileData } from "../_shared/footerGenerator.ts";
+import { generateServerFooterHtml, type CompanyProfileData } from "../_shared/footerGenerator.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, traceparent, tracestate',
+}
+
+/**
+ * Strip ALL existing footer HTML from content to prevent double footers.
+ * The server-side footer generator is the single source of truth.
+ */
+function stripExistingFooter(html: string): string {
+  let strippedHtml = html;
+  
+  // Pattern: Footer wrapper with margin-top: 40px (our generated footer)
+  const footerWrapperPattern = /<div[^>]*style="[^"]*margin-top:\s*40px[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*<\/div>\s*$))/gi;
+  if (footerWrapperPattern.test(strippedHtml)) {
+    console.log("📧 Stripping footer with margin-top:40px pattern");
+    strippedHtml = strippedHtml.replace(footerWrapperPattern, '');
+  }
+  
+  // Pattern: Footer with Unsubscribe link inside background-colored container
+  const unsubscribeFooterPattern = /<div[^>]*style="[^"]*background-color[^"]*"[^>]*>[\s\S]*?<div[^>]*style="[^"]*max-width:\s*640px[^"]*"[^>]*>[\s\S]*?[Uu]nsubscribe[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi;
+  if (unsubscribeFooterPattern.test(strippedHtml)) {
+    console.log("📧 Stripping unsubscribe footer pattern");
+    strippedHtml = strippedHtml.replace(unsubscribeFooterPattern, '');
+  }
+  
+  // Pattern: Social icons from our storage
+  const socialIconsFooterPattern = /<div[^>]*style="[^"]*background-color[^"]*"[^>]*>[\s\S]*?social-icons[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi;
+  if (socialIconsFooterPattern.test(strippedHtml)) {
+    console.log("📧 Stripping social icons footer pattern");
+    strippedHtml = strippedHtml.replace(socialIconsFooterPattern, '');
+  }
+  
+  // Pattern: Legacy footer with specific dark green background
+  const legacyGreenFooterPattern = /<div[^>]*style="[^"]*background-color:\s*#283024[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi;
+  if (legacyGreenFooterPattern.test(strippedHtml)) {
+    console.log("📧 Stripping legacy green footer pattern");
+    strippedHtml = strippedHtml.replace(legacyGreenFooterPattern, '');
+  }
+  
+  // Final cleanup: Remove any remaining footer-like structures before closing tags
+  const finalCleanupPattern = /<div[^>]*style="[^"]*background-color[^"]*width:\s*100%[^"]*"[^>]*>[\s\S]*?[Uu]nsubscribe[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/div>)*\s*(<\/body>|<\/html>|$))/gi;
+  strippedHtml = strippedHtml.replace(finalCleanupPattern, (match) => {
+    console.log("📧 Final cleanup: stripping remaining footer structure");
+    return '';
+  });
+  
+  return strippedHtml;
 }
 
 serve(async (req) => {
@@ -343,46 +388,52 @@ serve(async (req) => {
         emailContent = renderMergeTags(emailContent, mergeTagData);
         emailSubject = renderMergeTags(emailSubject, mergeTagData);
 
-        // Check if email already has a proper footer with social icons
-        // If not, regenerate the footer server-side with full company profile data
-        if (!hasProperFooter(emailContent)) {
-          console.log(`📧 Regenerating footer for customer ${customer.id} - social icons missing`);
-          
-          // Build CompanyProfileData for footer generator
-          const profileData: CompanyProfileData = {
-            company_name: companyProfile?.company_name,
-            company_email: companyProfile?.company_email,
-            company_phone: companyProfile?.company_phone,
-            website_url: companyProfile?.website_url,
-            street_address: companyProfile?.street_address,
-            city: companyProfile?.city,
-            state_province: companyProfile?.state_province,
-            postal_code: companyProfile?.postal_code,
-            country: companyProfile?.country,
-            facebook_url: companyProfile?.facebook_url,
-            instagram_url: companyProfile?.instagram_url,
-            tiktok_url: companyProfile?.tiktok_url,
-            pinterest_url: companyProfile?.pinterest_url,
-            youtube_url: companyProfile?.youtube_url,
-            linkedin_url: companyProfile?.linkedin_url,
-            footer_legal_text: companyProfile?.footer_legal_text,
-            brand_primary_color: companyProfile?.brand_primary_color,
-            brand_text_color: companyProfile?.brand_text_color,
-            feature_flags: companyProfile?.feature_flags,
-          };
-          
-          const serverFooter = generateServerFooterHtml(
-            profileData,
-            unsubscribeLink,
-            unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences')
-          );
-          
-          // Remove any existing minimal footer and append the full one
-          emailContent = emailContent.replace(/<div[^>]*style="[^"]*font-size:\s*12px[^"]*color:\s*#888[^"]*"[^>]*>[\s\S]*?<\/div>\s*$/, '');
-          emailContent += serverFooter;
+        // ALWAYS strip any existing footer and regenerate server-side
+        // This ensures a single canonical footer with correct social icons
+        console.log(`📧 Stripping any existing footer and regenerating for customer ${customer.id}`);
+        
+        // Strip ALL existing footer structures aggressively
+        emailContent = stripExistingFooter(emailContent);
+        
+        // Build CompanyProfileData for footer generator
+        const profileData: CompanyProfileData = {
+          company_name: companyProfile?.company_name,
+          company_email: companyProfile?.company_email,
+          company_phone: companyProfile?.company_phone,
+          website_url: companyProfile?.website_url,
+          street_address: companyProfile?.street_address,
+          city: companyProfile?.city,
+          state_province: companyProfile?.state_province,
+          postal_code: companyProfile?.postal_code,
+          country: companyProfile?.country,
+          facebook_url: companyProfile?.facebook_url,
+          instagram_url: companyProfile?.instagram_url,
+          tiktok_url: companyProfile?.tiktok_url,
+          pinterest_url: companyProfile?.pinterest_url,
+          youtube_url: companyProfile?.youtube_url,
+          linkedin_url: companyProfile?.linkedin_url,
+          footer_legal_text: companyProfile?.footer_legal_text,
+          brand_primary_color: companyProfile?.brand_primary_color,
+          brand_text_color: companyProfile?.brand_text_color,
+          feature_flags: companyProfile?.feature_flags,
+        };
+        
+        const serverFooter = generateServerFooterHtml(
+          profileData,
+          unsubscribeLink,
+          unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences')
+        );
+        
+        // Insert footer before closing body/html tags, or append if no closing tags
+        if (emailContent.includes('</body>')) {
+          emailContent = emailContent.replace('</body>', `${serverFooter}</body>`);
+        } else if (emailContent.includes('</html>')) {
+          emailContent = emailContent.replace('</html>', `${serverFooter}</html>`);
         } else {
-          console.log(`📧 Email already has proper footer with social icons for customer ${customer.id}`);
+          emailContent += serverFooter;
         }
+        
+        console.log(`📧 Footer regenerated for customer ${customer.id}`);
 
         // Create or update subscription record
         await supabase
