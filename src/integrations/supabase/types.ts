@@ -1805,6 +1805,13 @@ export type Database = {
             foreignKeyName: "crm_campaigns_from_email_domain_id_fkey"
             columns: ["from_email_domain_id"]
             isOneToOne: false
+            referencedRelation: "email_domain_stats_30d"
+            referencedColumns: ["domain_id"]
+          },
+          {
+            foreignKeyName: "crm_campaigns_from_email_domain_id_fkey"
+            columns: ["from_email_domain_id"]
+            isOneToOne: false
             referencedRelation: "email_domains"
             referencedColumns: ["id"]
           },
@@ -3526,6 +3533,13 @@ export type Database = {
             foreignKeyName: "email_dns_checks_email_domain_id_fkey"
             columns: ["email_domain_id"]
             isOneToOne: false
+            referencedRelation: "email_domain_stats_30d"
+            referencedColumns: ["domain_id"]
+          },
+          {
+            foreignKeyName: "email_dns_checks_email_domain_id_fkey"
+            columns: ["email_domain_id"]
+            isOneToOne: false
             referencedRelation: "email_domains"
             referencedColumns: ["id"]
           },
@@ -3579,6 +3593,13 @@ export type Database = {
             foreignKeyName: "email_dns_records_email_domain_id_fkey"
             columns: ["email_domain_id"]
             isOneToOne: false
+            referencedRelation: "email_domain_stats_30d"
+            referencedColumns: ["domain_id"]
+          },
+          {
+            foreignKeyName: "email_dns_records_email_domain_id_fkey"
+            columns: ["email_domain_id"]
+            isOneToOne: false
             referencedRelation: "email_domains"
             referencedColumns: ["id"]
           },
@@ -3622,6 +3643,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "email_domain_usage_email_domain_id_fkey"
+            columns: ["email_domain_id"]
+            isOneToOne: false
+            referencedRelation: "email_domain_stats_30d"
+            referencedColumns: ["domain_id"]
+          },
           {
             foreignKeyName: "email_domain_usage_email_domain_id_fkey"
             columns: ["email_domain_id"]
@@ -7869,6 +7897,28 @@ export type Database = {
           },
         ]
       }
+      email_domain_stats_30d: {
+        Row: {
+          bounce_rate_30d: number | null
+          click_rate_30d: number | null
+          complaint_rate_30d: number | null
+          daily_limit: number | null
+          daily_used: number | null
+          domain_id: string | null
+          domain_name: string | null
+          emails_bounced_30d: number | null
+          emails_clicked_30d: number | null
+          emails_complained_30d: number | null
+          emails_delivered_30d: number | null
+          emails_opened_30d: number | null
+          emails_sent_30d: number | null
+          open_rate_30d: number | null
+          tenant_id: string | null
+          verification_status: string | null
+          warmup_stage: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_delete_user: { Args: { target_user_id: string }; Returns: boolean }
@@ -8002,6 +8052,28 @@ export type Database = {
           subscription_status: string
           tokens_balance: number
           user_id: string
+        }[]
+      }
+      get_domain_email_stats_30d: {
+        Args: { p_tenant_id?: string }
+        Returns: {
+          bounce_rate_30d: number
+          click_rate_30d: number
+          complaint_rate_30d: number
+          daily_limit: number
+          daily_used: number
+          domain_id: string
+          domain_name: string
+          emails_bounced_30d: number
+          emails_clicked_30d: number
+          emails_complained_30d: number
+          emails_delivered_30d: number
+          emails_opened_30d: number
+          emails_sent_30d: number
+          open_rate_30d: number
+          tenant_id: string
+          verification_status: string
+          warmup_stage: number
         }[]
       }
       get_duplicate_merge_suggestions: {

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Users, Building2, Calendar, DollarSign } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-
+import { DomainReputationDashboard } from '@/components/admin/DomainReputationDashboard';
 export default function AdminDashboard() {
   const [searchEmail, setSearchEmail] = useState('');
   const { data: isSuperAdmin, isLoading: checkingAdmin } = useIsSuperAdmin();
@@ -91,6 +91,8 @@ export default function AdminDashboard() {
         <p className="text-muted-foreground">Search and manage tenant accounts</p>
       </div>
 
+      {/* Domain Reputation Dashboard */}
+      <DomainReputationDashboard />
       <Card>
         <CardHeader>
           <CardTitle>Search User by Email</CardTitle>
