@@ -352,7 +352,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({
         "relative p-6 rounded-lg group",
         isEmpty && "border-2 border-dashed border-muted-foreground/30 bg-muted/20"
       )}
-      style={{ backgroundColor: isEmpty ? 'transparent' : (block.backgroundColor || 'transparent') }}
+      style={{ backgroundColor: isEmpty ? 'transparent' : (block.backgroundColor || '#ffffff') }}
     >
       {/* PHASE 4: Show generating overlay ONLY if no content has ever been shown */}
       {isGenerating && isEmpty && !(block as any).hasGeneratedContent && !contentShownRef.current && (

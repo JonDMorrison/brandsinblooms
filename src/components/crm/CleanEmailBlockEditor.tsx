@@ -441,6 +441,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         shouldFetchImage: false,  // User adds images manually via AI Assistant
         isGeneratingImage: false, // No auto-generation on manual block add
         autoImageMode: false,     // Prevent any auto-regeneration
+        backgroundColor: undefined, // Ensure new blocks default to white background
         // Apply layout-specific configuration
         ...config
       };
@@ -484,6 +485,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         responsiveBehavior: 'stack',
         visible: true,
         animation: 'fade-in',
+        backgroundColor: undefined, // Ensure new blocks default to white background
         ...fallbackConfig.config
       };
       
