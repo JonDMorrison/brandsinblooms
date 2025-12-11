@@ -85,6 +85,7 @@ export interface ContentBlock {
   // Visual Settings
   visible?: boolean;
   backgroundColor?: string;
+  containerBackgroundColor?: string; // Background color behind the image (container)
   textColor?: string;
   animation?: 'none' | 'fade-in' | 'slide-up' | 'scale-in';
   

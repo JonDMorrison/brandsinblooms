@@ -3,7 +3,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 
@@ -14,12 +13,14 @@ interface InlineImageEditorProps {
   onCancel: () => void;
   contentContext?: string;
   className?: string;
-  // Background and layout controls
+  // Overlay controls (sits ON TOP of the image)
+  overlayColor?: string;
+  overlayOpacity?: number;
+  onOverlayColorChange?: (color: string) => void;
+  onOverlayOpacityChange?: (opacity: number) => void;
+  // Background color (sits BEHIND the image/container)
   backgroundColor?: string;
   onBackgroundColorChange?: (color: string) => void;
-  layout?: 'image-left' | 'two-column-left' | 'two-column-right';
-  onLayoutChange?: (layout: 'image-left' | 'two-column-left' | 'two-column-right') => void;
-  showLayoutControls?: boolean;
 }
 
 export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
@@ -29,11 +30,12 @@ export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
   onCancel,
   contentContext = "Email content image",
   className = "",
+  overlayColor,
+  overlayOpacity = 0,
+  onOverlayColorChange,
+  onOverlayOpacityChange,
   backgroundColor,
-  onBackgroundColorChange,
-  layout,
-  onLayoutChange,
-  showLayoutControls = false
+  onBackgroundColorChange
 }) => {
   const handleImageChange = (newImageUrl: string) => {
     onChange(newImageUrl);
@@ -45,7 +47,7 @@ export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
     <Card className={`p-4 shadow-lg border-2 border-primary/20 ${className}`}>
       <div className="space-y-4">
         <div className="text-sm font-medium text-center mb-3">
-          Edit Image & Background
+          Edit Image & Styling
         </div>
         
         <MediaSelectorImage
@@ -55,34 +57,55 @@ export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
           className="w-full h-64"
         />
 
-        {/* Image Layout Controls */}
-        {showLayoutControls && imageUrl && onLayoutChange && (
-          <div className="space-y-3">
-            <Label>Image Layout</Label>
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={layout === 'two-column-right'}
-                onCheckedChange={(checked) => {
-                  const newLayout = checked ? 'two-column-right' : 'two-column-left';
-                  onLayoutChange(newLayout);
-                }}
+        {/* Color Overlay Section - sits ON TOP of the image */}
+        {(onOverlayColorChange || onOverlayOpacityChange) && (
+          <div className="space-y-3 pt-3 border-t border-border">
+            <Label className="text-sm font-medium">Color Overlay</Label>
+            <p className="text-xs text-muted-foreground">Tints the image with this color</p>
+            
+            <div className="flex items-center gap-3">
+              <Input
+                type="color"
+                value={overlayColor || '#000000'}
+                onChange={(e) => onOverlayColorChange?.(e.target.value)}
+                className="w-12 h-10 p-1 border rounded cursor-pointer"
               />
-              <Label>Image on right side</Label>
+              <Input
+                value={overlayColor || '#000000'}
+                onChange={(e) => onOverlayColorChange?.(e.target.value)}
+                placeholder="#000000"
+                className="w-24"
+              />
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Opacity</span>
+                  <span className="text-xs font-medium">{overlayOpacity}%</span>
+                </div>
+                <Slider
+                  value={[overlayOpacity]}
+                  onValueChange={(value) => onOverlayOpacityChange?.(value[0])}
+                  max={100}
+                  min={0}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
         )}
 
-        {/* Background Color */}
+        {/* Background Color Section - sits BEHIND the image */}
         {onBackgroundColorChange && (
-          <div className="space-y-2">
-            <Label htmlFor="bgColor">Background Color</Label>
-            <div className="flex items-center gap-2">
+          <div className="space-y-3 pt-3 border-t border-border">
+            <Label className="text-sm font-medium">Background Color</Label>
+            <p className="text-xs text-muted-foreground">Visible behind the image</p>
+            
+            <div className="flex items-center gap-3">
               <Input
-                id="bgColor"
                 type="color"
                 value={backgroundColor || '#ffffff'}
                 onChange={(e) => onBackgroundColorChange(e.target.value)}
-                className="w-16 h-10 p-1 border rounded"
+                className="w-12 h-10 p-1 border rounded cursor-pointer"
               />
               <Input
                 value={backgroundColor || '#ffffff'}

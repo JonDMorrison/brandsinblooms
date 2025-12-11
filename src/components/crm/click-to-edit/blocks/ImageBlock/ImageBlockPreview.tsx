@@ -33,7 +33,6 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
   const backgroundOpacityDecimal = normalizeOpacityToDecimal(block.backgroundOpacity, OPACITY_DEFAULTS.backgroundImage);
   const colorOverlayDecimal = normalizeOpacityToDecimal(block.colorOverlayOpacity, OPACITY_DEFAULTS.colorOverlay);
   const darkOverlayDecimal = normalizeOpacityToDecimal(block.darkOverlayOpacity, OPACITY_DEFAULTS.darkOverlay);
-  const imageOverlayDecimal = normalizeOpacityToDecimal(block.overlayOpacity, OPACITY_DEFAULTS.imageOverlay);
 
   // Use AI image generation
   const contentForImage = block.caption || block.altText || 'Newsletter image';
@@ -77,17 +76,19 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
     });
   }, [onUpdate]);
 
-  const handleBackgroundColorChange = useCallback((color: string) => {
-    onUpdate({ backgroundColor: color });
+  // Overlay color change (sits ON TOP of image)
+  const handleOverlayColorChange = useCallback((color: string) => {
+    onUpdate({ overlayColor: color });
   }, [onUpdate]);
 
-  const handleLayoutChange = useCallback((layout: string) => {
-    // When switching to two-column layout, change block type to image-text
-    const updates: Partial<ContentBlock> = { layout: layout as any };
-    if (layout === 'two-column-left' || layout === 'two-column-right') {
-      updates.type = 'image-text';
-    }
-    onUpdate(updates);
+  // Overlay opacity change
+  const handleOverlayOpacityChange = useCallback((opacity: number) => {
+    onUpdate({ colorOverlayOpacity: opacity });
+  }, [onUpdate]);
+
+  // Background color change (sits BEHIND the image)
+  const handleBackgroundColorChange = useCallback((color: string) => {
+    onUpdate({ containerBackgroundColor: color });
   }, [onUpdate]);
 
   const handleTextAlignChange = useCallback((align: string) => {
@@ -153,13 +154,16 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
   const hasFixedAspect = aspectClass !== null;
 
   return (
-    <div className={cn(
-      "relative group overflow-hidden",
-      // Remove padding when using fixed aspect ratio for edge-to-edge images
-      hasFixedAspect ? "p-0" : "p-6",
-      block.textAlign === 'center' && "text-center",
-      block.textAlign === 'right' && "text-right"
-    )}>
+    <div 
+      className={cn(
+        "relative group overflow-hidden",
+        // Remove padding when using fixed aspect ratio for edge-to-edge images
+        hasFixedAspect ? "p-0" : "p-6",
+        block.textAlign === 'center' && "text-center",
+        block.textAlign === 'right' && "text-right"
+      )}
+      style={{ backgroundColor: block.containerBackgroundColor || undefined }}
+    >
       {/* Settings button - appears on hover in top right */}
       <Button
         variant="ghost"
@@ -187,11 +191,12 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
             onSave={handleInlineSave}
             onCancel={handleInlineCancel}
             contentContext="Email newsletter image"
-            backgroundColor={block.backgroundColor}
+            overlayColor={block.overlayColor}
+            overlayOpacity={block.colorOverlayOpacity || 0}
+            onOverlayColorChange={handleOverlayColorChange}
+            onOverlayOpacityChange={handleOverlayOpacityChange}
+            backgroundColor={block.containerBackgroundColor}
             onBackgroundColorChange={handleBackgroundColorChange}
-            layout={block.layout as 'image-left' | 'two-column-left' | 'two-column-right'}
-            onLayoutChange={handleLayoutChange}
-            showLayoutControls={block.layout === 'two-column-left' || block.layout === 'two-column-right'}
           />
         </div>
       ) : !isGeneratingImage ? (
@@ -238,24 +243,13 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
                 />
               )}
               
-              {/* Color Overlay */}
-              {block.backgroundColor && colorOverlayDecimal > 0 && (
+              {/* Color Overlay - uses overlayColor with colorOverlayOpacity */}
+              {block.overlayColor && colorOverlayDecimal > 0 && (
                 <div 
                   className="absolute inset-0 pointer-events-none"
                   style={{ 
-                    backgroundColor: block.backgroundColor,
+                    backgroundColor: block.overlayColor,
                     opacity: colorOverlayDecimal
-                  }}
-                />
-              )}
-
-              {/* Custom Image Overlay */}
-              {imageOverlayDecimal > 0 && (
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    backgroundColor: block.overlayColor || '#000000',
-                    opacity: imageOverlayDecimal
                   }}
                 />
               )}
