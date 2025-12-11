@@ -28,7 +28,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
 
   // Calculate opacity values using shared utility for WYSIWYG consistency
   const backgroundOpacityDecimal = normalizeOpacityToDecimal(block.backgroundOpacity, OPACITY_DEFAULTS.backgroundImage);
-  const colorOverlayDecimal = normalizeOpacityToDecimal(block.colorOverlayOpacity, OPACITY_DEFAULTS.colorOverlay);
+  const colorOverlayDecimal = normalizeOpacityToDecimal(block.overlayOpacity, OPACITY_DEFAULTS.colorOverlay);
   const darkOverlayDecimal = normalizeOpacityToDecimal(block.darkOverlayOpacity, OPACITY_DEFAULTS.darkOverlay);
 
   // Use AI image generation
@@ -80,7 +80,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
 
   // Overlay opacity change
   const handleOverlayOpacityChange = useCallback((opacity: number) => {
-    onUpdate({ colorOverlayOpacity: opacity });
+    onUpdate({ overlayOpacity: opacity });
   }, [onUpdate]);
 
   // Background color change (sits BEHIND the image)
@@ -172,7 +172,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
             onCancel={handleInlineCancel}
             contentContext="Email newsletter image"
             overlayColor={block.overlayColor}
-            overlayOpacity={block.colorOverlayOpacity || 0}
+            overlayOpacity={block.overlayOpacity || 0}
             onOverlayColorChange={handleOverlayColorChange}
             onOverlayOpacityChange={handleOverlayOpacityChange}
             backgroundColor={block.backgroundColor}
