@@ -6675,6 +6675,27 @@ export type Database = {
           },
         ]
       }
+      sms_warmup_stage_rules: {
+        Row: {
+          created_at: string | null
+          daily_limit: number
+          required_healthy_days: number
+          stage: number
+        }
+        Insert: {
+          created_at?: string | null
+          daily_limit: number
+          required_healthy_days: number
+          stage: number
+        }
+        Update: {
+          created_at?: string | null
+          daily_limit?: number
+          required_healthy_days?: number
+          stage?: number
+        }
+        Relationships: []
+      }
       social_connections: {
         Row: {
           access_token: string
@@ -7568,37 +7589,64 @@ export type Database = {
       }
       twilio_phone_numbers: {
         Row: {
+          bounce_rate_30d: number | null
           capabilities: Json | null
           created_at: string | null
+          daily_limit: number | null
+          daily_sent_count: number
+          failure_rate_30d: number | null
           friendly_name: string
+          healthy_days_counter: number
           id: string
           is_active: boolean | null
           is_verified: boolean | null
+          last_reset_at: string | null
+          last_stage_updated_at: string | null
+          messaging_service_sid: string | null
           phone_number: string
           tenant_id: string
           updated_at: string | null
+          warmup_stage: number
         }
         Insert: {
+          bounce_rate_30d?: number | null
           capabilities?: Json | null
           created_at?: string | null
+          daily_limit?: number | null
+          daily_sent_count?: number
+          failure_rate_30d?: number | null
           friendly_name: string
+          healthy_days_counter?: number
           id?: string
           is_active?: boolean | null
           is_verified?: boolean | null
+          last_reset_at?: string | null
+          last_stage_updated_at?: string | null
+          messaging_service_sid?: string | null
           phone_number: string
           tenant_id: string
           updated_at?: string | null
+          warmup_stage?: number
         }
         Update: {
+          bounce_rate_30d?: number | null
           capabilities?: Json | null
           created_at?: string | null
+          daily_limit?: number | null
+          daily_sent_count?: number
+          failure_rate_30d?: number | null
           friendly_name?: string
+          healthy_days_counter?: number
           id?: string
           is_active?: boolean | null
           is_verified?: boolean | null
+          last_reset_at?: string | null
+          last_stage_updated_at?: string | null
+          messaging_service_sid?: string | null
           phone_number?: string
           tenant_id?: string
           updated_at?: string | null
+          warmup_stage?: number
         }
         Relationships: [
           {
@@ -8272,6 +8320,21 @@ export type Database = {
       get_next_message_sequence: {
         Args: { p_session_id: string }
         Returns: number
+      }
+      get_sms_warmup_info: {
+        Args: { p_messaging_service_sid?: string; p_phone_number?: string }
+        Returns: {
+          daily_limit: number
+          daily_sent_count: number
+          healthy_days_counter: number
+          last_reset_at: string
+          last_stage_updated_at: string
+          messaging_service_sid: string
+          phone_number: string
+          remaining_today: number
+          sending_identity_id: string
+          warmup_stage: number
+        }[]
       }
       get_token_balance: {
         Args: { p_user_id: string }
