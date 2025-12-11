@@ -313,10 +313,10 @@ serve(async (req) => {
       );
     }
 
-    const recipientCount = customers.length;
+    let recipientCount = customers.length;
     console.log(`📧 Found ${recipientCount} customers`);
 
-    // Quota check
+    // Quota check with warmup enforcement
     const { data: quotaCheck, error: quotaError } = await supabase.rpc('check_send_quota', {
       p_tenant_id: campaign.tenant_id,
       p_domain_id: campaign.from_email_domain_id || null,
@@ -331,7 +331,51 @@ serve(async (req) => {
       );
     }
 
-    if (!quotaCheck?.allowed) {
+    // Calculate remaining capacity for warmup enforcement
+    let isPartialSend = false;
+    let originalRecipientCount = recipientCount;
+    let remainingCapacity = recipientCount;
+
+    if (!quotaCheck?.using_fallback && quotaCheck?.limits) {
+      const dailyLimit = quotaCheck.limits.daily_limit || 50;
+      const dailyUsed = quotaCheck.limits.daily_used || 0;
+      remainingCapacity = Math.max(0, dailyLimit - dailyUsed);
+      
+      console.log(`📧 Domain warmup check: daily_limit=${dailyLimit}, daily_used=${dailyUsed}, remaining=${remainingCapacity}`);
+      
+      if (recipientCount > remainingCapacity) {
+        if (remainingCapacity === 0) {
+          // No capacity left today
+          await supabase
+            .from('crm_campaigns')
+            .update({ 
+              status: 'blocked_by_warmup', 
+              send_blocked_reason: `Daily sending limit (${dailyLimit}) reached. ${dailyUsed} emails already sent today. Try again tomorrow or wait for your domain to warm up.`
+            })
+            .eq('id', campaignId);
+
+          return new Response(
+            JSON.stringify({ 
+              error: 'Send blocked by warmup limit',
+              reason: 'daily_limit_reached',
+              message: `Daily limit of ${dailyLimit} emails reached. Try again tomorrow.`,
+              warmup_stage: quotaCheck.domain?.warmup_stage,
+              daily_limit: dailyLimit,
+              daily_used: dailyUsed
+            }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Partial send: truncate to remaining capacity
+        console.log(`⚠️ Truncating recipients from ${recipientCount} to ${remainingCapacity} due to warmup limits`);
+        customers = customers.slice(0, remainingCapacity);
+        recipientCount = customers.length;
+        isPartialSend = true;
+      }
+    }
+
+    if (!quotaCheck?.allowed && !isPartialSend) {
       await supabase
         .from('crm_campaigns')
         .update({ status: 'blocked', send_blocked_reason: quotaCheck?.message })
@@ -483,11 +527,23 @@ serve(async (req) => {
         .eq('campaign_id', campaignId);
 
       // Update campaign as sent
+      const campaignStatus = isPartialSend ? 'partially_sent' : 'sent';
       await supabase
         .from('crm_campaigns')
         .update({ 
-          status: 'sent',
-          metrics: { sent, failed, opens: 0, clicks: 0, unsubscribes: 0 }
+          status: campaignStatus,
+          metrics: { 
+            sent, 
+            failed, 
+            opens: 0, 
+            clicks: 0, 
+            unsubscribes: 0,
+            original_recipients: isPartialSend ? originalRecipientCount : undefined,
+            truncated_due_to_warmup: isPartialSend
+          },
+          send_blocked_reason: isPartialSend 
+            ? `Sent to ${sent} of ${originalRecipientCount} recipients due to warmup limits. Remaining ${originalRecipientCount - recipientCount} will need to be sent later.`
+            : null
         })
         .eq('id', campaignId);
 
@@ -505,35 +561,65 @@ serve(async (req) => {
           .eq('user_id', campaign.user_id);
       }
 
-      console.log(`✅ Campaign ${campaignId} sent inline: ${sent} sent, ${failed} failed`);
+      console.log(`✅ Campaign ${campaignId} sent inline: ${sent} sent, ${failed} failed${isPartialSend ? ` (partial: ${recipientCount}/${originalRecipientCount})` : ''}`);
 
       return new Response(
         JSON.stringify({ 
           success: true,
           mode: 'inline',
-          metrics: { sent, failed },
-          message: `Email campaign sent to ${sent} customers`
+          partial_send: isPartialSend,
+          metrics: { 
+            sent, 
+            failed,
+            original_recipients: isPartialSend ? originalRecipientCount : undefined,
+            truncated_count: isPartialSend ? originalRecipientCount - recipientCount : undefined
+          },
+          warmup_info: isPartialSend ? {
+            daily_limit: quotaCheck.limits?.daily_limit,
+            daily_used: quotaCheck.limits?.daily_used,
+            warmup_stage: quotaCheck.domain?.warmup_stage
+          } : undefined,
+          message: isPartialSend 
+            ? `Email campaign sent to ${sent} of ${originalRecipientCount} customers (limited by warmup)`
+            : `Email campaign sent to ${sent} customers`
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // For large campaigns, mark as queued and let the worker process
+    const campaignStatus = isPartialSend ? 'partially_queued' : 'queued';
     await supabase
       .from('crm_campaigns')
-      .update({ status: 'queued', sent_at: new Date().toISOString() })
+      .update({ 
+        status: campaignStatus, 
+        sent_at: new Date().toISOString(),
+        send_blocked_reason: isPartialSend 
+          ? `Queued ${recipientCount} of ${originalRecipientCount} recipients due to warmup limits.`
+          : null
+      })
       .eq('id', campaignId);
 
-    console.log(`📧 Campaign ${campaignId} queued with ${totalBatches} batch jobs`);
+    console.log(`📧 Campaign ${campaignId} queued with ${totalBatches} batch jobs${isPartialSend ? ` (partial: ${recipientCount}/${originalRecipientCount})` : ''}`);
 
     return new Response(
       JSON.stringify({ 
         success: true,
         mode: 'queued',
+        partial_send: isPartialSend,
         campaign_id: campaignId,
         total_recipients: emailPayloads.length,
+        original_recipients: isPartialSend ? originalRecipientCount : undefined,
+        truncated_count: isPartialSend ? originalRecipientCount - recipientCount : undefined,
         total_batches: totalBatches,
-        message: `Campaign queued for sending to ${emailPayloads.length} recipients`
+        warmup_info: isPartialSend ? {
+          daily_limit: quotaCheck.limits?.daily_limit,
+          daily_used: quotaCheck.limits?.daily_used,
+          warmup_stage: quotaCheck.domain?.warmup_stage
+        } : undefined,
+        message: isPartialSend
+          ? `Campaign queued for ${emailPayloads.length} of ${originalRecipientCount} recipients (limited by warmup)`
+          : `Campaign queued for sending to ${emailPayloads.length} recipients`
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
