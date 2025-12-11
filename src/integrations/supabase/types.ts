@@ -1874,6 +1874,7 @@ export type Database = {
           footer_last_sent_at: string | null
           id: string
           last_name: string | null
+          last_open_at: string | null
           last_purchase_date: string | null
           lifetime_value: number | null
           opt_out: boolean | null
@@ -1893,6 +1894,9 @@ export type Database = {
           square_customer_id: string | null
           square_group_ids: string[] | null
           square_last_synced_at: string | null
+          suppressed: boolean
+          suppressed_at: string | null
+          suppressed_reason: string | null
           tags: string[] | null
           tenant_id: string | null
           timezone: string | null
@@ -1914,6 +1918,7 @@ export type Database = {
           footer_last_sent_at?: string | null
           id?: string
           last_name?: string | null
+          last_open_at?: string | null
           last_purchase_date?: string | null
           lifetime_value?: number | null
           opt_out?: boolean | null
@@ -1933,6 +1938,9 @@ export type Database = {
           square_customer_id?: string | null
           square_group_ids?: string[] | null
           square_last_synced_at?: string | null
+          suppressed?: boolean
+          suppressed_at?: string | null
+          suppressed_reason?: string | null
           tags?: string[] | null
           tenant_id?: string | null
           timezone?: string | null
@@ -1954,6 +1962,7 @@ export type Database = {
           footer_last_sent_at?: string | null
           id?: string
           last_name?: string | null
+          last_open_at?: string | null
           last_purchase_date?: string | null
           lifetime_value?: number | null
           opt_out?: boolean | null
@@ -1973,6 +1982,9 @@ export type Database = {
           square_customer_id?: string | null
           square_group_ids?: string[] | null
           square_last_synced_at?: string | null
+          suppressed?: boolean
+          suppressed_at?: string | null
+          suppressed_reason?: string | null
           tags?: string[] | null
           tenant_id?: string | null
           timezone?: string | null
