@@ -1,9 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
 import { InlineImageEditor } from '../../inline/InlineImageEditor';
-import { InlineStyleEditor } from '../../inline/InlineStyleEditor';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { cn } from '@/lib/utils';
 import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
@@ -18,7 +15,7 @@ interface ImageBlockPreviewProps {
   isGenerating?: boolean;
 }
 
-type InlineEditMode = 'image' | 'style' | null;
+type InlineEditMode = 'image' | null;
 
 export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({ 
   block, 
@@ -35,7 +32,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
   const darkOverlayDecimal = normalizeOpacityToDecimal(block.darkOverlayOpacity, OPACITY_DEFAULTS.darkOverlay);
 
   // Use AI image generation
-  const contentForImage = block.caption || block.altText || 'Newsletter image';
+  const contentForImage = 'Newsletter image';
   
   const { isGeneratingImage } = useBlockImageGeneration({
     blockId: block.id,
@@ -89,10 +86,6 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
   // Background color change (sits BEHIND the image)
   const handleBackgroundColorChange = useCallback((color: string) => {
     onUpdate({ containerBackgroundColor: color });
-  }, [onUpdate]);
-
-  const handleTextAlignChange = useCallback((align: string) => {
-    onUpdate({ textAlign: align as any });
   }, [onUpdate]);
 
   // Image Source Picker handlers
@@ -158,23 +151,10 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
       className={cn(
         "relative group overflow-hidden",
         // Remove padding when using fixed aspect ratio for edge-to-edge images
-        hasFixedAspect ? "p-0" : "p-6",
-        block.textAlign === 'center' && "text-center",
-        block.textAlign === 'right' && "text-right"
+        hasFixedAspect ? "p-0" : "p-6"
       )}
       style={{ backgroundColor: block.containerBackgroundColor || undefined }}
     >
-      {/* Settings button - appears on hover in top right */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-40"
-        onClick={(e) => handleInlineEdit('style', e)}
-        aria-label="Edit image block style"
-      >
-        <Settings className="h-4 w-4" />
-      </Button>
-
       {/* AI Image Loading Overlay */}
       {isGeneratingImage && (
         <div className="relative w-full h-64 rounded-lg bg-muted">
@@ -235,7 +215,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
                 loading="lazy"
               />
               
-              {/* Dark Overlay - for text contrast */}
+              {/* Dark Overlay */}
               {darkOverlayDecimal > 0 && (
                 <div 
                   className="absolute inset-0 bg-black pointer-events-none"
@@ -263,27 +243,9 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
           )}
         </div>
       ) : null}
-      
-      {!isGeneratingImage && block.caption && (
-        <p className="mt-3 text-sm text-muted-foreground italic">
-          {block.caption}
-        </p>
-      )}
 
       {/* CTA Button */}
       <CTAButton block={block} className="justify-center" />
-
-      {/* Style editor overlay */}
-      {inlineEditMode === 'style' && (
-        <div className="absolute top-2 right-2 z-50">
-          <InlineStyleEditor
-            textAlign={block.textAlign}
-            onTextAlignChange={handleTextAlignChange}
-            onSave={handleInlineSave}
-            onCancel={handleInlineCancel}
-          />
-        </div>
-      )}
 
       {/* Hidden file input for uploads */}
       <input
@@ -299,7 +261,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
         open={showAIDialog}
         onOpenChange={setShowAIDialog}
         onImageSelect={handleAIImageSelected}
-        contentContext={block.caption || block.altText || 'Newsletter image'}
+        contentContext={'Newsletter image'}
         blockId={block.id}
       />
     </div>
