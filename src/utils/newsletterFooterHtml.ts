@@ -10,20 +10,15 @@ import {
   getCompanyInitials,
   FooterStyleConfig 
 } from '@/types/newsletterFooter';
-import { ICON_BASE_URL, socialIconUrls } from '@/utils/socialIcons';
+import { ICON_BASE_URL, socialIconUrls, getAbsoluteSocialIconUrl } from '@/utils/socialIcons';
 
 /**
- * PNG social icons hosted in Supabase Storage
- * Using img tags with external URLs for email client compatibility
+ * Get social icon HTML with absolute URL for email client compatibility
+ * Uses absolute URLs so icons work in email clients
  */
-const socialIcons: Record<string, string> = {
-  facebook: ICON_BASE_URL ? `<img src="${socialIconUrls.facebook}" alt="Facebook" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-  instagram: ICON_BASE_URL ? `<img src="${socialIconUrls.instagram}" alt="Instagram" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-  tiktok: ICON_BASE_URL ? `<img src="${socialIconUrls.tiktok}" alt="TikTok" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-  pinterest: ICON_BASE_URL ? `<img src="${socialIconUrls.pinterest}" alt="Pinterest" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-  youtube: ICON_BASE_URL ? `<img src="${socialIconUrls.youtube}" alt="YouTube" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-  linkedin: ICON_BASE_URL ? `<img src="${socialIconUrls.linkedin}" alt="LinkedIn" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-};
+function getSocialIconHtml(platform: keyof typeof socialIconUrls, baseUrl: string): string {
+  return `<img src="${baseUrl}${socialIconUrls[platform]}" alt="${platform}" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`;
+}
 
 /**
  * Build formatted address string from parts
@@ -74,7 +69,7 @@ function buildContactHtml(props: NewsletterFooterProps, styles: FooterStyleConfi
 }
 
 type SocialConfig = {
-  key: keyof typeof socialIcons;
+  key: keyof typeof socialIconUrls;
   url: string;
   name: string;
 };
@@ -82,7 +77,7 @@ type SocialConfig = {
 /**
  * Build social icons HTML with email-safe table wrapper
  */
-function buildSocialIconsHtml(props: NewsletterFooterProps): string {
+function buildSocialIconsHtml(props: NewsletterFooterProps, baseUrl: string): string {
   const socialConfigs: SocialConfig[] = [
     { key: "facebook", url: props.facebookUrl || "", name: "Facebook" },
     { key: "instagram", url: props.instagramUrl || "", name: "Instagram" },
@@ -92,13 +87,13 @@ function buildSocialIconsHtml(props: NewsletterFooterProps): string {
     { key: "linkedin", url: props.linkedinUrl || "", name: "LinkedIn" },
   ];
 
-  const activeSocials = socialConfigs.filter(s => !!s.url && !!socialIcons[s.key]);
+  const activeSocials = socialConfigs.filter(s => !!s.url && !!socialIconUrls[s.key]);
   
-  if (activeSocials.length === 0 || !ICON_BASE_URL) return '';
+  if (activeSocials.length === 0) return '';
 
   const iconsHtml = activeSocials.map(({ url, key }) => `
     <a href="${url}" target="_blank" style="display:inline-block;margin:0 6px;text-decoration:none;">
-      ${socialIcons[key]}
+      ${getSocialIconHtml(key, baseUrl)}
     </a>
   `).join('');
 
@@ -139,8 +134,11 @@ function buildLogoHtml(props: NewsletterFooterProps, styles: FooterStyleConfig):
 /**
  * Generate the complete footer HTML
  */
-export function generateNewsletterFooterHtml(props: NewsletterFooterProps): string {
+export function generateNewsletterFooterHtml(props: NewsletterFooterProps, appBaseUrl?: string): string {
   const baseStyles = getFooterStyleConfig(props.footerBackgroundColor, props.brandPrimaryColor);
+  
+  // Get base URL for social icons - use provided appBaseUrl or fallback to window.location.origin
+  const baseUrl = appBaseUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://bloomsuite.app');
   
   // Apply custom style overrides from campaign metadata with complete fallback
   // All colors should already have fallbacks from emailFooterRenderer, but double-check here
@@ -185,7 +183,7 @@ export function generateNewsletterFooterHtml(props: NewsletterFooterProps): stri
             
             <!-- Right Column: Social Icons -->
             <td width="33%" valign="top" style="padding: 0 8px; text-align: right;">
-              ${hasSocial ? buildSocialIconsHtml(props) : ''}
+              ${hasSocial ? buildSocialIconsHtml(props, baseUrl) : ''}
             </td>
           </tr>
         </table>
