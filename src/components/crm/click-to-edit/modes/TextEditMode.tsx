@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Label } from '@/components/ui/label';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { InputWithMergeTags } from '@/components/ui/input-with-merge-tags';
 import { Input } from '@/components/ui/input';
 import { AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { useCompanyInfo } from '@/hooks/useCompanyInfo';
+import { cn } from '@/lib/utils';
 
 interface TextEditModeProps {
   block: ContentBlock;
@@ -21,6 +23,18 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   onSave,
   onCancel
 }) => {
+  const { companyInfo } = useCompanyInfo();
+  
+  // Brand color swatches
+  const brandColorSwatches = useMemo(() => [
+    { label: 'Primary', value: companyInfo?.brandPrimaryColor || '#22c55e' },
+    { label: 'Secondary', value: companyInfo?.brandSecondaryColor || '#1e40af' },
+    { label: 'Accent', value: companyInfo?.brandAccentColor || '#f59e0b' },
+    { label: 'Text', value: companyInfo?.brandTextColor || '#1f2937' },
+    { label: 'White', value: '#ffffff' },
+    { label: 'Black', value: '#000000' },
+  ], [companyInfo?.brandPrimaryColor, companyInfo?.brandSecondaryColor, companyInfo?.brandAccentColor, companyInfo?.brandTextColor]);
+
   // Local state for input fields to preserve cursor position
   const [headline, setHeadline] = useState(block.headline || block.title || '');
   const [subheading, setSubheading] = useState(block.subtitle || '');
@@ -92,9 +106,10 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
 
       {/* Color Controls for email-safe-hero blocks */}
       {block.type === 'email-safe-hero' && (
-        <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/50 rounded-lg mb-2">
+        <div className="space-y-3 p-3 bg-muted/50 rounded-lg mb-2">
+          {/* Background Color */}
           <div className="flex items-center gap-2">
-            <Label className="text-xs whitespace-nowrap">Background</Label>
+            <Label className="text-xs whitespace-nowrap w-20">Background</Label>
             <Input
               type="color"
               value={backgroundColor}
@@ -104,9 +119,31 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               }}
               className="w-8 h-8 p-0.5 cursor-pointer rounded border"
             />
+            <div className="flex gap-1">
+              {brandColorSwatches.map(swatch => (
+                <button
+                  key={`bg-${swatch.value}`}
+                  onClick={() => {
+                    setBackgroundColor(swatch.value);
+                    onUpdate({ backgroundColor: swatch.value });
+                  }}
+                  className={cn(
+                    "w-5 h-5 rounded border-2 transition-all",
+                    backgroundColor?.toLowerCase() === swatch.value.toLowerCase()
+                      ? "border-primary ring-2 ring-primary/20" 
+                      : "border-gray-300 hover:border-gray-400"
+                  )}
+                  style={{ backgroundColor: swatch.value }}
+                  title={swatch.label}
+                  type="button"
+                />
+              ))}
+            </div>
           </div>
+          
+          {/* Text Color */}
           <div className="flex items-center gap-2">
-            <Label className="text-xs whitespace-nowrap">Text</Label>
+            <Label className="text-xs whitespace-nowrap w-20">Text</Label>
             <Input
               type="color"
               value={textColor}
@@ -116,35 +153,60 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               }}
               className="w-8 h-8 p-0.5 cursor-pointer rounded border"
             />
+            <div className="flex gap-1">
+              {brandColorSwatches.map(swatch => (
+                <button
+                  key={`text-${swatch.value}`}
+                  onClick={() => {
+                    setTextColor(swatch.value);
+                    onUpdate({ textColor: swatch.value });
+                  }}
+                  className={cn(
+                    "w-5 h-5 rounded border-2 transition-all",
+                    textColor?.toLowerCase() === swatch.value.toLowerCase()
+                      ? "border-primary ring-2 ring-primary/20" 
+                      : "border-gray-300 hover:border-gray-400"
+                  )}
+                  style={{ backgroundColor: swatch.value }}
+                  title={swatch.label}
+                  type="button"
+                />
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-1 border-l pl-3">
-            <Button
-              type="button"
-              size="sm"
-              variant={block.textAlign === 'left' ? 'default' : 'ghost'}
-              onClick={() => onUpdate({ textAlign: 'left' })}
-              className="h-7 w-7 p-0"
-            >
-              <AlignLeft className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={block.textAlign === 'center' || !block.textAlign ? 'default' : 'ghost'}
-              onClick={() => onUpdate({ textAlign: 'center' })}
-              className="h-7 w-7 p-0"
-            >
-              <AlignCenter className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={block.textAlign === 'right' ? 'default' : 'ghost'}
-              onClick={() => onUpdate({ textAlign: 'right' })}
-              className="h-7 w-7 p-0"
-            >
-              <AlignRight className="h-3.5 w-3.5" />
-            </Button>
+          
+          {/* Alignment */}
+          <div className="flex items-center gap-2">
+            <Label className="text-xs whitespace-nowrap w-20">Align</Label>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={block.textAlign === 'left' ? 'default' : 'ghost'}
+                onClick={() => onUpdate({ textAlign: 'left' })}
+                className="h-7 w-7 p-0"
+              >
+                <AlignLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={block.textAlign === 'center' || !block.textAlign ? 'default' : 'ghost'}
+                onClick={() => onUpdate({ textAlign: 'center' })}
+                className="h-7 w-7 p-0"
+              >
+                <AlignCenter className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={block.textAlign === 'right' ? 'default' : 'ghost'}
+                onClick={() => onUpdate({ textAlign: 'right' })}
+                className="h-7 w-7 p-0"
+              >
+                <AlignRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
