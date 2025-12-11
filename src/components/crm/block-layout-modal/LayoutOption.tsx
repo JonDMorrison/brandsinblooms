@@ -13,6 +13,7 @@ interface LayoutOptionProps {
   preview: React.ReactNode;
   isPopular?: boolean;
   isNew?: boolean;
+  isRecommended?: boolean;
   onClick: () => void;
 }
 
@@ -24,6 +25,7 @@ export const LayoutOption: React.FC<LayoutOptionProps> = ({
   preview,
   isPopular,
   isNew,
+  isRecommended,
   onClick
 }) => {
   const handleClick = () => {
@@ -33,7 +35,10 @@ export const LayoutOption: React.FC<LayoutOptionProps> = ({
 
   return (
     <Card 
-      className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-2 hover:border-primary/30 bg-white"
+      className={cn(
+        "group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-2 hover:border-primary/30 bg-white",
+        isRecommended && "border-emerald-500/50 bg-emerald-50/30"
+      )}
       onClick={handleClick}
     >
       <CardContent className="p-4">
@@ -48,7 +53,12 @@ export const LayoutOption: React.FC<LayoutOptionProps> = ({
               </div>
             </div>
             <div className="flex flex-col gap-1 ml-2">
-              {isPopular && (
+              {isRecommended && (
+                <Badge className="bg-emerald-500 text-white text-xs px-2 py-0.5">
+                  Recommended
+                </Badge>
+              )}
+              {isPopular && !isRecommended && (
                 <Badge variant="outline" className="text-muted-foreground text-xs px-2 py-0.5">
                   Popular
                 </Badge>

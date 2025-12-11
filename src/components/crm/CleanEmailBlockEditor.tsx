@@ -25,6 +25,41 @@ interface CleanEmailBlockEditorProps {
 // Enhanced mapping function to convert layout types to block types and configurations
 const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: ContentBlock['type']; config: Partial<ContentBlock> }> => {
   switch (layoutType) {
+    // NEW: Email-safe hero - recommended for dark mode compatibility
+    case 'email-safe-hero':
+      return {
+        type: 'email-safe-hero',
+        config: {
+          headline: '',
+          subtitle: '',
+          eyebrow: '',
+          publishDate: '',
+          imageUrl: '',
+          altText: '',
+          ctaText: '',
+          ctaUrl: '',
+          alignment: 'center',
+          backgroundColor: '#ffffff',
+          textColor: '#000000',
+          padding: 'large',
+          shouldFetchImage: false,
+          isGeneratingImage: false,
+          autoImageMode: false
+        }
+      };
+    // NEW: Graphic hero - single clickable image with text baked in
+    case 'graphic-hero':
+      return {
+        type: 'graphic-hero',
+        config: {
+          imageUrl: '',
+          altText: '',
+          ctaUrl: '',
+          shouldFetchImage: false,
+          isGeneratingImage: false,
+          autoImageMode: false
+        }
+      };
     // Newsletter-specific layouts
     case 'newsletter-header':
       return {

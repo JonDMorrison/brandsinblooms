@@ -2,12 +2,41 @@
 import React from 'react';
 
 interface LayoutPreviewProps {
-  type: 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'text-plain' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'image-gallery' | 'product-gallery';
+  type: 'email-safe-hero' | 'graphic-hero' | 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'text-plain' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'image-gallery' | 'product-gallery';
 }
 
 export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
   const getPreview = () => {
     switch (type) {
+      // NEW: Email Safe Hero - text on solid background, image below
+      case 'email-safe-hero':
+        return (
+          <div className="h-full flex flex-col rounded-md overflow-hidden">
+            {/* Text section - solid background */}
+            <div className="flex-1 bg-white border-b flex flex-col items-center justify-center px-2 py-2">
+              <div className="text-[8px] uppercase text-emerald-600 tracking-wide mb-0.5">Featured</div>
+              <div className="text-xs font-bold text-gray-800 mb-0.5">Email Safe Hero</div>
+              <div className="text-[8px] text-gray-500">Dark mode friendly</div>
+            </div>
+            {/* Image section below */}
+            <div className="h-1/3 bg-gradient-to-br from-emerald-200 to-emerald-300 flex items-center justify-center">
+              <div className="text-[8px] font-medium text-emerald-700">Image</div>
+            </div>
+          </div>
+        );
+
+      // NEW: Graphic Hero - single image with text baked in
+      case 'graphic-hero':
+        return (
+          <div className="h-full bg-gradient-to-br from-violet-300 via-violet-400 to-violet-500 rounded-md flex items-center justify-center relative">
+            <div className="absolute inset-2 border-2 border-white/30 border-dashed rounded"></div>
+            <div className="text-center text-white">
+              <div className="text-[8px] opacity-70">Text baked in</div>
+              <div className="text-xs font-bold">Graphic Hero</div>
+            </div>
+          </div>
+        );
+
       case 'header-hero':
         return (
           <div className="h-full bg-gradient-to-br from-slate-300 to-slate-400 rounded-md flex flex-col items-center justify-center text-slate-700 relative overflow-hidden">

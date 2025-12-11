@@ -3,6 +3,8 @@ import React from 'react';
 import { EnhancedBlockLayoutModal } from './block-layout-modal/EnhancedBlockLayoutModal';
 
 export type LayoutType = 
+  | 'email-safe-hero'
+  | 'graphic-hero'
   | 'image-left'
   | 'image-right' 
   | 'image-vertical-left'
