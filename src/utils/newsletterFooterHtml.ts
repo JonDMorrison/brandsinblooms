@@ -11,19 +11,19 @@ import {
   FooterStyleConfig 
 } from '@/types/newsletterFooter';
 
-// Hosted PNG icons base URL for email-safe rendering
-const ICON_BASE_URL = "https://udldmkqwnxhdeztyqcau.supabase.co/storage/v1/object/public/assets/social-icons";
+// Use free CDN-hosted icons from MageCDN (no attribution required)
+const ICON_BASE_URL = "https://s.magecdn.com/social";
 
 /**
- * PNG image icons for social platforms (email-safe)
+ * PNG image icons for social platforms (email-safe) - hosted on MageCDN
  */
 const socialIcons: Record<string, string> = {
-  facebook: `<img src="${ICON_BASE_URL}/facebook.png" alt="Facebook" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
-  instagram: `<img src="${ICON_BASE_URL}/instagram.png" alt="Instagram" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
-  tiktok: `<img src="${ICON_BASE_URL}/tiktok.png" alt="TikTok" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
-  pinterest: `<img src="${ICON_BASE_URL}/pinterest.png" alt="Pinterest" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
-  youtube: `<img src="${ICON_BASE_URL}/youtube.png" alt="YouTube" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
-  linkedin: `<img src="${ICON_BASE_URL}/linkedin.png" alt="LinkedIn" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  facebook: `<img src="${ICON_BASE_URL}/tc-facebook.png" alt="Facebook" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  instagram: `<img src="${ICON_BASE_URL}/tc-instagram.png" alt="Instagram" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  tiktok: `<img src="${ICON_BASE_URL}/tc-tiktok.png" alt="TikTok" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  pinterest: `<img src="${ICON_BASE_URL}/tc-pinterest.png" alt="Pinterest" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  youtube: `<img src="${ICON_BASE_URL}/tc-youtube.png" alt="YouTube" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  linkedin: `<img src="${ICON_BASE_URL}/tc-linkedin.png" alt="LinkedIn" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
 };
 
 /**
