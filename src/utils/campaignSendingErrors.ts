@@ -12,10 +12,19 @@ export type SendErrorCode =
   | 'EMAIL_SERVICE_NOT_CONFIGURED'
   | 'QUOTA_EXCEEDED'
   | 'DOMAIN_BLOCKED'
+  | 'WARMUP_LIMIT'
   | 'CAMPAIGN_SAVE_FAILED'
   | 'CAMPAIGN_NOT_FOUND'
   | 'NETWORK_ERROR'
   | 'UNKNOWN_ERROR';
+
+export interface WarmupLimitDetails {
+  warmupStage: number;
+  dailyLimit: number;
+  dailyUsed: number;
+  remaining: number;
+  requested: number;
+}
 
 export interface SendError {
   code: SendErrorCode;
@@ -71,6 +80,12 @@ export const SEND_ERRORS: Record<SendErrorCode, Omit<SendError, 'code'>> = {
     action: "Review your domain health in Email Settings.",
     recoverable: false
   },
+  WARMUP_LIMIT: {
+    title: "Domain warmup limit reached",
+    description: "Your domain is still warming up and has reached today's safe sending limit.",
+    action: "View the Warmup Assistant for details or wait until tomorrow.",
+    recoverable: true
+  },
   CAMPAIGN_SAVE_FAILED: {
     title: "Failed to save campaign",
     description: "Could not save your campaign before sending.",
@@ -99,9 +114,30 @@ export const SEND_ERRORS: Record<SendErrorCode, Omit<SendError, 'code'>> = {
 
 /**
  * Parse error response from edge function and return user-friendly error
+ * Also extracts warmup limit details if present
  */
-export function parseEdgeFunctionError(error: any): SendError {
+export function parseEdgeFunctionError(error: any, responseData?: any): SendError & { warmupDetails?: WarmupLimitDetails } {
   const message = error?.message || error?.toString() || '';
+  const data = responseData || {};
+  
+  // Check for warmup limit errors first (from 403 response with reason)
+  if (data.reason === 'daily_limit_reached' || 
+      message.includes('warmup limit') || 
+      message.includes('blocked by warmup')) {
+    const warmupDetails: WarmupLimitDetails = {
+      warmupStage: data.warmup_stage ?? 0,
+      dailyLimit: data.daily_limit ?? 50,
+      dailyUsed: data.daily_used ?? 0,
+      remaining: Math.max(0, (data.daily_limit ?? 50) - (data.daily_used ?? 0)),
+      requested: data.requested ?? 0,
+    };
+    
+    return { 
+      code: 'WARMUP_LIMIT', 
+      ...SEND_ERRORS.WARMUP_LIMIT,
+      warmupDetails
+    };
+  }
   
   // Check for specific error patterns from send-email-campaign edge function
   if (message.includes('Campaign ID is required')) {
