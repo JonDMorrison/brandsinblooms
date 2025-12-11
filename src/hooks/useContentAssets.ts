@@ -1,8 +1,8 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-// Removed sonner import - using global toast replacement
+import { toast } from 'sonner';
 
 interface Asset {
   id: string;
@@ -21,17 +21,39 @@ export const useContentAssets = () => {
   const { user } = useAuth();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
+  const fetchAttemptRef = useRef(0);
+  const isMountedRef = useRef(true);
 
-  const fetchAssets = async () => {
-    if (!user) return;
+  const fetchAssets = useCallback(async (retryCount = 0) => {
+    // Wait for user to be available
+    if (!user?.id) {
+      console.log('[useContentAssets] No user, skipping fetch');
+      setLoading(false);
+      return;
+    }
+    
+    const currentAttempt = ++fetchAttemptRef.current;
+    console.log('[useContentAssets] Fetching assets for user:', user.id, 'attempt:', currentAttempt);
     
     try {
+      setLoading(true);
+      
+      // Explicitly filter by user_id for reliability (RLS also enforces this)
       const { data, error } = await supabase
         .from('content_assets')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
+      // Ignore stale responses
+      if (currentAttempt !== fetchAttemptRef.current || !isMountedRef.current) {
+        console.log('[useContentAssets] Ignoring stale response');
+        return;
+      }
+
       if (error) throw error;
+      
+      console.log('[useContentAssets] Fetched', data?.length || 0, 'assets');
       
       // Generate public URLs for assets (not signed URLs - emails need permanent URLs)
       const assetsWithUrls = (data || []).map((asset) => {
@@ -47,12 +69,27 @@ export const useContentAssets = () => {
 
       setAssets(assetsWithUrls);
     } catch (error) {
-      console.error('Error fetching assets:', error);
+      console.error('[useContentAssets] Error fetching assets:', error);
+      
+      // Retry up to 2 times with exponential backoff if auth might not be ready
+      if (retryCount < 2 && isMountedRef.current) {
+        const delay = (retryCount + 1) * 1000;
+        console.log(`[useContentAssets] Retrying in ${delay}ms...`);
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            fetchAssets(retryCount + 1);
+          }
+        }, delay);
+        return;
+      }
+      
       toast.error('Failed to load assets');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [user?.id]);
 
   const uploadAsset = async (file: File, tags: string[] = []) => {
     if (!user) return;
@@ -147,16 +184,36 @@ export const useContentAssets = () => {
   };
 
   useEffect(() => {
-    fetchAssets();
-  }, [user]);
+    isMountedRef.current = true;
+    fetchAttemptRef.current = 0;
+    
+    // Reset assets when user changes
+    setAssets([]);
+    setLoading(true);
+    
+    // Small delay to ensure auth session is established
+    const timer = setTimeout(() => {
+      if (isMountedRef.current) {
+        fetchAssets();
+      }
+    }, 100);
+    
+    return () => {
+      isMountedRef.current = false;
+      clearTimeout(timer);
+    };
+  }, [user?.id, fetchAssets]);
 
   const searchAssets = async (query: string): Promise<Asset[]> => {
-    if (!user || !query.trim()) return [];
+    if (!user?.id || !query.trim()) return [];
+    
+    console.log('[useContentAssets] Searching assets for query:', query);
     
     try {
       const { data, error } = await supabase
         .from('content_assets')
         .select('*')
+        .eq('user_id', user.id)
         .or(`name.ilike.%${query}%,tags.cs.{${query}}`)
         .order('created_at', { ascending: false });
 
