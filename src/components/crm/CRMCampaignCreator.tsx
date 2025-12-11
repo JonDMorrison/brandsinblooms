@@ -12,6 +12,8 @@ import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { Loader2, Mail, Users, Sparkles, Send, Eye } from 'lucide-react';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { SharedSenderConfirmationModal } from './campaigns/SharedSenderConfirmationModal';
+import { WarmupLimitModal } from './WarmupLimitModal';
+import { WarmupLimitDetails } from '@/utils/campaignSendingErrors';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
 import { FullEmailPreview } from './FullEmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
@@ -836,9 +838,11 @@ const { counts: segmentCounts } = useSegmentCounts();
   const [showAIWriter, setShowAIWriter] = useState(false);
   const [sending, setSending] = useState(false);
   const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
+  const [showWarmupLimitModal, setShowWarmupLimitModal] = useState(false);
+  const [warmupLimitDetails, setWarmupLimitDetails] = useState<WarmupLimitDetails | null>(null);
   const [showAIImageDialog, setShowAIImageDialog] = useState(false);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
-  
+
 
   // Sender configuration for domain verification
   const { senderConfig, loading: loadingSenderConfig } = useSenderConfiguration();
@@ -4174,7 +4178,24 @@ const { counts: segmentCounts } = useSegmentCounts();
       
       // Handle error responses from edge function
       if (sendResult?.error) {
-        console.error('❌ Send result error:', sendResult.error, sendResult.details);
+        console.error('❌ Send result error:', sendResult.error, sendResult);
+        
+        // Check for warmup limit error specifically
+        if (sendResult.reason === 'daily_limit_reached' || 
+            sendResult.error?.includes('warmup limit') ||
+            sendResult.error?.includes('blocked by warmup')) {
+          const details: WarmupLimitDetails = {
+            warmupStage: sendResult.warmup_stage ?? 0,
+            dailyLimit: sendResult.daily_limit ?? 50,
+            dailyUsed: sendResult.daily_used ?? 0,
+            remaining: Math.max(0, (sendResult.daily_limit ?? 50) - (sendResult.daily_used ?? 0)),
+            requested: selectedSegments.reduce((sum, s) => sum + (s.customer_count || 0), 0) || 0,
+          };
+          setWarmupLimitDetails(details);
+          setShowWarmupLimitModal(true);
+          return; // Don't throw, modal will handle it
+        }
+        
         throw new Error(sendResult.error);
       }
 
@@ -4576,6 +4597,16 @@ const { counts: segmentCounts } = useSegmentCounts();
         senderConfig={senderConfig}
         campaignName={campaignName}
         recipientCount={selectedPersonas.reduce((total, persona) => total + (persona.customerCount || 0), 0) + selectedSegments.reduce((total, segment) => total + (segment.customerCount || 0), 0)}
+      />
+
+      {/* Warmup Limit Modal */}
+      <WarmupLimitModal
+        open={showWarmupLimitModal}
+        onClose={() => {
+          setShowWarmupLimitModal(false);
+          setWarmupLimitDetails(null);
+        }}
+        details={warmupLimitDetails}
       />
       
       {/* 🚨 EMERGENCY MANUAL PREFILL BUTTON */}

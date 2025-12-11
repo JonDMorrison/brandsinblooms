@@ -7,21 +7,24 @@ import {
   validateBeforeSend, 
   parseEdgeFunctionError, 
   SendError,
-  SendErrorCode 
+  SendErrorCode,
+  WarmupLimitDetails
 } from '@/utils/campaignSendingErrors';
 
 export interface SendingState {
-  status: 'idle' | 'saving' | 'sending' | 'success' | 'error';
+  status: 'idle' | 'saving' | 'sending' | 'success' | 'error' | 'warmup_limit';
   progress?: number;
   message?: string;
   error?: SendError;
   campaignId?: string;
   sentCount?: number;
+  warmupDetails?: WarmupLimitDetails;
 }
 
 export interface UseCampaignSendingOptions {
   onSuccess?: (campaignId: string, sentCount: number) => void;
   onError?: (error: SendError) => void;
+  onWarmupLimit?: (details: WarmupLimitDetails) => void;
   navigateOnSuccess?: boolean;
 }
 
@@ -142,9 +145,27 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
         throw sendError;
       }
 
-      // Check for error in response body
+      // Check for error in response body (including warmup limit)
       if (sendResult?.error) {
         console.error('❌ Send result error:', sendResult.error);
+        
+        // Parse error with response data for warmup details
+        const error = parseEdgeFunctionError({ message: sendResult.error }, sendResult);
+        
+        // Handle warmup limit specifically
+        if (error.code === 'WARMUP_LIMIT' && error.warmupDetails) {
+          setState({ 
+            status: 'warmup_limit', 
+            error, 
+            campaignId: campaign.id,
+            warmupDetails: error.warmupDetails
+          });
+          
+          // Don't show toast for warmup limit - modal will handle it
+          options.onWarmupLimit?.(error.warmupDetails);
+          return { success: false, error, campaignId: campaign.id, warmupDetails: error.warmupDetails };
+        }
+        
         throw new Error(sendResult.error);
       }
 
@@ -194,6 +215,8 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
     resetState,
     isSending: state.status === 'saving' || state.status === 'sending',
     isError: state.status === 'error',
-    isSuccess: state.status === 'success'
+    isSuccess: state.status === 'success',
+    isWarmupLimit: state.status === 'warmup_limit',
+    warmupDetails: state.warmupDetails
   };
 }
