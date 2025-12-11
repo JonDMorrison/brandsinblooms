@@ -46,9 +46,9 @@ function stripExistingFooter(html: string): string {
 }
 
 /**
- * Build email payload for a single customer
+ * Build email payload for a single customer (OPTIMIZED - uses pre-generated footer)
  */
-function buildEmailPayload(
+function buildEmailPayloadOptimized(
   customer: any,
   campaign: any,
   companyProfile: any,
@@ -56,13 +56,20 @@ function buildEmailPayload(
   fromAddress: string,
   senderEmail: string,
   usesVerifiedDomain: boolean,
-  activeDomainId: string | null
+  activeDomainId: string | null,
+  sharedFooterTemplate: string
 ): any {
   const companyName = companyProfile?.company_name || 'Your Garden Center';
   
-  // Generate unsubscribe token and link
+  // Generate unsubscribe token and link for this customer
   const unsubscribeToken = btoa(`${customer.email}:${campaign.tenant_id}`);
   const unsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${campaign.tenant_id}&token=${unsubscribeToken}`;
+  const preferencesLink = unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences');
+
+  // Replace placeholders in pre-generated footer with actual customer links
+  const customerFooter = sharedFooterTemplate
+    .replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubscribeLink)
+    .replace(/\{\{PREFERENCES_URL\}\}/g, preferencesLink);
 
   // Create merge tag data
   const mergeTagData: MergeTagData = createMergeTagDataFromCustomer(customer, {
@@ -73,7 +80,7 @@ function buildEmailPayload(
   
   mergeTagData.system = {
     unsubscribe_url: unsubscribeLink,
-    preferences_url: unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences'),
+    preferences_url: preferencesLink,
     current_year: new Date().getFullYear().toString(),
     current_date: new Date().toLocaleDateString()
   };
@@ -85,21 +92,15 @@ function buildEmailPayload(
   emailContent = renderMergeTags(emailContent, mergeTagData);
   emailSubject = renderMergeTags(emailSubject, mergeTagData);
 
-  // Strip existing footer and regenerate
+  // Strip existing footer and append the pre-generated customer-specific footer
   emailContent = stripExistingFooter(emailContent);
   
-  const serverFooter = generateServerFooterHtml(
-    profileData,
-    unsubscribeLink,
-    unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences')
-  );
-  
   if (emailContent.includes('</body>')) {
-    emailContent = emailContent.replace('</body>', `${serverFooter}</body>`);
+    emailContent = emailContent.replace('</body>', `${customerFooter}</body>`);
   } else if (emailContent.includes('</html>')) {
-    emailContent = emailContent.replace('</html>', `${serverFooter}</html>`);
+    emailContent = emailContent.replace('</html>', `${customerFooter}</html>`);
   } else {
-    emailContent += serverFooter;
+    emailContent += customerFooter;
   }
 
   const emailPayload: any = {
@@ -450,11 +451,23 @@ serve(async (req) => {
     const emailPayloads: any[] = [];
     const subscriptionUpserts: any[] = [];
 
+    // Pre-generate the footer ONCE since it's the same for all recipients
+    // This is a critical performance optimization to avoid timeout on large campaigns
+    const sampleUnsubscribeToken = btoa(`sample@example.com:${campaign.tenant_id}`);
+    const sampleUnsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=PLACEHOLDER&tenant_id=${campaign.tenant_id}&token=PLACEHOLDER`;
+    const sharedFooterTemplate = generateServerFooterHtml(
+      profileData,
+      '{{UNSUBSCRIBE_URL}}',
+      '{{PREFERENCES_URL}}'
+    );
+    console.log(`📧 Pre-generated footer template (length: ${sharedFooterTemplate.length})`);
+
     for (const customer of customers) {
       try {
-        const payload = buildEmailPayload(
+        const payload = buildEmailPayloadOptimized(
           customer, campaign, companyProfile, profileData,
-          fromAddress, senderEmail, usesVerifiedDomain, activeDomainId
+          fromAddress, senderEmail, usesVerifiedDomain, activeDomainId,
+          sharedFooterTemplate
         );
         emailPayloads.push({ email: customer.email, customerId: customer.id, payload });
 
