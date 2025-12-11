@@ -49,9 +49,12 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
 
   // Generate the complete email HTML with footer
   const completeEmailHtml = useMemo(() => {
-    // Check if content already has a proper footer
+    // Check if content already has a proper footer (check for multiple indicators)
     const hasFooter = content.includes('Unsubscribe') && 
-                     (content.includes('viewBox="0 0 24 24"') || content.includes('footer'));
+                     (content.includes('viewBox="0 0 24 24"') || // SVG icons
+                      content.includes('social-icons/') || // PNG icons
+                      content.includes('email-footer') || // Footer class
+                      content.includes('Manage Preferences')); // Footer link
 
     if (hasFooter) {
       return content;
