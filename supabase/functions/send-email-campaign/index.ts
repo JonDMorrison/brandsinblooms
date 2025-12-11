@@ -219,13 +219,26 @@ serve(async (req) => {
           console.log(`Email consent filtering: ${totalInSegment} total, ${customers.length} opted-in, ${excludedCount} excluded`);
         }
       } else {
-        return new Response(
-          JSON.stringify({ error: 'Campaign has no segments selected' }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+        // No segments selected - send to ALL opted-in contacts for this tenant
+        console.log(`No segments selected - fetching all opted-in contacts for tenant: ${campaign.tenant_id}`);
+        
+        const { data: allContacts, error: allContactsError } = await supabase
+          .from('crm_customers')
+          .select('id, first_name, last_name, email, email_opt_in')
+          .eq('tenant_id', campaign.tenant_id)
+          .eq('email_opt_in', true)
+          .not('email', 'is', null);
+        
+        if (allContactsError) {
+          customersError = allContactsError;
+        } else {
+          const validContacts = (allContacts || []).filter(c => c.email && c.email.trim() !== '');
+          totalInSegment = validContacts.length;
+          customers = validContacts;
+          excludedCount = 0; // Already filtered by email_opt_in
+          
+          console.log(`All contacts mode: Found ${customers.length} opted-in contacts`);
+        }
       }
     }
 
@@ -241,16 +254,30 @@ serve(async (req) => {
     }
 
     if (!customers || customers.length === 0) {
+      const failureReason = totalInSegment > 0 
+        ? `No opted-in recipients: ${totalInSegment} contacts in segment but ${excludedCount} have not opted in to receive emails`
+        : 'No contacts found in the selected audience with valid email addresses';
+      
+      console.error(`Campaign ${campaignId} failed: ${failureReason}`);
+      
       await supabase
         .from('crm_campaigns')
         .update({ 
           status: 'failed',
+          send_blocked_reason: failureReason,
           metrics: { sent: 0, opens: 0, clicks: 0, unsubscribes: 0 }
         })
         .eq('id', campaignId);
 
       return new Response(
-        JSON.stringify({ error: 'No customers found with valid email addresses' }),
+        JSON.stringify({ 
+          error: failureReason,
+          details: {
+            totalInSegment,
+            optedIn: 0,
+            excluded: excludedCount
+          }
+        }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -577,14 +604,35 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in send-email-campaign function:', error);
+    console.error('❌ CRITICAL ERROR in send-email-campaign function:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Provide more specific error messages based on error type
+    let userMessage = 'Internal server error';
+    let statusCode = 500;
+    
+    if (error.message?.includes('JWT')) {
+      userMessage = 'Authentication error - please sign in again';
+      statusCode = 401;
+    } else if (error.message?.includes('permission') || error.message?.includes('RLS')) {
+      userMessage = 'Permission denied - you may not have access to this campaign';
+      statusCode = 403;
+    } else if (error.message?.includes('timeout') || error.message?.includes('ETIMEDOUT')) {
+      userMessage = 'Request timed out - please try again';
+      statusCode = 504;
+    }
+    
     return new Response(
       JSON.stringify({ 
-        error: 'Internal server error',
-        details: error.message 
+        error: userMessage,
+        details: error.message,
+        code: error.code || 'UNKNOWN_ERROR'
       }),
       { 
-        status: 500, 
+        status: statusCode, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
