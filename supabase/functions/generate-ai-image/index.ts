@@ -372,13 +372,13 @@ serve(async (req) => {
   }
 });
 
-async function generateWithRetry(prompt: string, apiKey: string, maxRetries = 2): Promise<any> {
+async function generateWithRetry(prompt: string, apiKey: string, maxRetries = 3): Promise<any> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       console.log(`🔄 AI generation attempt ${attempt + 1}/${maxRetries}`);
       
       const controller = new AbortController();
-      const fetchTimeout = setTimeout(() => controller.abort(), 18000); // 18s timeout per attempt
+      const fetchTimeout = setTimeout(() => controller.abort(), 25000); // 25s timeout per attempt
       
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
@@ -396,29 +396,55 @@ async function generateWithRetry(prompt: string, apiKey: string, maxRetries = 2)
       
       clearTimeout(fetchTimeout);
 
-      if (response.status === 429 && attempt < maxRetries - 1) {
-        const retryAfter = parseInt(response.headers.get('retry-after') || '5');
-        console.log(`⏳ Rate limited, waiting ${retryAfter}s...`);
-        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-        continue;
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('retry-after') || '8');
+        console.log(`⏳ Rate limited (429), waiting ${retryAfter}s before retry...`);
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+          continue;
+        }
+        throw new Error(`Rate limited after ${maxRetries} attempts. Please try again in a few seconds.`);
+      }
+
+      if (response.status === 402) {
+        throw new Error('AI credits exhausted. Please add funds to continue generating images.');
       }
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error(`❌ AI Gateway returned ${response.status}:`, errorText.substring(0, 300));
         throw new Error(`AI Gateway error: ${response.status} - ${errorText.substring(0, 200)}`);
       }
 
-      return await response.json();
+      const jsonData = await response.json();
+      
+      // Validate response has image data before returning
+      const hasImage = jsonData.choices?.[0]?.message?.images?.[0]?.image_url?.url ||
+                       jsonData.choices?.[0]?.message?.images?.[0]?.url ||
+                       (typeof jsonData.choices?.[0]?.message?.content === 'string' && 
+                        jsonData.choices[0].message.content.startsWith('data:image')) ||
+                       jsonData.data?.[0]?.url ||
+                       jsonData.data?.[0]?.b64_json;
+      
+      if (!hasImage && attempt < maxRetries - 1) {
+        console.log(`⚠️ AI response missing image data on attempt ${attempt + 1}, retrying...`);
+        console.log('Response preview:', JSON.stringify(jsonData).substring(0, 500));
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        continue;
+      }
+      
+      return jsonData;
     } catch (error) {
       console.error(`❌ Attempt ${attempt + 1} failed:`, error.message);
       if (attempt === maxRetries - 1) throw error;
       
-      // Exponential backoff
-      const backoffMs = 2000 * Math.pow(2, attempt);
-      console.log(`⏳ Retrying in ${backoffMs}ms...`);
+      // Exponential backoff with jitter
+      const backoffMs = (2000 * Math.pow(2, attempt)) + Math.random() * 1000;
+      console.log(`⏳ Retrying in ${Math.round(backoffMs)}ms...`);
       await new Promise(resolve => setTimeout(resolve, backoffMs));
     }
   }
+  throw new Error('All retry attempts exhausted');
 }
 
 // Detect season from context or use current season
