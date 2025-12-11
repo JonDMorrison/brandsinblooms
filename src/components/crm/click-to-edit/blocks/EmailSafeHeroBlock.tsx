@@ -56,8 +56,66 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
           onImageEdit={() => mediaSelectorRef.current?.openDialog()}
           showTextEdit={true}
           showImageEdit={true}
-          showFormatEdit={false}
+          showFormatEdit={true}
         />
+      )}
+
+      {/* Inline Color Picker - shows when format mode is active */}
+      {editMode === 'format' && (
+        <div 
+          className="absolute bottom-2 left-2 right-2 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 border"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs font-medium text-gray-700 whitespace-nowrap">Background</Label>
+              <Input
+                type="color"
+                value={backgroundColor}
+                onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+                className="w-8 h-8 p-0.5 cursor-pointer rounded border-0"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs font-medium text-gray-700 whitespace-nowrap">Text</Label>
+              <Input
+                type="color"
+                value={textColor}
+                onChange={(e) => onUpdate({ textColor: e.target.value })}
+                className="w-8 h-8 p-0.5 cursor-pointer rounded border-0"
+              />
+            </div>
+            <div className="flex items-center gap-1 border-l pl-3">
+              <Button
+                type="button"
+                size="sm"
+                variant={block.textAlign === 'left' ? 'default' : 'ghost'}
+                onClick={() => onUpdate({ textAlign: 'left' })}
+                className="h-7 w-7 p-0"
+              >
+                <AlignLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={block.textAlign === 'center' || !block.textAlign ? 'default' : 'ghost'}
+                onClick={() => onUpdate({ textAlign: 'center' })}
+                className="h-7 w-7 p-0"
+              >
+                <AlignCenter className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={block.textAlign === 'right' ? 'default' : 'ghost'}
+                onClick={() => onUpdate({ textAlign: 'right' })}
+                className="h-7 w-7 p-0"
+              >
+                <AlignRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Top Section - Solid Background with Text */}

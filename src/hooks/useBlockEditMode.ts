@@ -1,12 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 
-export type EditMode = 'text' | 'image' | null;
+export type EditMode = 'text' | 'image' | 'format' | null;
 
 interface UseBlockEditModeReturn {
   editMode: EditMode;
   setEditMode: (mode: EditMode) => void;
   isTextEditing: boolean;
   isImageEditing: boolean;
+  isFormatEditing: boolean;
   exitEditMode: () => void;
   toggleMode: (mode: EditMode) => void;
 }
@@ -17,6 +18,7 @@ export const useBlockEditMode = (initialMode: EditMode = null): UseBlockEditMode
   // Computed booleans for easier component logic
   const isTextEditing = editMode === 'text';
   const isImageEditing = editMode === 'image';
+  const isFormatEditing = editMode === 'format';
 
   // Exit edit mode
   const exitEditMode = useCallback(() => {
@@ -49,6 +51,7 @@ export const useBlockEditMode = (initialMode: EditMode = null): UseBlockEditMode
     setEditMode,
     isTextEditing,
     isImageEditing,
+    isFormatEditing,
     exitEditMode,
     toggleMode
   };
