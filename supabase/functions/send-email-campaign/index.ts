@@ -9,53 +9,183 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, traceparent, tracestate',
 }
 
+// Threshold for inline sending vs queue-based sending
+const INLINE_SEND_THRESHOLD = 300;
+const BATCH_SIZE_PER_JOB = 200;
+
 /**
  * Strip ALL existing footer HTML from content to prevent double footers.
- * The server-side footer generator is the single source of truth.
  */
 function stripExistingFooter(html: string): string {
   let strippedHtml = html;
   
-  // Pattern: Footer wrapper with margin-top: 40px (our generated footer)
   const footerWrapperPattern = /<div[^>]*style="[^"]*margin-top:\s*40px[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*<\/div>\s*$))/gi;
   if (footerWrapperPattern.test(strippedHtml)) {
-    console.log("📧 Stripping footer with margin-top:40px pattern");
     strippedHtml = strippedHtml.replace(footerWrapperPattern, '');
   }
   
-  // Pattern: Footer with Unsubscribe link inside background-colored container
   const unsubscribeFooterPattern = /<div[^>]*style="[^"]*background-color[^"]*"[^>]*>[\s\S]*?<div[^>]*style="[^"]*max-width:\s*640px[^"]*"[^>]*>[\s\S]*?[Uu]nsubscribe[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi;
   if (unsubscribeFooterPattern.test(strippedHtml)) {
-    console.log("📧 Stripping unsubscribe footer pattern");
     strippedHtml = strippedHtml.replace(unsubscribeFooterPattern, '');
   }
   
-  // Pattern: Social icons from our storage
   const socialIconsFooterPattern = /<div[^>]*style="[^"]*background-color[^"]*"[^>]*>[\s\S]*?social-icons[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi;
   if (socialIconsFooterPattern.test(strippedHtml)) {
-    console.log("📧 Stripping social icons footer pattern");
     strippedHtml = strippedHtml.replace(socialIconsFooterPattern, '');
   }
   
-  // Pattern: Legacy footer with specific dark green background
   const legacyGreenFooterPattern = /<div[^>]*style="[^"]*background-color:\s*#283024[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi;
   if (legacyGreenFooterPattern.test(strippedHtml)) {
-    console.log("📧 Stripping legacy green footer pattern");
     strippedHtml = strippedHtml.replace(legacyGreenFooterPattern, '');
   }
   
-  // Final cleanup: Remove any remaining footer-like structures before closing tags
   const finalCleanupPattern = /<div[^>]*style="[^"]*background-color[^"]*width:\s*100%[^"]*"[^>]*>[\s\S]*?[Uu]nsubscribe[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/div>)*\s*(<\/body>|<\/html>|$))/gi;
-  strippedHtml = strippedHtml.replace(finalCleanupPattern, (match) => {
-    console.log("📧 Final cleanup: stripping remaining footer structure");
-    return '';
-  });
+  strippedHtml = strippedHtml.replace(finalCleanupPattern, '');
   
   return strippedHtml;
 }
 
+/**
+ * Build email payload for a single customer
+ */
+function buildEmailPayload(
+  customer: any,
+  campaign: any,
+  companyProfile: any,
+  profileData: CompanyProfileData,
+  fromAddress: string,
+  senderEmail: string,
+  usesVerifiedDomain: boolean,
+  activeDomainId: string | null
+): any {
+  const companyName = companyProfile?.company_name || 'Your Garden Center';
+  
+  // Generate unsubscribe token and link
+  const unsubscribeToken = btoa(`${customer.email}:${campaign.tenant_id}`);
+  const unsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${campaign.tenant_id}&token=${unsubscribeToken}`;
+
+  // Create merge tag data
+  const mergeTagData: MergeTagData = createMergeTagDataFromCustomer(customer, {
+    company_name: companyName,
+    address: companyProfile?.location_info,
+    website_url: companyProfile?.custom_sender_email?.split('@')[1]
+  });
+  
+  mergeTagData.system = {
+    unsubscribe_url: unsubscribeLink,
+    preferences_url: unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences'),
+    current_year: new Date().getFullYear().toString(),
+    current_date: new Date().toLocaleDateString()
+  };
+
+  // Process content
+  let emailContent = convertLegacyTags(campaign.content || '');
+  let emailSubject = convertLegacyTags(campaign.subject_line || 'Newsletter from your Garden Center');
+  
+  emailContent = renderMergeTags(emailContent, mergeTagData);
+  emailSubject = renderMergeTags(emailSubject, mergeTagData);
+
+  // Strip existing footer and regenerate
+  emailContent = stripExistingFooter(emailContent);
+  
+  const serverFooter = generateServerFooterHtml(
+    profileData,
+    unsubscribeLink,
+    unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences')
+  );
+  
+  if (emailContent.includes('</body>')) {
+    emailContent = emailContent.replace('</body>', `${serverFooter}</body>`);
+  } else if (emailContent.includes('</html>')) {
+    emailContent = emailContent.replace('</html>', `${serverFooter}</html>`);
+  } else {
+    emailContent += serverFooter;
+  }
+
+  const emailPayload: any = {
+    from: fromAddress,
+    to: [customer.email],
+    subject: emailSubject,
+    html: emailContent,
+    headers: {
+      'X-Campaign-ID': campaign.id,
+      'X-Campaign-Type': 'bulk',
+      'X-Tenant-ID': campaign.tenant_id,
+      'X-Domain-ID': activeDomainId || 'fallback'
+    },
+    tags: [
+      { name: 'campaign_id', value: campaign.id },
+      { name: 'type', value: 'bulk' },
+      { name: 'tenant_id', value: campaign.tenant_id }
+    ]
+  };
+
+  if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.email') {
+    emailPayload.reply_to = senderEmail;
+  }
+
+  return emailPayload;
+}
+
+/**
+ * Process a batch inline (for small campaigns or immediate processing)
+ */
+async function processInline(
+  resend: any,
+  emailPayloads: any[],
+  supabase: any,
+  campaignId: string,
+  activeDomainId: string | null
+): Promise<{ sent: number; failed: number }> {
+  const BATCH_SIZE = 100;
+  let emailsSent = 0;
+  let failed = 0;
+
+  for (let i = 0; i < emailPayloads.length; i += BATCH_SIZE) {
+    const batch = emailPayloads.slice(i, i + BATCH_SIZE);
+    
+    try {
+      const batchResponse = await resend.batch.send(batch);
+      
+      if (batchResponse?.data) {
+        const successCount = Array.isArray(batchResponse.data) 
+          ? batchResponse.data.filter((r: any) => r?.id).length 
+          : 1;
+        emailsSent += successCount;
+      } else if (batchResponse?.error) {
+        failed += batch.length;
+        console.error(`Batch failed:`, batchResponse.error);
+      }
+    } catch (batchError: any) {
+      console.warn(`Batch failed, trying individual sends:`, batchError.message);
+      
+      for (const payload of batch) {
+        try {
+          const singleResponse = await resend.emails.send(payload);
+          if (singleResponse?.id) {
+            emailsSent++;
+          } else {
+            failed++;
+          }
+        } catch {
+          failed++;
+        }
+      }
+    }
+  }
+
+  // Record usage
+  if (emailsSent > 0 && activeDomainId) {
+    await supabase.rpc('record_email_usage', {
+      p_domain_id: activeDomainId,
+      p_emails_sent: emailsSent
+    }).catch(() => {});
+  }
+
+  return { sent: emailsSent, failed };
+}
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -66,45 +196,31 @@ serve(async (req) => {
     if (!campaignId) {
       return new Response(
         JSON.stringify({ error: 'Campaign ID is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Initialize Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
       console.error('Missing Resend API key');
       return new Response(
         JSON.stringify({ error: 'Email service not configured' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const resend = new Resend(resendApiKey);
 
-    console.log(`Starting email campaign send for campaign: ${campaignId}`);
+    console.log(`📧 Starting email campaign send for campaign: ${campaignId}`);
 
-    // Get campaign details with company profile for sender configuration
+    // Get campaign details
     const { data: campaign, error: campaignError } = await supabase
       .from('crm_campaigns')
-      .select(`
-        *,
-        crm_segments (
-          id,
-          name
-        )
-      `)
+      .select(`*, crm_segments (id, name)`)
       .eq('id', campaignId)
       .single();
 
@@ -112,15 +228,12 @@ serve(async (req) => {
       console.error('Campaign not found:', campaignError);
       return new Response(
         JSON.stringify({ error: 'Campaign not found' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get FULL company profile for sender configuration AND footer generation
-    const { data: companyProfile, error: profileError } = await supabase
+    // Get company profile
+    const { data: companyProfile } = await supabase
       .from('company_profiles')
       .select(`
         email_auth_status, custom_sender_email, company_name, location_info,
@@ -132,102 +245,51 @@ serve(async (req) => {
       .eq('user_id', campaign.user_id)
       .single();
 
-    if (profileError) {
-      console.error('Error fetching company profile:', profileError);
-    }
-    
-    console.log('📧 Company profile loaded for footer:', {
-      companyName: companyProfile?.company_name,
-      hasFacebook: !!companyProfile?.facebook_url,
-      hasInstagram: !!companyProfile?.instagram_url,
-      hasTiktok: !!companyProfile?.tiktok_url,
-      hasPinterest: !!companyProfile?.pinterest_url,
-      hasYoutube: !!companyProfile?.youtube_url,
-      hasLinkedin: !!companyProfile?.linkedin_url,
-    });
-
-    // Get customers based on campaign audience targeting
-    // Email opt-in restriction removed - send to all contacts with valid emails
-    let customers = [];
+    // Get customers based on targeting
+    let customers: any[] = [];
     let customersError = null;
-    let totalInSegment = 0;
 
-    // Check if campaign has a single segment_id or multiple segments via campaign_segments
     if (campaign.segment_id) {
-      console.log(`Targeting single segment: ${campaign.segment_id}`);
       const { data: segmentCustomers, error } = await supabase
         .from('customer_segments')
-        .select(`
-          crm_customers (
-            id, first_name, last_name, email
-          )
-        `)
+        .select(`crm_customers (id, first_name, last_name, email)`)
         .eq('segment_id', campaign.segment_id);
 
-      if (error) {
-        customersError = error;
-      } else {
-        customers = segmentCustomers
-          ?.map(sc => sc.crm_customers)
-          .filter(c => c && c.email && c.email.trim() !== '') || [];
-        
-        totalInSegment = customers.length;
-        console.log(`Segment targeting: ${totalInSegment} contacts with valid emails`);
-      }
+      if (error) customersError = error;
+      else customers = segmentCustomers?.map(sc => sc.crm_customers).filter(c => c?.email?.trim()) || [];
     } else {
-      console.log(`Checking for multiple segment targeting...`);
-      const { data: campaignSegments, error: segError } = await supabase
+      const { data: campaignSegments } = await supabase
         .from('campaign_segments')
         .select('segment_id')
         .eq('campaign_id', campaignId);
 
-      if (segError) {
-        customersError = segError;
-      } else if (campaignSegments && campaignSegments.length > 0) {
-        console.log(`Targeting ${campaignSegments.length} segments:`, campaignSegments.map(cs => cs.segment_id));
-        
+      if (campaignSegments && campaignSegments.length > 0) {
         const { data: multiSegmentCustomers, error } = await supabase
           .from('customer_segments')
-          .select(`
-            crm_customers (
-              id, first_name, last_name, email
-            )
-          `)
+          .select(`crm_customers (id, first_name, last_name, email)`)
           .in('segment_id', campaignSegments.map(cs => cs.segment_id));
 
-        if (error) {
-          customersError = error;
-        } else {
+        if (error) customersError = error;
+        else {
           const customerMap = new Map();
           multiSegmentCustomers?.forEach(sc => {
             const customer = sc.crm_customers;
-            if (customer && customer.email && customer.email.trim() !== '' && !customerMap.has(customer.email)) {
+            if (customer?.email?.trim() && !customerMap.has(customer.email)) {
               customerMap.set(customer.email, customer);
             }
           });
           customers = Array.from(customerMap.values());
-          totalInSegment = customers.length;
-          
-          console.log(`Multi-segment targeting: ${totalInSegment} contacts with valid emails`);
         }
       } else {
-        // No segments selected - send to ALL contacts for this tenant
-        console.log(`No segments selected - fetching all contacts for tenant: ${campaign.tenant_id}`);
-        
-        const { data: allContacts, error: allContactsError } = await supabase
+        // All contacts for tenant
+        const { data: allContacts, error } = await supabase
           .from('crm_customers')
           .select('id, first_name, last_name, email')
           .eq('tenant_id', campaign.tenant_id)
           .not('email', 'is', null);
         
-        if (allContactsError) {
-          customersError = allContactsError;
-        } else {
-          customers = (allContacts || []).filter(c => c.email && c.email.trim() !== '');
-          totalInSegment = customers.length;
-          
-          console.log(`All contacts mode: Found ${customers.length} contacts`);
-        }
+        if (error) customersError = error;
+        else customers = (allContacts || []).filter(c => c.email?.trim());
       }
     }
 
@@ -235,44 +297,26 @@ serve(async (req) => {
       console.error('Error fetching customers:', customersError);
       return new Response(
         JSON.stringify({ error: 'Failed to fetch customers' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!customers || customers.length === 0) {
-      const failureReason = 'No contacts found in the selected audience with valid email addresses';
-      
-      console.error(`Campaign ${campaignId} failed: ${failureReason}`);
-      
       await supabase
         .from('crm_campaigns')
-        .update({ 
-          status: 'failed',
-          send_blocked_reason: failureReason,
-          metrics: { sent: 0, opens: 0, clicks: 0, unsubscribes: 0 }
-        })
+        .update({ status: 'failed', send_blocked_reason: 'No contacts found' })
         .eq('id', campaignId);
 
       return new Response(
-        JSON.stringify({ 
-          error: failureReason,
-          details: { totalInSegment }
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ error: 'No contacts found in the selected audience' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const recipientCount = customers.length;
-    console.log(`Found ${recipientCount} customers with valid emails`);
+    console.log(`📧 Found ${recipientCount} customers`);
 
-    // ========== PRE-SEND QUOTA CHECK ==========
-    // Check if sending is allowed before proceeding
+    // Quota check
     const { data: quotaCheck, error: quotaError } = await supabase.rpc('check_send_quota', {
       p_tenant_id: campaign.tenant_id,
       p_domain_id: campaign.from_email_domain_id || null,
@@ -283,96 +327,46 @@ serve(async (req) => {
       console.error('Error checking quota:', quotaError);
       return new Response(
         JSON.stringify({ error: 'Failed to check sending quota' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!quotaCheck?.allowed) {
-      console.warn(`Campaign ${campaignId} blocked: ${quotaCheck?.reason} - ${quotaCheck?.message}`);
-      
-      // Update campaign status to blocked
       await supabase
         .from('crm_campaigns')
-        .update({ 
-          status: 'blocked',
-          send_blocked_reason: quotaCheck?.message || quotaCheck?.reason
-        })
+        .update({ status: 'blocked', send_blocked_reason: quotaCheck?.message })
         .eq('id', campaignId);
 
       return new Response(
-        JSON.stringify({ 
-          error: 'Send blocked',
-          reason: quotaCheck?.reason,
-          message: quotaCheck?.message
-        }),
-        { 
-          status: 403, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ error: 'Send blocked', reason: quotaCheck?.reason, message: quotaCheck?.message }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Quota check passed. Domain: ${quotaCheck.domain?.domain || 'fallback'}, Limits: daily ${quotaCheck.limits?.daily_limit}, hourly ${quotaCheck.limits?.hourly_limit}`);
-
-    // ========== DETERMINE SENDER ==========
+    // Determine sender
+    const companyName = companyProfile?.company_name || 'Your Garden Center';
     let senderEmail: string;
     let senderDisplayName: string;
     let deliveryMethod: string;
     let usesVerifiedDomain: boolean;
     let activeDomainId: string | null = null;
-    const companyName = companyProfile?.company_name || 'Your Garden Center';
 
     if (quotaCheck.using_fallback) {
-      // Use fallback sender
       senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.email';
       senderDisplayName = `${companyName} via BloomSuite`;
       deliveryMethod = 'shared_sender';
       usesVerifiedDomain = false;
-      console.log(`Using fallback sender: ${senderEmail}`);
     } else {
-      // Use custom domain sender
       senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.email';
       senderDisplayName = quotaCheck.sender?.from_name || companyName;
       deliveryMethod = 'custom_domain';
       usesVerifiedDomain = true;
       activeDomainId = quotaCheck.domain?.id || null;
-      console.log(`Using custom domain: ${senderEmail}`);
     }
 
     const fromAddress = `${senderDisplayName} <${senderEmail}>`;
-    
-    // Update campaign with sender configuration
-    await supabase
-      .from('crm_campaigns')
-      .update({
-        delivery_method: deliveryMethod,
-        sender_display_name: senderDisplayName,
-        actual_sender_email: senderEmail,
-        from_email_domain_id: activeDomainId
-      })
-      .eq('id', campaignId);
 
-    // Update campaign status to sending
-    await supabase
-      .from('crm_campaigns')
-      .update({ 
-        status: 'sending',
-        sent_at: new Date().toISOString()
-      })
-      .eq('id', campaignId);
-
-    // ========== BATCH EMAIL SENDING ==========
-    // Prepare all email payloads first, then send in batches of 100
-    console.log(`📧 Preparing ${customers.length} emails for batch sending...`);
-    
-    const BATCH_SIZE = 100; // Resend batch API limit
-    let emailsSent = 0;
-    let failed = 0;
-
-    // Build CompanyProfileData once (used for all emails)
+    // Build profile data for footer
     const profileData: CompanyProfileData = {
       company_name: companyProfile?.company_name,
       company_email: companyProfile?.company_email,
@@ -395,57 +389,19 @@ serve(async (req) => {
       feature_flags: companyProfile?.feature_flags,
     };
 
-    // Prepare all email payloads
+    // Build email payloads
+    console.log(`📧 Building ${recipientCount} email payloads...`);
     const emailPayloads: any[] = [];
     const subscriptionUpserts: any[] = [];
-    
+
     for (const customer of customers) {
       try {
-        // Generate unsubscribe token and link
-        const unsubscribeToken = btoa(`${customer.email}:${campaign.tenant_id}`);
-        const unsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${campaign.tenant_id}&token=${unsubscribeToken}`;
-
-        // Create merge tag data from customer and company info
-        const mergeTagData: MergeTagData = createMergeTagDataFromCustomer(customer, {
-          company_name: companyName,
-          address: companyProfile?.location_info,
-          website_url: companyProfile?.custom_sender_email?.split('@')[1]
-        });
-        
-        // Add system URLs
-        mergeTagData.system = {
-          unsubscribe_url: unsubscribeLink,
-          preferences_url: unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences'),
-          current_year: new Date().getFullYear().toString(),
-          current_date: new Date().toLocaleDateString()
-        };
-
-        // Convert legacy tags and render with unified engine
-        let emailContent = convertLegacyTags(campaign.content || '');
-        let emailSubject = convertLegacyTags(campaign.subject_line || 'Newsletter from your Garden Center');
-        
-        emailContent = renderMergeTags(emailContent, mergeTagData);
-        emailSubject = renderMergeTags(emailSubject, mergeTagData);
-
-        // Strip existing footer and regenerate server-side
-        emailContent = stripExistingFooter(emailContent);
-        
-        const serverFooter = generateServerFooterHtml(
-          profileData,
-          unsubscribeLink,
-          unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences')
+        const payload = buildEmailPayload(
+          customer, campaign, companyProfile, profileData,
+          fromAddress, senderEmail, usesVerifiedDomain, activeDomainId
         );
-        
-        // Insert footer before closing body/html tags
-        if (emailContent.includes('</body>')) {
-          emailContent = emailContent.replace('</body>', `${serverFooter}</body>`);
-        } else if (emailContent.includes('</html>')) {
-          emailContent = emailContent.replace('</html>', `${serverFooter}</html>`);
-        } else {
-          emailContent += serverFooter;
-        }
+        emailPayloads.push({ email: customer.email, customerId: customer.id, payload });
 
-        // Queue subscription upsert
         subscriptionUpserts.push({
           email: customer.email,
           tenant_id: campaign.tenant_id,
@@ -454,188 +410,154 @@ serve(async (req) => {
           opt_out: false,
           source: 'campaign'
         });
-
-        // Prepare email payload
-        const emailPayload: any = {
-          from: fromAddress,
-          to: [customer.email],
-          subject: emailSubject,
-          html: emailContent,
-          headers: {
-            'X-Campaign-ID': campaignId,
-            'X-Campaign-Type': 'bulk',
-            'X-Tenant-ID': campaign.tenant_id,
-            'X-Domain-ID': activeDomainId || 'fallback'
-          },
-          tags: [
-            { name: 'campaign_id', value: campaignId },
-            { name: 'type', value: 'bulk' },
-            { name: 'tenant_id', value: campaign.tenant_id }
-          ]
-        };
-
-        // Add reply-to if custom sender is available
-        if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.email') {
-          emailPayload.reply_to = senderEmail;
-        }
-
-        emailPayloads.push(emailPayload);
       } catch (error: any) {
-        failed++;
-        console.error(`Error preparing email for customer ${customer.id}:`, error.message);
+        console.error(`Error building payload for ${customer.id}:`, error.message);
       }
     }
 
-    console.log(`📧 Prepared ${emailPayloads.length} email payloads, ${failed} failed during preparation`);
-
-    // Batch upsert subscriptions (much faster than individual upserts)
+    // Batch upsert subscriptions
     if (subscriptionUpserts.length > 0) {
-      const { error: subError } = await supabase
+      await supabase
         .from('crm_subscriptions')
-        .upsert(subscriptionUpserts, { onConflict: 'email,tenant_id' });
-      
-      if (subError) {
-        console.warn('Subscription upsert warning:', subError.message);
-      }
+        .upsert(subscriptionUpserts, { onConflict: 'email,tenant_id' })
+        .catch(() => {});
     }
 
-    // Send emails in batches using Resend batch API
-    const totalBatches = Math.ceil(emailPayloads.length / BATCH_SIZE);
-    console.log(`📧 Sending ${emailPayloads.length} emails in ${totalBatches} batches...`);
-
-    for (let i = 0; i < emailPayloads.length; i += BATCH_SIZE) {
-      const batch = emailPayloads.slice(i, i + BATCH_SIZE);
-      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-      
-      try {
-        console.log(`📧 Sending batch ${batchNumber}/${totalBatches} (${batch.length} emails)...`);
-        
-        // Use Resend batch API - sends up to 100 emails in one API call
-        const batchResponse = await resend.batch.send(batch);
-        
-        if (batchResponse?.data) {
-          const successCount = Array.isArray(batchResponse.data) 
-            ? batchResponse.data.filter((r: any) => r?.id).length 
-            : 1;
-          emailsSent += successCount;
-          console.log(`📧 Batch ${batchNumber} sent successfully: ${successCount} emails`);
-        } else if (batchResponse?.error) {
-          failed += batch.length;
-          console.error(`📧 Batch ${batchNumber} failed:`, batchResponse.error);
-        }
-      } catch (batchError: any) {
-        // If batch fails, try individual sends as fallback
-        console.warn(`📧 Batch ${batchNumber} failed, attempting individual sends:`, batchError.message);
-        
-        for (const payload of batch) {
-          try {
-            const singleResponse = await resend.emails.send(payload);
-            if (singleResponse?.id) {
-              emailsSent++;
-            } else {
-              failed++;
-            }
-          } catch (singleError: any) {
-            failed++;
-            console.error(`Individual send failed for ${payload.to[0]}:`, singleError.message);
-          }
-        }
-      }
-    }
-
-    // ========== RECORD USAGE ==========
-    // Record email usage for quota tracking
-    if (emailsSent > 0 && activeDomainId) {
-      const { error: usageError } = await supabase.rpc('record_email_usage', {
-        p_domain_id: activeDomainId,
-        p_emails_sent: emailsSent
-      });
-      
-      if (usageError) {
-        console.error('Error recording email usage:', usageError);
-      } else {
-        console.log(`Recorded ${emailsSent} emails sent for domain ${activeDomainId}`);
-      }
-    }
-
-    // Update campaign with final metrics
-    const metrics = {
-      sent: emailsSent,
-      opens: 0,
-      clicks: 0,
-      unsubscribes: 0
-    };
-
+    // Update campaign sender config
     await supabase
       .from('crm_campaigns')
-      .update({ 
-        status: 'sent',
-        metrics: metrics
+      .update({
+        delivery_method: deliveryMethod,
+        sender_display_name: senderDisplayName,
+        actual_sender_email: senderEmail,
+        from_email_domain_id: activeDomainId
       })
       .eq('id', campaignId);
 
-    // Update subscription email usage (legacy tracking)
-    const { data: subscription, error: subError } = await supabase
-      .from('subscriptions')
-      .select('email_usage, user_id')
-      .eq('user_id', campaign.user_id)
-      .single();
+    // ========== QUEUE-BASED SENDING ==========
+    const totalBatches = Math.ceil(emailPayloads.length / BATCH_SIZE_PER_JOB);
+    console.log(`📧 Campaign has ${emailPayloads.length} recipients, creating ${totalBatches} batch jobs`);
 
-    if (!subError && subscription) {
-      await supabase
-        .from('subscriptions')
-        .update({ 
-          email_usage: (subscription.email_usage || 0) + emailsSent
-        })
-        .eq('user_id', campaign.user_id);
+    // Create batch jobs
+    const jobInserts: any[] = [];
+    for (let i = 0; i < emailPayloads.length; i += BATCH_SIZE_PER_JOB) {
+      const batch = emailPayloads.slice(i, i + BATCH_SIZE_PER_JOB);
+      jobInserts.push({
+        campaign_id: campaignId,
+        tenant_id: campaign.tenant_id,
+        domain_id: activeDomainId,
+        status: 'pending',
+        recipient_emails: batch,
+        batch_index: Math.floor(i / BATCH_SIZE_PER_JOB)
+      });
     }
 
-    console.log(`Campaign ${campaignId} completed. Sent: ${emailsSent}, Failed: ${failed}`);
+    const { error: insertError } = await supabase
+      .from('email_send_jobs')
+      .insert(jobInserts);
+
+    if (insertError) {
+      console.error('❌ Failed to create batch jobs:', insertError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to queue campaign' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // For small campaigns (<= threshold), process inline immediately
+    if (emailPayloads.length <= INLINE_SEND_THRESHOLD) {
+      console.log(`📧 Small campaign (${emailPayloads.length} recipients), processing inline...`);
+      
+      await supabase
+        .from('crm_campaigns')
+        .update({ status: 'sending', sent_at: new Date().toISOString() })
+        .eq('id', campaignId);
+
+      const payloadsOnly = emailPayloads.map(e => e.payload);
+      const { sent, failed } = await processInline(resend, payloadsOnly, supabase, campaignId, activeDomainId);
+
+      // Mark all jobs as completed
+      await supabase
+        .from('email_send_jobs')
+        .update({ status: 'completed', emails_sent: sent, emails_failed: failed })
+        .eq('campaign_id', campaignId);
+
+      // Update campaign as sent
+      await supabase
+        .from('crm_campaigns')
+        .update({ 
+          status: 'sent',
+          metrics: { sent, failed, opens: 0, clicks: 0, unsubscribes: 0 }
+        })
+        .eq('id', campaignId);
+
+      // Update subscription email usage
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('email_usage, user_id')
+        .eq('user_id', campaign.user_id)
+        .single();
+
+      if (subscription) {
+        await supabase
+          .from('subscriptions')
+          .update({ email_usage: (subscription.email_usage || 0) + sent })
+          .eq('user_id', campaign.user_id);
+      }
+
+      console.log(`✅ Campaign ${campaignId} sent inline: ${sent} sent, ${failed} failed`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          mode: 'inline',
+          metrics: { sent, failed },
+          message: `Email campaign sent to ${sent} customers`
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // For large campaigns, mark as queued and let the worker process
+    await supabase
+      .from('crm_campaigns')
+      .update({ status: 'queued', sent_at: new Date().toISOString() })
+      .eq('id', campaignId);
+
+    console.log(`📧 Campaign ${campaignId} queued with ${totalBatches} batch jobs`);
 
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        metrics: metrics,
-        message: `Email campaign sent successfully to ${emailsSent} customers`
+        success: true,
+        mode: 'queued',
+        campaign_id: campaignId,
+        total_recipients: emailPayloads.length,
+        total_batches: totalBatches,
+        message: `Campaign queued for sending to ${emailPayloads.length} recipients`
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('❌ CRITICAL ERROR in send-email-campaign function:', {
-      error: error.message,
-      stack: error.stack,
-      name: error.name
-    });
+  } catch (error: any) {
+    console.error('❌ CRITICAL ERROR:', error);
     
-    // Provide more specific error messages based on error type
     let userMessage = 'Internal server error';
     let statusCode = 500;
     
     if (error.message?.includes('JWT')) {
-      userMessage = 'Authentication error - please sign in again';
+      userMessage = 'Authentication error';
       statusCode = 401;
     } else if (error.message?.includes('permission') || error.message?.includes('RLS')) {
-      userMessage = 'Permission denied - you may not have access to this campaign';
+      userMessage = 'Permission denied';
       statusCode = 403;
-    } else if (error.message?.includes('timeout') || error.message?.includes('ETIMEDOUT')) {
-      userMessage = 'Request timed out - please try again';
+    } else if (error.message?.includes('timeout')) {
+      userMessage = 'Request timed out';
       statusCode = 504;
     }
     
     return new Response(
-      JSON.stringify({ 
-        error: userMessage,
-        details: error.message,
-        code: error.code || 'UNKNOWN_ERROR'
-      }),
-      { 
-        status: statusCode, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ error: userMessage, details: error.message }),
+      { status: statusCode, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-})
+});

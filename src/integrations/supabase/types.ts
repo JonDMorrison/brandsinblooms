@@ -3724,6 +3724,62 @@ export type Database = {
         }
         Relationships: []
       }
+      email_send_jobs: {
+        Row: {
+          attempts: number
+          batch_index: number
+          campaign_id: string
+          created_at: string
+          domain_id: string | null
+          emails_failed: number | null
+          emails_sent: number | null
+          error_message: string | null
+          id: string
+          recipient_emails: Json
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          batch_index?: number
+          campaign_id: string
+          created_at?: string
+          domain_id?: string | null
+          emails_failed?: number | null
+          emails_sent?: number | null
+          error_message?: string | null
+          id?: string
+          recipient_emails?: Json
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          batch_index?: number
+          campaign_id?: string
+          created_at?: string
+          domain_id?: string | null
+          emails_failed?: number | null
+          emails_sent?: number | null
+          error_message?: string | null
+          id?: string
+          recipient_emails?: Json
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_send_jobs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_senders: {
         Row: {
           created_at: string
