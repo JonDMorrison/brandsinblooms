@@ -2961,6 +2961,21 @@ const { counts: segmentCounts } = useSegmentCounts();
     /* Force light color scheme - prevents email clients from inverting colors */
     :root { color-scheme: light only; }
     
+    /* Dark mode protection - force header text to stay white */
+    @media (prefers-color-scheme: dark) {
+      .email-header-text { color: #ffffff !important; }
+      h1, h2, h3 { color: inherit !important; }
+    }
+    
+    /* Outlook dark mode protection */
+    [data-ogsc], [data-ogsb] {
+      color: inherit !important;
+      background-color: inherit !important;
+    }
+    
+    /* Gmail dark mode protection */
+    u + .body .email-header-text { color: #ffffff !important; }
+    
     ${fonts.fontUrls.map(url => `@import url('${url}');`).join('\n    ')}
     
     /* Typography system with granular fonts */
@@ -3134,8 +3149,8 @@ const { counts: segmentCounts } = useSegmentCounts();
                     <![endif]-->
                     <!-- Overlay div sits on top of background image -->
                     <div style="background-color: ${overlayColor}; padding: 40px 20px; text-align: ${headerAlign};">
-                      ${!shouldHideContent(block) && headerHeadline && !isBlockTypeLabel(headerHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${sanitizeCampaignTitle(headerHeadline)}</h1>` : ''}
-                      ${!shouldHideContent(block) && blockBody ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${blockBody}</div>` : ''}
+                      ${!shouldHideContent(block) && headerHeadline && !isBlockTypeLabel(headerHeadline) ? `<h1 class="email-header-text" style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'} !important;">${sanitizeCampaignTitle(headerHeadline)}</h1>` : ''}
+                      ${!shouldHideContent(block) && blockBody ? `<div class="email-header-text" style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'} !important;">${blockBody}</div>` : ''}
                     </div>
                     <!--[if gte mso 9]>
                     </v:textbox>
@@ -3154,8 +3169,8 @@ const { counts: segmentCounts } = useSegmentCounts();
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
                   <td style="background-color: ${headerBgColor}; padding: 40px 20px; text-align: ${headerAlign};">
-                    ${!shouldHideContent(block) && headerHeadline && !isBlockTypeLabel(headerHeadline) ? `<h1 style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'};">${headerHeadline}</h1>` : ''}
-                    ${!shouldHideContent(block) && blockBody ? `<div style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'};">${blockBody}</div>` : ''}
+                    ${!shouldHideContent(block) && headerHeadline && !isBlockTypeLabel(headerHeadline) ? `<h1 class="email-header-text" style="font-size: 28px; font-weight: 600; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${block.textColor || '#ffffff'} !important;">${headerHeadline}</h1>` : ''}
+                    ${!shouldHideContent(block) && blockBody ? `<div class="email-header-text" style="font-size: 18px; margin: 0; opacity: 0.9; font-family: ${fonts.bodyFont}; color: ${block.textColor || '#ffffff'} !important;">${blockBody}</div>` : ''}
                   </td>
                 </tr>
               </table>
@@ -3570,12 +3585,12 @@ const { counts: segmentCounts } = useSegmentCounts();
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
                     <div>
-                      ${nhHeadline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${nhTextColor}; line-height: 1.2;">${nhHeadline}</h1>` : ''}
-                      ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; font-family: ${fonts.subheadingFont}; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
+                      ${nhHeadline ? `<h1 class="email-header-text" style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${nhTextColor} !important; line-height: 1.2;">${nhHeadline}</h1>` : ''}
+                      ${block.subtitle ? `<p class="email-header-text" style="font-size: 20px; margin: 0 0 24px 0; font-family: ${fonts.subheadingFont}; color: ${nhTextColor} !important; line-height: 1.4;">${block.subtitle}</p>` : ''}
                       ${(block.issueNumber || formattedDate) ? `
                         <div style="margin: 16px 0;">
-                          ${block.issueNumber ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: ${fonts.bodyFont}; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
-                          ${formattedDate ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: ${fonts.bodyFont};">${formattedDate}</span>` : ''}
+                          ${block.issueNumber ? `<span class="email-header-text" style="color: ${nhTextColor} !important; font-size: 16px; font-family: ${fonts.bodyFont}; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
+                          ${formattedDate ? `<span class="email-header-text" style="color: ${nhTextColor} !important; font-size: 16px; font-family: ${fonts.bodyFont};">${formattedDate}</span>` : ''}
                         </div>
                       ` : ''}
                       ${(block.ctaText || block.buttonText) && (block.ctaUrl || block.buttonUrl) ? `
@@ -3607,12 +3622,12 @@ const { counts: segmentCounts } = useSegmentCounts();
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
                   <td style="background-color: ${nhBackgroundColor}; padding: 60px 20px; text-align: ${nhTextAlign}; min-height: 300px;">
-                    ${nhHeadline ? `<h1 style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${nhTextColor}; line-height: 1.2;">${nhHeadline}</h1>` : ''}
-                    ${block.subtitle ? `<p style="font-size: 20px; margin: 0 0 24px 0; font-family: ${fonts.subheadingFont}; color: ${nhTextColor}; line-height: 1.4;">${block.subtitle}</p>` : ''}
+                    ${nhHeadline ? `<h1 class="email-header-text" style="font-size: 42px; font-weight: 700; margin: 0 0 16px 0; font-family: ${fonts.headlineFont}; color: ${nhTextColor} !important; line-height: 1.2;">${nhHeadline}</h1>` : ''}
+                    ${block.subtitle ? `<p class="email-header-text" style="font-size: 20px; margin: 0 0 24px 0; font-family: ${fonts.subheadingFont}; color: ${nhTextColor} !important; line-height: 1.4;">${block.subtitle}</p>` : ''}
                     ${(block.issueNumber || formattedDate) ? `
                       <div style="margin: 16px 0;">
-                        ${block.issueNumber ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: ${fonts.bodyFont}; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
-                        ${formattedDate ? `<span style="color: ${nhTextColor}; font-size: 16px; font-family: ${fonts.bodyFont};">${formattedDate}</span>` : ''}
+                        ${block.issueNumber ? `<span class="email-header-text" style="color: ${nhTextColor} !important; font-size: 16px; font-family: ${fonts.bodyFont}; margin-right: 20px;">Issue #${block.issueNumber}</span>` : ''}
+                        ${formattedDate ? `<span class="email-header-text" style="color: ${nhTextColor} !important; font-size: 16px; font-family: ${fonts.bodyFont};">${formattedDate}</span>` : ''}
                       </div>
                     ` : ''}
                     ${(block.ctaText || block.buttonText) && (block.ctaUrl || block.buttonUrl) ? `
