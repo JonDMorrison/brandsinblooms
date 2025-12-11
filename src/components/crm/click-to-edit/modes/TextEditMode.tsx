@@ -108,8 +108,8 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       {block.type === 'email-safe-hero' && (
         <div className="space-y-3 p-3 bg-muted/50 rounded-lg mb-2">
           {/* Background Color */}
-          <div className="flex items-center gap-2">
-            <Label className="text-xs whitespace-nowrap w-20">Background</Label>
+          <div className="grid grid-cols-[60px_40px_1fr] items-center gap-3">
+            <Label className="text-xs">Background</Label>
             <Input
               type="color"
               value={backgroundColor}
@@ -119,7 +119,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               }}
               className="w-8 h-8 p-0.5 cursor-pointer rounded border"
             />
-            <div className="flex gap-1">
+            <div className="flex gap-1.5 justify-end">
               {brandColorSwatches.map(swatch => (
                 <button
                   key={`bg-${swatch.value}`}
@@ -128,7 +128,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
                     onUpdate({ backgroundColor: swatch.value });
                   }}
                   className={cn(
-                    "w-5 h-5 rounded border-2 transition-all",
+                    "w-6 h-6 rounded border-2 transition-all",
                     backgroundColor?.toLowerCase() === swatch.value.toLowerCase()
                       ? "border-primary ring-2 ring-primary/20" 
                       : "border-gray-300 hover:border-gray-400"
@@ -142,8 +142,8 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
           </div>
           
           {/* Text Color */}
-          <div className="flex items-center gap-2">
-            <Label className="text-xs whitespace-nowrap w-20">Text</Label>
+          <div className="grid grid-cols-[60px_40px_1fr] items-center gap-3">
+            <Label className="text-xs">Text</Label>
             <Input
               type="color"
               value={textColor}
@@ -153,7 +153,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
               }}
               className="w-8 h-8 p-0.5 cursor-pointer rounded border"
             />
-            <div className="flex gap-1">
+            <div className="flex gap-1.5 justify-end">
               {brandColorSwatches.map(swatch => (
                 <button
                   key={`text-${swatch.value}`}
@@ -162,7 +162,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
                     onUpdate({ textColor: swatch.value });
                   }}
                   className={cn(
-                    "w-5 h-5 rounded border-2 transition-all",
+                    "w-6 h-6 rounded border-2 transition-all",
                     textColor?.toLowerCase() === swatch.value.toLowerCase()
                       ? "border-primary ring-2 ring-primary/20" 
                       : "border-gray-300 hover:border-gray-400"
@@ -176,8 +176,8 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
           </div>
           
           {/* Alignment */}
-          <div className="flex items-center gap-2">
-            <Label className="text-xs whitespace-nowrap w-20">Align</Label>
+          <div className="grid grid-cols-[60px_1fr] items-center gap-3">
+            <Label className="text-xs">Align</Label>
             <div className="flex items-center gap-1">
               <Button
                 type="button"
