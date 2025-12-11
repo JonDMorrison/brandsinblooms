@@ -29,7 +29,8 @@ interface DomainTestPayload {
 }
 
 /**
- * Strip existing footer from HTML content to prepare for server-side regeneration
+ * The frontend no longer generates footer HTML - it's added server-side only.
+ * This function is kept as a safeguard in case legacy content has a footer.
  */
 function stripExistingFooter(html: string): string {
   // Look for footer markers - try multiple patterns
@@ -40,6 +41,8 @@ function stripExistingFooter(html: string): string {
     /<div[^>]*>\s*<div[^>]*style="[^"]*text-align:\s*center[^"]*"[^>]*>[\s\S]*?Unsubscribe[\s\S]*?<\/div>\s*<\/div>\s*$/i,
     // Pattern 3: Footer with specific background color patterns
     /<div[^>]*style="[^"]*background-color:\s*#283024[^"]*"[^>]*>[\s\S]*<\/div>\s*$/i,
+    // Pattern 4: Footer table structure with social icons from bloomsuite.app
+    /<div[^>]*style="[^"]*background-color[^"]*"[^>]*>\s*<div[^>]*style="[^"]*max-width:\s*640px[^"]*"[^>]*>[\s\S]*?social-icons[\s\S]*?<\/div>\s*<\/div>\s*$/i,
   ];
 
   let strippedHtml = html;
@@ -47,7 +50,7 @@ function stripExistingFooter(html: string): string {
   for (const pattern of footerPatterns) {
     const match = strippedHtml.match(pattern);
     if (match) {
-      console.log("📧 Found and stripping existing footer");
+      console.log("📧 Found and stripping existing footer (legacy content)");
       strippedHtml = strippedHtml.replace(pattern, '');
       break;
     }

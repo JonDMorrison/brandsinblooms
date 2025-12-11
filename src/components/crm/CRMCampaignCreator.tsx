@@ -20,8 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { saveCampaignAsDraft, sendCampaign, CampaignData } from '@/utils/crmCampaignService';
 import { imageGenerationService } from '@/services/imageGenerationService';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
-import { generateFooterHTML } from '@/utils/emailFooterRenderer';
-import { getDefaultTokenData } from '@/utils/emailTokenProcessor';
+// Footer HTML is generated server-side in send-test-email and send-email-campaign edge functions
 import { useFooterSettings } from '@/hooks/useFooterSettings';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import { generateNewsletterBlocks, getFallbackBlocks } from '@/services/newsletterBlockGenerator';
@@ -3918,44 +3917,12 @@ const { counts: segmentCounts } = useSegmentCounts();
       }
     });
     
-    // Generate footer with proper token data and settings
-    const footerSettings = {
-      showPhone: true,
-      showLogo: true,
-      showManagePreferences: true,
-      padding: 'normal' as const,
-      alignment: 'center' as const,
-      showDivider: true,
-      backgroundColor: 'light' as const,
-      fontSize: 'sm' as const,
-      complianceText: 'You received this email because you subscribed to our newsletter. {{unsubscribe_url}}'
-    };
-    
-    // Use actual company info from the hook instead of hardcoded placeholder
-    console.log('🔍 Generating footer with company info:', {
-      name: companyInfo?.name,
-      address: companyInfo?.address,
-      phone: companyInfo?.phone
-    });
-    const tokenData = getDefaultTokenData(companyInfo);
-    // Pass footer background color and full styling from campaign styling overrides
-    const footerBgColor = campaignOverrides?.footerStyling?.backgroundColor || campaignOverrides?.footerBackgroundColor;
-    const footerStyling = campaignOverrides?.footerStyling;
-    
-    // Debug: Log what styling is being used for footer generation
-    console.log('🎨 [generateEmailHTML] Footer styling data:', {
-      campaignOverrides_footerStyling: campaignOverrides?.footerStyling,
-      campaignOverrides_footerBackgroundColor: campaignOverrides?.footerBackgroundColor,
-      brandFooterColors: companyInfo?.brandFooterColors,
-      brandPrimaryColor: companyInfo?.brandPrimaryColor,
-      effectiveFooterBgColor: footerBgColor,
-    });
-    
-    const footerHTML = generateFooterHTML(footerSettings, companyInfo, tokenData, footerBgColor, footerStyling);
-    console.log('✅ Footer HTML generated with company:', companyInfo?.name, 'footerBgColor:', footerBgColor, 'footerStyling:', footerStyling);
+    // IMPORTANT: Do NOT generate footer here - the server-side edge function
+    // (send-test-email, send-email-campaign) will generate the footer with
+    // correct PNG social icons. This prevents duplicate footers.
+    console.log('📧 [generateEmailHTML] Footer will be added server-side to prevent duplicates');
     
     html += `
-          ${footerHTML}
         </div>
       </div>
     `;
