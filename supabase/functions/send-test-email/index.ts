@@ -29,33 +29,51 @@ interface DomainTestPayload {
 }
 
 /**
- * The frontend no longer generates footer HTML - it's added server-side only.
- * This function is kept as a safeguard in case legacy content has a footer.
+ * Strip ALL existing footer HTML from content to prevent double footers.
+ * The server-side footer generator is the single source of truth.
+ * This aggressively removes any footer-like structures before the closing tags.
  */
 function stripExistingFooter(html: string): string {
-  // Look for footer markers - try multiple patterns
-  const footerPatterns = [
-    // Pattern 1: Footer with margin-top: 40px (our generated footer)
-    /<div[^>]*style="[^"]*background-color[^"]*margin-top:\s*40px[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>\s*$/i,
-    // Pattern 2: Unsubscribe section at the end
-    /<div[^>]*>\s*<div[^>]*style="[^"]*text-align:\s*center[^"]*"[^>]*>[\s\S]*?Unsubscribe[\s\S]*?<\/div>\s*<\/div>\s*$/i,
-    // Pattern 3: Footer with specific background color patterns
-    /<div[^>]*style="[^"]*background-color:\s*#283024[^"]*"[^>]*>[\s\S]*<\/div>\s*$/i,
-    // Pattern 4: Footer table structure with social icons from bloomsuite.app
-    /<div[^>]*style="[^"]*background-color[^"]*"[^>]*>\s*<div[^>]*style="[^"]*max-width:\s*640px[^"]*"[^>]*>[\s\S]*?social-icons[\s\S]*?<\/div>\s*<\/div>\s*$/i,
-  ];
-
   let strippedHtml = html;
   
-  for (const pattern of footerPatterns) {
-    const match = strippedHtml.match(pattern);
-    if (match) {
-      console.log("📧 Found and stripping existing footer (legacy content)");
-      strippedHtml = strippedHtml.replace(pattern, '');
-      break;
-    }
+  // Pattern: Footer wrapper with margin-top: 40px (our generated footer)
+  // This is the most reliable marker for our footers
+  const footerWrapperPattern = /<div[^>]*style="[^"]*margin-top:\s*40px[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*<\/div>\s*$))/gi;
+  if (footerWrapperPattern.test(strippedHtml)) {
+    console.log("📧 Stripping footer with margin-top:40px pattern");
+    strippedHtml = strippedHtml.replace(footerWrapperPattern, '');
   }
   
+  // Pattern: Footer with Unsubscribe link inside background-colored container
+  const unsubscribeFooterPattern = /<div[^>]*style="[^"]*background-color[^"]*"[^>]*>[\s\S]*?<div[^>]*style="[^"]*max-width:\s*640px[^"]*"[^>]*>[\s\S]*?[Uu]nsubscribe[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi;
+  if (unsubscribeFooterPattern.test(strippedHtml)) {
+    console.log("📧 Stripping unsubscribe footer pattern");
+    strippedHtml = strippedHtml.replace(unsubscribeFooterPattern, '');
+  }
+  
+  // Pattern: Social icons from our storage
+  const socialIconsFooterPattern = /<div[^>]*style="[^"]*background-color[^"]*"[^>]*>[\s\S]*?social-icons[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi;
+  if (socialIconsFooterPattern.test(strippedHtml)) {
+    console.log("📧 Stripping social icons footer pattern");
+    strippedHtml = strippedHtml.replace(socialIconsFooterPattern, '');
+  }
+  
+  // Pattern: Legacy footer with specific dark green background
+  const legacyGreenFooterPattern = /<div[^>]*style="[^"]*background-color:\s*#283024[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi;
+  if (legacyGreenFooterPattern.test(strippedHtml)) {
+    console.log("📧 Stripping legacy green footer pattern");
+    strippedHtml = strippedHtml.replace(legacyGreenFooterPattern, '');
+  }
+  
+  // Final cleanup: Remove any remaining footer-like structures before closing tags
+  // Look for the pattern: colored div containing "Unsubscribe" anywhere before </body>
+  const finalCleanupPattern = /<div[^>]*style="[^"]*background-color[^"]*width:\s*100%[^"]*"[^>]*>[\s\S]*?[Uu]nsubscribe[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/div>)*\s*(<\/body>|<\/html>|$))/gi;
+  strippedHtml = strippedHtml.replace(finalCleanupPattern, (match) => {
+    console.log("📧 Final cleanup: stripping remaining footer structure");
+    return '';
+  });
+  
+  console.log("📧 Footer stripping complete");
   return strippedHtml;
 }
 

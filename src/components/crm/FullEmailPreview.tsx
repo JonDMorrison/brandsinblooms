@@ -178,10 +178,13 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
     setSendingTest(true);
     
     try {
+      // IMPORTANT: Send raw content WITHOUT footer - the server-side edge function
+      // will strip any existing footer and add the canonical server footer.
+      // This prevents double footers in sent emails.
       const result = await sendCampaignTestEmail({
         email,
         subject: subject || 'Test Email Campaign',
-        content: completeEmailHtml, // Use the complete email with footer
+        content: content, // Use RAW content - server adds footer
         campaignId: campaignId
       });
 
