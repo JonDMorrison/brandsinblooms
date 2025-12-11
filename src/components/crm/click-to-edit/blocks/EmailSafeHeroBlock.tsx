@@ -40,6 +40,11 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
   const backgroundColor = block.backgroundColor || '#2d5a27';
   const textColor = block.textColor || '#ffffff';
 
+  // Get alignment class
+  const alignClass = block.textAlign === 'center' ? 'text-center' 
+    : block.textAlign === 'right' ? 'text-right' 
+    : 'text-left';
+
   // Live preview component
   const PreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group">
@@ -57,16 +62,12 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
 
       {/* Top Section - Solid Background with Text */}
       <div 
-        className={cn(
-          "p-8 md:p-12",
-          block.textAlign === 'center' && "text-center",
-          block.textAlign === 'right' && "text-right"
-        )}
+        className="p-8 md:p-12"
         style={{ backgroundColor, color: textColor }}
       >
         {/* Eyebrow/Category */}
         {block.eyebrow && (
-          <p className="text-sm uppercase tracking-wider opacity-80 mb-2">
+          <p className={cn("text-sm uppercase tracking-wider opacity-80 mb-2", alignClass)}>
             {block.eyebrow}
           </p>
         )}
@@ -74,7 +75,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
         {/* Headline */}
         <SafeHtml 
           content={sanitizeWeekNumbers(block.headline || block.title || "Your Headline Here")}
-          className="text-3xl md:text-4xl font-bold mb-4 leading-tight [&>*]:m-0"
+          className={cn("text-3xl md:text-4xl font-bold mb-4 leading-tight [&>*]:m-0", alignClass)}
           type="general"
         />
 
@@ -82,21 +83,23 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
         {(block.body || block.subtitle) && (
           <SafeHtml 
             content={sanitizeWeekNumbers(block.body || block.subtitle || "")}
-            className="text-lg opacity-90 mb-4 [&>*]:m-0"
+            className={cn("text-lg opacity-90 mb-4 [&>*]:m-0", alignClass)}
             type="general"
           />
         )}
 
         {/* Issue Number - using content field */}
         {block.content && typeof block.content === 'string' && (
-          <p className="text-sm opacity-70">
-            {block.content}
-          </p>
+          <SafeHtml 
+            content={sanitizeWeekNumbers(block.content)}
+            className={cn("text-sm opacity-70", alignClass)}
+            type="general"
+          />
         )}
 
         {/* CTA Button */}
         {block.ctaText && (
-          <div className="mt-6">
+          <div className={cn("mt-6", alignClass)}>
             <a 
               href={block.ctaUrl || '#'}
               className="inline-block px-6 py-3 rounded-md font-medium transition-colors"
