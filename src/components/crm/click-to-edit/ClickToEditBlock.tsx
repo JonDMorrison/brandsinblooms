@@ -60,7 +60,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   const [isGridConfigOpen, setIsGridConfigOpen] = useState(false);
   
   // Use the new edit mode hook
-  const { editMode, setEditMode, toggleMode, exitEditMode, isTextEditing, isImageEditing } = useBlockEditMode();
+  const { editMode, setEditMode, toggleMode, exitEditMode, isTextEditing, isImageEditing, isFormatEditing } = useBlockEditMode();
   
   // AI Image Generation hook
   const { generateSingleImage } = useAIImageGeneration();
@@ -314,7 +314,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     }
   };
 
-  const isAnyEditMode = isTextEditing || isImageEditing;
+  const isAnyEditMode = isTextEditing || isImageEditing || isFormatEditing;
 
   return (
     <div className={cn("group relative click-to-edit-container", isAnyEditMode && "click-to-edit-editing")} style={{ position: 'relative', zIndex: 1 }}>
@@ -535,8 +535,28 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
               </div>
             )}
 
-            {/* Preview when in edit mode but not text/image */}
-            {!isTextEditing && !isImageEditing && (
+            {/* Format Edit Mode - shows preview with color picker overlay */}
+            {isFormatEditing && (
+              <div className="p-0">
+                {React.isValidElement(children.preview) ? (
+                  React.cloneElement(children.preview as React.ReactElement, {
+                    block: localBlock,
+                    editMode: localEditMode,
+                    onModeChange: handleModeChange,
+                    onOpenAIImageDialog
+                  })
+                ) : typeof children.preview === 'object' && children.preview !== null ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    Error: Cannot render block object directly
+                  </div>
+                ) : (
+                  children.preview
+                )}
+              </div>
+            )}
+
+            {/* Preview when in edit mode but not text/image/format */}
+            {!isTextEditing && !isImageEditing && !isFormatEditing && (
               <div className="p-0">
             {React.isValidElement(children.preview) ? (
               React.cloneElement(children.preview as React.ReactElement, {
