@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { BarChart3, Users, Target, TrendingUp, RefreshCw } from 'lucide-react';
+import React from 'react';
+import { BarChart3, Users, Target, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCRMRealStats } from '@/hooks/useCRMRealStats';
 import { MetricCard } from '@/components/crm/analytics/MetricCard';
 import { CRMStatsCards } from '@/components/crm/CRMStatsCards';
-import { CRMTimeSeriesChart } from '@/components/crm/analytics/CRMTimeSeriesChart';
 import { CRMSegmentsSummary } from '@/components/crm/segments/CRMSegmentsSummary';
 import { CRMRecentActivity } from '@/components/crm/CRMRecentActivity';
+import { WarmupAssistantWidget } from '@/components/crm/WarmupAssistantWidget';
 
 export const CRMDashboardPage: React.FC = () => {
   const { stats, loading, refetch } = useCRMRealStats();
@@ -89,15 +89,16 @@ export const CRMDashboardPage: React.FC = () => {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Column */}
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column - Segments */}
+        <div className="lg:col-span-2 space-y-6">
           <CRMSegmentsSummary />
+          <CRMRecentActivity />
         </div>
 
-        {/* Right Column */}
+        {/* Right Column - Warmup Widget */}
         <div className="space-y-6">
-          <CRMRecentActivity />
+          <WarmupAssistantWidget />
         </div>
       </div>
     </div>
