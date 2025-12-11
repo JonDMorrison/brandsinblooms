@@ -65,6 +65,21 @@ export const ContextualToolbar: React.FC<ContextualToolbarProps> = ({
           <Image className="w-3 h-3" />
         </Button>
       )}
+
+      {showFormatEdit && (
+        <Button
+          variant={editMode === 'format' ? 'default' : 'secondary'}
+          size="sm"
+          onClick={(e) => {
+            handleModeClick('format', e);
+            onFormatEdit?.();
+          }}
+          className="h-7 w-7 p-0 bg-white/90 text-black hover:bg-white shadow-sm rounded-full"
+          title="Edit colors"
+        >
+          <Palette className="w-3 h-3" />
+        </Button>
+      )}
     </div>
   );
 };
