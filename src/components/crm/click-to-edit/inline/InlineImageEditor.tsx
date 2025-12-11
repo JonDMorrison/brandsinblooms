@@ -57,63 +57,66 @@ export const InlineImageEditor: React.FC<InlineImageEditorProps> = ({
           className="w-full h-64"
         />
 
-        {/* Color Overlay Section - sits ON TOP of the image */}
+        {/* Color Overlay Section */}
         {(onOverlayColorChange || onOverlayOpacityChange) && (
-          <div className="space-y-3 pt-3 border-t border-border">
-            <Label className="text-sm font-medium">Color Overlay</Label>
-            <p className="text-xs text-muted-foreground">Tints the image with this color</p>
+          <div className="space-y-2 pt-3 border-t border-border/50">
+            <Label className="text-xs font-medium text-foreground/80">Color Overlay</Label>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Input
                 type="color"
                 value={overlayColor || '#000000'}
                 onChange={(e) => onOverlayColorChange?.(e.target.value)}
-                className="w-12 h-10 p-1 border rounded cursor-pointer"
+                className="w-9 h-9 p-0.5 border border-border rounded-md cursor-pointer shrink-0"
               />
               <Input
                 value={overlayColor || '#000000'}
                 onChange={(e) => onOverlayColorChange?.(e.target.value)}
-                placeholder="#000000"
-                className="w-24"
+                className="w-[90px] h-9 text-xs font-mono"
               />
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Opacity</span>
-                  <span className="text-xs font-medium">{overlayOpacity}%</span>
-                </div>
+              <div className="flex-1 flex items-center gap-2">
                 <Slider
                   value={[overlayOpacity]}
                   onValueChange={(value) => onOverlayOpacityChange?.(value[0])}
                   max={100}
                   min={0}
                   step={1}
-                  className="w-full"
+                  className="flex-1"
                 />
+                <span className="text-xs font-medium text-muted-foreground w-10 text-right tabular-nums">
+                  {overlayOpacity}%
+                </span>
               </div>
             </div>
+            
+            <p className="text-[11px] text-muted-foreground">
+              Tints the image with this color
+            </p>
           </div>
         )}
 
-        {/* Background Color Section - sits BEHIND the image */}
+        {/* Background Color Section */}
         {onBackgroundColorChange && (
-          <div className="space-y-3 pt-3 border-t border-border">
-            <Label className="text-sm font-medium">Background Color</Label>
-            <p className="text-xs text-muted-foreground">Visible behind the image</p>
+          <div className="space-y-2 pt-3 border-t border-dashed border-border/40">
+            <Label className="text-xs font-medium text-foreground/80">Background Color</Label>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Input
                 type="color"
                 value={backgroundColor || '#ffffff'}
                 onChange={(e) => onBackgroundColorChange(e.target.value)}
-                className="w-12 h-10 p-1 border rounded cursor-pointer"
+                className="w-9 h-9 p-0.5 border border-border rounded-md cursor-pointer shrink-0"
               />
               <Input
                 value={backgroundColor || '#ffffff'}
                 onChange={(e) => onBackgroundColorChange(e.target.value)}
-                placeholder="#ffffff"
-                className="flex-1"
+                className="w-[90px] h-9 text-xs font-mono"
               />
             </div>
+            
+            <p className="text-[11px] text-muted-foreground">
+              Shows behind the image
+            </p>
           </div>
         )}
         
