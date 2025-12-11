@@ -36,18 +36,6 @@ const layoutOptions = [
     previewType: 'graphic-hero' as const
   },
   
-  // Newsletter Layouts
-  {
-    id: 'newsletter-header' as LayoutType,
-    title: 'Newsletter Header',
-    description: 'Professional newsletter header with title, issue number, and date',
-    category: 'Newsletter',
-    icon: <Mail className="h-4 w-4 text-muted-foreground" />,
-    isPopular: true,
-    previewType: 'newsletter-header' as const
-  },
-
-  
   // Enhanced Image Layouts
   {
     id: 'image-full' as LayoutType,
@@ -57,15 +45,6 @@ const layoutOptions = [
     icon: <Image className="h-4 w-4 text-muted-foreground" />,
     isPopular: true,
     previewType: 'image-full' as const
-  },
-  {
-    id: 'image-background' as LayoutType,
-    title: 'Background Image',
-    description: 'Content with subtle background image',
-    category: 'Image',
-    icon: <Image className="h-4 w-4 text-muted-foreground" />,
-    isNew: true,
-    previewType: 'image-background' as const
   },
   {
     id: 'image-left' as LayoutType,
