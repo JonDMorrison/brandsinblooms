@@ -3649,7 +3649,10 @@ const { counts: segmentCounts } = useSegmentCounts();
             }
           }
           
-          if (block.backgroundImageUrl) {
+          // Sanitize newsletter-header background image URL for email safety
+          const safeNhBackgroundUrl = getEmailSafeImageUrl(block.backgroundImageUrl);
+          
+          if (safeNhBackgroundUrl) {
             // Table-based layout with nested tables for multiple overlays (color + dark) for email compatibility
             const colorOverlay = hexToRgba(nhBackgroundColor, nhColorOverlayOpacity);
             const darkOverlay = nhDarkOverlayOpacity > 0 ? hexToRgba('#000000', nhDarkOverlayOpacity) : '';
@@ -3665,10 +3668,10 @@ const { counts: segmentCounts } = useSegmentCounts();
               <![endif]-->
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden; min-height: 300px;">
                 <tr>
-                  <td style="background-image: ${combinedOverlay}, url(${block.backgroundImageUrl}); background-size: cover; background-position: center; padding: 60px 20px; text-align: ${nhTextAlign};">
+                  <td style="background-image: ${combinedOverlay}, url(${safeNhBackgroundUrl}); background-size: cover; background-position: center; padding: 60px 20px; text-align: ${nhTextAlign};">
                     <!--[if gte mso 9]>
                     <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px; height:300px;">
-                    <v:fill type="frame" src="${block.backgroundImageUrl}" color="${nhBackgroundColor}" opacity="${nhColorOverlayOpacity * 100}%" />
+                    <v:fill type="frame" src="${safeNhBackgroundUrl}" color="${nhBackgroundColor}" opacity="${nhColorOverlayOpacity * 100}%" />
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
                     <div>
@@ -3761,6 +3764,9 @@ const { counts: segmentCounts } = useSegmentCounts();
               const buildProductCard = (item: any) => {
                 if (!item) return '<td class="product-cell" width="50%" style="padding: 8px;"></td>';
                 
+                // Sanitize gallery item image URL for email safety
+                const safeGalleryItemUrl = getEmailSafeImageUrl(item.imageUrl);
+                
                 const badgeHtml = item.badgeText ? `
                   <div style="position: absolute; top: 8px; right: 8px; background-color: ${brandColor}; color: #ffffff; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600;">
                     ${item.badgeText}
@@ -3775,8 +3781,8 @@ const { counts: segmentCounts } = useSegmentCounts();
                     ${linkStart}
                     <div style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                       <div style="position: relative;">
-                        ${item.imageUrl ? `
-                          <img src="${item.imageUrl}" alt="${item.title || 'Product'}" style="width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; display: block;" />
+                        ${safeGalleryItemUrl ? `
+                          <img src="${safeGalleryItemUrl}" alt="${item.title || 'Product'}" style="width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; display: block;" />
                         ` : `
                           <div style="width: 100%; padding-top: 100%; background-color: #f3f4f6;"></div>
                         `}
@@ -3855,10 +3861,12 @@ const { counts: segmentCounts } = useSegmentCounts();
               imageRowsHtml += '<tr class="gallery-row">';
               for (let j = 0; j < 3; j++) {
                 const img = row[j];
-                if (img?.url) {
+                // Sanitize gallery image URL for email safety
+                const safeGalleryImageUrl = getEmailSafeImageUrl(img?.url);
+                if (safeGalleryImageUrl) {
                   imageRowsHtml += `
                     <td class="gallery-cell" width="${cellWidth}%" style="padding: 4px; vertical-align: top;">
-                      <img src="${img.url}" alt="${img.alt || 'Gallery image'}" style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; display: block;" />
+                      <img src="${safeGalleryImageUrl}" alt="${img.alt || 'Gallery image'}" style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; display: block;" />
                     </td>
                   `;
                 } else {

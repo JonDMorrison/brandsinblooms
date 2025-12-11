@@ -41,9 +41,12 @@ const getPaddingClass = (padding?: string) => {
   }
 };
 
-// Helper to validate usable image URLs
+// Helper to validate usable image URLs for preview
+// Note: data: URLs are allowed in preview for immediate display, but email renderer
+// uses stricter validation via emailImageUrl.ts to ensure only public https URLs
 const isValidImageUrl = (url?: string) => {
   if (!url) return false;
+  // Accept https URLs and data URIs for preview
   return /^https?:\/\//i.test(url) || /^data:image\//i.test(url);
 };
 
