@@ -219,21 +219,39 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="bgColor">Background Color</Label>
-          <Input
-            id="bgColor"
-            type="color"
-            value={backgroundColor}
-            onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="bgColor"
+              type="color"
+              value={backgroundColor}
+              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+              className="w-16 h-10 p-1 cursor-pointer"
+            />
+            <Input
+              value={backgroundColor}
+              onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+              placeholder="#2d5a27"
+              className="flex-1"
+            />
+          </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="textColor">Text Color</Label>
-          <Input
-            id="textColor"
-            type="color"
-            value={textColor}
-            onChange={(e) => onUpdate({ textColor: e.target.value })}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="textColor"
+              type="color"
+              value={textColor}
+              onChange={(e) => onUpdate({ textColor: e.target.value })}
+              className="w-16 h-10 p-1 cursor-pointer"
+            />
+            <Input
+              value={textColor}
+              onChange={(e) => onUpdate({ textColor: e.target.value })}
+              placeholder="#ffffff"
+              className="flex-1"
+            />
+          </div>
         </div>
       </div>
 
