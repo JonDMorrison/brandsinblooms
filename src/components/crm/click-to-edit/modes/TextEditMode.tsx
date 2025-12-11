@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { InputWithMergeTags } from '@/components/ui/input-with-merge-tags';
 import { Input } from '@/components/ui/input';
+import { AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 
 interface TextEditModeProps {
   block: ContentBlock;
@@ -28,6 +29,8 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
   const [ctaText, setCtaText] = useState(block.ctaText || block.buttonText || '');
   const [ctaUrl, setCtaUrl] = useState(block.ctaUrl || block.buttonUrl || '');
   const [publishDate, setPublishDate] = useState(block.publishDate || '');
+  const [backgroundColor, setBackgroundColor] = useState(block.backgroundColor || '#2d5a27');
+  const [textColor, setTextColor] = useState(block.textColor || '#ffffff');
 
   // Sync local state when block changes externally
   useEffect(() => {
@@ -38,6 +41,8 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
     setCtaText(block.ctaText || block.buttonText || '');
     setCtaUrl(block.ctaUrl || block.buttonUrl || '');
     setPublishDate(block.publishDate || '');
+    setBackgroundColor(block.backgroundColor || '#2d5a27');
+    setTextColor(block.textColor || '#ffffff');
   }, [block.id]); // Only sync when block ID changes, not on every update
 
   const handleSave = () => {
@@ -52,7 +57,9 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       ctaUrl,
       buttonUrl: ctaUrl,
       // Always include this field if it exists
-      publishDate
+      publishDate,
+      backgroundColor,
+      textColor
     };
 
     // Add body/content field
@@ -83,8 +90,67 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
         Edit Text Content
       </div>
 
+      {/* Color Controls for email-safe-hero blocks */}
+      {block.type === 'email-safe-hero' && (
+        <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/50 rounded-lg mb-2">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs whitespace-nowrap">Background</Label>
+            <Input
+              type="color"
+              value={backgroundColor}
+              onChange={(e) => {
+                setBackgroundColor(e.target.value);
+                onUpdate({ backgroundColor: e.target.value });
+              }}
+              className="w-8 h-8 p-0.5 cursor-pointer rounded border"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs whitespace-nowrap">Text</Label>
+            <Input
+              type="color"
+              value={textColor}
+              onChange={(e) => {
+                setTextColor(e.target.value);
+                onUpdate({ textColor: e.target.value });
+              }}
+              className="w-8 h-8 p-0.5 cursor-pointer rounded border"
+            />
+          </div>
+          <div className="flex items-center gap-1 border-l pl-3">
+            <Button
+              type="button"
+              size="sm"
+              variant={block.textAlign === 'left' ? 'default' : 'ghost'}
+              onClick={() => onUpdate({ textAlign: 'left' })}
+              className="h-7 w-7 p-0"
+            >
+              <AlignLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={block.textAlign === 'center' || !block.textAlign ? 'default' : 'ghost'}
+              onClick={() => onUpdate({ textAlign: 'center' })}
+              className="h-7 w-7 p-0"
+            >
+              <AlignCenter className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={block.textAlign === 'right' ? 'default' : 'ghost'}
+              onClick={() => onUpdate({ textAlign: 'right' })}
+              className="h-7 w-7 p-0"
+            >
+              <AlignRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Headline (for blocks that support it) */}
-      {(block.type === 'header' || block.headline !== undefined || block.title !== undefined) && (
+      {(block.type === 'header' || block.type === 'email-safe-hero' || block.headline !== undefined || block.title !== undefined) && (
         <div className="space-y-2">
           <Label htmlFor="headline">Headline</Label>
           <InputWithMergeTags
