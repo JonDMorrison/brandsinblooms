@@ -147,11 +147,10 @@ serve(async (req) => {
     });
 
     // Get customers based on campaign audience targeting
-    // CRITICAL: Only include customers who have explicitly opted in (email_opt_in = true)
+    // Email opt-in restriction removed - send to all contacts with valid emails
     let customers = [];
     let customersError = null;
     let totalInSegment = 0;
-    let excludedCount = 0;
 
     // Check if campaign has a single segment_id or multiple segments via campaign_segments
     if (campaign.segment_id) {
@@ -160,7 +159,7 @@ serve(async (req) => {
         .from('customer_segments')
         .select(`
           crm_customers (
-            id, first_name, last_name, email, email_opt_in
+            id, first_name, last_name, email
           )
         `)
         .eq('segment_id', campaign.segment_id);
@@ -168,16 +167,12 @@ serve(async (req) => {
       if (error) {
         customersError = error;
       } else {
-        const allCustomers = segmentCustomers
+        customers = segmentCustomers
           ?.map(sc => sc.crm_customers)
           .filter(c => c && c.email && c.email.trim() !== '') || [];
         
-        totalInSegment = allCustomers.length;
-        // ENFORCE: Only opted-in customers (email_opt_in === true)
-        customers = allCustomers.filter(c => c.email_opt_in === true);
-        excludedCount = totalInSegment - customers.length;
-        
-        console.log(`Email consent filtering: ${totalInSegment} total, ${customers.length} opted-in, ${excludedCount} excluded`);
+        totalInSegment = customers.length;
+        console.log(`Segment targeting: ${totalInSegment} contacts with valid emails`);
       }
     } else {
       console.log(`Checking for multiple segment targeting...`);
@@ -195,7 +190,7 @@ serve(async (req) => {
           .from('customer_segments')
           .select(`
             crm_customers (
-              id, first_name, last_name, email, email_opt_in
+              id, first_name, last_name, email
             )
           `)
           .in('segment_id', campaignSegments.map(cs => cs.segment_id));
@@ -210,34 +205,28 @@ serve(async (req) => {
               customerMap.set(customer.email, customer);
             }
           });
-          const allCustomers = Array.from(customerMap.values());
-          totalInSegment = allCustomers.length;
-          // ENFORCE: Only opted-in customers (email_opt_in === true)
-          customers = allCustomers.filter(c => c.email_opt_in === true);
-          excludedCount = totalInSegment - customers.length;
+          customers = Array.from(customerMap.values());
+          totalInSegment = customers.length;
           
-          console.log(`Email consent filtering: ${totalInSegment} total, ${customers.length} opted-in, ${excludedCount} excluded`);
+          console.log(`Multi-segment targeting: ${totalInSegment} contacts with valid emails`);
         }
       } else {
-        // No segments selected - send to ALL opted-in contacts for this tenant
-        console.log(`No segments selected - fetching all opted-in contacts for tenant: ${campaign.tenant_id}`);
+        // No segments selected - send to ALL contacts for this tenant
+        console.log(`No segments selected - fetching all contacts for tenant: ${campaign.tenant_id}`);
         
         const { data: allContacts, error: allContactsError } = await supabase
           .from('crm_customers')
-          .select('id, first_name, last_name, email, email_opt_in')
+          .select('id, first_name, last_name, email')
           .eq('tenant_id', campaign.tenant_id)
-          .eq('email_opt_in', true)
           .not('email', 'is', null);
         
         if (allContactsError) {
           customersError = allContactsError;
         } else {
-          const validContacts = (allContacts || []).filter(c => c.email && c.email.trim() !== '');
-          totalInSegment = validContacts.length;
-          customers = validContacts;
-          excludedCount = 0; // Already filtered by email_opt_in
+          customers = (allContacts || []).filter(c => c.email && c.email.trim() !== '');
+          totalInSegment = customers.length;
           
-          console.log(`All contacts mode: Found ${customers.length} opted-in contacts`);
+          console.log(`All contacts mode: Found ${customers.length} contacts`);
         }
       }
     }
@@ -254,9 +243,7 @@ serve(async (req) => {
     }
 
     if (!customers || customers.length === 0) {
-      const failureReason = totalInSegment > 0 
-        ? `No opted-in recipients: ${totalInSegment} contacts in segment but ${excludedCount} have not opted in to receive emails`
-        : 'No contacts found in the selected audience with valid email addresses';
+      const failureReason = 'No contacts found in the selected audience with valid email addresses';
       
       console.error(`Campaign ${campaignId} failed: ${failureReason}`);
       
@@ -272,11 +259,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: failureReason,
-          details: {
-            totalInSegment,
-            optedIn: 0,
-            excluded: excludedCount
-          }
+          details: { totalInSegment }
         }),
         { 
           status: 400, 
