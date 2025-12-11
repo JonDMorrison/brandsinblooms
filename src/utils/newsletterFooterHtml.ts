@@ -137,8 +137,9 @@ function buildLogoHtml(props: NewsletterFooterProps, styles: FooterStyleConfig):
 export function generateNewsletterFooterHtml(props: NewsletterFooterProps, appBaseUrl?: string): string {
   const baseStyles = getFooterStyleConfig(props.footerBackgroundColor, props.brandPrimaryColor);
   
-  // Get base URL for social icons - use provided appBaseUrl or fallback to window.location.origin
-  const baseUrl = appBaseUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://bloomsuite.app');
+  // Get base URL for social icons - MUST use production URL for email clients
+  // Use provided appBaseUrl, or production URL for emails (NOT window.location.origin which is dev URL)
+  const baseUrl = appBaseUrl || 'https://bloomsuite.app';
   
   // Apply custom style overrides from campaign metadata with complete fallback
   // All colors should already have fallbacks from emailFooterRenderer, but double-check here
