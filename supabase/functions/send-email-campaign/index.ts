@@ -191,7 +191,7 @@ serve(async (req) => {
   }
 
   try {
-    const { campaignId } = await req.json();
+    const { campaignId, includeSuppressed = false } = await req.json();
 
     if (!campaignId) {
       return new Response(
@@ -199,6 +199,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`📧 Send campaign request: campaignId=${campaignId}, includeSuppressed=${includeSuppressed}`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -252,7 +254,7 @@ serve(async (req) => {
     if (campaign.segment_id) {
       const { data: segmentCustomers, error } = await supabase
         .from('customer_segments')
-        .select(`crm_customers (id, first_name, last_name, email)`)
+        .select(`crm_customers (id, first_name, last_name, email, suppressed)`)
         .eq('segment_id', campaign.segment_id);
 
       if (error) customersError = error;
@@ -266,7 +268,7 @@ serve(async (req) => {
       if (campaignSegments && campaignSegments.length > 0) {
         const { data: multiSegmentCustomers, error } = await supabase
           .from('customer_segments')
-          .select(`crm_customers (id, first_name, last_name, email)`)
+          .select(`crm_customers (id, first_name, last_name, email, suppressed)`)
           .in('segment_id', campaignSegments.map(cs => cs.segment_id));
 
         if (error) customersError = error;
@@ -284,7 +286,7 @@ serve(async (req) => {
         // All contacts for tenant
         const { data: allContacts, error } = await supabase
           .from('crm_customers')
-          .select('id, first_name, last_name, email')
+          .select('id, first_name, last_name, email, suppressed')
           .eq('tenant_id', campaign.tenant_id)
           .not('email', 'is', null);
         
@@ -299,6 +301,22 @@ serve(async (req) => {
         JSON.stringify({ error: 'Failed to fetch customers' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Filter out suppressed customers unless explicitly included
+    const totalBeforeSuppression = customers.length;
+    let suppressedCount = 0;
+    
+    if (!includeSuppressed) {
+      const activeCustomers = customers.filter(c => !c.suppressed);
+      suppressedCount = customers.length - activeCustomers.length;
+      customers = activeCustomers;
+      
+      if (suppressedCount > 0) {
+        console.log(`📧 Excluded ${suppressedCount} suppressed contacts (${totalBeforeSuppression} total → ${customers.length} active)`);
+      }
+    } else {
+      console.log(`⚠️ Including ${customers.filter(c => c.suppressed).length} suppressed contacts (override enabled)`);
     }
 
     if (!customers || customers.length === 0) {
