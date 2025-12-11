@@ -1,21 +1,45 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
+import { getSmsWarmupInfoByPhoneOrMessagingService, ensureSmsWarmupRowForMessagingServiceIfNeeded } from "../_shared/smsWarmup.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface TwilioResponse {
-  sid: string;
-  status: string;
-  error_code?: string;
-  error_message?: string;
+const BATCH_SIZE = 100;
+
+/**
+ * Format phone number to E.164 format
+ */
+function formatPhoneForTwilio(phone: string): string {
+  if (!phone) return '';
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    return `+${cleaned}`;
+  }
+  if (cleaned.length === 10) {
+    return `+1${cleaned}`;
+  }
+  if (phone.startsWith('+') && cleaned.length >= 10) {
+    return phone;
+  }
+  return `+1${cleaned}`;
+}
+
+/**
+ * Split array into chunks of specified size
+ */
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
 }
 
 async function handler(req: Request): Promise<Response> {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -26,10 +50,7 @@ async function handler(req: Request): Promise<Response> {
     if (!campaignId) {
       return new Response(
         JSON.stringify({ error: 'Campaign ID is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -38,257 +59,313 @@ async function handler(req: Request): Promise<Response> {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get Twilio credentials
-    const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-    const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
-    
-    /**
-     * Format phone number to E.164 format for Twilio
-     */
-    function formatPhoneForTwilio(phone: string): string {
-      if (!phone) return '';
-      const cleaned = phone.replace(/\D/g, '');
-      if (cleaned.length === 11 && cleaned.startsWith('1')) {
-        return `+${cleaned}`;
-      }
-      if (cleaned.length === 10) {
-        return `+1${cleaned}`;
-      }
-      if (phone.startsWith('+') && cleaned.length >= 10) {
-        return phone;
-      }
-      return `+1${cleaned}`;
-    }
+    console.log(`[send-sms-campaign] Starting queue-based send for campaign: ${campaignId}`);
 
-    if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
-      console.error('Missing Twilio credentials');
-      return new Response(
-        JSON.stringify({ error: 'Twilio credentials not configured' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    console.log(`Starting SMS campaign send for campaign: ${campaignId}`);
-
-    // Get campaign details
+    // Step A: Load campaign and guard against double enqueue
     const { data: campaign, error: campaignError } = await supabase
       .from('crm_sms_campaigns')
       .select(`
         *,
-        crm_segments (
-          id,
-          name
-        )
+        crm_segments (id, name)
       `)
       .eq('id', campaignId)
       .single();
-    
-    // Select from phone: campaign's from_phone or default
-    const defaultFromPhone = twilioPhoneNumber;
-    const campaignFromPhone = campaign?.from_phone 
-      ? formatPhoneForTwilio(campaign.from_phone) 
-      : formatPhoneForTwilio(defaultFromPhone);
-    
-    console.log(`Campaign ${campaignId} using From number: ${campaignFromPhone} (${campaign?.from_phone ? 'custom' : 'default'})`);
 
     if (campaignError || !campaign) {
-      console.error('Campaign not found:', campaignError);
+      console.error('[send-sms-campaign] Campaign not found:', campaignError);
       return new Response(
         JSON.stringify({ error: 'Campaign not found' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Idempotency guard: if already enqueued, return success without re-processing
+    if (campaign.enqueued) {
+      console.log(`[send-sms-campaign] Campaign ${campaignId} already enqueued, skipping`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          alreadyEnqueued: true,
+          message: 'SMS campaign is already queued for sending.'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!campaign.segment_id) {
       return new Response(
         JSON.stringify({ error: 'Campaign has no segment selected' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get SMS-eligible customers from the segment
+    // Step B: Resolve sending identity and get warmup info
+    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
+    const twilioMessagingServiceSid = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
+    
+    const fromPhone = campaign.from_phone 
+      ? formatPhoneForTwilio(campaign.from_phone) 
+      : (twilioPhoneNumber ? formatPhoneForTwilio(twilioPhoneNumber) : null);
+    
+    const messagingServiceSid = twilioMessagingServiceSid || null;
+
+    // Ensure warmup row exists for the sending identity
+    let warmupInfo;
+    try {
+      if (messagingServiceSid) {
+        // Ensure row exists for messaging service
+        warmupInfo = await ensureSmsWarmupRowForMessagingServiceIfNeeded(
+          supabase,
+          messagingServiceSid,
+          campaign.tenant_id
+        );
+      } else if (fromPhone) {
+        warmupInfo = await getSmsWarmupInfoByPhoneOrMessagingService(supabase, { fromPhone });
+      } else {
+        throw new Error('No sending identity configured (from_phone or messaging_service_sid)');
+      }
+    } catch (warmupError) {
+      console.error('[send-sms-campaign] Warmup lookup failed:', warmupError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'SMS sending identity not configured',
+          details: warmupError.message 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[send-sms-campaign] Warmup info: stage=${warmupInfo.warmupStage}, limit=${warmupInfo.dailyLimit}, sent=${warmupInfo.dailySentCount}, remaining=${warmupInfo.remainingToday}`);
+
+    // Step C: Select eligible recipients with strict filters
     const { data: customers, error: customersError } = await supabase
       .from('crm_customers')
-      .select('id, first_name, phone')
+      .select('id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags')
+      .eq('tenant_id', campaign.tenant_id)
       .eq('sms_opt_in', true)
+      .eq('opt_out', false)
+      .eq('suppressed', false)
       .not('phone', 'is', null)
       .not('phone', 'eq', '');
 
     if (customersError) {
-      console.error('Error fetching customers:', customersError);
+      console.error('[send-sms-campaign] Error fetching customers:', customersError);
       return new Response(
         JSON.stringify({ error: 'Failed to fetch customers' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!customers || customers.length === 0) {
+    // Additional filter for valid phone numbers
+    const eligibleCustomers = (customers || []).filter(c => {
+      const phone = c.phone?.replace(/\D/g, '');
+      return phone && phone.length >= 10;
+    });
+
+    const eligibleCount = eligibleCustomers.length;
+    console.log(`[send-sms-campaign] Found ${eligibleCount} eligible customers`);
+
+    if (eligibleCount === 0) {
       await supabase
         .from('crm_sms_campaigns')
         .update({ 
           status: 'failed',
-          metrics: { messages_sent: 0, delivered: 0, failed: 1, opt_outs: 0 }
+          metrics: { messages_sent: 0, delivered: 0, failed: 0, opt_outs: 0, error: 'No eligible recipients' }
         })
         .eq('id', campaignId);
 
       return new Response(
         JSON.stringify({ error: 'No SMS-eligible customers found' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Found ${customers.length} SMS-eligible customers`);
+    // Step D: Enforce warmup limit
+    const remainingToday = warmupInfo.remainingToday;
 
-    // Update campaign status to sending
-    await supabase
-      .from('crm_sms_campaigns')
-      .update({ 
-        status: 'sending',
-        sent_at: new Date().toISOString()
-      })
-      .eq('id', campaignId);
-
-    // Send SMS to each customer
-    let messagesSent = 0;
-    let delivered = 0;
-    let failed = 0;
-
-    for (const customer of customers) {
-      try {
-        // Clean and validate phone number
-        let phone = customer.phone.replace(/\D/g, '');
-        if (!phone.startsWith('1') && phone.length === 10) {
-          phone = '1' + phone;
-        }
-        if (!phone.startsWith('+')) {
-          phone = '+' + phone;
-        }
-
-        console.log(`Sending SMS to customer ${customer.id} at ${phone}`);
-
-        // Create merge tag data and render message with unified engine
-        const mergeTagData = createMergeTagDataFromCustomer(customer, {});
-        let messageBody = convertLegacyTags(campaign.message || '');
-        messageBody = renderMergeTags(messageBody, mergeTagData);
-
-        // Prepare Twilio API request
-        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
-        const formData = new URLSearchParams();
-        formData.append('To', phone);
-        formData.append('From', campaignFromPhone);
-        formData.append('Body', messageBody);
-
-        // Add media URL if campaign has an image
-        if (campaign.image_url) {
-          formData.append('MediaUrl', campaign.image_url);
-        }
-
-        const response = await fetch(twilioUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Basic ${btoa(`${twilioAccountSid}:${twilioAuthToken}`)}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: formData,
-        });
-
-        const result: TwilioResponse = await response.json();
-
-        if (response.ok && result.sid) {
-          messagesSent++;
-          if (result.status === 'queued' || result.status === 'accepted') {
-            delivered++;
+    if (eligibleCount > remainingToday) {
+      console.log(`[send-sms-campaign] Warmup limit exceeded: attempted=${eligibleCount}, remaining=${remainingToday}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'SMS_WARMUP_LIMIT',
+          message: `Your SMS number is still warming up. Today's safe limit is ${remainingToday}. You attempted ${eligibleCount}. Try again tomorrow or reduce recipients.`,
+          data: {
+            stage: warmupInfo.warmupStage,
+            dailyLimit: warmupInfo.dailyLimit,
+            dailySentCount: warmupInfo.dailySentCount,
+            remainingToday,
+            attempted: eligibleCount
           }
-          console.log(`SMS sent successfully to ${phone}, SID: ${result.sid}`);
-        } else {
-          failed++;
-          console.error(`Failed to send SMS to ${phone}:`, result.error_message);
-        }
-
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-      } catch (error) {
-        failed++;
-        console.error(`Error sending SMS to customer ${customer.id}:`, error);
-      }
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Update campaign with final metrics
-    const metrics = {
-      messages_sent: messagesSent,
-      delivered: delivered,
-      failed: failed,
-      opt_outs: 0 // Will be updated by webhook handlers later
-    };
+    // Step E: Insert sms_messages with status='queued'
+    // Get company profile for merge tags
+    const { data: companyProfile } = await supabase
+      .from('company_profiles')
+      .select('company_name, company_phone, company_email')
+      .eq('user_id', campaign.user_id)
+      .maybeSingle();
 
-    await supabase
+    const companyInfo = companyProfile || {};
+    const messageTemplate = convertLegacyTags(campaign.message || '');
+    
+    // Prepare message rows
+    const messageRows = eligibleCustomers.map(customer => {
+      const mergeTagData = createMergeTagDataFromCustomer(customer, companyInfo);
+      const renderedContent = renderMergeTags(messageTemplate, mergeTagData);
+      const formattedPhone = formatPhoneForTwilio(customer.phone);
+
+      return {
+        tenant_id: campaign.tenant_id,
+        campaign_id: campaign.id,
+        customer_id: customer.id,
+        phone: formattedPhone,
+        content: renderedContent,
+        status: 'queued',
+        from_phone: fromPhone,
+        media_url: campaign.image_url || null,
+        metadata: {
+          campaign_name: campaign.name,
+          segment_id: campaign.segment_id,
+          queued_at: new Date().toISOString()
+        }
+      };
+    });
+
+    // Insert messages in batches to avoid payload limits
+    const insertedMessageIds: string[] = [];
+    const messageChunks = chunkArray(messageRows, BATCH_SIZE);
+
+    for (const chunk of messageChunks) {
+      const { data: insertedMessages, error: insertError } = await supabase
+        .from('sms_messages')
+        .insert(chunk)
+        .select('id');
+
+      if (insertError) {
+        console.error('[send-sms-campaign] Failed to insert messages:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to queue messages', details: insertError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      insertedMessageIds.push(...(insertedMessages || []).map(m => m.id));
+    }
+
+    console.log(`[send-sms-campaign] Inserted ${insertedMessageIds.length} queued messages`);
+
+    // Step F: Create sms_send_jobs batches
+    const messageIdChunks = chunkArray(insertedMessageIds, BATCH_SIZE);
+    const jobRows = messageIdChunks.map((batchIds, index) => ({
+      tenant_id: campaign.tenant_id,
+      campaign_id: campaign.id,
+      from_phone: fromPhone,
+      messaging_service_sid: messagingServiceSid,
+      status: 'pending',
+      recipient_message_ids: batchIds,
+      batch_index: index,
+      attempts: 0
+    }));
+
+    const { error: jobsError } = await supabase
+      .from('sms_send_jobs')
+      .insert(jobRows);
+
+    if (jobsError) {
+      console.error('[send-sms-campaign] Failed to create send jobs:', jobsError);
+      // Rollback: delete queued messages
+      await supabase
+        .from('sms_messages')
+        .delete()
+        .in('id', insertedMessageIds);
+
+      return new Response(
+        JSON.stringify({ error: 'Failed to create send jobs', details: jobsError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[send-sms-campaign] Created ${jobRows.length} send jobs`);
+
+    // Step G: Update daily_sent_count and campaign status
+    // Update warmup counter
+    const { error: warmupUpdateError } = await supabase
+      .from('twilio_phone_numbers')
+      .update({
+        daily_sent_count: warmupInfo.dailySentCount + eligibleCount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', warmupInfo.sendingIdentityId);
+
+    if (warmupUpdateError) {
+      console.error('[send-sms-campaign] Failed to update warmup counter:', warmupUpdateError);
+    }
+
+    // Update campaign status
+    const { error: campaignUpdateError } = await supabase
       .from('crm_sms_campaigns')
-      .update({ 
-        status: 'sent',
-        metrics: metrics
+      .update({
+        status: 'queued',
+        enqueued: true,
+        sent_at: new Date().toISOString(),
+        metrics: {
+          messages_queued: eligibleCount,
+          batches_created: jobRows.length,
+          messages_sent: 0,
+          delivered: 0,
+          failed: 0,
+          opt_outs: 0
+        }
       })
       .eq('id', campaignId);
 
-    // Update subscription SMS usage
-    const { data: subscription, error: subError } = await supabase
+    if (campaignUpdateError) {
+      console.error('[send-sms-campaign] Failed to update campaign:', campaignUpdateError);
+    }
+
+    // Update subscription SMS usage tracking
+    const { data: subscription } = await supabase
       .from('subscriptions')
       .select('sms_usage, user_id')
       .eq('user_id', campaign.user_id)
       .single();
 
-    if (!subError && subscription) {
+    if (subscription) {
       await supabase
         .from('subscriptions')
         .update({ 
-          sms_usage: (subscription.sms_usage || 0) + messagesSent
+          sms_usage: (subscription.sms_usage || 0) + eligibleCount
         })
         .eq('user_id', campaign.user_id);
-
-      console.log(`Updated SMS usage for user ${campaign.user_id}: +${messagesSent} messages`);
     }
 
-    console.log(`Campaign ${campaignId} completed. Sent: ${messagesSent}, Delivered: ${delivered}, Failed: ${failed}`);
+    // Step H: Return success response
+    console.log(`[send-sms-campaign] Campaign ${campaignId} successfully queued: ${eligibleCount} messages in ${jobRows.length} batches`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        metrics: metrics,
-        message: `SMS campaign sent successfully to ${messagesSent} customers`
+      JSON.stringify({
+        success: true,
+        enqueued: true,
+        eligibleCount,
+        batchesCreated: jobRows.length,
+        message: `SMS campaign queued successfully. ${eligibleCount} messages will be sent.`
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error in send-sms-campaign function:', error);
+    console.error('[send-sms-campaign] Unexpected error:', error);
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
         details: error.message 
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 }
