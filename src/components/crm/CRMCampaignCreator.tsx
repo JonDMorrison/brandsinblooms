@@ -3178,6 +3178,95 @@ const { counts: segmentCounts } = useSegmentCounts();
           }
           break;
 
+        // NEW: Email Safe Hero - text on solid background, image below (Mailchimp/Klaviyo pattern)
+        case 'email-safe-hero':
+          const safeHeroAlign = block.alignment || 'center';
+          const safeHeroBgColor = block.backgroundColor || '#ffffff';
+          const safeHeroTextColor = '#000000'; // Always dark text for email safety
+          const safeHeroButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
+          
+          html += `
+            <!-- Email Safe Hero: Text Section -->
+            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: ${safeHeroBgColor};">
+              <tr>
+                <td align="center" style="padding: 32px 16px;">
+                  <table role="presentation" border="0" cellspacing="0" cellpadding="0" width="100%" style="max-width: 640px;">
+                    <tr>
+                      <td align="${safeHeroAlign}" style="font-family: ${fonts.bodyFont}; color: ${safeHeroTextColor} !important;">
+                        ${block.eyebrow ? `
+                          <p style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; color: ${safeHeroTextColor} !important; opacity: 0.6;">
+                            ${block.eyebrow}
+                          </p>
+                        ` : ''}
+                        ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `
+                          <h1 style="font-size: 28px; font-weight: 600; margin: 0 0 12px 0; font-family: ${fonts.headlineFont}; color: ${safeHeroTextColor} !important; line-height: 1.2;">
+                            ${sanitizeCampaignTitle(blockHeadline)}
+                          </h1>
+                        ` : ''}
+                        ${block.subtitle ? `
+                          <p style="font-size: 16px; margin: 0 0 8px 0; color: ${safeHeroTextColor} !important; opacity: 0.8; line-height: 1.5;">
+                            ${block.subtitle}
+                          </p>
+                        ` : ''}
+                        ${block.publishDate ? `
+                          <p style="font-size: 12px; margin: 0 0 16px 0; color: ${safeHeroTextColor} !important; opacity: 0.6;">
+                            ${new Date(block.publishDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          </p>
+                        ` : ''}
+                        ${block.ctaText && block.ctaUrl ? `
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top: 16px;">
+                            <tr>
+                              <td align="center" style="border-radius: 9999px; background: ${safeHeroButtonColor};">
+                                <a href="${block.ctaUrl}" style="display: inline-block; padding: 12px 24px; background: ${safeHeroButtonColor}; color: #ffffff !important; text-decoration: none; border-radius: 9999px; font-weight: 600; font-family: ${fonts.buttonFont}; font-size: 14px;">
+                                  ${block.ctaText}
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
+                        ` : ''}
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            ${block.imageUrl ? `
+              <!-- Email Safe Hero: Image Section -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center" style="padding: 0 16px 16px 16px;">
+                    <img
+                      src="${block.imageUrl}"
+                      alt="${block.altText || blockHeadline || ''}"
+                      style="display: block; width: 100%; max-width: 640px; border: 0; outline: none; text-decoration: none; border-radius: 16px;"
+                    />
+                  </td>
+                </tr>
+              </table>
+            ` : ''}
+          `;
+          break;
+
+        // NEW: Graphic Hero - single clickable image (text baked in)
+        case 'graphic-hero':
+          html += `
+            <!-- Graphic Hero: Full-width clickable image -->
+            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+              <tr>
+                <td align="center" style="padding: 0;">
+                  ${block.ctaUrl ? `<a href="${block.ctaUrl}" target="_blank" style="display: block;">` : ''}
+                    <img
+                      src="${block.imageUrl || ''}"
+                      alt="${block.altText || 'Hero image'}"
+                      style="display: block; width: 100%; max-width: 640px; border: 0; outline: none; text-decoration: none;"
+                    />
+                  ${block.ctaUrl ? `</a>` : ''}
+                </td>
+              </tr>
+            </table>
+          `;
+          break;
+
 
         case 'image':
           // Check if this is a two-column layout - if so, render like image-text

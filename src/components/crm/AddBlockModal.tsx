@@ -16,12 +16,21 @@ export const AddBlockModal: React.FC<AddBlockModalProps> = ({
   onAddBlock
 }) => {
   const blockTypes = [
+    // NEW: Email-safe hero blocks at the top (recommended)
     { 
-      type: 'header' as const, 
-      label: 'Header', 
-      icon: '📄',
-      description: 'Title and hero section'
+      type: 'email-safe-hero' as const, 
+      label: 'Hero (Email Safe)', 
+      icon: '⭐',
+      description: 'Recommended – text on solid, image below',
+      recommended: true
     },
+    { 
+      type: 'graphic-hero' as const, 
+      label: 'Graphic Hero', 
+      icon: '🖼️',
+      description: 'Image only – text baked into graphic'
+    },
+    // Existing blocks
     { 
       type: 'image-text' as const, 
       label: 'Content with Image', 
@@ -63,7 +72,15 @@ export const AddBlockModal: React.FC<AddBlockModalProps> = ({
       label: 'Divider', 
       icon: '➖',
       description: 'Section separator'
-    }
+    },
+    // Legacy overlay header - kept for backwards compatibility
+    { 
+      type: 'header' as const, 
+      label: 'Overlay Header', 
+      icon: '📄',
+      description: 'Legacy – not recommended for email dark mode',
+      legacy: true
+    },
   ];
 
   const handleAddBlock = (type: ContentBlock['type']) => {
@@ -83,18 +100,28 @@ export const AddBlockModal: React.FC<AddBlockModalProps> = ({
           <DialogTitle className="pr-8">Add Content Block</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3 py-4">
-          {blockTypes.map(({ type, label, icon, description }) => (
+          {blockTypes.map(({ type, label, icon, description, recommended, legacy }) => (
             <Button
-              key={type}
+              key={`${type}-${label}`}
               variant="outline"
               onClick={() => handleAddBlock(type)}
-              className="h-auto p-4 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/20"
+              className={`h-auto p-4 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/20 relative ${
+                recommended ? 'border-emerald-500/50 bg-emerald-500/5' : ''
+              } ${legacy ? 'opacity-60' : ''}`}
             >
+              {recommended && (
+                <span className="absolute -top-2 -right-2 text-[10px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-full font-medium">
+                  Recommended
+                </span>
+              )}
               <span className="text-2xl">{icon}</span>
               <span className="text-sm font-medium">{label}</span>
               <span className="text-xs text-muted-foreground text-center leading-tight">
                 {description}
               </span>
+              {legacy && (
+                <span className="text-[10px] text-amber-600 mt-1">⚠️ Dark mode issues</span>
+              )}
             </Button>
           ))}
         </div>

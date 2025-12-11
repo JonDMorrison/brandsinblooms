@@ -1,7 +1,7 @@
 
 // CRITICAL: 'text' type deprecated for weekly themes - all content blocks should use 'image-text'
 // 'text' type kept temporarily for backward compatibility with existing campaigns
-export type BlockType = 'header' | 'text' | 'image' | 'image-text' | 'button' | 'divider' | 'product' | 'quote' | 'cta' | 'newsletter-header' | 'image-gallery' | 'social-follow' | 'footer';
+export type BlockType = 'header' | 'text' | 'image' | 'image-text' | 'button' | 'divider' | 'product' | 'quote' | 'cta' | 'newsletter-header' | 'image-gallery' | 'social-follow' | 'footer' | 'email-safe-hero' | 'graphic-hero';
 export type BlockLayout = 'full-width' | 'two-column-left' | 'two-column-right' | 'three-column' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'overlay' | 'background' | 'image-left' | 'image-right' | 'text-left';
 export type AlignmentType = 'left' | 'center' | 'right' | 'justify';
 export type SpacingType = 'none' | 'small' | 'medium' | 'large' | 'extra-large';
@@ -124,6 +124,9 @@ export interface ContentBlock {
   subtitle?: string;
   issueNumber?: string;
   publishDate?: string;
+  
+  // Email Safe Hero fields
+  eyebrow?: string; // Optional small text above title
   
   // Image fetching control - DETERMINISTIC IMAGE BEHAVIOR
   autoImageMode?: boolean; // true = system may auto-fetch images; false = never auto-fetch

@@ -17,6 +17,8 @@ import { ButtonBlockEditor } from './blocks/ButtonBlockEditor';
 import { TextBlockEditor } from './blocks/TextBlockEditor';
 import { DividerBlockEditor } from './blocks/DividerBlockEditor';
 import { ProductBlockEditor } from './blocks/ProductBlockEditor';
+import { EmailSafeHeroBlockEditor } from './blocks/EmailSafeHeroBlockEditor';
+import { GraphicHeroBlockEditor } from './blocks/GraphicHeroBlockEditor';
 import { BlockTypeConverter } from './BlockTypeConverter';
 
 interface SimpleBlockEditorProps {
@@ -64,6 +66,8 @@ export const SimpleBlockEditor: React.FC<SimpleBlockEditorProps> = ({
       case 'button': return '🔘';
       case 'divider': return '➖';
       case 'product': return '📦';
+      case 'email-safe-hero': return '⭐';
+      case 'graphic-hero': return '🖼️';
       default: return '📄';
     }
   };
@@ -90,6 +94,10 @@ export const SimpleBlockEditor: React.FC<SimpleBlockEditorProps> = ({
         return 'Divider';
       case 'product':
         return block.title || 'Product Block';
+      case 'email-safe-hero':
+        return block.headline || 'Email Safe Hero';
+      case 'graphic-hero':
+        return 'Graphic Hero';
       default:
         return 'Content Block';
     }
@@ -111,6 +119,10 @@ export const SimpleBlockEditor: React.FC<SimpleBlockEditorProps> = ({
         return <DividerBlockEditor {...props} />;
       case 'product':
         return <ProductBlockEditor {...props} />;
+      case 'email-safe-hero':
+        return <EmailSafeHeroBlockEditor {...props} />;
+      case 'graphic-hero':
+        return <GraphicHeroBlockEditor {...props} />;
       default:
         return null;
     }

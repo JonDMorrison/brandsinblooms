@@ -23,6 +23,8 @@ import { ImageBlockEditor } from './blocks/ImageBlockEditor';
 import { ButtonBlockEditor } from './blocks/ButtonBlockEditor';
 import { TextBlockEditor } from './blocks/TextBlockEditor';
 import { DividerBlockEditor } from './blocks/DividerBlockEditor';
+import { EmailSafeHeroBlockEditor } from './blocks/EmailSafeHeroBlockEditor';
+import { GraphicHeroBlockEditor } from './blocks/GraphicHeroBlockEditor';
 import { ProductBlockEditor } from './blocks/ProductBlockEditor';
 
 interface EnhancedBlockEditorProps {
@@ -128,6 +130,22 @@ export const EnhancedBlockEditor: React.FC<EnhancedBlockEditorProps> = ({
       case 'product':
         return (
           <ProductBlockEditor 
+            block={block} 
+            onUpdate={handleUpdate} 
+            isExpanded={isExpanded}
+          />
+        );
+      case 'email-safe-hero':
+        return (
+          <EmailSafeHeroBlockEditor 
+            block={block} 
+            onUpdate={handleUpdate} 
+            isExpanded={isExpanded}
+          />
+        );
+      case 'graphic-hero':
+        return (
+          <GraphicHeroBlockEditor 
             block={block} 
             onUpdate={handleUpdate} 
             isExpanded={isExpanded}
