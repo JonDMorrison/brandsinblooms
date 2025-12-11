@@ -36,6 +36,7 @@ import { createBlockPrompt } from '@/utils/blockPromptBuilder';
 import { normalizeAIResponse, applyAIToBlock } from '@/lib/newsletter/aiMapping';
 import { usePagePersistence } from '@/hooks/usePagePersistence';
 import { normalizeBlockForSave, normalizeBlockFromDatabase, DatabaseBlock } from '@/utils/blockFieldMapping';
+import { getEmailSafeImageUrl, isEmailSafeImageUrl, debugBlockImageUrls } from '@/utils/emailImageUrl';
 import { OPACITY_DEFAULTS, normalizeOpacityToDecimal } from '@/utils/opacityUtils';
 import { useSaveQueue } from '@/hooks/useSaveQueue';
 import { DraftRestorationDialog } from './DraftRestorationDialog';
@@ -3098,8 +3099,16 @@ const { counts: segmentCounts } = useSegmentCounts();
         <div class="content-block" style="padding: 30px 24px;">
     `;
     
+    // Debug: Log any blocks with unsafe image URLs before rendering
+    debugBlockImageUrls(blocks);
+    
     blocks.forEach(block => {
       if (block.visible === false) return; // Only skip blocks explicitly set to false
+      
+      // CRITICAL: Sanitize all image URLs for email safety
+      // Only allow https:// URLs from trusted sources (Supabase storage, Unsplash, etc.)
+      const safeImageUrl = getEmailSafeImageUrl(block.imageUrl);
+      const safeBackgroundImageUrl = getEmailSafeImageUrl(block.backgroundImageUrl);
       
       // DEBUG: Log block data for newsletter-header blocks
       if (block.type === 'newsletter-header' || block.type === 'header') {
@@ -3112,8 +3121,10 @@ const { counts: segmentCounts } = useSegmentCounts();
           body: block.body,
           publishDate: block.publishDate,
           backgroundImageUrl: block.backgroundImageUrl,
-          hasBackgroundImage: !!block.backgroundImageUrl,
-          imageUrl: block.imageUrl
+          safeBackgroundImageUrl,
+          hasBackgroundImage: !!safeBackgroundImageUrl,
+          imageUrl: block.imageUrl,
+          safeImageUrl
         });
       }
       
@@ -3131,7 +3142,7 @@ const { counts: segmentCounts } = useSegmentCounts();
           // Use campaign name as fallback headline for header blocks
           const headerHeadline = blockHeadline || campaignName || '';
           
-          if (block.backgroundImageUrl) {
+          if (safeBackgroundImageUrl) {
             // Table-based layout with background image and RGBA overlay for email compatibility
             // Use nested div structure so overlay sits ON TOP of background image
             const overlayColor = hexToRgba(block.backgroundColor || '#000000', headerOpacity);
@@ -3141,10 +3152,10 @@ const { counts: segmentCounts } = useSegmentCounts();
               <![endif]-->
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0; border-radius: 8px; overflow: hidden;">
                 <tr>
-                  <td style="background-image: url(${block.backgroundImageUrl}); background-size: cover; background-position: center;">
+                  <td style="background-image: url(${safeBackgroundImageUrl}); background-size: cover; background-position: center;">
                     <!--[if gte mso 9]>
                     <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;">
-                    <v:fill type="frame" src="${block.backgroundImageUrl}" color="${headerBgColor}" />
+                    <v:fill type="frame" src="${safeBackgroundImageUrl}" color="${headerBgColor}" />
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
                     <!-- Overlay div sits on top of background image -->
@@ -3234,13 +3245,13 @@ const { counts: segmentCounts } = useSegmentCounts();
                 </td>
               </tr>
             </table>
-            ${block.imageUrl ? `
+            ${safeImageUrl ? `
               <!-- Email Safe Hero: Image Section -->
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td align="center" style="padding: 0 16px 16px 16px;">
                     <img
-                      src="${block.imageUrl}"
+                      src="${safeImageUrl}"
                       alt="${block.altText || blockHeadline || ''}"
                       style="display: block; width: 100%; max-width: 640px; border: 0; outline: none; text-decoration: none; border-radius: 16px;"
                     />
@@ -3261,11 +3272,11 @@ const { counts: segmentCounts } = useSegmentCounts();
               <tr>
                 <td align="center" style="padding: 0;">
                   ${block.ctaUrl ? `<a href="${block.ctaUrl}" target="_blank" style="display: block;">` : ''}
-                    <img
-                      src="${block.imageUrl || ''}"
+                    ${safeImageUrl ? `<img
+                      src="${safeImageUrl}"
                       alt="${graphicHeroAlt}"
                       style="display: block; width: 100%; max-width: 640px; border: 0; outline: none; text-decoration: none;"
-                    />
+                    />` : ''}
                   ${block.ctaUrl ? `</a>` : ''}
                 </td>
               </tr>
@@ -3289,7 +3300,7 @@ const { counts: segmentCounts } = useSegmentCounts();
             const imgTcCtaUrl = block.ctaUrl || block.buttonUrl;
             
             // If no image, render as text-only block
-            if (!block.imageUrl) {
+            if (!safeImageUrl) {
               html += `
                 <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px; text-align: ${imgTcTextAlign};">
                   ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${imgTcHeadlineColor}; font-family: ${fonts.subheadingFont};">${blockHeadline}</h2>` : ''}
@@ -3304,8 +3315,8 @@ const { counts: segmentCounts } = useSegmentCounts();
                 </div>
               `;
             } else {
-              // Build image cell HTML
-              let imgTcImageHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
+              // Build image cell HTML - USE SAFE URL
+              let imgTcImageHtml = `<img src="${safeImageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
               
               // Build text content HTML
               let imgTcCleanBody = blockBody || '';
@@ -3372,40 +3383,32 @@ const { counts: segmentCounts } = useSegmentCounts();
           }
           
           // Only render single-column image block if it has an imageUrl
-          if (block.imageUrl) {
+          if (safeImageUrl) {
             console.log('🔍 IMAGE BLOCK DEBUG:', {
               id: block.id,
               title: block.title,
               headline: block.headline,
-              body: block.body,
-              content: block.content,
-              ctaText: block.ctaText,
-              buttonText: block.buttonText,
-              overlayOpacity: block.overlayOpacity,
-              overlayColor: block.overlayColor
+              safeImageUrl
             });
             
             const imgAlign = block.textAlign || 'center';
-            // Force dark text colors for visibility
             const imgTextColor = companyInfo?.brandTextColor || '#475569';
             const imgHeadlineColor = companyInfo?.brandTextColor || '#1f2937';
             const imgButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
             const imgCtaText = block.ctaText || block.buttonText;
             const imgCtaUrl = block.ctaUrl || block.buttonUrl;
             
-            // Build image with overlay if configured
+            // Build image with overlay if configured - USE SAFE URL
             let imageHtml = '';
             if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
               const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
-              console.log('🎨 IMAGE BLOCK OVERLAY:', { overlayColor: block.overlayColor, overlayOpacity: block.overlayOpacity, overlayRgba });
-              // Use table with background and semi-transparent padding for overlay
               imageHtml = `
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border-radius: 8px; overflow: hidden;">
                   <tr>
-                    <td background="${block.imageUrl}" bgcolor="${block.overlayColor}" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 8px;">
+                    <td background="${safeImageUrl}" bgcolor="${block.overlayColor}" style="background-image: url('${safeImageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 8px;">
                       <!--[if gte mso 9]>
                       <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;">
-                      <v:fill type="frame" src="${block.imageUrl}" color="${block.overlayColor}" opacity="${Math.round((block.overlayOpacity || 0) * 65535)}" />
+                      <v:fill type="frame" src="${safeImageUrl}" color="${block.overlayColor}" opacity="${Math.round((block.overlayOpacity || 0) * 65535)}" />
                       <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                       <![endif]-->
                       <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -3424,7 +3427,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                 </table>
               `;
             } else {
-              imageHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px; display: block;" />`;
+              imageHtml = `<img src="${safeImageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px; display: block;" />`;
             }
             
             html += `
@@ -3458,15 +3461,11 @@ const { counts: segmentCounts } = useSegmentCounts();
             layout: block.layout,
             isImageLeft,
             headline: block.headline,
-            body: block.body,
-            hasHeadline: !!block.headline,
-            hasBody: !!block.body,
-            ctaText,
-            ctaUrl
+            safeImageUrl
           });
           
-          // If no image, render as text-only block
-          if (!block.imageUrl) {
+          // If no safe image, render as text-only block
+          if (!safeImageUrl) {
             html += `
               <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px; text-align: ${itTextAlign};">
                 ${blockHeadline && !isBlockTypeLabel(blockHeadline) ? `<h2 style="font-size: 24px; font-weight: 600; margin: 0 0 16px 0; color: ${itHeadlineColor}; font-family: ${fonts.subheadingFont};">${blockHeadline}</h2>` : ''}
@@ -3486,14 +3485,14 @@ const { counts: segmentCounts } = useSegmentCounts();
             if (block.overlayOpacity && block.overlayOpacity > 0 && block.overlayColor) {
               const overlayRgba = hexToRgba(block.overlayColor, block.overlayOpacity);
               console.log('🎨 IMAGE-TEXT BLOCK OVERLAY:', { overlayColor: block.overlayColor, overlayOpacity: block.overlayOpacity, overlayRgba });
-              // Use table with background and semi-transparent inner content for overlay
+              // Use table with background and semi-transparent inner content for overlay - USE SAFE URL
               imageCellHtml = `
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border-radius: 8px; overflow: hidden; height: 100%;">
                   <tr>
-                    <td background="${block.imageUrl}" bgcolor="${block.overlayColor}" style="background-image: url('${block.imageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 8px; vertical-align: top;">
+                    <td background="${safeImageUrl}" bgcolor="${block.overlayColor}" style="background-image: url('${safeImageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 8px; vertical-align: top;">
                       <!--[if gte mso 9]>
                       <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:100%;">
-                      <v:fill type="frame" src="${block.imageUrl}" color="${block.overlayColor}" opacity="${Math.round((block.overlayOpacity || 0) * 65535)}" />
+                      <v:fill type="frame" src="${safeImageUrl}" color="${block.overlayColor}" opacity="${Math.round((block.overlayOpacity || 0) * 65535)}" />
                       <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                       <![endif]-->
                       <div style="min-height: 250px; background-color: ${overlayRgba};">&nbsp;</div>
@@ -3506,7 +3505,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                 </table>
               `;
             } else {
-              imageCellHtml = `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
+              imageCellHtml = `<img src="${safeImageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
             }
 
             // Build text content HTML with proper table structure for email compatibility
