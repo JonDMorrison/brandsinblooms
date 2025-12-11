@@ -3077,7 +3077,8 @@ const { counts: segmentCounts } = useSegmentCounts();
         'Image Right, Text Left',
         'Two Column Layout',
         'Newsletter Header',
-        'Untitled Block'
+        'Untitled Block',
+        'Untitled'
       ];
       return blockTypeLabels.includes(text.trim());
     };
