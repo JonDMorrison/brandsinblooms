@@ -364,14 +364,43 @@ serve(async (req) => {
       })
       .eq('id', campaignId);
 
-    // Send emails to each customer
+    // ========== BATCH EMAIL SENDING ==========
+    // Prepare all email payloads first, then send in batches of 100
+    console.log(`📧 Preparing ${customers.length} emails for batch sending...`);
+    
+    const BATCH_SIZE = 100; // Resend batch API limit
     let emailsSent = 0;
     let failed = 0;
 
+    // Build CompanyProfileData once (used for all emails)
+    const profileData: CompanyProfileData = {
+      company_name: companyProfile?.company_name,
+      company_email: companyProfile?.company_email,
+      company_phone: companyProfile?.company_phone,
+      website_url: companyProfile?.website_url,
+      street_address: companyProfile?.street_address,
+      city: companyProfile?.city,
+      state_province: companyProfile?.state_province,
+      postal_code: companyProfile?.postal_code,
+      country: companyProfile?.country,
+      facebook_url: companyProfile?.facebook_url,
+      instagram_url: companyProfile?.instagram_url,
+      tiktok_url: companyProfile?.tiktok_url,
+      pinterest_url: companyProfile?.pinterest_url,
+      youtube_url: companyProfile?.youtube_url,
+      linkedin_url: companyProfile?.linkedin_url,
+      footer_legal_text: companyProfile?.footer_legal_text,
+      brand_primary_color: companyProfile?.brand_primary_color,
+      brand_text_color: companyProfile?.brand_text_color,
+      feature_flags: companyProfile?.feature_flags,
+    };
+
+    // Prepare all email payloads
+    const emailPayloads: any[] = [];
+    const subscriptionUpserts: any[] = [];
+    
     for (const customer of customers) {
       try {
-        console.log(`Sending email to customer ${customer.id} at ${customer.email}`);
-
         // Generate unsubscribe token and link
         const unsubscribeToken = btoa(`${customer.email}:${campaign.tenant_id}`);
         const unsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${campaign.tenant_id}&token=${unsubscribeToken}`;
@@ -398,35 +427,8 @@ serve(async (req) => {
         emailContent = renderMergeTags(emailContent, mergeTagData);
         emailSubject = renderMergeTags(emailSubject, mergeTagData);
 
-        // ALWAYS strip any existing footer and regenerate server-side
-        // This ensures a single canonical footer with correct social icons
-        console.log(`📧 Stripping any existing footer and regenerating for customer ${customer.id}`);
-        
-        // Strip ALL existing footer structures aggressively
+        // Strip existing footer and regenerate server-side
         emailContent = stripExistingFooter(emailContent);
-        
-        // Build CompanyProfileData for footer generator
-        const profileData: CompanyProfileData = {
-          company_name: companyProfile?.company_name,
-          company_email: companyProfile?.company_email,
-          company_phone: companyProfile?.company_phone,
-          website_url: companyProfile?.website_url,
-          street_address: companyProfile?.street_address,
-          city: companyProfile?.city,
-          state_province: companyProfile?.state_province,
-          postal_code: companyProfile?.postal_code,
-          country: companyProfile?.country,
-          facebook_url: companyProfile?.facebook_url,
-          instagram_url: companyProfile?.instagram_url,
-          tiktok_url: companyProfile?.tiktok_url,
-          pinterest_url: companyProfile?.pinterest_url,
-          youtube_url: companyProfile?.youtube_url,
-          linkedin_url: companyProfile?.linkedin_url,
-          footer_legal_text: companyProfile?.footer_legal_text,
-          brand_primary_color: companyProfile?.brand_primary_color,
-          brand_text_color: companyProfile?.brand_text_color,
-          feature_flags: companyProfile?.feature_flags,
-        };
         
         const serverFooter = generateServerFooterHtml(
           profileData,
@@ -434,7 +436,7 @@ serve(async (req) => {
           unsubscribeLink.replace('handle-unsubscribe', 'manage-preferences')
         );
         
-        // Insert footer before closing body/html tags, or append if no closing tags
+        // Insert footer before closing body/html tags
         if (emailContent.includes('</body>')) {
           emailContent = emailContent.replace('</body>', `${serverFooter}</body>`);
         } else if (emailContent.includes('</html>')) {
@@ -442,24 +444,18 @@ serve(async (req) => {
         } else {
           emailContent += serverFooter;
         }
-        
-        console.log(`📧 Footer regenerated for customer ${customer.id}`);
 
-        // Create or update subscription record
-        await supabase
-          .from('crm_subscriptions')
-          .upsert({
-            email: customer.email,
-            tenant_id: campaign.tenant_id,
-            user_id: campaign.user_id,
-            customer_id: customer.id,
-            opt_out: false,
-            source: 'campaign'
-          }, {
-            onConflict: 'email,tenant_id'
-          });
+        // Queue subscription upsert
+        subscriptionUpserts.push({
+          email: customer.email,
+          tenant_id: campaign.tenant_id,
+          user_id: campaign.user_id,
+          customer_id: customer.id,
+          opt_out: false,
+          source: 'campaign'
+        });
 
-        // Prepare email payload with campaign tracking
+        // Prepare email payload
         const emailPayload: any = {
           from: fromAddress,
           to: [customer.email],
@@ -472,10 +468,9 @@ serve(async (req) => {
             'X-Domain-ID': activeDomainId || 'fallback'
           },
           tags: [
-            `campaign:${campaignId}`,
-            'type:bulk',
-            `tenant:${campaign.tenant_id}`,
-            `domain:${activeDomainId || 'fallback'}`
+            { name: 'campaign_id', value: campaignId },
+            { name: 'type', value: 'bulk' },
+            { name: 'tenant_id', value: campaign.tenant_id }
           ]
         };
 
@@ -484,44 +479,67 @@ serve(async (req) => {
           emailPayload.reply_to = senderEmail;
         }
 
-        let emailResponse;
-        let fallbackUsed = false;
-
-        try {
-          emailResponse = await resend.emails.send(emailPayload);
-        } catch (senderError: any) {
-          // If custom domain fails due to DNS issues, fallback to shared sender
-          if (usesVerifiedDomain && senderError.message?.includes('DNS')) {
-            console.warn(`DNS error with custom domain for ${customer.email}, falling back to shared sender`);
-            
-            emailPayload.from = `${companyName} via BloomSuite <noreply@bloomsuite.email>`;
-            emailPayload.headers['X-Domain-ID'] = 'fallback';
-            fallbackUsed = true;
-            
-            try {
-              emailResponse = await resend.emails.send(emailPayload);
-            } catch (fallbackError) {
-              throw fallbackError;
-            }
-          } else {
-            throw senderError;
-          }
-        }
-
-        if (emailResponse?.id) {
-          emailsSent++;
-          console.log(`Email sent to ${customer.email}, ID: ${emailResponse.id}${fallbackUsed ? ' (fallback)' : ''}`);
-        } else {
-          failed++;
-          console.error(`Failed to send email to ${customer.email}`);
-        }
-
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
-
+        emailPayloads.push(emailPayload);
       } catch (error: any) {
         failed++;
-        console.error(`Error sending email to customer ${customer.id}:`, error);
+        console.error(`Error preparing email for customer ${customer.id}:`, error.message);
+      }
+    }
+
+    console.log(`📧 Prepared ${emailPayloads.length} email payloads, ${failed} failed during preparation`);
+
+    // Batch upsert subscriptions (much faster than individual upserts)
+    if (subscriptionUpserts.length > 0) {
+      const { error: subError } = await supabase
+        .from('crm_subscriptions')
+        .upsert(subscriptionUpserts, { onConflict: 'email,tenant_id' });
+      
+      if (subError) {
+        console.warn('Subscription upsert warning:', subError.message);
+      }
+    }
+
+    // Send emails in batches using Resend batch API
+    const totalBatches = Math.ceil(emailPayloads.length / BATCH_SIZE);
+    console.log(`📧 Sending ${emailPayloads.length} emails in ${totalBatches} batches...`);
+
+    for (let i = 0; i < emailPayloads.length; i += BATCH_SIZE) {
+      const batch = emailPayloads.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+      
+      try {
+        console.log(`📧 Sending batch ${batchNumber}/${totalBatches} (${batch.length} emails)...`);
+        
+        // Use Resend batch API - sends up to 100 emails in one API call
+        const batchResponse = await resend.batch.send(batch);
+        
+        if (batchResponse?.data) {
+          const successCount = Array.isArray(batchResponse.data) 
+            ? batchResponse.data.filter((r: any) => r?.id).length 
+            : 1;
+          emailsSent += successCount;
+          console.log(`📧 Batch ${batchNumber} sent successfully: ${successCount} emails`);
+        } else if (batchResponse?.error) {
+          failed += batch.length;
+          console.error(`📧 Batch ${batchNumber} failed:`, batchResponse.error);
+        }
+      } catch (batchError: any) {
+        // If batch fails, try individual sends as fallback
+        console.warn(`📧 Batch ${batchNumber} failed, attempting individual sends:`, batchError.message);
+        
+        for (const payload of batch) {
+          try {
+            const singleResponse = await resend.emails.send(payload);
+            if (singleResponse?.id) {
+              emailsSent++;
+            } else {
+              failed++;
+            }
+          } catch (singleError: any) {
+            failed++;
+            console.error(`Individual send failed for ${payload.to[0]}:`, singleError.message);
+          }
+        }
       }
     }
 
