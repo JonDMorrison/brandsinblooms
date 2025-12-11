@@ -278,3 +278,6 @@ verify_jwt = false
 
 [functions.reset-daily-limits]
 verify_jwt = false
+
+[functions.get-warmup-status]
+verify_jwt = true
