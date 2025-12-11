@@ -319,7 +319,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         body: (block as any).hasGeneratedContent 
           ? block.body      // Preserve exact value, even if undefined
           : (block.body || block.content || ''),
-        title: block.title || block.headline || block.heading || 'Untitled',
+        title: block.title || block.headline || block.heading || '',
         content: block.content || block.body || '',
         // Preserve newsletter-specific fields
         subtitle: block.subtitle || '',
