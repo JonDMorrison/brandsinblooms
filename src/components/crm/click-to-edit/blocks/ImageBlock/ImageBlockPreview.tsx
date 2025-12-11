@@ -85,7 +85,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
 
   // Background color change (sits BEHIND the image)
   const handleBackgroundColorChange = useCallback((color: string) => {
-    onUpdate({ containerBackgroundColor: color });
+    onUpdate({ backgroundColor: color });
   }, [onUpdate]);
 
   // Image Source Picker handlers
@@ -153,7 +153,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
         // Remove padding when using fixed aspect ratio for edge-to-edge images
         hasFixedAspect ? "p-0" : "p-6"
       )}
-      style={{ backgroundColor: block.containerBackgroundColor || undefined }}
+      style={{ backgroundColor: block.backgroundColor || undefined }}
     >
       {/* AI Image Loading Overlay */}
       {isGeneratingImage && (
@@ -175,7 +175,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
             overlayOpacity={block.colorOverlayOpacity || 0}
             onOverlayColorChange={handleOverlayColorChange}
             onOverlayOpacityChange={handleOverlayOpacityChange}
-            backgroundColor={block.containerBackgroundColor}
+            backgroundColor={block.backgroundColor}
             onBackgroundColorChange={handleBackgroundColorChange}
           />
         </div>
