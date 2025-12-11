@@ -4119,6 +4119,16 @@ const { counts: segmentCounts } = useSegmentCounts();
     try {
       setSending(true);
       
+      // Pre-flight validation
+      if (!blocks || blocks.length === 0) {
+        toast({
+          title: "No content",
+          description: "Please add content blocks to your email before sending.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       const campaignData: CampaignData = {
         name: campaignName,
         subject: subjectLine,
@@ -4131,45 +4141,87 @@ const { counts: segmentCounts } = useSegmentCounts();
         content_blocks: blocks
       };
 
-      // First save as draft, then send immediately
-      const campaign = await saveCampaignAsDraft(campaignData);
+      // Step 1: Save as draft
+      console.log('📝 Saving campaign as draft...');
+      let campaign;
+      try {
+        campaign = await saveCampaignAsDraft(campaignData);
+        if (!campaign?.id) {
+          throw new Error('Campaign save returned no ID');
+        }
+        console.log('✅ Campaign saved:', campaign.id);
+      } catch (saveError: any) {
+        console.error('❌ Campaign save failed:', saveError);
+        toast({
+          title: "Failed to save campaign",
+          description: saveError.message || "Could not save your campaign. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
       
-      // Now invoke the edge function to actually send the emails
+      // Step 2: Send via edge function
       console.log('🚀 Invoking send-email-campaign for campaign:', campaign.id);
       const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-email-campaign', {
         body: { campaignId: campaign.id }
       });
 
+      // Handle edge function errors
       if (sendError) {
-        console.error('Send error:', sendError);
-        throw new Error(sendError.message || 'Failed to send campaign');
+        console.error('❌ Edge function error:', sendError);
+        throw new Error(sendError.message || 'Failed to invoke email service');
+      }
+      
+      // Handle error responses from edge function
+      if (sendResult?.error) {
+        console.error('❌ Send result error:', sendResult.error, sendResult.details);
+        throw new Error(sendResult.error);
       }
 
+      const sentCount = sendResult?.metrics?.sent || 0;
       console.log('✅ Campaign sent successfully:', sendResult);
       
       toast({
         title: "Campaign sent!",
-        description: `Your campaign "${campaignName}" has been sent to ${sendResult?.metrics?.sent || 0} customers. View analytics to see delivery progress.`
+        description: `Your campaign "${campaignName}" has been sent to ${sentCount} customers. View analytics to see delivery progress.`
       });
 
-      // Navigate to campaign analytics instead of campaigns list
+      // Navigate to campaign analytics
       navigate(`/crm/campaigns/${campaign.id}/analytics`);
 
     } catch (error: any) {
-      console.error('Error sending campaign:', error);
+      console.error('❌ Send failed:', error);
       
-      let errorMessage = "There was an error sending your campaign. Please try again.";
-      if (error.message?.includes('Email service not configured')) {
-        errorMessage = "Email service not configured. Please set up your domain or add RESEND_API_KEY.";
-      } else if (error.message?.includes('no segment selected')) {
-        errorMessage = "Please select an audience segment before sending.";
-      } else if (error.message?.includes('No customers found')) {
-        errorMessage = "No customers found in the selected segment with valid email addresses.";
+      // Parse error message for user-friendly display
+      const errorMsg = error.message || '';
+      let title = "Send failed";
+      let description = "There was an error sending your campaign. Please try again.";
+      
+      if (errorMsg.includes('Email service not configured') || errorMsg.includes('RESEND')) {
+        title = "Email service unavailable";
+        description = "The email service is not configured. Please contact support.";
+      } else if (errorMsg.includes('No opted-in recipients') || errorMsg.includes('not opted in')) {
+        title = "No eligible recipients";
+        description = "No customers in your audience have opted in to receive emails. Check that contacts have email consent enabled.";
+      } else if (errorMsg.includes('No contacts found') || errorMsg.includes('No customers found')) {
+        title = "No recipients found";
+        description = "No customers found in the selected audience with valid email addresses.";
+      } else if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
+        title = "Sending limit reached";
+        description = "You've reached your email sending limit. Upgrade your plan or wait until your quota resets.";
+      } else if (errorMsg.includes('blocked') || errorMsg.includes('paused')) {
+        title = "Domain blocked";
+        description = "Your sending domain has been paused. Check your domain health in Email Settings.";
+      } else if (errorMsg.includes('Authentication') || errorMsg.includes('JWT')) {
+        title = "Session expired";
+        description = "Please sign in again to continue.";
+      } else if (errorMsg) {
+        description = errorMsg;
       }
       
       toast({
-        title: "Send failed",
-        description: errorMessage,
+        title,
+        description,
         variant: "destructive"
       });
     } finally {
