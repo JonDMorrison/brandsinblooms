@@ -431,39 +431,10 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
           "transition-all duration-200 click-to-edit-block relative",
           isAnyEditMode ? "shadow-md ring-2 ring-primary/20" : "hover:shadow-sm",
           block.visible === false && "opacity-60",
-          isGenerating && "bg-accent/10",
-          // Quality-based styling
-          (() => {
-            const contentToCheck = block.content || block.title || block.headline || '';
-            if (!contentToCheck) return '';
-            const quality = assessContentQuality(contentToCheck, 'body');
-            if (quality.level === 'poor') return 'border-l-4 border-l-red-400';
-            if (quality.level === 'fair') return 'border-l-4 border-l-yellow-400';
-            if (quality.level === 'good') return 'border-l-4 border-l-blue-400';
-            if (quality.level === 'excellent') return 'border-l-4 border-l-green-400';
-            return '';
-          })()
+          isGenerating && "bg-accent/10"
         )}
         style={{ pointerEvents: 'auto', overflow: 'visible', backgroundColor: '#ffffff' }}
       >
-        {/* Quality Badge */}
-        {(() => {
-          const contentToCheck = block.content || block.title || block.headline || '';
-          if (!contentToCheck) return null;
-          
-          const quality = assessContentQuality(contentToCheck, 'body');
-          const Icon = quality.level === 'excellent' || quality.level === 'good' ? CheckCircle : AlertTriangle;
-          const color = quality.level === 'excellent' ? 'text-green-600 bg-green-50' : 
-                       quality.level === 'good' ? 'text-blue-600 bg-blue-50' : 
-                       quality.level === 'fair' ? 'text-yellow-600 bg-yellow-50' : 'text-red-600 bg-red-50';
-          
-          return (
-            <div className={`absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs ${color} opacity-0 group-hover:opacity-100 transition-opacity`}>
-              <Icon className="w-3 h-3" />
-              {quality.level}
-            </div>
-          );
-        })()}
         {/* Loading overlay when content is being generated */}
         {isGenerating && <BlockLoadingOverlay />}
         
