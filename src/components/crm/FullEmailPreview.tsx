@@ -49,12 +49,20 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
 
   // Generate the complete email HTML with footer
   const completeEmailHtml = useMemo(() => {
-    // Check if content already has a proper footer (check for multiple indicators)
-    const hasFooter = content.includes('Unsubscribe') && 
-                     (content.includes('viewBox="0 0 24 24"') || // SVG icons
-                      content.includes('social-icons/') || // PNG icons
-                      content.includes('email-footer') || // Footer class
-                      content.includes('Manage Preferences')); // Footer link
+    // Check if content already has a proper footer - comprehensive detection
+    const hasUnsubscribe = content.toLowerCase().includes('unsubscribe');
+    const hasFooterStructure = content.includes('Manage Preferences') || 
+                               content.includes('manage-preferences') ||
+                               content.includes('margin-top: 40px') || // Footer container style
+                               content.includes('max-width: 640px'); // Footer inner container
+    const hasSocialIcons = content.includes('social-icons/') || 
+                           content.includes('/storage/v1/object/public/assets/social-icons/') ||
+                           content.includes('viewBox="0 0 24 24"');
+    
+    // If we have unsubscribe AND either footer structure or social icons, don't add another footer
+    const hasFooter = hasUnsubscribe && (hasFooterStructure || hasSocialIcons);
+    
+    console.log('[FullEmailPreview] Footer detection:', { hasUnsubscribe, hasFooterStructure, hasSocialIcons, hasFooter });
 
     if (hasFooter) {
       return content;
