@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
@@ -8,6 +8,8 @@ import { CTAButton } from '@/components/ui/CTAButton';
 import { cn } from '@/lib/utils';
 import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
 import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
+import { ImageSourcePicker } from './ImageSourcePicker';
+import { AIPersonalizationDialog } from '@/components/crm/AIPersonalizationDialog';
 import { OPACITY_DEFAULTS, normalizeOpacityToDecimal } from '@/utils/opacityUtils';
 
 interface ImageBlockPreviewProps {
@@ -24,6 +26,8 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
   isGenerating = false
 }) => {
   const [inlineEditMode, setInlineEditMode] = useState<InlineEditMode>(null);
+  const [showAIDialog, setShowAIDialog] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate opacity values using shared utility for WYSIWYG consistency
   const backgroundOpacityDecimal = normalizeOpacityToDecimal(block.backgroundOpacity, OPACITY_DEFAULTS.backgroundImage);
@@ -88,6 +92,50 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
 
   const handleTextAlignChange = useCallback((align: string) => {
     onUpdate({ textAlign: align as any });
+  }, [onUpdate]);
+
+  // Image Source Picker handlers
+  const handleSelectCollection = useCallback(() => {
+    setInlineEditMode('image');
+  }, []);
+
+  const handleUpload = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleGenerateAI = useCallback(() => {
+    setShowAIDialog(true);
+  }, []);
+
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        onUpdate({ 
+          imageUrl: dataUrl, 
+          autoImageMode: false,
+          shouldFetchImage: false,
+          isGeneratingImage: false
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [onUpdate]);
+
+  const handleAIImageSelected = useCallback((imageUrl: string) => {
+    onUpdate({ 
+      imageUrl, 
+      autoImageMode: false,
+      shouldFetchImage: false,
+      isGeneratingImage: false
+    });
+    setShowAIDialog(false);
   }, [onUpdate]);
 
   // Get aspect ratio class for Tailwind
@@ -213,12 +261,11 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
               )}
             </div>
           ) : (
-            <div className={cn(
-              "bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted/80",
-              hasFixedAspect ? aspectClass : "rounded-lg aspect-video"
-            )}>
-              Click to add image
-            </div>
+            <ImageSourcePicker
+              onSelectCollection={handleSelectCollection}
+              onUpload={handleUpload}
+              onGenerateAI={handleGenerateAI}
+            />
           )}
         </div>
       ) : null}
@@ -243,6 +290,24 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
           />
         </div>
       )}
+
+      {/* Hidden file input for uploads */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+
+      {/* AI Image Generation Dialog */}
+      <AIPersonalizationDialog
+        open={showAIDialog}
+        onOpenChange={setShowAIDialog}
+        onImageSelect={handleAIImageSelected}
+        contentContext={block.caption || block.altText || 'Newsletter image'}
+        blockId={block.id}
+      />
     </div>
   );
 };
