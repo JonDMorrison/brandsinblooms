@@ -135,7 +135,9 @@ async function processInline(
   emailPayloads: any[],
   supabase: any,
   campaignId: string,
-  activeDomainId: string | null
+  activeDomainId: string | null,
+  warmupStage: number,
+  dailyLimit: number
 ): Promise<{ sent: number; failed: number }> {
   const BATCH_SIZE = 100;
   let emailsSent = 0;
@@ -172,14 +174,6 @@ async function processInline(
         }
       }
     }
-  }
-
-  // Record usage
-  if (emailsSent > 0 && activeDomainId) {
-    await supabase.rpc('record_email_usage', {
-      p_domain_id: activeDomainId,
-      p_emails_sent: emailsSent
-    }).catch(() => {});
   }
 
   return { sent: emailsSent, failed };
@@ -536,7 +530,33 @@ serve(async (req) => {
         .eq('id', campaignId);
 
       const payloadsOnly = emailPayloads.map(e => e.payload);
-      const { sent, failed } = await processInline(resend, payloadsOnly, supabase, campaignId, activeDomainId);
+      const warmupStage = quotaCheck.domain?.warmup_stage || 0;
+      const dailyLimit = quotaCheck.limits?.daily_limit || 50;
+      const { sent, failed } = await processInline(resend, payloadsOnly, supabase, campaignId, activeDomainId, warmupStage, dailyLimit);
+
+      // Log to domain_send_log for warmup tracking
+      if (sent > 0 && activeDomainId) {
+        await supabase
+          .from('domain_send_log')
+          .insert({
+            domain_id: activeDomainId,
+            campaign_id: campaignId,
+            emails_sent: sent,
+            warmup_stage: warmupStage,
+            daily_limit_at_send: dailyLimit
+          })
+          .catch((err: any) => console.error('Failed to log domain send:', err));
+
+        // Update daily_sent_count on the domain
+        await supabase
+          .from('email_domains')
+          .update({ 
+            daily_sent_count: supabase.rpc ? undefined : (quotaCheck.limits?.daily_used || 0) + sent,
+            daily_used: (quotaCheck.limits?.daily_used || 0) + sent
+          })
+          .eq('id', activeDomainId)
+          .catch((err: any) => console.error('Failed to update domain daily count:', err));
+      }
 
       // Mark all jobs as completed
       await supabase
