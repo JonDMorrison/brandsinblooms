@@ -3,9 +3,11 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/NativeSelect';
+import { Slider } from '@/components/ui/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
 import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
+import { OPACITY_DEFAULTS, normalizeOpacityToDecimal } from '@/utils/opacityUtils';
 
 interface ImageBlockEditorProps {
   block: ContentBlock;
@@ -77,6 +79,131 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
               className="w-full"
             />
           )}
+        </div>
+      </div>
+
+      {/* Image Opacity - only show when image exists */}
+      {block.imageUrl && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="imageOpacity">Image Opacity</Label>
+            <span className="text-sm text-muted-foreground">{block.backgroundOpacity || 100}%</span>
+          </div>
+          <Slider
+            value={[block.backgroundOpacity || 100]}
+            onValueChange={(value) => onUpdate({ backgroundOpacity: value[0] })}
+            max={100}
+            min={1}
+            step={1}
+            className="w-full"
+          />
+        </div>
+      )}
+
+      {/* Dark Overlay - only show when image exists */}
+      {block.imageUrl && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="darkOverlay">Dark Overlay (for text contrast)</Label>
+            <span className="text-sm text-muted-foreground">{block.darkOverlayOpacity || 0}%</span>
+          </div>
+          <Slider
+            id="darkOverlay"
+            value={[block.darkOverlayOpacity || 0]}
+            onValueChange={(value) => onUpdate({ darkOverlayOpacity: value[0] })}
+            max={100}
+            min={0}
+            step={1}
+            className="w-full"
+          />
+          <p className="text-xs text-muted-foreground">Adds a dark overlay to improve text readability</p>
+        </div>
+      )}
+
+      {/* Color Overlay Section */}
+      <div className="space-y-4 pt-2 border-t">
+        <Label className="text-sm font-semibold">Color Overlay</Label>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="bgColor">Overlay Color</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="bgColor"
+                type="color"
+                value={block.backgroundColor || '#000000'}
+                onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+                className="w-16 h-10 p-1 border rounded"
+              />
+              <Input
+                value={block.backgroundColor || '#000000'}
+                onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+                placeholder="#000000"
+                className="flex-1"
+              />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="colorOpacity">Overlay Opacity</Label>
+              <span className="text-sm text-muted-foreground">{block.colorOverlayOpacity || 0}%</span>
+            </div>
+            <Slider
+              value={[block.colorOverlayOpacity || 0]}
+              onValueChange={(value) => onUpdate({ colorOverlayOpacity: value[0] })}
+              max={100}
+              min={0}
+              step={1}
+              className="w-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Image Overlay Section */}
+      <div className="space-y-4 pt-2 border-t">
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Image Overlay (Optional)</Label>
+          <p className="text-xs text-muted-foreground">
+            Add a custom color overlay on top of your image
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="overlayColor">Overlay Color</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="overlayColor"
+                type="color"
+                value={block.overlayColor || '#000000'}
+                onChange={(e) => onUpdate({ overlayColor: e.target.value })}
+                className="w-16 h-10 p-1 border rounded"
+              />
+              <Input
+                value={block.overlayColor || '#000000'}
+                onChange={(e) => onUpdate({ overlayColor: e.target.value })}
+                placeholder="#000000"
+                className="flex-1"
+              />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="overlayOpacity">Overlay Opacity</Label>
+              <span className="text-sm text-muted-foreground">{block.overlayOpacity || 0}%</span>
+            </div>
+            <Slider
+              id="overlayOpacity"
+              value={[block.overlayOpacity || 0]}
+              onValueChange={(value) => onUpdate({ overlayOpacity: value[0] })}
+              max={100}
+              min={0}
+              step={1}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              Set to 0 to disable overlay
+            </p>
+          </div>
         </div>
       </div>
 

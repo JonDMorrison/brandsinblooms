@@ -8,6 +8,7 @@ import { CTAButton } from '@/components/ui/CTAButton';
 import { cn } from '@/lib/utils';
 import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
 import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
+import { OPACITY_DEFAULTS, normalizeOpacityToDecimal } from '@/utils/opacityUtils';
 
 interface ImageBlockPreviewProps {
   block: ContentBlock;
@@ -23,6 +24,12 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
   isGenerating = false
 }) => {
   const [inlineEditMode, setInlineEditMode] = useState<InlineEditMode>(null);
+
+  // Calculate opacity values using shared utility for WYSIWYG consistency
+  const backgroundOpacityDecimal = normalizeOpacityToDecimal(block.backgroundOpacity, OPACITY_DEFAULTS.backgroundImage);
+  const colorOverlayDecimal = normalizeOpacityToDecimal(block.colorOverlayOpacity, OPACITY_DEFAULTS.colorOverlay);
+  const darkOverlayDecimal = normalizeOpacityToDecimal(block.darkOverlayOpacity, OPACITY_DEFAULTS.darkOverlay);
+  const imageOverlayDecimal = normalizeOpacityToDecimal(block.overlayOpacity, OPACITY_DEFAULTS.imageOverlay);
 
   // Use AI image generation
   const contentForImage = block.caption || block.altText || 'Newsletter image';
@@ -85,7 +92,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
 
   return (
     <div className={cn(
-      "relative p-6 group",
+      "relative p-6 group overflow-hidden",
       block.textAlign === 'center' && "text-center",
       block.textAlign === 'right' && "text-right"
     )}>
@@ -125,7 +132,7 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
         </div>
       ) : !isGeneratingImage ? (
         <div 
-          className="cursor-pointer hover:opacity-80 transition-opacity"
+          className="cursor-pointer hover:opacity-80 transition-opacity relative"
           onClick={(e) => handleInlineEdit('image', e)}
           role="button"
           tabIndex={0}
@@ -142,12 +149,46 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
           aria-label="Click to edit image"
         >
           {block.imageUrl ? (
-            <img
-              src={block.imageUrl}
-              alt={block.altText || 'Newsletter image'}
-              className="w-full h-auto rounded-lg block"
-              loading="lazy"
-            />
+            <div className="relative rounded-lg overflow-hidden">
+              {/* Image Layer with opacity */}
+              <img
+                src={block.imageUrl}
+                alt={block.altText || 'Newsletter image'}
+                className="w-full h-auto block"
+                style={{ opacity: backgroundOpacityDecimal }}
+                loading="lazy"
+              />
+              
+              {/* Dark Overlay - for text contrast */}
+              {darkOverlayDecimal > 0 && (
+                <div 
+                  className="absolute inset-0 bg-black pointer-events-none"
+                  style={{ opacity: darkOverlayDecimal }}
+                />
+              )}
+              
+              {/* Color Overlay */}
+              {block.backgroundColor && colorOverlayDecimal > 0 && (
+                <div 
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ 
+                    backgroundColor: block.backgroundColor,
+                    opacity: colorOverlayDecimal
+                  }}
+                />
+              )}
+
+              {/* Custom Image Overlay */}
+              {imageOverlayDecimal > 0 && (
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    backgroundColor: block.overlayColor || '#000000',
+                    opacity: imageOverlayDecimal
+                  }}
+                />
+              )}
+            </div>
           ) : (
             <div className="bg-muted rounded-lg aspect-video flex items-center justify-center text-muted-foreground hover:bg-muted/80">
               Click to add image
