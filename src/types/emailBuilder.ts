@@ -94,6 +94,7 @@ export interface ContentBlock {
   imageRounded?: boolean;
   imageShadow?: boolean;
   imageBorder?: boolean;
+  aspectRatio?: 'auto' | '16:9' | '4:3' | '1:1' | '4:5';
   
   // New specialized block fields
   headline?: string;

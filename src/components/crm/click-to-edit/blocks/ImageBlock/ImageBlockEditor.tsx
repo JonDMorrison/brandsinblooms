@@ -228,17 +228,34 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Image Alignment</Label>
-        <NativeSelect
-          value={block.textAlign || 'center'}
-          onChange={(e) => handleAlignmentChange(e.target.value)}
-          options={[
-            { value: 'left', label: 'Left' },
-            { value: 'center', label: 'Center' },
-            { value: 'right', label: 'Right' }
-          ]}
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Aspect Ratio</Label>
+          <NativeSelect
+            value={block.aspectRatio || 'auto'}
+            onChange={(e) => onUpdate({ aspectRatio: e.target.value as any })}
+            options={[
+              { value: 'auto', label: 'Auto (Natural)' },
+              { value: '16:9', label: '16:9 (Widescreen)' },
+              { value: '4:3', label: '4:3 (Standard)' },
+              { value: '1:1', label: '1:1 (Square)' },
+              { value: '4:5', label: '4:5 (Portrait)' }
+            ]}
+          />
+          <p className="text-xs text-muted-foreground">Fixed ratios ensure images fill the frame completely</p>
+        </div>
+        <div className="space-y-2">
+          <Label>Image Alignment</Label>
+          <NativeSelect
+            value={block.textAlign || 'center'}
+            onChange={(e) => handleAlignmentChange(e.target.value)}
+            options={[
+              { value: 'left', label: 'Left' },
+              { value: 'center', label: 'Center' },
+              { value: 'right', label: 'Right' }
+            ]}
+          />
+        </div>
       </div>
     </div>
   );
