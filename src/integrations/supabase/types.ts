@@ -3333,6 +3333,68 @@ export type Database = {
         }
         Relationships: []
       }
+      domain_send_log: {
+        Row: {
+          campaign_id: string | null
+          created_at: string | null
+          daily_limit_at_send: number
+          domain_id: string
+          emails_sent: number
+          id: string
+          sent_at: string | null
+          warmup_stage: number
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string | null
+          daily_limit_at_send: number
+          domain_id: string
+          emails_sent?: number
+          id?: string
+          sent_at?: string | null
+          warmup_stage: number
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string | null
+          daily_limit_at_send?: number
+          domain_id?: string
+          emails_sent?: number
+          id?: string
+          sent_at?: string | null
+          warmup_stage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domain_send_log_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "domain_send_log_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "deliverability_summary_30d"
+            referencedColumns: ["domain_id"]
+          },
+          {
+            foreignKeyName: "domain_send_log_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "email_domain_stats_30d"
+            referencedColumns: ["domain_id"]
+          },
+          {
+            foreignKeyName: "domain_send_log_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "email_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       domain_setup_sessions: {
         Row: {
           completed_at: string | null
@@ -3705,6 +3767,7 @@ export type Database = {
           complaint_rate_30d: number | null
           created_at: string | null
           daily_limit: number | null
+          daily_sent_count: number | null
           default_from_email: string | null
           default_from_name: string | null
           dns_records: Json | null
@@ -3713,10 +3776,13 @@ export type Database = {
           entri_provider: string | null
           env: Database["public"]["Enums"]["email_env"] | null
           error: string | null
+          healthy_days_counter: number | null
           hourly_limit: number | null
           id: string
           is_entri_managed: boolean
           is_sandbox: boolean | null
+          last_daily_reset_at: string | null
+          last_stage_updated_at: string | null
           manual_pause: boolean | null
           notes: string | null
           report_email: string | null
@@ -3735,6 +3801,7 @@ export type Database = {
           complaint_rate_30d?: number | null
           created_at?: string | null
           daily_limit?: number | null
+          daily_sent_count?: number | null
           default_from_email?: string | null
           default_from_name?: string | null
           dns_records?: Json | null
@@ -3743,10 +3810,13 @@ export type Database = {
           entri_provider?: string | null
           env?: Database["public"]["Enums"]["email_env"] | null
           error?: string | null
+          healthy_days_counter?: number | null
           hourly_limit?: number | null
           id?: string
           is_entri_managed?: boolean
           is_sandbox?: boolean | null
+          last_daily_reset_at?: string | null
+          last_stage_updated_at?: string | null
           manual_pause?: boolean | null
           notes?: string | null
           report_email?: string | null
@@ -3765,6 +3835,7 @@ export type Database = {
           complaint_rate_30d?: number | null
           created_at?: string | null
           daily_limit?: number | null
+          daily_sent_count?: number | null
           default_from_email?: string | null
           default_from_name?: string | null
           dns_records?: Json | null
@@ -3773,10 +3844,13 @@ export type Database = {
           entri_provider?: string | null
           env?: Database["public"]["Enums"]["email_env"] | null
           error?: string | null
+          healthy_days_counter?: number | null
           hourly_limit?: number | null
           id?: string
           is_entri_managed?: boolean
           is_sandbox?: boolean | null
+          last_daily_reset_at?: string | null
+          last_stage_updated_at?: string | null
           manual_pause?: boolean | null
           notes?: string | null
           report_email?: string | null
@@ -7768,6 +7842,27 @@ export type Database = {
           },
         ]
       }
+      warmup_stage_rules: {
+        Row: {
+          created_at: string | null
+          daily_limit: number
+          required_healthy_days: number
+          stage: number
+        }
+        Insert: {
+          created_at?: string | null
+          daily_limit: number
+          required_healthy_days: number
+          stage: number
+        }
+        Update: {
+          created_at?: string | null
+          daily_limit?: number
+          required_healthy_days?: number
+          stage?: number
+        }
+        Relationships: []
+      }
       website_waitlist: {
         Row: {
           created_at: string
@@ -8142,6 +8237,17 @@ export type Database = {
           open_rate_30d: number
           tenant_id: string
           verification_status: string
+          warmup_stage: number
+        }[]
+      }
+      get_domain_remaining_limit: {
+        Args: { p_domain_id: string }
+        Returns: {
+          daily_limit: number
+          daily_sent_count: number
+          domain_id: string
+          healthy_days_counter: number
+          remaining_limit: number
           warmup_stage: number
         }[]
       }

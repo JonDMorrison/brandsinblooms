@@ -275,3 +275,6 @@ verify_jwt = true
 
 [functions.suppression-checker]
 verify_jwt = false
+
+[functions.reset-daily-limits]
+verify_jwt = false
