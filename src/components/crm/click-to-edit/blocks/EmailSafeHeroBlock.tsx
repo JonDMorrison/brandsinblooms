@@ -119,7 +119,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
         <div className="w-full">
           <img 
             src={block.imageUrl} 
-            alt={block.altText || 'Hero image'}
+            alt={block.altText || ''}
             className="w-full h-auto object-cover"
             style={{ maxHeight: '400px' }}
           />

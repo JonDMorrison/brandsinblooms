@@ -52,14 +52,14 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
           <a href={block.ctaUrl} target="_blank" rel="noopener noreferrer">
             <img 
               src={block.imageUrl} 
-              alt={block.altText || 'Graphic hero'}
+              alt={block.altText || ''}
               className="w-full h-auto object-cover"
             />
           </a>
         ) : (
           <img 
             src={block.imageUrl} 
-            alt={block.altText || 'Graphic hero'}
+            alt={block.altText || ''}
             className="w-full h-auto object-cover"
           />
         )

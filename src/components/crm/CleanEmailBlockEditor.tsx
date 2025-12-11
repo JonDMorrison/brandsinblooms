@@ -26,6 +26,7 @@ interface CleanEmailBlockEditorProps {
 const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: ContentBlock['type']; config: Partial<ContentBlock> }> => {
   switch (layoutType) {
     // NEW: Email-safe hero - recommended for dark mode compatibility
+    // Uses light neutral (#f5f5f7) and near-black (#111111) to prevent dark mode inversion
     case 'email-safe-hero':
       return {
         type: 'email-safe-hero',
@@ -39,8 +40,8 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           ctaText: '',
           ctaUrl: '',
           textAlign: 'center',
-          backgroundColor: '#ffffff',
-          textColor: '#000000',
+          backgroundColor: '#f5f5f7',
+          textColor: '#111111',
           padding: 'large',
           shouldFetchImage: false,
           isGeneratingImage: false,

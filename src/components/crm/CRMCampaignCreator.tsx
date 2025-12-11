@@ -3179,20 +3179,24 @@ const { counts: segmentCounts } = useSegmentCounts();
           break;
 
         // NEW: Email Safe Hero - text on solid background, image below (Mailchimp/Klaviyo pattern)
+        // Uses light neutral background (#f5f5f7) and near-black text (#111111) to prevent
+        // dark mode inversion issues in email clients like Gmail mobile
         case 'email-safe-hero':
           const safeHeroAlign = block.alignment || 'center';
-          const safeHeroBgColor = block.backgroundColor || '#ffffff';
-          const safeHeroTextColor = '#000000'; // Always dark text for email safety
+          // Use light neutral instead of pure white to prevent dark mode inversion
+          const safeHeroBgColor = block.backgroundColor || '#f5f5f7';
+          // Use near-black instead of pure black for better dark mode handling
+          const safeHeroTextColor = '#111111';
           const safeHeroButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
           
           html += `
-            <!-- Email Safe Hero: Text Section -->
+            <!-- Email Safe Hero: Text Section (dark mode safe: light neutral bg + near-black text) -->
             <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: ${safeHeroBgColor};">
               <tr>
-                <td align="center" style="padding: 32px 16px;">
+                <td align="center" style="padding: 32px 16px; background-color: ${safeHeroBgColor};">
                   <table role="presentation" border="0" cellspacing="0" cellpadding="0" width="100%" style="max-width: 640px;">
                     <tr>
-                      <td align="${safeHeroAlign}" style="font-family: ${fonts.bodyFont}; color: ${safeHeroTextColor} !important;">
+                      <td align="${safeHeroAlign}" style="font-family: ${fonts.bodyFont}; color: ${safeHeroTextColor} !important; background-color: ${safeHeroBgColor};">
                         ${block.eyebrow ? `
                           <p style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; color: ${safeHeroTextColor} !important; opacity: 0.6;">
                             ${block.eyebrow}
@@ -3249,6 +3253,8 @@ const { counts: segmentCounts } = useSegmentCounts();
 
         // NEW: Graphic Hero - single clickable image (text baked in)
         case 'graphic-hero':
+          // Use empty alt if not provided (no "Untitled" or "Hero image" defaults)
+          const graphicHeroAlt = block.altText || '';
           html += `
             <!-- Graphic Hero: Full-width clickable image -->
             <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -3257,7 +3263,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                   ${block.ctaUrl ? `<a href="${block.ctaUrl}" target="_blank" style="display: block;">` : ''}
                     <img
                       src="${block.imageUrl || ''}"
-                      alt="${block.altText || 'Hero image'}"
+                      alt="${graphicHeroAlt}"
                       style="display: block; width: 100%; max-width: 640px; border: 0; outline: none; text-decoration: none;"
                     />
                   ${block.ctaUrl ? `</a>` : ''}
@@ -3593,17 +3599,10 @@ const { counts: segmentCounts } = useSegmentCounts();
           break;
 
         case 'social-follow':
-          html += `
-            <div style="text-align: center; margin: 30px 0; padding: 20px; background: #f8fafc; border-radius: 8px;">
-              ${blockHeadline ? `<h3 style="color: ${companyInfo?.brandSecondaryColor || '#1e40af'}; margin: 0 0 10px 0; font-size: 20px;">${blockHeadline}</h3>` : ''}
-              ${blockBody ? `<div style="color: ${companyInfo?.brandTextColor || '#64748b'}; margin: 0 0 20px 0;">${blockBody}</div>` : ''}
-              <div style="display: inline-block;">
-                <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #1877f2; color: white; text-decoration: none; border-radius: 4px;">Facebook</a>
-                <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #1da1f2; color: white; text-decoration: none; border-radius: 4px;">Twitter</a>
-                <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #e4405f; color: white; text-decoration: none; border-radius: 4px;">Instagram</a>
-              </div>
-            </div>
-          `;
+          // SKIP: Social follow blocks should not render in email HTML
+          // The server-side footer now handles all social links
+          // This prevents duplicate social icons in sent emails
+          console.log('[EMAIL-HTML] Skipping social-follow block - social links handled by server footer');
           break;
 
         case 'newsletter-header':
