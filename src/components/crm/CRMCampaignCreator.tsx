@@ -3185,8 +3185,8 @@ const { counts: segmentCounts } = useSegmentCounts();
           const safeHeroAlign = block.alignment || 'center';
           // Use light neutral instead of pure white to prevent dark mode inversion
           const safeHeroBgColor = block.backgroundColor || '#f5f5f7';
-          // Use near-black instead of pure black for better dark mode handling
-          const safeHeroTextColor = '#111111';
+          // Respect block's textColor, with fallback to near-black for dark mode handling
+          const safeHeroTextColor = block.textColor || '#111111';
           const safeHeroButtonColor = block.buttonColor || companyInfo?.brandPrimaryColor || '#22c55e';
           
           html += `
