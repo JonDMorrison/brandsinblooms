@@ -90,9 +90,25 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
     onUpdate({ textAlign: align as any });
   }, [onUpdate]);
 
+  // Get aspect ratio class for Tailwind
+  const getAspectRatioClass = () => {
+    switch (block.aspectRatio) {
+      case '16:9': return 'aspect-video';
+      case '4:3': return 'aspect-[4/3]';
+      case '1:1': return 'aspect-square';
+      case '4:5': return 'aspect-[4/5]';
+      default: return null; // 'auto' or undefined = natural size
+    }
+  };
+
+  const aspectClass = getAspectRatioClass();
+  const hasFixedAspect = aspectClass !== null;
+
   return (
     <div className={cn(
-      "relative p-6 group overflow-hidden",
+      "relative group overflow-hidden",
+      // Remove padding when using fixed aspect ratio for edge-to-edge images
+      hasFixedAspect ? "p-0" : "p-6",
       block.textAlign === 'center' && "text-center",
       block.textAlign === 'right' && "text-right"
     )}>
@@ -149,12 +165,19 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
           aria-label="Click to edit image"
         >
           {block.imageUrl ? (
-            <div className="relative rounded-lg overflow-hidden">
-              {/* Image Layer with opacity */}
+            <div className={cn(
+              "relative overflow-hidden",
+              hasFixedAspect ? aspectClass : "rounded-lg"
+            )}>
+              {/* Image Layer with opacity - uses object-cover for fixed aspect ratios */}
               <img
                 src={block.imageUrl}
                 alt={block.altText || 'Newsletter image'}
-                className="w-full h-auto block"
+                className={cn(
+                  hasFixedAspect 
+                    ? "absolute inset-0 w-full h-full object-cover" 
+                    : "w-full h-auto block"
+                )}
                 style={{ opacity: backgroundOpacityDecimal }}
                 loading="lazy"
               />
@@ -190,7 +213,10 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
               )}
             </div>
           ) : (
-            <div className="bg-muted rounded-lg aspect-video flex items-center justify-center text-muted-foreground hover:bg-muted/80">
+            <div className={cn(
+              "bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted/80",
+              hasFixedAspect ? aspectClass : "rounded-lg aspect-video"
+            )}>
               Click to add image
             </div>
           )}
