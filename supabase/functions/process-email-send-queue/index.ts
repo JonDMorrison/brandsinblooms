@@ -9,6 +9,8 @@ const corsHeaders = {
 
 const MAX_JOBS_PER_INVOCATION = 10;
 const RESEND_BATCH_SIZE = 100;
+const MAX_ATTEMPTS = 3;
+const DEFAULT_BATCH_DELAY_MS = 500;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -16,6 +18,7 @@ serve(async (req) => {
   }
 
   const startTime = Date.now();
+  const batchDelayMs = parseInt(Deno.env.get('EMAIL_BATCH_DELAY_MS') || String(DEFAULT_BATCH_DELAY_MS), 10);
   
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -33,11 +36,12 @@ serve(async (req) => {
 
     const resend = new Resend(resendApiKey);
 
-    // Fetch pending jobs, ordered by creation time then batch index
+    // Fetch pending jobs that haven't exceeded max attempts, ordered by creation time
     const { data: jobs, error: fetchError } = await supabase
       .from('email_send_jobs')
       .select('*')
       .eq('status', 'pending')
+      .lt('attempts', MAX_ATTEMPTS)
       .order('created_at', { ascending: true })
       .order('batch_index', { ascending: true })
       .limit(MAX_JOBS_PER_INVOCATION);
@@ -58,13 +62,15 @@ serve(async (req) => {
       );
     }
 
-    console.log(`📧 Processing ${jobs.length} email send jobs...`);
+    console.log(`📧 Processing ${jobs.length} email send jobs (batch delay: ${batchDelayMs}ms)...`);
 
     let processedCount = 0;
     let totalEmailsSent = 0;
     let totalEmailsFailed = 0;
+    const failedCampaigns = new Set<string>();
 
-    for (const job of jobs) {
+    for (let jobIndex = 0; jobIndex < jobs.length; jobIndex++) {
+      const job = jobs[jobIndex];
       const jobStartTime = Date.now();
       
       // Check if we're approaching timeout (leave 10s buffer)
@@ -75,20 +81,22 @@ serve(async (req) => {
 
       try {
         // Mark job as in_progress
+        const newAttempts = job.attempts + 1;
         await supabase
           .from('email_send_jobs')
           .update({ 
             status: 'in_progress', 
-            attempts: job.attempts + 1,
+            attempts: newAttempts,
             updated_at: new Date().toISOString()
           })
           .eq('id', job.id);
 
-        console.log(`📧 Processing job ${job.id} (batch ${job.batch_index}, ${job.recipient_emails.length} recipients)`);
+        console.log(`📧 Processing job ${job.id} (batch ${job.batch_index}, attempt ${newAttempts}/${MAX_ATTEMPTS}, ${job.recipient_emails.length} recipients)`);
 
         const recipients = job.recipient_emails as any[];
         let emailsSent = 0;
         let emailsFailed = 0;
+        let lastError: string | null = null;
 
         // Process in sub-batches of RESEND_BATCH_SIZE
         for (let i = 0; i < recipients.length; i += RESEND_BATCH_SIZE) {
@@ -108,11 +116,18 @@ serve(async (req) => {
               emailsFailed += batch.length - successCount;
             } else if (batchResponse?.error) {
               emailsFailed += batch.length;
+              lastError = batchResponse.error?.message || 'Batch send failed';
               console.error(`❌ Batch send failed:`, batchResponse.error);
             }
           } catch (batchError: any) {
+            lastError = batchError.message || 'Unknown batch error';
             console.error(`❌ Batch error:`, batchError.message);
             emailsFailed += batch.length;
+          }
+
+          // Rate limiting: add delay between sub-batches
+          if (i + RESEND_BATCH_SIZE < recipients.length) {
+            await new Promise(resolve => setTimeout(resolve, batchDelayMs));
           }
         }
 
@@ -123,18 +138,10 @@ serve(async (req) => {
             status: 'completed',
             emails_sent: emailsSent,
             emails_failed: emailsFailed,
+            error_message: emailsFailed > 0 ? lastError : null,
             updated_at: new Date().toISOString()
           })
           .eq('id', job.id);
-
-        // Update campaign metrics
-        await supabase.rpc('increment_campaign_sent_count', {
-          p_campaign_id: job.campaign_id,
-          p_sent_count: emailsSent
-        }).catch((e: any) => {
-          // Fallback: direct update if RPC doesn't exist
-          console.log('RPC not available, using direct update');
-        });
 
         totalEmailsSent += emailsSent;
         totalEmailsFailed += emailsFailed;
@@ -145,18 +152,49 @@ serve(async (req) => {
       } catch (jobError: any) {
         console.error(`❌ Job ${job.id} failed:`, jobError.message);
         
+        const newAttempts = job.attempts + 1;
+        const isFinalAttempt = newAttempts >= MAX_ATTEMPTS;
+        
         await supabase
           .from('email_send_jobs')
           .update({ 
-            status: 'failed',
+            status: isFinalAttempt ? 'failed' : 'pending',
             error_message: jobError.message?.substring(0, 500),
             updated_at: new Date().toISOString()
           })
           .eq('id', job.id);
+
+        if (isFinalAttempt) {
+          failedCampaigns.add(job.campaign_id);
+          console.error(`❌ Job ${job.id} permanently failed after ${MAX_ATTEMPTS} attempts`);
+        }
+      }
+
+      // Rate limiting: add delay between jobs
+      if (jobIndex < jobs.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, batchDelayMs));
       }
     }
 
-    // Check if any campaigns are fully complete
+    // Mark permanently failed jobs and update campaign error status
+    const { data: permanentlyFailedJobs } = await supabase
+      .from('email_send_jobs')
+      .select('campaign_id')
+      .eq('status', 'pending')
+      .gte('attempts', MAX_ATTEMPTS);
+
+    if (permanentlyFailedJobs && permanentlyFailedJobs.length > 0) {
+      // Mark these as failed
+      await supabase
+        .from('email_send_jobs')
+        .update({ status: 'failed', updated_at: new Date().toISOString() })
+        .eq('status', 'pending')
+        .gte('attempts', MAX_ATTEMPTS);
+
+      permanentlyFailedJobs.forEach(j => failedCampaigns.add(j.campaign_id));
+    }
+
+    // Check campaign completion status
     const campaignIds = [...new Set(jobs.map(j => j.campaign_id))];
     
     for (const campaignId of campaignIds) {
@@ -168,24 +206,39 @@ serve(async (req) => {
         .limit(1);
 
       if (!pendingJobs || pendingJobs.length === 0) {
-        // All jobs for this campaign are done, calculate final metrics
+        // All jobs for this campaign are done
         const { data: completedJobs } = await supabase
           .from('email_send_jobs')
-          .select('emails_sent, emails_failed')
+          .select('emails_sent, emails_failed, status, error_message')
           .eq('campaign_id', campaignId);
 
         const totalSent = completedJobs?.reduce((sum, j) => sum + (j.emails_sent || 0), 0) || 0;
         const totalFailed = completedJobs?.reduce((sum, j) => sum + (j.emails_failed || 0), 0) || 0;
+        const failedJobs = completedJobs?.filter(j => j.status === 'failed') || [];
+        const hasErrors = failedJobs.length > 0;
+
+        const updateData: any = {
+          status: hasErrors ? 'sent_with_errors' : 'sent',
+          metrics: { 
+            sent: totalSent, 
+            failed: totalFailed, 
+            opens: 0, 
+            clicks: 0, 
+            unsubscribes: 0,
+            failed_batches: failedJobs.length
+          }
+        };
+
+        if (hasErrors) {
+          updateData.send_blocked_reason = `${failedJobs.length} batch(es) failed after ${MAX_ATTEMPTS} attempts`;
+        }
 
         await supabase
           .from('crm_campaigns')
-          .update({ 
-            status: 'sent',
-            metrics: { sent: totalSent, failed: totalFailed, opens: 0, clicks: 0, unsubscribes: 0 }
-          })
+          .update(updateData)
           .eq('id', campaignId);
 
-        console.log(`🎉 Campaign ${campaignId} completed: ${totalSent} sent, ${totalFailed} failed`);
+        console.log(`🎉 Campaign ${campaignId} completed: ${totalSent} sent, ${totalFailed} failed${hasErrors ? ' (with errors)' : ''}`);
       }
     }
 
@@ -197,6 +250,7 @@ serve(async (req) => {
         processed: processedCount,
         emails_sent: totalEmailsSent,
         emails_failed: totalEmailsFailed,
+        failed_campaigns: failedCampaigns.size,
         duration_ms: duration
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
