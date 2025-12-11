@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Facebook, Twitter, Instagram, Youtube } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
+import { ColorPickerWithSwatches } from '../shared/ColorPickerWithSwatches';
 
 interface SocialFollowBlockProps {
   block: ContentBlock;
@@ -176,15 +177,13 @@ export const SocialFollowBlock: React.FC<SocialFollowBlockProps> = ({ block, onU
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="iconColor">Icon Color</Label>
-          <Input
-            id="iconColor"
-            type="color"
-            value={iconColor}
-            onChange={(e) => onUpdate({ iconColor: e.target.value })}
-          />
-        </div>
+        <ColorPickerWithSwatches
+          label="Icon Color"
+          id="iconColor"
+          value={iconColor}
+          onChange={(color) => onUpdate({ iconColor: color })}
+          defaultValue="#1f2937"
+        />
 
         <div className="space-y-2">
           <Label>Icon Size</Label>

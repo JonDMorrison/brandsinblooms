@@ -13,6 +13,7 @@ import { EditMode } from '@/hooks/useBlockEditMode';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
 import { useAutoBackgroundImage } from '@/hooks/useAutoBackgroundImage';
 import { SafeHtml } from '@/components/ui/safe-html';
+import { ColorPickerWithSwatches } from '../shared/ColorPickerWithSwatches';
 import { AIImageLoadingOverlay } from '../AIImageLoadingOverlay';
 
 interface HeaderBlockProps {
@@ -296,22 +297,20 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       <div className="space-y-4">
         <Label>Color Overlay</Label>
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="bgColor">Overlay Color</Label>
-            <Input
-              id="bgColor"
-              type="color"
-              value={block.backgroundColor || '#000000'}
-              onChange={(e) => {
-                console.log('[HeaderBlock Color Input]', {
-                  newValue: e.target.value,
-                  oldValue: block.backgroundColor,
-                  isBlack: e.target.value === '#000000'
-                });
-                onUpdate({ backgroundColor: e.target.value });
-              }}
-            />
-          </div>
+          <ColorPickerWithSwatches
+            label="Overlay Color"
+            id="bgColor"
+            value={block.backgroundColor || '#000000'}
+            onChange={(color) => {
+              console.log('[HeaderBlock Color Input]', {
+                newValue: color,
+                oldValue: block.backgroundColor,
+                isBlack: color === '#000000'
+              });
+              onUpdate({ backgroundColor: color });
+            }}
+            defaultValue="#000000"
+          />
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="colorOpacity">Overlay Opacity</Label>
