@@ -260,3 +260,6 @@ verify_jwt = false
 
 [functions.lapsed-customer-checker]
 verify_jwt = false
+
+[functions.email-tracking-webhook]
+verify_jwt = false
