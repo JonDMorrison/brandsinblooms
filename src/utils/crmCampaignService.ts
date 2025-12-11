@@ -4,6 +4,7 @@ import { normalizeBlockForSave, convertEmailBlockToContentBlock } from '@/utils/
 import { ContentBlock } from '@/types/emailBuilder';
 
 export interface CampaignData {
+  id?: string; // Optional - if provided, will UPDATE instead of INSERT
   name: string;
   subject: string;
   sender_name: string;
@@ -60,32 +61,65 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
       throw new Error('User tenant not found');
     }
 
-    // Create the campaign
-    const { data: campaign, error: campaignError } = await supabase
-      .from('crm_campaigns')
-      .insert({
-        tenant_id: userProfile.tenant_id,
-        user_id: user.id,
-        name: campaignData.name,
-        subject_line: campaignData.subject, // Map to the correct column name
-        sender_name: campaignData.sender_name,
-        sender_email: campaignData.sender_email,
-        preheader: campaignData.preheader,
-        content: campaignData.content, // Save the actual HTML content
-        status: 'draft',
-        source_content_task_id: campaignData.source_content_id, // Map to the correct field
-        metrics: {
-          sent: 0,
-          delivered: 0,
-          opened: 0,
-          clicked: 0,
-          bounced: 0,
-          unsubscribed: 0,
-          revenue: 0
-        }
-      })
-      .select()
-      .single();
+    const campaignPayload = {
+      tenant_id: userProfile.tenant_id,
+      user_id: user.id,
+      name: campaignData.name,
+      subject_line: campaignData.subject,
+      sender_name: campaignData.sender_name,
+      sender_email: campaignData.sender_email,
+      preheader: campaignData.preheader,
+      content: campaignData.content,
+      status: 'draft',
+      source_content_task_id: campaignData.source_content_id,
+      metrics: {
+        sent: 0,
+        delivered: 0,
+        opened: 0,
+        clicked: 0,
+        bounced: 0,
+        unsubscribed: 0,
+        revenue: 0
+      }
+    };
+
+    let campaign: any;
+    let campaignError: any;
+
+    // If campaign ID provided, UPDATE existing campaign instead of creating duplicate
+    if (campaignData.id) {
+      console.log('📝 Updating existing campaign:', campaignData.id);
+      const { data, error } = await supabase
+        .from('crm_campaigns')
+        .update({
+          name: campaignData.name,
+          subject_line: campaignData.subject,
+          sender_name: campaignData.sender_name,
+          sender_email: campaignData.sender_email,
+          preheader: campaignData.preheader,
+          content: campaignData.content,
+          status: 'draft', // Reset to draft on re-save
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaignData.id)
+        .eq('user_id', user.id) // Security: ensure user owns campaign
+        .select()
+        .single();
+      
+      campaign = data;
+      campaignError = error;
+    } else {
+      // Create NEW campaign
+      console.log('📝 Creating new campaign');
+      const { data, error } = await supabase
+        .from('crm_campaigns')
+        .insert(campaignPayload)
+        .select()
+        .single();
+      
+      campaign = data;
+      campaignError = error;
+    }
 
     if (campaignError) throw campaignError;
 
@@ -108,6 +142,15 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
 
     // Save campaign blocks if content blocks are provided
     if (campaignData.content_blocks && campaignData.content_blocks.length > 0) {
+      // If updating an existing campaign, delete old blocks first
+      if (campaignData.id) {
+        console.log('🗑️ Deleting old blocks for campaign update:', campaign.id);
+        await supabase
+          .from('campaign_blocks')
+          .delete()
+          .eq('campaign_id', campaign.id);
+      }
+      
       // CRITICAL FIX: Use canonical normalizeBlockForSave for consistent field mapping
       // This prevents content erasure by ensuring all block fields are properly mapped
       const blocks = campaignData.content_blocks.map((block, index) => {
@@ -177,6 +220,21 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         console.error('Error saving campaign blocks:', blocksError);
         // Don't fail the whole operation for blocks
       }
+    }
+
+    // Handle segment linking
+    // If updating, clear old segment links first
+    if (campaignData.id) {
+      await supabase
+        .from('campaign_segments')
+        .delete()
+        .eq('campaign_id', campaign.id);
+      
+      // Also clear single segment_id
+      await supabase
+        .from('crm_campaigns')
+        .update({ segment_id: null })
+        .eq('id', campaign.id);
     }
 
     // Handle segment linking - single segment vs multiple segments

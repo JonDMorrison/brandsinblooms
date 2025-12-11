@@ -36,6 +36,7 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
   }, []);
 
   const sendCampaign = useCallback(async (params: {
+    campaignId?: string; // Optional - if provided, will UPDATE instead of creating duplicate
     campaignName: string;
     subjectLine: string;
     preheaderText: string;
@@ -46,6 +47,7 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
     segments: Array<{ id: string; name: string; customer_count: number }>;
   }) => {
     const { 
+      campaignId: existingCampaignId,
       campaignName, 
       subjectLine, 
       preheaderText,
@@ -82,6 +84,7 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
     let campaign: any;
     try {
       const campaignData: CampaignData = {
+        id: existingCampaignId, // Pass existing ID to UPDATE instead of INSERT
         name: campaignName,
         subject: subjectLine,
         sender_name: senderName,

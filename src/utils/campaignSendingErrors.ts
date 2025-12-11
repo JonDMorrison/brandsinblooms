@@ -48,9 +48,9 @@ export const SEND_ERRORS: Record<SendErrorCode, Omit<SendError, 'code'>> = {
     recoverable: true
   },
   NO_OPTED_IN_CUSTOMERS: {
-    title: "No eligible recipients",
-    description: "No customers in the selected segment have opted in to receive emails.",
-    action: "Check that customers have email_opt_in enabled or select a different segment.",
+    title: "No opted-in recipients",
+    description: "None of your contacts have opted in to receive marketing emails. Contacts must have email consent enabled before you can send to them.",
+    action: "Go to Contacts and enable 'Email Opt-In' for customers who have given consent, or import contacts with opt-in status.",
     recoverable: true
   },
   EMAIL_SERVICE_NOT_CONFIGURED: {
@@ -120,7 +120,12 @@ export function parseEdgeFunctionError(error: any): SendError {
     return { code: 'NO_SEGMENTS', ...SEND_ERRORS.NO_SEGMENTS };
   }
   
-  if (message.includes('No customers found') || message.includes('No eligible recipients')) {
+  if (message.includes('No customers found') || 
+      message.includes('No eligible recipients') || 
+      message.includes('No contacts found') ||
+      message.includes('no opted-in') ||
+      message.includes('have not opted in') ||
+      message.includes('No opted-in recipients')) {
     return { code: 'NO_OPTED_IN_CUSTOMERS', ...SEND_ERRORS.NO_OPTED_IN_CUSTOMERS };
   }
   
