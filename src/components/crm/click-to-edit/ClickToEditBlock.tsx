@@ -228,8 +228,14 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         return;
       }
       
-      // Don't show text edit mode for image-only blocks without text content
-      if (block.type === 'image' && !block.content && !block.title) {
+      // Don't show text edit mode for image-only blocks (full-width images, graphic-hero)
+      // These blocks don't have text content to edit
+      const isImageOnlyBlock = 
+        block.type === 'graphic-hero' ||
+        (block.type === 'image' && block.layout === 'full-width') ||
+        (block.type === 'image' && !block.content && !block.title && !block.headline && !block.body);
+      
+      if (isImageOnlyBlock) {
         return;
       }
       toggleMode('text'); // Default to text editing on click
