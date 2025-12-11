@@ -2455,6 +2455,7 @@ export type Database = {
       crm_sms_campaigns: {
         Row: {
           created_at: string
+          enqueued: boolean
           from_phone: string | null
           id: string
           image_url: string | null
@@ -2475,6 +2476,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          enqueued?: boolean
           from_phone?: string | null
           id?: string
           image_url?: string | null
@@ -2495,6 +2497,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          enqueued?: boolean
           from_phone?: string | null
           id?: string
           image_url?: string | null
@@ -6671,6 +6674,59 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_send_jobs: {
+        Row: {
+          attempts: number
+          batch_index: number
+          campaign_id: string | null
+          created_at: string | null
+          error_message: string | null
+          from_phone: string | null
+          id: string
+          messaging_service_sid: string | null
+          recipient_message_ids: string[]
+          status: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          batch_index: number
+          campaign_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          from_phone?: string | null
+          id?: string
+          messaging_service_sid?: string | null
+          recipient_message_ids: string[]
+          status?: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          batch_index?: number
+          campaign_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          from_phone?: string | null
+          id?: string
+          messaging_service_sid?: string | null
+          recipient_message_ids?: string[]
+          status?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_send_jobs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_sms_campaigns"
             referencedColumns: ["id"]
           },
         ]
