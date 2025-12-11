@@ -7,7 +7,6 @@ import { Slider } from '@/components/ui/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
 import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
-import { OPACITY_DEFAULTS, normalizeOpacityToDecimal } from '@/utils/opacityUtils';
 
 interface ImageBlockEditorProps {
   block: ContentBlock;
@@ -21,7 +20,7 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
   isGenerating = false
 }) => {
   // Use AI image generation for standalone image blocks
-  const contentForImage = block.caption || block.altText || 'Newsletter image';
+  const contentForImage = 'Newsletter image';
   
   const { isGeneratingImage } = useBlockImageGeneration({
     blockId: block.id,
@@ -47,18 +46,6 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
       shouldFetchImage: false,
       isGeneratingImage: false
     });
-  }, [onUpdate]);
-
-  const handleCaptionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ caption: e.target.value });
-  }, [onUpdate]);
-
-  const handleAltTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ altText: e.target.value });
-  }, [onUpdate]);
-
-  const handleAlignmentChange = useCallback((value: string) => {
-    onUpdate({ textAlign: value as any });
   }, [onUpdate]);
 
   return (
@@ -104,7 +91,7 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
       {block.imageUrl && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label htmlFor="darkOverlay">Dark Overlay (for text contrast)</Label>
+            <Label htmlFor="darkOverlay">Dark Overlay</Label>
             <span className="text-sm text-muted-foreground">{block.darkOverlayOpacity || 0}%</span>
           </div>
           <Slider
@@ -116,7 +103,6 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
             step={1}
             className="w-full"
           />
-          <p className="text-xs text-muted-foreground">Adds a dark overlay to improve text readability</p>
         </div>
       )}
 
@@ -207,55 +193,21 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="caption">Caption (Optional)</Label>
-          <Input
-            id="caption"
-            value={block.caption || ''}
-            onChange={handleCaptionChange}
-            placeholder="Enter image caption"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="altText">Alt Text</Label>
-          <Input
-            id="altText"
-            value={block.altText || ''}
-            onChange={handleAltTextChange}
-            placeholder="Describe the image"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Aspect Ratio</Label>
-          <NativeSelect
-            value={block.aspectRatio || 'auto'}
-            onChange={(e) => onUpdate({ aspectRatio: e.target.value as any })}
-            options={[
-              { value: 'auto', label: 'Auto (Natural)' },
-              { value: '16:9', label: '16:9 (Widescreen)' },
-              { value: '4:3', label: '4:3 (Standard)' },
-              { value: '1:1', label: '1:1 (Square)' },
-              { value: '4:5', label: '4:5 (Portrait)' }
-            ]}
-          />
-          <p className="text-xs text-muted-foreground">Fixed ratios ensure images fill the frame completely</p>
-        </div>
-        <div className="space-y-2">
-          <Label>Image Alignment</Label>
-          <NativeSelect
-            value={block.textAlign || 'center'}
-            onChange={(e) => handleAlignmentChange(e.target.value)}
-            options={[
-              { value: 'left', label: 'Left' },
-              { value: 'center', label: 'Center' },
-              { value: 'right', label: 'Right' }
-            ]}
-          />
-        </div>
+      {/* Aspect Ratio */}
+      <div className="space-y-2">
+        <Label>Aspect Ratio</Label>
+        <NativeSelect
+          value={block.aspectRatio || 'auto'}
+          onChange={(e) => onUpdate({ aspectRatio: e.target.value as any })}
+          options={[
+            { value: 'auto', label: 'Auto (Natural)' },
+            { value: '16:9', label: '16:9 (Widescreen)' },
+            { value: '4:3', label: '4:3 (Standard)' },
+            { value: '1:1', label: '1:1 (Square)' },
+            { value: '4:5', label: '4:5 (Portrait)' }
+          ]}
+        />
+        <p className="text-xs text-muted-foreground">Fixed ratios ensure images fill the frame completely</p>
       </div>
     </div>
   );
