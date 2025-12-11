@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/NativeSelect';
 import { MediaSelectorImage, MediaSelectorImageHandle } from '@/components/crm/MediaSelectorImage';
-import { Edit, Copy, Trash2 } from 'lucide-react';
+import { Edit, Copy, Trash2, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ContextualToolbar } from '../contextual/ContextualToolbar';
 import { EditMode } from '@/hooks/useBlockEditMode';
@@ -256,16 +257,36 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="alignment">Text Alignment</Label>
-        <NativeSelect
-          value={block.textAlign || 'left'}
-          onChange={(e) => onUpdate({ textAlign: e.target.value as any })}
-          options={[
-            { value: 'left', label: 'Left' },
-            { value: 'center', label: 'Center' },
-            { value: 'right', label: 'Right' }
-          ]}
-        />
+        <Label>Text Alignment</Label>
+        <div className="flex gap-1 border rounded-md p-1 w-fit">
+          <Button
+            type="button"
+            size="sm"
+            variant={block.textAlign === 'left' ? 'default' : 'ghost'}
+            onClick={() => onUpdate({ textAlign: 'left' })}
+            className="h-8 w-8 p-0"
+          >
+            <AlignLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={block.textAlign === 'center' || !block.textAlign ? 'default' : 'ghost'}
+            onClick={() => onUpdate({ textAlign: 'center' })}
+            className="h-8 w-8 p-0"
+          >
+            <AlignCenter className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={block.textAlign === 'right' ? 'default' : 'ghost'}
+            onClick={() => onUpdate({ textAlign: 'right' })}
+            className="h-8 w-8 p-0"
+          >
+            <AlignRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-2">

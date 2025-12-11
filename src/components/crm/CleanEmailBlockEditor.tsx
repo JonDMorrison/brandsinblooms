@@ -38,7 +38,7 @@ const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: Content
           altText: '',
           ctaText: '',
           ctaUrl: '',
-          alignment: 'center',
+          textAlign: 'center',
           backgroundColor: '#ffffff',
           textColor: '#000000',
           padding: 'large',
