@@ -449,10 +449,11 @@ export const Layout7: React.FC<LayoutProps> = ({ block, className, editable, onU
 };
 
 // Layout: Email Safe Hero - text on solid background, image below
+// Uses light neutral (#f5f5f7) and near-black (#111111) for dark mode compatibility
 export const EmailSafeHeroLayout: React.FC<LayoutProps> = ({ block, className }) => {
   const alignment = block.alignment || 'center';
-  const backgroundColor = block.backgroundColor || '#ffffff';
-  const textColor = block.textColor || '#000000';
+  const backgroundColor = block.backgroundColor || '#f5f5f7';
+  const textColor = block.textColor || '#111111';
   
   return (
     <div className={cn('overflow-hidden rounded-lg', className)}>
@@ -506,7 +507,7 @@ export const EmailSafeHeroLayout: React.FC<LayoutProps> = ({ block, className })
           <div className="max-w-[640px] mx-auto">
             <img
               src={block.imageUrl}
-              alt={block.altText || block.headline || ''}
+              alt={block.altText || ''}
               className="w-full rounded-lg"
               style={{ display: 'block' }}
             />
@@ -522,7 +523,7 @@ export const GraphicHeroLayout: React.FC<LayoutProps> = ({ block, className }) =
   const ImageElement = (
     <img
       src={block.imageUrl || ''}
-      alt={block.altText || 'Graphic Hero'}
+      alt={block.altText || ''}
       className="w-full max-w-[640px] mx-auto block"
       style={{ display: 'block', border: 0, outline: 'none' }}
     />

@@ -47,7 +47,7 @@ export const GraphicHeroBlockEditor: React.FC<GraphicHeroBlockEditorProps> = ({
         {block.imageUrl && (
           <img 
             src={block.imageUrl} 
-            alt="Graphic Hero" 
+            alt="" 
             className="w-6 h-6 rounded object-cover"
           />
         )}
@@ -75,7 +75,7 @@ export const GraphicHeroBlockEditor: React.FC<GraphicHeroBlockEditorProps> = ({
               >
                 <img
                   src={block.imageUrl}
-                  alt={block.altText || 'Graphic Hero'}
+                  alt={block.altText || ''}
                   className="w-full"
                   style={{ display: 'block', border: 0, outline: 'none' }}
                 />
