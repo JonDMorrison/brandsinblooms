@@ -9,61 +9,17 @@ interface EmailConsentCheckResult {
 }
 
 export class EmailConsentChecker {
+  /**
+   * Email consent checking is now disabled - all emails are allowed.
+   * This method returns all emails as allowed without checking opt-in status.
+   */
   static async checkEmails(emails: string[]): Promise<EmailConsentCheckResult> {
-    try {
-      const { data: customers, error } = await supabase
-        .from('crm_customers')
-        .select('email, email_opt_in')
-        .in('email', emails);
-
-      if (error) {
-        console.error('Failed to check email consent status:', error);
-        return {
-          hasConsent: false,
-          blockedEmails: [],
-          allowedEmails: emails,
-          errorCode: 500,
-          errorMessage: 'Failed to verify email consent status'
-        };
-      }
-
-      const blockedEmails: string[] = [];
-      const allowedEmails: string[] = [];
-
-      for (const email of emails) {
-        const customer = customers?.find(c => c.email === email);
-        
-        if (customer && !customer.email_opt_in) {
-          blockedEmails.push(email);
-        } else if (customer && customer.email_opt_in) {
-          allowedEmails.push(email);
-        } else {
-          // Customer not in database - treat as non-consented
-          blockedEmails.push(email);
-        }
-      }
-
-      const hasBlockedEmails = blockedEmails.length > 0;
-
-      return {
-        hasConsent: !hasBlockedEmails,
-        blockedEmails,
-        allowedEmails,
-        errorCode: hasBlockedEmails ? 451 : undefined,
-        errorMessage: hasBlockedEmails 
-          ? `Blocked ${blockedEmails.length} email(s) without consent: ${blockedEmails.join(', ')}`
-          : undefined
-      };
-    } catch (error) {
-      console.error('Error in email consent check:', error);
-      return {
-        hasConsent: false,
-        blockedEmails: [],
-        allowedEmails: emails,
-        errorCode: 500,
-        errorMessage: 'Internal error during consent verification'
-      };
-    }
+    // Consent checking disabled - allow all emails
+    return {
+      hasConsent: true,
+      blockedEmails: [],
+      allowedEmails: emails
+    };
   }
 
   static async checkSingleEmail(email: string): Promise<boolean> {
