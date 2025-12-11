@@ -2,7 +2,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Grid, Mail, FileText, Image, ArrowLeft, ArrowRight, Quote, MousePointer, ShoppingBag } from 'lucide-react';
+import { Plus, Grid, Mail, FileText, Image, ArrowLeft, ArrowRight, Quote, MousePointer, ShoppingBag, Star, ImageIcon } from 'lucide-react';
 import { LayoutType } from '../BlockLayoutModal';
 import { LayoutOption } from './LayoutOption';
 import { LayoutPreview } from './LayoutPreview';
@@ -15,6 +15,27 @@ interface EnhancedBlockLayoutModalProps {
 }
 
 const layoutOptions = [
+  // NEW: Email-safe hero blocks at the top (recommended for emails)
+  {
+    id: 'email-safe-hero' as LayoutType,
+    title: 'Hero (Email Safe)',
+    description: 'Recommended – text on solid background, image below. Dark mode friendly.',
+    category: 'Hero',
+    icon: <Star className="h-4 w-4 text-emerald-500" />,
+    isPopular: true,
+    isRecommended: true,
+    previewType: 'email-safe-hero' as const
+  },
+  {
+    id: 'graphic-hero' as LayoutType,
+    title: 'Graphic Hero',
+    description: 'Single image with text baked in. Use when you design the hero in Canva.',
+    category: 'Hero',
+    icon: <ImageIcon className="h-4 w-4 text-violet-500" />,
+    isNew: true,
+    previewType: 'graphic-hero' as const
+  },
+  
   // Newsletter Layouts
   {
     id: 'newsletter-header' as LayoutType,
@@ -23,7 +44,6 @@ const layoutOptions = [
     category: 'Newsletter',
     icon: <Mail className="h-4 w-4 text-muted-foreground" />,
     isPopular: true,
-    isNew: true,
     previewType: 'newsletter-header' as const
   },
 
@@ -131,6 +151,7 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
                 icon={option.icon}
                 isPopular={option.isPopular}
                 isNew={option.isNew}
+                isRecommended={(option as any).isRecommended}
                 preview={<LayoutPreview type={option.previewType} />}
                 onClick={() => handleSelect(option.id)}
               />

@@ -447,3 +447,96 @@ export const Layout7: React.FC<LayoutProps> = ({ block, className, editable, onU
     </div>
   );
 };
+
+// Layout: Email Safe Hero - text on solid background, image below
+export const EmailSafeHeroLayout: React.FC<LayoutProps> = ({ block, className }) => {
+  const alignment = block.alignment || 'center';
+  const backgroundColor = block.backgroundColor || '#ffffff';
+  const textColor = block.textColor || '#000000';
+  
+  return (
+    <div className={cn('overflow-hidden rounded-lg', className)}>
+      {/* Text Section - Solid Background */}
+      <div 
+        className="p-8"
+        style={{
+          backgroundColor,
+          textAlign: alignment as any,
+        }}
+      >
+        {block.eyebrow && (
+          <p className="text-xs uppercase tracking-wider mb-2 opacity-60" style={{ color: textColor }}>
+            {block.eyebrow}
+          </p>
+        )}
+        {(block.headline || block.title) && (
+          <h1 className="text-2xl md:text-3xl font-semibold mb-2" style={{ color: textColor }}>
+            {block.headline || block.title}
+          </h1>
+        )}
+        {block.subtitle && (
+          <p className="text-sm md:text-base opacity-80 mb-2" style={{ color: textColor }}>
+            {block.subtitle}
+          </p>
+        )}
+        {block.publishDate && (
+          <p className="text-xs opacity-60 mb-4" style={{ color: textColor }}>
+            {new Date(block.publishDate).toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </p>
+        )}
+        {block.ctaText && block.ctaUrl && (
+          <div className="mt-4">
+            <a 
+              href={block.ctaUrl}
+              className="inline-block px-5 py-2 rounded-full text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              {block.ctaText}
+            </a>
+          </div>
+        )}
+      </div>
+      
+      {/* Image Section - Below Text */}
+      {block.imageUrl && (
+        <div className="bg-transparent px-4 pb-4">
+          <div className="max-w-[640px] mx-auto">
+            <img
+              src={block.imageUrl}
+              alt={block.altText || block.headline || ''}
+              className="w-full rounded-lg"
+              style={{ display: 'block' }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Layout: Graphic Hero - single clickable image
+export const GraphicHeroLayout: React.FC<LayoutProps> = ({ block, className }) => {
+  const ImageElement = (
+    <img
+      src={block.imageUrl || ''}
+      alt={block.altText || 'Graphic Hero'}
+      className="w-full max-w-[640px] mx-auto block"
+      style={{ display: 'block', border: 0, outline: 'none' }}
+    />
+  );
+
+  return (
+    <div className={cn('text-center', className)}>
+      {block.ctaUrl ? (
+        <a href={block.ctaUrl} className="block cursor-pointer">
+          {ImageElement}
+        </a>
+      ) : (
+        ImageElement
+      )}
+    </div>
+  );
+};
