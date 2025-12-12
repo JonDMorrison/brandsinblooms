@@ -1,12 +1,13 @@
 import React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeftIcon, MessageSquareIcon, UsersIcon, TrendingUpIcon, ClockIcon } from 'lucide-react'
 import { SmsCampaignProgressCard } from '@/components/sms/SmsCampaignProgressCard'
+import { SmsCampaignActions } from '@/components/sms/SmsCampaignActions'
 import { useSmsCampaignProgress } from '@/hooks/useSmsCampaignProgress'
 
 export default function SMSCampaignDetail() {
@@ -98,6 +99,15 @@ export default function SMSCampaignDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {progress && progress.messages.failed > 0 && (
+            <SmsCampaignActions 
+              campaignId={id!} 
+              failedCount={progress.messages.failed}
+              onRetryComplete={() => {
+                // Refetch campaign data
+              }}
+            />
+          )}
           <Button variant="outline">
             Duplicate Campaign
           </Button>
