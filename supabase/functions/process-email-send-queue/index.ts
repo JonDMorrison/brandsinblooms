@@ -219,6 +219,8 @@ serve(async (req) => {
 
         const updateData: any = {
           status: hasErrors ? 'sent_with_errors' : 'sent',
+          total_sent: totalSent,
+          sent_at: new Date().toISOString(),
           metrics: { 
             sent: totalSent, 
             failed: totalFailed, 
