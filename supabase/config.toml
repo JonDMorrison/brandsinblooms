@@ -299,3 +299,6 @@ verify_jwt = true
 
 [functions.sms-send-test]
 verify_jwt = true
+
+[functions.sms-campaign-enqueue-worker]
+verify_jwt = false
