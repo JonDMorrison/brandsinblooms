@@ -5,7 +5,7 @@
  * Supports categories, search, and inserts tags with appropriate defaults.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Popover,
   PopoverContent,
@@ -34,6 +34,7 @@ import {
   type MergeTagCategory,
   type MergeTagDefinition,
 } from '@/lib/mergeTagDefinitions';
+import { registerEditOverlay, unregisterEditOverlay } from '@/components/crm/click-to-edit/editOverlayRegistry';
 
 interface MergeTagPickerProps {
   onSelectTag: (tag: string) => void;
@@ -82,6 +83,23 @@ export function MergeTagPicker({
     );
   }, [search, excludeCategories]);
 
+  // Register/unregister overlay on open state change
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      registerEditOverlay('merge-tag-picker');
+    } else {
+      unregisterEditOverlay('merge-tag-picker');
+    }
+  };
+
+  // Cleanup on unmount to prevent stuck overlay state
+  useEffect(() => {
+    return () => {
+      unregisterEditOverlay('merge-tag-picker');
+    };
+  }, []);
+
   const handleSelectTag = (tag: MergeTagDefinition) => {
     const formattedTag = formatTagWithDefault(tag.key);
     onSelectTag(formattedTag);
@@ -95,17 +113,21 @@ export function MergeTagPicker({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         {variant === 'button' ? (
           <Button
             variant="outline"
             size={size}
             className={className}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleOpenChange(true);
+            }}
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              setOpen(!open);
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -116,10 +138,14 @@ export function MergeTagPicker({
             variant="ghost"
             size="icon"
             className={className}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleOpenChange(true);
+            }}
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              setOpen(!open);
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
