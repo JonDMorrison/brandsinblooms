@@ -428,6 +428,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         layout: 'full-width',
         title: '',
         content: '',
+        body: '',  // Always initialize body to empty string
         imageUrl: config.imageUrl || '',
         ctaText: '',
         ctaUrl: '',

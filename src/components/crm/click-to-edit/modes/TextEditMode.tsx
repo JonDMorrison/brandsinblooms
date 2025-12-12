@@ -76,10 +76,9 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
       textColor
     };
 
-    // Add body/content field
-    if (block.body !== undefined) {
+    // Always save body/content for content block types
+    if (bodyContent) {
       updates.body = bodyContent;
-    } else if (block.content !== undefined) {
       updates.content = bodyContent;
     }
 
@@ -282,24 +281,25 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
         </div>
       )}
 
-      {/* Body Text (for blocks that support it) */}
-      {(block.body !== undefined || block.content !== undefined) && (
+      {/* Body Text (for blocks that support it) - Always show for content block types */}
+      {(block.type === 'text' || 
+        block.type === 'image-text' || 
+        block.type === 'header' || 
+        block.type === 'newsletter-header' ||
+        block.type === 'email-safe-hero' ||
+        block.type === 'button' ||
+        block.body !== undefined || 
+        block.content !== undefined) && (
         <div className="space-y-2">
-          <Label htmlFor="bodyText">
-            {block.body !== undefined ? 'Body Text' : 'Content'}
-          </Label>
+          <Label htmlFor="bodyText">Body Text</Label>
           <RichTextEditor
             content={bodyContent}
             onChange={(html) => {
               setBodyContent(html);
-              // Still update immediately for live preview
-              if (block.body !== undefined) {
-                onUpdate({ body: html });
-              } else {
-                onUpdate({ content: html });
-              }
+              // Update both fields for live preview and compatibility
+              onUpdate({ body: html, content: html });
             }}
-            placeholder={block.body !== undefined ? "Enter body text..." : "Enter content..."}
+            placeholder="Enter body text..."
             className="w-full"
             showMergeTags={true}
             autoFocus
