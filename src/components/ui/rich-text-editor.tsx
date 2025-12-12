@@ -24,8 +24,7 @@ import {
   Type
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { MergeTagPicker } from '@/components/shared/MergeTagPicker';
-import type { MergeTagCategory } from '@/lib/mergeTagDefinitions';
+import { InlineMergeTagDropdown } from '@/components/editor/InlineMergeTagDropdown';
 
 interface RichTextEditorProps {
   content?: string;
@@ -35,7 +34,6 @@ interface RichTextEditorProps {
   editorClassName?: string;
   showToolbar?: boolean;
   showMergeTags?: boolean;
-  excludeMergeTagCategories?: MergeTagCategory[];
   onFocus?: () => void;
   onBlur?: () => void;
   autoFocus?: boolean;
@@ -49,7 +47,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   editorClassName = '',
   showToolbar = true,
   showMergeTags = false,
-  excludeMergeTagCategories = [],
   onFocus,
   onBlur,
   autoFocus = false
@@ -283,11 +280,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             {/* Merge Tags / Personalization */}
             {showMergeTags && (
               <div className="flex gap-1 border-l border-border pl-2 ml-2">
-                <MergeTagPicker
-                  variant="button"
-                  size="sm"
-                  excludeCategories={excludeMergeTagCategories}
-                  onSelectTag={(tag) => {
+                <InlineMergeTagDropdown
+                  insertText={(tag) => {
                     console.log('[RichTextEditor] Inserting merge tag:', tag);
                     editor?.chain().focus().insertContent(tag).run();
                   }}

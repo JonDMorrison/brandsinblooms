@@ -302,7 +302,6 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
             placeholder={block.body !== undefined ? "Enter body text..." : "Enter content..."}
             className="w-full"
             showMergeTags={true}
-            excludeMergeTagCategories={['system']}
             autoFocus
           />
         </div>

@@ -47,7 +47,6 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
           placeholder={placeholder}
           className="w-full"
           showMergeTags={true}
-          excludeMergeTagCategories={['system']}
           autoFocus
         />
         <div className="flex justify-end gap-2">
