@@ -3,14 +3,8 @@
  * Used by edge functions to generate email footers with social icons
  */
 
-// Get Supabase URL for PNG icon hosting
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-if (!SUPABASE_URL) {
-  console.error("SUPABASE_URL missing. Social icons will not load.");
-}
-const ICON_BASE_URL = SUPABASE_URL
-  ? `${SUPABASE_URL}/storage/v1/object/public/assets/social-icons`
-  : "";
+// Use deployed app URL for PNG social icons hosted in public folder
+const ICON_BASE_URL = "https://bloomsuite.app/social-icons";
 
 export interface CompanyProfileData {
   company_name?: string;
@@ -61,14 +55,14 @@ const DEFAULT_FOOTER_COLORS: FooterStyleConfig = {
   dividerColor: '#3D4A38',
 };
 
-// PNG social icons hosted in Supabase Storage
+// PNG social icons hosted on deployed app
 const socialIcons: Record<string, string> = {
-  facebook: ICON_BASE_URL ? `<img src="${ICON_BASE_URL}/facebook.png" alt="Facebook" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-  instagram: ICON_BASE_URL ? `<img src="${ICON_BASE_URL}/instagram.png" alt="Instagram" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-  tiktok: ICON_BASE_URL ? `<img src="${ICON_BASE_URL}/tiktok.png" alt="TikTok" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-  pinterest: ICON_BASE_URL ? `<img src="${ICON_BASE_URL}/pinterest.png" alt="Pinterest" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-  youtube: ICON_BASE_URL ? `<img src="${ICON_BASE_URL}/youtube.png" alt="YouTube" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
-  linkedin: ICON_BASE_URL ? `<img src="${ICON_BASE_URL}/linkedin.png" alt="LinkedIn" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />` : "",
+  facebook: `<img src="${ICON_BASE_URL}/facebook.png" alt="Facebook" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  instagram: `<img src="${ICON_BASE_URL}/instagram.png" alt="Instagram" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  tiktok: `<img src="${ICON_BASE_URL}/tiktok.png" alt="TikTok" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  pinterest: `<img src="${ICON_BASE_URL}/pinterest.png" alt="Pinterest" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  youtube: `<img src="${ICON_BASE_URL}/youtube.png" alt="YouTube" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
+  linkedin: `<img src="${ICON_BASE_URL}/linkedin.png" alt="LinkedIn" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
 };
 
 function isColorDark(hexColor: string): boolean {
@@ -196,7 +190,7 @@ function buildSocialIconsHtml(profile: CompanyProfileData): string {
   
   console.log(`📧 Social links found: ${activeSocials.map(l => l.name).join(', ') || 'none'}`);
   
-  if (activeSocials.length === 0 || !ICON_BASE_URL) return '';
+  if (activeSocials.length === 0) return '';
 
   const iconsHtml = activeSocials.map(({ url, key }) => `
     <a href="${url}" target="_blank" style="display:inline-block;margin:0 6px;text-decoration:none;">
