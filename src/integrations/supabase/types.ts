@@ -7656,6 +7656,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_verified: boolean | null
+          last_health_evaluated_at: string | null
           last_reset_at: string | null
           last_stage_updated_at: string | null
           messaging_service_sid: string | null
@@ -7676,6 +7677,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_verified?: boolean | null
+          last_health_evaluated_at?: string | null
           last_reset_at?: string | null
           last_stage_updated_at?: string | null
           messaging_service_sid?: string | null
@@ -7696,6 +7698,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_verified?: boolean | null
+          last_health_evaluated_at?: string | null
           last_reset_at?: string | null
           last_stage_updated_at?: string | null
           messaging_service_sid?: string | null
