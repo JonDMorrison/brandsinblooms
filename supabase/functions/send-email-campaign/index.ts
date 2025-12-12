@@ -486,10 +486,13 @@ serve(async (req) => {
 
     // Batch upsert subscriptions
     if (subscriptionUpserts.length > 0) {
-      await supabase
-        .from('crm_subscriptions')
-        .upsert(subscriptionUpserts, { onConflict: 'email,tenant_id' })
-        .catch(() => {});
+      try {
+        await supabase
+          .from('crm_subscriptions')
+          .upsert(subscriptionUpserts, { onConflict: 'email,tenant_id' });
+      } catch (e) {
+        console.error('Failed to upsert subscriptions:', e);
+      }
     }
 
     // Update campaign sender config
@@ -549,7 +552,7 @@ serve(async (req) => {
 
       // Log to domain_send_log for warmup tracking
       if (sent > 0 && activeDomainId) {
-        await supabase
+        const { error: logError } = await supabase
           .from('domain_send_log')
           .insert({
             domain_id: activeDomainId,
@@ -557,18 +560,18 @@ serve(async (req) => {
             emails_sent: sent,
             warmup_stage: warmupStage,
             daily_limit_at_send: dailyLimit
-          })
-          .catch((err: any) => console.error('Failed to log domain send:', err));
+          });
+        if (logError) console.error('Failed to log domain send:', logError);
 
         // Update daily_sent_count on the domain
-        await supabase
+        const { error: updateError } = await supabase
           .from('email_domains')
           .update({ 
-            daily_sent_count: supabase.rpc ? undefined : (quotaCheck.limits?.daily_used || 0) + sent,
+            daily_sent_count: (quotaCheck.limits?.daily_used || 0) + sent,
             daily_used: (quotaCheck.limits?.daily_used || 0) + sent
           })
-          .eq('id', activeDomainId)
-          .catch((err: any) => console.error('Failed to update domain daily count:', err));
+          .eq('id', activeDomainId);
+        if (updateError) console.error('Failed to update domain daily count:', updateError);
       }
 
       // Mark all jobs as completed
