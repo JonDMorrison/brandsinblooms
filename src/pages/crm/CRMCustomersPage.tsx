@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign, Upload, MoreVertical, Eye, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
+import { Users, Plus, Search, Mail, Phone, Calendar, DollarSign, Upload, MoreVertical, Eye, Trash2, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +30,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { useAllSegments } from '@/hooks/useAllSegments';
 import { useDeleteCustomer } from '@/hooks/useDeleteCustomer';
+import { useBulkCustomerOperations } from '@/hooks/useBulkCustomerOperations';
 import { format } from 'date-fns';
 import { 
   Pagination,
@@ -46,10 +49,20 @@ export const CRMCustomersPage: React.FC = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string; email: string } | null>(null);
   const pageSize = 15;
   
   const deleteCustomer = useDeleteCustomer();
+  const {
+    selectedIds,
+    isProcessing,
+    progress,
+    toggleSelection,
+    selectAll,
+    clearSelection,
+    bulkDeleteCustomers,
+  } = useBulkCustomerOperations();
   
   const { data: customers = [], totalCount = 0, isLoading, invalidateCustomers } = useCustomers({
     search: searchQuery,
@@ -58,6 +71,9 @@ export const CRMCustomersPage: React.FC = () => {
   });
   const { personas } = useAllPersonas();
   const { segments: allSegments } = useAllSegments();
+
+  // Check if all visible customers are selected
+  const allVisibleSelected = customers.length > 0 && customers.every(c => selectedIds.has(c.id));
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -248,15 +264,39 @@ export const CRMCustomersPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4" />
-              <Input 
-                placeholder="Search customers by name or email (press Enter)..." 
-                className="max-w-sm" 
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-              />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4" />
+                <Input 
+                  placeholder="Search customers by name or email (press Enter)..." 
+                  className="max-w-sm" 
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                />
+              </div>
+              
+              {selectedIds.size > 0 && (
+                <div className="flex items-center gap-3 bg-muted px-4 py-2 rounded-md">
+                  <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Selected
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={clearSelection}
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear
+                  </Button>
+                </div>
+              )}
             </div>
             
             {customers.length === 0 ? (
@@ -277,6 +317,18 @@ export const CRMCustomersPage: React.FC = () => {
                 <Table data-testid="customers-table" className="min-w-[800px]">
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-[40px]">
+                            <Checkbox
+                              checked={allVisibleSelected}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  selectAll(customers.map(c => c.id));
+                                } else {
+                                  clearSelection();
+                                }
+                              }}
+                            />
+                          </TableHead>
                           <TableHead>Customer</TableHead>
                           <TableHead className="hidden md:table-cell">Contact</TableHead>
                           <TableHead>Persona</TableHead>
@@ -291,9 +343,15 @@ export const CRMCustomersPage: React.FC = () => {
                         {customers.map((customer) => (
                            <TableRow 
                              key={customer.id}
-                             className="cursor-pointer hover:bg-muted/50"
+                             className={`cursor-pointer hover:bg-muted/50 ${selectedIds.has(customer.id) ? 'bg-muted/30' : ''}`}
                              onClick={() => handleCustomerClick(customer)}
                            >
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedIds.has(customer.id)}
+                                onCheckedChange={() => toggleSelection(customer.id)}
+                              />
+                            </TableCell>
                             <TableCell>
                               <div>
                                 <div className="font-medium">
@@ -492,6 +550,40 @@ export const CRMCustomersPage: React.FC = () => {
               disabled={deleteCustomer.isPending}
             >
               {deleteCustomer.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={(open) => !isProcessing && setBulkDeleteDialogOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} Customers</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedIds.size} customer(s)? 
+              This action cannot be undone and will permanently remove all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {isProcessing && (
+            <div className="py-4">
+              <Progress value={(progress.completed / progress.total) * 100} />
+              <p className="text-sm text-muted-foreground mt-2">
+                Deleting {progress.completed} of {progress.total}...
+                {progress.failed > 0 && ` (${progress.failed} failed)`}
+              </p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                await bulkDeleteCustomers(Array.from(selectedIds));
+                setBulkDeleteDialogOpen(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isProcessing}
+            >
+              {isProcessing ? 'Deleting...' : `Delete ${selectedIds.size} Customers`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
