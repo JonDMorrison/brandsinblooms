@@ -92,6 +92,11 @@ export function MergeTagPicker({
   };
 
   return (
+    <span
+      data-merge-tag-picker-root="true"
+      data-click-to-edit-allowed-overlay="true"
+      style={{ display: 'contents' }}
+    >
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         {variant === 'button' ? (
@@ -177,6 +182,7 @@ export function MergeTagPicker({
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
+    </span>
   );
 }
 
