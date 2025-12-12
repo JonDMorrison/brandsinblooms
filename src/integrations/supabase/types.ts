@@ -6602,6 +6602,74 @@ export type Database = {
           },
         ]
       }
+      sms_compliance_events: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          event_type: string
+          id: string
+          message_content: string | null
+          metadata: Json | null
+          phone: string
+          source: string | null
+          tenant_id: string | null
+          twilio_sid: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          event_type: string
+          id?: string
+          message_content?: string | null
+          metadata?: Json | null
+          phone: string
+          source?: string | null
+          tenant_id?: string | null
+          twilio_sid?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          event_type?: string
+          id?: string
+          message_content?: string | null
+          metadata?: Json | null
+          phone?: string
+          source?: string | null
+          tenant_id?: string | null
+          twilio_sid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_compliance_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_compliance_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_compliance_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "sms_compliance_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sms_messages: {
         Row: {
           attempts: number

@@ -20,6 +20,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
 import { classifyTwilioError, calculateRetryDelay, type SmsFailureType } from '../_shared/smsErrorPolicy.ts'
+import { logComplianceEvent, classifyErrorToComplianceType } from '../_shared/smsComplianceLogger.ts'
 
 // Configuration constants
 const SMS_BATCH_DELAY_MS = Number(Deno.env.get("SMS_BATCH_DELAY_MS") ?? "200");
@@ -371,24 +372,44 @@ async function prepareMessageForSend(
 }
 
 /**
- * Handle message send failure with retry policy
+ * Handle message send failure with retry policy and compliance logging
  */
 async function handleMessageFailure(
   supabase: any,
-  messageId: string,
+  msg: SmsMessage,
   attempts: number,
   rawError: unknown
 ): Promise<{ retryScheduled: boolean; failureType: SmsFailureType }> {
   const now = new Date().toISOString();
   const classified = classifyTwilioError(rawError);
   
-  console.log(`[sms-queue-worker] Message ${messageId} error classified:`, {
+  console.log(`[sms-queue-worker] Message ${msg.id} error classified:`, {
     failureType: classified.failureType,
     retryable: classified.retryable,
     code: classified.code,
     attempts,
     maxAttempts: MAX_MESSAGE_ATTEMPTS,
   });
+
+  // Log compliance events for specific error types
+  const complianceEventType = classifyErrorToComplianceType(classified.code);
+  if (complianceEventType) {
+    await logComplianceEvent(supabase, {
+      tenantId: msg.tenant_id,
+      customerId: msg.customer_id || undefined,
+      phone: msg.phone,
+      eventType: complianceEventType,
+      messageContent: msg.content,
+      source: 'worker',
+      errorCode: classified.code || undefined,
+      errorMessage: classified.message,
+      metadata: {
+        campaign_id: msg.campaign_id,
+        message_id: msg.id,
+        attempts,
+      },
+    });
+  }
 
   // Determine if we should retry
   const shouldRetry = classified.retryable && attempts < MAX_MESSAGE_ATTEMPTS;
@@ -408,9 +429,9 @@ async function handleMessageFailure(
         failure_type: classified.failureType,
         updated_at: now,
       })
-      .eq('id', messageId);
+      .eq('id', msg.id);
 
-    console.log(`[sms-queue-worker] Message ${messageId} scheduled for retry at ${scheduledAt}`);
+    console.log(`[sms-queue-worker] Message ${msg.id} scheduled for retry at ${scheduledAt}`);
     return { retryScheduled: true, failureType: classified.failureType };
   } else {
     // Permanent failure - dead letter
@@ -424,9 +445,9 @@ async function handleMessageFailure(
         dead_lettered_at: now,
         updated_at: now,
       })
-      .eq('id', messageId);
+      .eq('id', msg.id);
 
-    console.log(`[sms-queue-worker] Message ${messageId} dead-lettered: ${classified.failureType}`);
+    console.log(`[sms-queue-worker] Message ${msg.id} dead-lettered: ${classified.failureType}`);
     return { retryScheduled: false, failureType: classified.failureType };
   }
 }
@@ -616,10 +637,10 @@ Deno.serve(async (req) => {
               }
             }
           } else {
-            // Handle failure with retry policy
+            // Handle failure with retry policy and compliance logging
             const failureResult = await handleMessageFailure(
               supabase,
-              msg.id,
+              msg,
               currentAttempts,
               result.rawError || result.error
             );
@@ -833,10 +854,10 @@ Deno.serve(async (req) => {
             }
           }
         } else {
-          // Handle failure with retry policy
+          // Handle failure with retry policy and compliance logging
           const failureResult = await handleMessageFailure(
             supabase,
-            msg.id,
+            msg,
             currentAttempts,
             result.rawError || result.error
           );
