@@ -6683,6 +6683,9 @@ export type Database = {
           attempts: number
           batch_index: number
           campaign_id: string | null
+          claim_token: string | null
+          claimed_at: string | null
+          claimed_by: string | null
           created_at: string | null
           error_message: string | null
           from_phone: string | null
@@ -6697,6 +6700,9 @@ export type Database = {
           attempts?: number
           batch_index: number
           campaign_id?: string | null
+          claim_token?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string | null
           error_message?: string | null
           from_phone?: string | null
@@ -6711,6 +6717,9 @@ export type Database = {
           attempts?: number
           batch_index?: number
           campaign_id?: string | null
+          claim_token?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string | null
           error_message?: string | null
           from_phone?: string | null

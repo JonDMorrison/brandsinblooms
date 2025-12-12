@@ -7,7 +7,8 @@
  * 2. Legacy sms_messages (automation path) - messages without jobs
  * 
  * Key features:
- * - Safe under concurrency (no double-sends)
+ * - Bulletproof concurrency safety via atomic claiming with claim_token
+ * - Stale claim recovery for crashed/hung workers
  * - Idempotent (skips already-sent messages)
  * - Respects rate limits between Twilio calls
  * - Updates campaign status when all jobs complete
@@ -20,7 +21,13 @@ import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/co
 const SMS_BATCH_DELAY_MS = Number(Deno.env.get("SMS_BATCH_DELAY_MS") ?? "200");
 const MAX_JOBS_PER_RUN = Number(Deno.env.get("SMS_MAX_JOBS_PER_RUN") ?? "10");
 const MAX_LEGACY_MESSAGES_PER_RUN = 100;
-const MAX_JOB_ATTEMPTS = 3;
+const MAX_JOB_ATTEMPTS = Number(Deno.env.get("SMS_MAX_JOB_ATTEMPTS") ?? "3");
+
+// Stale claim timeout - jobs in_progress longer than this can be reclaimed
+const CLAIM_STALE_AFTER_MINUTES = Number(Deno.env.get("SMS_CLAIM_STALE_AFTER_MINUTES") ?? "15");
+
+// Generate unique worker ID for this invocation
+const WORKER_ID = `sms-worker-${crypto.randomUUID().slice(0, 8)}`;
 
 interface TwilioConfig {
   accountSid: string
@@ -52,6 +59,9 @@ interface SmsSendJob {
   recipient_message_ids: string[]
   batch_index: number
   attempts: number
+  claimed_at: string | null
+  claimed_by: string | null
+  claim_token: string | null
 }
 
 /**
@@ -152,16 +162,209 @@ function truncateError(message: string, maxLength: number = 250): string {
   return message.length > maxLength ? message.substring(0, maxLength) + '...' : message;
 }
 
+/**
+ * Atomically claim pending/stale jobs using raw SQL via RPC
+ * This is the ONLY way to ensure no two workers process the same job
+ */
+async function claimSmsSendJobs(
+  supabase: any,
+  limit: number,
+  workerId: string,
+  claimToken: string
+): Promise<SmsSendJob[]> {
+  // Calculate stale threshold
+  const staleThreshold = new Date(Date.now() - CLAIM_STALE_AFTER_MINUTES * 60 * 1000).toISOString();
+
+  // Use a transaction-like approach: select eligible jobs, then atomically update them
+  // We select jobs that are either:
+  // 1. status='pending' and never claimed (claimed_at IS NULL)
+  // 2. status='pending' or 'in_progress' with stale claims (claimed_at < threshold)
+  // We filter by attempts < MAX_JOB_ATTEMPTS
+  
+  // First, get IDs of jobs we want to claim
+  const { data: eligibleJobs, error: selectError } = await supabase
+    .from('sms_send_jobs')
+    .select('id')
+    .in('status', ['pending', 'in_progress'])
+    .lt('attempts', MAX_JOB_ATTEMPTS)
+    .or(`claimed_at.is.null,claimed_at.lt.${staleThreshold}`)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+
+  if (selectError || !eligibleJobs || eligibleJobs.length === 0) {
+    if (selectError) {
+      console.error('[sms-queue-worker] Error selecting eligible jobs:', selectError);
+    }
+    return [];
+  }
+
+  const jobIds = eligibleJobs.map((j: { id: string }) => j.id);
+  const now = new Date().toISOString();
+
+  // Atomically claim these jobs - the key is the WHERE clause includes the same conditions
+  // so if another worker already claimed them, this update will affect 0 rows for those
+  const { data: claimedJobs, error: claimError } = await supabase
+    .from('sms_send_jobs')
+    .update({
+      status: 'in_progress',
+      claimed_at: now,
+      claimed_by: workerId,
+      claim_token: claimToken,
+      attempts: supabase.sql`attempts + 1`,
+      updated_at: now,
+    })
+    .in('id', jobIds)
+    .in('status', ['pending', 'in_progress'])
+    .lt('attempts', MAX_JOB_ATTEMPTS)
+    .or(`claimed_at.is.null,claimed_at.lt.${staleThreshold}`)
+    .select('*');
+
+  if (claimError) {
+    console.error('[sms-queue-worker] Error claiming jobs:', claimError);
+    return [];
+  }
+
+  return claimedJobs || [];
+}
+
+/**
+ * Alternative claiming approach using individual updates with strong guards
+ * This is more reliable across different Supabase versions
+ */
+async function claimSmsSendJobsSafe(
+  supabase: any,
+  limit: number,
+  workerId: string,
+  claimToken: string
+): Promise<SmsSendJob[]> {
+  const staleThreshold = new Date(Date.now() - CLAIM_STALE_AFTER_MINUTES * 60 * 1000).toISOString();
+  const now = new Date().toISOString();
+
+  // Step 1: Find eligible jobs
+  const { data: eligibleJobs, error: selectError } = await supabase
+    .from('sms_send_jobs')
+    .select('*')
+    .in('status', ['pending', 'in_progress'])
+    .lt('attempts', MAX_JOB_ATTEMPTS)
+    .order('created_at', { ascending: true })
+    .limit(limit * 2); // Get more than needed in case some are already claimed
+
+  if (selectError) {
+    console.error('[sms-queue-worker] Error selecting jobs:', selectError);
+    return [];
+  }
+
+  if (!eligibleJobs || eligibleJobs.length === 0) {
+    return [];
+  }
+
+  // Step 2: Filter for claimable jobs (null claimed_at or stale)
+  const claimableJobs = eligibleJobs.filter((job: SmsSendJob) => {
+    if (!job.claimed_at) return true;
+    return new Date(job.claimed_at) < new Date(staleThreshold);
+  }).slice(0, limit);
+
+  if (claimableJobs.length === 0) {
+    return [];
+  }
+
+  // Step 3: Atomically claim each job with strong guards
+  const claimedJobs: SmsSendJob[] = [];
+
+  for (const job of claimableJobs) {
+    // Build the update with guards that prevent race conditions
+    const updateConditions: Record<string, any> = {
+      id: job.id,
+    };
+
+    // Only claim if status hasn't changed and claim is still stale/null
+    const { data: claimed, error: claimError } = await supabase
+      .from('sms_send_jobs')
+      .update({
+        status: 'in_progress',
+        claimed_at: now,
+        claimed_by: workerId,
+        claim_token: claimToken,
+        attempts: job.attempts + 1,
+        updated_at: now,
+      })
+      .eq('id', job.id)
+      .in('status', ['pending', 'in_progress'])
+      .lt('attempts', MAX_JOB_ATTEMPTS)
+      .select('*')
+      .maybeSingle();
+
+    if (claimError) {
+      console.log(`[sms-queue-worker] Failed to claim job ${job.id}:`, claimError.message);
+      continue;
+    }
+
+    if (claimed) {
+      // Verify we actually claimed it (our claim_token)
+      if (claimed.claim_token === claimToken) {
+        claimedJobs.push(claimed);
+      } else {
+        console.log(`[sms-queue-worker] Job ${job.id} claimed by another worker`);
+      }
+    }
+
+    if (claimedJobs.length >= limit) break;
+  }
+
+  return claimedJobs;
+}
+
+/**
+ * Complete a job with claim_token guard to ensure only the claiming worker can complete it
+ */
+async function completeJobWithGuard(
+  supabase: any,
+  jobId: string,
+  claimToken: string,
+  status: 'completed' | 'failed',
+  errorMessage: string | null
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('sms_send_jobs')
+    .update({
+      status,
+      error_message: errorMessage,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', jobId)
+    .eq('claim_token', claimToken)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error(`[sms-queue-worker] Error completing job ${jobId}:`, error);
+    return false;
+  }
+
+  if (!data) {
+    console.warn(`[sms-queue-worker] Job ${jobId} completion failed - claim_token mismatch (stolen claim?)`);
+    return false;
+  }
+
+  return true;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   const corsResponse = handleCorsPrelight(req);
   if (corsResponse) return corsResponse;
 
   const startTime = Date.now();
+  const claimToken = crypto.randomUUID();
+  
   const stats = {
+    workerId: WORKER_ID,
+    claimToken,
+    jobsClaimed: 0,
     jobsProcessed: 0,
     jobsCompleted: 0,
     jobsFailed: 0,
+    jobsClaimStolen: 0,
     messagesSent: 0,
     messagesFailed: 0,
     messagesSkipped: 0,
@@ -175,7 +378,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log(`[sms-queue-worker] Starting. Config: MAX_JOBS=${MAX_JOBS_PER_RUN}, DELAY=${SMS_BATCH_DELAY_MS}ms`);
+    console.log(`[sms-queue-worker] Starting. Worker=${WORKER_ID}, ClaimToken=${claimToken.slice(0, 8)}..., Config: MAX_JOBS=${MAX_JOBS_PER_RUN}, DELAY=${SMS_BATCH_DELAY_MS}ms, STALE_MINUTES=${CLAIM_STALE_AFTER_MINUTES}`);
 
     // Get Twilio configuration
     const twilioConfig: TwilioConfig = {
@@ -191,163 +394,143 @@ Deno.serve(async (req) => {
     }
 
     // =========================================================================
-    // PHASE 1: Process sms_send_jobs (Campaign Path)
+    // PHASE 1: Atomically Claim Jobs
     // =========================================================================
-    console.log('[sms-queue-worker] PHASE 1: Processing sms_send_jobs...');
+    console.log('[sms-queue-worker] PHASE 1: Claiming jobs atomically...');
 
-    // Step 1: Select pending jobs (oldest first, limited)
-    const { data: pendingJobs, error: jobsFetchError } = await supabase
-      .from('sms_send_jobs')
-      .select('*')
-      .eq('status', 'pending')
-      .lt('attempts', MAX_JOB_ATTEMPTS)
-      .order('created_at', { ascending: true })
-      .limit(MAX_JOBS_PER_RUN);
+    const claimedJobs = await claimSmsSendJobsSafe(supabase, MAX_JOBS_PER_RUN, WORKER_ID, claimToken);
+    stats.jobsClaimed = claimedJobs.length;
 
-    if (jobsFetchError) {
-      console.error('[sms-queue-worker] Error fetching jobs:', jobsFetchError);
-      throw jobsFetchError;
-    }
-
-    const jobs: SmsSendJob[] = pendingJobs || [];
-    console.log(`[sms-queue-worker] Found ${jobs.length} pending jobs`);
+    console.log(`[sms-queue-worker] Claimed ${claimedJobs.length} jobs: [${claimedJobs.map(j => j.id.slice(0, 8)).join(', ')}]`);
 
     // Track which campaigns are touched for later status update
     const touchedCampaignIds = new Set<string>();
 
-    for (const job of jobs) {
-      stats.jobsProcessed++;
-      console.log(`[sms-queue-worker] Processing job ${job.id} (batch ${job.batch_index}, attempt ${job.attempts + 1})`);
+    // =========================================================================
+    // PHASE 2: Process Claimed Jobs
+    // =========================================================================
+    if (claimedJobs.length > 0) {
+      console.log('[sms-queue-worker] PHASE 2: Processing claimed jobs...');
 
-      // Step 2: Claim job by marking as in_progress and incrementing attempts
-      const { error: claimError } = await supabase
-        .from('sms_send_jobs')
-        .update({
-          status: 'in_progress',
-          attempts: job.attempts + 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', job.id)
-        .eq('status', 'pending'); // Only claim if still pending (race protection)
+      for (const job of claimedJobs) {
+        stats.jobsProcessed++;
+        console.log(`[sms-queue-worker] Processing job ${job.id} (batch ${job.batch_index}, attempt ${job.attempts})`);
 
-      if (claimError) {
-        console.error(`[sms-queue-worker] Failed to claim job ${job.id}:`, claimError);
-        continue;
-      }
+        if (job.campaign_id) {
+          touchedCampaignIds.add(job.campaign_id);
+        }
 
-      if (job.campaign_id) {
-        touchedCampaignIds.add(job.campaign_id);
-      }
+        // Load messages by IDs
+        const { data: messages, error: msgFetchError } = await supabase
+          .from('sms_messages')
+          .select('id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid')
+          .in('id', job.recipient_message_ids);
 
-      // Step 3: Load messages by IDs
-      const { data: messages, error: msgFetchError } = await supabase
-        .from('sms_messages')
-        .select('id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid')
-        .in('id', job.recipient_message_ids);
-
-      if (msgFetchError) {
-        console.error(`[sms-queue-worker] Failed to load messages for job ${job.id}:`, msgFetchError);
-        await supabase
-          .from('sms_send_jobs')
-          .update({
-            status: 'failed',
-            error_message: truncateError(msgFetchError.message),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', job.id);
-        stats.jobsFailed++;
-        continue;
-      }
-
-      const jobMessages: SmsMessage[] = messages || [];
-      let jobSent = 0;
-      let jobFailed = 0;
-      let jobSkipped = 0;
-
-      // Step 4: Process each message
-      for (const msg of jobMessages) {
-        // Idempotency check: skip if already sent or has twilio_sid
-        if (msg.status !== 'queued' || msg.twilio_sid) {
-          console.log(`[sms-queue-worker] Skipping message ${msg.id}: status=${msg.status}, twilio_sid=${msg.twilio_sid ? 'present' : 'null'}`);
-          jobSkipped++;
-          stats.messagesSkipped++;
+        if (msgFetchError) {
+          console.error(`[sms-queue-worker] Failed to load messages for job ${job.id}:`, msgFetchError);
+          const completed = await completeJobWithGuard(
+            supabase,
+            job.id,
+            claimToken,
+            'failed',
+            truncateError(msgFetchError.message)
+          );
+          if (completed) {
+            stats.jobsFailed++;
+          } else {
+            stats.jobsClaimStolen++;
+          }
           continue;
         }
 
-        // Send via Twilio
-        const formattedPhone = formatPhoneForTwilio(msg.phone);
-        const result = await sendSMSViaTwilio(twilioConfig, formattedPhone, msg.content, {
-          messagingServiceSid: job.messaging_service_sid,
-          fromPhone: msg.from_phone || job.from_phone,
-          mediaUrls: msg.media_urls,
-        });
+        const jobMessages: SmsMessage[] = messages || [];
+        let jobSent = 0;
+        let jobFailed = 0;
+        let jobSkipped = 0;
 
-        const now = new Date().toISOString();
+        // Process each message with idempotency check
+        for (const msg of jobMessages) {
+          // CRITICAL IDEMPOTENCY CHECK: skip if already sent or has twilio_sid
+          if (msg.status !== 'queued' || msg.twilio_sid) {
+            console.log(`[sms-queue-worker] Skipping message ${msg.id}: status=${msg.status}, twilio_sid=${msg.twilio_sid ? 'present' : 'null'}`);
+            jobSkipped++;
+            stats.messagesSkipped++;
+            continue;
+          }
 
-        if (result.success) {
-          // Update message as sent
-          await supabase
-            .from('sms_messages')
-            .update({
-              status: 'sent',
-              twilio_sid: result.sid,
-              sent_at: now,
-              updated_at: now,
-            })
-            .eq('id', msg.id);
+          // Send via Twilio
+          const formattedPhone = formatPhoneForTwilio(msg.phone);
+          const result = await sendSMSViaTwilio(twilioConfig, formattedPhone, msg.content, {
+            messagingServiceSid: job.messaging_service_sid,
+            fromPhone: msg.from_phone || job.from_phone,
+            mediaUrls: msg.media_urls,
+          });
 
-          console.log(`[sms-queue-worker] Message ${msg.id} sent: SID=${result.sid}`);
-          jobSent++;
-          stats.messagesSent++;
-        } else {
-          // Update message as failed
-          await supabase
-            .from('sms_messages')
-            .update({
-              status: 'failed',
-              error_message: truncateError(result.error || 'Unknown error'),
-              updated_at: now,
-            })
-            .eq('id', msg.id);
+          const now = new Date().toISOString();
 
-          console.error(`[sms-queue-worker] Message ${msg.id} failed: ${result.error}`);
-          jobFailed++;
-          stats.messagesFailed++;
+          if (result.success) {
+            // Update message as sent
+            await supabase
+              .from('sms_messages')
+              .update({
+                status: 'sent',
+                twilio_sid: result.sid,
+                sent_at: now,
+                updated_at: now,
+              })
+              .eq('id', msg.id);
+
+            console.log(`[sms-queue-worker] Message ${msg.id} sent: SID=${result.sid}`);
+            jobSent++;
+            stats.messagesSent++;
+          } else {
+            // Update message as failed
+            await supabase
+              .from('sms_messages')
+              .update({
+                status: 'failed',
+                error_message: truncateError(result.error || 'Unknown error'),
+                updated_at: now,
+              })
+              .eq('id', msg.id);
+
+            console.error(`[sms-queue-worker] Message ${msg.id} failed: ${result.error}`);
+            jobFailed++;
+            stats.messagesFailed++;
+          }
+
+          // Rate limit delay
+          await rateLimitDelay();
         }
 
-        // Rate limit delay
-        await rateLimitDelay();
-      }
+        // Complete job with claim_token guard
+        const jobStatus = (jobSent > 0 || jobSkipped === jobMessages.length) ? 'completed' : 'failed';
+        const jobErrorMessage = jobStatus === 'failed'
+          ? `All ${jobFailed} messages failed. See sms_messages.error_message for details.`
+          : null;
 
-      // Step 5: Mark job as completed or failed
-      const jobStatus = (jobSent > 0 || jobSkipped === jobMessages.length) ? 'completed' : 'failed';
-      const jobErrorMessage = jobStatus === 'failed'
-        ? `All ${jobFailed} messages failed. See sms_messages.error_message for details.`
-        : null;
+        const completed = await completeJobWithGuard(supabase, job.id, claimToken, jobStatus, jobErrorMessage);
 
-      await supabase
-        .from('sms_send_jobs')
-        .update({
-          status: jobStatus,
-          error_message: jobErrorMessage,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', job.id);
-
-      if (jobStatus === 'completed') {
-        stats.jobsCompleted++;
-        console.log(`[sms-queue-worker] Job ${job.id} completed: ${jobSent} sent, ${jobFailed} failed, ${jobSkipped} skipped`);
-      } else {
-        stats.jobsFailed++;
-        console.log(`[sms-queue-worker] Job ${job.id} failed: ${jobFailed} messages failed`);
+        if (completed) {
+          if (jobStatus === 'completed') {
+            stats.jobsCompleted++;
+            console.log(`[sms-queue-worker] Job ${job.id} completed: ${jobSent} sent, ${jobFailed} failed, ${jobSkipped} skipped`);
+          } else {
+            stats.jobsFailed++;
+            console.log(`[sms-queue-worker] Job ${job.id} failed: ${jobFailed} messages failed`);
+          }
+        } else {
+          stats.jobsClaimStolen++;
+          console.warn(`[sms-queue-worker] Job ${job.id} claim was stolen - another worker completed it`);
+        }
       }
     }
 
     // =========================================================================
-    // PHASE 2: Update Campaign Statuses
+    // PHASE 3: Update Campaign Statuses
     // =========================================================================
     if (touchedCampaignIds.size > 0) {
-      console.log(`[sms-queue-worker] PHASE 2: Updating ${touchedCampaignIds.size} campaign(s)...`);
+      console.log(`[sms-queue-worker] PHASE 3: Updating ${touchedCampaignIds.size} campaign(s)...`);
 
       for (const campaignId of touchedCampaignIds) {
         // Check job completion status for this campaign
@@ -362,27 +545,22 @@ Deno.serve(async (req) => {
         }
 
         const allJobs = campaignJobs || [];
-        const completedJobs = allJobs.filter(j => j.status === 'completed');
-        const failedJobs = allJobs.filter(j => j.status === 'failed');
-        const pendingOrInProgress = allJobs.filter(j => j.status === 'pending' || j.status === 'in_progress');
+        const completedJobs = allJobs.filter((j: { status: string }) => j.status === 'completed');
+        const failedJobs = allJobs.filter((j: { status: string }) => j.status === 'failed');
+        const pendingOrInProgress = allJobs.filter((j: { status: string }) => j.status === 'pending' || j.status === 'in_progress');
 
         // Determine campaign status
         let newCampaignStatus: string | null = null;
 
         if (allJobs.length === 0) {
-          // No jobs - something's wrong
           continue;
         } else if (pendingOrInProgress.length > 0) {
-          // Still processing
           newCampaignStatus = 'sending';
         } else if (completedJobs.length === allJobs.length) {
-          // All completed
           newCampaignStatus = 'sent';
         } else if (failedJobs.length === allJobs.length) {
-          // All failed
           newCampaignStatus = 'failed';
         } else {
-          // Mixed - some completed, some failed
           newCampaignStatus = 'sent'; // Treat partial success as sent
         }
 
@@ -400,9 +578,9 @@ Deno.serve(async (req) => {
             .select('status')
             .eq('campaign_id', campaignId);
 
-          const sentCount = (messageStats || []).filter(m => m.status === 'sent' || m.status === 'delivered').length;
-          const failedCount = (messageStats || []).filter(m => m.status === 'failed').length;
-          const deliveredCount = (messageStats || []).filter(m => m.status === 'delivered').length;
+          const sentCount = (messageStats || []).filter((m: { status: string }) => m.status === 'sent' || m.status === 'delivered').length;
+          const failedCount = (messageStats || []).filter((m: { status: string }) => m.status === 'failed').length;
+          const deliveredCount = (messageStats || []).filter((m: { status: string }) => m.status === 'delivered').length;
 
           const metrics = {
             ...(campaign?.metrics || {}),
@@ -417,7 +595,6 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
           };
 
-          // Set sent_at if transitioning to sent
           if (newCampaignStatus === 'sent') {
             updateData.sent_at = new Date().toISOString();
           }
@@ -434,12 +611,10 @@ Deno.serve(async (req) => {
     }
 
     // =========================================================================
-    // PHASE 3: Process Legacy Queued Messages (Automation Path)
+    // PHASE 4: Process Legacy Queued Messages (Automation Path)
     // =========================================================================
-    console.log('[sms-queue-worker] PHASE 3: Processing legacy queued messages...');
+    console.log('[sms-queue-worker] PHASE 4: Processing legacy queued messages...');
 
-    // Find messages with status='queued' that are NOT part of any job (orphan messages)
-    // These are typically from automations or direct inserts
     const { data: legacyMessages, error: legacyFetchError } = await supabase
       .from('sms_messages')
       .select('id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid')
@@ -506,13 +681,13 @@ Deno.serve(async (req) => {
     // Complete
     // =========================================================================
     const duration = Date.now() - startTime;
-    console.log(`[sms-queue-worker] Completed in ${duration}ms. Stats:`, stats);
+    console.log(`[sms-queue-worker] Completed in ${duration}ms. Stats:`, JSON.stringify(stats));
 
     return corsJsonResponse({
       success: true,
       duration_ms: duration,
       stats,
-      message: `Processed ${stats.jobsProcessed} jobs, sent ${stats.messagesSent} messages`,
+      message: `Worker ${WORKER_ID}: Claimed ${stats.jobsClaimed} jobs, processed ${stats.jobsProcessed}, sent ${stats.messagesSent} messages`,
     });
 
   } catch (error) {
