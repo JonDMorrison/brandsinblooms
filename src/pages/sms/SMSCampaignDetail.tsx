@@ -6,28 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeftIcon, MessageSquareIcon, UsersIcon, TrendingUpIcon, ClockIcon } from 'lucide-react'
-
-// Placeholder data - replace with actual data fetching
-const SAMPLE_CAMPAIGN = {
-  id: '1',
-  name: 'Spring Garden Tips',
-  message: 'Spring is here! 🌱 Get ready for planting season with our expert tips and 20% off all seeds. Visit us this weekend! Reply STOP to opt out.',
-  status: 'sent',
-  created_at: '2024-01-15T09:00:00Z',
-  sent_at: '2024-01-15T10:30:00Z',
-  metrics: {
-    sent: 250,
-    delivered: 248,
-    failed: 2,
-    clicked: 45,
-    opt_outs: 3,
-    revenue: 1250.00
-  },
-  segment: {
-    name: 'All SMS Subscribers',
-    customer_count: 250
-  }
-}
+import { SmsCampaignProgressCard } from '@/components/sms/SmsCampaignProgressCard'
+import { useSmsCampaignProgress } from '@/hooks/useSmsCampaignProgress'
 
 export default function SMSCampaignDetail() {
   const { id } = useParams()
@@ -50,6 +30,14 @@ export default function SMSCampaignDetail() {
     },
     enabled: !!id
   });
+
+  // Fetch real-time progress for active campaigns
+  const showProgress = campaign && ['queued', 'sending', 'sent', 'failed'].includes(campaign.status)
+  const { data: progress, loading: progressLoading, error: progressError } = useSmsCampaignProgress({
+    campaignId: id,
+    enabled: !!id && showProgress,
+    pollIntervalMs: 3000,
+  })
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-8">Loading...</div>;
@@ -115,6 +103,15 @@ export default function SMSCampaignDetail() {
           </Button>
         </div>
       </div>
+
+      {/* Progress Card - show for active/sent campaigns */}
+      {showProgress && (
+        <SmsCampaignProgressCard 
+          progress={progress} 
+          loading={progressLoading} 
+          error={progressError} 
+        />
+      )}
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

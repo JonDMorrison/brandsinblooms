@@ -284,3 +284,6 @@ verify_jwt = true
 
 [functions.sms-daily-warmup-reset]
 verify_jwt = false
+
+[functions.sms-campaign-progress]
+verify_jwt = true
