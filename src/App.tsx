@@ -5,7 +5,7 @@ import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { SidebarLayout } from '@/components/SidebarLayout';
-import { DebugPanel } from '@/components/debug/DebugPanel';
+
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicRoute } from '@/components/PublicRoute';
 import { AuthPage } from '@/components/auth/AuthPage';
@@ -645,7 +645,6 @@ function App() {
         </Routes>
         <Toaster />
         <ShadcnToaster />
-        <DebugPanel />
       </ErrorBoundary>
     </div>
   );
