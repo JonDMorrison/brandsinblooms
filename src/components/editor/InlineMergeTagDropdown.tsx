@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
+import { normalizeMergeTags } from '@/utils/mergeTagSanitizer';
 
 interface InlineMergeTagDropdownProps {
   insertText: (text: string) => void;
@@ -45,7 +46,9 @@ export function InlineMergeTagDropdown({ insertText }: InlineMergeTagDropdownPro
   }, [open]);
 
   const handleTagSelect = (tag: typeof MERGE_TAGS[0]) => {
-    insertText(tag.value);
+    // Normalize the tag to ensure proper syntax
+    const normalizedTag = normalizeMergeTags(tag.value);
+    insertText(normalizedTag);
     setOpen(false);
   };
 
