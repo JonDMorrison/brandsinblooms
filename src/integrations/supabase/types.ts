@@ -8248,8 +8248,8 @@ export type Database = {
       }
       check_send_quota: {
         Args: {
-          p_domain_id: string
-          p_recipient_count: number
+          p_domain_id?: string
+          p_recipient_count?: number
           p_tenant_id: string
         }
         Returns: Json
