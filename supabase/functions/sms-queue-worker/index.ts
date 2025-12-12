@@ -12,6 +12,7 @@
  * - Idempotent (skips already-sent messages)
  * - Respects rate limits between Twilio calls
  * - Updates campaign status when all jobs complete
+ * - Accurate billing: only charges quota when Twilio accepts the message
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -39,6 +40,7 @@ interface TwilioConfig {
 
 interface SmsMessage {
   id: string
+  tenant_id: string
   phone: string
   content: string
   media_urls: string[] | null
@@ -47,6 +49,8 @@ interface SmsMessage {
   customer_id: string | null
   status: string
   twilio_sid: string | null
+  billable_units: number | null
+  billed_at: string | null
 }
 
 interface SmsSendJob {
@@ -163,73 +167,7 @@ function truncateError(message: string, maxLength: number = 250): string {
 }
 
 /**
- * Atomically claim pending/stale jobs using raw SQL via RPC
- * This is the ONLY way to ensure no two workers process the same job
- */
-async function claimSmsSendJobs(
-  supabase: any,
-  limit: number,
-  workerId: string,
-  claimToken: string
-): Promise<SmsSendJob[]> {
-  // Calculate stale threshold
-  const staleThreshold = new Date(Date.now() - CLAIM_STALE_AFTER_MINUTES * 60 * 1000).toISOString();
-
-  // Use a transaction-like approach: select eligible jobs, then atomically update them
-  // We select jobs that are either:
-  // 1. status='pending' and never claimed (claimed_at IS NULL)
-  // 2. status='pending' or 'in_progress' with stale claims (claimed_at < threshold)
-  // We filter by attempts < MAX_JOB_ATTEMPTS
-  
-  // First, get IDs of jobs we want to claim
-  const { data: eligibleJobs, error: selectError } = await supabase
-    .from('sms_send_jobs')
-    .select('id')
-    .in('status', ['pending', 'in_progress'])
-    .lt('attempts', MAX_JOB_ATTEMPTS)
-    .or(`claimed_at.is.null,claimed_at.lt.${staleThreshold}`)
-    .order('created_at', { ascending: true })
-    .limit(limit);
-
-  if (selectError || !eligibleJobs || eligibleJobs.length === 0) {
-    if (selectError) {
-      console.error('[sms-queue-worker] Error selecting eligible jobs:', selectError);
-    }
-    return [];
-  }
-
-  const jobIds = eligibleJobs.map((j: { id: string }) => j.id);
-  const now = new Date().toISOString();
-
-  // Atomically claim these jobs - the key is the WHERE clause includes the same conditions
-  // so if another worker already claimed them, this update will affect 0 rows for those
-  const { data: claimedJobs, error: claimError } = await supabase
-    .from('sms_send_jobs')
-    .update({
-      status: 'in_progress',
-      claimed_at: now,
-      claimed_by: workerId,
-      claim_token: claimToken,
-      attempts: supabase.sql`attempts + 1`,
-      updated_at: now,
-    })
-    .in('id', jobIds)
-    .in('status', ['pending', 'in_progress'])
-    .lt('attempts', MAX_JOB_ATTEMPTS)
-    .or(`claimed_at.is.null,claimed_at.lt.${staleThreshold}`)
-    .select('*');
-
-  if (claimError) {
-    console.error('[sms-queue-worker] Error claiming jobs:', claimError);
-    return [];
-  }
-
-  return claimedJobs || [];
-}
-
-/**
- * Alternative claiming approach using individual updates with strong guards
- * This is more reliable across different Supabase versions
+ * Atomically claim pending/stale jobs
  */
 async function claimSmsSendJobsSafe(
   supabase: any,
@@ -247,7 +185,7 @@ async function claimSmsSendJobsSafe(
     .in('status', ['pending', 'in_progress'])
     .lt('attempts', MAX_JOB_ATTEMPTS)
     .order('created_at', { ascending: true })
-    .limit(limit * 2); // Get more than needed in case some are already claimed
+    .limit(limit * 2);
 
   if (selectError) {
     console.error('[sms-queue-worker] Error selecting jobs:', selectError);
@@ -272,12 +210,6 @@ async function claimSmsSendJobsSafe(
   const claimedJobs: SmsSendJob[] = [];
 
   for (const job of claimableJobs) {
-    // Build the update with guards that prevent race conditions
-    const updateConditions: Record<string, any> = {
-      id: job.id,
-    };
-
-    // Only claim if status hasn't changed and claim is still stale/null
     const { data: claimed, error: claimError } = await supabase
       .from('sms_send_jobs')
       .update({
@@ -300,7 +232,6 @@ async function claimSmsSendJobsSafe(
     }
 
     if (claimed) {
-      // Verify we actually claimed it (our claim_token)
       if (claimed.claim_token === claimToken) {
         claimedJobs.push(claimed);
       } else {
@@ -315,7 +246,7 @@ async function claimSmsSendJobsSafe(
 }
 
 /**
- * Complete a job with claim_token guard to ensure only the claiming worker can complete it
+ * Complete a job with claim_token guard
  */
 async function completeJobWithGuard(
   supabase: any,
@@ -342,11 +273,39 @@ async function completeJobWithGuard(
   }
 
   if (!data) {
-    console.warn(`[sms-queue-worker] Job ${jobId} completion failed - claim_token mismatch (stolen claim?)`);
+    console.warn(`[sms-queue-worker] Job ${jobId} completion failed - claim_token mismatch`);
     return false;
   }
 
   return true;
+}
+
+/**
+ * Bill a message atomically using the database function
+ */
+async function billMessage(
+  supabase: any,
+  tenantId: string,
+  messageId: string,
+  billableUnits: number
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('bill_sms_message', {
+      p_tenant_id: tenantId,
+      p_message_id: messageId,
+      p_billable_units: billableUnits
+    });
+
+    if (error) {
+      console.error(`[sms-queue-worker] Billing RPC failed for message ${messageId}:`, error);
+      return false;
+    }
+
+    return data === true;
+  } catch (err) {
+    console.error(`[sms-queue-worker] Billing exception for message ${messageId}:`, err);
+    return false;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -368,6 +327,8 @@ Deno.serve(async (req) => {
     messagesSent: 0,
     messagesFailed: 0,
     messagesSkipped: 0,
+    messagesBilled: 0,
+    totalBilledUnits: 0,
     legacyMessagesProcessed: 0,
     campaignsUpdated: 0,
   };
@@ -378,7 +339,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log(`[sms-queue-worker] Starting. Worker=${WORKER_ID}, ClaimToken=${claimToken.slice(0, 8)}..., Config: MAX_JOBS=${MAX_JOBS_PER_RUN}, DELAY=${SMS_BATCH_DELAY_MS}ms, STALE_MINUTES=${CLAIM_STALE_AFTER_MINUTES}`);
+    console.log(`[sms-queue-worker] Starting. Worker=${WORKER_ID}, ClaimToken=${claimToken.slice(0, 8)}...`);
 
     // Get Twilio configuration
     const twilioConfig: TwilioConfig = {
@@ -390,7 +351,7 @@ Deno.serve(async (req) => {
     };
 
     if (!twilioConfig.accountSid || !twilioConfig.authToken) {
-      throw new Error('Missing Twilio configuration (TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN)');
+      throw new Error('Missing Twilio configuration');
     }
 
     // =========================================================================
@@ -401,9 +362,8 @@ Deno.serve(async (req) => {
     const claimedJobs = await claimSmsSendJobsSafe(supabase, MAX_JOBS_PER_RUN, WORKER_ID, claimToken);
     stats.jobsClaimed = claimedJobs.length;
 
-    console.log(`[sms-queue-worker] Claimed ${claimedJobs.length} jobs: [${claimedJobs.map(j => j.id.slice(0, 8)).join(', ')}]`);
+    console.log(`[sms-queue-worker] Claimed ${claimedJobs.length} jobs`);
 
-    // Track which campaigns are touched for later status update
     const touchedCampaignIds = new Set<string>();
 
     // =========================================================================
@@ -420,10 +380,10 @@ Deno.serve(async (req) => {
           touchedCampaignIds.add(job.campaign_id);
         }
 
-        // Load messages by IDs
+        // Load messages by IDs - include billing fields
         const { data: messages, error: msgFetchError } = await supabase
           .from('sms_messages')
-          .select('id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid')
+          .select('id, tenant_id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid, billable_units, billed_at')
           .in('id', job.recipient_message_ids);
 
         if (msgFetchError) {
@@ -452,7 +412,7 @@ Deno.serve(async (req) => {
         for (const msg of jobMessages) {
           // CRITICAL IDEMPOTENCY CHECK: skip if already sent or has twilio_sid
           if (msg.status !== 'queued' || msg.twilio_sid) {
-            console.log(`[sms-queue-worker] Skipping message ${msg.id}: status=${msg.status}, twilio_sid=${msg.twilio_sid ? 'present' : 'null'}`);
+            console.log(`[sms-queue-worker] Skipping message ${msg.id}: status=${msg.status}, sid=${msg.twilio_sid ? 'present' : 'null'}`);
             jobSkipped++;
             stats.messagesSkipped++;
             continue;
@@ -469,20 +429,37 @@ Deno.serve(async (req) => {
           const now = new Date().toISOString();
 
           if (result.success) {
-            // Update message as sent
+            // Update message as sent (with idempotent billed_at)
             await supabase
               .from('sms_messages')
               .update({
                 status: 'sent',
                 twilio_sid: result.sid,
                 sent_at: now,
+                billed_at: msg.billed_at ? undefined : now, // Only set if not already billed
                 updated_at: now,
               })
-              .eq('id', msg.id);
+              .eq('id', msg.id)
+              .is('twilio_sid', null); // Extra safety
 
             console.log(`[sms-queue-worker] Message ${msg.id} sent: SID=${result.sid}`);
             jobSent++;
             stats.messagesSent++;
+
+            // Bill the message if not already billed
+            if (!msg.billed_at) {
+              const billableUnits = msg.billable_units || 1; // Default to 1 if not set
+              const tenantId = msg.tenant_id || job.tenant_id;
+              
+              if (tenantId) {
+                const billed = await billMessage(supabase, tenantId, msg.id, billableUnits);
+                if (billed) {
+                  stats.messagesBilled++;
+                  stats.totalBilledUnits += billableUnits;
+                  console.log(`[sms-queue-worker] Billed message ${msg.id}: ${billableUnits} units`);
+                }
+              }
+            }
           } else {
             // Update message as failed
             await supabase
@@ -506,7 +483,7 @@ Deno.serve(async (req) => {
         // Complete job with claim_token guard
         const jobStatus = (jobSent > 0 || jobSkipped === jobMessages.length) ? 'completed' : 'failed';
         const jobErrorMessage = jobStatus === 'failed'
-          ? `All ${jobFailed} messages failed. See sms_messages.error_message for details.`
+          ? `All ${jobFailed} messages failed.`
           : null;
 
         const completed = await completeJobWithGuard(supabase, job.id, claimToken, jobStatus, jobErrorMessage);
@@ -517,11 +494,9 @@ Deno.serve(async (req) => {
             console.log(`[sms-queue-worker] Job ${job.id} completed: ${jobSent} sent, ${jobFailed} failed, ${jobSkipped} skipped`);
           } else {
             stats.jobsFailed++;
-            console.log(`[sms-queue-worker] Job ${job.id} failed: ${jobFailed} messages failed`);
           }
         } else {
           stats.jobsClaimStolen++;
-          console.warn(`[sms-queue-worker] Job ${job.id} claim was stolen - another worker completed it`);
         }
       }
     }
@@ -533,23 +508,16 @@ Deno.serve(async (req) => {
       console.log(`[sms-queue-worker] PHASE 3: Updating ${touchedCampaignIds.size} campaign(s)...`);
 
       for (const campaignId of touchedCampaignIds) {
-        // Check job completion status for this campaign
-        const { data: campaignJobs, error: campaignJobsError } = await supabase
+        const { data: campaignJobs } = await supabase
           .from('sms_send_jobs')
           .select('id, status')
           .eq('campaign_id', campaignId);
-
-        if (campaignJobsError) {
-          console.error(`[sms-queue-worker] Error fetching jobs for campaign ${campaignId}:`, campaignJobsError);
-          continue;
-        }
 
         const allJobs = campaignJobs || [];
         const completedJobs = allJobs.filter((j: { status: string }) => j.status === 'completed');
         const failedJobs = allJobs.filter((j: { status: string }) => j.status === 'failed');
         const pendingOrInProgress = allJobs.filter((j: { status: string }) => j.status === 'pending' || j.status === 'in_progress');
 
-        // Determine campaign status
         let newCampaignStatus: string | null = null;
 
         if (allJobs.length === 0) {
@@ -561,32 +529,35 @@ Deno.serve(async (req) => {
         } else if (failedJobs.length === allJobs.length) {
           newCampaignStatus = 'failed';
         } else {
-          newCampaignStatus = 'sent'; // Treat partial success as sent
+          newCampaignStatus = 'sent';
         }
 
         if (newCampaignStatus) {
-          // Get current campaign to update metrics
           const { data: campaign } = await supabase
             .from('crm_sms_campaigns')
             .select('metrics')
             .eq('id', campaignId)
             .single();
 
-          // Count actual message statuses
           const { data: messageStats } = await supabase
             .from('sms_messages')
-            .select('status')
+            .select('status, billable_units')
             .eq('campaign_id', campaignId);
 
-          const sentCount = (messageStats || []).filter((m: { status: string }) => m.status === 'sent' || m.status === 'delivered').length;
-          const failedCount = (messageStats || []).filter((m: { status: string }) => m.status === 'failed').length;
-          const deliveredCount = (messageStats || []).filter((m: { status: string }) => m.status === 'delivered').length;
+          const msgs = messageStats || [];
+          const sentCount = msgs.filter((m: { status: string }) => m.status === 'sent' || m.status === 'delivered').length;
+          const failedCount = msgs.filter((m: { status: string }) => m.status === 'failed').length;
+          const deliveredCount = msgs.filter((m: { status: string }) => m.status === 'delivered').length;
+          const totalBilledUnits = msgs.reduce((sum: number, m: { billable_units: number | null }) => 
+            sum + (m.billable_units || 1), 0
+          );
 
           const metrics = {
             ...(campaign?.metrics || {}),
             messages_sent: sentCount,
             delivered: deliveredCount,
             failed: failedCount,
+            total_billed_units: totalBilledUnits,
           };
 
           const updateData: Record<string, any> = {
@@ -605,7 +576,7 @@ Deno.serve(async (req) => {
             .eq('id', campaignId);
 
           stats.campaignsUpdated++;
-          console.log(`[sms-queue-worker] Campaign ${campaignId} updated to status: ${newCampaignStatus}`);
+          console.log(`[sms-queue-worker] Campaign ${campaignId} updated to: ${newCampaignStatus}`);
         }
       }
     }
@@ -617,7 +588,7 @@ Deno.serve(async (req) => {
 
     const { data: legacyMessages, error: legacyFetchError } = await supabase
       .from('sms_messages')
-      .select('id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid')
+      .select('id, tenant_id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid, billable_units, billed_at')
       .eq('status', 'queued')
       .is('twilio_sid', null)
       .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`)
@@ -630,7 +601,6 @@ Deno.serve(async (req) => {
       console.log(`[sms-queue-worker] Found ${orphanMessages.length} legacy queued messages`);
 
       for (const msg of orphanMessages) {
-        // Double-check idempotency
         if (msg.status !== 'queued' || msg.twilio_sid) {
           continue;
         }
@@ -653,12 +623,23 @@ Deno.serve(async (req) => {
               status: 'sent',
               twilio_sid: result.sid,
               sent_at: now,
+              billed_at: msg.billed_at ? undefined : now,
               updated_at: now,
             })
             .eq('id', msg.id);
 
           console.log(`[sms-queue-worker] Legacy message ${msg.id} sent: SID=${result.sid}`);
           stats.messagesSent++;
+
+          // Bill legacy messages too
+          if (!msg.billed_at && msg.tenant_id) {
+            const billableUnits = msg.billable_units || 1;
+            const billed = await billMessage(supabase, msg.tenant_id, msg.id, billableUnits);
+            if (billed) {
+              stats.messagesBilled++;
+              stats.totalBilledUnits += billableUnits;
+            }
+          }
         } else {
           await supabase
             .from('sms_messages')
@@ -687,7 +668,7 @@ Deno.serve(async (req) => {
       success: true,
       duration_ms: duration,
       stats,
-      message: `Worker ${WORKER_ID}: Claimed ${stats.jobsClaimed} jobs, processed ${stats.jobsProcessed}, sent ${stats.messagesSent} messages`,
+      message: `Worker ${WORKER_ID}: Sent ${stats.messagesSent}, billed ${stats.totalBilledUnits} units`,
     });
 
   } catch (error) {
