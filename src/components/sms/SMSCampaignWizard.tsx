@@ -18,6 +18,7 @@ import { SMSComposer } from './SMSComposer';
 import { RecipientsPreview } from './RecipientsPreview';
 import { displayPhoneNumber } from '@/lib/utils/phoneFormatter';
 import { SmsSegmentIndicator } from './SmsSegmentIndicator';
+import { SmsPreviewPanel } from './SmsPreviewPanel';
 import { countSmsSegments, calculateBillableUnits } from '@/lib/sms/smsSegmentCounter';
 
 interface CRMSegment {
@@ -543,55 +544,70 @@ export const SMSCampaignWizard: React.FC = () => {
         
         return (
           <div className="space-y-6">
-            <div>
-              <Label htmlFor="message">SMS Message</Label>
-              <SMSComposer
-                value={message}
-                onChange={setMessage}
-                imageUrl={imageUrl}
-                onImageChange={setImageUrl}
-                mediaUrls={mediaUrls}
-                onMediaUrlsChange={setMediaUrls}
-                enableMultiImage={true}
-                className="mt-2"
-              />
-            </div>
+            <div className="grid md:grid-cols-[1fr,320px] gap-6">
+              {/* Left: Message Composer */}
+              <div className="space-y-6">
+                <div>
+                  <Label htmlFor="message">SMS Message</Label>
+                  <SMSComposer
+                    value={message}
+                    onChange={setMessage}
+                    imageUrl={imageUrl}
+                    onImageChange={setImageUrl}
+                    mediaUrls={mediaUrls}
+                    onMediaUrlsChange={setMediaUrls}
+                    enableMultiImage={true}
+                    className="mt-2"
+                  />
+                </div>
 
-            {/* Segment & Credit Indicator */}
-            {message.length > 0 && (
-              <div className="space-y-3">
-                <SmsSegmentIndicator 
-                  text={message} 
-                  isMms={isMms}
-                  showDetails={true}
-                />
-                
-                {/* Total Credits Estimate */}
-                <div className="p-4 bg-muted rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CreditCard className="h-4 w-4" />
-                    <span className="font-medium">Estimated Campaign Cost</span>
+                {/* Segment & Credit Indicator */}
+                {message.length > 0 && (
+                  <div className="space-y-3">
+                    <SmsSegmentIndicator 
+                      text={message} 
+                      isMms={isMms}
+                      showDetails={true}
+                    />
+                    
+                    {/* Total Credits Estimate */}
+                    <div className="p-4 bg-muted rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CreditCard className="h-4 w-4" />
+                        <span className="font-medium">Estimated Campaign Cost</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {estimatedCreditsPerMessage} credit{estimatedCreditsPerMessage !== 1 ? 's' : ''} per message × {targetCustomers.length} recipients = 
+                        <strong className="text-foreground ml-1">{totalEstimatedCredits} total credits</strong>
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {estimatedCreditsPerMessage} credit{estimatedCreditsPerMessage !== 1 ? 's' : ''} per message × {targetCustomers.length} recipients = 
-                    <strong className="text-foreground ml-1">{totalEstimatedCredits} total credits</strong>
+                )}
+
+                <div>
+                  <Label htmlFor="scheduled-at">Schedule (Optional)</Label>
+                  <Input
+                    id="scheduled-at"
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    className="mt-1"
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Leave empty to save as draft
                   </p>
                 </div>
               </div>
-            )}
 
-            <div>
-              <Label htmlFor="scheduled-at">Schedule (Optional)</Label>
-              <Input
-                id="scheduled-at"
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                className="mt-1"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Leave empty to save as draft
-              </p>
+              {/* Right: Preview & Test Panel */}
+              <div className="md:sticky md:top-4">
+                <SmsPreviewPanel
+                  messageTemplate={message}
+                  mediaUrls={mediaUrls}
+                  imageUrl={imageUrl}
+                  recipientCount={targetCustomers.length}
+                />
+              </div>
             </div>
           </div>
         );

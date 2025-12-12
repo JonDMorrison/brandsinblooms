@@ -293,3 +293,9 @@ verify_jwt = true
 
 [functions.sms-failed-export]
 verify_jwt = true
+
+[functions.sms-render-preview]
+verify_jwt = true
+
+[functions.sms-send-test]
+verify_jwt = true
