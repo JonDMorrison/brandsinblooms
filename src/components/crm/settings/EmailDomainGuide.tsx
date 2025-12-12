@@ -104,7 +104,7 @@ export const EmailDomainGuide: React.FC = () => {
                 <div>
                   <p className="font-medium text-amber-900 dark:text-amber-100">Why Avoid Shared Domains?</p>
                   <p className="text-sm text-amber-700 dark:text-amber-300">
-                    When using a shared sending domain (like noreply@bloomsuite.email), your deliverability 
+                    When using a shared sending domain (like noreply@bloomsuite.app), your deliverability 
                     can be affected by other senders' practices. A bad actor on a shared domain can harm 
                     everyone's reputation.
                   </p>

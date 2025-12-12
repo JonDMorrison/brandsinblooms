@@ -202,7 +202,7 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
                 <p className="text-sm text-muted-foreground">
                   {isVerified 
                     ? `Emails sent from: ${senderConfig.senderEmail}`
-                    : `Emails sent from: noreply@bloomsuite.email on behalf of ${companyName}`
+                    : `Emails sent from: noreply@bloomsuite.app on behalf of ${companyName}`
                   }
                 </p>
               </div>
@@ -233,7 +233,7 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Emails will be sent from <code>noreply@bloomsuite.email</code> on behalf of {companyName}
+                    Emails will be sent from <code>noreply@bloomsuite.app</code> on behalf of {companyName}
                   </p>
                   {!isVerified && (
                     <Button 

@@ -2527,7 +2527,7 @@ const { counts: segmentCounts } = useSegmentCounts();
                       subject: subjectLine || topic,
                       preheader: preheaderText || generatePreheaderText(topic, description),
                       sender_name: senderConfig?.displayName || 'BloomSuite',
-                      sender_email: senderConfig?.senderEmail || 'noreply@bloomsuite.email',
+                      sender_email: senderConfig?.senderEmail || 'noreply@bloomsuite.app',
                       content: '', // HTML will be generated when needed
                       segments: [],
                       schedule: { type: 'immediate' as const },
@@ -4138,7 +4138,7 @@ const { counts: segmentCounts } = useSegmentCounts();
         name: campaignName,
         subject: subjectLine,
         sender_name: senderConfig?.displayName || 'Garden Center',
-        sender_email: senderConfig?.senderEmail || 'noreply@bloomsuite.email',
+        sender_email: senderConfig?.senderEmail || 'noreply@bloomsuite.app',
         content: generateEmailHTML(),
         preheader: preheaderText,
         segments: selectedSegments,
