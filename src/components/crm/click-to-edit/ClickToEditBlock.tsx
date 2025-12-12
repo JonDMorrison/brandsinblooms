@@ -153,17 +153,41 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     }
   };
 
+  // Helper to check if click is inside an allowed editing overlay
+  const isInsideAllowedOverlay = (target: HTMLElement | null): boolean => {
+    if (!target) return false;
+
+    // MediaSelector sidebar/modal (existing)
+    const mediaSelector = document.querySelector('[data-media-selector-sidebar]');
+    if (mediaSelector && mediaSelector.contains(target)) return true;
+
+    // MergeTagPicker popover (explicit data attribute)
+    if (target.closest('[data-merge-tag-picker="true"]')) return true;
+
+    // Generic allowlist for any future editing overlays
+    if (target.closest('[data-click-to-edit-allowed-overlay="true"]')) return true;
+
+    // Also check the overlay-root wrapper from popover.tsx
+    if (target.closest('[data-overlay-root]')) return true;
+
+    return false;
+  };
+
   // Handle click outside to exit edit mode
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (editMode && editingRef.current && !editingRef.current.contains(event.target as Node)) {
-        // Don't close if clicking on MediaSelector modal
-        const mediaSelector = document.querySelector('[data-media-selector-sidebar]');
-        if (mediaSelector && mediaSelector.contains(event.target as Node)) {
-          return;
-        }
-        exitEditMode();
-      }
+      if (!editMode) return;
+      
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      // If click is inside editor container, do nothing
+      if (editingRef.current && editingRef.current.contains(target)) return;
+
+      // If click is inside a known allowed overlay, do nothing
+      if (isInsideAllowedOverlay(target)) return;
+
+      exitEditMode();
     };
 
     if (editMode) {
