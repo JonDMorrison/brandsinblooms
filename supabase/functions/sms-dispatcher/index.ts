@@ -286,7 +286,7 @@ async function sendEmail(supabase: any, message: OutboxMessage): Promise<boolean
     }
 
     // Determine sender
-    const senderEmail = companyProfile?.custom_sender_email || 'noreply@bloomsuite.email';
+    const senderEmail = companyProfile?.custom_sender_email || 'noreply@bloomsuite.app';
     const fromAddress = `${companyName} <${senderEmail}>`;
 
     // Send email via Resend

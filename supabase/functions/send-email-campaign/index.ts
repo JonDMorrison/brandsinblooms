@@ -121,7 +121,7 @@ function buildEmailPayloadOptimized(
     ]
   };
 
-  if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.email') {
+  if (usesVerifiedDomain && senderEmail !== 'noreply@bloomsuite.app') {
     emailPayload.reply_to = senderEmail;
   }
 
@@ -409,12 +409,12 @@ serve(async (req) => {
     let activeDomainId: string | null = null;
 
     if (quotaCheck.using_fallback) {
-      senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.email';
+      senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.app';
       senderDisplayName = `${companyName} via BloomSuite`;
       deliveryMethod = 'shared_sender';
       usesVerifiedDomain = false;
     } else {
-      senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.email';
+      senderEmail = quotaCheck.sender?.from_email || 'noreply@bloomsuite.app';
       senderDisplayName = quotaCheck.sender?.from_name || companyName;
       deliveryMethod = 'custom_domain';
       usesVerifiedDomain = true;
