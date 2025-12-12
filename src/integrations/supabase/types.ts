@@ -6604,14 +6604,19 @@ export type Database = {
       }
       sms_messages: {
         Row: {
+          attempts: number
           campaign_id: string | null
           content: string
           created_at: string
           customer_id: string | null
+          dead_lettered_at: string | null
           delivered_at: string | null
+          error_code: string | null
           error_message: string | null
+          failure_type: string | null
           from_phone: string | null
           id: string
+          last_attempt_at: string | null
           media_urls: Json | null
           phone: string
           scheduled_at: string | null
@@ -6621,14 +6626,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attempts?: number
           campaign_id?: string | null
           content: string
           created_at?: string
           customer_id?: string | null
+          dead_lettered_at?: string | null
           delivered_at?: string | null
+          error_code?: string | null
           error_message?: string | null
+          failure_type?: string | null
           from_phone?: string | null
           id?: string
+          last_attempt_at?: string | null
           media_urls?: Json | null
           phone: string
           scheduled_at?: string | null
@@ -6638,14 +6648,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attempts?: number
           campaign_id?: string | null
           content?: string
           created_at?: string
           customer_id?: string | null
+          dead_lettered_at?: string | null
           delivered_at?: string | null
+          error_code?: string | null
           error_message?: string | null
+          failure_type?: string | null
           from_phone?: string | null
           id?: string
+          last_attempt_at?: string | null
           media_urls?: Json | null
           phone?: string
           scheduled_at?: string | null
@@ -6687,6 +6702,7 @@ export type Database = {
           claimed_at: string | null
           claimed_by: string | null
           created_at: string | null
+          dead_lettered_at: string | null
           error_message: string | null
           from_phone: string | null
           id: string
@@ -6704,6 +6720,7 @@ export type Database = {
           claimed_at?: string | null
           claimed_by?: string | null
           created_at?: string | null
+          dead_lettered_at?: string | null
           error_message?: string | null
           from_phone?: string | null
           id?: string
@@ -6721,6 +6738,7 @@ export type Database = {
           claimed_at?: string | null
           claimed_by?: string | null
           created_at?: string | null
+          dead_lettered_at?: string | null
           error_message?: string | null
           from_phone?: string | null
           id?: string

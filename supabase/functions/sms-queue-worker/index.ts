@@ -13,16 +13,21 @@
  * - Respects rate limits between Twilio calls
  * - Updates campaign status when all jobs complete
  * - Accurate billing: only charges quota when Twilio accepts the message
+ * - Retry policy: retries transient errors with exponential backoff
+ * - Dead-lettering: permanently fails messages that cannot be delivered
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
+import { classifyTwilioError, calculateRetryDelay, type SmsFailureType } from '../_shared/smsErrorPolicy.ts'
 
 // Configuration constants
 const SMS_BATCH_DELAY_MS = Number(Deno.env.get("SMS_BATCH_DELAY_MS") ?? "200");
 const MAX_JOBS_PER_RUN = Number(Deno.env.get("SMS_MAX_JOBS_PER_RUN") ?? "10");
 const MAX_LEGACY_MESSAGES_PER_RUN = 100;
 const MAX_JOB_ATTEMPTS = Number(Deno.env.get("SMS_MAX_JOB_ATTEMPTS") ?? "3");
+const MAX_MESSAGE_ATTEMPTS = Number(Deno.env.get("SMS_MAX_MESSAGE_ATTEMPTS") ?? "3");
+const RETRY_BASE_DELAY_MS = Number(Deno.env.get("SMS_RETRY_BASE_DELAY_MS") ?? "2000");
 
 // Stale claim timeout - jobs in_progress longer than this can be reclaimed
 const CLAIM_STALE_AFTER_MINUTES = Number(Deno.env.get("SMS_CLAIM_STALE_AFTER_MINUTES") ?? "15");
@@ -51,6 +56,9 @@ interface SmsMessage {
   twilio_sid: string | null
   billable_units: number | null
   billed_at: string | null
+  attempts: number
+  scheduled_at: string | null
+  dead_lettered_at: string | null
 }
 
 interface SmsSendJob {
@@ -98,7 +106,7 @@ async function sendSMSViaTwilio(
     fromPhone?: string | null
     mediaUrls?: string[] | null
   } = {}
-): Promise<{ success: boolean; sid?: string; error?: string }> {
+): Promise<{ success: boolean; sid?: string; error?: string; rawError?: unknown }> {
   try {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`;
     const formData = new FormData();
@@ -142,12 +150,17 @@ async function sendSMSViaTwilio(
       return {
         success: false,
         error: result.message || `Twilio error: ${result.error_code || result.code}`,
+        rawError: result,
       };
     }
 
     return { success: true, sid: result.sid };
   } catch (error) {
-    return { success: false, error: error.message || 'Unknown error sending SMS' };
+    return { 
+      success: false, 
+      error: error.message || 'Unknown error sending SMS',
+      rawError: error,
+    };
   }
 }
 
@@ -184,6 +197,7 @@ async function claimSmsSendJobsSafe(
     .select('*')
     .in('status', ['pending', 'in_progress'])
     .lt('attempts', MAX_JOB_ATTEMPTS)
+    .is('dead_lettered_at', null)
     .order('created_at', { ascending: true })
     .limit(limit * 2);
 
@@ -223,6 +237,7 @@ async function claimSmsSendJobsSafe(
       .eq('id', job.id)
       .in('status', ['pending', 'in_progress'])
       .lt('attempts', MAX_JOB_ATTEMPTS)
+      .is('dead_lettered_at', null)
       .select('*')
       .maybeSingle();
 
@@ -246,34 +261,45 @@ async function claimSmsSendJobsSafe(
 }
 
 /**
- * Complete a job with claim_token guard
+ * Complete or reset a job with claim_token guard
  */
-async function completeJobWithGuard(
+async function updateJobWithGuard(
   supabase: any,
   jobId: string,
   claimToken: string,
-  status: 'completed' | 'failed',
-  errorMessage: string | null
+  update: {
+    status: 'completed' | 'failed' | 'pending'
+    errorMessage?: string | null
+    clearClaim?: boolean
+  }
 ): Promise<boolean> {
+  const updateData: Record<string, any> = {
+    status: update.status,
+    error_message: update.errorMessage ?? null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (update.clearClaim) {
+    updateData.claimed_at = null;
+    updateData.claimed_by = null;
+    updateData.claim_token = null;
+  }
+
   const { data, error } = await supabase
     .from('sms_send_jobs')
-    .update({
-      status,
-      error_message: errorMessage,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq('id', jobId)
     .eq('claim_token', claimToken)
     .select('id')
     .maybeSingle();
 
   if (error) {
-    console.error(`[sms-queue-worker] Error completing job ${jobId}:`, error);
+    console.error(`[sms-queue-worker] Error updating job ${jobId}:`, error);
     return false;
   }
 
   if (!data) {
-    console.warn(`[sms-queue-worker] Job ${jobId} completion failed - claim_token mismatch`);
+    console.warn(`[sms-queue-worker] Job ${jobId} update failed - claim_token mismatch`);
     return false;
   }
 
@@ -308,6 +334,103 @@ async function billMessage(
   }
 }
 
+/**
+ * Increment attempts and check if message should be processed
+ */
+async function prepareMessageForSend(
+  supabase: any,
+  messageId: string
+): Promise<{ shouldSend: boolean; attempts: number }> {
+  const now = new Date().toISOString();
+  
+  const { data, error } = await supabase
+    .from('sms_messages')
+    .update({
+      attempts: supabase.rpc ? undefined : undefined, // Will use raw SQL
+      last_attempt_at: now,
+      updated_at: now,
+    })
+    .eq('id', messageId)
+    .eq('status', 'queued')
+    .is('dead_lettered_at', null)
+    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
+    .select('id, attempts')
+    .maybeSingle();
+
+  if (error || !data) {
+    return { shouldSend: false, attempts: 0 };
+  }
+
+  // Increment attempts via a separate update
+  await supabase
+    .from('sms_messages')
+    .update({ attempts: data.attempts + 1 })
+    .eq('id', messageId);
+
+  return { shouldSend: true, attempts: data.attempts + 1 };
+}
+
+/**
+ * Handle message send failure with retry policy
+ */
+async function handleMessageFailure(
+  supabase: any,
+  messageId: string,
+  attempts: number,
+  rawError: unknown
+): Promise<{ retryScheduled: boolean; failureType: SmsFailureType }> {
+  const now = new Date().toISOString();
+  const classified = classifyTwilioError(rawError);
+  
+  console.log(`[sms-queue-worker] Message ${messageId} error classified:`, {
+    failureType: classified.failureType,
+    retryable: classified.retryable,
+    code: classified.code,
+    attempts,
+    maxAttempts: MAX_MESSAGE_ATTEMPTS,
+  });
+
+  // Determine if we should retry
+  const shouldRetry = classified.retryable && attempts < MAX_MESSAGE_ATTEMPTS;
+
+  if (shouldRetry) {
+    // Schedule retry with exponential backoff
+    const backoffMs = calculateRetryDelay(attempts, RETRY_BASE_DELAY_MS);
+    const scheduledAt = new Date(Date.now() + backoffMs).toISOString();
+    
+    await supabase
+      .from('sms_messages')
+      .update({
+        status: 'queued',
+        scheduled_at: scheduledAt,
+        error_message: truncateError(classified.message),
+        error_code: classified.code,
+        failure_type: classified.failureType,
+        updated_at: now,
+      })
+      .eq('id', messageId);
+
+    console.log(`[sms-queue-worker] Message ${messageId} scheduled for retry at ${scheduledAt}`);
+    return { retryScheduled: true, failureType: classified.failureType };
+  } else {
+    // Permanent failure - dead letter
+    await supabase
+      .from('sms_messages')
+      .update({
+        status: 'failed',
+        error_message: truncateError(classified.message),
+        error_code: classified.code,
+        failure_type: classified.failureType,
+        dead_lettered_at: now,
+        updated_at: now,
+      })
+      .eq('id', messageId);
+
+    console.log(`[sms-queue-worker] Message ${messageId} dead-lettered: ${classified.failureType}`);
+    return { retryScheduled: false, failureType: classified.failureType };
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   const corsResponse = handleCorsPrelight(req);
@@ -323,10 +446,13 @@ Deno.serve(async (req) => {
     jobsProcessed: 0,
     jobsCompleted: 0,
     jobsFailed: 0,
+    jobsRequeued: 0,
     jobsClaimStolen: 0,
     messagesSent: 0,
     messagesFailed: 0,
     messagesSkipped: 0,
+    messagesRetryScheduled: 0,
+    messagesDeadLettered: 0,
     messagesBilled: 0,
     totalBilledUnits: 0,
     legacyMessagesProcessed: 0,
@@ -380,22 +506,19 @@ Deno.serve(async (req) => {
           touchedCampaignIds.add(job.campaign_id);
         }
 
-        // Load messages by IDs - include billing fields
+        // Load messages by IDs - include billing and retry fields
         const { data: messages, error: msgFetchError } = await supabase
           .from('sms_messages')
-          .select('id, tenant_id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid, billable_units, billed_at')
+          .select('id, tenant_id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid, billable_units, billed_at, attempts, scheduled_at, dead_lettered_at')
           .in('id', job.recipient_message_ids);
 
         if (msgFetchError) {
           console.error(`[sms-queue-worker] Failed to load messages for job ${job.id}:`, msgFetchError);
-          const completed = await completeJobWithGuard(
-            supabase,
-            job.id,
-            claimToken,
-            'failed',
-            truncateError(msgFetchError.message)
-          );
-          if (completed) {
+          const updated = await updateJobWithGuard(supabase, job.id, claimToken, {
+            status: 'failed',
+            errorMessage: truncateError(msgFetchError.message),
+          });
+          if (updated) {
             stats.jobsFailed++;
           } else {
             stats.jobsClaimStolen++;
@@ -407,9 +530,13 @@ Deno.serve(async (req) => {
         let jobSent = 0;
         let jobFailed = 0;
         let jobSkipped = 0;
+        let jobRetryScheduled = 0;
 
         // Process each message with idempotency check
         for (const msg of jobMessages) {
+          // Check if message should be skipped
+          const now = new Date().toISOString();
+          
           // CRITICAL IDEMPOTENCY CHECK: skip if already sent or has twilio_sid
           if (msg.status !== 'queued' || msg.twilio_sid) {
             console.log(`[sms-queue-worker] Skipping message ${msg.id}: status=${msg.status}, sid=${msg.twilio_sid ? 'present' : 'null'}`);
@@ -417,6 +544,33 @@ Deno.serve(async (req) => {
             stats.messagesSkipped++;
             continue;
           }
+
+          // Skip if dead-lettered
+          if (msg.dead_lettered_at) {
+            console.log(`[sms-queue-worker] Skipping dead-lettered message ${msg.id}`);
+            jobSkipped++;
+            stats.messagesSkipped++;
+            continue;
+          }
+
+          // Skip if scheduled for later
+          if (msg.scheduled_at && new Date(msg.scheduled_at) > new Date()) {
+            console.log(`[sms-queue-worker] Skipping scheduled message ${msg.id}, scheduled for ${msg.scheduled_at}`);
+            jobRetryScheduled++;
+            stats.messagesRetryScheduled++;
+            continue;
+          }
+
+          // Increment attempts
+          const currentAttempts = (msg.attempts || 0) + 1;
+          await supabase
+            .from('sms_messages')
+            .update({
+              attempts: currentAttempts,
+              last_attempt_at: now,
+              updated_at: now,
+            })
+            .eq('id', msg.id);
 
           // Send via Twilio
           const formattedPhone = formatPhoneForTwilio(msg.phone);
@@ -426,8 +580,6 @@ Deno.serve(async (req) => {
             mediaUrls: msg.media_urls,
           });
 
-          const now = new Date().toISOString();
-
           if (result.success) {
             // Update message as sent (with idempotent billed_at)
             await supabase
@@ -436,11 +588,14 @@ Deno.serve(async (req) => {
                 status: 'sent',
                 twilio_sid: result.sid,
                 sent_at: now,
-                billed_at: msg.billed_at ? undefined : now, // Only set if not already billed
+                billed_at: msg.billed_at ? undefined : now,
+                error_message: null,
+                error_code: null,
+                failure_type: null,
                 updated_at: now,
               })
               .eq('id', msg.id)
-              .is('twilio_sid', null); // Extra safety
+              .is('twilio_sid', null);
 
             console.log(`[sms-queue-worker] Message ${msg.id} sent: SID=${result.sid}`);
             jobSent++;
@@ -448,7 +603,7 @@ Deno.serve(async (req) => {
 
             // Bill the message if not already billed
             if (!msg.billed_at) {
-              const billableUnits = msg.billable_units || 1; // Default to 1 if not set
+              const billableUnits = msg.billable_units || 1;
               const tenantId = msg.tenant_id || job.tenant_id;
               
               if (tenantId) {
@@ -461,42 +616,65 @@ Deno.serve(async (req) => {
               }
             }
           } else {
-            // Update message as failed
-            await supabase
-              .from('sms_messages')
-              .update({
-                status: 'failed',
-                error_message: truncateError(result.error || 'Unknown error'),
-                updated_at: now,
-              })
-              .eq('id', msg.id);
+            // Handle failure with retry policy
+            const failureResult = await handleMessageFailure(
+              supabase,
+              msg.id,
+              currentAttempts,
+              result.rawError || result.error
+            );
 
-            console.error(`[sms-queue-worker] Message ${msg.id} failed: ${result.error}`);
-            jobFailed++;
-            stats.messagesFailed++;
+            if (failureResult.retryScheduled) {
+              jobRetryScheduled++;
+              stats.messagesRetryScheduled++;
+            } else {
+              jobFailed++;
+              stats.messagesFailed++;
+              stats.messagesDeadLettered++;
+            }
           }
 
           // Rate limit delay
           await rateLimitDelay();
         }
 
-        // Complete job with claim_token guard
-        const jobStatus = (jobSent > 0 || jobSkipped === jobMessages.length) ? 'completed' : 'failed';
-        const jobErrorMessage = jobStatus === 'failed'
-          ? `All ${jobFailed} messages failed.`
-          : null;
+        // Determine job status
+        // If any messages are scheduled for retry, put job back to pending
+        if (jobRetryScheduled > 0) {
+          const updated = await updateJobWithGuard(supabase, job.id, claimToken, {
+            status: 'pending',
+            errorMessage: null,
+            clearClaim: true,
+          });
 
-        const completed = await completeJobWithGuard(supabase, job.id, claimToken, jobStatus, jobErrorMessage);
-
-        if (completed) {
-          if (jobStatus === 'completed') {
-            stats.jobsCompleted++;
-            console.log(`[sms-queue-worker] Job ${job.id} completed: ${jobSent} sent, ${jobFailed} failed, ${jobSkipped} skipped`);
+          if (updated) {
+            stats.jobsRequeued++;
+            console.log(`[sms-queue-worker] Job ${job.id} requeued: ${jobRetryScheduled} messages scheduled for retry`);
           } else {
-            stats.jobsFailed++;
+            stats.jobsClaimStolen++;
           }
         } else {
-          stats.jobsClaimStolen++;
+          // All messages are in terminal state
+          const jobStatus = (jobSent > 0 || jobSkipped === jobMessages.length) ? 'completed' : 'failed';
+          const jobErrorMessage = jobStatus === 'failed'
+            ? `All ${jobFailed} messages failed.`
+            : null;
+
+          const updated = await updateJobWithGuard(supabase, job.id, claimToken, {
+            status: jobStatus,
+            errorMessage: jobErrorMessage,
+          });
+
+          if (updated) {
+            if (jobStatus === 'completed') {
+              stats.jobsCompleted++;
+              console.log(`[sms-queue-worker] Job ${job.id} completed: ${jobSent} sent, ${jobFailed} failed, ${jobSkipped} skipped`);
+            } else {
+              stats.jobsFailed++;
+            }
+          } else {
+            stats.jobsClaimStolen++;
+          }
         }
       }
     }
@@ -586,12 +764,14 @@ Deno.serve(async (req) => {
     // =========================================================================
     console.log('[sms-queue-worker] PHASE 4: Processing legacy queued messages...');
 
+    const now = new Date().toISOString();
     const { data: legacyMessages, error: legacyFetchError } = await supabase
       .from('sms_messages')
-      .select('id, tenant_id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid, billable_units, billed_at')
+      .select('id, tenant_id, phone, content, media_urls, from_phone, campaign_id, customer_id, status, twilio_sid, billable_units, billed_at, attempts, scheduled_at, dead_lettered_at')
       .eq('status', 'queued')
       .is('twilio_sid', null)
-      .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`)
+      .is('dead_lettered_at', null)
+      .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
       .limit(MAX_LEGACY_MESSAGES_PER_RUN);
 
     if (legacyFetchError) {
@@ -607,14 +787,23 @@ Deno.serve(async (req) => {
 
         stats.legacyMessagesProcessed++;
 
+        // Increment attempts
+        const currentAttempts = (msg.attempts || 0) + 1;
+        await supabase
+          .from('sms_messages')
+          .update({
+            attempts: currentAttempts,
+            last_attempt_at: now,
+            updated_at: now,
+          })
+          .eq('id', msg.id);
+
         const formattedPhone = formatPhoneForTwilio(msg.phone);
         const result = await sendSMSViaTwilio(twilioConfig, formattedPhone, msg.content, {
           messagingServiceSid: twilioConfig.messagingServiceSid,
           fromPhone: msg.from_phone,
           mediaUrls: msg.media_urls,
         });
-
-        const now = new Date().toISOString();
 
         if (result.success) {
           await supabase
@@ -624,6 +813,9 @@ Deno.serve(async (req) => {
               twilio_sid: result.sid,
               sent_at: now,
               billed_at: msg.billed_at ? undefined : now,
+              error_message: null,
+              error_code: null,
+              failure_type: null,
               updated_at: now,
             })
             .eq('id', msg.id);
@@ -641,17 +833,20 @@ Deno.serve(async (req) => {
             }
           }
         } else {
-          await supabase
-            .from('sms_messages')
-            .update({
-              status: 'failed',
-              error_message: truncateError(result.error || 'Unknown error'),
-              updated_at: now,
-            })
-            .eq('id', msg.id);
+          // Handle failure with retry policy
+          const failureResult = await handleMessageFailure(
+            supabase,
+            msg.id,
+            currentAttempts,
+            result.rawError || result.error
+          );
 
-          console.error(`[sms-queue-worker] Legacy message ${msg.id} failed: ${result.error}`);
-          stats.messagesFailed++;
+          if (failureResult.retryScheduled) {
+            stats.messagesRetryScheduled++;
+          } else {
+            stats.messagesFailed++;
+            stats.messagesDeadLettered++;
+          }
         }
 
         await rateLimitDelay();
@@ -668,7 +863,7 @@ Deno.serve(async (req) => {
       success: true,
       duration_ms: duration,
       stats,
-      message: `Worker ${WORKER_ID}: Sent ${stats.messagesSent}, billed ${stats.totalBilledUnits} units`,
+      message: `Worker ${WORKER_ID}: Sent ${stats.messagesSent}, retries ${stats.messagesRetryScheduled}, dead-lettered ${stats.messagesDeadLettered}, billed ${stats.totalBilledUnits} units`,
     });
 
   } catch (error) {
