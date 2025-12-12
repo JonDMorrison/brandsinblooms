@@ -106,22 +106,41 @@ serve(async (req) => {
             // Each recipient object contains the full email payload
             const emailPayloads = batch.map((r: any) => r.payload);
             
+            console.log(`📧 Sending batch of ${emailPayloads.length} emails...`);
             const batchResponse = await resend.batch.send(emailPayloads);
             
+            // Handle nested response structure: batchResponse.data may contain { data: [...] }
+            let results: any[] = [];
             if (batchResponse?.data) {
-              const successCount = Array.isArray(batchResponse.data) 
-                ? batchResponse.data.filter((r: any) => r?.id).length 
-                : 1;
-              emailsSent += successCount;
-              emailsFailed += batch.length - successCount;
-            } else if (batchResponse?.error) {
-              emailsFailed += batch.length;
+              // Check if response is nested (batchResponse.data.data)
+              if (Array.isArray(batchResponse.data)) {
+                results = batchResponse.data;
+              } else if (batchResponse.data?.data && Array.isArray(batchResponse.data.data)) {
+                results = batchResponse.data.data;
+              } else {
+                results = [batchResponse.data];
+              }
+            }
+            
+            const successCount = results.filter((r: any) => r?.id).length;
+            const failedResults = results.filter((r: any) => !r?.id);
+            
+            console.log(`📧 Batch result: ${successCount} succeeded, ${failedResults.length} failed`);
+            
+            emailsSent += successCount;
+            emailsFailed += failedResults.length;
+            
+            if (failedResults.length > 0) {
+              console.error(`❌ ${failedResults.length} emails in batch failed:`, JSON.stringify(failedResults.slice(0, 3)));
+            }
+            
+            if (batchResponse?.error) {
+              console.error(`❌ Batch error from Resend:`, JSON.stringify(batchResponse.error));
               lastError = batchResponse.error?.message || 'Batch send failed';
-              console.error(`❌ Batch send failed:`, batchResponse.error);
             }
           } catch (batchError: any) {
             lastError = batchError.message || 'Unknown batch error';
-            console.error(`❌ Batch error:`, batchError.message);
+            console.error(`❌ Batch error:`, batchError.message, batchError.stack);
             emailsFailed += batch.length;
           }
 
