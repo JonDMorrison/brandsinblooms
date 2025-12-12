@@ -107,6 +107,7 @@ export function MergeTagPicker({
               e.preventDefault();
               setOpen(!open);
             }}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             Personalize
           </Button>
@@ -120,6 +121,7 @@ export function MergeTagPicker({
               e.preventDefault();
               setOpen(!open);
             }}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             <Sparkles className="h-4 w-4" />
           </Button>
@@ -130,6 +132,8 @@ export function MergeTagPicker({
         align="start"
         side="bottom"
         onPointerDownOutside={(e) => e.preventDefault()}
+        data-merge-tag-picker="true"
+        data-click-to-edit-allowed-overlay="true"
       >
         <div className="p-3 border-b">
           <div className="relative">
