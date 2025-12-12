@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Calendar, Users, MessageSquare, Send, CheckCircle, User, Target, Eye, AlertCircle } from 'lucide-react';
+import { Calendar, Users, MessageSquare, Send, CheckCircle, User, Target, Eye, AlertCircle, CreditCard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { SMSComposer } from './SMSComposer';
 import { RecipientsPreview } from './RecipientsPreview';
 import { displayPhoneNumber } from '@/lib/utils/phoneFormatter';
+import { SmsSegmentIndicator } from './SmsSegmentIndicator';
+import { countSmsSegments, calculateBillableUnits } from '@/lib/sms/smsSegmentCounter';
 
 interface CRMSegment {
   id: string;
@@ -535,6 +537,10 @@ export const SMSCampaignWizard: React.FC = () => {
         );
 
       case 2:
+        const isMms = !!(imageUrl || mediaUrls.length > 0);
+        const estimatedCreditsPerMessage = calculateBillableUnits(message, isMms);
+        const totalEstimatedCredits = estimatedCreditsPerMessage * targetCustomers.length;
+        
         return (
           <div className="space-y-6">
             <div>
@@ -550,6 +556,29 @@ export const SMSCampaignWizard: React.FC = () => {
                 className="mt-2"
               />
             </div>
+
+            {/* Segment & Credit Indicator */}
+            {message.length > 0 && (
+              <div className="space-y-3">
+                <SmsSegmentIndicator 
+                  text={message} 
+                  isMms={isMms}
+                  showDetails={true}
+                />
+                
+                {/* Total Credits Estimate */}
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CreditCard className="h-4 w-4" />
+                    <span className="font-medium">Estimated Campaign Cost</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {estimatedCreditsPerMessage} credit{estimatedCreditsPerMessage !== 1 ? 's' : ''} per message × {targetCustomers.length} recipients = 
+                    <strong className="text-foreground ml-1">{totalEstimatedCredits} total credits</strong>
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div>
               <Label htmlFor="scheduled-at">Schedule (Optional)</Label>

@@ -8267,7 +8267,7 @@ export type Database = {
         Returns: Json
       }
       check_sms_quota: {
-        Args: { p_recipient_count: number; p_tenant_id: string }
+        Args: { p_estimated_units: number; p_tenant_id: string }
         Returns: Json
       }
       check_trial_expiration_emails: { Args: never; Returns: number }

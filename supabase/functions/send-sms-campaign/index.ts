@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
 import { getSmsWarmupInfoByPhoneOrMessagingService, ensureSmsWarmupRowForMessagingServiceIfNeeded } from "../_shared/smsWarmup.ts";
+import { countSmsSegments, calculateBillableUnits } from "../_shared/smsSegmentCounter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,6 +10,7 @@ const corsHeaders = {
 }
 
 const BATCH_SIZE = 100;
+const DEFAULT_MMS_UNIT_COST = 3;
 
 /**
  * Format phone number to E.164 format
@@ -202,24 +204,39 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // Step E: Insert sms_messages with status='queued'
-    // Get company profile for merge tags
+    // Step E: Get company profile and prepare messages with segment counting
     const { data: companyProfile } = await supabase
       .from('company_profiles')
-      .select('company_name, company_phone, company_email')
+      .select('company_name, company_phone, company_email, compliance_settings')
       .eq('user_id', campaign.user_id)
       .maybeSingle();
 
     const companyInfo = companyProfile || {};
     const messageTemplate = convertLegacyTags(campaign.message || '');
     
-    // Prepare message rows
-    const messageRows = eligibleCustomers.map(customer => {
+    // Determine if this is MMS
+    const isMms = !!(campaign.image_url || (campaign.media_urls && campaign.media_urls.length > 0));
+    
+    // Get MMS unit cost from settings (default 3)
+    const smsBillingSettings = (companyProfile?.compliance_settings as any)?.sms_billing || {};
+    const mmsUnitCost = smsBillingSettings.mms_unit_cost ?? DEFAULT_MMS_UNIT_COST;
+    
+    // Step F: Compute estimated billable units per recipient and check quota
+    let totalEstimatedUnits = 0;
+    const messageRows: any[] = [];
+    
+    for (const customer of eligibleCustomers) {
       const mergeTagData = createMergeTagDataFromCustomer(customer, companyInfo);
       const renderedContent = renderMergeTags(messageTemplate, mergeTagData);
       const formattedPhone = formatPhoneForTwilio(customer.phone);
-
-      return {
+      
+      // Calculate segments for this rendered message
+      const segmentInfo = countSmsSegments(renderedContent);
+      const billableUnits = isMms ? mmsUnitCost : segmentInfo.segments;
+      
+      totalEstimatedUnits += billableUnits;
+      
+      messageRows.push({
         tenant_id: campaign.tenant_id,
         campaign_id: campaign.id,
         customer_id: customer.id,
@@ -228,15 +245,50 @@ async function handler(req: Request): Promise<Response> {
         status: 'queued',
         from_phone: fromPhone,
         media_url: campaign.image_url || null,
+        // New billing metadata fields
+        segment_count: segmentInfo.segments,
+        encoding: segmentInfo.encoding,
+        is_mms: isMms,
+        billable_units: billableUnits,
         metadata: {
           campaign_name: campaign.name,
           segment_id: campaign.segment_id,
           queued_at: new Date().toISOString()
         }
-      };
-    });
+      });
+    }
+    
+    console.log(`[send-sms-campaign] Estimated billable units: ${totalEstimatedUnits} (${eligibleCount} messages, isMms=${isMms})`);
 
-    // Insert messages in batches to avoid payload limits
+    // Step G: Check SMS quota before enqueuing
+    const { data: quotaCheck, error: quotaError } = await supabase
+      .rpc('check_sms_quota', {
+        p_tenant_id: campaign.tenant_id,
+        p_estimated_units: totalEstimatedUnits
+      });
+
+    if (quotaError) {
+      console.error('[send-sms-campaign] Quota check failed:', quotaError);
+      // Continue anyway - don't block sends on quota check failure
+    } else if (quotaCheck && !quotaCheck.allowed) {
+      console.log(`[send-sms-campaign] Quota exceeded: remaining=${quotaCheck.remaining}, needed=${totalEstimatedUnits}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'SMS_QUOTA_EXCEEDED',
+          message: 'Not enough SMS credits to send this campaign.',
+          data: {
+            quota: quotaCheck.quota,
+            usage: quotaCheck.usage,
+            remaining: quotaCheck.remaining,
+            estimatedUnits: totalEstimatedUnits
+          }
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Step H: Insert sms_messages with status='queued' (including billing metadata)
     const insertedMessageIds: string[] = [];
     const messageChunks = chunkArray(messageRows, BATCH_SIZE);
 
@@ -259,7 +311,7 @@ async function handler(req: Request): Promise<Response> {
 
     console.log(`[send-sms-campaign] Inserted ${insertedMessageIds.length} queued messages`);
 
-    // Step F: Create sms_send_jobs batches
+    // Step I: Create sms_send_jobs batches
     const messageIdChunks = chunkArray(insertedMessageIds, BATCH_SIZE);
     const jobRows = messageIdChunks.map((batchIds, index) => ({
       tenant_id: campaign.tenant_id,
@@ -292,7 +344,7 @@ async function handler(req: Request): Promise<Response> {
 
     console.log(`[send-sms-campaign] Created ${jobRows.length} send jobs`);
 
-    // Step G: Update daily_sent_count and campaign status
+    // Step J: Update daily_sent_count and campaign status
     // Update warmup counter
     const { error: warmupUpdateError } = await supabase
       .from('twilio_phone_numbers')
@@ -306,7 +358,7 @@ async function handler(req: Request): Promise<Response> {
       console.error('[send-sms-campaign] Failed to update warmup counter:', warmupUpdateError);
     }
 
-    // Update campaign status
+    // Update campaign status (DO NOT update subscription usage here - wait for actual sends)
     const { error: campaignUpdateError } = await supabase
       .from('crm_sms_campaigns')
       .update({
@@ -316,6 +368,7 @@ async function handler(req: Request): Promise<Response> {
         metrics: {
           messages_queued: eligibleCount,
           batches_created: jobRows.length,
+          estimated_billable_units: totalEstimatedUnits,
           messages_sent: 0,
           delivered: 0,
           failed: 0,
@@ -328,24 +381,8 @@ async function handler(req: Request): Promise<Response> {
       console.error('[send-sms-campaign] Failed to update campaign:', campaignUpdateError);
     }
 
-    // Update subscription SMS usage tracking
-    const { data: subscription } = await supabase
-      .from('subscriptions')
-      .select('sms_usage, user_id')
-      .eq('user_id', campaign.user_id)
-      .single();
-
-    if (subscription) {
-      await supabase
-        .from('subscriptions')
-        .update({ 
-          sms_usage: (subscription.sms_usage || 0) + eligibleCount
-        })
-        .eq('user_id', campaign.user_id);
-    }
-
-    // Step H: Return success response
-    console.log(`[send-sms-campaign] Campaign ${campaignId} successfully queued: ${eligibleCount} messages in ${jobRows.length} batches`);
+    // Step K: Return success response
+    console.log(`[send-sms-campaign] Campaign ${campaignId} successfully queued: ${eligibleCount} messages in ${jobRows.length} batches, estimated ${totalEstimatedUnits} units`);
 
     return new Response(
       JSON.stringify({
@@ -353,6 +390,7 @@ async function handler(req: Request): Promise<Response> {
         enqueued: true,
         eligibleCount,
         batchesCreated: jobRows.length,
+        estimatedBillableUnits: totalEstimatedUnits,
         message: `SMS campaign queued successfully. ${eligibleCount} messages will be sent.`
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
