@@ -15,6 +15,7 @@ import { ImageOverlayDialog } from './ImageOverlayDialog';
 import { GalleryGridConfigDialog } from './blocks/ImageGalleryBlock/GalleryGridConfigDialog';
 import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
 import { useToast } from '@/hooks/use-toast';
+import { hasActiveEditOverlays, registerEditOverlay, unregisterEditOverlay } from './editOverlayRegistry';
 
 interface ClickToEditBlockProps {
   block: ContentBlock;
@@ -153,11 +154,23 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     }
   };
 
-  // Helper to check if click is inside an allowed editing overlay
+  // Register/unregister media selector with overlay registry
+  useEffect(() => {
+    if (isMediaSelectorOpen) {
+      registerEditOverlay('media-selector');
+    } else {
+      unregisterEditOverlay('media-selector');
+    }
+    return () => {
+      unregisterEditOverlay('media-selector');
+    };
+  }, [isMediaSelectorOpen]);
+
+  // Helper to check if click/focus is inside an allowed editing overlay (DOM fallback)
   const isInsideAllowedOverlay = (target: HTMLElement | null): boolean => {
     if (!target) return false;
 
-    // MediaSelector sidebar/modal (existing)
+    // MediaSelector sidebar/modal
     const mediaSelector = document.querySelector('[data-media-selector-sidebar]');
     if (mediaSelector && mediaSelector.contains(target)) return true;
 
@@ -173,29 +186,67 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     return false;
   };
 
-  // Handle click outside to exit edit mode
+  // Focus-based edit mode exit (portal-safe)
+  // Uses focusin events to detect when focus moves outside editor AND no overlays are active
   useEffect(() => {
+    if (!editMode) return;
+
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      // If focus is inside the editor container, keep edit mode
+      if (editingRef.current && editingRef.current.contains(target)) return;
+
+      // If there is an active overlay (merge tag picker, media selector), keep edit mode
+      if (hasActiveEditOverlays()) return;
+
+      // Also check DOM as fallback (for overlays that may not have registered yet)
+      if (isInsideAllowedOverlay(target)) return;
+
+      // Focus moved outside editor and no overlays are open -> exit
+      exitEditMode();
+    };
+
+    // Also handle clicks for non-focusable areas
     const handleClickOutside = (event: MouseEvent) => {
-      if (!editMode) return;
-      
       const target = event.target as HTMLElement | null;
       if (!target) return;
 
       // If click is inside editor container, do nothing
       if (editingRef.current && editingRef.current.contains(target)) return;
 
-      // If click is inside a known allowed overlay, do nothing
+      // If there is an active overlay, keep edit mode
+      if (hasActiveEditOverlays()) return;
+
+      // DOM fallback check
       if (isInsideAllowedOverlay(target)) return;
 
       exitEditMode();
     };
 
-    if (editMode) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
+    // Handle Escape key to exit edit mode when no overlays are active
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        // Let overlays handle Escape first (Radix will close popover)
+        // Only exit edit mode if no overlays are active after a small delay
+        setTimeout(() => {
+          if (!hasActiveEditOverlays()) {
+            exitEditMode();
+          }
+        }, 50);
+      }
+    };
+
+    document.addEventListener('focusin', handleFocusIn, true);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn, true);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [editMode, exitEditMode]);
 
   // Handle mode changes with special logic for image mode
