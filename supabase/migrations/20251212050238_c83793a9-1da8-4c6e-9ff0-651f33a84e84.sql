@@ -1,0 +1,1 @@
+DELETE FROM crm_customers WHERE tenant_id = '1e1c9af4-1def-41c8-988c-b6dd6739b81e'
