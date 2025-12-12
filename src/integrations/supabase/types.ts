@@ -1873,6 +1873,7 @@ export type Database = {
           first_purchase_date: string | null
           footer_last_sent_at: string | null
           id: string
+          is_vip: boolean
           last_name: string | null
           last_open_at: string | null
           last_purchase_date: string | null
@@ -1917,6 +1918,7 @@ export type Database = {
           first_purchase_date?: string | null
           footer_last_sent_at?: string | null
           id?: string
+          is_vip?: boolean
           last_name?: string | null
           last_open_at?: string | null
           last_purchase_date?: string | null
@@ -1961,6 +1963,7 @@ export type Database = {
           first_purchase_date?: string | null
           footer_last_sent_at?: string | null
           id?: string
+          is_vip?: boolean
           last_name?: string | null
           last_open_at?: string | null
           last_purchase_date?: string | null
@@ -2455,6 +2458,12 @@ export type Database = {
       crm_sms_campaigns: {
         Row: {
           created_at: string
+          enqueue_claimed_at: string | null
+          enqueue_claimed_by: string | null
+          enqueue_completed_at: string | null
+          enqueue_cursor_customer_id: string | null
+          enqueue_started_at: string | null
+          enqueue_status: string
           enqueued: boolean
           from_phone: string | null
           id: string
@@ -2463,19 +2472,29 @@ export type Database = {
           message: string
           metrics: Json | null
           name: string
+          priority_mode: string
           scheduled_at: string | null
           segment_id: string | null
+          sending_identity_id: string | null
           sent_at: string | null
           status: string
           targeting_logic: string | null
           targeting_persona_ids: string[] | null
           targeting_persona_names: string[] | null
           tenant_id: string | null
+          total_enqueued: number | null
+          total_recipients_estimate: number | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
           created_at?: string
+          enqueue_claimed_at?: string | null
+          enqueue_claimed_by?: string | null
+          enqueue_completed_at?: string | null
+          enqueue_cursor_customer_id?: string | null
+          enqueue_started_at?: string | null
+          enqueue_status?: string
           enqueued?: boolean
           from_phone?: string | null
           id?: string
@@ -2484,19 +2503,29 @@ export type Database = {
           message: string
           metrics?: Json | null
           name: string
+          priority_mode?: string
           scheduled_at?: string | null
           segment_id?: string | null
+          sending_identity_id?: string | null
           sent_at?: string | null
           status?: string
           targeting_logic?: string | null
           targeting_persona_ids?: string[] | null
           targeting_persona_names?: string[] | null
           tenant_id?: string | null
+          total_enqueued?: number | null
+          total_recipients_estimate?: number | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           created_at?: string
+          enqueue_claimed_at?: string | null
+          enqueue_claimed_by?: string | null
+          enqueue_completed_at?: string | null
+          enqueue_cursor_customer_id?: string | null
+          enqueue_started_at?: string | null
+          enqueue_status?: string
           enqueued?: boolean
           from_phone?: string | null
           id?: string
@@ -2505,14 +2534,18 @@ export type Database = {
           message?: string
           metrics?: Json | null
           name?: string
+          priority_mode?: string
           scheduled_at?: string | null
           segment_id?: string | null
+          sending_identity_id?: string | null
           sent_at?: string | null
           status?: string
           targeting_logic?: string | null
           targeting_persona_ids?: string[] | null
           targeting_persona_names?: string[] | null
           tenant_id?: string | null
+          total_enqueued?: number | null
+          total_recipients_estimate?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -6761,6 +6794,33 @@ export type Database = {
           },
         ]
       }
+      sms_rate_limit_state: {
+        Row: {
+          id: string
+          sending_identity_id: string
+          sent_in_window: number
+          tenant_id: string
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          id?: string
+          sending_identity_id: string
+          sent_in_window?: number
+          tenant_id: string
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          id?: string
+          sending_identity_id?: string
+          sent_in_window?: number
+          tenant_id?: string
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       sms_send_jobs: {
         Row: {
           attempts: number
@@ -6775,7 +6835,10 @@ export type Database = {
           from_phone: string | null
           id: string
           messaging_service_sid: string | null
+          partition_key: string | null
+          priority: number
           recipient_message_ids: string[]
+          scheduled_at: string | null
           status: string
           tenant_id: string
           updated_at: string | null
@@ -6793,7 +6856,10 @@ export type Database = {
           from_phone?: string | null
           id?: string
           messaging_service_sid?: string | null
+          partition_key?: string | null
+          priority?: number
           recipient_message_ids: string[]
+          scheduled_at?: string | null
           status?: string
           tenant_id: string
           updated_at?: string | null
@@ -6811,7 +6877,10 @@ export type Database = {
           from_phone?: string | null
           id?: string
           messaging_service_sid?: string | null
+          partition_key?: string | null
+          priority?: number
           recipient_message_ids?: string[]
+          scheduled_at?: string | null
           status?: string
           tenant_id?: string
           updated_at?: string | null
@@ -8357,6 +8426,14 @@ export type Database = {
         Returns: Json
       }
       check_trial_expiration_emails: { Args: never; Returns: number }
+      claim_sms_campaign_enqueue: {
+        Args: {
+          p_campaign_id: string
+          p_stale_minutes?: number
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_oauth_codes: { Args: never; Returns: undefined }
       copy_master_templates_to_campaigns: {
@@ -8572,6 +8649,16 @@ export type Database = {
       }
       refill_tokens: {
         Args: { p_tokens?: number; p_user_id: string }
+        Returns: boolean
+      }
+      reserve_sms_send_tokens: {
+        Args: {
+          p_max_tokens?: number
+          p_sending_identity_id: string
+          p_tenant_id: string
+          p_tokens: number
+          p_window_ms?: number
+        }
         Returns: boolean
       }
       reset_master_admin_account: {

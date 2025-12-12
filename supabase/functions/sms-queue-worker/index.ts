@@ -181,7 +181,37 @@ function truncateError(message: string, maxLength: number = 250): string {
 }
 
 /**
- * Atomically claim pending/stale jobs
+ * Reserve rate limit tokens for sending
+ */
+async function reserveRateLimitTokens(
+  supabase: any,
+  tenantId: string,
+  sendingIdentityId: string,
+  tokens: number
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('reserve_sms_send_tokens', {
+      p_tenant_id: tenantId,
+      p_sending_identity_id: sendingIdentityId,
+      p_tokens: tokens,
+      p_window_ms: 1000,
+      p_max_tokens: Number(Deno.env.get("SMS_RATE_LIMIT_PER_SECOND") ?? "10")
+    });
+
+    if (error) {
+      console.error('[sms-queue-worker] Rate limit check failed:', error);
+      return true; // Allow if rate limit check fails
+    }
+
+    return data === true;
+  } catch (err) {
+    console.error('[sms-queue-worker] Rate limit exception:', err);
+    return true; // Allow if exception
+  }
+}
+
+/**
+ * Atomically claim pending/stale jobs with priority ordering
  */
 async function claimSmsSendJobsSafe(
   supabase: any,
@@ -192,13 +222,16 @@ async function claimSmsSendJobsSafe(
   const staleThreshold = new Date(Date.now() - CLAIM_STALE_AFTER_MINUTES * 60 * 1000).toISOString();
   const now = new Date().toISOString();
 
-  // Step 1: Find eligible jobs
+  // Step 1: Find eligible jobs with priority ordering
+  // Only pick jobs where scheduled_at is null or in the past
   const { data: eligibleJobs, error: selectError } = await supabase
     .from('sms_send_jobs')
     .select('*')
     .in('status', ['pending', 'in_progress'])
     .lt('attempts', MAX_JOB_ATTEMPTS)
     .is('dead_lettered_at', null)
+    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
+    .order('priority', { ascending: true })
     .order('created_at', { ascending: true })
     .limit(limit * 2);
 

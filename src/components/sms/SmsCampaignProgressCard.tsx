@@ -49,6 +49,7 @@ export function SmsCampaignProgressCard({ progress, loading, error }: SmsCampaig
   if (!progress) return null
 
   const { jobs, messages, rates, isComplete, isStalled, stallReason } = progress
+  const enqueue = (progress as any).enqueue || { status: 'not_started', totalEstimate: 0, totalEnqueued: 0, percentComplete: 0, isEnqueuing: false, isEnqueued: false }
 
   // Calculate progress percentage
   const processedMessages = messages.sent + messages.delivered + messages.failed
@@ -58,6 +59,10 @@ export function SmsCampaignProgressCard({ progress, loading, error }: SmsCampaig
 
   // Status display
   const getStatusBadge = () => {
+    // Show enqueue status first
+    if (enqueue.isEnqueuing) {
+      return <Badge variant="secondary" className="animate-pulse">Preparing audience...</Badge>
+    }
     if (isComplete && messages.failed === 0) {
       return <Badge className="bg-green-500 hover:bg-green-600">Complete</Badge>
     }
@@ -68,12 +73,12 @@ export function SmsCampaignProgressCard({ progress, loading, error }: SmsCampaig
       return <Badge variant="destructive">Stalled</Badge>
     }
     if (jobs.in_progress > 0) {
-      return <Badge variant="secondary" className="animate-pulse">Processing</Badge>
+      return <Badge variant="secondary" className="animate-pulse">Sending</Badge>
     }
     if (jobs.pending > 0) {
       return <Badge variant="outline">Queued</Badge>
     }
-    return <Badge variant="outline">{progress.campaignStatus}</Badge>
+    return <Badge variant="outline">{(progress as any).campaignStatus}</Badge>
   }
 
   return (
@@ -102,10 +107,24 @@ export function SmsCampaignProgressCard({ progress, loading, error }: SmsCampaig
           </Alert>
         )}
 
+        {/* Enqueue Progress (shown during preparation) */}
+        {enqueue.isEnqueuing && (
+          <div className="space-y-2 pb-4 border-b border-border/50">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Preparing audience</span>
+              <span className="font-medium">{enqueue.percentComplete}%</span>
+            </div>
+            <Progress value={enqueue.percentComplete} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              {enqueue.totalEnqueued.toLocaleString()} of ~{enqueue.totalEstimate.toLocaleString()} recipients prepared
+            </p>
+          </div>
+        )}
+
         {/* Progress Bar */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Overall Progress</span>
+            <span className="text-muted-foreground">Sending Progress</span>
             <span className="font-medium">{progressPercent}%</span>
           </div>
           <Progress value={progressPercent} className="h-2" />

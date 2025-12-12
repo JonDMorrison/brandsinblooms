@@ -25,6 +25,15 @@ interface ProgressResponse {
   campaignId: string
   tenantId: string | null
   campaignStatus: string
+  enqueueStatus: string
+  enqueue: {
+    status: string
+    totalEstimate: number
+    totalEnqueued: number
+    percentComplete: number
+    isEnqueuing: boolean
+    isEnqueued: boolean
+  }
   jobs: {
     total: number
     pending: number
@@ -102,10 +111,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 1. Load the campaign
+    // 1. Load the campaign with enqueue fields
     const { data: campaign, error: campaignError } = await supabase
       .from('crm_sms_campaigns')
-      .select('id, tenant_id, status, scheduled_at, sent_at')
+      .select('id, tenant_id, status, scheduled_at, sent_at, enqueue_status, total_recipients_estimate, total_enqueued')
       .eq('id', campaignId)
       .single()
 
@@ -205,12 +214,29 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Enqueue progress
+    const enqueueStatus = campaign.enqueue_status || 'not_started'
+    const totalEstimate = campaign.total_recipients_estimate || 0
+    const totalEnqueued = campaign.total_enqueued || 0
+    const enqueuePercentComplete = totalEstimate > 0 
+      ? Math.round((totalEnqueued / totalEstimate) * 100) 
+      : 0
+
     // Build response
     const response: ProgressResponse = {
       success: true,
       campaignId: campaign.id,
       tenantId: campaign.tenant_id,
       campaignStatus: campaign.status || 'unknown',
+      enqueueStatus,
+      enqueue: {
+        status: enqueueStatus,
+        totalEstimate,
+        totalEnqueued,
+        percentComplete: enqueuePercentComplete,
+        isEnqueuing: enqueueStatus === 'enqueuing',
+        isEnqueued: enqueueStatus === 'enqueued',
+      },
       jobs,
       messages,
       rates: {
