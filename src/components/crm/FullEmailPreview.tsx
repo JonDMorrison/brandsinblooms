@@ -284,7 +284,7 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
                 <span className="font-medium text-muted-foreground">From:</span>
-                <p className="truncate">{senderName || companyInfo?.name} &lt;{senderEmail || 'noreply@bloomsuite.email'}&gt;</p>
+                <p className="truncate">{senderName || companyInfo?.name} &lt;{senderEmail || 'noreply@bloomsuite.app'}&gt;</p>
               </div>
               <div>
                 <span className="font-medium text-muted-foreground">Subject:</span>

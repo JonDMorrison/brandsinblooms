@@ -139,7 +139,7 @@ export async function getActiveOrFallbackSender(tenantId: string): Promise<{
   if (error || !domains || domains.length === 0) {
     return {
       fromName: 'BloomSuite',
-      fromEmail: 'noreply@bloomsuite.email',
+      fromEmail: 'noreply@bloomsuite.app',
       usingFallback: true,
     };
   }
@@ -157,7 +157,7 @@ export async function getActiveOrFallbackSender(tenantId: string): Promise<{
 
   return {
     fromName: 'BloomSuite',
-    fromEmail: 'noreply@bloomsuite.email',
+    fromEmail: 'noreply@bloomsuite.app',
     usingFallback: true,
   };
 }

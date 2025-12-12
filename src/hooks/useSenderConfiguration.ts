@@ -14,7 +14,7 @@ export const useSenderConfiguration = () => {
   const { user } = useAuth();
   const [senderConfig, setSenderConfig] = useState<SenderConfig>({
     isVerified: false,
-    senderEmail: 'noreply@bloomsuite.email',
+    senderEmail: 'noreply@bloomsuite.app',
     displayName: 'BloomSuite',
     deliveryMethod: 'shared_sender'
   });
@@ -54,7 +54,7 @@ export const useSenderConfiguration = () => {
       } else {
         setSenderConfig({
           isVerified: false,
-          senderEmail: 'noreply@bloomsuite.email',
+          senderEmail: 'noreply@bloomsuite.app',
           displayName: `BloomSuite (on behalf of ${companyName})`,
           deliveryMethod: 'shared_sender',
           companyName

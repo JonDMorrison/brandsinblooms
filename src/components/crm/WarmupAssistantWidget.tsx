@@ -204,7 +204,7 @@ export const WarmupAssistantWidget: React.FC = () => {
           <div className="text-center py-6 text-muted-foreground">
             <Mail className="h-10 w-10 mx-auto mb-3 opacity-50" />
             <p className="text-sm">No custom email domain configured.</p>
-            <p className="text-xs mt-1">Using shared sender (noreply@bloomsuite.email)</p>
+            <p className="text-xs mt-1">Using shared sender (noreply@bloomsuite.app)</p>
           </div>
         </CardContent>
       </Card>

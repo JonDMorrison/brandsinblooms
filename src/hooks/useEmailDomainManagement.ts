@@ -256,7 +256,7 @@ export const useEmailDomainManagement = () => {
     if (!tenant?.id) {
       return {
         fromName: 'BloomSuite',
-        fromEmail: 'noreply@bloomsuite.email',
+        fromEmail: 'noreply@bloomsuite.app',
         usingFallback: true
       };
     }
