@@ -13,10 +13,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { EnhancedSegmentImportDialog } from '@/components/crm/segments/EnhancedSegmentImportDialog';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 import { useAllSegments } from '@/hooks/useAllSegments';
+import { useDeleteCustomer } from '@/hooks/useDeleteCustomer';
 import { format } from 'date-fns';
 import { 
   Pagination,
@@ -34,7 +45,11 @@ export const CRMCustomersPage: React.FC = () => {
   const [searchInput, setSearchInput] = useState('');
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string; email: string } | null>(null);
   const pageSize = 15;
+  
+  const deleteCustomer = useDeleteCustomer();
   
   const { data: customers = [], totalCount = 0, isLoading, invalidateCustomers } = useCustomers({
     search: searchQuery,
@@ -383,8 +398,11 @@ export const CRMCustomersPage: React.FC = () => {
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
                                     onClick={() => {
-                                      // TODO: Add delete confirmation dialog
-                                      console.log('Delete customer:', customer.id);
+                                      const name = customer.first_name || customer.last_name 
+                                        ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
+                                        : 'This customer';
+                                      setCustomerToDelete({ id: customer.id, name, email: customer.email });
+                                      setDeleteDialogOpen(true);
                                     }}
                                     className="text-destructive focus:text-destructive"
                                   >
@@ -450,6 +468,34 @@ export const CRMCustomersPage: React.FC = () => {
         onOpenChange={setShowImportDialog}
         onImportComplete={handleImportComplete}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{customerToDelete?.name}</strong> ({customerToDelete?.email})? 
+              This action cannot be undone and will permanently remove all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (customerToDelete) {
+                  deleteCustomer.mutate(customerToDelete.id);
+                  setDeleteDialogOpen(false);
+                  setCustomerToDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteCustomer.isPending}
+            >
+              {deleteCustomer.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
