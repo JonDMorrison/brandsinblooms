@@ -3,13 +3,13 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GripVertical, Trash2, Edit, Zap, CheckCircle, AlertTriangle, Layers, Grid3X3 } from 'lucide-react';
+import { GripVertical } from 'lucide-react';
 import { BlockEditToolbar } from './BlockEditToolbar';
 import { useBlockEditMode, EditMode } from '@/hooks/useBlockEditMode';
 import { TextEditMode } from './modes/TextEditMode';
 import { BlockLoadingOverlay } from './BlockLoadingOverlay';
 import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
-import { ImageActionMenu } from './ImageActionMenu';
+import { ToolsDropdownMenu } from './ToolsDropdownMenu';
 import { assessContentQuality, sanitizeAndImproveContent } from '@/utils/contentQuality';
 import { ImageOverlayDialog } from './ImageOverlayDialog';
 import { GalleryGridConfigDialog } from './blocks/ImageGalleryBlock/GalleryGridConfigDialog';
@@ -406,103 +406,33 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         </div>
       </div>
 
-      {/* Combined Block Edit Toolbar - only show for non-header blocks */}
+      {/* Tools Dropdown Menu - unified toolbar for all block actions */}
       {block.type !== 'header' && (
-        <div className="absolute top-2 right-2 flex items-center gap-1 bg-white backdrop-blur-sm border rounded-md shadow-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
-          {/* Text Edit Button - hide for image-only blocks without text content */}
-          {(block.type !== 'image' || block.content || block.title) && (
-            <Button
-              variant={editMode === 'text' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleModeChange('text');
-              }}
-              className="h-7 w-7 p-0 hover:bg-muted"
-              title="Edit text"
-            >
-              <Edit className="w-3 h-3" />
-            </Button>
-          )}
-          
-          {/* Unified Image Action Menu */}
-          <ImageActionMenu
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
+          <ToolsDropdownMenu
             block={localBlock}
             editMode={editMode}
             onModeChange={handleModeChange}
             onAutoPickImage={handleAutoPickImage}
             onOpenAIImageDialog={onOpenAIImageDialog ? () => onOpenAIImageDialog(block.id) : undefined}
+            onOpenGridConfig={block.type === 'image-gallery' ? () => setIsGridConfigOpen(true) : undefined}
+            onOpenOverlayDialog={
+              block.type === 'newsletter-header' && (block.imageUrl || block.backgroundImageUrl)
+                ? () => setIsOverlayDialogOpen(true)
+                : undefined
+            }
+            onStrengthenContent={
+              (() => {
+                const contentToCheck = block.content || block.title || block.headline || '';
+                const quality = assessContentQuality(contentToCheck, 'body');
+                return contentToCheck && (quality.level === 'poor' || quality.level === 'fair')
+                  ? handleStrengthenContent
+                  : undefined;
+              })()
+            }
+            onDelete={() => onRemove(block.id)}
             disabled={block.isGeneratingImage}
           />
-
-          {/* Grid Config Button - only show for image-gallery blocks */}
-          {block.type === 'image-gallery' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsGridConfigOpen(true);
-              }}
-              className="h-7 w-7 p-0 hover:bg-muted"
-              title="Configure grid layout"
-            >
-              <Grid3X3 className="w-3 h-3" />
-            </Button>
-          )}
-
-          {/* Image Overlay Button - only show for Newsletter Header blocks */}
-          {block.type === 'newsletter-header' && (block.imageUrl || block.backgroundImageUrl) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsOverlayDialogOpen(true);
-              }}
-              className="h-7 w-7 p-0 hover:bg-muted"
-              title="Edit image overlay"
-            >
-              <Layers className="w-3 h-3" />
-            </Button>
-          )}
-          
-          {/* Content Quality Indicator & Strengthen Button */}
-          {(() => {
-            const contentToCheck = block.content || block.title || block.headline || '';
-            const quality = assessContentQuality(contentToCheck, 'body');
-            
-            if (contentToCheck && (quality.level === 'poor' || quality.level === 'fair')) {
-              return (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStrengthenContent();
-                  }}
-                  className="h-7 w-7 p-0 hover:bg-blue-100 hover:text-blue-600"
-                  title="Strengthen content"
-                >
-                  <Zap className="w-3 h-3" />
-                </Button>
-              );
-            }
-            return null;
-          })()}
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(block.id);
-            }}
-            className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground"
-            title="Delete block"
-          >
-            <Trash2 className="w-3 h-3" />
-          </Button>
         </div>
       )}
 
