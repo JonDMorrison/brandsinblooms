@@ -79,7 +79,6 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
   disabled = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ top: 0, right: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -88,17 +87,6 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
   const showImageActions = ['image', 'image-text', 'newsletter-header', 'header', 'graphic-hero', 'email-safe-hero', 'background-image-section'].includes(block.type);
   const showGridConfig = block.type === 'image-gallery';
   const showOverlaySettings = block.type === 'newsletter-header' && (block.imageUrl || block.backgroundImageUrl);
-
-  // Calculate dropdown position
-  useEffect(() => {
-    if (isOpen && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
-      });
-    }
-  }, [isOpen]);
 
   // Click outside and escape key handling
   useEffect(() => {
@@ -192,10 +180,8 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
       {isOpen && (
         <div
           ref={menuRef}
-          className="fixed z-[9999] w-[280px] bg-white rounded-xl border border-gray-200 shadow-lg p-2"
+          className="absolute top-full right-0 mt-1 z-[9999] w-[280px] bg-white rounded-xl border border-gray-200 shadow-lg p-2"
           style={{
-            top: position.top,
-            right: position.right,
             animation: 'toolsSlideDownFadeIn 0.15s ease-out'
           }}
         >
