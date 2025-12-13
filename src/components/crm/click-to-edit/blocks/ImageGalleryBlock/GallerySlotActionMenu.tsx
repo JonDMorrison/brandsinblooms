@@ -1,6 +1,6 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Image, Wand2, Sparkles } from 'lucide-react';
+import { Image, RefreshCw, Sparkles, Settings, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GallerySlotActionMenuProps {
@@ -11,6 +11,39 @@ interface GallerySlotActionMenuProps {
   isGenerating?: boolean;
 }
 
+interface MenuItemProps {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+const MenuItem: React.FC<MenuItemProps> = ({ 
+  icon, 
+  label, 
+  onClick, 
+  disabled = false 
+}) => (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      if (!disabled) onClick();
+    }}
+    disabled={disabled}
+    className={cn(
+      "flex items-center gap-2 w-full px-3 py-2 text-left text-sm",
+      "hover:bg-accent transition-colors rounded-md",
+      "text-gray-700",
+      disabled && "opacity-50 cursor-not-allowed"
+    )}
+  >
+    <span className="w-4 h-4 flex items-center justify-center text-gray-600">
+      {React.cloneElement(icon as React.ReactElement, { className: 'h-4 w-4' })}
+    </span>
+    <span className="font-medium">{label}</span>
+  </button>
+);
+
 export const GallerySlotActionMenu: React.FC<GallerySlotActionMenuProps> = ({
   onAutoPickImage,
   onOpenMediaSelector,
@@ -18,120 +51,98 @@ export const GallerySlotActionMenu: React.FC<GallerySlotActionMenuProps> = ({
   disabled = false,
   isGenerating = false,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseEnter = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setIsExpanded(true);
-  }, []);
+  // Click outside handling
+  useEffect(() => {
+    if (!isOpen) return;
 
-  const handleMouseLeave = useCallback(() => {
-    timeoutRef.current = setTimeout(() => {
-      setIsExpanded(false);
-    }, 150);
-  }, []);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        menuRef.current && !menuRef.current.contains(target) &&
+        triggerRef.current && !triggerRef.current.contains(target)
+      ) {
+        setIsOpen(false);
+      }
+    };
 
-  const handleContainerClick = useCallback((e: React.MouseEvent) => {
-    if (!isExpanded) {
-      e.stopPropagation();
-      setIsExpanded(true);
-    }
-  }, [isExpanded]);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen]);
+
+  const handleItemClick = (action: () => void) => {
+    action();
+    setIsOpen(false);
+  };
 
   return (
-    <div
-      className={cn(
-        "flex items-center rounded-md overflow-hidden",
-        "transition-all duration-300 ease-out",
-        isExpanded 
-          ? "gap-0.5 bg-white px-1 py-0.5 shadow-md" 
-          : "gap-0 bg-white rounded-md shadow-md"
-      )}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onClick={handleContainerClick}
-      role="group"
-      aria-label="Image actions"
-      aria-expanded={isExpanded}
-    >
-      {/* Auto Pick Button - slides in from left */}
-      <div
-        className={cn(
-          "transition-all duration-200 ease-out overflow-hidden",
-          isExpanded 
-            ? "w-6 opacity-100" 
-            : "w-0 opacity-0"
-        )}
-        style={{ transitionDelay: isExpanded ? '0ms' : '100ms' }}
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => { 
-            e.stopPropagation(); 
-            onAutoPickImage();
-            setIsExpanded(false);
-          }}
-          className={cn(
-            "h-6 w-6 p-0 hover:bg-primary hover:text-primary-foreground",
-            "transform transition-transform duration-200",
-            isExpanded ? "scale-100" : "scale-75"
-          )}
-          title="Auto Pick - Generate AI image"
-          disabled={disabled || isGenerating}
-        >
-          <Wand2 className="w-3 h-3" />
-        </Button>
-      </div>
-
-      {/* Primary Edit Image Button - always visible */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={(e) => { 
-          e.stopPropagation(); 
-          onOpenMediaSelector();
+    <div className="relative">
+      {/* Trigger Button */}
+      <button
+        ref={triggerRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
         }}
-        className={cn(
-          "h-6 w-6 p-0 hover:bg-muted shrink-0",
-          "transition-all duration-200"
-        )}
-        title="Browse Images"
         disabled={disabled || isGenerating}
-      >
-        <Image className="w-3 h-3" />
-      </Button>
-
-      {/* AI Assistant Button - slides in from right */}
-      <div
         className={cn(
-          "transition-all duration-200 ease-out overflow-hidden",
-          isExpanded 
-            ? "w-6 opacity-100" 
-            : "w-0 opacity-0"
+          "flex items-center gap-1 px-2 py-1 rounded-md",
+          "border border-gray-200 shadow-sm",
+          "transition-colors text-xs font-medium text-muted-foreground",
+          isOpen ? "bg-gray-100" : "bg-white hover:bg-accent",
+          (disabled || isGenerating) && "opacity-50 cursor-not-allowed"
         )}
-        style={{ transitionDelay: isExpanded ? '100ms' : '0ms' }}
       >
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => { 
-            e.stopPropagation(); 
-            onOpenAIDialog();
-            setIsExpanded(false);
+        <Settings className="h-3 w-3" />
+        <ChevronDown className={cn(
+          "h-2.5 w-2.5 transition-transform duration-200",
+          isOpen && "rotate-180"
+        )} />
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div
+          ref={menuRef}
+          className="absolute top-full right-0 mt-1 z-[9999] w-[160px] bg-white rounded-lg border border-gray-200 shadow-lg p-1"
+          style={{
+            animation: 'toolsSlideDownFadeIn 0.15s ease-out'
           }}
-          className={cn(
-            "h-6 w-6 p-0 hover:bg-primary hover:text-primary-foreground",
-            "transform transition-transform duration-200",
-            isExpanded ? "scale-100" : "scale-75"
-          )}
-          title="AI Image Assistant"
-          disabled={disabled || isGenerating}
         >
-          <Sparkles className="w-3 h-3" />
-        </Button>
-      </div>
+          <MenuItem
+            icon={<RefreshCw className="h-4 w-4" />}
+            label="Auto Pick"
+            onClick={() => handleItemClick(onAutoPickImage)}
+            disabled={disabled || isGenerating}
+          />
+          <MenuItem
+            icon={<Image className="h-4 w-4" />}
+            label="Choose Image"
+            onClick={() => handleItemClick(onOpenMediaSelector)}
+            disabled={disabled || isGenerating}
+          />
+          <MenuItem
+            icon={<Sparkles className="h-4 w-4" />}
+            label="AI Assistant"
+            onClick={() => handleItemClick(onOpenAIDialog)}
+            disabled={disabled || isGenerating}
+          />
+        </div>
+      )}
     </div>
   );
 };
