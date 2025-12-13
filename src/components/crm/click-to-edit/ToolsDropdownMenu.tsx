@@ -228,7 +228,7 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
                 />
                 <MenuItem
                   icon={<Sparkles className="h-4 w-4" />}
-                  label="AI Gen"
+                  label="AI Assistant"
                   onClick={() => handleItemClick(onAutoPickImage)}
                   disabled={disabled}
                 />
