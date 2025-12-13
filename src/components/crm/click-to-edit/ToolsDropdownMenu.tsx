@@ -11,7 +11,8 @@ import {
   Grid3X3, 
   Layers, 
   Zap, 
-  Trash2 
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 
 interface ToolsDropdownMenuProps {
@@ -218,6 +219,12 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
                   label="Choose Image"
                   onClick={() => handleItemClick(() => onModeChange('image'))}
                   active={editMode === 'image'}
+                />
+                <MenuItem
+                  icon={<RefreshCw className="h-4 w-4" />}
+                  label="Auto Pick"
+                  onClick={() => handleItemClick(onAutoPickImage)}
+                  disabled={disabled}
                 />
                 <MenuItem
                   icon={<Sparkles className="h-4 w-4" />}
