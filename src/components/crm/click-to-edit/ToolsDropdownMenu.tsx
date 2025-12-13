@@ -215,7 +215,7 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
               <>
                 <MenuItem
                   icon={<Image className="h-4 w-4" />}
-                  label="Image"
+                  label="Choose"
                   onClick={() => handleItemClick(() => onModeChange('image'))}
                   active={editMode === 'image'}
                 />
