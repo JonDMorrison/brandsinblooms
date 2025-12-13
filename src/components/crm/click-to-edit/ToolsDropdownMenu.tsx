@@ -51,17 +51,17 @@ const MenuItem: React.FC<MenuItemProps> = ({
     }}
     disabled={disabled}
     className={cn(
-      "flex items-center gap-3 w-full px-3 py-2.5 text-left text-sm",
+      "flex flex-col items-center justify-center gap-1.5 p-3 text-center text-xs",
       "hover:bg-accent transition-colors rounded-lg",
       variant === 'destructive' && "text-destructive hover:bg-destructive/10",
       active && "bg-accent",
       disabled && "opacity-50 cursor-not-allowed"
     )}
   >
-    <span className="w-4 h-4 flex items-center justify-center text-muted-foreground">
+    <span className="w-5 h-5 flex items-center justify-center text-muted-foreground">
       {icon}
     </span>
-    <span className="font-medium">{label}</span>
+    <span className="font-medium leading-tight">{label}</span>
   </button>
 );
 
@@ -191,91 +191,78 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
       {isOpen && (
         <div
           ref={menuRef}
-          className="fixed z-[9999] min-w-[180px] bg-white rounded-xl border border-border shadow-lg p-1.5"
+          className="fixed z-[9999] w-[200px] bg-white rounded-xl border border-border shadow-lg p-2"
           style={{
             top: position.top,
             right: position.right,
             animation: 'toolsSlideDownFadeIn 0.15s ease-out'
           }}
         >
-          {/* Edit text */}
-          {showTextEdit && (
-            <MenuItem
-              icon={<Edit className="h-4 w-4" />}
-              label="Edit text"
-              onClick={() => handleItemClick(() => onModeChange('text'))}
-              active={editMode === 'text'}
-            />
-          )}
+          {/* Grid of menu items */}
+          <div className="grid grid-cols-3 gap-1">
+            {/* Edit text */}
+            {showTextEdit && (
+              <MenuItem
+                icon={<Edit className="h-4 w-4" />}
+                label="Edit"
+                onClick={() => handleItemClick(() => onModeChange('text'))}
+                active={editMode === 'text'}
+              />
+            )}
 
-          {/* Image actions */}
-          {showImageActions && (
-            <>
-              <MenuItem
-                icon={<Image className="h-4 w-4" />}
-                label="Edit image"
-                onClick={() => handleItemClick(() => onModeChange('image'))}
-                active={editMode === 'image'}
-              />
-              <MenuItem
-                icon={<Sparkles className="h-4 w-4" />}
-                label="AI generate"
-                onClick={() => handleItemClick(onAutoPickImage)}
-                disabled={disabled}
-              />
-              {onOpenAIImageDialog && (
+            {/* Image actions */}
+            {showImageActions && (
+              <>
+                <MenuItem
+                  icon={<Image className="h-4 w-4" />}
+                  label="Image"
+                  onClick={() => handleItemClick(() => onModeChange('image'))}
+                  active={editMode === 'image'}
+                />
                 <MenuItem
                   icon={<Sparkles className="h-4 w-4" />}
-                  label="AI assistant"
-                  onClick={() => handleItemClick(onOpenAIImageDialog)}
+                  label="AI Gen"
+                  onClick={() => handleItemClick(onAutoPickImage)}
                   disabled={disabled}
                 />
-              )}
-            </>
-          )}
+              </>
+            )}
 
-          {/* Conditional actions divider */}
-          {(showGridConfig || showOverlaySettings || onStrengthenContent) && (
-            <div className="my-1.5 h-px bg-border" />
-          )}
+            {/* Grid layout (gallery blocks only) */}
+            {showGridConfig && onOpenGridConfig && (
+              <MenuItem
+                icon={<Grid3X3 className="h-4 w-4" />}
+                label="Grid"
+                onClick={() => handleItemClick(onOpenGridConfig)}
+              />
+            )}
 
-          {/* Grid layout (gallery blocks only) */}
-          {showGridConfig && onOpenGridConfig && (
+            {/* Overlay settings (newsletter-header blocks only) */}
+            {showOverlaySettings && onOpenOverlayDialog && (
+              <MenuItem
+                icon={<Layers className="h-4 w-4" />}
+                label="Overlay"
+                onClick={() => handleItemClick(onOpenOverlayDialog)}
+              />
+            )}
+
+            {/* Strengthen content */}
+            {onStrengthenContent && (
+              <MenuItem
+                icon={<Zap className="h-4 w-4" />}
+                label="Strengthen"
+                onClick={() => handleItemClick(onStrengthenContent)}
+              />
+            )}
+
+            {/* Delete */}
             <MenuItem
-              icon={<Grid3X3 className="h-4 w-4" />}
-              label="Grid layout"
-              onClick={() => handleItemClick(onOpenGridConfig)}
+              icon={<Trash2 className="h-4 w-4" />}
+              label="Delete"
+              onClick={() => handleItemClick(onDelete)}
+              variant="destructive"
             />
-          )}
-
-          {/* Overlay settings (newsletter-header blocks only) */}
-          {showOverlaySettings && onOpenOverlayDialog && (
-            <MenuItem
-              icon={<Layers className="h-4 w-4" />}
-              label="Overlay settings"
-              onClick={() => handleItemClick(onOpenOverlayDialog)}
-            />
-          )}
-
-          {/* Strengthen content */}
-          {onStrengthenContent && (
-            <MenuItem
-              icon={<Zap className="h-4 w-4" />}
-              label="Strengthen"
-              onClick={() => handleItemClick(onStrengthenContent)}
-            />
-          )}
-
-          {/* Delete divider */}
-          <div className="my-1.5 h-px bg-border" />
-
-          {/* Delete */}
-          <MenuItem
-            icon={<Trash2 className="h-4 w-4" />}
-            label="Delete"
-            onClick={() => handleItemClick(onDelete)}
-            variant="destructive"
-          />
+          </div>
         </div>
       )}
     </div>
