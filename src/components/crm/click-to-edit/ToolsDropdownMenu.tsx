@@ -191,7 +191,7 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
       {isOpen && (
         <div
           ref={menuRef}
-          className="fixed z-[9999] w-[200px] bg-white rounded-xl border border-border shadow-lg p-2"
+          className="fixed z-[9999] w-[240px] bg-white rounded-xl border border-border shadow-lg p-2"
           style={{
             top: position.top,
             right: position.right,
