@@ -173,10 +173,10 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
         }}
         className={cn(
           "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md",
-          "bg-background border border-border shadow-sm",
+          "border border-border shadow-sm",
           "hover:bg-accent transition-colors",
           "text-sm font-medium text-muted-foreground",
-          isOpen && "bg-gray-100"
+          isOpen ? "bg-gray-100" : "bg-white"
         )}
       >
         <Settings className="h-3.5 w-3.5" />
