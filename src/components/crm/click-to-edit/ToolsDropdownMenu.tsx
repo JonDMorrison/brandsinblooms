@@ -165,7 +165,7 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
           "border border-gray-200 shadow-sm",
           "transition-colors",
           "text-sm font-medium text-muted-foreground",
-          isOpen ? "bg-gray-100 hover:bg-gray-100" : "bg-white hover:bg-accent"
+          isOpen ? "bg-white" : "bg-white hover:bg-white"
         )}
       >
         <Settings className="h-3.5 w-3.5" />
