@@ -58,10 +58,10 @@ const MenuItem: React.FC<MenuItemProps> = ({
       disabled && "opacity-50 cursor-not-allowed"
     )}
   >
-    <span className="w-7 h-7 flex items-center justify-center text-muted-foreground">
+    <span className="w-7 h-7 flex items-center justify-center text-gray-700">
       {React.cloneElement(icon as React.ReactElement, { className: 'h-6 w-6' })}
     </span>
-    <span className="font-medium leading-tight">{label}</span>
+    <span className="font-medium leading-tight text-gray-700">{label}</span>
   </button>
 );
 
