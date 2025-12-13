@@ -66,6 +66,8 @@ import DebugPage from '@/pages/integrations/lightspeed/DebugPage';
 import LightspeedConnectPage from '@/pages/integrations/lightspeed/ConnectPage';
 import SquareCallbackPage from '@/pages/integrations/square/CallbackPage';
 import SquareGuidePage from '@/pages/integrations/square/GuidePage';
+import CloverCallbackPage from '@/pages/integrations/clover/CallbackPage';
+import CloverGuidePage from '@/pages/integrations/clover/GuidePage';
 import SupportPage from '@/pages/SupportPage';
 import PricingPage from '@/pages/PricingPage';
 import FAQPage from '@/pages/FAQPage';
@@ -471,6 +473,14 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <SquareGuidePage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations/clover/callback" element={<CloverCallbackPage />} />
+          <Route path="/integrations/clover/guide" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CloverGuidePage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
