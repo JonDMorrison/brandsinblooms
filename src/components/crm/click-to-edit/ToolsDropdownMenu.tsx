@@ -226,12 +226,14 @@ export const ToolsDropdownMenu: React.FC<ToolsDropdownMenuProps> = ({
                   onClick={() => handleItemClick(onAutoPickImage)}
                   disabled={disabled}
                 />
-                <MenuItem
-                  icon={<Sparkles className="h-4 w-4" />}
-                  label="AI Assistant"
-                  onClick={() => handleItemClick(onAutoPickImage)}
-                  disabled={disabled}
-                />
+                {onOpenAIImageDialog && (
+                  <MenuItem
+                    icon={<Sparkles className="h-4 w-4" />}
+                    label="AI Assistant"
+                    onClick={() => handleItemClick(onOpenAIImageDialog)}
+                    disabled={disabled}
+                  />
+                )}
               </>
             )}
 
