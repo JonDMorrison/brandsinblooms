@@ -305,3 +305,24 @@ verify_jwt = false
 
 [functions.render-email-merge-tags]
 verify_jwt = true
+
+[functions.clover-oauth-start]
+verify_jwt = true
+
+[functions.clover-oauth-callback]
+verify_jwt = false
+
+[functions.clover-sync-customers]
+verify_jwt = true
+
+[functions.clover-sync-sales]
+verify_jwt = true
+
+[functions.clover-sync-products]
+verify_jwt = true
+
+[functions.clover-full-sync]
+verify_jwt = true
+
+[functions.clover-test-connection]
+verify_jwt = true

@@ -996,6 +996,105 @@ export type Database = {
           },
         ]
       }
+      clover_connections: {
+        Row: {
+          connected_at: string | null
+          created_at: string | null
+          customers_synced: number | null
+          employee_id: string | null
+          encrypted_access_token: string
+          encrypted_refresh_token: string | null
+          environment: string | null
+          expires_at: string
+          id: string
+          last_customer_sync: string | null
+          last_product_sync: string | null
+          last_sales_sync: string | null
+          last_synced_at: string | null
+          merchant_id: string | null
+          merchant_name: string | null
+          products_synced: number | null
+          region: string | null
+          sales_synced: number | null
+          setup_wizard_completed_at: string | null
+          status: string | null
+          sync_errors: Json | null
+          tenant_id: string
+          token_type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          connected_at?: string | null
+          created_at?: string | null
+          customers_synced?: number | null
+          employee_id?: string | null
+          encrypted_access_token: string
+          encrypted_refresh_token?: string | null
+          environment?: string | null
+          expires_at: string
+          id?: string
+          last_customer_sync?: string | null
+          last_product_sync?: string | null
+          last_sales_sync?: string | null
+          last_synced_at?: string | null
+          merchant_id?: string | null
+          merchant_name?: string | null
+          products_synced?: number | null
+          region?: string | null
+          sales_synced?: number | null
+          setup_wizard_completed_at?: string | null
+          status?: string | null
+          sync_errors?: Json | null
+          tenant_id: string
+          token_type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          connected_at?: string | null
+          created_at?: string | null
+          customers_synced?: number | null
+          employee_id?: string | null
+          encrypted_access_token?: string
+          encrypted_refresh_token?: string | null
+          environment?: string | null
+          expires_at?: string
+          id?: string
+          last_customer_sync?: string | null
+          last_product_sync?: string | null
+          last_sales_sync?: string | null
+          last_synced_at?: string | null
+          merchant_id?: string | null
+          merchant_name?: string | null
+          products_synced?: number | null
+          region?: string | null
+          sales_synced?: number | null
+          setup_wizard_completed_at?: string | null
+          status?: string | null
+          sync_errors?: Json | null
+          tenant_id?: string
+          token_type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clover_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "clover_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_profiles: {
         Row: {
           beta_tour_enabled: boolean | null
@@ -1861,6 +1960,8 @@ export type Database = {
       }
       crm_customers: {
         Row: {
+          clover_customer_id: string | null
+          clover_last_synced_at: string | null
           created_at: string | null
           custom_fields: Json | null
           email: string
@@ -1906,6 +2007,8 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          clover_customer_id?: string | null
+          clover_last_synced_at?: string | null
           created_at?: string | null
           custom_fields?: Json | null
           email: string
@@ -1951,6 +2054,8 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          clover_customer_id?: string | null
+          clover_last_synced_at?: string | null
           created_at?: string | null
           custom_fields?: Json | null
           email?: string
