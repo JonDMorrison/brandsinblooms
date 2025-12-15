@@ -42,6 +42,14 @@ export const usePOSSyncJob = ({
   const [activeJob, setActiveJob] = useState<POSSyncJob | null>(null);
   const [isPolling, setIsPolling] = useState(false);
 
+  // Check if job is stuck (in_progress for > 5 minutes without updates)
+  const isJobStuck = useCallback((job: POSSyncJob | null): boolean => {
+    if (!job || job.status !== 'in_progress') return false;
+    const updatedAt = new Date(job.updated_at).getTime();
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    return updatedAt < fiveMinutesAgo;
+  }, []);
+
   // Fetch active job for this connection
   const fetchActiveJob = useCallback(async () => {
     if (!connectionId) return null;
@@ -63,6 +71,29 @@ export const usePOSSyncJob = ({
 
     return data as POSSyncJob | null;
   }, [connectionId, syncType]);
+
+  // Reset a stuck job by marking it as failed
+  const resetStuckJob = useCallback(async () => {
+    if (!activeJob) return false;
+
+    const { error } = await supabase
+      .from('pos_sync_jobs')
+      .update({
+        status: 'failed',
+        error_message: 'Job reset by user - chain interrupted. Please retry sync.',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', activeJob.id);
+
+    if (error) {
+      console.error('[usePOSSyncJob] Error resetting job:', error);
+      return false;
+    }
+
+    setActiveJob(null);
+    setIsPolling(false);
+    return true;
+  }, [activeJob]);
 
   // Start polling when there's an active job
   useEffect(() => {
@@ -108,9 +139,22 @@ export const usePOSSyncJob = ({
     // Check if sync is already in progress
     const existingJob = await fetchActiveJob();
     if (existingJob && (existingJob.status === 'pending' || existingJob.status === 'in_progress')) {
-      setActiveJob(existingJob);
-      setIsPolling(true);
-      return existingJob;
+      // Check if job is stuck - if so, reset it first
+      if (isJobStuck(existingJob)) {
+        console.log('[usePOSSyncJob] Detected stuck job, resetting...');
+        await supabase
+          .from('pos_sync_jobs')
+          .update({
+            status: 'failed',
+            error_message: 'Job auto-reset - chain interrupted',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', existingJob.id);
+      } else {
+        setActiveJob(existingJob);
+        setIsPolling(true);
+        return existingJob;
+      }
     }
 
     // Invoke the sync function based on connection type
@@ -131,7 +175,7 @@ export const usePOSSyncJob = ({
     }
 
     return null;
-  }, [connectionId, connectionType, fetchActiveJob]);
+  }, [connectionId, connectionType, fetchActiveJob, isJobStuck]);
 
   // Refresh job status
   const refreshJob = useCallback(async () => {
@@ -157,8 +201,10 @@ export const usePOSSyncJob = ({
     isSyncing: activeJob?.status === 'in_progress' || activeJob?.status === 'pending',
     isCompleted: activeJob?.status === 'completed',
     isFailed: activeJob?.status === 'failed',
+    isStuck: isJobStuck(activeJob),
     progress: getProgress(),
     startSync,
     refreshJob,
+    resetStuckJob,
   };
 };

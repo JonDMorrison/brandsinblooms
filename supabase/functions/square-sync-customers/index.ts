@@ -234,7 +234,19 @@ Deno.serve(async (req) => {
     let failed = 0;
 
     if (customers.length > 0) {
-      const customerRecords = customers.map(customer => {
+      // DEDUPLICATE within batch - Square may return same email multiple times
+      // This prevents "ON CONFLICT DO UPDATE command cannot affect row a second time" error
+      const deduplicatedMap = new Map<string, SquareCustomer>();
+      for (const customer of customers) {
+        const customerEmail = customer.email_address || `square-${customer.id}@noemail.local`;
+        // Keep the most recent version (last occurrence wins)
+        deduplicatedMap.set(customerEmail.toLowerCase(), customer);
+      }
+
+      const deduplicatedCustomers = Array.from(deduplicatedMap.values());
+      console.log(`[SQUARE-SYNC] Deduplicated ${customers.length} → ${deduplicatedCustomers.length} unique customers`);
+
+      const customerRecords = deduplicatedCustomers.map(customer => {
         const customerEmail = customer.email_address || `square-${customer.id}@noemail.local`;
         const emailOptIn = customer.preferences?.email_unsubscribed === true 
           ? false 
@@ -246,7 +258,7 @@ Deno.serve(async (req) => {
         return {
           tenant_id: userData.tenant_id,
           user_id: user.id,
-          email: customerEmail,
+          email: customerEmail.toLowerCase(),
           first_name: customer.given_name || null,
           last_name: customer.family_name || null,
           phone: customer.phone_number || null,
@@ -264,19 +276,24 @@ Deno.serve(async (req) => {
 
       console.log(`[SQUARE-SYNC] Batch upserting ${customerRecords.length} customers...`);
       
-      const { error: upsertError, count } = await supabaseClient
-        .from('crm_customers')
-        .upsert(customerRecords, {
-          onConflict: 'tenant_id,email',
-          ignoreDuplicates: false,
-        });
+      try {
+        const { error: upsertError } = await supabaseClient
+          .from('crm_customers')
+          .upsert(customerRecords, {
+            onConflict: 'tenant_id,email',
+            ignoreDuplicates: false,
+          });
 
-      if (upsertError) {
-        console.error('[SQUARE-SYNC] Batch upsert error:', upsertError);
+        if (upsertError) {
+          console.error('[SQUARE-SYNC] Batch upsert error:', upsertError);
+          failed = customerRecords.length;
+        } else {
+          synced = customerRecords.length;
+          console.log(`[SQUARE-SYNC] Successfully upserted ${synced} customers`);
+        }
+      } catch (upsertCatchError: any) {
+        console.error('[SQUARE-SYNC] Batch upsert exception:', upsertCatchError.message);
         failed = customerRecords.length;
-      } else {
-        synced = customerRecords.length;
-        console.log(`[SQUARE-SYNC] Successfully upserted ${synced} customers`);
       }
     }
 
