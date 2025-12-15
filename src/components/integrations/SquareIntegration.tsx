@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { detectEnvironment } from '@/utils/environmentUtils';
 import { SquareSetupWizard } from './square/SquareSetupWizard';
+import { usePOSSyncJob } from '@/hooks/usePOSSyncJob';
 
 export const SquareIntegration = () => {
   const [loading, setLoading] = useState(false);
@@ -17,6 +19,44 @@ export const SquareIntegration = () => {
   const previousConnectionRef = useRef<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const { data: connection, isLoading } = useQuery({
+    queryKey: ['square-connection'],
+    queryFn: async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+
+      const { data: user } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', userData.user.id)
+        .single();
+
+      if (!user?.tenant_id) return null;
+
+      const { data, error } = await supabase
+        .from('square_connections')
+        .select('*')
+        .eq('tenant_id', user.tenant_id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Use the sync job hook
+  const { 
+    activeJob, 
+    isSyncing, 
+    isCompleted, 
+    startSync,
+    progress 
+  } = usePOSSyncJob({
+    connectionId: connection?.id,
+    connectionType: 'square',
+    syncType: 'customers',
+  });
 
   // Listen for OAuth completion
   useEffect(() => {
@@ -27,7 +67,6 @@ export const SquareIntegration = () => {
         
         if (data.status === 'success') {
           queryClient.invalidateQueries({ queryKey: ['square-connection'] });
-          // Show setup wizard for new connections
           if (data.showSetupWizard) {
             setShowSetupWizard(true);
           } else {
@@ -92,31 +131,6 @@ export const SquareIntegration = () => {
     };
   }, [queryClient, toast, loading]);
 
-  const { data: connection, isLoading } = useQuery({
-    queryKey: ['square-connection'],
-    queryFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) throw new Error('Not authenticated');
-
-      const { data: user } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', userData.user.id)
-        .single();
-
-      if (!user?.tenant_id) return null;
-
-      const { data, error } = await supabase
-        .from('square_connections')
-        .select('*')
-        .eq('tenant_id', user.tenant_id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-  });
-
   useEffect(() => {
     if (!loading) return;
     const interval = setInterval(() => {
@@ -130,7 +144,6 @@ export const SquareIntegration = () => {
     const prev = previousConnectionRef.current;
     const curr = connection;
     
-    // Check if connection just became valid (was pending or null, now has token)
     const wasNotConnected = !prev || prev.encrypted_access_token === 'pending';
     const isNowConnected = curr && curr.encrypted_access_token && curr.encrypted_access_token !== 'pending';
     const wizardNotCompleted = !curr?.setup_wizard_completed_at;
@@ -148,18 +161,20 @@ export const SquareIntegration = () => {
     previousConnectionRef.current = curr;
   }, [loading, connection, toast, queryClient]);
 
-  const syncMutation = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('square-full-sync');
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
+  // Show toast when sync completes
+  useEffect(() => {
+    if (isCompleted && activeJob) {
       queryClient.invalidateQueries({ queryKey: ['square-connection'] });
       toast({ 
         title: 'Sync completed', 
-        description: `Synced ${data?.results?.customers?.customersSynced || 0} customers and ${data?.results?.sales?.salesSynced || 0} sales`
+        description: `Synced ${activeJob.total_synced.toLocaleString()} customers`
       });
+    }
+  }, [isCompleted, activeJob, toast, queryClient]);
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      await startSync();
     },
     onError: (error: Error) => {
       toast({ title: 'Sync failed', description: error.message, variant: 'destructive' });
@@ -171,7 +186,6 @@ export const SquareIntegration = () => {
     setLoadingStep('preparing');
 
     try {
-      // Auto-detect environment
       const appEnv = detectEnvironment();
       const squareEnv = appEnv === 'development' ? 'sandbox' : 'production';
       
@@ -351,13 +365,44 @@ export const SquareIntegration = () => {
                 </div>
               )}
             </div>
+
+            {/* Sync Progress Indicator */}
+            {isSyncing && activeJob && (
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    Syncing customers in background...
+                  </span>
+                </div>
+                <Progress value={progress} className="h-2 mb-2" />
+                <div className="flex items-center justify-between text-xs text-blue-600 dark:text-blue-300">
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {activeJob.total_synced.toLocaleString()} synced
+                  </span>
+                  <span>Page {activeJob.current_page}</span>
+                </div>
+              </div>
+            )}
             
             <div className="flex gap-2 flex-wrap">
-              <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending || loading} size="sm" variant="default">
-                {syncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                {syncMutation.isPending ? 'Syncing...' : 'Sync Now'}
+              <Button 
+                onClick={() => syncMutation.mutate()} 
+                disabled={syncMutation.isPending || loading || isSyncing} 
+                size="sm" 
+                variant="default"
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Syncing...
+                  </>
+                ) : (
+                  'Sync Now'
+                )}
               </Button>
-              <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending || loading} size="sm" variant="outline">
+              <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending || loading || isSyncing} size="sm" variant="outline">
                 {testMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Test Connection
               </Button>
@@ -373,7 +418,7 @@ export const SquareIntegration = () => {
                   Run Setup Wizard
                 </Button>
               )}
-              <Button onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending || loading} size="sm" variant="destructive">
+              <Button onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending || loading || isSyncing} size="sm" variant="destructive">
                 {disconnectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Disconnect
               </Button>
