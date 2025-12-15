@@ -4,37 +4,55 @@ import { Product, ProductFilters, ProductFormData, ProductVariation, ProductImag
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-export function useProducts(filters?: ProductFilters) {
+interface UseProductsOptions extends ProductFilters {
+  page?: number;
+  pageSize?: number;
+}
+
+interface UseProductsResult {
+  products: Product[];
+  totalCount: number;
+}
+
+export function useProducts(options?: UseProductsOptions) {
   const { user } = useAuth();
+  const { page = 1, pageSize = 24, search, source, status, category } = options || {};
+  
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
   
   return useQuery({
-    queryKey: ['products', filters],
-    queryFn: async () => {
+    queryKey: ['products', search, source, status, category, page, pageSize],
+    queryFn: async (): Promise<UseProductsResult> => {
       let query = supabase
         .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
       
-      if (filters?.search) {
-        query = query.or(`name.ilike.%${filters.search}%,sku.ilike.%${filters.search}%`);
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
       }
       
-      if (filters?.source && filters.source !== 'all') {
-        query = query.eq('source', filters.source);
+      if (source && source !== 'all') {
+        query = query.eq('source', source);
       }
       
-      if (filters?.status && filters.status !== 'all') {
-        query = query.eq('status', filters.status);
+      if (status && status !== 'all') {
+        query = query.eq('status', status);
       }
       
-      if (filters?.category) {
-        query = query.eq('category', filters.category);
+      if (category) {
+        query = query.eq('category', category);
       }
       
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       
       if (error) throw error;
-      return data as Product[];
+      return {
+        products: data as Product[],
+        totalCount: count || 0,
+      };
     },
     enabled: !!user,
   });
