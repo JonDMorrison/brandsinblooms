@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter, Package, MoreHorizontal, Pencil, Trash2, ExternalLink } from 'lucide-react';
 import { useProducts, useProductMutations } from '@/hooks/useProducts';
@@ -24,6 +24,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HeadlineMedium, BodySmall, Caption } from '@/components/ui/typography';
 
@@ -68,6 +77,12 @@ const STATUS_OPTIONS = [
   { value: 'archived', label: 'Archived' },
 ];
 
+const PAGE_SIZE_OPTIONS = [
+  { value: '12', label: '12 per page' },
+  { value: '24', label: '24 per page' },
+  { value: '48', label: '48 per page' },
+];
+
 export default function ProductsPage() {
   const navigate = useNavigate();
   const [filters, setFilters] = useState<ProductFilters>({
@@ -75,14 +90,58 @@ export default function ProductsPage() {
     source: 'all',
     status: 'all',
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(24);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   
-  const { data: products, isLoading } = useProducts(filters);
+  const { data, isLoading } = useProducts({
+    ...filters,
+    page: currentPage,
+    pageSize,
+  });
   const { deleteProduct } = useProductMutations();
   
+  const products = data?.products;
+  const totalCount = data?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  
+  // Reset to page 1 when filters change
   const handleSearchChange = (value: string) => {
     setFilters((prev) => ({ ...prev, search: value }));
+    setCurrentPage(1);
   };
+  
+  const handleSourceChange = (value: string) => {
+    setFilters((prev) => ({ ...prev, source: value as ProductSource | 'all' }));
+    setCurrentPage(1);
+  };
+  
+  const handleStatusChange = (value: string) => {
+    setFilters((prev) => ({ ...prev, status: value as ProductStatus | 'all' }));
+    setCurrentPage(1);
+  };
+  
+  const handlePageSizeChange = (value: string) => {
+    setPageSize(Number(value));
+    setCurrentPage(1);
+  };
+  
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger if not focused on an input
+      if (document.activeElement?.tagName === 'INPUT') return;
+      
+      if (e.key === 'ArrowLeft' && currentPage > 1) {
+        setCurrentPage((p) => p - 1);
+      } else if (e.key === 'ArrowRight' && currentPage < totalPages) {
+        setCurrentPage((p) => p + 1);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentPage, totalPages]);
   
   const handleDelete = async () => {
     if (deleteProductId) {
@@ -98,6 +157,28 @@ export default function ProductsPage() {
     }).format(price);
   };
   
+  // Smart pagination items generator
+  const getPaginationItems = () => {
+    const items: (number | string)[] = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        items.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        items.push(1, 2, 3, 4, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        items.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        items.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+    }
+    
+    return items;
+  };
+  
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -105,7 +186,7 @@ export default function ProductsPage() {
         <div>
           <HeadlineMedium>Products</HeadlineMedium>
           <BodySmall className="text-muted-foreground mt-1">
-            Manage your product catalog across all channels
+            Manage your product catalog across all channels {totalCount > 0 && `(${totalCount.toLocaleString()} total)`}
           </BodySmall>
         </div>
         <Button onClick={() => navigate('/products/new')}>
@@ -128,13 +209,13 @@ export default function ProductsPage() {
         <NativeSelect
           options={SOURCE_OPTIONS}
           value={filters.source || 'all'}
-          onChange={(e) => setFilters((prev) => ({ ...prev, source: e.target.value as ProductSource | 'all' }))}
+          onChange={(e) => handleSourceChange(e.target.value)}
           className="w-[160px]"
         />
         <NativeSelect
           options={STATUS_OPTIONS}
           value={filters.status || 'all'}
-          onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value as ProductStatus | 'all' }))}
+          onChange={(e) => handleStatusChange(e.target.value)}
           className="w-[140px]"
         />
       </div>
@@ -142,7 +223,7 @@ export default function ProductsPage() {
       {/* Products Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: pageSize > 12 ? 12 : pageSize }).map((_, i) => (
             <Card key={i}>
               <CardContent className="p-4">
                 <Skeleton className="aspect-square rounded-lg mb-3" />
@@ -169,91 +250,143 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {products?.map((product) => (
-            <Card 
-              key={product.id} 
-              className="group hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => navigate(`/products/${product.id}`)}
-            >
-              <CardContent className="p-4">
-                {/* Product Image Placeholder */}
-                <div className="aspect-square rounded-lg bg-muted mb-3 flex items-center justify-center overflow-hidden">
-                  <Package className="h-12 w-12 text-muted-foreground/50" />
-                </div>
-                
-                {/* Product Info */}
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between">
-                    <h3 className="font-medium line-clamp-2 flex-1">{product.name}</h3>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/products/${product.id}`);
-                        }}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        {product.external_id && (
-                          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            View in {SOURCE_LABELS[product.source]}
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteProductId(product.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {products?.map((product) => (
+              <Card 
+                key={product.id} 
+                className="group hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => navigate(`/products/${product.id}`)}
+              >
+                <CardContent className="p-4">
+                  {/* Product Image Placeholder */}
+                  <div className="aspect-square rounded-lg bg-muted mb-3 flex items-center justify-center overflow-hidden">
+                    <Package className="h-12 w-12 text-muted-foreground/50" />
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-lg">
-                      {formatPrice(product.price, product.currency)}
-                    </span>
-                    {product.sku && (
-                      <Caption className="text-muted-foreground">
-                        SKU: {product.sku}
+                  {/* Product Info */}
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <h3 className="font-medium line-clamp-2 flex-1">{product.name}</h3>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/products/${product.id}`);
+                          }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          {product.external_id && (
+                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              View in {SOURCE_LABELS[product.source]}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteProductId(product.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-lg">
+                        {formatPrice(product.price, product.currency)}
+                      </span>
+                      {product.sku && (
+                        <Caption className="text-muted-foreground">
+                          SKU: {product.sku}
+                        </Caption>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="secondary" className={SOURCE_COLORS[product.source]}>
+                        {SOURCE_LABELS[product.source]}
+                      </Badge>
+                      <Badge variant="secondary" className={STATUS_COLORS[product.status]}>
+                        {product.status}
+                      </Badge>
+                    </div>
+                    
+                    {product.track_inventory && (
+                      <Caption className={
+                        product.inventory_count <= product.low_stock_threshold
+                          ? 'text-destructive'
+                          : 'text-muted-foreground'
+                      }>
+                        {product.inventory_count} in stock
                       </Caption>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t">
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount.toLocaleString()} products
+                </span>
+                <NativeSelect
+                  options={PAGE_SIZE_OPTIONS}
+                  value={pageSize.toString()}
+                  onChange={(e) => handlePageSizeChange(e.target.value)}
+                  className="w-[130px]"
+                />
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
                   
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="secondary" className={SOURCE_COLORS[product.source]}>
-                      {SOURCE_LABELS[product.source]}
-                    </Badge>
-                    <Badge variant="secondary" className={STATUS_COLORS[product.status]}>
-                      {product.status}
-                    </Badge>
-                  </div>
+                  {getPaginationItems().map((item, index) => (
+                    <PaginationItem key={index}>
+                      {item === '...' ? (
+                        <PaginationEllipsis />
+                      ) : (
+                        <PaginationLink
+                          onClick={() => setCurrentPage(item as number)}
+                          isActive={currentPage === item}
+                          className="cursor-pointer"
+                        >
+                          {item}
+                        </PaginationLink>
+                      )}
+                    </PaginationItem>
+                  ))}
                   
-                  {product.track_inventory && (
-                    <Caption className={
-                      product.inventory_count <= product.low_stock_threshold
-                        ? 'text-destructive'
-                        : 'text-muted-foreground'
-                    }>
-                      {product.inventory_count} in stock
-                    </Caption>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </>
       )}
       
       {/* Delete Confirmation Dialog */}
