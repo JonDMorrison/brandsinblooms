@@ -184,23 +184,40 @@ Deno.serve(async (req) => {
     let failed = 0;
 
     if (customers.length > 0) {
-      const customerRecords: any[] = [];
+      // DEDUPLICATE within batch - Clover may return same email multiple times
+      // This prevents "ON CONFLICT DO UPDATE command cannot affect row a second time" error
+      const deduplicatedMap = new Map<string, CloverCustomer>();
+      let skippedNoEmail = 0;
 
       for (const customer of customers) {
         const primaryEmail = customer.emailAddresses?.elements?.find(e => e.primaryEmail)?.emailAddress 
           || customer.emailAddresses?.elements?.[0]?.emailAddress;
         
         if (!primaryEmail) {
-          console.log('[CLOVER-SYNC] Skipping customer without email:', customer.id);
+          skippedNoEmail++;
           continue;
         }
 
+        // Keep the most recent version (last occurrence wins)
+        deduplicatedMap.set(primaryEmail.toLowerCase(), customer);
+      }
+
+      if (skippedNoEmail > 0) {
+        console.log(`[CLOVER-SYNC] Skipped ${skippedNoEmail} customers without email`);
+      }
+
+      const deduplicatedCustomers = Array.from(deduplicatedMap.values());
+      console.log(`[CLOVER-SYNC] Deduplicated ${customers.length - skippedNoEmail} → ${deduplicatedCustomers.length} unique customers`);
+
+      const customerRecords = deduplicatedCustomers.map(customer => {
+        const primaryEmail = customer.emailAddresses?.elements?.find(e => e.primaryEmail)?.emailAddress 
+          || customer.emailAddresses?.elements?.[0]?.emailAddress;
         const primaryPhone = customer.phoneNumbers?.elements?.[0]?.phoneNumber;
 
-        customerRecords.push({
+        return {
           tenant_id: userData.tenant_id,
           user_id: user.id,
-          email: primaryEmail,
+          email: primaryEmail!.toLowerCase(),
           first_name: customer.firstName || null,
           last_name: customer.lastName || null,
           phone: primaryPhone || null,
@@ -209,25 +226,30 @@ Deno.serve(async (req) => {
           email_consent_source: customer.marketingAllowed !== undefined ? 'clover_pos_import' : null,
           clover_customer_id: customer.id,
           clover_last_synced_at: new Date().toISOString(),
-        });
-      }
+        };
+      });
 
       if (customerRecords.length > 0) {
         console.log(`[CLOVER-SYNC] Batch upserting ${customerRecords.length} customers...`);
         
-        const { error: upsertError } = await supabaseClient
-          .from('crm_customers')
-          .upsert(customerRecords, {
-            onConflict: 'tenant_id,email',
-            ignoreDuplicates: false,
-          });
+        try {
+          const { error: upsertError } = await supabaseClient
+            .from('crm_customers')
+            .upsert(customerRecords, {
+              onConflict: 'tenant_id,email',
+              ignoreDuplicates: false,
+            });
 
-        if (upsertError) {
-          console.error('[CLOVER-SYNC] Batch upsert error:', upsertError);
+          if (upsertError) {
+            console.error('[CLOVER-SYNC] Batch upsert error:', upsertError);
+            failed = customerRecords.length;
+          } else {
+            synced = customerRecords.length;
+            console.log(`[CLOVER-SYNC] Successfully upserted ${synced} customers`);
+          }
+        } catch (upsertCatchError: any) {
+          console.error('[CLOVER-SYNC] Batch upsert exception:', upsertCatchError.message);
           failed = customerRecords.length;
-        } else {
-          synced = customerRecords.length;
-          console.log(`[CLOVER-SYNC] Successfully upserted ${synced} customers`);
         }
       }
     }

@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { detectEnvironment } from '@/utils/environmentUtils';
@@ -50,7 +50,9 @@ export const SquareIntegration = () => {
     activeJob, 
     isSyncing, 
     isCompleted, 
+    isStuck,
     startSync,
+    resetStuckJob,
     progress 
   } = usePOSSyncJob({
     connectionId: connection?.id,
@@ -368,21 +370,52 @@ export const SquareIntegration = () => {
 
             {/* Sync Progress Indicator */}
             {isSyncing && activeJob && (
-              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className={`border rounded-lg p-4 ${isStuck 
+                ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800' 
+                : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+              }`}>
                 <div className="flex items-center gap-2 mb-2">
-                  <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                    Syncing customers in background...
-                  </span>
+                  {isStuck ? (
+                    <>
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                        Sync appears stuck - no progress in 5+ minutes
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                        Syncing customers in background...
+                      </span>
+                    </>
+                  )}
                 </div>
                 <Progress value={progress} className="h-2 mb-2" />
-                <div className="flex items-center justify-between text-xs text-blue-600 dark:text-blue-300">
-                  <span className="flex items-center gap-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className={`flex items-center gap-1 ${isStuck ? 'text-yellow-600 dark:text-yellow-300' : 'text-blue-600 dark:text-blue-300'}`}>
                     <Users className="h-3 w-3" />
                     {activeJob.total_synced.toLocaleString()} synced
+                    {activeJob.total_failed > 0 && (
+                      <span className="text-red-500"> • {activeJob.total_failed.toLocaleString()} failed</span>
+                    )}
                   </span>
-                  <span>Page {activeJob.current_page}</span>
+                  <span className={isStuck ? 'text-yellow-600 dark:text-yellow-300' : 'text-blue-600 dark:text-blue-300'}>Page {activeJob.current_page}</span>
                 </div>
+                {isStuck && (
+                  <Button 
+                    onClick={async () => {
+                      await resetStuckJob();
+                      toast({ title: 'Sync reset', description: 'You can now retry the sync.' });
+                    }} 
+                    size="sm" 
+                    variant="outline" 
+                    className="mt-3 w-full border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Reset Stuck Sync
+                  </Button>
+                )}
               </div>
             )}
             
