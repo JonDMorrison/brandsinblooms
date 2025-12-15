@@ -5801,6 +5801,96 @@ export type Database = {
           },
         ]
       }
+      pos_sync_jobs: {
+        Row: {
+          attempts: number | null
+          completed_at: string | null
+          connection_id: string
+          connection_type: string
+          created_at: string | null
+          current_page: number | null
+          cursor: string | null
+          error_message: string | null
+          has_more_pages: boolean | null
+          id: string
+          is_first_page: boolean | null
+          max_attempts: number | null
+          page_offset: number | null
+          page_size: number | null
+          started_at: string | null
+          status: string
+          sync_type: string
+          tenant_id: string
+          total_failed: number | null
+          total_fetched: number | null
+          total_synced: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          completed_at?: string | null
+          connection_id: string
+          connection_type: string
+          created_at?: string | null
+          current_page?: number | null
+          cursor?: string | null
+          error_message?: string | null
+          has_more_pages?: boolean | null
+          id?: string
+          is_first_page?: boolean | null
+          max_attempts?: number | null
+          page_offset?: number | null
+          page_size?: number | null
+          started_at?: string | null
+          status?: string
+          sync_type: string
+          tenant_id: string
+          total_failed?: number | null
+          total_fetched?: number | null
+          total_synced?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          completed_at?: string | null
+          connection_id?: string
+          connection_type?: string
+          created_at?: string | null
+          current_page?: number | null
+          cursor?: string | null
+          error_message?: string | null
+          has_more_pages?: boolean | null
+          id?: string
+          is_first_page?: boolean | null
+          max_attempts?: number | null
+          page_offset?: number | null
+          page_size?: number | null
+          started_at?: string | null
+          status?: string
+          sync_type?: string
+          tenant_id?: string
+          total_failed?: number | null
+          total_fetched?: number | null
+          total_synced?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_sync_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "pos_sync_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_sync_logs: {
         Row: {
           completed_at: string | null

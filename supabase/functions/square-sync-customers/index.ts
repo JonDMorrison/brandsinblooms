@@ -96,6 +96,20 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    // Parse request body for chain parameters
+    let jobId: string | undefined;
+    let cursor: string | undefined;
+    let isChainCall = false;
+
+    try {
+      const body = await req.json();
+      jobId = body.job_id;
+      cursor = body.cursor;
+      isChainCall = !!jobId;
+    } catch {
+      // No body or invalid JSON - first call
+    }
+
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) throw new Error('Unauthorized');
 
@@ -118,128 +132,213 @@ Deno.serve(async (req) => {
 
     if (!connection) throw new Error('No active Square connection');
 
+    // Check for existing in-progress job (prevent duplicate syncs)
+    if (!isChainCall) {
+      const { data: existingJob } = await supabaseClient
+        .from('pos_sync_jobs')
+        .select('id, status')
+        .eq('connection_id', connection.id)
+        .eq('sync_type', 'customers')
+        .in('status', ['pending', 'in_progress'])
+        .single();
+
+      if (existingJob) {
+        console.log('[SQUARE-SYNC] Sync already in progress, returning existing job');
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            jobId: existingJob.id, 
+            status: existingJob.status,
+            message: 'Sync already in progress' 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Create or fetch sync job
+    let job: any;
+    if (isChainCall && jobId) {
+      const { data: existingJob, error: jobError } = await supabaseClient
+        .from('pos_sync_jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single();
+      
+      if (jobError || !existingJob) {
+        throw new Error('Sync job not found');
+      }
+      job = existingJob;
+    } else {
+      // Create new sync job
+      const { data: newJob, error: createError } = await supabaseClient
+        .from('pos_sync_jobs')
+        .insert({
+          tenant_id: userData.tenant_id,
+          connection_id: connection.id,
+          connection_type: 'square',
+          sync_type: 'customers',
+          status: 'in_progress',
+          started_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+      job = newJob;
+      jobId = newJob.id;
+    }
+
+    console.log(`[SQUARE-SYNC] Processing job ${jobId}, page ${job.current_page}, cursor: ${cursor || 'none'}`);
+
     // Decrypt access token
     const accessToken = await decryptToken(connection.encrypted_access_token);
 
-    // Phase 2: Fetch customer groups first
-    console.log('[SQUARE-SYNC] Fetching customer groups...');
-    const groupMap = await fetchSquareCustomerGroups(accessToken, connection.environment);
+    // On first page, fetch customer groups
+    let groupMap = new Map<string, string>();
+    if (!cursor) {
+      console.log('[SQUARE-SYNC] First page - fetching customer groups...');
+      groupMap = await fetchSquareCustomerGroups(accessToken, connection.environment);
+    }
 
-    // Fetch customers from Square
+    // Fetch ONE page of customers from Square
     const baseUrl = connection.environment === 'sandbox'
       ? 'https://connect.squareupsandbox.com/v2/customers'
       : 'https://connect.squareup.com/v2/customers';
 
-    let cursor: string | undefined;
-    let customersSynced = 0;
+    const url = new URL(baseUrl);
+    url.searchParams.set('limit', '100');
+    if (cursor) url.searchParams.set('cursor', cursor);
 
-    do {
-      const url = new URL(baseUrl);
-      if (cursor) url.searchParams.set('cursor', cursor);
+    console.log(`[SQUARE-SYNC] Fetching customers from Square...`);
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Square-Version': '2024-01-18',
+      },
+    });
 
-      const response = await fetch(url.toString(), {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Square-Version': '2024-01-18',
-        },
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.errors?.[0]?.detail || 'Failed to fetch customers');
+    }
+
+    const customers: SquareCustomer[] = data.customers || [];
+    const nextCursor = data.cursor;
+
+    console.log(`[SQUARE-SYNC] Fetched ${customers.length} customers, next cursor: ${nextCursor ? 'yes' : 'no'}`);
+
+    // BATCH UPSERT - Process all customers in one database call
+    let synced = 0;
+    let failed = 0;
+
+    if (customers.length > 0) {
+      const customerRecords = customers.map(customer => {
+        const customerEmail = customer.email_address || `square-${customer.id}@noemail.local`;
+        const emailOptIn = customer.preferences?.email_unsubscribed === true 
+          ? false 
+          : customer.preferences?.email_unsubscribed === false 
+            ? true 
+            : null;
+        const tags = mapGroupIdsToNames(customer.group_ids, groupMap);
+
+        return {
+          tenant_id: userData.tenant_id,
+          user_id: user.id,
+          email: customerEmail,
+          first_name: customer.given_name || null,
+          last_name: customer.family_name || null,
+          phone: customer.phone_number || null,
+          pos_source: 'square',
+          email_opt_in: emailOptIn,
+          email_consent_source: emailOptIn !== null ? 'square_pos_import' : null,
+          tags: tags.length > 0 ? tags : null,
+          square_customer_id: customer.id,
+          square_group_ids: customer.group_ids || null,
+          square_last_synced_at: new Date().toISOString(),
+          created_at: customer.created_at || new Date().toISOString(),
+          updated_at: customer.updated_at || new Date().toISOString(),
+        };
       });
 
-      const data = await response.json();
+      console.log(`[SQUARE-SYNC] Batch upserting ${customerRecords.length} customers...`);
+      
+      const { error: upsertError, count } = await supabaseClient
+        .from('crm_customers')
+        .upsert(customerRecords, {
+          onConflict: 'tenant_id,email',
+          ignoreDuplicates: false,
+        });
 
-      if (!response.ok) {
-        throw new Error(data.errors?.[0]?.detail || 'Failed to fetch customers');
+      if (upsertError) {
+        console.error('[SQUARE-SYNC] Batch upsert error:', upsertError);
+        failed = customerRecords.length;
+      } else {
+        synced = customerRecords.length;
+        console.log(`[SQUARE-SYNC] Successfully upserted ${synced} customers`);
       }
+    }
 
-      // Process customers and insert into crm_customers
-      if (data.customers && data.customers.length > 0) {
-        for (const customer of data.customers as SquareCustomer[]) {
-          const customerEmail = customer.email_address || `square-${customer.id}@noemail.local`;
-          
-          console.log(`[SQUARE-SYNC] Processing customer: ${customerEmail} (Square ID: ${customer.id})`);
-          
-          // Phase 1: Extract marketing preferences
-          const emailOptIn = customer.preferences?.email_unsubscribed === true 
-            ? false 
-            : customer.preferences?.email_unsubscribed === false 
-              ? true 
-              : null; // null = unknown consent (tri-state)
-          
-          // Phase 2: Map group IDs to tag names
-          const tags = mapGroupIdsToNames(customer.group_ids, groupMap);
-          
-          // Get existing customer to preserve data
-          const { data: existingCustomer } = await supabaseClient
-            .from('crm_customers')
-            .select('tags, product_tags, email_opt_in, sms_opt_in')
-            .eq('tenant_id', userData.tenant_id)
-            .eq('email', customerEmail)
-            .single();
-          
-          // Merge tags (preserve existing + add new from Square groups)
-          const existingTags = existingCustomer?.tags || [];
-          const mergedTags = [...new Set([...existingTags, ...tags])];
-          
-          // Preserve existing product_tags
-          const productTags = existingCustomer?.product_tags || [];
-          
-          // Only update opt-in if we have data from Square
-          const finalEmailOptIn = emailOptIn !== null ? emailOptIn : existingCustomer?.email_opt_in;
-          
-          const { data: upsertData, error: upsertError } = await supabaseClient
-            .from('crm_customers')
-            .upsert({
-              tenant_id: userData.tenant_id,
-              user_id: user.id,
-              email: customerEmail,
-              first_name: customer.given_name,
-              last_name: customer.family_name,
-              phone: customer.phone_number,
-              pos_source: 'square',
-              // Phase 1: Marketing preferences
-              email_opt_in: finalEmailOptIn,
-              sms_opt_in: existingCustomer?.sms_opt_in ?? null, // Preserve or null (unknown)
-              email_consent_source: emailOptIn !== null ? 'square_pos_import' : undefined,
-              // Phase 2: Tags from customer groups
-              tags: mergedTags.length > 0 ? mergedTags : null,
-              product_tags: productTags.length > 0 ? productTags : null,
-              // Phase 4: Square-specific tracking
-              square_customer_id: customer.id,
-              square_group_ids: customer.group_ids || null,
-              square_last_synced_at: new Date().toISOString(),
-              created_at: customer.created_at,
-              updated_at: customer.updated_at,
-            }, {
-              onConflict: 'tenant_id,email',
-            })
-            .select();
-          
-          if (upsertError) {
-            console.error(`[SQUARE-SYNC] Failed to upsert customer ${customerEmail}:`, upsertError);
-            continue; // Skip this customer but continue with others
-          }
-          
-          console.log(`[SQUARE-SYNC] Successfully upserted customer ${customerEmail} (tags: ${mergedTags.length}, email_opt_in: ${finalEmailOptIn})`);
-          customersSynced++;
-        }
-      }
+    // Update job progress
+    const newTotalFetched = job.total_fetched + customers.length;
+    const newTotalSynced = job.total_synced + synced;
+    const newTotalFailed = job.total_failed + failed;
+    const newCurrentPage = job.current_page + 1;
+    const hasMorePages = !!nextCursor;
 
-      cursor = data.cursor;
-    } while (cursor);
-
-    // Update connection with sync info
     await supabaseClient
-      .from('square_connections')
+      .from('pos_sync_jobs')
       .update({
-        last_customer_sync: new Date().toISOString(),
-        customers_synced: customersSynced,
-        last_synced_at: new Date().toISOString(),
+        total_fetched: newTotalFetched,
+        total_synced: newTotalSynced,
+        total_failed: newTotalFailed,
+        current_page: newCurrentPage,
+        cursor: nextCursor || null,
+        has_more_pages: hasMorePages,
+        status: hasMorePages ? 'in_progress' : 'completed',
+        completed_at: hasMorePages ? null : new Date().toISOString(),
       })
-      .eq('id', connection.id);
+      .eq('id', jobId);
 
-    console.log(`[SQUARE-SYNC] Customer sync complete. Total synced: ${customersSynced}`);
+    // Chain to next page if there's more data
+    if (hasMorePages && nextCursor) {
+      console.log(`[SQUARE-SYNC] Chaining to next page...`);
+      
+      // Use EdgeRuntime.waitUntil for background processing
+      const chainPromise = supabaseClient.functions.invoke('square-sync-customers', {
+        body: { job_id: jobId, cursor: nextCursor },
+      });
+
+      // Fire and forget - don't await
+      EdgeRuntime.waitUntil(chainPromise);
+    } else {
+      // Update connection with final sync info
+      await supabaseClient
+        .from('square_connections')
+        .update({
+          last_customer_sync: new Date().toISOString(),
+          customers_synced: newTotalSynced,
+          last_synced_at: new Date().toISOString(),
+        })
+        .eq('id', connection.id);
+
+      console.log(`[SQUARE-SYNC] Customer sync complete. Total synced: ${newTotalSynced}`);
+    }
 
     return new Response(
-      JSON.stringify({ success: true, customersSynced, groupsLoaded: groupMap.size }),
+      JSON.stringify({ 
+        success: true, 
+        jobId,
+        status: hasMorePages ? 'in_progress' : 'completed',
+        progress: {
+          fetched: newTotalFetched,
+          synced: newTotalSynced,
+          failed: newTotalFailed,
+          page: newCurrentPage,
+          hasMore: hasMorePages,
+        }
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
