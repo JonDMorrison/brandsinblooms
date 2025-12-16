@@ -5,17 +5,19 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Plug, Clock, BookOpen, Sparkles, RefreshCw, Users, FlaskConical } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { detectEnvironment } from '@/utils/environmentUtils';
 import { CloverSetupWizard } from './clover/CloverSetupWizard';
+import { CloverTestReport } from './clover/CloverTestReport';
 import { usePOSSyncJob } from '@/hooks/usePOSSyncJob';
 
 export const CloverIntegration = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting' | 'completing'>('preparing');
   const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const [testReport, setTestReport] = useState<any>(null);
   const previousConnectionRef = useRef<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -238,17 +240,59 @@ export const CloverIntegration = () => {
     }
   };
 
-  const testMutation = useMutation({
+  // Query for latest test result
+  const { data: latestTestResult } = useQuery({
+    queryKey: ['clover-test-result', connection?.id],
+    queryFn: async () => {
+      if (!connection?.id) return null;
+      const { data, error } = await supabase
+        .from('clover_connection_tests')
+        .select('*')
+        .eq('connection_id', connection.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!connection?.id,
+  });
+
+  // Load latest test result into state
+  useEffect(() => {
+    if (latestTestResult && !testReport) {
+      setTestReport({
+        status: latestTestResult.status,
+        summary: latestTestResult.summary,
+        duration_ms: latestTestResult.duration_ms,
+        results: latestTestResult.raw_results,
+        counts: latestTestResult.counts,
+        errors: latestTestResult.errors,
+        testedAt: latestTestResult.created_at,
+      });
+    }
+  }, [latestTestResult, testReport]);
+
+  // Data model test harness mutation
+  const testHarnessMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('clover-test-connection');
+      const { data, error } = await supabase.functions.invoke('clover-test-harness', {
+        body: { date_range_days: 30 },
+      });
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
-      toast({ title: 'Connection test successful', description: `Connected to ${data.merchant.name}` });
+      setTestReport({ ...data, testedAt: new Date().toISOString() });
+      queryClient.invalidateQueries({ queryKey: ['clover-test-result', connection?.id] });
+      toast({ 
+        title: data.status === 'success' ? 'Test completed successfully' : 'Test completed with issues',
+        description: data.summary,
+        variant: data.status === 'failed' ? 'destructive' : 'default'
+      });
     },
     onError: (error: Error) => {
-      toast({ title: 'Connection test failed', description: error.message, variant: 'destructive' });
+      toast({ title: 'Test failed', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -400,9 +444,14 @@ export const CloverIntegration = () => {
                   'Sync Now'
                 )}
               </Button>
-              <Button onClick={() => testMutation.mutate()} disabled={testMutation.isPending || loading || isSyncing} size="sm" variant="outline">
-                {testMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Test Connection
+              <Button 
+                onClick={() => testHarnessMutation.mutate()} 
+                disabled={testHarnessMutation.isPending || loading || isSyncing} 
+                size="sm" 
+                variant="outline"
+              >
+                {testHarnessMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FlaskConical className="h-4 w-4 mr-2" />}
+                Run Data Test
               </Button>
               <Button variant="ghost" size="sm" asChild>
                 <Link to="/integrations/clover/guide">
@@ -421,6 +470,16 @@ export const CloverIntegration = () => {
                 Disconnect
               </Button>
             </div>
+
+            {/* Test Report Display */}
+            {testReport && (
+              <CloverTestReport
+                report={testReport}
+                testedAt={testReport.testedAt}
+                onRerun={() => testHarnessMutation.mutate()}
+                isRunning={testHarnessMutation.isPending}
+              />
+            )}
           </div>
         ) : (
           <Button onClick={initiateOAuthFlow} className="w-full">

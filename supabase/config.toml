@@ -327,6 +327,9 @@ verify_jwt = true
 [functions.clover-test-connection]
 verify_jwt = true
 
+[functions.clover-test-harness]
+verify_jwt = true
+
 [functions.segment-auto-assignment]
 verify_jwt = true
 
