@@ -1,7 +1,9 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { corsHeaders } from '../_shared/cors.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 
-console.log('[LS-FULL-SYNC] Edge function starting');
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, traceparent, tracestate',
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -9,106 +11,83 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('[LS-FULL-SYNC] Starting full sync');
-
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error('Missing authorization header');
     }
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    console.log('[LIGHTSPEED-FULL-SYNC] Starting full sync via job queue...');
+
+    // Get user and tenant info
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error('Not authenticated');
     }
 
-    const results = {
-      customers: null as any,
-      sales: null as any,
-      products: null as any,
-      errors: [] as string[],
-    };
+    const { data: userData, error: tenantError } = await supabaseClient
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single();
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const functionUrl = `${supabaseUrl}/functions/v1`;
+    if (tenantError || !userData?.tenant_id) {
+      throw new Error('Tenant not found');
+    }
 
-    // Sync customers
-    console.log('[LS-FULL-SYNC] Syncing customers...');
-    try {
-      const customersResponse = await supabaseClient.functions.invoke('lightspeed-sync-customers', {
-        body: {},
+    const tenantId = userData.tenant_id;
+    console.log(`[LIGHTSPEED-FULL-SYNC] Tenant: ${tenantId}`);
+
+    // Enqueue sync jobs for customers, sales, and products
+    const syncTypes = ['customers', 'sales', 'products'] as const;
+    const jobResults: Record<string, any> = {};
+
+    for (const syncType of syncTypes) {
+      console.log(`[LIGHTSPEED-FULL-SYNC] Enqueuing ${syncType} sync job...`);
+      
+      const { data: jobId, error: enqueueError } = await supabaseClient.rpc('enqueue_pos_sync_job', {
+        p_tenant_id: tenantId,
+        p_provider: 'lightspeed',
+        p_sync_type: syncType,
+        p_estimated_rows: syncType === 'customers' ? 10000 : syncType === 'sales' ? 50000 : 5000,
+        p_triggered_by: 'full_sync',
       });
-      results.customers = customersResponse.data;
-      if (customersResponse.error) {
-        results.errors.push(`Customers: ${customersResponse.error.message}`);
+
+      if (enqueueError) {
+        console.error(`[LIGHTSPEED-FULL-SYNC] Failed to enqueue ${syncType}:`, enqueueError.message);
+        jobResults[syncType] = { error: enqueueError.message };
+      } else {
+        console.log(`[LIGHTSPEED-FULL-SYNC] ${syncType} job enqueued: ${jobId}`);
+        jobResults[syncType] = { jobId };
       }
-    } catch (error) {
-      console.error('[LS-FULL-SYNC] Customer sync error:', error);
-      results.errors.push(`Customers: ${error.message}`);
     }
 
-    // Sync sales
-    console.log('[LS-FULL-SYNC] Syncing sales...');
-    try {
-      const salesResponse = await supabaseClient.functions.invoke('lightspeed-sync-sales', {
-        body: {},
-      });
-      results.sales = salesResponse.data;
-      if (salesResponse.error) {
-        results.errors.push(`Sales: ${salesResponse.error.message}`);
-      }
-    } catch (error) {
-      console.error('[LS-FULL-SYNC] Sales sync error:', error);
-      results.errors.push(`Sales: ${error.message}`);
+    // Kick off the worker to start processing
+    console.log('[LIGHTSPEED-FULL-SYNC] Starting pos-sync-worker...');
+    const { error: workerError } = await supabaseClient.functions.invoke('pos-sync-worker', {
+      body: { provider: 'lightspeed' },
+    });
+
+    if (workerError) {
+      console.error('[LIGHTSPEED-FULL-SYNC] Worker invoke error:', workerError.message);
     }
-
-    // Sync products
-    console.log('[LS-FULL-SYNC] Syncing products...');
-    try {
-      const productsResponse = await supabaseClient.functions.invoke('lightspeed-sync-products', {
-        body: {},
-      });
-      results.products = productsResponse.data;
-      if (productsResponse.error) {
-        results.errors.push(`Products: ${productsResponse.error.message}`);
-      }
-    } catch (error) {
-      console.error('[LS-FULL-SYNC] Products sync error:', error);
-      results.errors.push(`Products: ${error.message}`);
-    }
-
-    console.log('[LS-FULL-SYNC] Full sync complete');
-
-    const hasErrors = results.errors.length > 0;
-    const message = hasErrors
-      ? `Sync completed with errors: ${results.errors.join(', ')}`
-      : 'Full sync completed successfully';
 
     return new Response(
       JSON.stringify({
-        success: !hasErrors,
-        message,
-        results,
+        success: true,
+        message: 'Sync jobs enqueued successfully',
+        jobs: jobResults,
+        workerStarted: !workerError,
       }),
-      { 
-        status: hasErrors ? 207 : 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
-  } catch (error) {
-    console.error('[LS-FULL-SYNC] Error:', error);
+  } catch (error: any) {
+    console.error('[LIGHTSPEED-FULL-SYNC] Error:', error.message);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
