@@ -996,6 +996,73 @@ export type Database = {
           },
         ]
       }
+      clover_connection_tests: {
+        Row: {
+          connection_id: string
+          counts: Json | null
+          created_at: string | null
+          duration_ms: number | null
+          errors: Json | null
+          id: string
+          merchant_id: string
+          raw_results: Json
+          status: string
+          summary: string | null
+          tenant_id: string
+          tested_by: string | null
+        }
+        Insert: {
+          connection_id: string
+          counts?: Json | null
+          created_at?: string | null
+          duration_ms?: number | null
+          errors?: Json | null
+          id?: string
+          merchant_id: string
+          raw_results?: Json
+          status: string
+          summary?: string | null
+          tenant_id: string
+          tested_by?: string | null
+        }
+        Update: {
+          connection_id?: string
+          counts?: Json | null
+          created_at?: string | null
+          duration_ms?: number | null
+          errors?: Json | null
+          id?: string
+          merchant_id?: string
+          raw_results?: Json
+          status?: string
+          summary?: string | null
+          tenant_id?: string
+          tested_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clover_connection_tests_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "clover_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clover_connection_tests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "clover_connection_tests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clover_connections: {
         Row: {
           connected_at: string | null
@@ -1011,6 +1078,8 @@ export type Database = {
           last_product_sync: string | null
           last_sales_sync: string | null
           last_synced_at: string | null
+          last_test_status: string | null
+          last_tested_at: string | null
           merchant_id: string | null
           merchant_name: string | null
           products_synced: number | null
@@ -1038,6 +1107,8 @@ export type Database = {
           last_product_sync?: string | null
           last_sales_sync?: string | null
           last_synced_at?: string | null
+          last_test_status?: string | null
+          last_tested_at?: string | null
           merchant_id?: string | null
           merchant_name?: string | null
           products_synced?: number | null
@@ -1065,6 +1136,8 @@ export type Database = {
           last_product_sync?: string | null
           last_sales_sync?: string | null
           last_synced_at?: string | null
+          last_test_status?: string | null
+          last_tested_at?: string | null
           merchant_id?: string | null
           merchant_name?: string | null
           products_synced?: number | null
