@@ -9045,31 +9045,45 @@ export type Database = {
         Returns: Json
       }
       check_trial_expiration_emails: { Args: never; Returns: number }
-      claim_next_pos_sync_job:
-        | {
-            Args: { p_provider?: Database["public"]["Enums"]["pos_provider"] }
-            Returns: {
-              error: true
-            } & "Could not choose the best candidate function between: public.claim_next_pos_sync_job(p_provider => text), public.claim_next_pos_sync_job(p_provider => pos_provider). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
-            SetofOptions: {
-              from: "*"
-              to: "pos_sync_jobs_v2"
-              isOneToOne: true
-              isSetofReturn: false
-            }
-          }
-        | {
-            Args: { p_provider?: string }
-            Returns: {
-              error: true
-            } & "Could not choose the best candidate function between: public.claim_next_pos_sync_job(p_provider => text), public.claim_next_pos_sync_job(p_provider => pos_provider). Try renaming the parameters or the function itself in the database so function overloading can be resolved"[]
-            SetofOptions: {
-              from: "*"
-              to: "pos_sync_jobs_v2"
-              isOneToOne: false
-              isSetofReturn: true
-            }
-          }
+      claim_next_pos_sync_job: {
+        Args: { p_provider?: Database["public"]["Enums"]["pos_provider"] }
+        Returns: {
+          attempts: number
+          batch_size: number
+          completed_at: string | null
+          created_at: string
+          current_batch: number
+          current_cursor: string | null
+          customers_synced: number
+          error_count: number
+          estimated_rows: number | null
+          id: string
+          is_delta: boolean
+          last_error: string | null
+          last_sync_cursor: string | null
+          max_retries: number
+          metadata: Json | null
+          next_retry_at: string | null
+          orders_synced: number
+          processed_rows: number
+          products_synced: number
+          provider: Database["public"]["Enums"]["pos_provider"]
+          scheduled_at: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["pos_job_status"]
+          sync_type: Database["public"]["Enums"]["pos_sync_type"]
+          tenant_id: string
+          total_batches: number | null
+          triggered_by: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pos_sync_jobs_v2"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       claim_sms_campaign_enqueue: {
         Args: {
           p_campaign_id: string
@@ -9109,27 +9123,16 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
-      enqueue_pos_sync_job:
-        | {
-            Args: {
-              p_estimated_rows?: number
-              p_provider: Database["public"]["Enums"]["pos_provider"]
-              p_sync_type?: Database["public"]["Enums"]["pos_sync_type"]
-              p_tenant_id: string
-              p_triggered_by?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_estimated_rows?: number
-              p_provider: string
-              p_sync_type?: string
-              p_tenant_id: string
-              p_triggered_by?: string
-            }
-            Returns: Json
-          }
+      enqueue_pos_sync_job: {
+        Args: {
+          p_estimated_rows?: number
+          p_provider: Database["public"]["Enums"]["pos_provider"]
+          p_sync_type?: Database["public"]["Enums"]["pos_sync_type"]
+          p_tenant_id: string
+          p_triggered_by?: string
+        }
+        Returns: Json
+      }
       ensure_org_usage_initialized: {
         Args: { p_tenant_id: string }
         Returns: undefined
