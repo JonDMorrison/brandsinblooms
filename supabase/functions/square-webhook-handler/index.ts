@@ -308,9 +308,30 @@ async function syncProductToDatabase(supabase: any, tenantId: string, userId: st
 }
 
 async function processCatalogVersionUpdated(supabase: any, tenantId: string, userId: string, catalogData: any, merchantId: string) {
-  const { data: connection } = await supabase.from('square_connections').select('id, encrypted_access_token, environment').eq('merchant_id', merchantId).eq('status', 'connected').single();
+  // THROTTLE: Only sync catalog if it's been more than 15 minutes since last sync
+  // Square sends catalog.version.updated on ANY change (price, inventory, etc.) which floods the system
+  const CATALOG_SYNC_THROTTLE_MINUTES = 15;
+  
+  const { data: connection } = await supabase.from('square_connections')
+    .select('id, encrypted_access_token, environment, last_product_sync')
+    .eq('merchant_id', merchantId)
+    .eq('status', 'connected')
+    .single();
+  
   if (!connection) return { success: false, reason: 'no_connection' };
+  
+  // Check throttle - skip if synced recently
+  if (connection.last_product_sync) {
+    const lastSync = new Date(connection.last_product_sync);
+    const minutesSinceLastSync = (Date.now() - lastSync.getTime()) / (1000 * 60);
+    if (minutesSinceLastSync < CATALOG_SYNC_THROTTLE_MINUTES) {
+      console.log(`⏭️ Catalog sync throttled - last sync ${Math.round(minutesSinceLastSync)}min ago (threshold: ${CATALOG_SYNC_THROTTLE_MINUTES}min)`);
+      return { success: true, skipped: true, reason: 'throttled', minutesSinceLastSync: Math.round(minutesSinceLastSync) };
+    }
+  }
+  
   try {
+    console.log('🔄 Starting catalog sync (passed throttle check)');
     const { decryptToken } = await import('../_shared/crypto/tokens.ts');
     const accessToken = await decryptToken(connection.encrypted_access_token);
     const baseUrl = connection.environment === 'sandbox' ? 'https://connect.squareupsandbox.com/v2/catalog/list' : 'https://connect.squareup.com/v2/catalog/list';
@@ -324,6 +345,7 @@ async function processCatalogVersionUpdated(supabase: any, tenantId: string, use
       cursor = data.cursor;
     } while (cursor);
     await supabase.from('square_connections').update({ last_product_sync: new Date().toISOString(), products_synced: productsSynced, last_synced_at: new Date().toISOString() }).eq('id', connection.id);
+    console.log(`✅ Catalog sync complete: ${productsSynced} products`);
     return { success: true, productsSynced };
   } catch (e: any) { return { success: false, error: e.message }; }
 }
