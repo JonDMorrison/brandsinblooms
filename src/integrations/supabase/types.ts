@@ -5627,6 +5627,142 @@ export type Database = {
         }
         Relationships: []
       }
+      org_usage_budgets: {
+        Row: {
+          created_at: string
+          id: string
+          max_automation_runs: number
+          max_customers: number
+          max_email_sends: number
+          max_orders: number
+          max_products: number
+          max_rows_ingested: number
+          max_sms_sends: number
+          max_sync_jobs: number
+          month: string
+          plan: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_automation_runs?: number
+          max_customers?: number
+          max_email_sends?: number
+          max_orders?: number
+          max_products?: number
+          max_rows_ingested?: number
+          max_sms_sends?: number
+          max_sync_jobs?: number
+          month?: string
+          plan?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_automation_runs?: number
+          max_customers?: number
+          max_email_sends?: number
+          max_orders?: number
+          max_products?: number
+          max_rows_ingested?: number
+          max_sms_sends?: number
+          max_sync_jobs?: number
+          month?: string
+          plan?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_usage_budgets_plan_fkey"
+            columns: ["plan"]
+            isOneToOne: false
+            referencedRelation: "plan_definitions"
+            referencedColumns: ["plan"]
+          },
+          {
+            foreignKeyName: "org_usage_budgets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "org_usage_budgets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_usage_counters: {
+        Row: {
+          automation_runs_used: number
+          created_at: string
+          customers_count: number
+          email_sends_used: number
+          id: string
+          month: string
+          orders_count: number
+          products_count: number
+          rows_ingested: number
+          sms_sends_used: number
+          sync_jobs_used: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          automation_runs_used?: number
+          created_at?: string
+          customers_count?: number
+          email_sends_used?: number
+          id?: string
+          month?: string
+          orders_count?: number
+          products_count?: number
+          rows_ingested?: number
+          sms_sends_used?: number
+          sync_jobs_used?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          automation_runs_used?: number
+          created_at?: string
+          customers_count?: number
+          email_sends_used?: number
+          id?: string
+          month?: string
+          orders_count?: number
+          products_count?: number
+          rows_ingested?: number
+          sms_sends_used?: number
+          sync_jobs_used?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_usage_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "org_usage_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personas: {
         Row: {
           buying_triggers: string[] | null
@@ -5663,6 +5799,51 @@ export type Database = {
           name?: string
           sample_phrases?: string[] | null
           tone?: string
+        }
+        Relationships: []
+      }
+      plan_definitions: {
+        Row: {
+          created_at: string
+          max_automation_runs: number
+          max_concurrent_jobs: number
+          max_customers: number
+          max_email_sends: number
+          max_orders: number
+          max_products: number
+          max_rows_ingested: number
+          max_sms_sends: number
+          max_sync_jobs: number
+          plan: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          max_automation_runs?: number
+          max_concurrent_jobs?: number
+          max_customers?: number
+          max_email_sends?: number
+          max_orders?: number
+          max_products?: number
+          max_rows_ingested?: number
+          max_sms_sends?: number
+          max_sync_jobs?: number
+          plan: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          max_automation_runs?: number
+          max_concurrent_jobs?: number
+          max_customers?: number
+          max_email_sends?: number
+          max_orders?: number
+          max_products?: number
+          max_rows_ingested?: number
+          max_sms_sends?: number
+          max_sync_jobs?: number
+          plan?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -5874,6 +6055,54 @@ export type Database = {
           },
         ]
       }
+      pos_sync_cursors: {
+        Row: {
+          created_at: string
+          entity_type: string
+          id: string
+          last_cursor: string | null
+          last_sync_at: string | null
+          provider: Database["public"]["Enums"]["pos_provider"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entity_type: string
+          id?: string
+          last_cursor?: string | null
+          last_sync_at?: string | null
+          provider: Database["public"]["Enums"]["pos_provider"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entity_type?: string
+          id?: string
+          last_cursor?: string | null
+          last_sync_at?: string | null
+          provider?: Database["public"]["Enums"]["pos_provider"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_sync_cursors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "pos_sync_cursors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_sync_jobs: {
         Row: {
           attempts: number | null
@@ -5957,6 +6186,114 @@ export type Database = {
           },
           {
             foreignKeyName: "pos_sync_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_sync_jobs_v2: {
+        Row: {
+          attempts: number
+          batch_size: number
+          completed_at: string | null
+          created_at: string
+          current_batch: number
+          current_cursor: string | null
+          customers_synced: number
+          error_count: number
+          estimated_rows: number | null
+          id: string
+          is_delta: boolean
+          last_error: string | null
+          last_sync_cursor: string | null
+          max_retries: number
+          metadata: Json | null
+          next_retry_at: string | null
+          orders_synced: number
+          processed_rows: number
+          products_synced: number
+          provider: Database["public"]["Enums"]["pos_provider"]
+          scheduled_at: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["pos_job_status"]
+          sync_type: Database["public"]["Enums"]["pos_sync_type"]
+          tenant_id: string
+          total_batches: number | null
+          triggered_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          batch_size?: number
+          completed_at?: string | null
+          created_at?: string
+          current_batch?: number
+          current_cursor?: string | null
+          customers_synced?: number
+          error_count?: number
+          estimated_rows?: number | null
+          id?: string
+          is_delta?: boolean
+          last_error?: string | null
+          last_sync_cursor?: string | null
+          max_retries?: number
+          metadata?: Json | null
+          next_retry_at?: string | null
+          orders_synced?: number
+          processed_rows?: number
+          products_synced?: number
+          provider: Database["public"]["Enums"]["pos_provider"]
+          scheduled_at?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["pos_job_status"]
+          sync_type?: Database["public"]["Enums"]["pos_sync_type"]
+          tenant_id: string
+          total_batches?: number | null
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          batch_size?: number
+          completed_at?: string | null
+          created_at?: string
+          current_batch?: number
+          current_cursor?: string | null
+          customers_synced?: number
+          error_count?: number
+          estimated_rows?: number | null
+          id?: string
+          is_delta?: boolean
+          last_error?: string | null
+          last_sync_cursor?: string | null
+          max_retries?: number
+          metadata?: Json | null
+          next_retry_at?: string | null
+          orders_synced?: number
+          processed_rows?: number
+          products_synced?: number
+          provider?: Database["public"]["Enums"]["pos_provider"]
+          scheduled_at?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["pos_job_status"]
+          sync_type?: Database["public"]["Enums"]["pos_sync_type"]
+          tenant_id?: string
+          total_batches?: number | null
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_sync_jobs_v2_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "pos_sync_jobs_v2_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -8676,6 +9013,19 @@ export type Database = {
       bundle_approved_counts: { Args: { j: Json }; Returns: Json }
       bundle_channels: { Args: { j: Json }; Returns: string[] }
       bundle_first_media_url: { Args: { j: Json }; Returns: string }
+      can_run_automation: { Args: { p_tenant_id: string }; Returns: string }
+      can_run_sync: {
+        Args: { p_estimated_rows?: number; p_tenant_id: string }
+        Returns: string
+      }
+      can_send_emails: {
+        Args: { p_count?: number; p_tenant_id: string }
+        Returns: string
+      }
+      can_send_sms: {
+        Args: { p_count?: number; p_tenant_id: string }
+        Returns: string
+      }
       check_email_exists: { Args: { email_to_check: string }; Returns: boolean }
       check_email_quota: {
         Args: { p_recipient_count: number; p_tenant_id: string }
@@ -8694,6 +9044,45 @@ export type Database = {
         Returns: Json
       }
       check_trial_expiration_emails: { Args: never; Returns: number }
+      claim_next_pos_sync_job: {
+        Args: { p_provider?: Database["public"]["Enums"]["pos_provider"] }
+        Returns: {
+          attempts: number
+          batch_size: number
+          completed_at: string | null
+          created_at: string
+          current_batch: number
+          current_cursor: string | null
+          customers_synced: number
+          error_count: number
+          estimated_rows: number | null
+          id: string
+          is_delta: boolean
+          last_error: string | null
+          last_sync_cursor: string | null
+          max_retries: number
+          metadata: Json | null
+          next_retry_at: string | null
+          orders_synced: number
+          processed_rows: number
+          products_synced: number
+          provider: Database["public"]["Enums"]["pos_provider"]
+          scheduled_at: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["pos_job_status"]
+          sync_type: Database["public"]["Enums"]["pos_sync_type"]
+          tenant_id: string
+          total_batches: number | null
+          triggered_by: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pos_sync_jobs_v2"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       claim_sms_campaign_enqueue: {
         Args: {
           p_campaign_id: string
@@ -8704,6 +9093,17 @@ export type Database = {
       }
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_oauth_codes: { Args: never; Returns: undefined }
+      complete_pos_sync_job: {
+        Args: {
+          p_cursor?: string
+          p_customers?: number
+          p_job_id: string
+          p_orders?: number
+          p_products?: number
+          p_rows?: number
+        }
+        Returns: boolean
+      }
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string }
         Returns: number
@@ -8720,6 +9120,24 @@ export type Database = {
       }
       enable_crm_for_user: {
         Args: { target_user_id: string }
+        Returns: boolean
+      }
+      enqueue_pos_sync_job: {
+        Args: {
+          p_estimated_rows?: number
+          p_provider: Database["public"]["Enums"]["pos_provider"]
+          p_sync_type?: Database["public"]["Enums"]["pos_sync_type"]
+          p_tenant_id: string
+          p_triggered_by?: string
+        }
+        Returns: Json
+      }
+      ensure_org_usage_initialized: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
+      }
+      fail_pos_sync_job: {
+        Args: { p_error: string; p_job_id: string }
         Returns: boolean
       }
       feature_enabled: { Args: { feature_name: string }; Returns: boolean }
@@ -8745,6 +9163,10 @@ export type Database = {
         Returns: string
       }
       generate_ticket_number: { Args: { p_tenant_id: string }; Returns: string }
+      get_active_sync_job_count: {
+        Args: { p_tenant_id: string }
+        Returns: number
+      }
       get_admin_user_data: {
         Args: never
         Returns: {
@@ -8820,6 +9242,7 @@ export type Database = {
         Args: { p_session_id: string }
         Returns: number
       }
+      get_remaining_budget: { Args: { p_tenant_id: string }; Returns: Json }
       get_sms_warmup_info: {
         Args: { p_messaging_service_sid?: string; p_phone_number?: string }
         Returns: {
@@ -8905,6 +9328,14 @@ export type Database = {
         Args: { keep_user_id: string; merge_user_id: string }
         Returns: boolean
       }
+      record_automation_usage: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
+      record_email_sends: {
+        Args: { p_count?: number; p_tenant_id: string }
+        Returns: boolean
+      }
       record_email_usage: {
         Args: {
           p_bounces?: number
@@ -8914,6 +9345,20 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: undefined
+      }
+      record_sms_sends: {
+        Args: { p_count?: number; p_tenant_id: string }
+        Returns: boolean
+      }
+      record_sync_usage: {
+        Args: {
+          p_customers?: number
+          p_orders?: number
+          p_products?: number
+          p_rows: number
+          p_tenant_id: string
+        }
+        Returns: boolean
       }
       refill_tokens: {
         Args: { p_tokens?: number; p_user_id: string }
@@ -8982,6 +9427,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_pos_sync_progress: {
+        Args: {
+          p_current_batch?: number
+          p_cursor?: string
+          p_job_id: string
+          p_processed_rows: number
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "master_admin" | "admin" | "user"
@@ -8990,6 +9444,15 @@ export type Database = {
       draft_doc_type: "newsletter" | "automation" | "content_bundle"
       email_env: "prod" | "dev"
       platform_type: "FB" | "IG_FEED" | "IG_REEL"
+      pos_job_status:
+        | "pending"
+        | "in_progress"
+        | "completed"
+        | "failed"
+        | "cancelled"
+        | "delayed"
+      pos_provider: "square" | "clover" | "lightspeed"
+      pos_sync_type: "customers" | "orders" | "products" | "full"
       post_mode: "AUTO" | "MANUAL"
       post_status: "QUEUED" | "PUBLISHED" | "ERROR"
       subscription_plan: "free_trial" | "sprout" | "bloom" | "expired"
@@ -9129,6 +9592,16 @@ export const Constants = {
       draft_doc_type: ["newsletter", "automation", "content_bundle"],
       email_env: ["prod", "dev"],
       platform_type: ["FB", "IG_FEED", "IG_REEL"],
+      pos_job_status: [
+        "pending",
+        "in_progress",
+        "completed",
+        "failed",
+        "cancelled",
+        "delayed",
+      ],
+      pos_provider: ["square", "clover", "lightspeed"],
+      pos_sync_type: ["customers", "orders", "products", "full"],
       post_mode: ["AUTO", "MANUAL"],
       post_status: ["QUEUED", "PUBLISHED", "ERROR"],
       subscription_plan: ["free_trial", "sprout", "bloom", "expired"],
