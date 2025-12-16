@@ -22,72 +22,67 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    console.log('[CLOVER-FULL-SYNC] Starting full sync orchestration...');
+    console.log('[CLOVER-FULL-SYNC] Starting full sync via job queue...');
 
-    // Sequential sync for proper data flow
-    // 1. Sync customers first
-    console.log('[CLOVER-FULL-SYNC] Step 1: Syncing customers...');
-    const { data: customersData, error: customersError } = await supabaseClient.functions.invoke(
-      'clover-sync-customers',
-      { headers: { Authorization: authHeader } }
-    );
-
-    if (customersError) {
-      console.error('[CLOVER-FULL-SYNC] Customer sync error:', customersError.message);
-    } else {
-      console.log('[CLOVER-FULL-SYNC] Customer sync complete:', customersData);
+    // Get user and tenant info
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      throw new Error('Not authenticated');
     }
 
-    // 2. Sync sales second (uses customer data, builds product_tags)
-    console.log('[CLOVER-FULL-SYNC] Step 2: Syncing sales...');
-    const { data: salesData, error: salesError } = await supabaseClient.functions.invoke(
-      'clover-sync-sales',
-      { headers: { Authorization: authHeader } }
-    );
+    const { data: userData, error: tenantError } = await supabaseClient
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single();
 
-    if (salesError) {
-      console.error('[CLOVER-FULL-SYNC] Sales sync error:', salesError.message);
-    } else {
-      console.log('[CLOVER-FULL-SYNC] Sales sync complete:', salesData);
+    if (tenantError || !userData?.tenant_id) {
+      throw new Error('Tenant not found');
     }
 
-    // 3. Sync products third (for inventory + catalog reference)
-    console.log('[CLOVER-FULL-SYNC] Step 3: Syncing products...');
-    const { data: productsData, error: productsError } = await supabaseClient.functions.invoke(
-      'clover-sync-products',
-      { headers: { Authorization: authHeader } }
-    );
+    const tenantId = userData.tenant_id;
+    console.log(`[CLOVER-FULL-SYNC] Tenant: ${tenantId}`);
 
-    if (productsError) {
-      console.error('[CLOVER-FULL-SYNC] Products sync error:', productsError.message);
-    } else {
-      console.log('[CLOVER-FULL-SYNC] Products sync complete:', productsData);
+    // Enqueue sync jobs for customers, sales, and products
+    const syncTypes = ['customers', 'sales', 'products'] as const;
+    const jobResults: Record<string, any> = {};
+
+    for (const syncType of syncTypes) {
+      console.log(`[CLOVER-FULL-SYNC] Enqueuing ${syncType} sync job...`);
+      
+      const { data: jobId, error: enqueueError } = await supabaseClient.rpc('enqueue_pos_sync_job', {
+        p_tenant_id: tenantId,
+        p_provider: 'clover',
+        p_sync_type: syncType,
+        p_estimated_rows: syncType === 'customers' ? 10000 : syncType === 'sales' ? 50000 : 5000,
+        p_triggered_by: 'full_sync',
+      });
+
+      if (enqueueError) {
+        console.error(`[CLOVER-FULL-SYNC] Failed to enqueue ${syncType}:`, enqueueError.message);
+        jobResults[syncType] = { error: enqueueError.message };
+      } else {
+        console.log(`[CLOVER-FULL-SYNC] ${syncType} job enqueued: ${jobId}`);
+        jobResults[syncType] = { jobId };
+      }
     }
 
-    const results = {
-      customers: customersData || { error: customersError?.message },
-      sales: salesData || { error: salesError?.message },
-      products: productsData || { error: productsError?.message },
-    };
+    // Kick off the worker to start processing
+    console.log('[CLOVER-FULL-SYNC] Starting pos-sync-worker...');
+    const { error: workerError } = await supabaseClient.functions.invoke('pos-sync-worker', {
+      body: { provider: 'clover' },
+    });
 
-    const errors = [];
-    if (customersError) errors.push(`Customers: ${customersError.message}`);
-    if (salesError) errors.push(`Sales: ${salesError.message}`);
-    if (productsError) errors.push(`Products: ${productsError.message}`);
-
-    console.log('[CLOVER-FULL-SYNC] Full sync complete. Errors:', errors.length);
+    if (workerError) {
+      console.error('[CLOVER-FULL-SYNC] Worker invoke error:', workerError.message);
+    }
 
     return new Response(
       JSON.stringify({
-        success: errors.length === 0,
-        results,
-        errors: errors.length > 0 ? errors : undefined,
-        summary: {
-          customersSynced: customersData?.customersSynced || 0,
-          salesSynced: salesData?.salesSynced || 0,
-          customersWithProductTags: salesData?.customersWithProductTags || 0,
-          productsSynced: productsData?.productsSynced || 0
-        }
+        success: true,
+        message: 'Sync jobs enqueued successfully',
+        jobs: jobResults,
+        workerStarted: !workerError,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

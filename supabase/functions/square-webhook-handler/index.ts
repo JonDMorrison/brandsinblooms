@@ -308,46 +308,71 @@ async function syncProductToDatabase(supabase: any, tenantId: string, userId: st
 }
 
 async function processCatalogVersionUpdated(supabase: any, tenantId: string, userId: string, catalogData: any, merchantId: string) {
-  // THROTTLE: Only sync catalog if it's been more than 15 minutes since last sync
+  // THROTTLE: Only enqueue catalog sync if no pending/in_progress job exists
   // Square sends catalog.version.updated on ANY change (price, inventory, etc.) which floods the system
-  const CATALOG_SYNC_THROTTLE_MINUTES = 15;
   
+  // Check for existing pending/in_progress products sync job
+  const { data: existingJob } = await supabase
+    .from('pos_sync_jobs_v2')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('provider', 'square')
+    .eq('sync_type', 'products')
+    .in('status', ['pending', 'in_progress'])
+    .single();
+
+  if (existingJob) {
+    console.log(`⏭️ Catalog sync skipped - existing job in progress: ${existingJob.id}`);
+    return { success: true, skipped: true, reason: 'job_in_progress', existingJobId: existingJob.id };
+  }
+
+  // Also check last sync time as additional throttle
+  const CATALOG_SYNC_THROTTLE_MINUTES = 15;
   const { data: connection } = await supabase.from('square_connections')
-    .select('id, encrypted_access_token, environment, last_product_sync')
+    .select('id, last_product_sync')
     .eq('merchant_id', merchantId)
     .eq('status', 'connected')
     .single();
   
   if (!connection) return { success: false, reason: 'no_connection' };
   
-  // Check throttle - skip if synced recently
   if (connection.last_product_sync) {
     const lastSync = new Date(connection.last_product_sync);
     const minutesSinceLastSync = (Date.now() - lastSync.getTime()) / (1000 * 60);
     if (minutesSinceLastSync < CATALOG_SYNC_THROTTLE_MINUTES) {
-      console.log(`⏭️ Catalog sync throttled - last sync ${Math.round(minutesSinceLastSync)}min ago (threshold: ${CATALOG_SYNC_THROTTLE_MINUTES}min)`);
+      console.log(`⏭️ Catalog sync throttled - last sync ${Math.round(minutesSinceLastSync)}min ago`);
       return { success: true, skipped: true, reason: 'throttled', minutesSinceLastSync: Math.round(minutesSinceLastSync) };
     }
   }
-  
+
   try {
-    console.log('🔄 Starting catalog sync (passed throttle check)');
-    const { decryptToken } = await import('../_shared/crypto/tokens.ts');
-    const accessToken = await decryptToken(connection.encrypted_access_token);
-    const baseUrl = connection.environment === 'sandbox' ? 'https://connect.squareupsandbox.com/v2/catalog/list' : 'https://connect.squareup.com/v2/catalog/list';
-    let cursor: string | undefined, productsSynced = 0;
-    do {
-      const url = new URL(baseUrl); url.searchParams.set('types', 'ITEM'); if (cursor) url.searchParams.set('cursor', cursor);
-      const response = await fetch(url.toString(), { headers: { 'Authorization': `Bearer ${accessToken}`, 'Square-Version': '2024-01-18' } });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.errors?.[0]?.detail || 'Failed to fetch catalog');
-      for (const item of (data.objects || [])) if (item.type === 'ITEM' && await syncProductToDatabase(supabase, tenantId, userId, item)) productsSynced++;
-      cursor = data.cursor;
-    } while (cursor);
-    await supabase.from('square_connections').update({ last_product_sync: new Date().toISOString(), products_synced: productsSynced, last_synced_at: new Date().toISOString() }).eq('id', connection.id);
-    console.log(`✅ Catalog sync complete: ${productsSynced} products`);
-    return { success: true, productsSynced };
-  } catch (e: any) { return { success: false, error: e.message }; }
+    console.log('🔄 Enqueuing catalog sync job (passed throttle check)');
+    
+    // Enqueue products sync job
+    const { data: jobId, error: enqueueError } = await supabase.rpc('enqueue_pos_sync_job', {
+      p_tenant_id: tenantId,
+      p_provider: 'square',
+      p_sync_type: 'products',
+      p_estimated_rows: 5000,
+      p_triggered_by: 'webhook_catalog_update',
+    });
+
+    if (enqueueError) {
+      console.error('❌ Failed to enqueue catalog sync:', enqueueError.message);
+      return { success: false, error: enqueueError.message };
+    }
+
+    console.log(`✅ Catalog sync job enqueued: ${jobId}`);
+
+    // Kick off the worker
+    EdgeRuntime.waitUntil(
+      supabase.functions.invoke('pos-sync-worker', { body: { provider: 'square' } })
+    );
+
+    return { success: true, jobEnqueued: jobId };
+  } catch (e: any) { 
+    return { success: false, error: e.message }; 
+  }
 }
 
 async function processInventoryCountUpdated(supabase: any, tenantId: string, inventoryData: any) {

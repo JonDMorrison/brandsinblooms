@@ -22,128 +22,67 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    console.log('[SQUARE-FULL-SYNC] Starting full sync orchestration...');
+    console.log('[SQUARE-FULL-SYNC] Starting full sync via job queue...');
 
-    // Phase 5: Sequential sync for proper data flow
-    // 1. Sync customers first (gets groups + preferences)
-    console.log('[SQUARE-FULL-SYNC] Step 1: Syncing customers...');
-    const { data: customersData, error: customersError } = await supabaseClient.functions.invoke(
-      'square-sync-customers',
-      { headers: { Authorization: authHeader } }
-    );
-
-    if (customersError) {
-      console.error('[SQUARE-FULL-SYNC] Customer sync error:', customersError.message);
-    } else {
-      console.log('[SQUARE-FULL-SYNC] Customer sync complete:', customersData);
+    // Get user and tenant info
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      throw new Error('Not authenticated');
     }
 
-    // 2. Sync sales second (uses customer data, builds product_tags)
-    console.log('[SQUARE-FULL-SYNC] Step 2: Syncing sales...');
-    const { data: salesData, error: salesError } = await supabaseClient.functions.invoke(
-      'square-sync-sales',
-      { headers: { Authorization: authHeader } }
-    );
+    const { data: userData, error: tenantError } = await supabaseClient
+      .from('users')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single();
 
-    if (salesError) {
-      console.error('[SQUARE-FULL-SYNC] Sales sync error:', salesError.message);
-    } else {
-      console.log('[SQUARE-FULL-SYNC] Sales sync complete:', salesData);
+    if (tenantError || !userData?.tenant_id) {
+      throw new Error('Tenant not found');
     }
 
-    // 3. Sync products third (for inventory + catalog reference)
-    console.log('[SQUARE-FULL-SYNC] Step 3: Syncing products...');
-    const { data: productsData, error: productsError } = await supabaseClient.functions.invoke(
-      'square-sync-products',
-      { headers: { Authorization: authHeader } }
-    );
+    const tenantId = userData.tenant_id;
+    console.log(`[SQUARE-FULL-SYNC] Tenant: ${tenantId}`);
 
-    if (productsError) {
-      console.error('[SQUARE-FULL-SYNC] Products sync error:', productsError.message);
-    } else {
-      console.log('[SQUARE-FULL-SYNC] Products sync complete:', productsData);
-    }
+    // Enqueue sync jobs for customers, sales, and products
+    const syncTypes = ['customers', 'sales', 'products'] as const;
+    const jobResults: Record<string, any> = {};
 
-    // 4. Auto-assign personas based on purchase history
-    console.log('[SQUARE-FULL-SYNC] Step 4: Running persona auto-assignment...');
-    let personasAssigned = 0;
-    
-    // Get all Square customers for this tenant
-    const { data: squareCustomers } = await supabaseClient
-      .from('crm_customers')
-      .select('id')
-      .eq('pos_source', 'square')
-      .not('order_history', 'is', null);
-
-    if (squareCustomers && squareCustomers.length > 0) {
-      console.log(`[SQUARE-FULL-SYNC] Processing ${squareCustomers.length} customers for persona assignment...`);
+    for (const syncType of syncTypes) {
+      console.log(`[SQUARE-FULL-SYNC] Enqueuing ${syncType} sync job...`);
       
-      for (const customer of squareCustomers) {
-        try {
-          const { data: personaResult, error: personaError } = await supabaseClient.functions.invoke(
-            'persona-auto-assignment',
-            { 
-              body: { customer_id: customer.id },
-              headers: { Authorization: authHeader } 
-            }
-          );
+      const { data: jobId, error: enqueueError } = await supabaseClient.rpc('enqueue_pos_sync_job', {
+        p_tenant_id: tenantId,
+        p_provider: 'square',
+        p_sync_type: syncType,
+        p_estimated_rows: syncType === 'customers' ? 10000 : syncType === 'sales' ? 50000 : 5000,
+        p_triggered_by: 'full_sync',
+      });
 
-          if (!personaError && personaResult?.assigned) {
-            personasAssigned++;
-          }
-        } catch (err: any) {
-          console.error(`[SQUARE-FULL-SYNC] Persona assignment failed for ${customer.id}:`, err.message);
-        }
+      if (enqueueError) {
+        console.error(`[SQUARE-FULL-SYNC] Failed to enqueue ${syncType}:`, enqueueError.message);
+        jobResults[syncType] = { error: enqueueError.message };
+      } else {
+        console.log(`[SQUARE-FULL-SYNC] ${syncType} job enqueued: ${jobId}`);
+        jobResults[syncType] = { jobId };
       }
-      console.log(`[SQUARE-FULL-SYNC] Persona assignment complete: ${personasAssigned} assigned`);
-    } else {
-      console.log('[SQUARE-FULL-SYNC] No customers with order history for persona assignment');
     }
 
-    // 5. Auto-assign segments based on customer data
-    console.log('[SQUARE-FULL-SYNC] Step 5: Running segment auto-assignment...');
-    const { data: segmentData, error: segmentError } = await supabaseClient.functions.invoke(
-      'segment-auto-assignment',
-      { headers: { Authorization: authHeader } }
-    );
+    // Kick off the worker to start processing
+    console.log('[SQUARE-FULL-SYNC] Starting pos-sync-worker...');
+    const { error: workerError } = await supabaseClient.functions.invoke('pos-sync-worker', {
+      body: { provider: 'square' },
+    });
 
-    if (segmentError) {
-      console.error('[SQUARE-FULL-SYNC] Segment assignment error:', segmentError.message);
-    } else {
-      console.log('[SQUARE-FULL-SYNC] Segment assignment complete:', segmentData);
+    if (workerError) {
+      console.error('[SQUARE-FULL-SYNC] Worker invoke error:', workerError.message);
     }
-
-    const results = {
-      customers: customersData || { error: customersError?.message },
-      sales: salesData || { error: salesError?.message },
-      products: productsData || { error: productsError?.message },
-      personaAssignment: { assigned: personasAssigned },
-      segmentAssignment: segmentData || { error: segmentError?.message },
-    };
-
-    const errors = [];
-    if (customersError) errors.push(`Customers: ${customersError.message}`);
-    if (salesError) errors.push(`Sales: ${salesError.message}`);
-    if (productsError) errors.push(`Products: ${productsError.message}`);
-    if (segmentError) errors.push(`Segments: ${segmentError.message}`);
-
-    console.log('[SQUARE-FULL-SYNC] Full sync complete. Errors:', errors.length);
 
     return new Response(
       JSON.stringify({
-        success: errors.length === 0,
-        results,
-        errors: errors.length > 0 ? errors : undefined,
-        summary: {
-          customersSynced: customersData?.progress?.synced || customersData?.customersSynced || 0,
-          groupsLoaded: customersData?.groupsLoaded || 0,
-          salesSynced: salesData?.salesSynced || 0,
-          customersWithPurchaseData: salesData?.customersWithPurchaseData || 0,
-          productsSynced: productsData?.productsSynced || 0,
-          personasAssigned,
-          segmentsProcessed: segmentData?.segmentsProcessed || 0,
-          segmentAssignments: segmentData?.assignmentsCreated || 0
-        }
+        success: true,
+        message: 'Sync jobs enqueued successfully',
+        jobs: jobResults,
+        workerStarted: !workerError,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
