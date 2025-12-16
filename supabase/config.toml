@@ -333,5 +333,8 @@ verify_jwt = true
 [functions.segment-auto-assignment]
 verify_jwt = true
 
+[functions.pos-sync-worker]
+verify_jwt = false
+
 [functions.persona-auto-assignment]
 verify_jwt = true
