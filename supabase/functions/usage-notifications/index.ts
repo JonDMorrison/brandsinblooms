@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { Resend } from 'npm:resend@2.0.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +11,91 @@ const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[USAGE-NOTIFICATIONS] ${step}${detailsStr}`);
 };
+
+const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+
+// Email templates
+const get80PercentEmailHtml = (resource: string, percent: number) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
+    .content { background: #fff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+    .footer { background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; font-size: 12px; color: #6b7280; }
+    .progress-bar { background: #e5e7eb; border-radius: 9999px; height: 8px; margin: 20px 0; }
+    .progress-fill { background: #f59e0b; height: 100%; border-radius: 9999px; width: ${Math.min(percent, 100)}%; }
+    .cta-button { display: inline-block; background: #22c55e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0;">⚠️ Usage Alert</h1>
+      <p style="margin: 10px 0 0 0; opacity: 0.9;">You're approaching your ${resource} limit</p>
+    </div>
+    <div class="content">
+      <p>Hi there,</p>
+      <p>You've used <strong>${Math.round(percent)}%</strong> of your monthly ${resource} quota. Here's your current usage:</p>
+      <div class="progress-bar">
+        <div class="progress-fill"></div>
+      </div>
+      <p>To avoid any interruption to your campaigns, consider upgrading your plan for higher limits and additional features.</p>
+      <center>
+        <a href="https://bloomsuite.app/pricing" class="cta-button">Upgrade Your Plan</a>
+      </center>
+    </div>
+    <div class="footer">
+      <p>BloomSuite - Marketing Made Simple for Garden Centers</p>
+      <p>Questions? Reply to this email or visit our help center.</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+const get100PercentEmailHtml = (resource: string) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
+    .content { background: #fff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+    .footer { background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; font-size: 12px; color: #6b7280; }
+    .alert-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 20px 0; }
+    .cta-button { display: inline-block; background: #22c55e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0;">🚨 Limit Reached</h1>
+      <p style="margin: 10px 0 0 0; opacity: 0.9;">Your ${resource} quota has been reached</p>
+    </div>
+    <div class="content">
+      <p>Hi there,</p>
+      <div class="alert-box">
+        <strong>Important:</strong> You've reached 100% of your monthly ${resource} quota. Additional ${resource === 'email' ? 'emails' : 'messages'} may be paused or charged at overage rates.
+      </div>
+      <p>To continue sending without interruption, please upgrade your plan now.</p>
+      <center>
+        <a href="https://bloomsuite.app/pricing" class="cta-button">Upgrade Now</a>
+      </center>
+    </div>
+    <div class="footer">
+      <p>BloomSuite - Marketing Made Simple for Garden Centers</p>
+      <p>Questions? Reply to this email or visit our help center.</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -55,10 +141,14 @@ serve(async (req) => {
 
     const notifications: Array<{
       userId: string;
+      email: string;
       type: '80_percent' | '100_percent';
       resource: 'email' | 'sms' | 'both';
       percent: number;
     }> = [];
+
+    let emailsSent = 0;
+    let emailsFailed = 0;
 
     for (const sub of subscriptions || []) {
       // Get limits from tier or legacy columns
@@ -79,77 +169,105 @@ serve(async (req) => {
       const at100 = (emailLimit > 0 && emailPercent >= 100) || (smsLimit > 0 && smsPercent >= 100);
       const at80 = (emailLimit > 0 && emailPercent >= 80) || (smsLimit > 0 && smsPercent >= 80);
 
+      // Get user email first
+      const { data: userData } = await supabase.auth.admin.getUserById(sub.user_id);
+      const userEmail = userData?.user?.email;
+
+      if (!userEmail) {
+        logStep('No email found for user', { userId: sub.user_id });
+        continue;
+      }
+
       if (at100 && !sub.usage_alert_100_sent_at) {
         const resource = emailPercent >= 100 && smsPercent >= 100 
           ? 'both' 
           : emailPercent >= 100 ? 'email' : 'sms';
 
-        notifications.push({
-          userId: sub.user_id,
-          type: '100_percent',
-          resource,
-          percent: Math.max(emailPercent, smsPercent),
-        });
+        logStep('Sending 100% alert email', { email: userEmail, resource });
 
-        // Update the sent timestamp
-        await supabase
-          .from('subscriptions')
-          .update({ 
-            usage_alert_100_sent_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', sub.id);
+        try {
+          // Send actual email via Resend
+          const emailResponse = await resend.emails.send({
+            from: 'BloomSuite <noreply@bloomsuite.app>',
+            to: [userEmail],
+            subject: `🚨 ${resource === 'both' ? 'Email & SMS' : resource.toUpperCase()} Limit Reached - Action Required`,
+            html: get100PercentEmailHtml(resource === 'both' ? 'email and SMS' : resource),
+          });
 
-        logStep('Marked 100% alert sent', { userId: sub.user_id, resource });
+          logStep('100% alert email sent', { emailResponse });
+          emailsSent++;
+
+          // Update the sent timestamp
+          await supabase
+            .from('subscriptions')
+            .update({ 
+              usage_alert_100_sent_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', sub.id);
+
+          notifications.push({
+            userId: sub.user_id,
+            email: userEmail,
+            type: '100_percent',
+            resource,
+            percent: Math.max(emailPercent, smsPercent),
+          });
+        } catch (emailError) {
+          logStep('Failed to send 100% alert email', { error: emailError.message });
+          emailsFailed++;
+        }
       } 
       else if (at80 && !at100 && !sub.usage_alert_80_sent_at) {
         const resource = emailPercent >= 80 && smsPercent >= 80 
           ? 'both' 
           : emailPercent >= 80 ? 'email' : 'sms';
+        const percent = Math.max(emailPercent, smsPercent);
 
-        notifications.push({
-          userId: sub.user_id,
-          type: '80_percent',
-          resource,
-          percent: Math.max(emailPercent, smsPercent),
-        });
+        logStep('Sending 80% alert email', { email: userEmail, resource, percent });
 
-        // Update the sent timestamp
-        await supabase
-          .from('subscriptions')
-          .update({ 
-            usage_alert_80_sent_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', sub.id);
+        try {
+          // Send actual email via Resend
+          const emailResponse = await resend.emails.send({
+            from: 'BloomSuite <noreply@bloomsuite.app>',
+            to: [userEmail],
+            subject: `⚠️ ${resource === 'both' ? 'Email & SMS' : resource.toUpperCase()} Usage at ${Math.round(percent)}%`,
+            html: get80PercentEmailHtml(resource === 'both' ? 'email and SMS' : resource, percent),
+          });
 
-        logStep('Marked 80% alert sent', { userId: sub.user_id, resource });
+          logStep('80% alert email sent', { emailResponse });
+          emailsSent++;
+
+          // Update the sent timestamp
+          await supabase
+            .from('subscriptions')
+            .update({ 
+              usage_alert_80_sent_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', sub.id);
+
+          notifications.push({
+            userId: sub.user_id,
+            email: userEmail,
+            type: '80_percent',
+            resource,
+            percent,
+          });
+        } catch (emailError) {
+          logStep('Failed to send 80% alert email', { error: emailError.message });
+          emailsFailed++;
+        }
       }
     }
 
-    logStep(`Generated ${notifications.length} notifications`);
-
-    // TODO: Send actual email/in-app notifications here
-    // For now, just log them
-    for (const notification of notifications) {
-      logStep('Would send notification', notification);
-      
-      // Get user email for sending
-      const { data: userData } = await supabase.auth.admin.getUserById(notification.userId);
-      if (userData?.user?.email) {
-        logStep('User email for notification', { 
-          email: userData.user.email, 
-          type: notification.type,
-          resource: notification.resource 
-        });
-        
-        // TODO: Call Resend API to send email notification
-      }
-    }
+    logStep(`Completed: ${emailsSent} emails sent, ${emailsFailed} failed`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
+        emailsSent,
+        emailsFailed,
         notificationsSent: notifications.length,
         notifications 
       }),

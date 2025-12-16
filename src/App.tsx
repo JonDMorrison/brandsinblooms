@@ -82,6 +82,7 @@ import AdminTenants from '@/pages/admin/AdminTenants';
 import AdminManage from '@/pages/AdminManage';
 import { AdminReportsPage } from '@/pages/AdminReportsPage';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
+import AdminCostsPage from '@/pages/admin/AdminCostsPage';
 import { CommunityPage } from '@/pages/CommunityPage';
 import { SavedBlocksPage } from '@/pages/crm/SavedBlocksPage';
 import ConfirmSubscription from '@/pages/ConfirmSubscription';
@@ -609,6 +610,11 @@ function App() {
               <SidebarLayout>
                 <AdminReportsPage />
               </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/costs" element={
+            <ProtectedRoute>
+              <AdminCostsPage />
             </ProtectedRoute>
           } />
           <Route path="/admin/reported-problems" element={

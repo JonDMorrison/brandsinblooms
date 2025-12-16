@@ -14,7 +14,8 @@ import {
   Upload,
   Eye,
   Wrench,
-  TrendingUp
+  TrendingUp,
+  DollarSign
 } from 'lucide-react';
 
 export default function AdminHub() {
@@ -69,6 +70,13 @@ export default function AdminHub() {
           icon: BarChart3,
           href: '/admin/reports',
           color: 'text-green-500',
+        },
+        {
+          title: 'Cost Dashboard',
+          description: 'Monitor platform resource usage, costs, and anomalies',
+          icon: DollarSign,
+          href: '/admin/costs',
+          color: 'text-emerald-500',
         },
         {
           title: 'Import Data',
