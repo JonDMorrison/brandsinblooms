@@ -5,6 +5,7 @@ import {
   checkCircuitBreaker, 
   getNextCircuitOpenUntil,
   getOptimalBatchSize,
+  getAdaptiveCooldown,
   type CircuitBreakerState 
 } from '../_shared/syncThrottling.ts';
 
@@ -337,9 +338,22 @@ Deno.serve(async (req) => {
 
       console.log(`[POS-SYNC-WORKER] Job ${job.id} re-queued with cursor: ${result.cursor}`);
 
-      // Chain to process next batch immediately
+      // Get estimated customer count for adaptive cooldown
+      const estimatedCustomers = connection.customers_synced || job.customers_synced || 0;
+      const cooldownMs = getAdaptiveCooldown(estimatedCustomers);
+      
+      if (cooldownMs > 0) {
+        console.log(`[POS-SYNC-WORKER] Applying ${cooldownMs}ms cooldown before next batch (est. ${estimatedCustomers} customers)`);
+      }
+
+      // Chain to process next batch with adaptive cooldown
       EdgeRuntime.waitUntil(
-        supabase.functions.invoke('pos-sync-worker', { body: { provider: job.provider } })
+        (async () => {
+          if (cooldownMs > 0) {
+            await new Promise(resolve => setTimeout(resolve, cooldownMs));
+          }
+          await supabase.functions.invoke('pos-sync-worker', { body: { provider: job.provider } });
+        })()
       );
     } else {
       // Complete the job and reset circuit breaker on success
