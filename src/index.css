@@ -28,6 +28,29 @@ html {
 }
 
 :root {
+  /* === CRITICAL: Core Semantic Variables for Tailwind === */
+  /* These MUST be defined at :root for hsl(var(--xxx)) to work */
+  --background: 120 25% 98%;        /* Off-white: #fbfdfa */
+  --foreground: 225 42% 32%;        /* Deep indigo: #2f3a75 */
+  --card: 120 25% 98%;              /* Same as background */
+  --card-foreground: 225 42% 32%;   /* Same as foreground */
+  --popover: 0 0% 100%;             /* White */
+  --popover-foreground: 225 42% 32%;
+  --primary: 193 81% 20%;           /* Dark teal: #06495d */
+  --primary-foreground: 0 0% 100%;  /* White */
+  --secondary: 184 55% 41%;         /* Bright teal: #2c9da3 */
+  --secondary-foreground: 0 0% 100%;
+  --muted: 210 40% 96%;             /* Light gray */
+  --muted-foreground: 215 16% 47%;  /* Slate */
+  --accent: 225 42% 32%;            /* Deep indigo */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;         /* Red */
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 32% 91%;            /* Light gray border */
+  --input: 214 32% 91%;             /* Same as border */
+  --ring: 184 55% 41%;              /* Bright teal focus ring */
+  --radius: 0.5rem;
+  
   /* Enhanced BloomSuite Color Variables */
   --brand-navy: 210 24% 27%;       /* #3E5A6B - Steel blue (HSL) */
   --brand-teal: 174 63% 57%;       /* #68BEB9 - Teal mint (HSL) */
@@ -251,7 +274,8 @@ html {
 .tag-holidays { @apply bg-blue-200 text-blue-900; }
 
 body {
-  @apply bg-sand-50 text-gray-700 leading-relaxed;
+  font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  @apply bg-background text-foreground leading-relaxed;
 }
 
 /* Custom shadow utilities */
@@ -514,3 +538,21 @@ select:-webkit-autofill:focus {
   display: none;
 }
 
+/* Button animations - moved from button.tsx for consistent loading */
+@keyframes pulse-once {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes scale-in {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-pulse-once {
+  animation: pulse-once 0.6s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
