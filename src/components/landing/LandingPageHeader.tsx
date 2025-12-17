@@ -126,7 +126,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="absolute top-full left-0 right-0 bg-background border-b border-border/50 shadow-lg md:hidden">
+        <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg md:hidden">
           <div className="flex flex-col p-6 space-y-4">
             {navItems.map((item) => (
               <Link
