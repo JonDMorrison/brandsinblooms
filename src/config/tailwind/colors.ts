@@ -2,11 +2,11 @@
 import type { Config } from "tailwindcss";
 
 export const colors: Config["theme"]["extend"]["colors"] = {
-  border: 'rgb(var(--border))',
-  input: 'rgb(var(--input))',
-  ring: 'rgb(var(--ring))',
-  background: 'rgb(var(--background))',
-  foreground: 'rgb(var(--foreground))',
+  border: 'hsl(var(--border))',
+  input: 'hsl(var(--input))',
+  ring: 'hsl(var(--ring))',
+  background: 'hsl(var(--background))',
+  foreground: 'hsl(var(--foreground))',
   
   // Clean Brand Colors
   'brand-steel-blue': {
@@ -38,11 +38,11 @@ export const colors: Config["theme"]["extend"]["colors"] = {
   
   // Status Chip Color System - Clean with brand colors
   'chip': {
-    draft: 'rgb(var(--chip-draft))',      // #9CA3AF (gray)
-    generated: 'rgb(var(--chip-generated))', // #3B82F6 (blue)
-    approved: 'rgb(var(--chip-approved))',   // Brand teal-mint
-    scheduled: 'rgb(var(--chip-scheduled))', // Blue
-    posted: 'rgb(var(--chip-posted))',       // Brand teal-mint
+    draft: 'hsl(var(--chip-draft))',      // #9CA3AF (gray)
+    generated: 'hsl(var(--chip-generated))', // #3B82F6 (blue)
+    approved: 'hsl(var(--chip-approved))',   // Brand teal-mint
+    scheduled: 'hsl(var(--chip-scheduled))', // Blue
+    posted: 'hsl(var(--chip-posted))',       // Brand teal-mint
   },
   
   // Neutralized color overrides - all set to clean alternatives
