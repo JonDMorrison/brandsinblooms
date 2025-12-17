@@ -336,6 +336,9 @@ verify_jwt = true
 [functions.pos-sync-worker]
 verify_jwt = false
 
+[functions.pos-sync-status]
+verify_jwt = false
+
 [functions.persona-auto-assignment]
 verify_jwt = true
 

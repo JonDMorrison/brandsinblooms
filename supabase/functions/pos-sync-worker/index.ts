@@ -261,9 +261,34 @@ Deno.serve(async (req) => {
     }
 
     if (!job) {
-      console.log('[POS-SYNC-WORKER] No jobs available');
+      // Could be queue empty OR global concurrency limit reached
+      // Check which case for better logging
+      const { data: queueStatus } = await supabase.rpc('get_sync_queue_status');
+      const isLimitReached = queueStatus?.queue_full === true;
+      const reason = isLimitReached ? 'global_limit_reached' : 'queue_empty';
+      
+      console.log(`[POS-SYNC-WORKER] No jobs available (${reason}). Status: ${JSON.stringify(queueStatus)}`);
+      
+      // If global limit reached and there are pending jobs, schedule a retry
+      if (isLimitReached && (queueStatus?.pending > 0 || queueStatus?.delayed > 0)) {
+        console.log('[POS-SYNC-WORKER] Global limit reached with pending jobs, will retry in 10s');
+        
+        EdgeRuntime.waitUntil(
+          (async () => {
+            await new Promise(resolve => setTimeout(resolve, 10000)); // 10 second delay
+            console.log('[POS-SYNC-WORKER] Retrying after global limit delay');
+            await supabase.functions.invoke('pos-sync-worker', { body: { provider: providerFilter } });
+          })()
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ success: true, message: 'No jobs available' }),
+        JSON.stringify({ 
+          success: true, 
+          message: 'No jobs available',
+          reason,
+          queueStatus: queueStatus || null,
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
