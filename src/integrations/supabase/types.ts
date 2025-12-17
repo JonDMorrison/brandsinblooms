@@ -8167,6 +8167,27 @@ export type Database = {
           },
         ]
       }
+      system_config: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           created_at: string
@@ -9086,10 +9107,18 @@ export type Database = {
       bundle_channels: { Args: { j: Json }; Returns: string[] }
       bundle_first_media_url: { Args: { j: Json }; Returns: string }
       can_run_automation: { Args: { p_tenant_id: string }; Returns: string }
-      can_run_sync: {
-        Args: { p_estimated_rows?: number; p_tenant_id: string }
-        Returns: string
-      }
+      can_run_sync:
+        | {
+            Args: {
+              p_org_id: string
+              p_provider: Database["public"]["Enums"]["pos_provider"]
+            }
+            Returns: Json
+          }
+        | {
+            Args: { p_estimated_rows?: number; p_tenant_id: string }
+            Returns: string
+          }
       can_send_emails: {
         Args: { p_count?: number; p_tenant_id: string }
         Returns: string
@@ -9169,6 +9198,7 @@ export type Database = {
       }
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_oauth_codes: { Args: never; Returns: undefined }
+      cleanup_stale_sync_jobs: { Args: never; Returns: number }
       complete_pos_sync_job: {
         Args: {
           p_cursor?: string
@@ -9314,6 +9344,7 @@ export type Database = {
           unknown_count: number
         }[]
       }
+      get_global_in_progress_count: { Args: never; Returns: number }
       get_next_message_sequence: {
         Args: { p_session_id: string }
         Returns: number
@@ -9334,6 +9365,7 @@ export type Database = {
           warmup_stage: number
         }[]
       }
+      get_sync_queue_status: { Args: never; Returns: Json }
       get_token_balance: {
         Args: { p_user_id: string }
         Returns: {
