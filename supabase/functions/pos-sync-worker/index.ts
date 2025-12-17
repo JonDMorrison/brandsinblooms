@@ -1,5 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 import { decryptToken } from '../_shared/crypto/tokens.ts';
+import { 
+  shouldThrottleSync, 
+  checkCircuitBreaker, 
+  getNextCircuitOpenUntil,
+  getOptimalBatchSize,
+  type CircuitBreakerState 
+} from '../_shared/syncThrottling.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -262,6 +269,32 @@ Deno.serve(async (req) => {
 
     console.log(`[POS-SYNC-WORKER] Processing job ${job.id}: ${job.provider} ${job.sync_type}`);
 
+    // Check circuit breaker status for this tenant+provider
+    const circuitState: CircuitBreakerState = {
+      consecutiveFailures: job.consecutive_failures || 0,
+      lastFailureAt: job.last_failure_at || null,
+      circuitOpenUntil: job.circuit_open_until || null,
+    };
+    
+    const circuitStatus = checkCircuitBreaker(circuitState);
+    if (circuitStatus.isOpen) {
+      console.log(`[POS-SYNC-WORKER] Circuit breaker OPEN for job ${job.id}, reopens at ${circuitStatus.reopenAt}`);
+      // Mark job as delayed instead of failed
+      await supabase
+        .from('pos_sync_jobs_v2')
+        .update({
+          status: 'delayed',
+          error_message: `Circuit breaker open until ${circuitStatus.reopenAt?.toISOString()}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', job.id);
+      
+      return new Response(
+        JSON.stringify({ success: false, reason: 'circuit_breaker_open', reopenAt: circuitStatus.reopenAt }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get connection for this provider
     const connection = await getConnection(supabase, job.tenant_id, job.provider);
 
@@ -309,7 +342,7 @@ Deno.serve(async (req) => {
         supabase.functions.invoke('pos-sync-worker', { body: { provider: job.provider } })
       );
     } else {
-      // Complete the job
+      // Complete the job and reset circuit breaker on success
       const { error: completeError } = await supabase.rpc('complete_pos_sync_job', {
         p_job_id: job.id,
         p_cursor: result.cursor,
@@ -323,6 +356,19 @@ Deno.serve(async (req) => {
         console.error('[POS-SYNC-WORKER] Complete error:', completeError.message);
       } else {
         console.log(`[POS-SYNC-WORKER] Job ${job.id} completed successfully`);
+        
+        // Reset circuit breaker on success
+        if (circuitStatus.shouldReset || circuitState.consecutiveFailures > 0) {
+          await supabase
+            .from('pos_sync_jobs_v2')
+            .update({
+              consecutive_failures: 0,
+              circuit_open_until: null,
+            })
+            .eq('tenant_id', job.tenant_id)
+            .eq('provider', job.provider);
+          console.log(`[POS-SYNC-WORKER] Circuit breaker reset for ${job.tenant_id}:${job.provider}`);
+        }
       }
     }
 
@@ -341,10 +387,35 @@ Deno.serve(async (req) => {
   } catch (error: any) {
     console.error('[POS-SYNC-WORKER] Error:', error.message);
 
-    // Try to fail the job if we have a job ID
+    // Update circuit breaker on failure
     try {
+      // We need to get job info to update circuit breaker
       const body = await req.clone().json().catch(() => ({}));
-      if (body.job_id) {
+      
+      // Increment consecutive failures and potentially open circuit
+      const newFailures = (circuitState?.consecutiveFailures || 0) + 1;
+      const circuitOpenUntil = getNextCircuitOpenUntil(newFailures);
+      
+      if (job?.id) {
+        await supabase.rpc('fail_pos_sync_job', {
+          p_job_id: job.id,
+          p_error: error.message,
+        });
+        
+        // Update circuit breaker state
+        await supabase
+          .from('pos_sync_jobs_v2')
+          .update({
+            consecutive_failures: newFailures,
+            last_failure_at: new Date().toISOString(),
+            circuit_open_until: circuitOpenUntil,
+          })
+          .eq('id', job.id);
+        
+        if (circuitOpenUntil) {
+          console.log(`[POS-SYNC-WORKER] Circuit breaker OPENED for job ${job.id}, until ${circuitOpenUntil}`);
+        }
+      } else if (body.job_id) {
         await supabase.rpc('fail_pos_sync_job', {
           p_job_id: body.job_id,
           p_error: error.message,

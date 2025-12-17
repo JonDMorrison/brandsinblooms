@@ -6197,7 +6197,9 @@ export type Database = {
         Row: {
           attempts: number
           batch_size: number
+          circuit_open_until: string | null
           completed_at: string | null
+          consecutive_failures: number | null
           created_at: string
           current_batch: number
           current_cursor: string | null
@@ -6207,6 +6209,7 @@ export type Database = {
           id: string
           is_delta: boolean
           last_error: string | null
+          last_failure_at: string | null
           last_sync_cursor: string | null
           max_retries: number
           metadata: Json | null
@@ -6227,7 +6230,9 @@ export type Database = {
         Insert: {
           attempts?: number
           batch_size?: number
+          circuit_open_until?: string | null
           completed_at?: string | null
+          consecutive_failures?: number | null
           created_at?: string
           current_batch?: number
           current_cursor?: string | null
@@ -6237,6 +6242,7 @@ export type Database = {
           id?: string
           is_delta?: boolean
           last_error?: string | null
+          last_failure_at?: string | null
           last_sync_cursor?: string | null
           max_retries?: number
           metadata?: Json | null
@@ -6257,7 +6263,9 @@ export type Database = {
         Update: {
           attempts?: number
           batch_size?: number
+          circuit_open_until?: string | null
           completed_at?: string | null
+          consecutive_failures?: number | null
           created_at?: string
           current_batch?: number
           current_cursor?: string | null
@@ -6267,6 +6275,7 @@ export type Database = {
           id?: string
           is_delta?: boolean
           last_error?: string | null
+          last_failure_at?: string | null
           last_sync_cursor?: string | null
           max_retries?: number
           metadata?: Json | null
@@ -8493,6 +8502,69 @@ export type Database = {
           },
         ]
       }
+      usage_alert_settings: {
+        Row: {
+          auto_pause_at_limit: boolean | null
+          created_at: string | null
+          email_critical_threshold: number | null
+          email_notifications_enabled: boolean | null
+          email_warning_threshold: number | null
+          id: string
+          in_app_notifications_enabled: boolean | null
+          pos_sync_frequency: string | null
+          sms_critical_threshold: number | null
+          sms_warning_threshold: number | null
+          tenant_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auto_pause_at_limit?: boolean | null
+          created_at?: string | null
+          email_critical_threshold?: number | null
+          email_notifications_enabled?: boolean | null
+          email_warning_threshold?: number | null
+          id?: string
+          in_app_notifications_enabled?: boolean | null
+          pos_sync_frequency?: string | null
+          sms_critical_threshold?: number | null
+          sms_warning_threshold?: number | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auto_pause_at_limit?: boolean | null
+          created_at?: string | null
+          email_critical_threshold?: number | null
+          email_notifications_enabled?: boolean | null
+          email_warning_threshold?: number | null
+          id?: string
+          in_app_notifications_enabled?: boolean | null
+          pos_sync_frequency?: string | null
+          sms_critical_threshold?: number | null
+          sms_warning_threshold?: number | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_alert_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "usage_alert_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_integrations: {
         Row: {
           created_at: string | null
@@ -9050,7 +9122,9 @@ export type Database = {
         Returns: {
           attempts: number
           batch_size: number
+          circuit_open_until: string | null
           completed_at: string | null
+          consecutive_failures: number | null
           created_at: string
           current_batch: number
           current_cursor: string | null
@@ -9060,6 +9134,7 @@ export type Database = {
           id: string
           is_delta: boolean
           last_error: string | null
+          last_failure_at: string | null
           last_sync_cursor: string | null
           max_retries: number
           metadata: Json | null
