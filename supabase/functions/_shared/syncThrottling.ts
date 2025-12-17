@@ -17,6 +17,23 @@ export function getAdaptiveSyncInterval(customerCount: number): number {
 }
 
 /**
+ * Get adaptive cooldown delay between batch processing
+ * Spreads database load for larger datasets to reduce CPU spikes
+ * Returns delay in milliseconds
+ */
+export function getAdaptiveCooldown(customerCount: number): number {
+  if (customerCount < 1000) {
+    return 0; // No delay for small tenants - process immediately
+  } else if (customerCount < 10000) {
+    return 2000; // 2 seconds between batches for medium tenants
+  } else if (customerCount < 50000) {
+    return 5000; // 5 seconds between batches for large tenants
+  } else {
+    return 10000; // 10 seconds between batches for massive tenants
+  }
+}
+
+/**
  * Get optimal batch size based on provider and dataset size
  */
 export function getOptimalBatchSize(provider: string, customerCount: number): number {
