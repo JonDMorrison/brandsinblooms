@@ -338,3 +338,6 @@ verify_jwt = false
 
 [functions.persona-auto-assignment]
 verify_jwt = true
+
+[functions.send-admin-cost-alert]
+verify_jwt = false
