@@ -285,6 +285,64 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // ========== LOOKUP CUSTOMER BY EMAIL ==========
+    const recipientEmail = payload.data.to[0];
+    let customerId: string | null = null;
+    
+    if (metadata.tenantId && recipientEmail) {
+      const { data: customer } = await supabase
+        .from('crm_customers')
+        .select('id')
+        .eq('tenant_id', metadata.tenantId)
+        .eq('email', recipientEmail)
+        .maybeSingle();
+      
+      if (customer) {
+        customerId = customer.id;
+        console.log(`📋 Found customer: ${customerId} for email: ${recipientEmail}`);
+      }
+    }
+
+    // ========== CALCULATE TIME-TO-EVENT FOR OPENS/CLICKS ==========
+    let timeToEventSeconds: number | null = null;
+    let sentAtTimestamp: string | null = null;
+    
+    if ((eventType === 'opened' || eventType === 'clicked') && payload.data.email_id) {
+      // Find the 'sent' event for this email to calculate time difference
+      const { data: sentEvent } = await supabase
+        .from('email_tracking_events')
+        .select('created_at')
+        .eq('campaign_id', metadata.campaignId)
+        .eq('customer_email', recipientEmail)
+        .eq('event_type', 'sent')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (sentEvent?.created_at) {
+        sentAtTimestamp = sentEvent.created_at;
+        const sentTime = new Date(sentEvent.created_at).getTime();
+        const eventTime = new Date(payload.created_at).getTime();
+        timeToEventSeconds = Math.floor((eventTime - sentTime) / 1000);
+        console.log(`⏱️ Time to ${eventType}: ${timeToEventSeconds} seconds (${Math.round(timeToEventSeconds/60)} minutes)`);
+      }
+    }
+
+    // ========== DETERMINE BOUNCE TYPE ==========
+    let bounceType: string | null = null;
+    if (eventType === 'bounced' && payload.data.bounce) {
+      // Resend bounce types: 'hard', 'soft', or message-based detection
+      const bounceMessage = payload.data.bounce.message?.toLowerCase() || '';
+      const payloadBounceType = payload.data.bounce.type?.toLowerCase();
+      
+      if (payloadBounceType === 'hard' || bounceMessage.includes('permanent') || bounceMessage.includes('does not exist') || bounceMessage.includes('invalid')) {
+        bounceType = 'hard';
+      } else {
+        bounceType = 'soft';
+      }
+      console.log(`📭 Bounce type detected: ${bounceType}`);
+    }
+
     // Build event data for storage
     const eventData: Record<string, any> = {
       email_id: payload.data.email_id,
@@ -308,7 +366,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
     if (eventType === 'bounced' && payload.data.bounce) {
       eventData.bounce_message = payload.data.bounce.message;
-      eventData.bounce_type = payload.data.bounce.type;
+      eventData.bounce_type = bounceType;
     }
     if (eventType === 'complained' && payload.data.complaint) {
       eventData.complaint_feedback_type = payload.data.complaint.feedback_type;
@@ -326,7 +384,7 @@ const handler = async (req: Request): Promise<Response> => {
       .from('email_tracking_events')
       .select('id')
       .eq('campaign_id', metadata.campaignId)
-      .eq('customer_email', payload.data.to[0])
+      .eq('customer_email', recipientEmail)
       .eq('event_type', eventType)
       .eq('event_data->>email_id', payload.data.email_id)
       .maybeSingle();
@@ -343,16 +401,20 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // ========== INSERT TRACKING EVENT ==========
-    const trackingRecord = {
+    const trackingRecord: Record<string, any> = {
       campaign_id: metadata.campaignId,
-      customer_email: payload.data.to[0],
+      customer_email: recipientEmail,
       event_type: eventType,
       event_data: {
         ...eventData,
         raw_payload: payload // Store complete raw payload for debugging
       },
       user_agent: userAgent,
-      ip_address: ipAddress
+      ip_address: ipAddress,
+      customer_id: customerId,
+      bounce_type: bounceType,
+      sent_at: sentAtTimestamp,
+      time_to_event_seconds: timeToEventSeconds
     };
 
     const { data: insertedEvent, error: insertError } = await supabase
@@ -383,6 +445,16 @@ const handler = async (req: Request): Promise<Response> => {
       await updateCampaignMetrics(supabase, metadata.campaignId);
     } catch (err) {
       console.error('⚠️ Non-fatal: Failed to update campaign metrics:', err);
+    }
+
+    // ========== UPDATE CUSTOMER EMAIL ENGAGEMENT METRICS ==========
+    if (customerId) {
+      try {
+        await supabase.rpc('update_customer_email_metrics', { p_customer_id: customerId });
+        console.log(`📊 Updated email metrics for customer ${customerId}`);
+      } catch (err) {
+        console.error('⚠️ Non-fatal: Failed to update customer email metrics:', err);
+      }
     }
 
     // Update domain stats for bounces/complaints
