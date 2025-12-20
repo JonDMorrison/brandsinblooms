@@ -171,37 +171,6 @@ export const CRMSegmentsBetaPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* System Segments */}
-        {filteredSystemSegments.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                System Segments
-                <Badge variant="secondary" className="ml-2">
-                  Using Centralized Definitions
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
-                {filteredSystemSegments.map((segment) => (
-                  <SegmentOverviewCard
-                    key={segment.id}
-                    name={segment.name}
-                    description={segment.description}
-                    estimatedCount={counts[segment.id] || 0}
-                    isLoadingCount={countsLoading}
-                    icon={segment.icon}
-                    isSystem={true}
-                    onCreateCampaign={() => handleCreateCampaign(segment.id)}
-                    onViewDetails={() => handleViewDetails(segment.id)}
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Custom Segments */}
         <Card>
