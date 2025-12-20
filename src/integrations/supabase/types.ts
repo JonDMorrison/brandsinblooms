@@ -2033,8 +2033,10 @@ export type Database = {
       }
       crm_customers: {
         Row: {
+          city: string | null
           clover_customer_id: string | null
           clover_last_synced_at: string | null
+          country_code: string | null
           created_at: string | null
           custom_fields: Json | null
           email: string
@@ -2043,6 +2045,7 @@ export type Database = {
           email_consent_source: string | null
           email_opt_in: boolean | null
           email_opt_in_at: string | null
+          email_opt_out_at: string | null
           first_name: string | null
           first_purchase_date: string | null
           footer_last_sent_at: string | null
@@ -2051,7 +2054,9 @@ export type Database = {
           last_name: string | null
           last_open_at: string | null
           last_purchase_date: string | null
+          lat: number | null
           lifetime_value: number | null
+          lon: number | null
           opt_out: boolean | null
           order_history: Json | null
           persona: string | null
@@ -2060,15 +2065,24 @@ export type Database = {
           persona_id: string | null
           phone: string | null
           pos_source: string | null
+          postal_code: string | null
+          preferred_channel: string | null
           product_tags: string[] | null
+          signup_campaign: string | null
+          signup_referrer_id: string | null
+          signup_source: string | null
           sms_consent_ip: string | null
           sms_consent_method: string | null
           sms_consent_source: string | null
           sms_opt_in: boolean | null
           sms_opt_in_at: string | null
+          sms_opt_out_at: string | null
           square_customer_id: string | null
           square_group_ids: string[] | null
           square_last_synced_at: string | null
+          state_region: string | null
+          store_id: string | null
+          store_name: string | null
           suppressed: boolean
           suppressed_at: string | null
           suppressed_reason: string | null
@@ -2080,8 +2094,10 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          city?: string | null
           clover_customer_id?: string | null
           clover_last_synced_at?: string | null
+          country_code?: string | null
           created_at?: string | null
           custom_fields?: Json | null
           email: string
@@ -2090,6 +2106,7 @@ export type Database = {
           email_consent_source?: string | null
           email_opt_in?: boolean | null
           email_opt_in_at?: string | null
+          email_opt_out_at?: string | null
           first_name?: string | null
           first_purchase_date?: string | null
           footer_last_sent_at?: string | null
@@ -2098,7 +2115,9 @@ export type Database = {
           last_name?: string | null
           last_open_at?: string | null
           last_purchase_date?: string | null
+          lat?: number | null
           lifetime_value?: number | null
+          lon?: number | null
           opt_out?: boolean | null
           order_history?: Json | null
           persona?: string | null
@@ -2107,15 +2126,24 @@ export type Database = {
           persona_id?: string | null
           phone?: string | null
           pos_source?: string | null
+          postal_code?: string | null
+          preferred_channel?: string | null
           product_tags?: string[] | null
+          signup_campaign?: string | null
+          signup_referrer_id?: string | null
+          signup_source?: string | null
           sms_consent_ip?: string | null
           sms_consent_method?: string | null
           sms_consent_source?: string | null
           sms_opt_in?: boolean | null
           sms_opt_in_at?: string | null
+          sms_opt_out_at?: string | null
           square_customer_id?: string | null
           square_group_ids?: string[] | null
           square_last_synced_at?: string | null
+          state_region?: string | null
+          store_id?: string | null
+          store_name?: string | null
           suppressed?: boolean
           suppressed_at?: string | null
           suppressed_reason?: string | null
@@ -2127,8 +2155,10 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          city?: string | null
           clover_customer_id?: string | null
           clover_last_synced_at?: string | null
+          country_code?: string | null
           created_at?: string | null
           custom_fields?: Json | null
           email?: string
@@ -2137,6 +2167,7 @@ export type Database = {
           email_consent_source?: string | null
           email_opt_in?: boolean | null
           email_opt_in_at?: string | null
+          email_opt_out_at?: string | null
           first_name?: string | null
           first_purchase_date?: string | null
           footer_last_sent_at?: string | null
@@ -2145,7 +2176,9 @@ export type Database = {
           last_name?: string | null
           last_open_at?: string | null
           last_purchase_date?: string | null
+          lat?: number | null
           lifetime_value?: number | null
+          lon?: number | null
           opt_out?: boolean | null
           order_history?: Json | null
           persona?: string | null
@@ -2154,15 +2187,24 @@ export type Database = {
           persona_id?: string | null
           phone?: string | null
           pos_source?: string | null
+          postal_code?: string | null
+          preferred_channel?: string | null
           product_tags?: string[] | null
+          signup_campaign?: string | null
+          signup_referrer_id?: string | null
+          signup_source?: string | null
           sms_consent_ip?: string | null
           sms_consent_method?: string | null
           sms_consent_source?: string | null
           sms_opt_in?: boolean | null
           sms_opt_in_at?: string | null
+          sms_opt_out_at?: string | null
           square_customer_id?: string | null
           square_group_ids?: string[] | null
           square_last_synced_at?: string | null
+          state_region?: string | null
+          store_id?: string | null
+          store_name?: string | null
           suppressed?: boolean
           suppressed_at?: string | null
           suppressed_reason?: string | null
@@ -2179,6 +2221,20 @@ export type Database = {
             columns: ["persona_id"]
             isOneToOne: false
             referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_customers_signup_referrer_id_fkey"
+            columns: ["signup_referrer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_customers_signup_referrer_id_fkey"
+            columns: ["signup_referrer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
             referencedColumns: ["id"]
           },
           {

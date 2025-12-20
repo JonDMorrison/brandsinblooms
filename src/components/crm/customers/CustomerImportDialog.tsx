@@ -384,7 +384,9 @@ export const CustomerImportDialog: React.FC<CustomerImportDialogProps> = ({ onIm
           sms_opt_in: customer.sms_opt_in,
           tenant_id: userRecord.tenant_id,
           user_id: user.user.id,
-          pos_source: 'import'
+          // Identity & Profile Behavior Metrics
+          signup_source: 'import',
+          preferred_channel: customer.sms_opt_in ? 'sms' : 'none',
         };
       });
 
