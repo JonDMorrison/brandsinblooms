@@ -3119,6 +3119,299 @@ export type Database = {
           },
         ]
       }
+      customer_email_metrics: {
+        Row: {
+          avg_time_to_click_minutes: number | null
+          avg_time_to_open_minutes: number | null
+          bounce_rate: number | null
+          click_rate: number | null
+          created_at: string | null
+          ctor: number | null
+          customer_id: string
+          engagement_score: number | null
+          hard_bounces: number | null
+          id: string
+          last_bounced_at: string | null
+          last_clicked_at: string | null
+          last_delivered_at: string | null
+          last_opened_at: string | null
+          last_sent_at: string | null
+          open_rate: number | null
+          soft_bounces: number | null
+          tenant_id: string
+          total_bounced: number | null
+          total_clicked: number | null
+          total_delivered: number | null
+          total_opened: number | null
+          total_sent: number | null
+          total_unsubscribes: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          avg_time_to_click_minutes?: number | null
+          avg_time_to_open_minutes?: number | null
+          bounce_rate?: number | null
+          click_rate?: number | null
+          created_at?: string | null
+          ctor?: number | null
+          customer_id: string
+          engagement_score?: number | null
+          hard_bounces?: number | null
+          id?: string
+          last_bounced_at?: string | null
+          last_clicked_at?: string | null
+          last_delivered_at?: string | null
+          last_opened_at?: string | null
+          last_sent_at?: string | null
+          open_rate?: number | null
+          soft_bounces?: number | null
+          tenant_id: string
+          total_bounced?: number | null
+          total_clicked?: number | null
+          total_delivered?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          total_unsubscribes?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          avg_time_to_click_minutes?: number | null
+          avg_time_to_open_minutes?: number | null
+          bounce_rate?: number | null
+          click_rate?: number | null
+          created_at?: string | null
+          ctor?: number | null
+          customer_id?: string
+          engagement_score?: number | null
+          hard_bounces?: number | null
+          id?: string
+          last_bounced_at?: string | null
+          last_clicked_at?: string | null
+          last_delivered_at?: string | null
+          last_opened_at?: string | null
+          last_sent_at?: string | null
+          open_rate?: number | null
+          soft_bounces?: number | null
+          tenant_id?: string
+          total_bounced?: number | null
+          total_clicked?: number | null
+          total_delivered?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          total_unsubscribes?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_email_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_email_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_email_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_email_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_engagement_summary: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          email_score: number | null
+          engagement_tier: string | null
+          id: string
+          last_calculated_at: string | null
+          last_engagement_at: string | null
+          overall_engagement_score: number | null
+          purchase_score: number | null
+          sms_score: number | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          email_score?: number | null
+          engagement_tier?: string | null
+          id?: string
+          last_calculated_at?: string | null
+          last_engagement_at?: string | null
+          overall_engagement_score?: number | null
+          purchase_score?: number | null
+          sms_score?: number | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          email_score?: number | null
+          engagement_tier?: string | null
+          id?: string
+          last_calculated_at?: string | null
+          last_engagement_at?: string | null
+          overall_engagement_score?: number | null
+          purchase_score?: number | null
+          sms_score?: number | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_engagement_summary_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_engagement_summary_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_engagement_summary_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_engagement_summary_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_identity_metrics: {
+        Row: {
+          city: string | null
+          country_code: string | null
+          created_at: string | null
+          customer_id: string
+          id: string
+          lat: number | null
+          lon: number | null
+          postal_code: string | null
+          preferred_channel: string | null
+          signup_campaign: string | null
+          signup_referrer_id: string | null
+          signup_source: string | null
+          state_region: string | null
+          store_id: string | null
+          store_name: string | null
+          tenant_id: string
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          city?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          postal_code?: string | null
+          preferred_channel?: string | null
+          signup_campaign?: string | null
+          signup_referrer_id?: string | null
+          signup_source?: string | null
+          state_region?: string | null
+          store_id?: string | null
+          store_name?: string | null
+          tenant_id: string
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          city?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          postal_code?: string | null
+          preferred_channel?: string | null
+          signup_campaign?: string | null
+          signup_referrer_id?: string | null
+          signup_source?: string | null
+          state_region?: string | null
+          store_id?: string | null
+          store_name?: string | null
+          tenant_id?: string
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_identity_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_identity_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_identity_metrics_signup_referrer_id_fkey"
+            columns: ["signup_referrer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_identity_metrics_signup_referrer_id_fkey"
+            columns: ["signup_referrer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_identity_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_identity_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_personas: {
         Row: {
           created_at: string
@@ -3199,6 +3492,95 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_sms_metrics: {
+        Row: {
+          click_rate: number | null
+          created_at: string | null
+          customer_id: string
+          delivery_rate: number | null
+          id: string
+          last_clicked_at: string | null
+          last_delivered_at: string | null
+          last_replied_at: string | null
+          last_sent_at: string | null
+          reply_rate: number | null
+          tenant_id: string
+          total_clicked: number | null
+          total_delivered: number | null
+          total_failed: number | null
+          total_replied: number | null
+          total_sent: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          click_rate?: number | null
+          created_at?: string | null
+          customer_id: string
+          delivery_rate?: number | null
+          id?: string
+          last_clicked_at?: string | null
+          last_delivered_at?: string | null
+          last_replied_at?: string | null
+          last_sent_at?: string | null
+          reply_rate?: number | null
+          tenant_id: string
+          total_clicked?: number | null
+          total_delivered?: number | null
+          total_failed?: number | null
+          total_replied?: number | null
+          total_sent?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          click_rate?: number | null
+          created_at?: string | null
+          customer_id?: string
+          delivery_rate?: number | null
+          id?: string
+          last_clicked_at?: string | null
+          last_delivered_at?: string | null
+          last_replied_at?: string | null
+          last_sent_at?: string | null
+          reply_rate?: number | null
+          tenant_id?: string
+          total_clicked?: number | null
+          total_delivered?: number | null
+          total_failed?: number | null
+          total_replied?: number | null
+          total_sent?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_sms_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_sms_metrics_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customer_360_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_sms_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tenant_overview"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_sms_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -9080,41 +9462,78 @@ export type Database = {
       }
       customer_360_enriched: {
         Row: {
-          avg_order_value: number | null
+          avg_time_to_click_minutes: number | null
+          avg_time_to_open_minutes: number | null
+          channel_email_score: number | null
+          channel_purchase_score: number | null
+          channel_sms_score: number | null
+          city: string | null
+          country_code: string | null
           created_at: string | null
-          custom_fields: Json | null
-          customer_status: string | null
+          days_since_last_email_open: number | null
+          days_since_last_engagement: number | null
+          days_since_last_purchase: number | null
           email: string | null
-          enriched_total_spent: number | null
-          favorite_products: string | null
+          email_bounce_rate: number | null
+          email_click_rate: number | null
+          email_ctor: number | null
+          email_engagement_score: number | null
+          email_open_rate: number | null
+          email_opt_in: boolean | null
+          engagement_last_calculated_at: string | null
+          engagement_metrics: Json | null
+          engagement_tier: string | null
           first_name: string | null
-          first_order_date: string | null
-          footer_last_sent_at: string | null
+          first_purchase_date: string | null
           id: string | null
+          is_vip: boolean | null
+          last_email_bounced_at: string | null
+          last_email_clicked_at: string | null
+          last_email_delivered_at: string | null
+          last_email_opened_at: string | null
+          last_email_sent_at: string | null
+          last_engagement_at: string | null
           last_name: string | null
-          last_order_date: string | null
           last_purchase_date: string | null
+          lat: number | null
           lifetime_value: number | null
-          loyalty_status: string | null
-          opt_out: boolean | null
-          order_count: number | null
-          order_history: Json | null
+          lon: number | null
+          overall_engagement_score: number | null
           persona: string | null
-          persona_assignment_method: string | null
-          persona_confidence_score: number | null
           persona_id: string | null
           phone: string | null
-          pos_source: string | null
-          product_categories: string | null
-          product_tags: string[] | null
+          postal_code: string | null
+          preferred_channel: string | null
+          signup_campaign: string | null
+          signup_source: string | null
+          sms_click_rate: number | null
+          sms_delivery_rate: number | null
+          sms_last_replied_at: string | null
+          sms_last_sent_at: string | null
           sms_opt_in: boolean | null
-          sms_opt_in_at: string | null
+          sms_reply_rate: number | null
+          sms_total_clicked: number | null
+          sms_total_delivered: number | null
+          sms_total_failed: number | null
+          sms_total_replied: number | null
+          sms_total_sent: number | null
+          state_region: string | null
+          store_id: string | null
+          store_name: string | null
+          suppressed: boolean | null
           tags: string[] | null
           tenant_id: string | null
           timezone: string | null
+          total_emails_bounced: number | null
+          total_emails_clicked: number | null
+          total_emails_delivered: number | null
+          total_emails_opened: number | null
+          total_emails_sent: number | null
+          total_hard_bounces: number | null
+          total_soft_bounces: number | null
           total_spent: number | null
+          total_unsubscribes: number | null
           updated_at: string | null
-          user_id: string | null
         }
         Relationships: [
           {
@@ -9574,6 +9993,10 @@ export type Database = {
       merge_duplicate_accounts: {
         Args: { keep_user_id: string; merge_user_id: string }
         Returns: boolean
+      }
+      recalculate_customer_engagement: {
+        Args: { p_customer_id: string }
+        Returns: undefined
       }
       record_automation_usage: {
         Args: { p_tenant_id: string }
