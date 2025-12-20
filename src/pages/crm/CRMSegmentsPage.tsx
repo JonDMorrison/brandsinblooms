@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Target, Plus, Search, RefreshCw, Upload } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Target, Plus, Search, RefreshCw, Upload, FlaskConical } from 'lucide-react';
 import { useCRMSegments } from '@/hooks/useCRMSegments';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
 import { SegmentCard } from '@/components/crm/segments/SegmentCard';
@@ -175,9 +176,20 @@ export const CRMSegmentsPage: React.FC = () => {
     <div className={`${isMobile ? 'mobile-section' : 'p-6'} mobile-space-normal mobile-container`}>
       {/* Header */}
       <div className={`${isMobile ? 'mobile-space-tight' : 'flex justify-between items-center'} mb-6`}>
-        <h1 className={`${isMobile ? 'mobile-text-hero' : 'text-3xl'} font-bold mb-4 md:mb-0`}>
-          Customer Segments
-        </h1>
+        <div className="flex items-center gap-3 mb-4 md:mb-0">
+          <h1 className={`${isMobile ? 'mobile-text-hero' : 'text-3xl'} font-bold`}>
+            Customer Segments
+          </h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/crm/segments/beta')}
+            className="gap-1"
+          >
+            <FlaskConical className="h-3 w-3" />
+            Try Beta
+          </Button>
+        </div>
         <div className={`flex ${isMobile ? 'flex-col gap-2' : 'gap-2'}`}>
           <Button 
             variant="outline" 

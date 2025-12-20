@@ -36,6 +36,7 @@ import SMSRoutes from '@/routes/SMSRoutes';
 import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
 import { CRMCustomersPage } from '@/pages/crm/CRMCustomersPage';
 import { CRMSegmentsPage } from '@/pages/crm/CRMSegmentsPage';
+import CRMSegmentsBetaPage from '@/pages/crm/CRMSegmentsBetaPage';
 import { CRMPersonasPage } from '@/pages/crm/CRMPersonasPage';
 import AddCustomer from '@/pages/crm/AddCustomer';
 import { CustomerDetailPage } from '@/pages/crm/CustomerDetailPage';
@@ -239,6 +240,13 @@ function App() {
             <ProtectedRoute>
               <SidebarLayout>
                 <CRMCampaignsPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/segments/beta" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <CRMSegmentsBetaPage />
               </SidebarLayout>
             </ProtectedRoute>
           } />
