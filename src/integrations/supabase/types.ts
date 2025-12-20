@@ -2033,8 +2033,6 @@ export type Database = {
       }
       crm_customers: {
         Row: {
-          avg_time_to_click_minutes: number | null
-          avg_time_to_open_minutes: number | null
           city: string | null
           clover_customer_id: string | null
           clover_last_synced_at: string | null
@@ -2042,14 +2040,9 @@ export type Database = {
           created_at: string | null
           custom_fields: Json | null
           email: string
-          email_bounce_rate: number | null
-          email_click_rate: number | null
           email_consent_ip: string | null
           email_consent_method: string | null
           email_consent_source: string | null
-          email_ctor: number | null
-          email_engagement_score: number | null
-          email_open_rate: number | null
           email_opt_in: boolean | null
           email_opt_in_at: string | null
           email_opt_out_at: string | null
@@ -2058,10 +2051,6 @@ export type Database = {
           footer_last_sent_at: string | null
           id: string
           is_vip: boolean
-          last_email_bounced_at: string | null
-          last_email_clicked_at: string | null
-          last_email_delivered_at: string | null
-          last_email_sent_at: string | null
           last_name: string | null
           last_open_at: string | null
           last_purchase_date: string | null
@@ -2100,21 +2089,11 @@ export type Database = {
           tags: string[] | null
           tenant_id: string | null
           timezone: string | null
-          total_emails_bounced: number | null
-          total_emails_clicked: number | null
-          total_emails_delivered: number | null
-          total_emails_opened: number | null
-          total_emails_sent: number | null
-          total_hard_bounces: number | null
-          total_soft_bounces: number | null
           total_spent: number | null
-          total_unsubscribes: number | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
-          avg_time_to_click_minutes?: number | null
-          avg_time_to_open_minutes?: number | null
           city?: string | null
           clover_customer_id?: string | null
           clover_last_synced_at?: string | null
@@ -2122,14 +2101,9 @@ export type Database = {
           created_at?: string | null
           custom_fields?: Json | null
           email: string
-          email_bounce_rate?: number | null
-          email_click_rate?: number | null
           email_consent_ip?: string | null
           email_consent_method?: string | null
           email_consent_source?: string | null
-          email_ctor?: number | null
-          email_engagement_score?: number | null
-          email_open_rate?: number | null
           email_opt_in?: boolean | null
           email_opt_in_at?: string | null
           email_opt_out_at?: string | null
@@ -2138,10 +2112,6 @@ export type Database = {
           footer_last_sent_at?: string | null
           id?: string
           is_vip?: boolean
-          last_email_bounced_at?: string | null
-          last_email_clicked_at?: string | null
-          last_email_delivered_at?: string | null
-          last_email_sent_at?: string | null
           last_name?: string | null
           last_open_at?: string | null
           last_purchase_date?: string | null
@@ -2180,21 +2150,11 @@ export type Database = {
           tags?: string[] | null
           tenant_id?: string | null
           timezone?: string | null
-          total_emails_bounced?: number | null
-          total_emails_clicked?: number | null
-          total_emails_delivered?: number | null
-          total_emails_opened?: number | null
-          total_emails_sent?: number | null
-          total_hard_bounces?: number | null
-          total_soft_bounces?: number | null
           total_spent?: number | null
-          total_unsubscribes?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
-          avg_time_to_click_minutes?: number | null
-          avg_time_to_open_minutes?: number | null
           city?: string | null
           clover_customer_id?: string | null
           clover_last_synced_at?: string | null
@@ -2202,14 +2162,9 @@ export type Database = {
           created_at?: string | null
           custom_fields?: Json | null
           email?: string
-          email_bounce_rate?: number | null
-          email_click_rate?: number | null
           email_consent_ip?: string | null
           email_consent_method?: string | null
           email_consent_source?: string | null
-          email_ctor?: number | null
-          email_engagement_score?: number | null
-          email_open_rate?: number | null
           email_opt_in?: boolean | null
           email_opt_in_at?: string | null
           email_opt_out_at?: string | null
@@ -2218,10 +2173,6 @@ export type Database = {
           footer_last_sent_at?: string | null
           id?: string
           is_vip?: boolean
-          last_email_bounced_at?: string | null
-          last_email_clicked_at?: string | null
-          last_email_delivered_at?: string | null
-          last_email_sent_at?: string | null
           last_name?: string | null
           last_open_at?: string | null
           last_purchase_date?: string | null
@@ -2260,15 +2211,7 @@ export type Database = {
           tags?: string[] | null
           tenant_id?: string | null
           timezone?: string | null
-          total_emails_bounced?: number | null
-          total_emails_clicked?: number | null
-          total_emails_delivered?: number | null
-          total_emails_opened?: number | null
-          total_emails_sent?: number | null
-          total_hard_bounces?: number | null
-          total_soft_bounces?: number | null
           total_spent?: number | null
-          total_unsubscribes?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -4319,45 +4262,33 @@ export type Database = {
       }
       email_tracking_events: {
         Row: {
-          bounce_type: string | null
           campaign_id: string
           created_at: string
           customer_email: string
-          customer_id: string | null
           event_data: Json | null
           event_type: string
           id: string
           ip_address: unknown
-          sent_at: string | null
-          time_to_event_seconds: number | null
           user_agent: string | null
         }
         Insert: {
-          bounce_type?: string | null
           campaign_id: string
           created_at?: string
           customer_email: string
-          customer_id?: string | null
           event_data?: Json | null
           event_type: string
           id?: string
           ip_address?: unknown
-          sent_at?: string | null
-          time_to_event_seconds?: number | null
           user_agent?: string | null
         }
         Update: {
-          bounce_type?: string | null
           campaign_id?: string
           created_at?: string
           customer_email?: string
-          customer_id?: string | null
           event_data?: Json | null
           event_type?: string
           id?: string
           ip_address?: unknown
-          sent_at?: string | null
-          time_to_event_seconds?: number | null
           user_agent?: string | null
         }
         Relationships: [
@@ -4366,20 +4297,6 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "crm_campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "email_tracking_events_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "crm_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "email_tracking_events_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customer_360_enriched"
             referencedColumns: ["id"]
           },
         ]
@@ -9659,10 +9576,6 @@ export type Database = {
           compressed_size_bytes: number
           original_size_bytes: number
         }
-        Returns: undefined
-      }
-      update_customer_email_metrics: {
-        Args: { p_customer_id: string }
         Returns: undefined
       }
       update_domain_warmup: {

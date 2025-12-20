@@ -77,24 +77,11 @@ const FIELD_CATEGORIES = [
   {
     label: '📧 Email Engagement',
     fields: [
-      { value: 'total_emails_sent', label: 'Emails Sent', type: 'number', icon: Mail },
-      { value: 'total_emails_delivered', label: 'Emails Delivered', type: 'number', icon: Mail },
-      { value: 'total_emails_opened', label: 'Emails Opened', type: 'number', icon: Mail },
-      { value: 'total_emails_clicked', label: 'Emails Clicked', type: 'number', icon: MousePointer },
-      { value: 'total_emails_bounced', label: 'Emails Bounced', type: 'number', icon: Mail },
-      { value: 'total_soft_bounces', label: 'Soft Bounces', type: 'number', icon: Mail },
-      { value: 'total_hard_bounces', label: 'Hard Bounces', type: 'number', icon: Mail },
-      { value: 'email_open_rate', label: 'Open Rate (0-1)', type: 'number', icon: Mail },
-      { value: 'email_click_rate', label: 'Click Rate / CTR (0-1)', type: 'number', icon: MousePointer },
-      { value: 'email_ctor', label: 'Click-to-Open Rate (0-1)', type: 'number', icon: MousePointer },
-      { value: 'email_bounce_rate', label: 'Bounce Rate (0-1)', type: 'number', icon: Mail },
-      { value: 'avg_time_to_open_minutes', label: 'Avg Time to Open (min)', type: 'number', icon: Mail },
-      { value: 'avg_time_to_click_minutes', label: 'Avg Time to Click (min)', type: 'number', icon: MousePointer },
-      { value: 'last_open_at', label: 'Last Email Opened', type: 'date', icon: Mail },
-      { value: 'last_email_sent_at', label: 'Last Email Sent', type: 'date', icon: Mail },
-      { value: 'last_email_clicked_at', label: 'Last Email Clicked', type: 'date', icon: MousePointer },
-      { value: 'last_email_bounced_at', label: 'Last Email Bounced', type: 'date', icon: Mail },
-      { value: 'email_engagement_score', label: 'Email Engagement Score (0-100)', type: 'number', icon: Sparkles },
+      { value: 'engagement_metrics->email->>open_rate', label: 'Email Open Rate (%)', type: 'number', icon: Mail },
+      { value: 'engagement_metrics->email->>total_opened', label: 'Emails Opened (count)', type: 'number', icon: Mail },
+      { value: 'engagement_metrics->email->>total_clicked', label: 'Emails Clicked (count)', type: 'number', icon: MousePointer },
+      { value: 'engagement_metrics->email->>click_rate', label: 'Email Click Rate (%)', type: 'number', icon: MousePointer },
+      { value: 'engagement_metrics->email->>last_opened_at', label: 'Last Email Open Date', type: 'date', icon: Mail },
     ]
   },
   {
@@ -108,9 +95,9 @@ const FIELD_CATEGORIES = [
   {
     label: '⭐ Overall Engagement',
     fields: [
-      { value: 'email_engagement_score', label: 'Email Engagement Score (0-100)', type: 'number', icon: Sparkles },
-      { value: 'engagement_metrics->overall->>engagement_tier', label: 'Engagement Tier', type: 'select', options: ['highly_engaged', 'engaged', 'moderately_engaged', 'low_engagement', 'inactive'], icon: TrendingUp },
-      { value: 'last_open_at', label: 'Last Email Engagement Date', type: 'date', icon: Sparkles },
+      { value: 'engagement_metrics->overall->>engagement_score', label: 'Engagement Score (0-100)', type: 'number', icon: Sparkles },
+      { value: 'engagement_metrics->overall->>engagement_tier', label: 'Engagement Tier', type: 'select', options: ['hot', 'warm', 'cold', 'dormant'], icon: TrendingUp },
+      { value: 'engagement_metrics->overall->>last_engagement_at', label: 'Last Any Engagement Date', type: 'date', icon: Sparkles },
       { value: 'days_since_last_engagement', label: 'Days Since Engagement', type: 'number', icon: Sparkles },
     ]
   },
