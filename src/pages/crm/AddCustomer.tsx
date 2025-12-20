@@ -36,10 +36,17 @@ type CustomerFormData = {
   persona?: string; // Legacy string - not used, will be null
   tags: string[];
   sms_opt_in: boolean;
+  email_opt_in: boolean;
   lifetime_value: number;
   last_purchase_date: string;
   custom_fields: Record<string, any>;
   notes: string;
+  // Identity & Profile Behavior Metrics
+  signup_source: string;
+  preferred_channel: string;
+  city?: string;
+  state_region?: string;
+  postal_code?: string;
 };
 
 const AddCustomer = () => {
@@ -58,10 +65,17 @@ const AddCustomer = () => {
     persona: '',
     tags: [],
     sms_opt_in: false,
+    email_opt_in: false,
     lifetime_value: 0,
     last_purchase_date: '',
     custom_fields: {},
-    notes: ''
+    notes: '',
+    // Identity & Profile Behavior Metrics
+    signup_source: 'manual',
+    preferred_channel: 'none',
+    city: '',
+    state_region: '',
+    postal_code: '',
   });
 
   const [newTag, setNewTag] = useState('');
@@ -91,6 +105,18 @@ const AddCustomer = () => {
         throw new Error('You are not assigned to a tenant. Please contact support or create an organization to continue.');
       }
 
+      // Calculate preferred channel based on opt-in status
+      let preferredChannel = 'none';
+      if (customerData.email_opt_in && customerData.sms_opt_in) {
+        preferredChannel = 'both';
+      } else if (customerData.email_opt_in) {
+        preferredChannel = 'email';
+      } else if (customerData.sms_opt_in) {
+        preferredChannel = 'sms';
+      }
+
+      const now = new Date().toISOString();
+
       const dataToInsert = {
         email: customerData.email,
         first_name: customerData.first_name || null,
@@ -99,14 +125,26 @@ const AddCustomer = () => {
         persona_id: customerData.persona_id || null,
         persona: null, // clear legacy string field
         tags: customerData.tags.length > 0 ? customerData.tags : null,
+        // SMS consent
         sms_opt_in: customerData.sms_opt_in,
-        sms_opt_in_at: customerData.sms_opt_in ? new Date().toISOString() : null,
+        sms_opt_in_at: customerData.sms_opt_in ? now : null,
+        // Email consent
+        email_opt_in: customerData.email_opt_in,
+        email_opt_in_at: customerData.email_opt_in ? now : null,
+        // Purchase data
         last_purchase_date: customerData.last_purchase_date || null,
         lifetime_value: customerData.lifetime_value || null,
         custom_fields: {
           ...customerData.custom_fields,
           notes: customerData.notes
         },
+        // Identity & Profile Behavior Metrics
+        signup_source: customerData.signup_source || 'manual',
+        preferred_channel: preferredChannel,
+        city: customerData.city || null,
+        state_region: customerData.state_region || null,
+        postal_code: customerData.postal_code || null,
+        // Standard fields
         user_id: user.id,
         tenant_id: tenant.id
       };
@@ -385,7 +423,7 @@ const AddCustomer = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Tag className="h-5 w-5" />
-                Tags & Interests
+                Tags & Communication
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -426,6 +464,77 @@ const AddCustomer = () => {
                   <MessageSquare className="h-4 w-4" />
                   SMS Marketing Opt-in
                 </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="email_opt_in"
+                  checked={formData.email_opt_in}
+                  onCheckedChange={(checked) => handleInputChange('email_opt_in', checked)}
+                />
+                <Label htmlFor="email_opt_in" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Email Marketing Opt-in
+                </Label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Identity & Location */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Source & Location
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="signup_source">Signup Source</Label>
+                <NativeSelect
+                  value={formData.signup_source}
+                  onChange={(e) => handleInputChange('signup_source', e.target.value)}
+                  options={[
+                    { value: 'manual', label: 'Manual Entry' },
+                    { value: 'organic', label: 'Organic (Website)' },
+                    { value: 'paid', label: 'Paid Advertising' },
+                    { value: 'referral', label: 'Referral' },
+                    { value: 'qr_code', label: 'QR Code' },
+                    { value: 'event', label: 'Event / Trade Show' },
+                    { value: 'walk_in', label: 'Walk-in' },
+                  ]}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    value={formData.city}
+                    onChange={(e) => handleInputChange('city', e.target.value)}
+                    placeholder="City"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="state_region">State / Region</Label>
+                  <Input
+                    id="state_region"
+                    value={formData.state_region}
+                    onChange={(e) => handleInputChange('state_region', e.target.value)}
+                    placeholder="State"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="postal_code">Postal Code</Label>
+                <Input
+                  id="postal_code"
+                  value={formData.postal_code}
+                  onChange={(e) => handleInputChange('postal_code', e.target.value)}
+                  placeholder="Zip / Postal Code"
+                />
               </div>
             </CardContent>
           </Card>

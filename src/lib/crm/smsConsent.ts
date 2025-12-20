@@ -91,6 +91,22 @@ export async function recordSMSConsentEvent(params: {
 }
 
 /**
+ * Calculate the preferred channel based on opt-in status
+ */
+function calculatePreferredChannel(customer: {
+  email_opt_in: boolean | null;
+  sms_opt_in: boolean | null;
+}): 'email' | 'sms' | 'both' | 'none' {
+  const hasEmail = customer.email_opt_in === true;
+  const hasSMS = customer.sms_opt_in === true;
+
+  if (hasEmail && hasSMS) return 'both';
+  if (hasEmail) return 'email';
+  if (hasSMS) return 'sms';
+  return 'none';
+}
+
+/**
  * Update a customer's SMS consent status and record the event
  */
 export async function updateCustomerSMSConsent(params: {
@@ -103,21 +119,56 @@ export async function updateCustomerSMSConsent(params: {
   userAgent?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    const now = new Date().toISOString();
+    
+    // Build update data with opt-in/opt-out timestamps
+    const updateData: Record<string, any> = {
+      sms_opt_in: params.optIn,
+      sms_consent_source: params.source,
+      opt_out: !params.optIn,
+      updated_at: now,
+    };
+
+    if (params.optIn) {
+      updateData.sms_opt_in_at = now;
+      updateData.sms_opt_out_at = null; // Clear opt-out timestamp
+    } else {
+      updateData.sms_opt_out_at = now;
+      // Keep sms_opt_in_at for historical purposes
+    }
+
     // Update the customer record
     const { error: updateError } = await supabase
       .from('crm_customers')
-      .update({
-        sms_opt_in: params.optIn,
-        sms_opt_in_at: params.optIn ? new Date().toISOString() : null,
-        sms_consent_source: params.source,
-        opt_out: !params.optIn,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', params.customerId);
 
     if (updateError) {
       console.error('Failed to update customer SMS consent:', updateError);
       return { success: false, error: updateError.message };
+    }
+
+    // Also update preferred_channel based on new consent status
+    try {
+      const { data: customer } = await supabase
+        .from('crm_customers')
+        .select('email_opt_in, sms_opt_in')
+        .eq('id', params.customerId)
+        .single();
+
+      if (customer) {
+        const preferredChannel = calculatePreferredChannel({
+          email_opt_in: customer.email_opt_in,
+          sms_opt_in: params.optIn, // Use the new value
+        });
+
+        await supabase
+          .from('crm_customers')
+          .update({ preferred_channel: preferredChannel })
+          .eq('id', params.customerId);
+      }
+    } catch (channelError) {
+      console.warn('Failed to update preferred channel:', channelError);
     }
 
     // Record the consent event

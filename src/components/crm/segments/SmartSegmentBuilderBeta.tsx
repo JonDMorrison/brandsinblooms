@@ -38,6 +38,23 @@ interface SegmentBuilderProps {
 // Field options organized by category
 const FIELD_CATEGORIES = [
   {
+    label: '🆔 Identity & Profile',
+    fields: [
+      { value: 'signup_source', label: 'Signup Source', type: 'select', options: ['manual', 'organic', 'paid', 'referral', 'qr_code', 'pos_square', 'pos_clover', 'import', 'api', 'event', 'walk_in'] },
+      { value: 'preferred_channel', label: 'Preferred Channel', type: 'select', options: ['email', 'sms', 'both', 'none'] },
+      { value: 'created_at', label: 'Signup Date', type: 'date' },
+      { value: 'sms_opt_in_at', label: 'SMS Opt-In Date', type: 'date' },
+      { value: 'email_opt_in_at', label: 'Email Opt-In Date', type: 'date' },
+      { value: 'sms_opt_out_at', label: 'SMS Opt-Out Date', type: 'date' },
+      { value: 'email_opt_out_at', label: 'Email Opt-Out Date', type: 'date' },
+      { value: 'city', label: 'City', type: 'text' },
+      { value: 'state_region', label: 'State / Region', type: 'text' },
+      { value: 'postal_code', label: 'Postal Code', type: 'text' },
+      { value: 'store_id', label: 'Store ID', type: 'text' },
+      { value: 'store_name', label: 'Store Name', type: 'text' },
+    ]
+  },
+  {
     label: '📊 Purchase Behavior',
     fields: [
       { value: 'enriched_total_spent', label: 'Total Spent', type: 'number' },
